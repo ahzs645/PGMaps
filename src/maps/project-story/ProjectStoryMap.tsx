@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Map, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
+import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
@@ -320,8 +320,8 @@ function StoryNarrative({
                     </span>
                   </div>
 
-                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground">{scene.title}</h2>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground">{scene.text}</p>
+                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground md:text-base">{scene.title}</h2>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground md:text-sm md:leading-6">{scene.text}</p>
 
                   {scene.callout && (
                     <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
@@ -358,8 +358,15 @@ function StoryNarrative({
  * Mapbox/MapLibre storytelling-template layout: the map is a fullscreen
  * backdrop and chapter cards scroll over it, with scroll position driving the
  * active scene. Cards align left on wide screens and collapse to center on
- * phones, as the template does below its mobile breakpoint. The scroll layer
- * owns the pointer, so the map is not directly interactive mid-story.
+ * phones, as the template does below its mobile breakpoint.
+ *
+ * On desktop the scroll layer only claims the pointer where a card actually
+ * is, so the map behind stays pannable — the template does the same with
+ * `pointer-events: none` on its story container. A wheel over the exposed map
+ * is forwarded to the story scroller (and map scroll-zoom is switched off in
+ * `ProjectStoryMap`), so scrolling still moves the story wherever the cursor
+ * sits. Touch keeps the old full-layer capture: a phone has no wheel, and a
+ * pass-through would hand every story swipe to the map.
  */
 function ScrollyStory({
   project,
@@ -368,6 +375,7 @@ function ScrollyStory({
   accent,
   onBack,
   onSelectScene,
+  onStepScene,
   scrollRef,
   cardRefs,
   chrome,
@@ -379,25 +387,44 @@ function ScrollyStory({
   accent: string
   onBack: () => void
   onSelectScene: (index: number) => void
+  onStepScene: (direction: number) => void
   scrollRef: React.RefObject<HTMLDivElement>
   cardRefs: React.MutableRefObject<Array<HTMLElement | null>>
   chrome: React.ReactNode
   children: React.ReactNode
 }) {
   const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
+  const mapLayerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const layer = mapLayerRef.current
+    if (!layer) return
+    // Non-passive: the wheel belongs to the story, not to the page or the map.
+    const onWheel = (event: WheelEvent) => {
+      const scroller = scrollRef.current
+      if (!scroller) return
+      event.preventDefault()
+      scroller.scrollTop += event.deltaY
+    }
+    layer.addEventListener('wheel', onWheel, { passive: false })
+    return () => layer.removeEventListener('wheel', onWheel)
+  }, [scrollRef])
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <div className="absolute inset-0">{children}</div>
+      <div ref={mapLayerRef} className="absolute inset-0">{children}</div>
 
-      <div ref={scrollRef} className="absolute inset-0 z-10 overflow-y-auto overscroll-contain">
+      <div
+        ref={scrollRef}
+        className="absolute inset-0 z-10 overflow-y-auto overscroll-contain md:pointer-events-none"
+      >
         <header className="flex min-h-[55svh] items-end justify-center px-4 pb-[10svh] pt-24 md:justify-start md:pl-12">
-          <div className="w-full max-w-md rounded-lg border bg-background/90 p-5 shadow-lg backdrop-blur">
+          <div className="pointer-events-auto w-full max-w-md rounded-lg border bg-background/90 p-5 shadow-lg backdrop-blur md:max-w-lg md:p-6">
             <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
               Map story
             </div>
-            <h1 className="mt-1 text-xl font-bold leading-tight text-foreground">{project.title}</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
+            <h1 className="mt-1 text-xl font-bold leading-tight text-foreground md:text-2xl">{project.title}</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground md:text-base md:leading-7">{project.summary}</p>
             <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               Scroll to move through the story
               <ArrowDown className="h-3.5 w-3.5" />
@@ -418,7 +445,7 @@ function ScrollyStory({
                 }}
                 data-scene-index={index}
                 className={cn(
-                  'w-full max-w-md transition-opacity duration-300',
+                  'pointer-events-auto w-full max-w-md transition-opacity duration-300 md:max-w-lg',
                   active ? 'opacity-100' : 'opacity-45',
                 )}
               >
@@ -426,7 +453,7 @@ function ScrollyStory({
                   type="button"
                   onClick={() => onSelectScene(index)}
                   aria-current={active ? 'step' : undefined}
-                  className="w-full rounded-lg border bg-background/90 p-4 text-left shadow-lg backdrop-blur"
+                  className="w-full rounded-lg border bg-background/90 p-4 text-left shadow-lg backdrop-blur md:p-5"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
@@ -439,14 +466,14 @@ function ScrollyStory({
                       {String(index + 1).padStart(2, '0')}
                     </span>
                   </div>
-                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground">{scene.title}</h2>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground">{scene.text}</p>
+                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground md:text-lg">{scene.title}</h2>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground md:text-sm md:leading-7">{scene.text}</p>
                   {scene.callout && (
                     <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
                       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {scene.callout.label}
                       </div>
-                      <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
+                      <div className="mt-0.5 text-sm font-bold text-foreground md:text-base">{scene.callout.value}</div>
                       {scene.callout.detail && (
                         <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
                       )}
@@ -463,7 +490,7 @@ function ScrollyStory({
         })}
 
         <footer className="flex min-h-[45svh] items-start justify-center px-4 pb-[30svh] pt-10 md:justify-start md:pl-12">
-          <div className="w-full max-w-md rounded-lg border bg-background/90 p-4 text-xs leading-5 text-muted-foreground shadow-lg backdrop-blur">
+          <div className="pointer-events-auto w-full max-w-md rounded-lg border bg-background/90 p-4 text-xs leading-5 text-muted-foreground shadow-lg backdrop-blur md:max-w-lg md:text-sm md:leading-6">
             {project.sourceNote}
           </div>
         </footer>
@@ -478,23 +505,54 @@ function ScrollyStory({
       <button
         type="button"
         onClick={onBack}
-        className="absolute right-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
+        className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         All projects
       </button>
-      {/* On phones the centered card lane spans the full width, so any fixed
-          chrome would sit on top of it — the Mapbox template ships none there
-          either. Wide screens keep the legend clear of the left card lane. */}
-      <div className="pointer-events-none absolute inset-0 z-20 hidden md:block">{chrome}</div>
+      {/* Long stories are a lot of wheel on a desktop screen; the stepper jumps
+          a scene at a time without giving up the scroll-driven reading. */}
+      <div className="absolute left-3 top-14 z-20 hidden items-center gap-1 rounded-md border bg-background/90 px-1 py-1 shadow-sm backdrop-blur md:flex">
+        <button
+          type="button"
+          onClick={() => onStepScene(-1)}
+          disabled={activeSceneIndex === 0}
+          aria-label="Previous scene"
+          className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="px-1 text-xs font-medium tabular-nums text-muted-foreground">
+          {activeSceneIndex + 1}/{scenes.length}
+        </span>
+        <button
+          type="button"
+          onClick={() => onStepScene(1)}
+          disabled={activeSceneIndex >= scenes.length - 1}
+          aria-label="Next scene"
+          className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      {/* The legend belongs on phones too — a choropleth story is unreadable
+          without it. It sits in the corner the centered card lane leaves free
+          and starts collapsed there, so it costs a pill-sized bite of map. */}
+      <div className="pointer-events-none absolute inset-0 z-20">{chrome}</div>
     </div>
   )
 }
-
 /**
  * KnightLab StoryMapJS layout: map on top, a slide pane below with arrow
  * gutters at its edges, dot navigation, keyboard arrows, and horizontal
  * swipe on touch. Slides step discretely; the camera flies between them.
+ *
+ * The pane sizes itself to the story rather than to a fixed fraction of the
+ * viewport: every slide is rendered stacked in one grid cell, so the cell is
+ * as tall as the longest slide and the pane height never changes as the
+ * reader steps (a pane that resized per slide would resize the map under it).
+ * A cap keeps the map's share of the screen; past it the pane scrolls, and a
+ * fade at its foot says so.
  */
 function SlidesStory({
   project,
@@ -519,7 +577,6 @@ function SlidesStory({
   chrome: React.ReactNode
   children: React.ReactNode
 }) {
-  const scene = scenes[activeSceneIndex]
   const isMobile = useIsMobile()
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(false)
@@ -616,7 +673,7 @@ function SlidesStory({
       </div>
 
       <div
-        className="relative flex h-[42svh] shrink-0 flex-col border-t bg-background md:h-[38%]"
+        className="relative flex max-h-[58svh] shrink-0 flex-col border-t bg-background md:max-h-[58%]"
         onTouchStart={(event) => {
           const touch = event.touches[0]
           touchStartRef.current = { x: touch.clientX, y: touch.clientY }
@@ -632,7 +689,7 @@ function SlidesStory({
           onClick={() => onStepScene(-1)}
           disabled={activeSceneIndex === 0}
           aria-label="Previous scene"
-          className="absolute inset-y-0 left-0 z-10 flex w-11 items-center justify-center border-r bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
+          className="absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center border-r bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
@@ -641,36 +698,58 @@ function SlidesStory({
           onClick={() => onStepScene(1)}
           disabled={activeSceneIndex >= scenes.length - 1}
           aria-label="Next scene"
-          className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center border-l bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
+          className="absolute inset-y-0 right-0 z-10 flex w-10 items-center justify-center border-l bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
         >
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-14 py-5 md:px-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
-              {scene?.kicker ?? scene?.label}
-            </div>
-            <h2 className="mt-1 text-lg font-bold leading-snug text-foreground md:text-2xl">{scene?.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground md:leading-7">{scene?.text}</p>
-            {scene?.callout && (
-              <div className="mx-auto mt-3 max-w-md rounded-md border bg-muted/30 p-2.5 text-left">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {scene.callout.label}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-12 py-4 md:px-24 md:py-6">
+            {/* One grid cell, every slide stacked in it: the cell is as tall as
+                the longest slide, so stepping never resizes the pane. */}
+            <div className="mx-auto grid max-w-2xl">
+              {scenes.map((slide, index) => (
+                <div
+                  key={`${slide.label}-${index}`}
+                  aria-hidden={index !== activeSceneIndex}
+                  className={cn(
+                    'col-start-1 row-start-1 text-center',
+                    index !== activeSceneIndex && 'invisible',
+                  )}
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
+                    {slide.kicker ?? slide.label}
+                  </div>
+                  <h2 className="mt-1 text-lg font-bold leading-snug text-foreground md:text-2xl">{slide.title}</h2>
+                  {/* Left-aligned body: centred copy in a phone-width column
+                      breaks into ragged two- and three-word lines. */}
+                  <p className="mt-2 text-left text-sm leading-6 text-muted-foreground md:text-base md:leading-7">
+                    {slide.text}
+                  </p>
+                  {slide.callout && (
+                    <div className="mx-auto mt-3 max-w-md rounded-md border bg-muted/30 p-2.5 text-left">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {slide.callout.label}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-foreground md:text-base">{slide.callout.value}</div>
+                      {slide.callout.detail && (
+                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{slide.callout.detail}</div>
+                      )}
+                    </div>
+                  )}
+                  {slide.focus && (
+                    <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
+                      <span>{slide.focus}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
-                {scene.callout.detail && (
-                  <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
-                )}
-              </div>
-            )}
-            {scene?.focus && (
-              <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-                <span>{scene.focus}</span>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
+          {/* Fade at the foot of the pane: on a short viewport the tallest
+              slide outgrows the cap, and nothing else says there is more. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent" />
         </div>
 
         <div className="flex items-center justify-center gap-2 border-t px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
@@ -748,6 +827,19 @@ export function ProjectStoryMap({
   } | null>(null)
 
   const activeScene = scenes[activeSceneIndex]
+
+  const attachMap = useCallback(
+    (instance: MapLibreGL.Map | null) => {
+      mapRef.current = instance
+      // Scrolly hands the wheel to the story; a map that also zoomed on wheel
+      // would fight it. Every other layout keeps the standard behaviour.
+      if (instance) {
+        if (options.layout === 'scrolly') instance.scrollZoom.disable()
+        else instance.scrollZoom.enable()
+      }
+    },
+    [options.layout],
+  )
 
   // NB: `Map` here is the map component, so use a record rather than a global Map.
   const layerLabels = useMemo(
@@ -943,17 +1035,24 @@ export function ProjectStoryMap({
   const mapCanvas = (
     <>
       <Map
-        ref={mapRef}
+        ref={attachMap}
         className="h-full w-full"
         center={initialCamera.center}
         zoom={initialCamera.zoom}
         minZoom={config.map.minZoom}
         maxZoom={config.map.maxZoom}
         styles={mapStyles}
-        // 'hidden' removes the zoom/compass controls; scrolly drops them
-        // regardless, since its scroll overlay owns the pointer and would
-        // leave them as unreachable dead chrome.
-        controls={options.mapControls === 'hidden' || options.layout === 'scrolly' ? null : undefined}
+        // 'hidden' removes the zoom/compass controls. Scrolly keeps them on
+        // desktop only, where the story layer lets the pointer through to the
+        // map; on a phone the card lane covers the map and they would be dead
+        // chrome over the story.
+        controls={
+          options.mapControls === 'hidden'
+            ? null
+            : options.layout === 'scrolly'
+              ? <MapControls position="top-right" showZoom showCompass className="max-md:hidden" />
+              : undefined
+        }
       >
 
         {resolvedLayers.map((resolved) => {
@@ -1098,7 +1197,14 @@ export function ProjectStoryMap({
         // overlay, so the panel re-enables its own pointer events. In slides
         // mode the phone-sized map pane keeps its zoom controls bottom-right,
         // so the legend moves to the opposite corner there.
-        className={cn('pointer-events-auto', options.layout === 'slides' && 'max-md:left-3 max-md:right-auto')}
+        className={cn(
+          'pointer-events-auto',
+          options.layout === 'slides' && 'max-md:left-3 max-md:right-auto',
+          // Scrolly's card lane spans a phone's full width, so the bottom
+          // corners are card territory; the legend takes the top corner the
+          // cards never reach, clear of the floating mobile toolbar.
+          options.layout === 'scrolly' && 'max-md:bottom-auto max-md:top-16',
+        )}
         collapsible
         width="fit"
         // 'auto' collapses on mobile, where the expanded panel would cover
@@ -1145,6 +1251,7 @@ export function ProjectStoryMap({
         accent={accent}
         onBack={onBack}
         onSelectScene={goToScene}
+        onStepScene={stepScene}
         scrollRef={scrollRef}
         cardRefs={cardRefs}
         chrome={mapChrome}

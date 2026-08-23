@@ -108,11 +108,19 @@ optional; omitted fields keep the defaults shown here:
     ([mapbox/storytelling](https://github.com/mapbox/storytelling),
     [opengeos/maplibre-gl-storymaps](https://github.com/opengeos/maplibre-gl-storymaps)):
     fullscreen map with chapter cards scrolling over it, left-aligned on wide
-    screens and centered on phones, scroll position driving the camera. The
-    scroll layer owns the pointer, so the map is a backdrop during the story.
+    screens and centered on phones, scroll position driving the camera. On
+    desktop the story layer only claims the pointer where a card actually is,
+    so the map behind stays pannable and keeps its zoom controls; a wheel over
+    the bare map still scrolls the story. On phones the card lane covers the
+    map, so the story layer keeps the whole surface — otherwise every swipe
+    would pan the map instead of moving the story.
   - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
     map on top, a slide pane below with arrow gutters, dot navigation, keyboard
-    arrows, and horizontal swipe on touch. The map stays interactive.
+    arrows, and horizontal swipe on touch. The map stays interactive. The pane
+    is as tall as the story's longest slide rather than a fixed fraction of the
+    screen, so no slide is cut off and stepping never resizes the map; on a
+    short screen it stops at 58% and the slide scrolls, with a fade at its foot
+    marking the overflow.
   The mobile-sheet options below apply only to `"panel"`.
 - `sceneTransition` — camera motion between scenes: `"ease"` (straight
   interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
@@ -131,9 +139,10 @@ optional; omitted fields keep the defaults shown here:
   to give the title the full width (the drag handle still expands the sheet).
   Reduced-motion readers keep the static truncated title.
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
-  mobile only), `"always"`, or `"never"`.
+  mobile only), `"always"`, or `"never"`. In `scrolly` the panel sits top-right
+  on phones, the one corner the centred card lane never reaches.
 - `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
-  layouts drop them regardless, since the scroll overlay owns the pointer.
+  layouts keep them on desktop only, where the pointer reaches the map.
 - `slidesSwipeHint` — slides layout only: on touch screens, show a
   KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
   or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide
