@@ -96,6 +96,7 @@ const FEATURED_PROJECT_SLUGS = [
   'nechako-watershed-research-portal',
   'roadless-areas-bc-ecoregions',
   'bc-big-tree-registry',
+  'inaturalist-species-at-risk-bc',
   'air-quality-bylaws-bc',
   'fine-particulate-matter-bc',
   'ground-level-ozone-bc',

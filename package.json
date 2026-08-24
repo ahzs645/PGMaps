@@ -112,6 +112,7 @@
     "projects:index": "node scripts/generate-project-index.mjs",
     "projects:index:check": "node scripts/generate-project-index.mjs --check",
     "projects:build": "tsx scripts/generate-scorebuilder-projects.ts && npm run projects:index",
+    "bcforestmap:inaturalist-species-at-risk:import": "npm --prefix vendor/bcdatamapper run bcforestmap:inaturalist-species-at-risk:import --",
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
     "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",

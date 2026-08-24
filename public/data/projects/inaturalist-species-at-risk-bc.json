@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "slug": "inaturalist-species-at-risk-bc",
+  "title": "iNaturalist Species-at-Risk Observations",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "iNaturalist community observations",
+  "updated": "July 2021 snapshot",
+  "region": "British Columbia",
+  "status": "Historical reference snapshot",
+  "summary": "Explore 17,939 historical iNaturalist observation points across 826 taxa, then compare the snapshot by taxonomic group, observation period, positional accuracy, and observation frequency.",
+  "sourceNote": "This project reconstructs the supplied BC Forest Map vector-tile mirror, created in July 2021 from iNaturalist observations. Its embedded Tippecanoe recipe selected taxa flagged threatened by iNaturalist and public points with positional accuracy below 100 metres. It is a processed historical snapshot, not a live iNaturalist query or an official B.C. species-at-risk occurrence database.",
+  "details": [
+    "The maximum-zoom tiles contain 17,939 unique observation IDs representing 826 taxon IDs. Duplicate tile-edge copies are removed deterministically.",
+    "Plants account for 8,203 observations, birds for 7,033, and amphibians for 1,081; the remaining 1,622 observations span mammals, insects, fungi, reptiles, molluscs, fishes, and other animals.",
+    "Every retained point has a public positional-accuracy value below 50 metres: 8,315 are under 10 metres, 5,770 are 10–24 metres, and 3,854 are 25–49 metres.",
+    "Observation density reflects where people looked, what they recognized, source filtering, and public-coordinate rules. It must not be interpreted as abundance, habitat suitability, or confirmed absence."
+  ],
+  "links": [
+    { "label": "Current iNaturalist observations", "href": "https://www.inaturalist.org/observations" },
+    { "label": "BC Forest Map", "href": "https://www.bcforestmap.com/" }
+  ],
+  "catalogMetrics": [
+    { "label": "Observations", "value": "17,939" },
+    { "label": "Taxa", "value": "826" },
+    { "label": "Observation years", "value": "1980–2021" }
+  ],
+  "layers": [
+    { "id": "observations-groups", "label": "Taxonomic group", "type": "point", "checked": true },
+    { "id": "observations-periods", "label": "Observation period", "type": "point", "checked": false },
+    { "id": "observations-accuracy", "label": "Positional accuracy", "type": "point", "checked": false },
+    { "id": "observations-frequency", "label": "Taxon observation frequency", "type": "point", "checked": false }
+  ],
+  "legend": [
+    { "label": "Plants", "color": "#15803d" },
+    { "label": "Birds", "color": "#2563eb" },
+    { "label": "Amphibians", "color": "#7c3aed" },
+    { "label": "Other taxonomic groups", "color": "#d97706" }
+  ],
+  "scenes": [
+    {
+      "label": "Taxonomic groups",
+      "kicker": "01 · What was observed",
+      "title": "Plants and birds dominate the historical observation snapshot",
+      "text": "Plants contribute 8,203 points and birds 7,033—about 85 percent of all observations together. Amphibians contribute 1,081 points, while seven other mapped groups account for the remainder.",
+      "focus": "Observation composition by broad taxonomic group",
+      "visibleLayerIds": ["observations-groups"],
+      "callout": { "label": "Plants + birds", "value": "15,236 points", "detail": "About 85% of the 17,939 observation points." },
+      "camera": { "center": [-126.2, 52.5], "zoom": 4.35 }
+    },
+    {
+      "label": "Observation period",
+      "kicker": "02 · When observations were made",
+      "title": "Most observations were made near the end of the snapshot period",
+      "text": "The recorded dates span 1980 through 2021. Of the mapped points, 15,969 were observed from 2019 through 2021, compared with 1,317 from 2016–2018, 510 from 2010–2015, and 143 before 2010.",
+      "focus": "Observation periods, not taxon age or persistence",
+      "visibleLayerIds": ["observations-periods"],
+      "callout": { "label": "Observed 2019–2021", "value": "15,969 points", "detail": "Eighty-nine percent of the snapshot." },
+      "camera": { "center": [-124.2, 50.2], "zoom": 5.4 }
+    },
+    {
+      "label": "Accuracy",
+      "kicker": "03 · Public positional accuracy",
+      "title": "The published points are precise, but they are still observations—not habitat boundaries",
+      "text": "All 17,939 retained points report public positional accuracy below 50 metres. Nearly half are under 10 metres, while 3,854 fall in the 25–49 metre band. Overlapping coordinates and map scale can still hide individual points.",
+      "focus": "Reported public-coordinate accuracy bands",
+      "visibleLayerIds": ["observations-accuracy"],
+      "callout": { "label": "Under 10 metres", "value": "8,315 points", "detail": "The most precise reported public-coordinate band." },
+      "camera": { "center": [-123.2, 49.35], "zoom": 7.1 }
+    },
+    {
+      "label": "Observation frequency",
+      "kicker": "04 · Representation in the snapshot",
+      "title": "A few taxa account for many of the mapped observations",
+      "text": "Great Blue Heron has 1,684 observations, Anna's Hummingbird 1,289, and Western Star Flower 935. This view colours every point by its taxon's total observation count in the snapshot; a high count indicates greater representation, not a larger population.",
+      "focus": "Taxon representation within this historical dataset",
+      "visibleLayerIds": ["observations-frequency"],
+      "highlights": [
+        { "layerId": "observations-frequency", "property": "taxon_id", "values": ["4956"], "color": "#7c3aed", "dimOpacity": 0.1, "label": "Great Blue Heron" }
+      ],
+      "callout": { "label": "Most represented taxon", "value": "1,684 observations", "detail": "Great Blue Heron · Ardea herodias." },
+      "camera": { "center": [-123.2, 49.35], "zoom": 7.1 }
+    }
+  ],
+  "files": [
+    { "label": "Observation snapshot", "detail": "17,939 unique point features reconstructed from 169 maximum-zoom vector tiles" },
+    { "label": "Taxon fields", "detail": "Scientific and common names, broad group, iNaturalist taxon ID, and snapshot status metadata" },
+    { "label": "Observation fields", "detail": "Observation ID and date, public positional accuracy, and map-ready analytical bands" },
+    { "label": "Reproducible importer", "detail": "Deterministic tile decoding, observation-ID deduplication, taxon flattening, provenance digest, and sorting in BC Data Mapper" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.2, 52.5], "zoom": 4.35, "minZoom": 3.5, "maxZoom": 16, "basemap": "auto" },
+    "accent": "#15803d",
+    "options": {
+      "layout": "scrolly",
+      "sceneTransition": "fly",
+      "legendCollapsed": "auto"
+    },
+    "layers": [
+      {
+        "id": "observations-groups",
+        "data": "/data/forest/species-at-risk/inaturalist_species_at_risk.geojson",
+        "geometry": "point",
+        "idProperty": "observation_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#15803d",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.8,
+        "lineWidth": 0.75,
+        "circleRadius": 3.2,
+        "category": {
+          "property": "taxon_group",
+          "colors": {
+            "Plants": "#15803d",
+            "Birds": "#2563eb",
+            "Amphibians": "#7c3aed",
+            "Mammals": "#ea580c",
+            "Insects": "#ca8a04",
+            "Fungi": "#92400e",
+            "Reptiles": "#dc2626",
+            "Molluscs": "#db2777",
+            "Ray-finned fishes": "#0891b2",
+            "Other animals": "#64748b"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "iNaturalist community observations · BC Forest Map July 2021 snapshot"
+      },
+      {
+        "id": "observations-periods",
+        "data": "/data/forest/species-at-risk/inaturalist_species_at_risk.geojson",
+        "geometry": "point",
+        "idProperty": "observation_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#2563eb",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.8,
+        "lineWidth": 0.75,
+        "circleRadius": 3.2,
+        "category": {
+          "property": "observation_period",
+          "colors": {
+            "Before 2010": "#dbeafe",
+            "2010–2015": "#93c5fd",
+            "2016–2018": "#3b82f6",
+            "2019–2021": "#1e3a8a",
+            "Date unavailable": "#9ca3af"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "iNaturalist community observations · BC Forest Map July 2021 snapshot"
+      },
+      {
+        "id": "observations-accuracy",
+        "data": "/data/forest/species-at-risk/inaturalist_species_at_risk.geojson",
+        "geometry": "point",
+        "idProperty": "observation_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#0f766e",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.8,
+        "lineWidth": 0.75,
+        "circleRadius": 3.2,
+        "category": {
+          "property": "accuracy_band",
+          "colors": {
+            "Under 10 m": "#134e4a",
+            "10–24 m": "#14b8a6",
+            "25–49 m": "#99f6e4",
+            "50–99 m": "#fde68a",
+            "Accuracy unavailable": "#9ca3af"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "iNaturalist community observations · BC Forest Map July 2021 snapshot"
+      },
+      {
+        "id": "observations-frequency",
+        "data": "/data/forest/species-at-risk/inaturalist_species_at_risk.geojson",
+        "geometry": "point",
+        "idProperty": "observation_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#7c3aed",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.8,
+        "lineWidth": 0.75,
+        "circleRadius": 3.2,
+        "category": {
+          "property": "observation_frequency_band",
+          "colors": {
+            "Under 20 observations": "#ede9fe",
+            "20–99 observations": "#c4b5fd",
+            "100–499 observations": "#8b5cf6",
+            "500 or more observations": "#4c1d95"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "iNaturalist community observations · BC Forest Map July 2021 snapshot"
+      }
+    ],
+    "places": []
+  }
+}

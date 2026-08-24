@@ -6227,6 +6227,72 @@
         "layerCount": 5,
         "sceneCount": 5
       }
+    },
+    {
+      "file": "inaturalist-species-at-risk-bc.json",
+      "revision": "6b0c024b7acb",
+      "catalog": {
+        "slug": "inaturalist-species-at-risk-bc",
+        "title": "iNaturalist Species-at-Risk Observations",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "iNaturalist community observations",
+        "updated": "July 2021 snapshot",
+        "region": "British Columbia",
+        "status": "Historical reference snapshot",
+        "summary": "Explore 17,939 historical iNaturalist observation points across 826 taxa, then compare the snapshot by taxonomic group, observation period, positional accuracy, and observation frequency.",
+        "sourceNote": "This project reconstructs the supplied BC Forest Map vector-tile mirror, created in July 2021 from iNaturalist observations. Its embedded Tippecanoe recipe selected taxa flagged threatened by iNaturalist and public points with positional accuracy below 100 metres. It is a processed historical snapshot, not a live iNaturalist query or an official B.C. species-at-risk occurrence database.",
+        "details": [
+          "The maximum-zoom tiles contain 17,939 unique observation IDs representing 826 taxon IDs. Duplicate tile-edge copies are removed deterministically.",
+          "Plants account for 8,203 observations, birds for 7,033, and amphibians for 1,081; the remaining 1,622 observations span mammals, insects, fungi, reptiles, molluscs, fishes, and other animals.",
+          "Every retained point has a public positional-accuracy value below 50 metres: 8,315 are under 10 metres, 5,770 are 10–24 metres, and 3,854 are 25–49 metres.",
+          "Observation density reflects where people looked, what they recognized, source filtering, and public-coordinate rules. It must not be interpreted as abundance, habitat suitability, or confirmed absence."
+        ],
+        "links": [
+          {
+            "label": "Current iNaturalist observations",
+            "href": "https://www.inaturalist.org/observations"
+          },
+          {
+            "label": "BC Forest Map",
+            "href": "https://www.bcforestmap.com/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Observations",
+            "value": "17,939"
+          },
+          {
+            "label": "Taxa",
+            "value": "826"
+          },
+          {
+            "label": "Observation years",
+            "value": "1980–2021"
+          }
+        ],
+        "files": [
+          {
+            "label": "Observation snapshot",
+            "detail": "17,939 unique point features reconstructed from 169 maximum-zoom vector tiles"
+          },
+          {
+            "label": "Taxon fields",
+            "detail": "Scientific and common names, broad group, iNaturalist taxon ID, and snapshot status metadata"
+          },
+          {
+            "label": "Observation fields",
+            "detail": "Observation ID and date, public positional accuracy, and map-ready analytical bands"
+          },
+          {
+            "label": "Reproducible importer",
+            "detail": "Deterministic tile decoding, observation-ID deduplication, taxon flattening, provenance digest, and sorting in BC Data Mapper"
+          }
+        ],
+        "layerCount": 4,
+        "sceneCount": 4
+      }
     }
   ]
 }
