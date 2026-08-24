@@ -95,6 +95,7 @@ const FEATURED_PROJECT_SLUGS = [
   'where-is-north-bc',
   'nechako-watershed-research-portal',
   'roadless-areas-bc-ecoregions',
+  'bc-big-tree-registry',
   'air-quality-bylaws-bc',
   'fine-particulate-matter-bc',
   'ground-level-ozone-bc',

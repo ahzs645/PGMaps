@@ -67,6 +67,7 @@
     "outdoors:pmtiles:publish": "npm --prefix vendor/bcdatamapper run outdoors:pmtiles:publish --",
     "outdoors:kml:import": "npm --prefix vendor/bcdatamapper run outdoors:kml:import --",
     "outdoors:sample-plan": "tsx scripts/generate-outdoors-sample-plan.ts",
+    "bcforestmap:big-tree-registry:import": "npm --prefix vendor/bcdatamapper run bcforestmap:big-tree-registry:import --",
     "range-tenures:sync": "npm --prefix vendor/bcdatamapper run range-tenures:sync --",
     "mineral-tenures:sync": "npm --prefix vendor/bcdatamapper run mineral-tenures:sync --",
     "wars:sync": "npm --prefix vendor/bcdatamapper run wars:sync -- && npm run data:sync-from-bcdatamapper",

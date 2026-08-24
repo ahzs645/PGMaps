@@ -6157,6 +6157,76 @@
         "layerCount": 7,
         "sceneCount": 11
       }
+    },
+    {
+      "file": "bc-big-tree-registry.json",
+      "revision": "c6c2f9090e58",
+      "catalog": {
+        "slug": "bc-big-tree-registry",
+        "title": "B.C. BigTree Registry",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "UBC BC BigTree Registry",
+        "updated": "July 2026",
+        "region": "British Columbia",
+        "status": "Reference snapshot",
+        "summary": "Explore where 1,061 living registry trees are mapped, then compare the snapshot by tree type, height, trunk diameter, and tree score.",
+        "sourceNote": "This project normalizes the BC BigTree Registry GeoJSON snapshot supplied with the BC Forest Map source archive. UBC's Registry Reports page remains the source of record and publishes the living-tree registry as spreadsheet and CSV files. The snapshot is shown as a reference rather than a live registry feed.",
+        "details": [
+          "Every record has point coordinates, but 79 of 1,061 records lack the separate descriptive location field. Those records still provide a nearest town.",
+          "Eighteen records share a coordinate with another tree, so some points overlap at province-wide scales.",
+          "Height is available for 928 trees, diameter at breast height (DBH) for 1,059, and tree score for 696. Every metric map shows unavailable values explicitly rather than dropping those trees.",
+          "UBC asks visitors to respect private property, use caution on logging roads, file a trip plan in remote areas, and view trees from afar to protect roots and vegetation."
+        ],
+        "links": [
+          {
+            "label": "UBC Registry Reports",
+            "href": "https://bigtrees.forestry.ubc.ca/registry-reports/"
+          },
+          {
+            "label": "BC BigTree Registry",
+            "href": "https://bigtrees.forestry.ubc.ca/bc-bigtree-registry/"
+          },
+          {
+            "label": "BC Forest Map",
+            "href": "https://www.bcforestmap.com/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Mapped records",
+            "value": "1,061"
+          },
+          {
+            "label": "Named locations",
+            "value": "982"
+          },
+          {
+            "label": "Height values",
+            "value": "928"
+          }
+        ],
+        "files": [
+          {
+            "label": "Living-tree snapshot",
+            "detail": "1,061 point features normalized from the supplied BC Forest Map GeoJSON"
+          },
+          {
+            "label": "Metric coverage",
+            "detail": "Explicit availability bands for location text, height, DBH, and tree score"
+          },
+          {
+            "label": "Stable identifiers",
+            "detail": "Unique UBC BigTree Registry IDs retained for every feature"
+          },
+          {
+            "label": "Reproducible importer",
+            "detail": "Deterministic coordinate, measurement, classification, display-field, and provenance normalization in BC Data Mapper"
+          }
+        ],
+        "layerCount": 5,
+        "sceneCount": 5
+      }
     }
   ]
 }

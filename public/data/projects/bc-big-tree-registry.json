@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "slug": "bc-big-tree-registry",
+  "title": "B.C. BigTree Registry",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "UBC BC BigTree Registry",
+  "updated": "July 2026",
+  "region": "British Columbia",
+  "status": "Reference snapshot",
+  "summary": "Explore where 1,061 living registry trees are mapped, then compare the snapshot by tree type, height, trunk diameter, and tree score.",
+  "sourceNote": "This project normalizes the BC BigTree Registry GeoJSON snapshot supplied with the BC Forest Map source archive. UBC's Registry Reports page remains the source of record and publishes the living-tree registry as spreadsheet and CSV files. The snapshot is shown as a reference rather than a live registry feed.",
+  "details": [
+    "Every record has point coordinates, but 79 of 1,061 records lack the separate descriptive location field. Those records still provide a nearest town.",
+    "Eighteen records share a coordinate with another tree, so some points overlap at province-wide scales.",
+    "Height is available for 928 trees, diameter at breast height (DBH) for 1,059, and tree score for 696. Every metric map shows unavailable values explicitly rather than dropping those trees.",
+    "UBC asks visitors to respect private property, use caution on logging roads, file a trip plan in remote areas, and view trees from afar to protect roots and vegetation."
+  ],
+  "links": [
+    { "label": "UBC Registry Reports", "href": "https://bigtrees.forestry.ubc.ca/registry-reports/" },
+    { "label": "BC BigTree Registry", "href": "https://bigtrees.forestry.ubc.ca/bc-bigtree-registry/" },
+    { "label": "BC Forest Map", "href": "https://www.bcforestmap.com/" }
+  ],
+  "catalogMetrics": [
+    { "label": "Mapped records", "value": "1,061" },
+    { "label": "Named locations", "value": "982" },
+    { "label": "Height values", "value": "928" }
+  ],
+  "layers": [
+    { "id": "registry-locations", "label": "Location information", "type": "point", "checked": true },
+    { "id": "registry-types", "label": "Tree type", "type": "point", "checked": false },
+    { "id": "registry-heights", "label": "Recorded height", "type": "point", "checked": false },
+    { "id": "registry-diameters", "label": "Trunk diameter (DBH)", "type": "point", "checked": false },
+    { "id": "registry-scores", "label": "Tree score", "type": "point", "checked": false }
+  ],
+  "legend": [
+    { "label": "Named location + nearest town", "color": "#047857" },
+    { "label": "Nearest town only", "color": "#f59e0b" }
+  ],
+  "scenes": [
+    {
+      "label": "Locations",
+      "kicker": "01 · Location completeness",
+      "title": "Every tree has coordinates, but not every record has a named location",
+      "text": "All 1,061 records can be placed on the map. The separate location field is present for 982 trees; the remaining 79 still provide a nearest town. Some trees share coordinates and therefore overlap until the map is zoomed in.",
+      "focus": "Mapped points and descriptive location coverage",
+      "visibleLayerIds": ["registry-locations"],
+      "callout": { "label": "Nearest town only", "value": "79 trees", "detail": "Mapped coordinates are present, but the descriptive location field is blank." },
+      "camera": { "center": [-126.3, 52.6], "zoom": 4.35 }
+    },
+    {
+      "label": "Tree types",
+      "kicker": "02 · Conifers and broadleaves",
+      "title": "Conifers account for most records in the supplied snapshot",
+      "text": "Nine hundred mapped trees are conifers and 161 are broadleaves. Western redcedar, Sitka spruce, and coastal Douglas-fir are the most frequently represented common names.",
+      "focus": "Registry composition by tree type",
+      "visibleLayerIds": ["registry-types"],
+      "callout": { "label": "Conifer share", "value": "900 of 1,061", "detail": "About 85 percent of mapped registry trees." },
+      "camera": { "center": [-125.3, 50.1], "zoom": 5.55 }
+    },
+    {
+      "label": "Height",
+      "kicker": "03 · Recorded height",
+      "title": "The tallest recorded tree in the snapshot reaches 96 metres",
+      "text": "Height is available for 928 trees and unavailable for 133. Carmanah Giant, a Sitka spruce near Youbou, has the highest recorded value in this snapshot.",
+      "focus": "Tree height bands",
+      "visibleLayerIds": ["registry-heights"],
+      "highlights": [
+        { "layerId": "registry-heights", "property": "tree_registry_id", "values": ["87"], "color": "#7c3aed", "dimOpacity": 0.12, "label": "Carmanah Giant" }
+      ],
+      "callout": { "label": "Maximum recorded height", "value": "96 m", "detail": "Carmanah Giant · Sitka spruce · Registry ID 87." },
+      "camera": { "center": [-124.719, 48.6133], "zoom": 9.6 }
+    },
+    {
+      "label": "Diameter",
+      "kicker": "04 · Diameter at breast height",
+      "title": "Trunk diameter reveals a different pattern than height",
+      "text": "DBH is available for 1,059 of the 1,061 trees. The widest recorded trunk is a western redcedar near Youbou at 5.96 metres, while the median recorded DBH is 2.43 metres.",
+      "focus": "Diameter-at-breast-height bands",
+      "visibleLayerIds": ["registry-diameters"],
+      "callout": { "label": "Maximum recorded DBH", "value": "5.96 m", "detail": "Western redcedar · Registry ID 60." },
+      "camera": { "center": [-125.3, 50.1], "zoom": 5.55 }
+    },
+    {
+      "label": "Tree score",
+      "kicker": "05 · Registry score",
+      "title": "Tree score combines dimensions into another view of significance",
+      "text": "A tree score is supplied for 696 records and unavailable for 365. Cheewhat Giant, a western redcedar near Youbou, has the highest recorded score in the snapshot.",
+      "focus": "Tree score bands",
+      "visibleLayerIds": ["registry-scores"],
+      "highlights": [
+        { "layerId": "registry-scores", "property": "tree_registry_id", "values": ["84"], "color": "#7c3aed", "dimOpacity": 0.12, "label": "Cheewhat Giant" }
+      ],
+      "callout": { "label": "Maximum recorded score", "value": "917", "detail": "Cheewhat Giant · western redcedar · Registry ID 84." },
+      "camera": { "center": [-124.7, 48.65], "zoom": 8.8 }
+    }
+  ],
+  "files": [
+    { "label": "Living-tree snapshot", "detail": "1,061 point features normalized from the supplied BC Forest Map GeoJSON" },
+    { "label": "Metric coverage", "detail": "Explicit availability bands for location text, height, DBH, and tree score" },
+    { "label": "Stable identifiers", "detail": "Unique UBC BigTree Registry IDs retained for every feature" },
+    { "label": "Reproducible importer", "detail": "Deterministic coordinate, measurement, classification, display-field, and provenance normalization in BC Data Mapper" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.3, 52.6], "zoom": 4.35, "minZoom": 3.5, "maxZoom": 15, "basemap": "auto" },
+    "accent": "#047857",
+    "options": {
+      "layout": "scrolly",
+      "sceneTransition": "fly",
+      "legendCollapsed": "auto"
+    },
+    "layers": [
+      {
+        "id": "registry-locations",
+        "data": "/data/forest/big-trees/bc_bigtree_registry.geojson",
+        "geometry": "point",
+        "idProperty": "tree_registry_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#047857",
+        "fillOpacity": 0.92,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.15,
+        "circleRadius": 4.5,
+        "category": {
+          "property": "location_coverage",
+          "colors": { "Named location + nearest town": "#047857", "Nearest town only": "#f59e0b" },
+          "fallback": "#64748b"
+        },
+        "attribution": "UBC BC BigTree Registry · BC Forest Map reference snapshot"
+      },
+      {
+        "id": "registry-types",
+        "data": "/data/forest/big-trees/bc_bigtree_registry.geojson",
+        "geometry": "point",
+        "idProperty": "tree_registry_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#047857",
+        "fillOpacity": 0.92,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.15,
+        "circleRadius": 4.5,
+        "category": {
+          "property": "tree_type",
+          "colors": { "Conifer": "#047857", "Broadleaf": "#d97706" },
+          "fallback": "#64748b"
+        },
+        "attribution": "UBC BC BigTree Registry · BC Forest Map reference snapshot"
+      },
+      {
+        "id": "registry-heights",
+        "data": "/data/forest/big-trees/bc_bigtree_registry.geojson",
+        "geometry": "point",
+        "idProperty": "tree_registry_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#238443",
+        "fillOpacity": 0.92,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.15,
+        "circleRadius": 4.5,
+        "category": {
+          "property": "height_band",
+          "colors": {
+            "Under 40 m": "#d9f0a3",
+            "40–59.9 m": "#78c679",
+            "60–79.9 m": "#238443",
+            "80 m or taller": "#004529",
+            "Height unavailable": "#9ca3af"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "UBC BC BigTree Registry · BC Forest Map reference snapshot"
+      },
+      {
+        "id": "registry-diameters",
+        "data": "/data/forest/big-trees/bc_bigtree_registry.geojson",
+        "geometry": "point",
+        "idProperty": "tree_registry_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#ec7014",
+        "fillOpacity": 0.92,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.15,
+        "circleRadius": 4.5,
+        "category": {
+          "property": "dbh_band",
+          "colors": {
+            "Under 1 m": "#fff7bc",
+            "1–1.99 m": "#fec44f",
+            "2–2.99 m": "#fe9929",
+            "3–3.99 m": "#ec7014",
+            "4 m or wider": "#993404",
+            "DBH unavailable": "#9ca3af"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "UBC BC BigTree Registry · BC Forest Map reference snapshot"
+      },
+      {
+        "id": "registry-scores",
+        "data": "/data/forest/big-trees/bc_bigtree_registry.geojson",
+        "geometry": "point",
+        "idProperty": "tree_registry_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#756bb1",
+        "fillOpacity": 0.92,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.15,
+        "circleRadius": 4.5,
+        "category": {
+          "property": "score_band",
+          "colors": {
+            "Under 350": "#f2f0f7",
+            "350–499": "#cbc9e2",
+            "500–649": "#9e9ac8",
+            "650 or higher": "#6a51a3",
+            "Score unavailable": "#9ca3af"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "UBC BC BigTree Registry · BC Forest Map reference snapshot"
+      }
+    ],
+    "places": []
+  }
+}
