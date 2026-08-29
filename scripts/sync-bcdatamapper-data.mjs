@@ -8,6 +8,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const vendorRoot = join(root, 'vendor', 'bcdatamapper')
 const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
+const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EARLY_LEARNING === '1'
 
 const appOwnedDataPaths = [
   'projects',
@@ -73,6 +74,9 @@ const pathMappings = [
   ['datascrapers/walkability/source/data/supplemental/osm_daycares.geojson', 'walkability/supplemental/osm_daycares.geojson'],
   ['datascrapers/bc/childcare/output/bc_childcare_locations.geojson', 'walkability/source/data/supplemental/bc_childcare_locations.geojson'],
   ['datascrapers/bc/childcare/output/bc_childcare_locations.geojson', 'walkability/supplemental/bc_childcare_locations.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/output/BCSchoolDistricts', 'boundaries/BCSchoolDistricts'],
+  ['datascrapers/bc/early-learning-boundaries/output/index.json', 'bc/early-learning-boundaries/index.json'],
+  ['datascrapers/bc/early-learning-boundaries/output/audit-report.json', 'bc/early-learning-boundaries/audit-report.json'],
   ['datascrapers/transit/source/intercity_bus_stops.geojson', 'walkability/source/data/supplemental/intercity_bus_stops.geojson'],
   ['datascrapers/transit/source/intercity_bus_stops.geojson', 'walkability/supplemental/intercity_bus_stops.geojson'],
   ['datascrapers/transit/source/bc_transit_pg_stops.geojson', 'walkability/source/data/supplemental/bc_transit_pg_stops.geojson'],
@@ -94,6 +98,19 @@ const pathMappings = [
   ['datascrapers/fpcc/output/placename-geo.geojson', 'fpcc/placename-geo.geojson'],
   ['datascrapers/native-land/snapshot', 'native-land'],
 ]
+
+const restrictedEarlyLearningMappings = [
+  ['datascrapers/bc/early-learning-boundaries/cache/help_neighbourhoods.geojson', 'boundaries/BCHELP/help_neighbourhoods.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/mcfd_regions.geojson', 'boundaries/BCMCFD/mcfd_regions.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/mcfd_service_delivery_areas.geojson', 'boundaries/BCMCFD/mcfd_service_delivery_areas.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/mcfd_local_service_areas.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson.gz'],
+]
+
+if (includeRestrictedEarlyLearning) {
+  pathMappings.push(...restrictedEarlyLearningMappings)
+}
 
 const optionalPathMappings = [
   ['datascrapers/environmental-burden/output/bc-enviro-screen', 'environmental-burden/bc-enviro-screen'],
@@ -203,6 +220,18 @@ for (const [sourceRelative, targetRelative] of optionalPathMappings) {
     continue
   }
   copyPath(sourceRelative, targetRelative)
+}
+
+if (!includeRestrictedEarlyLearning) {
+  for (const [, targetRelative] of restrictedEarlyLearningMappings) {
+    rmSync(join(target, targetRelative), { force: true })
+  }
+  for (const restrictedDirectory of ['boundaries/BCHELP', 'boundaries/BCMCFD']) {
+    const directory = join(target, restrictedDirectory)
+    if (existsSync(directory) && readdirSync(directory).length === 0) {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
 }
 
 // Environmental Reporting map geometry now lives once in the shared boundary
