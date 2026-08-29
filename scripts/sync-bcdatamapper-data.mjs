@@ -106,6 +106,11 @@ const restrictedEarlyLearningMappings = [
   ['datascrapers/bc/early-learning-boundaries/cache/mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/mcfd_local_service_areas.geojson'],
   ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson'],
   ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson.gz'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson.gz'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson.gz'],
+  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_boundary_index.json', 'boundaries/BCMCFD/index.json'],
 ]
 
 if (includeRestrictedEarlyLearning) {
