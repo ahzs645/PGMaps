@@ -21,6 +21,7 @@ export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'walkability') return 'walkability'
   if (category === 'deprivation') return 'deprivation'
   if (category === 'healthyPlanPg') return 'healthyPlanPg'
+  if (category === 'bcEnviroScreen') return 'bcEnviroScreen'
   if (category === 'custom') return null
   return null
 }
@@ -38,10 +39,7 @@ export interface MetricAvailability {
   message: string
 }
 
-export function isMetricAvailableOnBoundary(
-  metric: ScoreMetricDefinition,
-  boundarySource: BoundarySource,
-): boolean {
+export function isMetricAvailableOnBoundary(metric: ScoreMetricDefinition, boundarySource: BoundarySource): boolean {
   return !metric.boundarySources || metric.boundarySources.includes(boundarySource)
 }
 
@@ -140,6 +138,7 @@ export function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCoun
         counts.geocodedBusinessCount >
       0
     )
+  if (source === 'bcEnviroScreen') return counts.bcEnviroScreenJoinedCount > 0
   return true
 }
 
@@ -175,6 +174,7 @@ export function formatMetricValue(metric: ScoreMetricKey, value: number, compact
       : `${scaled.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} / 1,000 km2`
   }
   if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
+  if (format === 'rawPercent') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })}%`
   if (format === 'currency') {
     if (compact) {
       if (Math.abs(value) >= 1_000_000) {

@@ -25,13 +25,9 @@ import {
   SCORE_METRICS,
 } from '../constants'
 import type { ScorePaletteKey } from '../constants/paletteTypes'
-import type {
-  ScoreDataSource,
-  ScoreMetricKey,
-  ScoreMetricWeightMap,
-  ScoreMethodSettings,
-} from '../types'
+import type { ScoreDataSource, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import type { MetricRecipe } from './metricRecipes'
+import { BC_ENVIRO_SCREEN_DEFAULT_FORMULA, type BcEnviroScreenFormulaSettings } from './bcEnviroScreenFormula'
 
 export const ALL_DATA_SOURCES: ScoreDataSource[] = [
   'airQuality',
@@ -45,6 +41,7 @@ export const ALL_DATA_SOURCES: ScoreDataSource[] = [
   'walkability',
   'deprivation',
   'healthyPlanPg',
+  'bcEnviroScreen',
 ]
 
 const HEALTH_BOUNDARY_LEVEL_VALUES = new Set<BoundaryLevel>(HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value))
@@ -128,7 +125,9 @@ export function parseDrainageBoundaryLevel(value: string | null): DrainageBounda
 }
 
 export function parseFireZoneBoundaryLevel(value: string | null): FireZoneBoundaryLevel {
-  return FIRE_ZONE_BOUNDARY_LEVEL_VALUES.has(value as FireZoneBoundaryLevel) ? (value as FireZoneBoundaryLevel) : 'fireCentre'
+  return FIRE_ZONE_BOUNDARY_LEVEL_VALUES.has(value as FireZoneBoundaryLevel)
+    ? (value as FireZoneBoundaryLevel)
+    : 'fireCentre'
 }
 
 export function parseMunicipalityBoundaryLevel(value: string | null): MunicipalityBoundaryLevel {
@@ -151,12 +150,31 @@ export function parseAggregationMethod(value: string | null): ScoreMethodSetting
     value === 'geometric' ||
     value === 'cumulativeBurden' ||
     value === 'modulePercentileRankedSum' ||
+    value === 'bcEnviroScreenProduct' ||
     value === 'healthyPlanPairwisePriority' ||
     value === 'accessThreshold'
   ) {
     return value
   }
   return 'additive'
+}
+
+export function parseBcEnviroScreenComponentWeight(value: string | null, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(10, parsed)) : fallback
+}
+
+export function parseBcEnviroScreenFormulaSettings(
+  mode: string | null,
+  expression: string | null,
+): BcEnviroScreenFormulaSettings {
+  return {
+    mode: mode === 'custom' ? 'custom' : 'reconstruction',
+    expression:
+      typeof expression === 'string' && expression.trim() && expression.length <= 1000
+        ? expression
+        : BC_ENVIRO_SCREEN_DEFAULT_FORMULA,
+  }
 }
 
 export function parseAccessThresholdValue(value: string | null): number {
@@ -183,13 +201,7 @@ export function parseMapColorScale(value: string | null): ScoreMethodSettings['m
   return value === 'absolute' ? 'absolute' : 'relative'
 }
 
-const PALETTE_OVERRIDE_KEYS: ScorePaletteKey[] = [
-  'airCoverage',
-  'benefit',
-  'affordability',
-  'riskPressure',
-  'default',
-]
+const PALETTE_OVERRIDE_KEYS: ScorePaletteKey[] = ['airCoverage', 'benefit', 'affordability', 'riskPressure', 'default']
 
 export function parsePaletteOverride(value: string | null): ScorePaletteKey | null {
   return value && PALETTE_OVERRIDE_KEYS.includes(value as ScorePaletteKey) ? (value as ScorePaletteKey) : null

@@ -36,6 +36,8 @@ import {
   parseAccessMinimumHits,
   parseAccessThresholdValue,
   parseAggregationMethod,
+  parseBcEnviroScreenComponentWeight,
+  parseBcEnviroScreenFormulaSettings,
   parseBoundarySource,
   parseCensusBoundaryLevel,
   parseCityBoundaryLevel,
@@ -327,14 +329,11 @@ function pruneOrphanedDataSource(
   removedMetric: ScoreMetricKey,
 ): ScoreBuilderControlState {
   const definitions = activeMetricDefinitionsFor(state)
-  const removedSource = metricToDataSource(
-    definitions.find((entry) => entry.key === removedMetric)?.category ?? '',
-  )
+  const removedSource = metricToDataSource(definitions.find((entry) => entry.key === removedMetric)?.category ?? '')
   if (!removedSource || !state.enabledDataSources.includes(removedSource)) return state
 
   const stillNeeded = definitions.some(
-    (entry) =>
-      (state.weights[entry.key] ?? 0) !== 0 && metricToDataSource(entry.category) === removedSource,
+    (entry) => (state.weights[entry.key] ?? 0) !== 0 && metricToDataSource(entry.category) === removedSource,
   )
   // Per-capita crime borrows census population, so census outlives its own metrics.
   const borrowed = removedSource === 'census' && (state.weights.crimePerCapita ?? 0) !== 0
@@ -567,10 +566,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         selectedNetworks = action.allNetworks
         pendingNetworkSelectAll = false
       }
-      if (
-        selectedNetworks === state.selectedNetworks &&
-        pendingNetworkSelectAll === state.pendingNetworkSelectAll
-      ) {
+      if (selectedNetworks === state.selectedNetworks && pendingNetworkSelectAll === state.pendingNetworkSelectAll) {
         return state
       }
       return { ...state, selectedNetworks, pendingNetworkSelectAll }
@@ -641,7 +637,11 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       return { ...state, correlateVisStyle: action.style }
     case 'applyCorrelatePair': {
       const next = { ...state, correlateMetricX: action.metricX, correlateMetricY: action.metricY }
-      return enableDataForMetric(enableDataForMetric(next, action.metricX, action.allNetworks), action.metricY, action.allNetworks)
+      return enableDataForMetric(
+        enableDataForMetric(next, action.metricX, action.allNetworks),
+        action.metricY,
+        action.allNetworks,
+      )
     }
     case 'toggleScoreFilter':
       return {
@@ -754,6 +754,16 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
       minimumAccess: parseAccessThresholdValue(searchParams.get('accessMin')),
       minimumHits: parseAccessMinimumHits(searchParams.get('accessHits')),
     },
+    bcEnviroScreenComponentWeights: {
+      exposures: parseBcEnviroScreenComponentWeight(searchParams.get('bcExp'), 1),
+      environmentalEffects: parseBcEnviroScreenComponentWeight(searchParams.get('bcEff'), 0.5),
+      sensitivePopulations: parseBcEnviroScreenComponentWeight(searchParams.get('bcSens'), 1),
+      socioeconomicFactors: parseBcEnviroScreenComponentWeight(searchParams.get('bcSoc'), 1),
+    },
+    bcEnviroScreenFormula: parseBcEnviroScreenFormulaSettings(
+      searchParams.get('bcFormulaMode'),
+      searchParams.get('bcFormula'),
+    ),
     metricModuleOverrides: {},
   }
 

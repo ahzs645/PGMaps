@@ -78,6 +78,7 @@ export function ProjectScoreMapPreview({
     healthyPlanPgEnabled: enabledSourceSet.has('healthyPlanPg'),
     activeMetricDefinitions: SCORE_METRICS,
     walkabilityMiByRegion,
+    bcEnviroScreenRowsByLhaCode: datasets.bcEnviroScreen.rowsByLhaCode,
   })
 
   const results = useScoreBuilderResults({
@@ -127,13 +128,10 @@ export function ProjectScoreMapPreview({
           */}
           {showWalkabilitySourceSurface ? (
             <>
-              <MapSteppedLegend
-                bands={toWalkabilityMiLegendBands(miBands)}
-                angledLabels={project.angledLegendLabels}
-              />
+              <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} angledLabels={project.angledLegendLabels} />
               <div className="text-xs leading-snug text-muted-foreground">
-                Mobility Index surface derived from the project recipe, over {results.scoredRegions.length.toLocaleString()}{' '}
-                scored regions.
+                Mobility Index surface derived from the project recipe, over{' '}
+                {results.scoredRegions.length.toLocaleString()} scored regions.
               </div>
             </>
           ) : (

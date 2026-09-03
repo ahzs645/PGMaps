@@ -42,6 +42,7 @@ export function formatNormalizationMethod(method: ScoreMethodSettings['normaliza
 }
 
 export function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
+  if (method === 'bcEnviroScreenProduct') return 'BC EnviroScreen percentile product'
   if (method === 'healthyPlanPairwisePriority') return 'HealthyPlan-style pairwise priority'
   if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
   if (method === 'accessThreshold') return 'access threshold'

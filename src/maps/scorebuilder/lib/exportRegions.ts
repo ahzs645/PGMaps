@@ -130,6 +130,7 @@ export function exportScoredRegions(
           healthyPlanPriority: r.healthyPlanPriority,
           moduleScores: r.moduleScores,
           domainScores: r.domainScores,
+          bcEnviroScreen: r.bcEnviroScreen,
           missingDataFlags: r.missingDataFlags,
           rankConfidence: r.rankConfidence,
           rankInterval: r.rankInterval,

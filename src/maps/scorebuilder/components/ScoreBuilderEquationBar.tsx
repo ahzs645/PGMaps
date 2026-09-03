@@ -51,6 +51,7 @@ interface ScoreBuilderEquationBarProps {
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
+  if (metric.startsWith('bcEnviroScreen.')) return 1
   if (
     metric === 'foodRiskScore' ||
     metric === 'criticalViolationRate' ||
@@ -75,6 +76,7 @@ function getCategoryDot(category: string): string {
   if (category === 'safety') return 'bg-rose-500'
   if (category === 'transit') return 'bg-teal-500'
   if (category === 'walkability') return 'bg-emerald-600'
+  if (category === 'bcEnviroScreen') return 'bg-violet-600'
   return 'bg-cyan-500'
 }
 
@@ -426,9 +428,7 @@ export function ScoreBuilderEquationBar({
 
         {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
           <div className="mt-3 flex items-start gap-2 rounded-md bg-muted px-3 py-2">
-            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-muted-foreground">
-              {formulaText}
-            </div>
+            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-muted-foreground">{formulaText}</div>
             <button
               type="button"
               onClick={handleCopyEquation}

@@ -11,6 +11,7 @@ import type {
   ScoreSpatialMethod,
   ScoreUncertaintyLevel,
 } from '../types'
+import { BC_ENVIRO_SCREEN_METRICS } from './bcEnviroScreenMetrics'
 
 type ScoreMetricBaseDefinition = Omit<
   ScoreMetricDefinition,
@@ -221,7 +222,8 @@ const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
     key: 'populationDensity',
     label: 'Population Density',
     shortLabel: 'Pop. density',
-    description: 'Census population per km² from direct census-boundary population where available, falling back to overlapping DA centroids.',
+    description:
+      'Census population per km² from direct census-boundary population where available, falling back to overlapping DA centroids.',
     format: 'density',
     category: 'demographics',
   },
@@ -928,7 +930,8 @@ const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
   matureTreeDensity: 'Maturity classification depends on source attributes and may be incomplete.',
   forestAreaRatio: 'Forest/open-space proxy is not a remote-sensing canopy or shade-quality layer.',
   coolingFacilityDensity: 'Cooling facility inventory is a proxy until verified public cooling-centre data is loaded.',
-  populationDensity: 'Uses direct census-boundary population for loaded census polygons, including DB records with the DB-to-CHSA crosswalk; non-census boundaries still use DA centroid assignment.',
+  populationDensity:
+    'Uses direct census-boundary population for loaded census polygons, including DB records with the DB-to-CHSA crosswalk; non-census boundaries still use DA centroid assignment.',
   crimeDensity: 'Live point data can shift over time and should be interpreted as planning context, not official risk.',
   crimePerCapita: 'Combines live incidents with census population, so temporal alignment is approximate.',
   recentCrimeShare: 'Recent window is relative to the newest loaded incident date.',
@@ -1224,7 +1227,7 @@ function metricSourceUrl(category: ScoreMetricDefinition['category']): string | 
   return undefined
 }
 
-export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((metric) => ({
+const CORE_SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((metric) => ({
   ...metric,
   direction: METRIC_DIRECTION[metric.key],
   component: METRIC_COMPONENT[metric.key],
@@ -1256,6 +1259,8 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((me
       ? 'proxy'
       : 'experimental',
 }))
+
+export const SCORE_METRICS: ScoreMetricDefinition[] = [...CORE_SCORE_METRICS, ...BC_ENVIRO_SCREEN_METRICS]
 
 const RECIPE_CREATED_METRIC_KEYS = new Set<ScoreMetricKey>([
   'healthyFoodOutletAccess1km',

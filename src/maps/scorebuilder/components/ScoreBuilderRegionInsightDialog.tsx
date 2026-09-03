@@ -137,7 +137,36 @@ function createRegionReportCsv({
     ['Normalization', formatNormalizationMethod(methodSettings.normalization)],
     ['Aggregation', methodSettings.aggregation],
     ['Score method', region.scoreMethodLabel || methodSettings.aggregation],
-    ['Disclaimer', 'User-generated local proxy report. This is not the official CDC/ATSDR Environmental Justice Index.'],
+    [
+      'Disclaimer',
+      region.bcEnviroScreen
+        ? 'Hybrid research reconstruction; not an official Province of British Columbia or paper-author product.'
+        : 'User-generated local proxy report. This is not the official CDC/ATSDR Environmental Justice Index.',
+    ],
+    ...(region.bcEnviroScreen
+      ? [
+          [],
+          ['BC EnviroScreen output', 'Value'],
+          ['Environmental exposures', `${((region.bcEnviroScreen.components.exposures ?? 0) * 100).toFixed(1)}%`],
+          [
+            'Environmental effects',
+            `${((region.bcEnviroScreen.components.environmentalEffects ?? 0) * 100).toFixed(1)}%`,
+          ],
+          [
+            'Sensitive populations',
+            `${((region.bcEnviroScreen.components.sensitivePopulations ?? 0) * 100).toFixed(1)}%`,
+          ],
+          [
+            'Socioeconomic factors',
+            `${((region.bcEnviroScreen.components.socioeconomicFactors ?? 0) * 100).toFixed(1)}%`,
+          ],
+          ['Landscape burden', region.bcEnviroScreen.landscapeBurdenScore?.toFixed(3) ?? 'missing'],
+          ['Population characteristics', region.bcEnviroScreen.populationCharacteristicsScore?.toFixed(3) ?? 'missing'],
+          ['Formula mode', region.bcEnviroScreen.formulaMode],
+          ['Formula', region.bcEnviroScreen.formulaExpression],
+          ['Formula error', region.bcEnviroScreen.formulaError ?? 'none'],
+        ]
+      : []),
     [],
     ['Module', 'Module rank', 'Raw module sum', 'Active indicators', 'Missing indicators'],
     ...(region.moduleScores || []).map((row) => [
@@ -149,12 +178,7 @@ function createRegionReportCsv({
     ]),
     [],
     ['Domain', 'Module', 'Domain score', 'Active indicators'],
-    ...(region.domainScores || []).map((row) => [
-      row.label,
-      row.module,
-      formatScore(row.score),
-      row.activeMetricCount,
-    ]),
+    ...(region.domainScores || []).map((row) => [row.label, row.module, formatScore(row.score), row.activeMetricCount]),
     [],
     ['Component', 'Sub-score', 'Points'],
     ...componentRows.map((row) => [row.label, formatScore(row.score), row.points.toFixed(2)]),
@@ -185,7 +209,8 @@ export function ScoreBuilderRegionInsightDialog({
   const contributionRows = useMemo(() => {
     if (!region) return []
     const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
-    return metrics.filter((metric) => Math.abs(weights[metric.key] ?? 0) > 0)
+    return metrics
+      .filter((metric) => Math.abs(weights[metric.key] ?? 0) > 0)
       .map((metric) => ({
         key: metric.key,
         label: metric.shortLabel,
@@ -223,12 +248,14 @@ export function ScoreBuilderRegionInsightDialog({
     const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
     if (totalWeight <= 0) return []
     const groups = new Map<string, { contribution: number; weight: number }>()
-    metrics.filter((metric) => (weights[metric.key] ?? 0) !== 0).forEach((metric) => {
-      const current = groups.get(metric.category) || { contribution: 0, weight: 0 }
-      current.contribution += region.contributions[metric.key] ?? 0
-      current.weight += Math.abs(weights[metric.key] ?? 0) / totalWeight
-      groups.set(metric.category, current)
-    })
+    metrics
+      .filter((metric) => (weights[metric.key] ?? 0) !== 0)
+      .forEach((metric) => {
+        const current = groups.get(metric.category) || { contribution: 0, weight: 0 }
+        current.contribution += region.contributions[metric.key] ?? 0
+        current.weight += Math.abs(weights[metric.key] ?? 0) / totalWeight
+        groups.set(metric.category, current)
+      })
     return Array.from(groups.entries()).map(([category, group]) => ({
       category,
       label: METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category,
@@ -288,7 +315,11 @@ export function ScoreBuilderRegionInsightDialog({
   const handleDownloadReport = () => {
     if (!region) return
     const csv = createRegionReportCsv({ region, weights, methodSettings, contributionRows, componentRows })
-    const slug = region.region.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'region'
+    const slug =
+      region.region.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'region'
     downloadTextFile(csv, `pgmaps-${slug}-score-report.csv`, 'text/csv')
   }
 
@@ -301,7 +332,9 @@ export function ScoreBuilderRegionInsightDialog({
         data-score-builder-region-insight-dialog="true"
       >
         <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
-          <DialogTitle className="pr-8 text-base sm:text-lg">{region ? 'Region Score Drivers' : 'Region Insight'}</DialogTitle>
+          <DialogTitle className="pr-8 text-base sm:text-lg">
+            {region ? 'Region Score Drivers' : 'Region Insight'}
+          </DialogTitle>
           <DialogDescription className="line-clamp-3 pr-4 text-xs leading-relaxed sm:text-sm">
             {region
               ? `${region.region.name} (Code ${region.region.code})${topDriverSummary ? ` | Top drivers: ${topDriverSummary} pts` : ''}`
@@ -430,6 +463,48 @@ export function ScoreBuilderRegionInsightDialog({
               )}
             </div>
 
+            {region.bcEnviroScreen && (
+              <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3 dark:border-violet-900/70 dark:bg-violet-950/20">
+                <div className="mb-2 text-sm font-semibold text-foreground">BC EnviroScreen calculation</div>
+                <div className="grid gap-2 text-xs sm:grid-cols-2">
+                  {Object.entries(region.bcEnviroScreen.components).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70"
+                    >
+                      <span>{key.replace(/([A-Z])/g, ' $1')}</span>
+                      <span className="font-semibold">
+                        {value == null ? 'Missing' : `${(value * 100).toFixed(1)}%`}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70">
+                    <span>Landscape burden</span>
+                    <span className="font-semibold">
+                      {region.bcEnviroScreen.landscapeBurdenScore?.toFixed(2) ?? 'Missing'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70">
+                    <span>Population characteristics</span>
+                    <span className="font-semibold">
+                      {region.bcEnviroScreen.populationCharacteristicsScore?.toFixed(2) ?? 'Missing'}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 rounded border border-violet-200 bg-background px-2 py-1.5 font-mono text-xs dark:border-violet-900/70">
+                  <div className="mb-0.5 font-sans font-semibold text-foreground">
+                    {region.bcEnviroScreen.formulaMode === 'custom' ? 'Advanced formula' : 'Reconstruction formula'}
+                  </div>
+                  <div className="break-words text-muted-foreground">{region.bcEnviroScreen.formulaExpression}</div>
+                  {region.bcEnviroScreen.formulaError && (
+                    <div className="mt-1 font-sans font-medium text-rose-700 dark:text-rose-300">
+                      {region.bcEnviroScreen.formulaError}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {componentRows.length > 0 && (
               <div className="rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 text-sm font-semibold text-foreground">
@@ -466,7 +541,8 @@ export function ScoreBuilderRegionInsightDialog({
                         </span>
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} · {domain.module}
+                        {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} ·{' '}
+                        {domain.module}
                       </div>
                     </div>
                   ))}
@@ -476,7 +552,9 @@ export function ScoreBuilderRegionInsightDialog({
 
             {region.missingDataFlags && region.missingDataFlags.length > 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
-                <div className="mb-1 text-sm font-semibold">Missing-data flags</div>
+                <div className="mb-1 text-sm font-semibold">
+                  {region.bcEnviroScreen ? 'Source and missing-data flags' : 'Missing-data flags'}
+                </div>
                 <ul className="space-y-1">
                   {region.missingDataFlags.map((flag) => (
                     <li key={flag}>{flag}</li>

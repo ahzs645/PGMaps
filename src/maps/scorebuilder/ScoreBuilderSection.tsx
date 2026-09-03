@@ -33,11 +33,7 @@ import { useUserDatasets } from './hooks/useUserDatasets'
 import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
 import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
-import {
-  captureBaselineSnapshot,
-  compareAgainstBaseline,
-  type BaselineSnapshot,
-} from './lib/baselineComparison'
+import { captureBaselineSnapshot, compareAgainstBaseline, type BaselineSnapshot } from './lib/baselineComparison'
 import {
   buildProjectPackageFromShareState,
   downloadProjectPackage,
@@ -122,9 +118,7 @@ export default function ScoreBuilderSection() {
 
   // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
   // except the right panel on narrow desktops/tablets where both panels would crowd out the map.
-  const [showSidebar, setShowSidebar] = useState(
-    () => readLayoutPrefs().showSidebar ?? !sb.initializedFromUrlWeights,
-  )
+  const [showSidebar, setShowSidebar] = useState(() => readLayoutPrefs().showSidebar ?? !sb.initializedFromUrlWeights)
   const [showRightSidebar, setShowRightSidebar] = useState(() => {
     const stored = readLayoutPrefs().showRightSidebar
     if (stored != null) return stored
@@ -196,10 +190,7 @@ export default function ScoreBuilderSection() {
 
   // The MI-surface zonal aggregation is expensive, so it only runs when the user
   // actually weights the metric (turning the raster into a scored, ranked input).
-  const walkabilityMiByRegion = useWalkabilityMiZonal(
-    (state.weights.walkabilityMiSurface ?? 0) !== 0,
-    datasets.regions,
-  )
+  const walkabilityMiByRegion = useWalkabilityMiZonal((state.weights.walkabilityMiSurface ?? 0) !== 0, datasets.regions)
 
   const { regionMetricRows, metricRanges, metricValueLists } = useScoreBuilderMetricRows({
     regions: datasets.regions,
@@ -210,6 +201,7 @@ export default function ScoreBuilderSection() {
     healthyPlanPgEnabled: sb.enabledSourceSet.has('healthyPlanPg'),
     activeMetricDefinitions: sb.activeMetricDefinitions,
     walkabilityMiByRegion,
+    bcEnviroScreenRowsByLhaCode: datasets.bcEnviroScreen.rowsByLhaCode,
   })
 
   const results = useScoreBuilderResults({
@@ -289,7 +281,6 @@ export default function ScoreBuilderSection() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBaseline(captureBaselineSnapshot(results.scoredRegions, `Project: ${projectContextTitle}`))
   }, [datasets.loading, projectContextSlug, projectContextTitle, results.scoredRegions])
-
 
   const mapInstanceRef = useRef<MapRef | null>(null)
   const handleMapInstance = useCallback((map: MapRef | null) => {
@@ -557,199 +548,197 @@ export default function ScoreBuilderSection() {
     <>
       {viewMode === 'build' && buildView}
       {viewMode === 'explore' && (
-      <div className="flex h-full min-h-0 flex-col">
-      {/* Same header strip as the Build view, so the toggle and actions stay put on swap. */}
-      {isDesktop && (
-        <IndexLabHeader
-          mode="explore"
-          onSwitchToBuild={() => setViewMode('build')}
-          title={activeRecipeLabel}
-          description={activeRecipeDescription}
-          onOpenPresets={() => setPresetDialogOpen(true)}
-          onExportPackage={() => handleExportProjectPackage(activeRecipeLabel)}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-      )}
-      <div className="min-h-0 flex-1">
-      <MapSectionLayout
-        showDesktopSidebar={showSidebar}
-        onToggleDesktopSidebar={toggleSidebar}
-        desktopSidebarWidth={sidebarWidth}
-        onDesktopSidebarWidthChange={setSidebarWidth}
-        mobileInitialSheetState="collapsed"
-        mobilePeek={
-          <div className="min-w-0 text-left">
-            <div className="truncate text-xs font-semibold text-foreground">
-              Index Lab | {results.scoredRegions.length.toLocaleString()} regions
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {results.selectedRegion?.region.name || activeRecipeLabel}
-            </div>
-          </div>
-        }
-        sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
-        rightSidebar={isDesktop ? desktopRightPanel : undefined}
-        showDesktopRightSidebar={showRightSidebar}
-        onToggleDesktopRightSidebar={toggleRightSidebar}
-        desktopRightSidebarWidth={rightSidebarWidth}
-        onDesktopRightSidebarWidthChange={setRightSidebarWidth}
-      >
-        <div className="relative flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col">
+          {/* Same header strip as the Build view, so the toggle and actions stay put on swap. */}
           {isDesktop && (
-            <ScoreBuilderEquationBar
-              weights={state.weights}
-              metrics={sb.activeMetricDefinitions}
-              enabledDataSources={state.enabledDataSources}
-              onEnableDataSource={sb.enableDataSource}
-              methodSettings={state.methodSettings}
-              boundarySource={state.boundarySource}
-              equationPreview={results.equationPreview}
-              onWeightChange={sb.handleWeightChange}
-              onAddMetric={sb.handleAddMetric}
-              onExport={handleExport}
-              correlateMode={state.correlateMode}
-              onToggleCorrelateMode={sb.handleToggleCorrelateMode}
-              densityMode={state.densityMode}
-              onToggleDensityMode={sb.handleToggleDensityMode}
+            <IndexLabHeader
+              mode="explore"
+              onSwitchToBuild={() => setViewMode('build')}
+              title={activeRecipeLabel}
+              description={activeRecipeDescription}
+              onOpenPresets={() => setPresetDialogOpen(true)}
+              onExportPackage={() => handleExportProjectPackage(activeRecipeLabel)}
               onOpenSettings={() => setSettingsOpen(true)}
-              onUndo={sb.undo}
-              onRedo={sb.redo}
-              canUndo={sb.canUndo}
-              canRedo={sb.canRedo}
             />
           )}
+          <div className="min-h-0 flex-1">
+            <MapSectionLayout
+              showDesktopSidebar={showSidebar}
+              onToggleDesktopSidebar={toggleSidebar}
+              desktopSidebarWidth={sidebarWidth}
+              onDesktopSidebarWidthChange={setSidebarWidth}
+              mobileInitialSheetState="collapsed"
+              mobilePeek={
+                <div className="min-w-0 text-left">
+                  <div className="truncate text-xs font-semibold text-foreground">
+                    Index Lab | {results.scoredRegions.length.toLocaleString()} regions
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {results.selectedRegion?.region.name || activeRecipeLabel}
+                  </div>
+                </div>
+              }
+              sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
+              rightSidebar={isDesktop ? desktopRightPanel : undefined}
+              showDesktopRightSidebar={showRightSidebar}
+              onToggleDesktopRightSidebar={toggleRightSidebar}
+              desktopRightSidebarWidth={rightSidebarWidth}
+              onDesktopRightSidebarWidthChange={setRightSidebarWidth}
+            >
+              <div className="relative flex h-full min-h-0 flex-col">
+                {isDesktop && (
+                  <ScoreBuilderEquationBar
+                    weights={state.weights}
+                    metrics={sb.activeMetricDefinitions}
+                    enabledDataSources={state.enabledDataSources}
+                    onEnableDataSource={sb.enableDataSource}
+                    methodSettings={state.methodSettings}
+                    boundarySource={state.boundarySource}
+                    equationPreview={results.equationPreview}
+                    onWeightChange={sb.handleWeightChange}
+                    onAddMetric={sb.handleAddMetric}
+                    onExport={handleExport}
+                    correlateMode={state.correlateMode}
+                    onToggleCorrelateMode={sb.handleToggleCorrelateMode}
+                    densityMode={state.densityMode}
+                    onToggleDensityMode={sb.handleToggleDensityMode}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                    onUndo={sb.undo}
+                    onRedo={sb.redo}
+                    canUndo={sb.canUndo}
+                    canRedo={sb.canRedo}
+                  />
+                )}
 
-          <div className="relative min-h-0 flex-1">
-            <ScoreBuilderMap
-              regions={results.scoredRegions}
-              selectedRegionId={state.selectedRegionId}
-              monitors={points.filteredMonitors}
-              showPoints={state.showPoints}
-              onRegionClick={sb.handleMapRegionClick}
-              regionFillColors={mapRegionFillColors}
-              walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
-              sourceGridWeights={state.weights}
-              walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
-              loading={datasets.loading}
-              onMapInstance={handleMapInstance}
-            />
+                <div className="relative min-h-0 flex-1">
+                  <ScoreBuilderMap
+                    regions={results.scoredRegions}
+                    selectedRegionId={state.selectedRegionId}
+                    monitors={points.filteredMonitors}
+                    showPoints={state.showPoints}
+                    onRegionClick={sb.handleMapRegionClick}
+                    regionFillColors={mapRegionFillColors}
+                    walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
+                    sourceGridWeights={state.weights}
+                    walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
+                    loading={datasets.loading}
+                    onMapInstance={handleMapInstance}
+                  />
 
-            {!datasets.loading &&
-              results.scoredRegions.length === 0 &&
-              results.lowCoverageExcludedCount > 0 && (
-                <ScoreBuilderCoverageNotice
-                  excludedCount={results.lowCoverageExcludedCount}
-                  onShowAnyway={() => sb.toggleScoreFilter('requireCoverage')}
-                />
-              )}
-
-            {sb.showWalkabilitySourceSurface && (
-              <ScoreBuilderWalkabilitySurfacePanel
-                tuning={state.walkabilitySurfaceTuning}
-                onChange={sb.setWalkabilitySurfaceTuning}
-                metricWeights={state.weights}
-                isDesktop={isDesktop}
-              />
-            )}
-
-            {!isDesktop && (
-              <div
-                className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
-                data-score-builder-mobile-actions="true"
-              >
-                <button
-                  type="button"
-                  onClick={sb.handleToggleDensityMode}
-                  aria-pressed={state.densityMode}
-                  className={cn(
-                    'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
-                    state.densityMode
-                      ? 'border-amber-500 bg-amber-500 text-white'
-                      : 'border-border bg-background/95 text-foreground',
+                  {!datasets.loading && results.scoredRegions.length === 0 && results.lowCoverageExcludedCount > 0 && (
+                    <ScoreBuilderCoverageNotice
+                      excludedCount={results.lowCoverageExcludedCount}
+                      onShowAnyway={() => sb.toggleScoreFilter('requireCoverage')}
+                    />
                   )}
-                >
-                  <Flame className="h-3.5 w-3.5" />
-                  Density
-                </button>
-                <button
-                  type="button"
-                  onClick={sb.handleToggleCorrelateMode}
-                  aria-pressed={state.correlateMode}
-                  className={cn(
-                    'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
-                    state.correlateMode
-                      ? 'border-cyan-500 bg-cyan-500 text-white'
-                      : 'border-border bg-background/95 text-foreground',
+
+                  {sb.showWalkabilitySourceSurface && (
+                    <ScoreBuilderWalkabilitySurfacePanel
+                      tuning={state.walkabilitySurfaceTuning}
+                      onChange={sb.setWalkabilitySurfaceTuning}
+                      metricWeights={state.weights}
+                      isDesktop={isDesktop}
+                    />
                   )}
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                  Correlate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('build')}
-                  aria-label="Open build view"
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-background/95 px-3 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors"
-                >
-                  <Hammer className="h-3.5 w-3.5" />
-                  Build
-                </button>
-                <button
-                  type="button"
-                  onClick={sb.undo}
-                  disabled={!sb.canUndo}
-                  aria-label="Undo"
-                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors disabled:opacity-40"
-                >
-                  <Undo2 className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(true)}
-                  aria-label="Open index settings"
-                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors"
-                >
-                  <SettingsIcon className="h-4 w-4" />
-                </button>
+
+                  {!isDesktop && (
+                    <div
+                      className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
+                      data-score-builder-mobile-actions="true"
+                    >
+                      <button
+                        type="button"
+                        onClick={sb.handleToggleDensityMode}
+                        aria-pressed={state.densityMode}
+                        className={cn(
+                          'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
+                          state.densityMode
+                            ? 'border-amber-500 bg-amber-500 text-white'
+                            : 'border-border bg-background/95 text-foreground',
+                        )}
+                      >
+                        <Flame className="h-3.5 w-3.5" />
+                        Density
+                      </button>
+                      <button
+                        type="button"
+                        onClick={sb.handleToggleCorrelateMode}
+                        aria-pressed={state.correlateMode}
+                        className={cn(
+                          'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
+                          state.correlateMode
+                            ? 'border-cyan-500 bg-cyan-500 text-white'
+                            : 'border-border bg-background/95 text-foreground',
+                        )}
+                      >
+                        <Activity className="h-3.5 w-3.5" />
+                        Correlate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('build')}
+                        aria-label="Open build view"
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-background/95 px-3 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors"
+                      >
+                        <Hammer className="h-3.5 w-3.5" />
+                        Build
+                      </button>
+                      <button
+                        type="button"
+                        onClick={sb.undo}
+                        disabled={!sb.canUndo}
+                        aria-label="Undo"
+                        className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors disabled:opacity-40"
+                      >
+                        <Undo2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsOpen(true)}
+                        aria-label="Open index settings"
+                        className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors"
+                      >
+                        <SettingsIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {!isDesktop && results.selectedRegion && (
+                    <ScoreBuilderMobileRegionCard
+                      region={results.selectedRegion}
+                      drivers={results.selectedRegionDrivers}
+                      pinned={state.comparisonIds.includes(results.selectedRegion.region.id)}
+                      onOpenInsight={() => sb.handleOpenRegionInsight(results.selectedRegion!.region.id)}
+                      onToggleComparison={() => sb.toggleComparison(results.selectedRegion!.region.id)}
+                      onClose={sb.clearRegionSelection}
+                    />
+                  )}
+
+                  <ScoreBuilderMapLegend
+                    isDesktop={isDesktop}
+                    correlateMode={state.correlateMode}
+                    correlateMetricX={state.correlateMetricX}
+                    correlateMetricY={state.correlateMetricY}
+                    correlateVisStyle={state.correlateVisStyle}
+                    correlationResult={correlationResult}
+                    densityMode={state.densityMode}
+                    densityMetric={state.densityMetric}
+                    densityRange={metricRanges[state.densityMetric]}
+                    showWalkabilitySourceSurface={sb.showWalkabilitySourceSurface}
+                    canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
+                    methodSettings={state.methodSettings}
+                    scorePaletteProfile={results.scorePaletteProfile}
+                    scoreSpread={results.scoreSpread}
+                    enabledDataSourceCount={state.enabledDataSources.length}
+                    regionCount={datasets.regions.length}
+                    thinCoverageCount={results.thinCoverageCount}
+                    lowCoverageExcludedCount={results.lowCoverageExcludedCount}
+                  />
+                </div>
               </div>
-            )}
-
-            {!isDesktop && results.selectedRegion && (
-              <ScoreBuilderMobileRegionCard
-                region={results.selectedRegion}
-                drivers={results.selectedRegionDrivers}
-                pinned={state.comparisonIds.includes(results.selectedRegion.region.id)}
-                onOpenInsight={() => sb.handleOpenRegionInsight(results.selectedRegion!.region.id)}
-                onToggleComparison={() => sb.toggleComparison(results.selectedRegion!.region.id)}
-                onClose={sb.clearRegionSelection}
-              />
-            )}
-
-            <ScoreBuilderMapLegend
-              isDesktop={isDesktop}
-              correlateMode={state.correlateMode}
-              correlateMetricX={state.correlateMetricX}
-              correlateMetricY={state.correlateMetricY}
-              correlateVisStyle={state.correlateVisStyle}
-              correlationResult={correlationResult}
-              densityMode={state.densityMode}
-              densityMetric={state.densityMetric}
-              densityRange={metricRanges[state.densityMetric]}
-              showWalkabilitySourceSurface={sb.showWalkabilitySourceSurface}
-              canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
-              methodSettings={state.methodSettings}
-              scorePaletteProfile={results.scorePaletteProfile}
-              scoreSpread={results.scoreSpread}
-              enabledDataSourceCount={state.enabledDataSources.length}
-              regionCount={datasets.regions.length}
-              thinCoverageCount={results.thinCoverageCount}
-              lowCoverageExcludedCount={results.lowCoverageExcludedCount}
-            />
+            </MapSectionLayout>
           </div>
         </div>
-      </MapSectionLayout>
-      </div>
-      </div>
       )}
 
       <ScorePresetDialog

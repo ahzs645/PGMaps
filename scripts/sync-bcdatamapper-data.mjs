@@ -227,6 +227,14 @@ for (const [sourceRelative, targetRelative] of optionalPathMappings) {
   copyPath(sourceRelative, targetRelative)
 }
 
+// The compact tracked release is authoritative for the development fallback.
+// Copy it after the optional ignored working output so a stale local build
+// cannot replace latest.json during PGMaps assembly.
+copyPath(
+  'datascrapers/environmental-burden/bcenviroscreen/release-snapshot',
+  'environmental-burden/bc-enviro-screen/release',
+)
+
 if (!includeRestrictedEarlyLearning) {
   for (const [, targetRelative] of restrictedEarlyLearningMappings) {
     rmSync(join(target, targetRelative), { force: true })

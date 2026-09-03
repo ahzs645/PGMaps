@@ -2,33 +2,17 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { useSearchParams } from 'react-router-dom'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { getLevelOptionsForSource } from '@/lib/studyArea'
-import {
-  SCORE_METRICS,
-  SCORE_PRESETS,
-  encodeWeightsToParams,
-} from '../constants'
+import { SCORE_METRICS, SCORE_PRESETS, encodeWeightsToParams } from '../constants'
 import { metricRecipeToDefinition } from '../lib/metricDefinitions'
 import type { MetricRecipe } from '../lib/metricRecipes'
-import {
-  createSavedIndexId,
-  loadSavedIndexes,
-  persistSavedIndexes,
-  type SavedIndexEntry,
-} from '../lib/savedIndexes'
+import { createSavedIndexId, loadSavedIndexes, persistSavedIndexes, type SavedIndexEntry } from '../lib/savedIndexes'
 import {
   decodeScoreBuilderShareState,
   encodeScoreBuilderShareState,
   type ScoreBuilderShareState,
 } from '../lib/shareState'
-import {
-  encodeCustomMetricRecipes,
-  encodeCustomMetricWeights,
-  getQuickIndexLabPresetKey,
-} from '../lib/urlState'
-import {
-  encodeWalkabilitySurfaceTuning,
-  type WalkabilitySurfaceTuning,
-} from '../lib/walkabilitySurface'
+import { encodeCustomMetricRecipes, encodeCustomMetricWeights, getQuickIndexLabPresetKey } from '../lib/urlState'
+import { encodeWalkabilitySurfaceTuning, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
 import type {
   ScoreDataSource,
   ScoreFilterKey,
@@ -228,6 +212,14 @@ export function useScoreBuilderState() {
     }
     params.set('accessMin', String(state.methodSettings.accessThreshold.minimumAccess))
     params.set('accessHits', String(state.methodSettings.accessThreshold.minimumHits))
+    params.set('bcExp', String(state.methodSettings.bcEnviroScreenComponentWeights.exposures))
+    params.set('bcEff', String(state.methodSettings.bcEnviroScreenComponentWeights.environmentalEffects))
+    params.set('bcSens', String(state.methodSettings.bcEnviroScreenComponentWeights.sensitivePopulations))
+    params.set('bcSoc', String(state.methodSettings.bcEnviroScreenComponentWeights.socioeconomicFactors))
+    params.set('bcFormulaMode', state.methodSettings.bcEnviroScreenFormula.mode)
+    if (state.methodSettings.bcEnviroScreenFormula.mode === 'custom') {
+      params.set('bcFormula', state.methodSettings.bcEnviroScreenFormula.expression)
+    }
     const walkabilitySurfaceToken = encodeWalkabilitySurfaceTuning(state.walkabilitySurfaceTuning)
     if (walkabilitySurfaceToken) params.set('wsurf', walkabilitySurfaceToken)
     setSearchParams(params, { replace: true })
@@ -294,39 +286,72 @@ export function useScoreBuilderState() {
     },
     [dispatchTracked],
   )
-  const handleRegionLevelChange = useCallback((level: RegionLevel) => {
-    dispatchTracked({ type: 'setRegionLevel', level })
-  }, [dispatchTracked])
-  const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
-    dispatchTracked({ type: 'setWeight', metric, value })
-  }, [dispatchTracked])
-  const handleAddMetric = useCallback((metric: ScoreMetricKey, value: number) => {
-    dispatchTracked({ type: 'addMetric', metric, value, allNetworks: allNetworksRef.current })
-  }, [dispatchTracked])
-  const handleBuildDensityScore = useCallback((metric: ScoreMetricKey) => {
-    dispatchTracked({ type: 'buildDensityScore', metric, allNetworks: allNetworksRef.current })
-  }, [dispatchTracked])
-  const applyExample = useCallback((exampleKey: string) => {
-    dispatchTracked({ type: 'applyExample', exampleKey, allNetworks: allNetworksRef.current })
-  }, [dispatchTracked])
-  const handleApplyPreset = useCallback((presetKey: string) => {
-    dispatchTracked({ type: 'applyPreset', presetKey, allNetworks: allNetworksRef.current })
-  }, [dispatchTracked])
-  const handleCreateCustomMetric = useCallback((recipe: MetricRecipe) => {
-    dispatchTracked({ type: 'createCustomMetric', recipe })
-  }, [dispatchTracked])
-  const handleRemoveCustomMetric = useCallback((id: string) => {
-    dispatchTracked({ type: 'removeCustomMetric', id })
-  }, [dispatchTracked])
-  const toggleDataSource = useCallback((source: ScoreDataSource) => {
-    dispatchTracked({ type: 'toggleDataSource', source })
-  }, [dispatchTracked])
-  const enableDataSource = useCallback((source: ScoreDataSource) => {
-    dispatchTracked({ type: 'enableDataSource', source, allNetworks: allNetworksRef.current })
-  }, [dispatchTracked])
-  const toggleNetwork = useCallback((network: string) => {
-    dispatchTracked({ type: 'toggleNetwork', network })
-  }, [dispatchTracked])
+  const handleRegionLevelChange = useCallback(
+    (level: RegionLevel) => {
+      dispatchTracked({ type: 'setRegionLevel', level })
+    },
+    [dispatchTracked],
+  )
+  const handleWeightChange = useCallback(
+    (metric: ScoreMetricKey, value: number) => {
+      dispatchTracked({ type: 'setWeight', metric, value })
+    },
+    [dispatchTracked],
+  )
+  const handleAddMetric = useCallback(
+    (metric: ScoreMetricKey, value: number) => {
+      dispatchTracked({ type: 'addMetric', metric, value, allNetworks: allNetworksRef.current })
+    },
+    [dispatchTracked],
+  )
+  const handleBuildDensityScore = useCallback(
+    (metric: ScoreMetricKey) => {
+      dispatchTracked({ type: 'buildDensityScore', metric, allNetworks: allNetworksRef.current })
+    },
+    [dispatchTracked],
+  )
+  const applyExample = useCallback(
+    (exampleKey: string) => {
+      dispatchTracked({ type: 'applyExample', exampleKey, allNetworks: allNetworksRef.current })
+    },
+    [dispatchTracked],
+  )
+  const handleApplyPreset = useCallback(
+    (presetKey: string) => {
+      dispatchTracked({ type: 'applyPreset', presetKey, allNetworks: allNetworksRef.current })
+    },
+    [dispatchTracked],
+  )
+  const handleCreateCustomMetric = useCallback(
+    (recipe: MetricRecipe) => {
+      dispatchTracked({ type: 'createCustomMetric', recipe })
+    },
+    [dispatchTracked],
+  )
+  const handleRemoveCustomMetric = useCallback(
+    (id: string) => {
+      dispatchTracked({ type: 'removeCustomMetric', id })
+    },
+    [dispatchTracked],
+  )
+  const toggleDataSource = useCallback(
+    (source: ScoreDataSource) => {
+      dispatchTracked({ type: 'toggleDataSource', source })
+    },
+    [dispatchTracked],
+  )
+  const enableDataSource = useCallback(
+    (source: ScoreDataSource) => {
+      dispatchTracked({ type: 'enableDataSource', source, allNetworks: allNetworksRef.current })
+    },
+    [dispatchTracked],
+  )
+  const toggleNetwork = useCallback(
+    (network: string) => {
+      dispatchTracked({ type: 'toggleNetwork', network })
+    },
+    [dispatchTracked],
+  )
   const selectAllNetworks = useCallback(() => {
     dispatchTracked({ type: 'setSelectedNetworks', networks: allNetworksRef.current })
   }, [dispatchTracked])
@@ -390,12 +415,18 @@ export function useScoreBuilderState() {
   const applyCorrelatePair = useCallback((metricX: ScoreMetricKey, metricY: ScoreMetricKey) => {
     dispatch({ type: 'applyCorrelatePair', metricX, metricY, allNetworks: allNetworksRef.current })
   }, [])
-  const toggleScoreFilter = useCallback((filter: ScoreFilterKey) => {
-    dispatchTracked({ type: 'toggleScoreFilter', filter })
-  }, [dispatchTracked])
-  const setMethodSettings = useCallback((settings: ScoreMethodSettings) => {
-    dispatchTracked({ type: 'setMethodSettings', settings })
-  }, [dispatchTracked])
+  const toggleScoreFilter = useCallback(
+    (filter: ScoreFilterKey) => {
+      dispatchTracked({ type: 'toggleScoreFilter', filter })
+    },
+    [dispatchTracked],
+  )
+  const setMethodSettings = useCallback(
+    (settings: ScoreMethodSettings) => {
+      dispatchTracked({ type: 'setMethodSettings', settings })
+    },
+    [dispatchTracked],
+  )
 
   const buildShareState = useCallback(
     (): ScoreBuilderShareState => ({

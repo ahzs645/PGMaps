@@ -14,11 +14,24 @@ import {
   Z_SCORE_METHOD,
   ACCESS_THRESHOLD_METHOD,
   HEALTHYPLAN_PAIRWISE_METHOD,
+  BC_ENVIRO_SCREEN_METHOD,
 } from './methodSettings'
 import { SCORE_METRICS } from './metrics'
 import { ZERO_WEIGHTS } from './weights'
+import { createBcEnviroScreenWeights } from './bcEnviroScreenMetrics'
 
 export const SCORE_PRESETS: ScorePreset[] = [
+  {
+    key: 'bcEnviroScreenReconstruction',
+    label: 'BC EnviroScreen Reconstruction',
+    description:
+      'Hybrid research reconstruction across all 89 BC Local Health Areas. Change indicator and component weights to explore custom scenarios.',
+    weights: { ...ZERO_WEIGHTS, ...createBcEnviroScreenWeights() },
+    methodSettings: BC_ENVIRO_SCREEN_METHOD,
+    boundarySources: ['bcHealth'],
+    recommendedBoundarySource: 'bcHealth',
+    recommendedBoundaryLevel: 'lha',
+  },
   {
     key: 'balancedCoverage',
     label: 'Balanced Coverage',
@@ -849,6 +862,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
 ]
 
 function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefined): string {
+  if (method?.aggregation === 'bcEnviroScreenProduct') return 'BC EnviroScreen percentile product'
   if (method?.aggregation === 'modulePercentileRankedSum') return 'EJI-style module percentile ranks'
   if (method?.aggregation === 'accessThreshold') return 'Access threshold count'
   if (method?.aggregation === 'cumulativeBurden') return 'Percentile + cumulative burden'
@@ -859,7 +873,7 @@ function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefi
 }
 
 function isProxyPreset(preset: ScorePreset): boolean {
-  return /proxy|climate|heat|shade|retrofit|school|equity|justice|pedestrian|walkability|mobility index/i.test(
+  return /proxy|bcenviro|climate|heat|shade|retrofit|school|equity|justice|pedestrian|walkability|mobility index/i.test(
     `${preset.key} ${preset.label} ${preset.description}`,
   )
 }
@@ -943,6 +957,7 @@ const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = [
   'walkability',
   'deprivation',
   'healthyPlanPg',
+  'bcEnviroScreen',
 ]
 
 function metricCategoryToDataSource(category: string): ScoreDataSource | null {
@@ -957,6 +972,7 @@ function metricCategoryToDataSource(category: string): ScoreDataSource | null {
   if (category === 'walkability') return 'walkability'
   if (category === 'deprivation') return 'deprivation'
   if (category === 'healthyPlanPg') return 'healthyPlanPg'
+  if (category === 'bcEnviroScreen') return 'bcEnviroScreen'
   return null
 }
 
@@ -964,7 +980,7 @@ export function getScoreDataSourcesForWeights(weights: ScoreMetricWeightMap): Sc
   const sources = new Set<ScoreDataSource>()
 
   SCORE_METRICS.forEach((metric) => {
-    if (weights[metric.key] === 0) return
+    if ((weights[metric.key] ?? 0) === 0) return
     const source = metricCategoryToDataSource(metric.category)
     if (source) sources.add(source)
     if (metric.key === 'crimePerCapita') sources.add('census')

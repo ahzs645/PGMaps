@@ -48,6 +48,7 @@ export const SCORE_PALETTE_PROFILES: Record<ScorePaletteKey, ScorePaletteProfile
 }
 
 const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
+  bcEnviroScreenReconstruction: 'riskPressure',
   balancedCoverage: 'airCoverage',
   lowCostExpansion: 'airCoverage',
   referenceNetwork: 'airCoverage',

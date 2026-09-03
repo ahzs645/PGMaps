@@ -117,6 +117,8 @@ export interface ProjectLabRecipe {
   selectedNetworks?: string[] | 'all'
   accessThreshold?: Partial<ScoreMethodSettings['accessThreshold']>
   healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
+  bcEnviroScreenComponentWeights?: Partial<ScoreMethodSettings['bcEnviroScreenComponentWeights']>
+  bcEnviroScreenFormula?: ScoreMethodSettings['bcEnviroScreenFormula']
 }
 
 export interface ProjectExplorerCategoryDef {
@@ -997,6 +999,17 @@ export function buildProjectLabParams(pkg: ProjectPackage): URLSearchParams | nu
   if (pkg.lab.healthyPlanPriority?.environmentMetric) {
     params.set('hpEnv', pkg.lab.healthyPlanPriority.environmentMetric)
   }
+  const bcWeights = pkg.lab.bcEnviroScreenComponentWeights
+  if (typeof bcWeights?.exposures === 'number') params.set('bcExp', String(bcWeights.exposures))
+  if (typeof bcWeights?.environmentalEffects === 'number') params.set('bcEff', String(bcWeights.environmentalEffects))
+  if (typeof bcWeights?.sensitivePopulations === 'number') params.set('bcSens', String(bcWeights.sensitivePopulations))
+  if (typeof bcWeights?.socioeconomicFactors === 'number') params.set('bcSoc', String(bcWeights.socioeconomicFactors))
+  if (pkg.lab.bcEnviroScreenFormula) {
+    params.set('bcFormulaMode', pkg.lab.bcEnviroScreenFormula.mode)
+    if (pkg.lab.bcEnviroScreenFormula.mode === 'custom') {
+      params.set('bcFormula', pkg.lab.bcEnviroScreenFormula.expression)
+    }
+  }
   params.set('project', pkg.slug)
   return params
 }
@@ -1133,6 +1146,8 @@ export function buildProjectPackageFromShareState(
       selectedNetworks: share.selectedNetworks,
       accessThreshold: share.methodSettings?.accessThreshold,
       healthyPlanPriority: share.methodSettings?.healthyPlanPriority,
+      bcEnviroScreenComponentWeights: share.methodSettings?.bcEnviroScreenComponentWeights,
+      bcEnviroScreenFormula: share.methodSettings?.bcEnviroScreenFormula,
     },
   }
 }

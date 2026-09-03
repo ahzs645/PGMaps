@@ -1,4 +1,5 @@
 import type { ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import { BC_ENVIRO_SCREEN_METRIC_KEYS } from './bcEnviroScreenMetrics'
 
 export const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   overallDensity: 0,
@@ -72,6 +73,7 @@ export const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   retailServiceAccess1km: 0,
   educationFacilityAccess1km: 0,
   geocodedBusinessDensity: 0,
+  ...Object.fromEntries(BC_ENVIRO_SCREEN_METRIC_KEYS.map((key) => [key, 0])),
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -161,5 +163,6 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     retailServiceAccess1km: initial,
     educationFacilityAccess1km: initial,
     geocodedBusinessDensity: initial,
+    ...Object.fromEntries(BC_ENVIRO_SCREEN_METRIC_KEYS.map((key) => [key, initial])),
   }
 }

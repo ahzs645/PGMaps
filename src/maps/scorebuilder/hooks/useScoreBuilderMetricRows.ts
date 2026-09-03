@@ -12,13 +12,10 @@ import {
 } from '../lib/metricRecipes'
 import { buildMetricRanges, buildMetricValueLists, type RegionMetricRow } from '../lib/scoring'
 import { bufferedAccessShare, catchmentAccess, isInRegion, regionCenter } from '../lib/spatial'
-import type {
-  RegionDataCounts,
-  ScoreBuilderRegion,
-  ScoreMetricDefinition,
-  ScoreMetricKey,
-} from '../types'
+import type { RegionDataCounts, ScoreBuilderRegion, ScoreMetricDefinition, ScoreMetricKey } from '../types'
 import type { ScoreBuilderPointRecords } from './useScoreBuilderPointRecords'
+import type { BcEnviroScreenLhaRow } from '../lib/bcEnviroScreenRelease'
+import { BC_ENVIRO_SCREEN_METRIC_KEYS, BC_ENVIRO_SCREEN_METRIC_PREFIX } from '../constants/bcEnviroScreenMetrics'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
@@ -32,6 +29,7 @@ export interface ScoreBuilderMetricRowsOptions {
   activeMetricDefinitions: ScoreMetricDefinition[]
   /** Per-region mean MI band from the walkability raster, keyed by region id. */
   walkabilityMiByRegion?: Map<string, { mean: number; cellCount: number }>
+  bcEnviroScreenRowsByLhaCode?: ReadonlyMap<string, BcEnviroScreenLhaRow>
 }
 
 function readNumericProperty(properties: Record<string, unknown>, keys: string[]): number | null {
@@ -66,6 +64,7 @@ export function useScoreBuilderMetricRows({
   healthyPlanPgEnabled,
   activeMetricDefinitions,
   walkabilityMiByRegion,
+  bcEnviroScreenRowsByLhaCode,
 }: ScoreBuilderMetricRowsOptions) {
   const {
     monitorPointRecords,
@@ -105,9 +104,10 @@ export function useScoreBuilderMetricRows({
     }
 
     const values = new Map<ScoreMetricKey, Map<string, { value: number; matchedFeatureCount: number }>>()
-    const pointRecipes = [...(healthyPlanPgEnabled ? HEALTHYPLAN_PG_STARTER_RECIPES : []), ...customMetricRecipes].filter(
-      (recipe) => recipe.operation !== 'derivedExpression' && recipe.operation !== 'censusVariable',
-    )
+    const pointRecipes = [
+      ...(healthyPlanPgEnabled ? HEALTHYPLAN_PG_STARTER_RECIPES : []),
+      ...customMetricRecipes,
+    ].filter((recipe) => recipe.operation !== 'derivedExpression' && recipe.operation !== 'censusVariable')
     pointRecipes.forEach((recipe) => {
       if (recipe.source.startsWith('healthyplanPg.') && !healthyPlanPgEnabled) return
       const computed = computePointMetricRecipe(recipe, regions, recordsForSource(recipe.source))
@@ -188,6 +188,7 @@ export function useScoreBuilderMetricRows({
         cimdEconomicDependencySum: 0,
         cimdSituationalVulnerabilitySum: 0,
         cimdEthnoCulturalCompositionSum: 0,
+        bcEnviroScreenJoinedCount: 0,
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -378,6 +379,9 @@ export function useScoreBuilderMetricRows({
         Math.min(1, (1 - (canopyProxyRatio + coolingWalk15Access) / 2) * (0.5 + Math.min(0.5, cimdComposite / 2))),
       )
       const metricValues = createMetricValueMap(0)
+      BC_ENVIRO_SCREEN_METRIC_KEYS.forEach((key) => {
+        metricValues[key] = Number.NaN
+      })
       metricValues.overallDensity = counts.monitorCount / safeArea
       metricValues.lowCostDensity = counts.lowCostCount / safeArea
       metricValues.referenceDensity = counts.referenceCount / safeArea
@@ -495,7 +499,24 @@ export function useScoreBuilderMetricRows({
         metricValues[recipe.id] = pointRecipeValues.get(recipe.id)?.get(region.id)?.value ?? 0
       })
 
-      return { region, metrics: metricValues, counts }
+      const bcEnviroScreenRow =
+        region.source === 'bcHealth' && region.level === 'lha'
+          ? bcEnviroScreenRowsByLhaCode?.get(region.code)
+          : undefined
+      const bcEnviroScreenSourceStatuses: Record<
+        string,
+        import('../lib/bcEnviroScreenRelease').BcEnviroScreenSourceStatus
+      > = {}
+      if (bcEnviroScreenRow) {
+        counts.bcEnviroScreenJoinedCount = 1
+        Object.entries(bcEnviroScreenRow.indicators).forEach(([indicatorKey, indicator]) => {
+          const metricKey = `${BC_ENVIRO_SCREEN_METRIC_PREFIX}${indicatorKey}`
+          metricValues[metricKey] = indicator.value == null ? Number.NaN : indicator.value
+          bcEnviroScreenSourceStatuses[metricKey] = indicator.sourceStatus
+        })
+      }
+
+      return { region, metrics: metricValues, counts, bcEnviroScreenSourceStatuses }
     })
   }, [
     monitorPointRecords,
@@ -520,6 +541,7 @@ export function useScoreBuilderMetricRows({
     pointRecipeValues,
     regions,
     walkabilityMiByRegion,
+    bcEnviroScreenRowsByLhaCode,
   ])
 
   const metricRanges = useMemo(

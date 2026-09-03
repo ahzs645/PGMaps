@@ -14,6 +14,7 @@ import type {
   ScoreMethodSettings,
 } from '../types'
 import { isHealthyPlanDemographicMetric, isHealthyPlanEnvironmentMetric } from './scoreBuilderPanelUtils'
+import { BcEnviroScreenEquationEditor } from './BcEnviroScreenEquationEditor'
 
 interface MethodControlsProps {
   className?: string
@@ -59,6 +60,7 @@ export function MethodControls({
             { value: 'zScore', label: 'Z-score' },
           ]}
           triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+          disabled={methodSettings.aggregation === 'bcEnviroScreenProduct'}
         />
       </label>
 
@@ -72,12 +74,22 @@ export function MethodControls({
             { value: 'geometric', label: 'Geometric mean' },
             { value: 'cumulativeBurden', label: 'Cumulative burden' },
             { value: 'modulePercentileRankedSum', label: 'EJI-style module ranked sum' },
+            { value: 'bcEnviroScreenProduct', label: 'BC EnviroScreen percentile product' },
             { value: 'healthyPlanPairwisePriority', label: 'HealthyPlan-style pairwise priority' },
             { value: 'accessThreshold', label: 'Access threshold score' },
           ]}
           triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
         />
       </label>
+
+      {methodSettings.aggregation === 'bcEnviroScreenProduct' && (
+        <BcEnviroScreenEquationEditor
+          weights={weights}
+          metrics={metrics}
+          methodSettings={methodSettings}
+          onMethodSettingsChange={onMethodSettingsChange}
+        />
+      )}
 
       {methodSettings.aggregation === 'healthyPlanPairwisePriority' && (
         <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/70 dark:bg-amber-950/25">
@@ -183,37 +195,45 @@ export function MethodControls({
       {methodSettings.aggregation === 'modulePercentileRankedSum' && (
         <div className="grid gap-2 rounded-md border border-cyan-200 bg-cyan-50/70 p-2 dark:border-cyan-900/70 dark:bg-cyan-950/25">
           <div className="font-medium text-cyan-950 dark:text-cyan-100">Module editor</div>
-          {metrics.filter((metric) => weights[metric.key] !== 0).map((metric) => (
-            <label key={metric.key} className="grid gap-1">
-              <span className="text-xs font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
-              <AppSelect
-                value={methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'}
-                onValueChange={(value) =>
-                  updateMethodSettings('metricModuleOverrides', {
-                    ...methodSettings.metricModuleOverrides,
-                    [metric.key]: value as ScoreIndexModule,
-                  })
-                }
-                options={Object.entries(SCORE_INDEX_MODULE_LABELS).map(([value, label]) => ({ value, label }))}
-                triggerClassName="h-8 rounded border-cyan-300 text-xs focus:ring-1 focus:ring-cyan-500 dark:border-cyan-900"
-              />
-            </label>
-          ))}
+          {metrics
+            .filter((metric) => weights[metric.key] !== 0)
+            .map((metric) => (
+              <label key={metric.key} className="grid gap-1">
+                <span className="text-xs font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
+                <AppSelect
+                  value={methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'}
+                  onValueChange={(value) =>
+                    updateMethodSettings('metricModuleOverrides', {
+                      ...methodSettings.metricModuleOverrides,
+                      [metric.key]: value as ScoreIndexModule,
+                    })
+                  }
+                  options={Object.entries(SCORE_INDEX_MODULE_LABELS).map(([value, label]) => ({ value, label }))}
+                  triggerClassName="h-8 rounded border-cyan-300 text-xs focus:ring-1 focus:ring-cyan-500 dark:border-cyan-900"
+                />
+              </label>
+            ))}
         </div>
       )}
 
-      <label className="space-y-1">
-        <span className="block font-medium text-muted-foreground">Missing data</span>
-        <AppSelect
-          value={methodSettings.missingData}
-          onValueChange={(value) => updateMethodSettings('missingData', value as ScoreMethodSettings['missingData'])}
-          options={[
-            { value: 'zero', label: 'Treat missing as zero' },
-            { value: 'neutral', label: 'Treat missing as neutral' },
-          ]}
-          triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-        />
-      </label>
+      {methodSettings.aggregation === 'bcEnviroScreenProduct' ? (
+        <p className="rounded border border-violet-200 bg-violet-50/70 p-2 text-violet-900 dark:border-violet-900/70 dark:bg-violet-950/25 dark:text-violet-100">
+          Missing-data handling is fixed by the reconstruction method.
+        </p>
+      ) : (
+        <label className="space-y-1">
+          <span className="block font-medium text-muted-foreground">Missing data</span>
+          <AppSelect
+            value={methodSettings.missingData}
+            onValueChange={(value) => updateMethodSettings('missingData', value as ScoreMethodSettings['missingData'])}
+            options={[
+              { value: 'zero', label: 'Treat missing as zero' },
+              { value: 'neutral', label: 'Treat missing as neutral' },
+            ]}
+            triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+          />
+        </label>
+      )}
 
       <button
         type="button"
@@ -227,9 +247,7 @@ export function MethodControls({
       >
         <span>
           <span className="block font-semibold">Sensitivity test</span>
-          <span className="block text-xs text-muted-foreground">
-            Perturb active weights by 15% across 24 trials.
-          </span>
+          <span className="block text-xs text-muted-foreground">Perturb active weights by 15% across 24 trials.</span>
         </span>
         <span className="font-bold">{methodSettings.sensitivity ? 'ON' : 'OFF'}</span>
       </button>

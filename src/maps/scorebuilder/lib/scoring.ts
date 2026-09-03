@@ -17,11 +17,13 @@ import type {
   ScoreMethodSettings,
 } from '../types'
 import { metricHasCoverage } from './metrics'
+import type { BcEnviroScreenSourceStatus } from './bcEnviroScreenRelease'
 
 export interface RegionMetricRow {
   region: ScoreBuilderRegion
   metrics: ScoreMetricValueMap
   counts: RegionDataCounts
+  bcEnviroScreenSourceStatuses?: Record<ScoreMetricKey, BcEnviroScreenSourceStatus>
 }
 
 export type MetricValueListMap = Record<ScoreMetricKey, number[]>
@@ -108,7 +110,10 @@ export function findMeasurableMetricKeys(
   return measurable
 }
 
-export function buildMetricRanges(rows: RegionMetricRow[], metrics: ScoreMetricDefinition[] = DEFAULT_METRICS): ScoreMetricRangeMap {
+export function buildMetricRanges(
+  rows: RegionMetricRow[],
+  metrics: ScoreMetricDefinition[] = DEFAULT_METRICS,
+): ScoreMetricRangeMap {
   return metrics.reduce((accumulator, metric) => {
     const values = rows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
     const min = values.length ? Math.min(...values) : 0
@@ -117,7 +122,10 @@ export function buildMetricRanges(rows: RegionMetricRow[], metrics: ScoreMetricD
   }, {} as ScoreMetricRangeMap)
 }
 
-export function buildMetricValueLists(rows: RegionMetricRow[], metrics: ScoreMetricDefinition[] = DEFAULT_METRICS): MetricValueListMap {
+export function buildMetricValueLists(
+  rows: RegionMetricRow[],
+  metrics: ScoreMetricDefinition[] = DEFAULT_METRICS,
+): MetricValueListMap {
   return metrics.reduce((accumulator, metric) => {
     accumulator[metric.key] = rows
       .map((row) => row.metrics[metric.key])
@@ -174,10 +182,10 @@ export function scoreRegionRows({
       settings.aggregation === 'accessThreshold'
         ? calculateAccessThresholdScore(normalizedMetrics, row.metrics, weights, settings)
         : settings.aggregation === 'cumulativeBurden'
-        ? calculateCumulativeBurden(normalizedMetrics, weights)
-        : settings.aggregation === 'geometric' && totalWeight > 0
-          ? rawProduct
-          : rawScore
+          ? calculateCumulativeBurden(normalizedMetrics, weights)
+          : settings.aggregation === 'geometric' && totalWeight > 0
+            ? rawProduct
+            : rawScore
     const score = totalWeight > 0 ? clampScore(aggregateValue * 100) : 50
 
     return {
@@ -209,7 +217,8 @@ export function scoreRegionRows({
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
-    if (b.metrics.overallDensity !== a.metrics.overallDensity) return b.metrics.overallDensity - a.metrics.overallDensity
+    if (b.metrics.overallDensity !== a.metrics.overallDensity)
+      return b.metrics.overallDensity - a.metrics.overallDensity
     return a.region.name.localeCompare(b.region.name)
   })
 
@@ -240,15 +249,17 @@ function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level:
       ? 'BC health regions'
       : source === 'regionalDistrict'
         ? 'BC regional districts'
-      : source === 'cityCommunity'
-        ? 'CityPG community polygons'
-      : source === 'cityPG'
-        ? 'CityPG school catchments'
-        : source === 'watershed'
-          ? 'BC Freshwater Atlas watershed boundaries'
-          : source === 'census'
-            ? level === 'db' ? 'Prince George dissemination blocks' : 'BC census regions'
-            : 'selected boundary regions'
+        : source === 'cityCommunity'
+          ? 'CityPG community polygons'
+          : source === 'cityPG'
+            ? 'CityPG school catchments'
+            : source === 'watershed'
+              ? 'BC Freshwater Atlas watershed boundaries'
+              : source === 'census'
+                ? level === 'db'
+                  ? 'Prince George dissemination blocks'
+                  : 'BC census regions'
+                : 'selected boundary regions'
   return `Scores are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
 }
 

@@ -1,5 +1,6 @@
 import type { BoundarySource, RegionLevel, StudyAreaRegion } from '@/lib/studyArea'
 import type { ScorePaletteKey } from './constants/paletteTypes'
+import type { BcEnviroScreenFormulaSettings } from './lib/bcEnviroScreenFormula'
 
 export type ScoreMetricCategory =
   | 'airQuality'
@@ -13,6 +14,7 @@ export type ScoreMetricCategory =
   | 'walkability'
   | 'deprivation'
   | 'healthyPlanPg'
+  | 'bcEnviroScreen'
   | 'custom'
 
 export type ScoreIndexModule =
@@ -129,7 +131,7 @@ export type BuiltInScoreMetricKey =
   | 'geocodedBusinessDensity'
 
 export type ScoreMetricKey = BuiltInScoreMetricKey | (string & {})
-export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
+export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'rawPercent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
 export type ScoreVisualOutputMode = 'interpolated' | 'binned'
 /**
@@ -143,6 +145,7 @@ export type ScoreAggregationMethod =
   | 'geometric'
   | 'cumulativeBurden'
   | 'modulePercentileRankedSum'
+  | 'bcEnviroScreenProduct'
   | 'healthyPlanPairwisePriority'
   | 'accessThreshold'
 export type ScoreNormalizationScope = 'activeBoundaryLevel'
@@ -155,6 +158,10 @@ export type ScoreMetricComponent =
   | 'adaptiveCapacity'
   | 'housingPressure'
   | 'safetyPressure'
+  | 'bcEnviroScreenExposures'
+  | 'bcEnviroScreenEnvironmentalEffects'
+  | 'bcEnviroScreenSensitivePopulations'
+  | 'bcEnviroScreenSocioeconomicFactors'
 export type ScoreSpatialMethod =
   | 'pointInPolygon'
   | 'centroidInPolygon'
@@ -183,6 +190,13 @@ export interface ScoreMethodSettings {
     minimumAccess: number
     minimumHits: number
   }
+  bcEnviroScreenComponentWeights: {
+    exposures: number
+    environmentalEffects: number
+    sensitivePopulations: number
+    socioeconomicFactors: number
+  }
+  bcEnviroScreenFormula: BcEnviroScreenFormulaSettings
   metricModuleOverrides: Partial<Record<ScoreMetricKey, ScoreIndexModule>>
 }
 
@@ -208,6 +222,7 @@ export interface ScoreMetricDefinition {
   valueBehavior?: ScoreMetricValueBehavior
   missingDataPolicy?: ScoreMissingDataPolicy
   proxyLevel?: 'official' | 'proxy' | 'experimental'
+  bcEnviroScreenComponent?: 'exposures' | 'environmentalEffects' | 'sensitivePopulations' | 'socioeconomicFactors'
   /**
    * Boundary sources the metric actually populates on. Omitted means "every
    * boundary"; a list means the metric is joined from a snapshot that only
@@ -319,6 +334,7 @@ export interface RegionDataCounts {
   cimdEconomicDependencySum: number
   cimdSituationalVulnerabilitySum: number
   cimdEthnoCulturalCompositionSum: number
+  bcEnviroScreenJoinedCount: number
 }
 
 export interface RegionEquityAudit {
@@ -377,6 +393,19 @@ export interface ScoredBoundaryRegion {
   moduleScores?: ScoreModuleResult[]
   domainScores?: ScoreDomainResult[]
   missingDataFlags?: string[]
+  bcEnviroScreen?: {
+    components: Record<
+      'exposures' | 'environmentalEffects' | 'sensitivePopulations' | 'socioeconomicFactors',
+      number | null
+    >
+    landscapeBurdenScore: number | null
+    populationCharacteristicsScore: number | null
+    formulaMode: BcEnviroScreenFormulaSettings['mode']
+    formulaExpression: string
+    formulaError: string | null
+    missingIndicators: ScoreMetricKey[]
+    sourceStatusWarnings: string[]
+  }
 }
 
 export interface ScoreComponentSummary {
@@ -410,13 +439,9 @@ export type ScoreDataSource =
   | 'walkability'
   | 'deprivation'
   | 'healthyPlanPg'
+  | 'bcEnviroScreen'
 
-export type ScoreFilterKey =
-  | 'requireCoverage'
-  | 'requirePopulation'
-  | 'requireParks'
-  | 'limitCrime'
-  | 'limitFoodRisk'
+export type ScoreFilterKey = 'requireCoverage' | 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
 
 /**
  * Share of a region's weighted metrics that must have real data before it is
@@ -460,9 +485,22 @@ export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; des
   { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
   { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' },
   { id: 'transit', label: 'Transit', description: 'City of Prince George transit stops and stop amenities' },
-  { id: 'walkability', label: 'Walkability', description: 'Pedestrian network study layers and public-data supplements' },
+  {
+    id: 'walkability',
+    label: 'Walkability',
+    description: 'Pedestrian network study layers and public-data supplements',
+  },
   { id: 'deprivation', label: 'Deprivation', description: 'Statistics Canada CIMD deprivation context' },
-  { id: 'healthyPlanPg', label: 'HealthyPlan PG', description: 'Education, food, retail/service, and geocoded business point datasets' },
+  {
+    id: 'healthyPlanPg',
+    label: 'HealthyPlan PG',
+    description: 'Education, food, retail/service, and geocoded business point datasets',
+  },
+  {
+    id: 'bcEnviroScreen',
+    label: 'BC EnviroScreen',
+    description: 'Calculation-ready reconstruction inputs for all 89 BC Local Health Areas',
+  },
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
@@ -477,5 +515,6 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   walkability: 'Walkability',
   deprivation: 'Deprivation',
   healthyPlanPg: 'HealthyPlan PG',
+  bcEnviroScreen: 'BC EnviroScreen',
   custom: 'Custom',
 }

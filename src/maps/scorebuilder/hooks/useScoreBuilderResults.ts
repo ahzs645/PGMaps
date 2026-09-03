@@ -3,18 +3,11 @@ import type { RegionLevel } from '@/maps/airquality'
 import { SCORE_BUILDER_EXAMPLES, SCORE_PALETTE_PROFILES, SCORE_PRESETS, getScorePaletteProfile } from '../constants'
 import { scoreRegionRowsWithHealthyPlanPriority } from '../lib/healthyPlanPriorityScoring'
 import { scoreRegionRowsWithModulePercentiles } from '../lib/modulePercentileScoring'
-import {
-  computePopulationWeightedEquitySummary,
-  type PopulationWeightedEquitySummary,
-} from '../lib/populationSummary'
+import { scoreRegionRowsWithBcEnviroScreen } from '../lib/bcEnviroScreenScoring'
+import { computePopulationWeightedEquitySummary, type PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { getActivePresetKey, scoreDataSourcesEqual, scoreWeightsEqual } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
-import {
-  clampScore,
-  scoreRegionRows,
-  type MetricValueListMap,
-  type RegionMetricRow,
-} from '../lib/scoring'
+import { clampScore, scoreRegionRows, type MetricValueListMap, type RegionMetricRow } from '../lib/scoring'
 import { buildScoreBandSummary, summarizeScores } from '../lib/scoreSummaries'
 import { computeMedian } from '../lib/spatial'
 import {
@@ -138,6 +131,14 @@ export function useScoreBuilderResults({
           paletteProfile: scorePaletteProfile,
         })
       }
+      if (settings.aggregation === 'bcEnviroScreenProduct') {
+        return scoreRegionRowsWithBcEnviroScreen({
+          rows: regionMetricRows,
+          weights: weightMap,
+          settings,
+          paletteProfile: scorePaletteProfile,
+        })
+      }
       return scoreRegionRows({
         rows: regionMetricRows,
         weights: weightMap,
@@ -239,9 +240,9 @@ export function useScoreBuilderResults({
       methodSettings.aggregation === 'healthyPlanPairwisePriority' ||
       Boolean(
         configuredDemographicMetric &&
-          configuredEnvironmentMetric &&
-          weights[configuredDemographicMetric] !== 0 &&
-          weights[configuredEnvironmentMetric] !== 0,
+        configuredEnvironmentMetric &&
+        weights[configuredDemographicMetric] !== 0 &&
+        weights[configuredEnvironmentMetric] !== 0,
       )
     const demographicMetric =
       (hasActiveConfiguredPair ? configuredDemographicMetric : null) ||
@@ -249,14 +250,12 @@ export function useScoreBuilderResults({
       null
     const environmentMetric =
       (hasActiveConfiguredPair ? configuredEnvironmentMetric : null) ||
-      activeMetricDefinitions.find((metric) => metric.component === 'serviceAccess' && weights[metric.key] !== 0)?.key ||
+      activeMetricDefinitions.find((metric) => metric.component === 'serviceAccess' && weights[metric.key] !== 0)
+        ?.key ||
       null
     if (
       methodSettings.aggregation !== 'healthyPlanPairwisePriority' &&
-      (!demographicMetric ||
-        !environmentMetric ||
-        weights[demographicMetric] === 0 ||
-        weights[environmentMetric] === 0)
+      (!demographicMetric || !environmentMetric || weights[demographicMetric] === 0 || weights[environmentMetric] === 0)
     ) {
       return null
     }
@@ -329,9 +328,14 @@ export function useScoreBuilderResults({
 
     return Object.entries(METRIC_CATEGORY_LABELS)
       .map(([category, label]) => {
-        const metrics = activeMetricDefinitions.filter((metric) => metric.category === category && weights[metric.key] !== 0)
+        const metrics = activeMetricDefinitions.filter(
+          (metric) => metric.category === category && weights[metric.key] !== 0,
+        )
         const categoryWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
-        const categoryContribution = metrics.reduce((sum, metric) => sum + (referenceRegion.contributions[metric.key] ?? 0), 0)
+        const categoryContribution = metrics.reduce(
+          (sum, metric) => sum + (referenceRegion.contributions[metric.key] ?? 0),
+          0,
+        )
         return {
           key: category as ScoreComponentSummary['key'],
           label,
@@ -375,9 +379,11 @@ export function useScoreBuilderResults({
       sampleRows(scoreRows(perturbedWeights))
     }
 
-    activeMetricDefinitions.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
-      sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
-    })
+    activeMetricDefinitions
+      .filter((metric) => weights[metric.key] !== 0)
+      .forEach((metric) => {
+        sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
+      })
     ;(['minMax', 'winsorizedMinMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
       if (normalization === methodSettings.normalization) return
       sampleRows(scoreRows(weights, { ...methodSettings, normalization }))
@@ -395,7 +401,8 @@ export function useScoreBuilderResults({
         rankInterval: [ranks[0], ranks[ranks.length - 1]],
         scoreInterval: [scores[0], scores[scores.length - 1]],
         stability: rankSpread <= 2 ? 'stable' : rankSpread <= 6 ? 'moderate' : 'sensitive',
-        topDrivers: activeMetricDefinitions.filter((metric) => weights[metric.key] !== 0)
+        topDrivers: activeMetricDefinitions
+          .filter((metric) => weights[metric.key] !== 0)
           .sort((a, b) => Math.abs(entry.contributions[b.key]) - Math.abs(entry.contributions[a.key]))
           .slice(0, 3)
           .map((metric) => metric.key),
@@ -528,6 +535,11 @@ export function useScoreBuilderResults({
       const moduleNames = Array.from(new Set(activeTerms.map((metric) => metric.indexModule || 'localContext')))
       return `score = percentile_rank(sum(module ranks: ${moduleNames.join(' + ')}))`
     }
+    if (methodSettings.aggregation === 'bcEnviroScreenProduct') {
+      return methodSettings.bcEnviroScreenFormula.mode === 'custom'
+        ? `score = clamp(${methodSettings.bcEnviroScreenFormula.expression}, 0, 100)`
+        : 'score = max-scaled landscape burden × max-scaled population characteristics'
+    }
     if (methodSettings.aggregation === 'accessThreshold') {
       return `score = access hits >= ${(methodSettings.accessThreshold.minimumAccess * 100).toFixed(0)}%, target ${methodSettings.accessThreshold.minimumHits}`
     }
@@ -536,7 +548,14 @@ export function useScoreBuilderResults({
       return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
     })
     return `score = weighted average(${terms.join(' + ')})`
-  }, [activeMetricDefinitions, methodSettings.aggregation, methodSettings.accessThreshold, methodSettings.healthyPlanPriority, weights])
+  }, [
+    activeMetricDefinitions,
+    methodSettings.aggregation,
+    methodSettings.accessThreshold,
+    methodSettings.bcEnviroScreenFormula,
+    methodSettings.healthyPlanPriority,
+    weights,
+  ])
 
   return {
     activePresetKey,

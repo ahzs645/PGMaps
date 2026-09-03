@@ -15,6 +15,7 @@ import { useCimdData } from './useCimdData'
 import { useHeatShadeData } from './useHeatShadeData'
 import { useScoreBuilderRegions } from './useScoreBuilderRegions'
 import { useTransitData } from './useTransitData'
+import { useBcEnviroScreenData } from './useBcEnviroScreenData'
 
 const CENSUS_VARIABLE_LEVEL_VALUES = new Set<CensusHierarchyLevel>(['cd', 'csd', 'ct', 'da', 'db'])
 
@@ -83,6 +84,7 @@ export function useScoreBuilderDatasets({
     loading: loadingCimd,
     error: cimdError,
   } = useCimdData(enabledSourceSet.has('deprivation'))
+  const bcEnviroScreen = useBcEnviroScreenData(enabledSourceSet.has('bcEnviroScreen'))
 
   const walkabilityEnabled = enabledSourceSet.has('walkability')
   const walkabilitySidewalks = useJsonManifest<GeoJSON.FeatureCollection>(
@@ -131,18 +133,13 @@ export function useScoreBuilderDatasets({
   const censusVariableLevel = CENSUS_VARIABLE_LEVEL_VALUES.has(selectedRegionLevel as CensusHierarchyLevel)
     ? (selectedRegionLevel as CensusHierarchyLevel)
     : 'da'
-  const customCensusCategories = useMemo(
-    () => getCensusRecipeCategories(customMetricRecipes),
-    [customMetricRecipes],
-  )
+  const customCensusCategories = useMemo(() => getCensusRecipeCategories(customMetricRecipes), [customMetricRecipes])
   const shouldLoadCustomCensus = customCensusCategories.length > 0
   const censusAgeVariables = useJsonManifest<CensusCategoryData>(
     shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'age') : null,
   )
   const censusVisibleMinorityVariables = useJsonManifest<CensusCategoryData>(
-    shouldLoadCustomCensus
-      ? censusVariableDataPath(censusVariableLevel, 'visible_minority_and_ethnic_origin')
-      : null,
+    shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'visible_minority_and_ethnic_origin') : null,
   )
   const censusImmigrationVariables = useJsonManifest<CensusCategoryData>(
     shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'citizenship_and_immigration') : null,
@@ -197,7 +194,8 @@ export function useScoreBuilderDatasets({
     loadingCrime ||
     loadingHeatShade ||
     loadingTransit ||
-    loadingCimd
+    loadingCimd ||
+    bcEnviroScreen.loading
 
   const dataErrors = useMemo(() => {
     const errors: string[] = []
@@ -211,6 +209,7 @@ export function useScoreBuilderDatasets({
     if (heatShadeError) errors.push(heatShadeError)
     if (transitError) errors.push(transitError)
     if (cimdError) errors.push(cimdError)
+    if (bcEnviroScreen.error) errors.push(bcEnviroScreen.error)
     if (walkabilitySidewalks.error) errors.push(walkabilitySidewalks.error)
     if (walkabilityWalkways.error) errors.push(walkabilityWalkways.error)
     if (walkabilityIntersections.error) errors.push(walkabilityIntersections.error)
@@ -241,6 +240,7 @@ export function useScoreBuilderDatasets({
     heatShadeError,
     transitError,
     cimdError,
+    bcEnviroScreen.error,
     walkabilitySidewalks.error,
     walkabilityWalkways.error,
     walkabilityIntersections.error,
@@ -277,6 +277,7 @@ export function useScoreBuilderDatasets({
     heatShadeFacilities,
     transitStops,
     cimdRecords,
+    bcEnviroScreen,
     walkabilityCollections: {
       sidewalks: walkabilitySidewalks.data,
       walkways: walkabilityWalkways.data,

@@ -1,4 +1,5 @@
 import type { ScoreMetricKey, ScoreMethodSettings } from '../types'
+import { BC_ENVIRO_SCREEN_DEFAULT_FORMULA } from '../lib/bcEnviroScreenFormula'
 
 export const PERCENTILE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'percentile', aggregation: 'additive' }
 export const WINSORIZED_METHOD: Partial<ScoreMethodSettings> = {
@@ -13,6 +14,21 @@ export const CUMULATIVE_BURDEN_METHOD: Partial<ScoreMethodSettings> = {
 export const MODULE_PERCENTILE_METHOD: Partial<ScoreMethodSettings> = {
   normalization: 'percentile',
   aggregation: 'modulePercentileRankedSum',
+}
+export const BC_ENVIRO_SCREEN_METHOD: Partial<ScoreMethodSettings> = {
+  normalization: 'percentile',
+  aggregation: 'bcEnviroScreenProduct',
+  missingData: 'neutral',
+  bcEnviroScreenComponentWeights: {
+    exposures: 1,
+    environmentalEffects: 0.5,
+    sensitivePopulations: 1,
+    socioeconomicFactors: 1,
+  },
+  bcEnviroScreenFormula: {
+    mode: 'reconstruction',
+    expression: BC_ENVIRO_SCREEN_DEFAULT_FORMULA,
+  },
 }
 export const ACCESS_THRESHOLD_METHOD: Partial<ScoreMethodSettings> = {
   normalization: 'percentile',

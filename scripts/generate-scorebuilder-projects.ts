@@ -66,6 +66,8 @@ interface GeneratedProjectPackage {
     selectedNetworks?: string[] | 'all'
     accessThreshold?: Partial<ScoreMethodSettings['accessThreshold']>
     healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
+    bcEnviroScreenComponentWeights?: Partial<ScoreMethodSettings['bcEnviroScreenComponentWeights']>
+    bcEnviroScreenFormula?: ScoreMethodSettings['bcEnviroScreenFormula']
   }
 }
 
@@ -110,6 +112,7 @@ function sourceLabel(source: ScoreDataSource): string {
     walkability: 'Walkability',
     deprivation: 'CIMD',
     healthyPlanPg: 'HealthyPlan',
+    bcEnviroScreen: 'BC EnviroScreen',
   }
   return labels[source]
 }
@@ -150,6 +153,7 @@ function boundaryDefaultsForPreset(
 
 function themeForSources(sources: ScoreDataSource[], method?: Partial<ScoreMethodSettings>): ProjectTheme {
   if (method?.aggregation === 'accessThreshold') return 'emerald'
+  if (method?.aggregation === 'bcEnviroScreenProduct') return 'amber'
   if (sources.includes('heatShade') || sources.includes('deprivation')) return 'amber'
   if (sources.includes('walkability') || sources.includes('transit')) return 'blue'
   if (sources.includes('parks')) return 'emerald'
@@ -206,6 +210,8 @@ function labRecipe({
     selectedNetworks,
     accessThreshold: methodSettings?.accessThreshold,
     healthyPlanPriority: methodSettings?.healthyPlanPriority,
+    bcEnviroScreenComponentWeights: methodSettings?.bcEnviroScreenComponentWeights,
+    bcEnviroScreenFormula: methodSettings?.bcEnviroScreenFormula,
   }
 }
 
@@ -251,27 +257,47 @@ function buildProject({
     created: sourceKey === 'pedestrianNetworkStudyMi' ? '2026-07-05' : undefined,
     updated: UPDATED,
     region: regionLabel(boundarySource, boundaryLevel),
-    status: 'Ready',
+    status: sourceKey === 'bcEnviroScreenReconstruction' ? 'Hybrid research reconstruction' : 'Ready',
     summary,
     sourceNote: `Generated from the score-builder ${sourceType.toLowerCase()} "${sourceKey}". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.`,
     angledLegendLabels: sourceKey === 'pedestrianNetworkStudyMi' ? true : undefined,
-    details: [
-      `${sourceType} package generated from the Index Lab catalog so it can be opened from the Projects workspace.`,
-      activeMetrics.length
-        ? `Primary active metrics include ${activeMetrics.join(', ')}.`
-        : 'This package has no active metrics.',
-    ],
+    details:
+      sourceKey === 'bcEnviroScreenReconstruction'
+        ? [
+            'Research reconstruction across all 89 BC Local Health Areas; it is not an official Province of British Columbia or paper-author product.',
+            'The current complete-total hypertension scenario has all-BC correlation 0.944351; Prince George scores 57.349866 versus the displayed Shiny benchmark of 57.6.',
+            'Correlation is validation evidence, not proof that every source vintage is exact. Climate inputs remain benchmark-derived gaps and several other inputs are proxies.',
+          ]
+        : [
+            `${sourceType} package generated from the Index Lab catalog so it can be opened from the Projects workspace.`,
+            activeMetrics.length
+              ? `Primary active metrics include ${activeMetrics.join(', ')}.`
+              : 'This package has no active metrics.',
+          ],
     links: [],
-    catalogMetrics: [
-      { label: 'Source', value: sourceType },
-      { label: 'Boundary', value: boundaryLevel.toUpperCase() },
-      { label: 'Metrics', value: String(metricCount) },
-    ],
-    layers: [
-      { id: 'base', label: 'Muted streets', type: 'base', checked: true, locked: true },
-      { id: 'score-surface', label: 'Score surface', type: 'raster', checked: true, role: 'score' },
-      { id: 'points', label: pointLayerLabel, type: 'point', checked: sources.length <= 4, role: 'points' },
-    ],
+    catalogMetrics:
+      sourceKey === 'bcEnviroScreenReconstruction'
+        ? [
+            { label: 'Geography', value: '89 BC LHAs' },
+            { label: 'Method', value: 'Percentile product' },
+            { label: 'Validation r', value: '0.944351' },
+          ]
+        : [
+            { label: 'Source', value: sourceType },
+            { label: 'Boundary', value: boundaryLevel.toUpperCase() },
+            { label: 'Metrics', value: String(metricCount) },
+          ],
+    layers:
+      sourceKey === 'bcEnviroScreenReconstruction'
+        ? [
+            { id: 'base', label: 'Muted streets', type: 'base', checked: true, locked: true },
+            { id: 'score-surface', label: 'Score surface', type: 'raster', checked: true, role: 'score' },
+          ]
+        : [
+            { id: 'base', label: 'Muted streets', type: 'base', checked: true, locked: true },
+            { id: 'score-surface', label: 'Score surface', type: 'raster', checked: true, role: 'score' },
+            { id: 'points', label: pointLayerLabel, type: 'point', checked: sources.length <= 4, role: 'points' },
+          ],
     legend: [
       { label: 'Lower score', color: '#dbeafe' },
       { label: 'Mid score', color: '#fde68a' },
@@ -284,7 +310,10 @@ function buildProject({
         title: `${title} score surface`,
         text: `Review the generated ${sourceType.toLowerCase()} across ${boundaryLevel.toUpperCase()} boundaries.`,
         focus: 'Score surface',
-        visibleLayerIds: ['base', 'score-surface', 'points'],
+        visibleLayerIds:
+          sourceKey === 'bcEnviroScreenReconstruction'
+            ? ['base', 'score-surface']
+            : ['base', 'score-surface', 'points'],
       },
       {
         label: 'Surface',

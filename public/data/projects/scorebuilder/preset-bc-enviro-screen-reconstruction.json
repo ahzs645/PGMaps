@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "slug": "score-preset-bc-enviro-screen-reconstruction",
+  "title": "BC EnviroScreen Reconstruction",
+  "kind": "index-preset",
+  "theme": "amber",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "British Columbia LHA",
+  "status": "Hybrid research reconstruction",
+  "summary": "Hybrid research reconstruction across all 89 BC Local Health Areas. Change indicator and component weights to explore custom scenarios.",
+  "sourceNote": "Generated from the score-builder preset \"bcEnviroScreenReconstruction\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Research reconstruction across all 89 BC Local Health Areas; it is not an official Province of British Columbia or paper-author product.",
+    "The current complete-total hypertension scenario has all-BC correlation 0.944351; Prince George scores 57.349866 versus the displayed Shiny benchmark of 57.6.",
+    "Correlation is validation evidence, not proof that every source vintage is exact. Climate inputs remain benchmark-derived gaps and several other inputs are proxies."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Geography",
+      "value": "89 BC LHAs"
+    },
+    {
+      "label": "Method",
+      "value": "Percentile product"
+    },
+    {
+      "label": "Validation r",
+      "value": "0.944351"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "BC EnviroScreen Reconstruction score surface",
+      "text": "Review the generated preset across LHA boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "21 active metrics; bcEnviroScreenProduct aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "BC EnviroScreen"
+    }
+  ],
+  "lab": {
+    "presetKey": "bcEnviroScreenReconstruction",
+    "boundarySource": "bcHealth",
+    "boundaryLevel": "lha",
+    "weights": {
+      "bcEnviroScreen.future_precipitation": 1,
+      "bcEnviroScreen.future_temperature": 1,
+      "bcEnviroScreen.ozone": 1,
+      "bcEnviroScreen.pm25": 1,
+      "bcEnviroScreen.traffic_density": 1,
+      "bcEnviroScreen.water_quality_exceedances": 1,
+      "bcEnviroScreen.disturbed_landscape": 1,
+      "bcEnviroScreen.industrial_sites": 1,
+      "bcEnviroScreen.linear_footprint": 1,
+      "bcEnviroScreen.remediation_sites": 1,
+      "bcEnviroScreen.wildfire_burn_area": 1,
+      "bcEnviroScreen.all_causes_of_cancer": 1,
+      "bcEnviroScreen.copd": 1,
+      "bcEnviroScreen.diabetes_mellitus": 1,
+      "bcEnviroScreen.hypertension": 1,
+      "bcEnviroScreen.low_birth_weight": 1,
+      "bcEnviroScreen.employment_insurance_beneficiaries": 1,
+      "bcEnviroScreen.housing_burdened_renters": 1,
+      "bcEnviroScreen.linguistic_isolation": 1,
+      "bcEnviroScreen.low_education": 1,
+      "bcEnviroScreen.low_income": 1
+    },
+    "normalization": "percentile",
+    "aggregation": "bcEnviroScreenProduct",
+    "missingData": "neutral",
+    "mapSurface": "boundary",
+    "bcEnviroScreenComponentWeights": {
+      "exposures": 1,
+      "environmentalEffects": 0.5,
+      "sensitivePopulations": 1,
+      "socioeconomicFactors": 1
+    },
+    "bcEnviroScreenFormula": {
+      "mode": "reconstruction",
+      "expression": "landscape_burden * population_characteristics"
+    }
+  }
+}
