@@ -29,6 +29,7 @@ interface ScoreBuilderMapProps {
   walkabilitySurfaceTuning?: WalkabilitySurfaceTuning
   loading?: boolean
   onMapInstance?: (map: MapRef | null) => void
+  fitAllRegions?: boolean
 }
 
 interface WalkabilityHeatmapManifest {
@@ -75,6 +76,7 @@ export function ScoreBuilderMap({
   walkabilitySurfaceTuning,
   loading = false,
   onMapInstance,
+  fitAllRegions = false,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef | null>(null)
   const setMapRef = useCallback(
@@ -128,6 +130,30 @@ export function ScoreBuilderMap({
     if (!selectedRegionId) return null
     return regions.find((entry) => entry.region.id === selectedRegionId)?.region || null
   }, [regions, selectedRegionId])
+
+  const allRegionBounds = useMemo(() => {
+    if (!fitAllRegions || regions.length === 0) return null
+    return regions.reduce<[number, number, number, number]>(
+      (bounds, entry) => [
+        Math.min(bounds[0], entry.region.bounds[0]),
+        Math.min(bounds[1], entry.region.bounds[1]),
+        Math.max(bounds[2], entry.region.bounds[2]),
+        Math.max(bounds[3], entry.region.bounds[3]),
+      ],
+      [Infinity, Infinity, -Infinity, -Infinity],
+    )
+  }, [fitAllRegions, regions])
+
+  useEffect(() => {
+    if (!allRegionBounds || selectedRegion || !mapRef.current) return
+    mapRef.current.fitBounds(
+      [
+        [allRegionBounds[0], allRegionBounds[1]],
+        [allRegionBounds[2], allRegionBounds[3]],
+      ],
+      { padding: 36, duration: 500, maxZoom: 8 },
+    )
+  }, [allRegionBounds, selectedRegion])
 
   useEffect(() => {
     if (!selectedRegion || !mapRef.current) return

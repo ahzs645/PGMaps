@@ -22,6 +22,7 @@ import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
 import { ScoreBuilderSettingsDialog } from './components/ScoreBuilderSettingsDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
 import { ScoreBuilderWalkabilitySurfacePanel } from './components/ScoreBuilderWalkabilitySurfacePanel'
+import { BcEnviroScreenMapControls } from './components/BcEnviroScreenMapControls'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
 import { useScoreBuilderMapColors } from './hooks/useScoreBuilderMapColors'
@@ -34,6 +35,12 @@ import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
 import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
 import { captureBaselineSnapshot, compareAgainstBaseline, type BaselineSnapshot } from './lib/baselineComparison'
+import {
+  BC_ENVIRO_SCREEN_DEFAULT_COLOR_BINS,
+  BC_ENVIRO_SCREEN_DEFAULT_MAP_VARIABLE,
+  buildBcEnviroScreenMapView,
+  type BcEnviroScreenMapVariable,
+} from './lib/bcEnviroScreenMapView'
 import {
   buildProjectPackageFromShareState,
   downloadProjectPackage,
@@ -127,6 +134,10 @@ export default function ScoreBuilderSection() {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
+  const [bcEnviroScreenMapVariable, setBcEnviroScreenMapVariable] = useState<BcEnviroScreenMapVariable>(
+    BC_ENVIRO_SCREEN_DEFAULT_MAP_VARIABLE,
+  )
+  const [bcEnviroScreenColorBins, setBcEnviroScreenColorBins] = useState(BC_ENVIRO_SCREEN_DEFAULT_COLOR_BINS)
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     clampStoredWidth(readLayoutPrefs().sidebarWidth, DEFAULT_SIDEBAR_WIDTH),
   )
@@ -230,6 +241,26 @@ export default function ScoreBuilderSection() {
     canUseWalkabilitySourceSurface: sb.canUseWalkabilitySourceSurface,
     showWalkabilitySourceSurface: sb.showWalkabilitySourceSurface,
   })
+
+  const bcEnviroScreenMapActive =
+    state.methodSettings.aggregation === 'bcEnviroScreenProduct' && !state.correlateMode && !state.densityMode
+  const bcEnviroScreenMapView = useMemo(
+    () =>
+      bcEnviroScreenMapActive
+        ? buildBcEnviroScreenMapView(
+            results.unfilteredScoredRegions,
+            bcEnviroScreenMapVariable,
+            bcEnviroScreenColorBins,
+          )
+        : null,
+    [
+      bcEnviroScreenColorBins,
+      bcEnviroScreenMapActive,
+      bcEnviroScreenMapVariable,
+      results.unfilteredScoredRegions,
+    ],
+  )
+  const resolvedMapRegionFillColors = bcEnviroScreenMapView?.regionFillColors ?? mapRegionFillColors
 
   // Drop stale selection/insight ids once their regions leave the scored set.
   const { selectRegion, closeRegionInsight } = sb
@@ -617,13 +648,24 @@ export default function ScoreBuilderSection() {
                     monitors={points.filteredMonitors}
                     showPoints={state.showPoints}
                     onRegionClick={sb.handleMapRegionClick}
-                    regionFillColors={mapRegionFillColors}
+                    regionFillColors={resolvedMapRegionFillColors}
                     walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
                     sourceGridWeights={state.weights}
                     walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
                     loading={datasets.loading}
                     onMapInstance={handleMapInstance}
+                    fitAllRegions={bcEnviroScreenMapActive}
                   />
+
+                  {bcEnviroScreenMapActive && (
+                    <BcEnviroScreenMapControls
+                      variable={bcEnviroScreenMapVariable}
+                      onVariableChange={setBcEnviroScreenMapVariable}
+                      colorBins={bcEnviroScreenColorBins}
+                      onColorBinsChange={setBcEnviroScreenColorBins}
+                      isDesktop={isDesktop}
+                    />
+                  )}
 
                   {!datasets.loading && results.scoredRegions.length === 0 && results.lowCoverageExcludedCount > 0 && (
                     <ScoreBuilderCoverageNotice
@@ -733,6 +775,7 @@ export default function ScoreBuilderSection() {
                     regionCount={datasets.regions.length}
                     thinCoverageCount={results.thinCoverageCount}
                     lowCoverageExcludedCount={results.lowCoverageExcludedCount}
+                    bcEnviroScreenMapView={bcEnviroScreenMapView}
                   />
                 </div>
               </div>

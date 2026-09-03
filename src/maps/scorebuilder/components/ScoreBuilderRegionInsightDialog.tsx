@@ -12,6 +12,7 @@ import type {
   ScoreMethodSettings,
 } from '../types'
 import { METRIC_CATEGORY_LABELS } from '../types'
+import { BcEnviroScreenRegionProfile } from './BcEnviroScreenRegionProfile'
 
 interface ScoreBuilderRegionInsightDialogProps {
   open: boolean
@@ -464,45 +465,7 @@ export function ScoreBuilderRegionInsightDialog({
             </div>
 
             {region.bcEnviroScreen && (
-              <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3 dark:border-violet-900/70 dark:bg-violet-950/20">
-                <div className="mb-2 text-sm font-semibold text-foreground">BC EnviroScreen calculation</div>
-                <div className="grid gap-2 text-xs sm:grid-cols-2">
-                  {Object.entries(region.bcEnviroScreen.components).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70"
-                    >
-                      <span>{key.replace(/([A-Z])/g, ' $1')}</span>
-                      <span className="font-semibold">
-                        {value == null ? 'Missing' : `${(value * 100).toFixed(1)}%`}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70">
-                    <span>Landscape burden</span>
-                    <span className="font-semibold">
-                      {region.bcEnviroScreen.landscapeBurdenScore?.toFixed(2) ?? 'Missing'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-2 rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70">
-                    <span>Population characteristics</span>
-                    <span className="font-semibold">
-                      {region.bcEnviroScreen.populationCharacteristicsScore?.toFixed(2) ?? 'Missing'}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2 rounded border border-violet-200 bg-background px-2 py-1.5 font-mono text-xs dark:border-violet-900/70">
-                  <div className="mb-0.5 font-sans font-semibold text-foreground">
-                    {region.bcEnviroScreen.formulaMode === 'custom' ? 'Advanced formula' : 'Reconstruction formula'}
-                  </div>
-                  <div className="break-words text-muted-foreground">{region.bcEnviroScreen.formulaExpression}</div>
-                  {region.bcEnviroScreen.formulaError && (
-                    <div className="mt-1 font-sans font-medium text-rose-700 dark:text-rose-300">
-                      {region.bcEnviroScreen.formulaError}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <BcEnviroScreenRegionProfile region={region} />
             )}
 
             {componentRows.length > 0 && (

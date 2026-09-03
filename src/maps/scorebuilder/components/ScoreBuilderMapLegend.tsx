@@ -8,6 +8,7 @@ import { BIVARIATE_3X3_PALETTE } from '../lib/correlationColors'
 import type { ScoreSpread } from '../lib/scoreSummaries'
 import type { ScoreMethodSettings, ScoreMetricKey } from '../types'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import type { BcEnviroScreenMapView } from '../lib/bcEnviroScreenMapView'
 
 interface ScoreBuilderMapLegendProps {
   isDesktop: boolean
@@ -29,6 +30,7 @@ interface ScoreBuilderMapLegendProps {
   thinCoverageCount: number
   /** Regions the coverage floor is holding out of the ranking. */
   lowCoverageExcludedCount?: number
+  bcEnviroScreenMapView?: BcEnviroScreenMapView | null
 }
 
 /** The collapsible map legend, switching between score, correlate, and density lenses. */
@@ -51,6 +53,7 @@ export function ScoreBuilderMapLegend({
   regionCount,
   thinCoverageCount,
   lowCoverageExcludedCount = 0,
+  bcEnviroScreenMapView = null,
 }: ScoreBuilderMapLegendProps) {
   const compact = !isDesktop
   // Same resolved MI bands the raster paints with, so a regenerated grid moves
@@ -72,50 +75,68 @@ export function ScoreBuilderMapLegend({
         <DensityMapLegend metric={densityMetric} range={densityRange} compact={compact} />
       ) : (
         <>
-          <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {showWalkabilitySourceSurface
-              ? 'Walkability source MI grid'
-              : canUseWalkabilitySourceSurface
-                ? 'Walkability boundary MI bands'
-                : methodSettings.aggregation === 'healthyPlanPairwisePriority'
-                  ? 'HealthyPlan priority'
-                  : scorePaletteProfile.label}
-          </h4>
-          {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
+          {bcEnviroScreenMapView ? (
             <>
-              <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} />
+              <h4 className="mb-2 text-xs font-semibold text-foreground">{bcEnviroScreenMapView.label}</h4>
+              <MapSteppedLegend bands={bcEnviroScreenMapView.bands} angledLabels={bcEnviroScreenMapView.binCount > 5} />
               {!compact && (
                 <div className="mt-2 text-xs leading-snug text-muted-foreground">
-                  {showWalkabilitySourceSurface
-                    ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
-                    : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
+                  {bcEnviroScreenMapView.binCount} equal-interval classes across the provincial LHA release. Green is
+                  lower burden; purple is higher burden.
                 </div>
               )}
-            </>
-          ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
-            <>
-              <MapSteppedLegend
-                bands={HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => ({
-                  color,
-                  label:
-                    index === 0
-                      ? 'Rank gap 1'
-                      : index === HEALTHYPLAN_EQUITY_PRIORITY_RAMP.length - 1
-                        ? 'Rank gap 9'
-                        : '',
-                }))}
-                labels={['Rank gap 1', 'Rank gap 9']}
-              />
-              {!compact && (
-                <div className="mt-2 text-xs leading-snug text-muted-foreground">
-                  Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6.
-                  Uncolored regions do not meet the HealthyPlan threshold.
+              {bcEnviroScreenMapView.missingCount > 0 && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="h-3 w-3 rounded-sm border border-black/10 bg-slate-400" />
+                  Missing in {bcEnviroScreenMapView.missingCount} LHA
+                  {bcEnviroScreenMapView.missingCount === 1 ? '' : 's'}
                 </div>
               )}
             </>
           ) : (
             <>
-              {methodSettings.visualOutput === 'binned' ? (
+              <h4 className="mb-2 text-xs font-semibold text-foreground">
+                {showWalkabilitySourceSurface
+                  ? 'Walkability source MI grid'
+                  : canUseWalkabilitySourceSurface
+                    ? 'Walkability boundary MI bands'
+                    : methodSettings.aggregation === 'healthyPlanPairwisePriority'
+                      ? 'HealthyPlan priority'
+                      : scorePaletteProfile.label}
+              </h4>
+              {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
+                <>
+                  <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} />
+                  {!compact && (
+                    <div className="mt-2 text-xs leading-snug text-muted-foreground">
+                      {showWalkabilitySourceSurface
+                        ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
+                        : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
+                    </div>
+                  )}
+                </>
+              ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
+                <>
+                  <MapSteppedLegend
+                    bands={HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => ({
+                      color,
+                      label:
+                        index === 0
+                          ? 'Rank gap 1'
+                          : index === HEALTHYPLAN_EQUITY_PRIORITY_RAMP.length - 1
+                            ? 'Rank gap 9'
+                            : '',
+                    }))}
+                    labels={['Rank gap 1', 'Rank gap 9']}
+                  />
+                  {!compact && (
+                    <div className="mt-2 text-xs leading-snug text-muted-foreground">
+                      Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6.
+                      Uncolored regions do not meet the HealthyPlan threshold.
+                    </div>
+                  )}
+                </>
+              ) : methodSettings.visualOutput === 'binned' ? (
                 <MapSteppedLegend
                   bands={scorePaletteProfile.colors.map((color, index) => ({
                     color,
@@ -164,6 +185,9 @@ export function ScoreBuilderMapLegend({
                 />
               )}
               {!compact &&
+                !showWalkabilitySourceSurface &&
+                !canUseWalkabilitySourceSurface &&
+                methodSettings.aggregation !== 'healthyPlanPairwisePriority' &&
                 (methodSettings.visualOutput === 'binned' ? (
                   <div className="mt-1 text-xs leading-snug text-muted-foreground">
                     Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.
@@ -177,7 +201,32 @@ export function ScoreBuilderMapLegend({
                 ))}
             </>
           )}
-          {compact ? (
+          {bcEnviroScreenMapView ? (
+            <div className={compact ? 'mt-2 text-xs text-muted-foreground' : 'mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground'}>
+              {compact ? (
+                <>
+                  Avg <span className="font-medium text-foreground">{bcEnviroScreenMapView.average.toFixed(2)}</span>
+                  {' · '}
+                  {bcEnviroScreenMapView.valueCount} LHAs
+                </>
+              ) : (
+                <>
+                  <div>
+                    <div className="uppercase">Min</div>
+                    <div className="font-medium text-foreground">{bcEnviroScreenMapView.min.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="uppercase">Avg</div>
+                    <div className="font-medium text-foreground">{bcEnviroScreenMapView.average.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="uppercase">Max</div>
+                    <div className="font-medium text-foreground">{bcEnviroScreenMapView.max.toFixed(2)}</div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : compact ? (
             <div className="mt-2 text-xs text-muted-foreground">
               Avg <span className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</span>
               {' · '}
