@@ -33,10 +33,7 @@ test.describe('JSON map story', () => {
     await page.goto(STORY_URL)
 
     await expect(page.getByRole('heading', { name: 'Where Does Northern B.C. Begin?' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /A line everyone knows/ })).toHaveAttribute(
-      'aria-current',
-      'step',
-    )
+    await expect(page.getByRole('button', { name: /A line everyone knows/ })).toHaveAttribute('aria-current', 'step')
 
     // The first scene shows Health Authorities, so that source must be fetched.
     await expect
@@ -94,18 +91,24 @@ test.describe('JSON map story', () => {
 
     // Wheel in small steps: the active scene must advance past the first card.
     await expect
-      .poll(async () => {
-        await page.mouse.wheel(0, 250)
-        return activeIndex()
-      }, { timeout: 15_000 })
+      .poll(
+        async () => {
+          await page.mouse.wheel(0, 250)
+          return activeIndex()
+        },
+        { timeout: 15_000 },
+      )
       .toBeGreaterThan(0)
 
     // And wheeling back up must return to the first card.
     await expect
-      .poll(async () => {
-        await page.mouse.wheel(0, -300)
-        return activeIndex()
-      }, { timeout: 15_000 })
+      .poll(
+        async () => {
+          await page.mouse.wheel(0, -300)
+          return activeIndex()
+        },
+        { timeout: 15_000 },
+      )
       .toBe(0)
   })
 
@@ -144,6 +147,6 @@ test.describe('JSON map story', () => {
     await expect(
       page.getByRole('button', { name: /For energy regulation, Prince George is southwest/ }),
     ).toHaveAttribute('aria-current', 'step')
-    await expect(page.getByText('South West').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'South West', exact: true })).toBeVisible()
   })
 })

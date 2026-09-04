@@ -117,7 +117,16 @@ describe('normalizeOutdoorsPlan', () => {
         },
       ],
       areas: [
-        { name: 'degenerate', kind: 'closure', rings: [[[-122, 56], [-122.1, 56]]] },
+        {
+          name: 'degenerate',
+          kind: 'closure',
+          rings: [
+            [
+              [-122, 56],
+              [-122.1, 56],
+            ],
+          ],
+        },
         {
           name: 'open ring',
           kind: 'water',
@@ -175,10 +184,7 @@ describe('normalizeOutdoorsPlan', () => {
   })
 
   it('downsamples oversized lines instead of rejecting them', () => {
-    const coordinates = Array.from({ length: 2000 }, (_, index) => [
-      -130 + index * 0.001,
-      56,
-    ])
+    const coordinates = Array.from({ length: 2000 }, (_, index) => [-130 + index * 0.001, 56])
     const plan = normalizeOutdoorsPlan({
       schema: OUTDOORS_PLAN_SCHEMA,
       version: OUTDOORS_PLAN_VERSION,
@@ -252,8 +258,18 @@ describe('file export and import', () => {
     expect(result?.source).toBe('geojson')
     expect(result?.skippedCount).toBe(0)
     expect(result?.plan.areas[0]).toMatchObject({ name: 'Closed to vehicles', kind: 'closure' })
-    expect(result?.plan.routes[0]).toMatchObject({ name: 'River run', kind: 'water-route' })
-    expect(result?.plan.waypoints[0]).toMatchObject({ name: 'Boat launch', kind: 'launch' })
+    expect(result?.plan.routes[0]).toMatchObject({ id: 'rt1', name: 'River run', kind: 'water-route' })
+    expect(result?.plan.waypoints[0]).toMatchObject({ id: 'wp1', name: 'Boat launch', kind: 'launch' })
+    expect(result?.plan.waypoints[1]).toMatchObject({ name: 'Camp', notes: 'High bank' })
+    expect(result?.plan).toMatchObject({
+      name: 'Elk in MU 7-42',
+      activity: 'hunt',
+      species: 'Elk',
+      startDate: '2026-09-10',
+      endDate: '2026-09-14',
+      notes: 'Check vehicle closure before the season.',
+      wmus: [{ id: '7-42', name: 'MU 7-42' }],
+    })
   })
 
   it('imports KML-derived planning GeoJSON, converting lines and skipping labels', () => {
@@ -264,6 +280,7 @@ describe('file export and import', () => {
         features: [
           {
             type: 'Feature',
+            id: 'launch-1',
             geometry: { type: 'Point', coordinates: [-122.75331, 56.34992] },
             properties: { name: 'Ferry launch', planningClass: 'formal-access' },
           },
@@ -283,6 +300,17 @@ describe('file export and import', () => {
             },
             properties: { name: 'River run', planningClass: 'navigable-water' },
           },
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-122.8, 56.2],
+                [-122.7, 56.3],
+              ],
+            },
+            properties: { name: 'Possible road', planningClass: 'access-candidate' },
+          },
         ],
       }),
     )
@@ -291,9 +319,10 @@ describe('file export and import', () => {
     expect(result?.skippedCount).toBe(1)
     expect(result?.plan.name).toBe('MU-7-42')
     expect(result?.plan.waypoints).toHaveLength(1)
-    expect(result?.plan.waypoints[0]).toMatchObject({ name: 'Ferry launch', kind: 'launch' })
-    expect(result?.plan.routes).toHaveLength(1)
+    expect(result?.plan.waypoints[0]).toMatchObject({ id: 'launch-1', name: 'Ferry launch', kind: 'launch' })
+    expect(result?.plan.routes).toHaveLength(2)
     expect(result?.plan.routes[0]).toMatchObject({ name: 'River run', kind: 'water-route' })
+    expect(result?.plan.routes[1]).toMatchObject({ name: 'Possible road', kind: 'access-route' })
   })
 
   it('rejects files that are neither plans nor plan-like GeoJSON', () => {

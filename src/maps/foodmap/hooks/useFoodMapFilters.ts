@@ -4,6 +4,7 @@ import {
   stringArrayCodec,
   stringCodec,
   stringUnionCodec,
+  useSetUrlParams,
   useUrlState,
 } from '@/hooks/useUrlState'
 import type { HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMode } from '../types'
@@ -11,10 +12,27 @@ import type { HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMod
 export const HAZARD_RATING_OPTIONS: readonly HazardRating[] = ['Low', 'Moderate', 'Unknown']
 
 export const FACILITY_TYPE_OPTIONS: readonly string[] = [
-  'Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand',
-  'Bakery', 'Coffee Shop', 'Bar/Pub', 'Brewery/Winery', 'Deli',
-  'Community Kitchen', 'Social Services', 'Gas Station', 'Hotel',
-  'Recreation', 'Farm', 'Institutional Kitchen', 'Store', 'Other', 'Unknown',
+  'Restaurant',
+  'Food Truck',
+  'Camp',
+  'Catering',
+  'Concession',
+  'Stand',
+  'Bakery',
+  'Coffee Shop',
+  'Bar/Pub',
+  'Brewery/Winery',
+  'Deli',
+  'Community Kitchen',
+  'Social Services',
+  'Gas Station',
+  'Hotel',
+  'Recreation',
+  'Farm',
+  'Institutional Kitchen',
+  'Store',
+  'Other',
+  'Unknown',
 ]
 
 const VISUALIZATION_MODES: readonly VisualizationMode[] = ['violations', 'hazard']
@@ -33,7 +51,10 @@ const hazardCodec = stringArrayCodec(HAZARD_RATING_OPTIONS, HAZARD_RATING_OPTION
 const facilityCodec = stringArrayCodec(FACILITY_TYPE_OPTIONS, FACILITY_TYPE_OPTIONS)
 const searchCodec = stringCodec('')
 const modeCodec = stringUnionCodec(VISUALIZATION_MODES, 'violations')
-const markerStyleCodec = stringUnionCodec(MARKER_STYLE_OPTIONS.map((opt) => opt.value), 'cluster')
+const markerStyleCodec = stringUnionCodec(
+  MARKER_STYLE_OPTIONS.map((opt) => opt.value),
+  'cluster',
+)
 const monthsCodec = numberCodec(12)
 const timelineModeCodec = stringUnionCodec(VIOLATION_TIMELINE_MODES, 'period')
 
@@ -55,6 +76,7 @@ export interface FoodMapFilterActions {
   setMarkerStyle: (style: MarkerStyle) => void
   setTimelineMonths: (months: number) => void
   setViolationTimelineMode: (mode: ViolationTimelineMode) => void
+  applyFilters: (filters: Partial<FoodMapFilters>) => void
 }
 
 /**
@@ -63,6 +85,7 @@ export interface FoodMapFilterActions {
  * differs from its default).
  */
 export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMapFilterActions } {
+  const setUrlParams = useSetUrlParams()
   const [hazardRatings, setHazardRatings] = useUrlState('hazard', hazardCodec)
   const [facilityTypes, setFacilityTypes] = useUrlState('facility', facilityCodec)
   const [searchQuery, setSearchQuery] = useUrlState('q', searchCodec)
@@ -84,8 +107,22 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
     [hazardRatings, facilityTypes, searchQuery, visualizationMode, markerStyle, timelineMonths, violationTimelineMode],
   )
 
-  const actions = useMemo<FoodMapFilterActions>(
-    () => ({
+  const actions = useMemo<FoodMapFilterActions>(() => {
+    const applyFilters = (patch: Partial<FoodMapFilters>) => {
+      const updates: Record<string, string | null> = {}
+      if (patch.hazardRatings !== undefined) updates.hazard = hazardCodec.encode(patch.hazardRatings)
+      if (patch.facilityTypes !== undefined) updates.facility = facilityCodec.encode(patch.facilityTypes)
+      if (patch.searchQuery !== undefined) updates.q = searchCodec.encode(patch.searchQuery)
+      if (patch.visualizationMode !== undefined) updates.mode = modeCodec.encode(patch.visualizationMode)
+      if (patch.markerStyle !== undefined) updates.dots = markerStyleCodec.encode(patch.markerStyle)
+      if (patch.timelineMonths !== undefined) updates.months = monthsCodec.encode(patch.timelineMonths)
+      if (patch.violationTimelineMode !== undefined) {
+        updates.violationTimeline = timelineModeCodec.encode(patch.violationTimelineMode)
+      }
+      setUrlParams(updates)
+    }
+
+    return {
       setHazardRatings,
       setFacilityTypes,
       setSearchQuery,
@@ -93,9 +130,18 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       setMarkerStyle,
       setTimelineMonths,
       setViolationTimelineMode,
-    }),
-    [setHazardRatings, setFacilityTypes, setSearchQuery, setVisualizationMode, setMarkerStyle, setTimelineMonths, setViolationTimelineMode],
-  )
+      applyFilters,
+    }
+  }, [
+    setFacilityTypes,
+    setHazardRatings,
+    setMarkerStyle,
+    setSearchQuery,
+    setTimelineMonths,
+    setUrlParams,
+    setViolationTimelineMode,
+    setVisualizationMode,
+  ])
 
   return { filters, actions }
 }

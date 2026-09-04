@@ -9,7 +9,7 @@
   "region": "Northern BC watersheds",
   "status": "Prototype",
   "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
-  "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.",
+  "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. The Northern Health outline uses PGMaps' shared BC Ministry of Health health-authority vector. Fraser and Nechako boundaries come from BC Freshwater Atlas named-watershed vectors, while hospital points come from the local BC Data Mapper health place registry.",
   "details": [
     "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
     "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
@@ -92,7 +92,9 @@
   "files": [
     { "label": "Project package", "detail": "Layers, style, scenes, and notes" },
     { "label": "Nechako portal WMS", "detail": "ClimateData.ca raster layers" },
-    { "label": "BCMoH boundary", "detail": "Local Northern Health multipolygon" }
+    { "label": "Northern Health boundary", "detail": "Shared PGMaps BCMoH health-authority vector" },
+    { "label": "BC Freshwater Atlas", "detail": "Named watershed vectors 11541 and 8886" },
+    { "label": "Hospital points", "detail": "18 local Northern Health facility vectors" }
   ],
   "portalMap": {
     "endpoint": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/",
@@ -100,7 +102,6 @@
     "bounds": [-139.000001, 51.916666, -118.25, 60],
     "center": [-128.6, 56.2],
     "zoom": 4.35,
-    "localBoundaryLayerId": "northern-health",
     "rasterLayers": [
       { "id": "hot-days-past", "layerName": "Days >30C (1971-2000) NH (source: ClimateData.ca)" },
       { "id": "hot-days-future", "layerName": "Days >30C (2071-2100) NH (source: ClimateData.ca)" },
@@ -111,10 +112,33 @@
     ],
     "contextLayers": [
       {
+        "id": "northern-health",
+        "layerName": "Northern Health boundary",
+        "data": "/data/boundaries/BCMoH/simplified/health_authorities.json",
+        "featureProperty": "HLTH_AUTHORITY_NAME",
+        "featureValue": "Northern",
+        "idProperty": "HLTH_AUTHORITY_CODE",
+        "opacity": 0.07,
+        "fillOpacity": 0.07,
+        "lineColor": "#0f172a",
+        "lineOpacity": 0.68,
+        "lineWidth": 1.5,
+        "legendColor": "#0f172a",
+        "legendLabel": "Northern Health boundary",
+        "legendShape": "line"
+      },
+      {
         "id": "fraser-nechako",
         "layerName": "Fraser Watershed",
-        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
-        "opacity": 0.8,
+        "data": "/data/boundaries/BCFWA/echoscreen_fraser_nechako.geojson",
+        "featureProperty": "namedWatershedId",
+        "featureValue": 11541,
+        "idProperty": "namedWatershedId",
+        "opacity": 0.07,
+        "fillOpacity": 0.07,
+        "lineColor": "#2563eb",
+        "lineOpacity": 0.95,
+        "lineWidth": 2,
         "legendColor": "#2563eb",
         "legendLabel": "Fraser watershed",
         "legendShape": "line"
@@ -122,8 +146,15 @@
       {
         "id": "fraser-nechako",
         "layerName": "Nechako Watershed",
-        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
-        "opacity": 0.82,
+        "data": "/data/boundaries/BCFWA/echoscreen_fraser_nechako.geojson",
+        "featureProperty": "namedWatershedId",
+        "featureValue": 8886,
+        "idProperty": "namedWatershedId",
+        "opacity": 0.14,
+        "fillOpacity": 0.14,
+        "lineColor": "#0891b2",
+        "lineOpacity": 1,
+        "lineWidth": 2.2,
         "legendColor": "#0891b2",
         "legendLabel": "Nechako watershed",
         "legendShape": "line"
@@ -158,8 +189,13 @@
       {
         "id": "hospitals",
         "layerName": "Hospitals",
+        "data": "/data/health/echoscreen-northern-health-hospitals.geojson",
+        "geometry": "point",
+        "icon": "/media/dev-projects/red-cross-icon-circle-background.svg",
+        "idProperty": "id",
+        "labelProperty": "name",
         "opacity": 1,
-        "legendColor": "#111827",
+        "legendColor": "#F51D25",
         "legendLabel": "Hospitals",
         "legendShape": "circle"
       },

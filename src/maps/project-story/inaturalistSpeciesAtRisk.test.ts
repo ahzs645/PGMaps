@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -12,6 +13,19 @@ const data = JSON.parse(
     path.resolve(
       __dirname,
       '../../../vendor/bcdatamapper/datascrapers/bc/forest-map-sources/output/species-at-risk/inaturalist_species_at_risk.geojson',
+    ),
+    'utf8',
+  ),
+)
+const liveSnapshotPath = path.resolve(
+  __dirname,
+  '../../../vendor/bcdatamapper/datascrapers/bc/forest-map-sources/output/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.geojson.gz',
+)
+const liveManifest = JSON.parse(
+  readFileSync(
+    path.resolve(
+      __dirname,
+      '../../../vendor/bcdatamapper/datascrapers/bc/forest-map-sources/output/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.manifest.json',
     ),
     'utf8',
   ),
@@ -91,6 +105,26 @@ describe('inaturalist-species-at-risk-bc story package', () => {
       taxonId: '4956',
       name: 'Great Blue Heron · Ardea herodias',
       observations: 1684,
+    })
+  })
+
+  it('ships a verified, dated live API snapshot separately from the historical story data', () => {
+    const compressed = readFileSync(liveSnapshotPath)
+    expect(createHash('sha256').update(compressed).digest('hex')).toBe(liveManifest.sha256)
+    expect(liveManifest).toMatchObject({
+      snapshotDate: '2026-08-28',
+      bytes: 6820901,
+      counts: {
+        observations: 118350,
+        uniqueTaxa: 1665,
+        observationYearRange: [1973, 2026],
+      },
+      source: {
+        apiUrl: 'https://api.inaturalist.org/v2/observations',
+        placeId: 7085,
+        reportedTotalAtStart: 118348,
+        requests: 592,
+      },
     })
   })
 })

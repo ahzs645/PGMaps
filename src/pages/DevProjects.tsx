@@ -30,13 +30,15 @@ import {
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
-import { Map as PgMap } from '@/components/ui/map'
+import { Map as PgMap, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map'
 import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { fetchJson } from '@/lib/fetchJson'
+import { useLoadedProjectWebMCP, useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import {
@@ -51,11 +53,11 @@ import {
   type ProjectKind,
   type ProjectLayerDef,
   type ProjectPackage,
+  type ProjectPortalContextLayerDef,
   type ProjectPortalMapDef,
   type ProjectPortalRasterLayerDef,
   type ProjectTheme,
 } from '@/lib/projectPackages'
-import { useLoadedProjectWebMCP, useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 import { ProjectStoryMap } from '@/maps/project-story/ProjectStoryMap'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
@@ -69,8 +71,7 @@ const THEME_ACCENT: Record<ProjectTheme, string> = {
   emerald:
     'border-emerald-500 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-100',
   blue: 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/35 dark:text-blue-100',
-  slate:
-    'border-slate-400 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-950/35 dark:text-slate-100',
+  slate: 'border-slate-400 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-950/35 dark:text-slate-100',
 }
 
 const THEME_ICON: Record<ProjectTheme, string> = {
@@ -98,6 +99,7 @@ const FEATURED_PROJECT_SLUGS = [
   'roadless-areas-bc-ecoregions',
   'bc-big-tree-registry',
   'inaturalist-species-at-risk-bc',
+  'inaturalist-species-at-risk-live-bc',
   'air-quality-bylaws-bc',
   'fine-particulate-matter-bc',
   'ground-level-ozone-bc',
@@ -174,6 +176,40 @@ function defaultVisibleLayerIds(project: ProjectPackage) {
   return new Set(project.layers.filter((layer) => layer.checked).map((layer) => layer.id))
 }
 
+function ProjectPortalPointLayer({ layer }: { layer: ProjectPortalContextLayerDef }) {
+  const [collection, setCollection] = useState<GeoJSON.FeatureCollection<GeoJSON.Point> | null>(null)
+
+  useEffect(() => {
+    if (!layer.data) return
+    const controller = new AbortController()
+    fetchJson<GeoJSON.FeatureCollection<GeoJSON.Point>>(layer.data, controller.signal)
+      .then(setCollection)
+      .catch(() => setCollection(null))
+    return () => controller.abort()
+  }, [layer.data])
+
+  if (!collection) return null
+
+  return collection.features.map((feature, index) => {
+    const [longitude, latitude] = feature.geometry.coordinates
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
+    const properties = feature.properties ?? {}
+    const label = String(properties[layer.labelProperty ?? 'name'] ?? 'Hospital')
+    const key = String(properties[layer.idProperty ?? 'id'] ?? feature.id ?? index)
+
+    return (
+      <MapMarker key={key} longitude={longitude} latitude={latitude} anchor="center">
+        <MarkerContent>
+          <div className="flex size-8 items-center justify-center drop-shadow-md" aria-label={label}>
+            <img src={layer.icon} alt="" className="size-8" />
+          </div>
+        </MarkerContent>
+        <MarkerTooltip className="px-2 py-1 text-xs font-semibold">{label}</MarkerTooltip>
+      </MapMarker>
+    )
+  })
+}
+
 function layerIcon(layer: ProjectLayerDef) {
   if (layer.type === 'raster') return <MapIcon className="h-3.5 w-3.5" />
   if (layer.type === 'boundary') return <PanelRight className="h-3.5 w-3.5" />
@@ -240,9 +276,7 @@ function ProjectPortalMapPreview({
   const activeRasterLayers = portal.rasterLayers.filter((layer) => visibleLayerIds.has(layer.id))
   const activeContextLayers = portal.contextLayers.filter((layer) => visibleLayerIds.has(layer.id))
   const activeRasterLayer = activeRasterLayers[activeRasterLayers.length - 1] ?? null
-  const showLocalBoundary =
-    Boolean(portal.localBoundaryLayerId) &&
-    visibleLayerIds.has(portal.localBoundaryLayerId!)
+  const showLocalBoundary = Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
 
   return (
     <div className={cn('relative overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
@@ -255,7 +289,6 @@ function ProjectPortalMapPreview({
         styles={PROJECT_MAP_STYLES}
         showStyleLoadingOverlay={false}
       >
-
         {activeRasterLayers.map((layer) => (
           <MapRasterLayer
             key={layer.id}
@@ -268,17 +301,37 @@ function ProjectPortalMapPreview({
           />
         ))}
 
-        {activeContextLayers.map((layer) => (
-          <MapRasterLayer
-            key={`${layer.id}-${layer.layerName}`}
-            tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
-            opacity={layer.opacity}
-            tileSize={256}
-            minZoom={3}
-            maxZoom={12}
-            attribution="Nechako Watershed Portal"
-          />
-        ))}
+        {activeContextLayers.map((layer) =>
+          layer.data && layer.geometry === 'point' ? (
+            <ProjectPortalPointLayer key={`${layer.id}-${layer.layerName}`} layer={layer} />
+          ) : layer.data ? (
+            <MapFillLayer
+              key={`${layer.id}-${layer.layerName}`}
+              data={layer.data}
+              idProperty={layer.idProperty}
+              filter={
+                layer.featureProperty && layer.featureValue !== undefined
+                  ? ['==', ['get', layer.featureProperty], layer.featureValue]
+                  : undefined
+              }
+              fillColor={layer.legendColor}
+              fillOpacity={layer.fillOpacity ?? layer.opacity}
+              lineColor={layer.lineColor ?? layer.legendColor}
+              lineOpacity={layer.lineOpacity ?? 1}
+              lineWidth={layer.lineWidth ?? 1.5}
+            />
+          ) : (
+            <MapRasterLayer
+              key={`${layer.id}-${layer.layerName}`}
+              tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
+              opacity={layer.opacity}
+              tileSize={256}
+              minZoom={3}
+              maxZoom={12}
+              attribution="Nechako Watershed Portal"
+            />
+          ),
+        )}
 
         {showLocalBoundary && (
           <MapFillLayer
@@ -317,8 +370,7 @@ function ProjectPortalMapLegend({
   const activeRasterLabel = activeRasterLayer
     ? (project.layers.find((layer) => layer.id === activeRasterLayer.id)?.label ?? activeRasterLayer.layerName)
     : null
-  const showLocalBoundary =
-    Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
+  const showLocalBoundary = Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
   const activeContextLayers = portal.contextLayers.filter((layer) => visibleLayerIds.has(layer.id))
 
   return (
@@ -357,6 +409,7 @@ function ProjectPortalMapLegend({
               color={layer.legendColor}
               label={layer.legendLabel}
               swatchShape={layer.legendShape}
+              swatch={layer.icon ? <img src={layer.icon} alt="" className="size-4" aria-hidden="true" /> : undefined}
             />
           ))}
           {!showLocalBoundary && activeContextLayers.length === 0 && (
@@ -392,9 +445,7 @@ function ProjectWorkspaceMap({
   }
 
   if (project.lab) {
-    const showScoreSurface = project.layers.some(
-      (layer) => layer.role === 'score' && visibleLayerIds.has(layer.id),
-    )
+    const showScoreSurface = project.layers.some((layer) => layer.role === 'score' && visibleLayerIds.has(layer.id))
     const showPoints = project.layers.some((layer) => layer.role === 'points' && visibleLayerIds.has(layer.id))
     return (
       <ProjectScoreMapPreview
@@ -413,15 +464,7 @@ function ProjectWorkspaceMap({
   )
 }
 
-function LayerToggle({
-  layer,
-  visible,
-  onToggle,
-}: {
-  layer: ProjectLayerDef
-  visible: boolean
-  onToggle: () => void
-}) {
+function LayerToggle({ layer, visible, onToggle }: { layer: ProjectLayerDef; visible: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"
@@ -590,13 +633,7 @@ function clampPanelWidth(width: number, fallback: number) {
   return Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, Math.round(width)))
 }
 
-function ProjectDetailSections({
-  project,
-  onRemove,
-}: {
-  project: ProjectPackage
-  onRemove?: (slug: string) => void
-}) {
+function ProjectDetailSections({ project, onRemove }: { project: ProjectPackage; onRemove?: (slug: string) => void }) {
   const detailParagraphs = project.details?.length ? project.details : [project.summary, project.sourceNote]
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
@@ -661,15 +698,10 @@ function ProjectDetailSections({
         </div>
         <div className="space-y-3">
           <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Layer Stack
-            </div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Layer Stack</div>
             <div className="flex flex-wrap gap-1.5">
               {project.layers.map((layer) => (
-                <span
-                  key={layer.id}
-                  className="rounded-md border bg-muted/20 px-2 py-1 text-xs text-muted-foreground"
-                >
+                <span key={layer.id} className="rounded-md border bg-muted/20 px-2 py-1 text-xs text-muted-foreground">
                   {layer.label}
                 </span>
               ))}
@@ -679,9 +711,7 @@ function ProjectDetailSections({
           <div className="grid grid-cols-3 gap-2">
             {project.catalogMetrics.map((metric) => (
               <div key={metric.label} className="rounded-md border bg-muted/20 px-3 py-2">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {metric.label}
-                </div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{metric.label}</div>
                 <div className="mt-0.5 text-sm font-semibold text-foreground">{metric.value}</div>
               </div>
             ))}
@@ -732,9 +762,7 @@ function ProjectDetailSections({
                 onClick={() => {
                   // Catalog previews hold metadata-only summaries; download the
                   // real package (falls back to what we have if the fetch fails).
-                  void findProjectPackageBySlug(project.slug).then((full) =>
-                    downloadProjectPackage(full ?? project),
-                  )
+                  void findProjectPackageBySlug(project.slug).then((full) => downloadProjectPackage(full ?? project))
                 }}
               >
                 <Download className="h-4 w-4" />
@@ -842,7 +870,10 @@ function ProjectCatalogMobileCard({
       <div className="p-3">
         <div className="flex items-start gap-3">
           <span
-            className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white', iconClass(project))}
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white',
+              iconClass(project),
+            )}
           >
             <FolderKanban className="h-4 w-4" />
           </span>
@@ -980,7 +1011,7 @@ function ProjectCatalogPage({
       ? 'The project manifest failed to load.'
       : additionalProjectCount > 0
         ? 'Matching projects are available under More projects.'
-      : 'No projects match the current search.'
+        : 'No projects match the current search.'
 
   return (
     <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 lg:h-[calc(100vh-4rem)] lg:min-h-[720px]">
@@ -991,8 +1022,8 @@ function ProjectCatalogPage({
               <div className="hidden min-w-0 sm:block">
                 <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Open a project to explore its map and story, or send its recipe to Index Lab and play with the
-                  weights yourself.
+                  Open a project to explore its map and story, or send its recipe to Index Lab and play with the weights
+                  yourself.
                 </p>
               </div>
 
@@ -1429,7 +1460,7 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   )
 
   return (
-    <div className="h-[100dvh] min-h-[640px] md:h-[calc(100vh-4rem)]">
+    <div className="h-[100dvh] min-h-[640px] md:h-[calc(100vh-3.5rem)]">
       <MapSectionLayout
         sidebar={isMobile ? mobileSidebar : leftSidebar}
         desktopSidebarWidth={sidebarWidth}
@@ -1469,14 +1500,14 @@ function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPacka
 
   if (workspace.type === 'story-map') {
     return (
-      <div className="h-[100dvh] bg-background md:h-[calc(100vh-4rem)]">
+      <div className="h-[100dvh] bg-background md:h-[calc(100vh-3.5rem)]">
         <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
       </div>
     )
   }
 
   return (
-    <div className="h-[100dvh] bg-background md:h-[calc(100vh-4rem)]">
+    <div className="h-[100dvh] bg-background md:h-[calc(100vh-3.5rem)]">
       <ProjectMapExplorer title={project.title} config={workspace} onBack={onBack} />
     </div>
   )
@@ -1578,7 +1609,7 @@ export default function DevProjects() {
 
   if (projectSlug && !routedProjectReady) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center text-sm text-muted-foreground">
         Loading project package…
       </div>
     )

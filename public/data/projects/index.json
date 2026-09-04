@@ -72,7 +72,7 @@
     },
     {
       "file": "nechako-watershed-research-portal.json",
-      "revision": "8d3afb1827cd",
+      "revision": "31a6670b7a69",
       "catalog": {
         "slug": "nechako-watershed-research-portal",
         "title": "Nechako Watershed Research Portal",
@@ -129,7 +129,7 @@
     },
     {
       "file": "echoscreen-climate-health.json",
-      "revision": "39d4664b2c7c",
+      "revision": "4b6678854065",
       "catalog": {
         "slug": "echoscreen-climate-health",
         "title": "EchoScreen Cumulative Impacts Study",
@@ -140,7 +140,7 @@
         "region": "Northern BC watersheds",
         "status": "Prototype",
         "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
-        "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.",
+        "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. The Northern Health outline uses PGMaps' shared BC Ministry of Health health-authority vector. Fraser and Nechako boundaries come from BC Freshwater Atlas named-watershed vectors, while hospital points come from the local BC Data Mapper health place registry.",
         "details": [
           "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
           "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
@@ -184,8 +184,16 @@
             "detail": "ClimateData.ca raster layers"
           },
           {
-            "label": "BCMoH boundary",
-            "detail": "Local Northern Health multipolygon"
+            "label": "Northern Health boundary",
+            "detail": "Shared PGMaps BCMoH health-authority vector"
+          },
+          {
+            "label": "BC Freshwater Atlas",
+            "detail": "Named watershed vectors 11541 and 8886"
+          },
+          {
+            "label": "Hospital points",
+            "detail": "18 local Northern Health facility vectors"
           }
         ],
         "layerCount": 9,
@@ -6026,12 +6034,12 @@
     },
     {
       "file": "municipal-solid-waste-bc.json",
-      "revision": "a21e990123e6",
+      "revision": "2f7cad2a1f76",
       "catalog": {
         "slug": "municipal-solid-waste-bc",
         "title": "Municipal Solid Waste Disposal in B.C.",
         "kind": "map-story",
-        "theme": "green",
+        "theme": "emerald",
         "owner": "Environmental Reporting BC",
         "updated": "December 2025",
         "region": "British Columbia",
@@ -6291,6 +6299,76 @@
           }
         ],
         "layerCount": 4,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "inaturalist-species-at-risk-live-bc.json",
+      "revision": "b0f057d35eb8",
+      "catalog": {
+        "slug": "inaturalist-species-at-risk-live-bc",
+        "title": "Live iNaturalist Species-at-Risk Observations",
+        "kind": "map-story",
+        "theme": "blue",
+        "owner": "iNaturalist community observations",
+        "updated": "2026-08-28 snapshot",
+        "region": "British Columbia",
+        "status": "Dated live-API snapshot",
+        "summary": "Explore 118,350 research-grade iNaturalist observation points across 1,665 taxa, recolouring one shared live snapshot by taxonomic group, observation period, positional accuracy, and taxon representation.",
+        "sourceNote": "This dated snapshot was pulled from the supported iNaturalist observations API on August 28, 2026. It selects British Columbia place 7085, research-grade observations, positional accuracy below 50 metres, taxa flagged threatened, open taxon geoprivacy, and taxonomic ranks at genus or below. The threatened flag is not an official B.C. or federal legal designation.",
+        "details": [
+          "The complete cursor pull returned 118,350 observation IDs representing 1,665 taxon IDs. The API reported 118,348 matches when the run began; two additional matching records were returned while the cursor advanced.",
+          "Birds account for 41,728 observations, plants for 24,618, and other animals for 16,732. Marine invertebrates are much more visible than in the supplied 2021 tile snapshot.",
+          "More than 95,000 observations were recorded from 2022 onward. The date map describes observation activity, not population change.",
+          "Every retained point reports public positional accuracy below 50 metres. Observation density still reflects observer effort, accessibility, identification, filtering, and public-coordinate rules—not abundance, habitat, or confirmed absence."
+        ],
+        "links": [
+          {
+            "label": "Current iNaturalist observations",
+            "href": "https://www.inaturalist.org/observations"
+          },
+          {
+            "label": "Live snapshot manifest",
+            "href": "/data/forest/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.manifest.json"
+          },
+          {
+            "label": "Historical 2021 story",
+            "href": "/dev/projects/inaturalist-species-at-risk-bc"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Observations",
+            "value": "118,350"
+          },
+          {
+            "label": "Taxa",
+            "value": "1,665"
+          },
+          {
+            "label": "Observation years",
+            "value": "1973–2026"
+          }
+        ],
+        "files": [
+          {
+            "label": "Dated live snapshot",
+            "detail": "118,350 unique point features from the supported iNaturalist observations API"
+          },
+          {
+            "label": "Compressed canonical artifact",
+            "detail": "6.82 MB deterministic GeoJSON gzip stored in BC Data Mapper; 115.17 MB expanded"
+          },
+          {
+            "label": "Snapshot manifest",
+            "detail": "Query parameters, SHA-256 digest, counts, distributions, and twenty leading taxa"
+          },
+          {
+            "label": "Resumable API sync",
+            "detail": "592 cursor requests with checkpoints, strict ID ordering, bounded retries, and one-second request-start spacing"
+          }
+        ],
+        "layerCount": 1,
         "sceneCount": 4
       }
     },

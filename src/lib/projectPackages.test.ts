@@ -239,12 +239,21 @@ describe('story project packages', () => {
   it('keeps only usable scene layer overrides', () => {
     const raw = storyPackage()
     raw.scenes[0].layerOverrides = {
-      areas: { fillOpacity: 0, lineWidth: -4 },
+      areas: {
+        fillOpacity: 0,
+        lineWidth: -4,
+        category: { property: 'status', colors: { Current: '#047857', bad: 42 }, fallback: '#94a3b8' },
+      },
       ignored: { fillOpacity: 'thick' },
     }
     const scene = normalizeProjectPackage(raw)?.scenes[0]
     expect(scene?.layerOverrides).toEqual({
-      areas: { fillOpacity: 0, lineOpacity: undefined, lineWidth: 0 },
+      areas: {
+        fillOpacity: 0,
+        lineOpacity: undefined,
+        lineWidth: 0,
+        category: { property: 'status', colors: { Current: '#047857' }, fallback: '#94a3b8' },
+      },
     })
   })
 

@@ -44,4 +44,5 @@ export interface ExplorerLocationFeatureProperties {
   color: string
   radius: number
   dominantType: string
+  bandCounts: number[]
 }

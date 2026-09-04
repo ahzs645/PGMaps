@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "slug": "inaturalist-species-at-risk-live-bc",
+  "title": "Live iNaturalist Species-at-Risk Observations",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "iNaturalist community observations",
+  "updated": "2026-08-28 snapshot",
+  "region": "British Columbia",
+  "status": "Dated live-API snapshot",
+  "summary": "Explore 118,350 research-grade iNaturalist observation points across 1,665 taxa, recolouring one shared live snapshot by taxonomic group, observation period, positional accuracy, and taxon representation.",
+  "sourceNote": "This dated snapshot was pulled from the supported iNaturalist observations API on August 28, 2026. It selects British Columbia place 7085, research-grade observations, positional accuracy below 50 metres, taxa flagged threatened, open taxon geoprivacy, and taxonomic ranks at genus or below. The threatened flag is not an official B.C. or federal legal designation.",
+  "details": [
+    "The complete cursor pull returned 118,350 observation IDs representing 1,665 taxon IDs. The API reported 118,348 matches when the run began; two additional matching records were returned while the cursor advanced.",
+    "Birds account for 41,728 observations, plants for 24,618, and other animals for 16,732. Marine invertebrates are much more visible than in the supplied 2021 tile snapshot.",
+    "More than 95,000 observations were recorded from 2022 onward. The date map describes observation activity, not population change.",
+    "Every retained point reports public positional accuracy below 50 metres. Observation density still reflects observer effort, accessibility, identification, filtering, and public-coordinate rules—not abundance, habitat, or confirmed absence."
+  ],
+  "links": [
+    { "label": "Current iNaturalist observations", "href": "https://www.inaturalist.org/observations" },
+    { "label": "Live snapshot manifest", "href": "/data/forest/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.manifest.json" },
+    { "label": "Historical 2021 story", "href": "/dev/projects/inaturalist-species-at-risk-bc" }
+  ],
+  "catalogMetrics": [
+    { "label": "Observations", "value": "118,350" },
+    { "label": "Taxa", "value": "1,665" },
+    { "label": "Observation years", "value": "1973–2026" }
+  ],
+  "layers": [
+    { "id": "live-observations", "label": "Live observation snapshot", "type": "point", "checked": true }
+  ],
+  "legend": [
+    { "label": "Birds", "color": "#2563eb" },
+    { "label": "Plants", "color": "#15803d" },
+    { "label": "Amphibians", "color": "#7c3aed" },
+    { "label": "Other groups", "color": "#d97706" }
+  ],
+  "scenes": [
+    {
+      "label": "Taxonomic groups",
+      "kicker": "01 · What was observed",
+      "title": "The live snapshot is broader than the historical tile reconstruction",
+      "text": "Birds contribute 41,728 points, plants 24,618, and other animals 16,732. The remaining observations span insects, fungi, amphibians, mammals, fishes, reptiles, molluscs, arachnids, and a small number of other taxa.",
+      "focus": "Observation composition by broad taxonomic group",
+      "visibleLayerIds": ["live-observations"],
+      "callout": { "label": "Bird observations", "value": "41,728", "detail": "The largest broad group in the August 2026 snapshot." },
+      "camera": { "center": [-126.2, 52.5], "zoom": 4.35 }
+    },
+    {
+      "label": "Observation period",
+      "kicker": "02 · When observations were made",
+      "title": "Four in five observations were recorded from 2022 onward",
+      "text": "The snapshot contains 47,916 observations from 2022–2024 and 47,214 from 2025–2026. Those recent records reflect expanding participation and observation effort as well as ecological events; they are not a population trend.",
+      "focus": "Observation activity across six time periods",
+      "visibleLayerIds": ["live-observations"],
+      "layerOverrides": {
+        "live-observations": {
+          "category": {
+            "property": "observation_period",
+            "colors": {
+              "Before 2010": "#e0f2fe",
+              "2010–2015": "#bae6fd",
+              "2016–2018": "#7dd3fc",
+              "2019–2021": "#38bdf8",
+              "2022–2024": "#0284c7",
+              "2025–2026": "#0c4a6e"
+            },
+            "fallback": "#94a3b8"
+          }
+        }
+      },
+      "callout": { "label": "Observed since 2022", "value": "95,130 points", "detail": "About 80% of the dated snapshot." },
+      "camera": { "center": [-126.2, 52.5], "zoom": 4.35 }
+    },
+    {
+      "label": "Accuracy",
+      "kicker": "03 · Public positional accuracy",
+      "title": "More than half the public points report accuracy under ten metres",
+      "text": "Of the retained observations, 61,339 report public positional accuracy under 10 metres, 36,266 report 10–24 metres, and 20,745 report 25–49 metres. Precision does not turn an observation point into a habitat boundary.",
+      "focus": "Reported public-coordinate accuracy bands",
+      "visibleLayerIds": ["live-observations"],
+      "layerOverrides": {
+        "live-observations": {
+          "category": {
+            "property": "accuracy_band",
+            "colors": {
+              "Under 10 m": "#134e4a",
+              "10–24 m": "#14b8a6",
+              "25–49 m": "#99f6e4"
+            },
+            "fallback": "#94a3b8"
+          }
+        }
+      },
+      "callout": { "label": "Under 10 metres", "value": "61,339 points", "detail": "Fifty-two percent of the snapshot." },
+      "camera": { "center": [-123.2, 49.35], "zoom": 7.1 }
+    },
+    {
+      "label": "Taxon representation",
+      "kicker": "04 · Frequency in this dataset",
+      "title": "A few taxa account for a large share of observations",
+      "text": "Great Blue Heron has 11,135 observations, Ochre Sea Star 7,180, and Western Toad 4,824. Every point is coloured by its taxon's total count in this snapshot. A high count means greater representation in iNaturalist—not a larger wild population.",
+      "focus": "Taxon representation within the live snapshot",
+      "visibleLayerIds": ["live-observations"],
+      "layerOverrides": {
+        "live-observations": {
+          "category": {
+            "property": "observation_frequency_band",
+            "colors": {
+              "Under 20 observations": "#ede9fe",
+              "20–99 observations": "#c4b5fd",
+              "100–499 observations": "#8b5cf6",
+              "500 or more observations": "#4c1d95"
+            },
+            "fallback": "#94a3b8"
+          }
+        }
+      },
+      "highlights": [
+        { "layerId": "live-observations", "property": "taxon_id", "values": ["4956"], "color": "#f59e0b", "dimOpacity": 0.12, "label": "Great Blue Heron" }
+      ],
+      "callout": { "label": "Most represented taxon", "value": "11,135 observations", "detail": "Great Blue Heron · Ardea herodias." },
+      "camera": { "center": [-123.4, 49.6], "zoom": 6.6 }
+    }
+  ],
+  "files": [
+    { "label": "Dated live snapshot", "detail": "118,350 unique point features from the supported iNaturalist observations API" },
+    { "label": "Compressed canonical artifact", "detail": "6.82 MB deterministic GeoJSON gzip stored in BC Data Mapper; 115.17 MB expanded" },
+    { "label": "Snapshot manifest", "detail": "Query parameters, SHA-256 digest, counts, distributions, and twenty leading taxa" },
+    { "label": "Resumable API sync", "detail": "592 cursor requests with checkpoints, strict ID ordering, bounded retries, and one-second request-start spacing" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.2, 52.5], "zoom": 4.35, "minZoom": 3.5, "maxZoom": 16, "basemap": "auto" },
+    "accent": "#2563eb",
+    "options": {
+      "layout": "scrolly",
+      "sceneTransition": "fly",
+      "legendCollapsed": "auto"
+    },
+    "layers": [
+      {
+        "id": "live-observations",
+        "data": "/data/forest/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.geojson.gz",
+        "geometry": "point",
+        "idProperty": "observation_id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "fillColor": "#2563eb",
+        "fillOpacity": 0.7,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.65,
+        "lineWidth": 0.35,
+        "circleRadius": 2.5,
+        "category": {
+          "property": "taxon_group",
+          "colors": {
+            "Plants": "#15803d",
+            "Birds": "#2563eb",
+            "Amphibians": "#7c3aed",
+            "Mammals": "#ea580c",
+            "Insects": "#ca8a04",
+            "Arachnids": "#a16207",
+            "Fungi": "#92400e",
+            "Reptiles": "#dc2626",
+            "Molluscs": "#db2777",
+            "Ray-finned fishes": "#0891b2",
+            "Other animals": "#64748b",
+            "Other taxa": "#334155"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "iNaturalist community observations · August 28, 2026 API snapshot"
+      }
+    ],
+    "places": []
+  }
+}

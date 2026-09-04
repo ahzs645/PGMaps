@@ -243,10 +243,21 @@ A highlight only reads if its `layerId` is also in the scene's
 
 `layerOverrides` retunes an already-visible layer for one scene — most often
 dropping a fill to `0` so a boundary reads as an outline over another layer.
+It can also replace `category` so several scenes recolour one shared GeoJSON
+source by different properties without loading duplicate map sources.
 
 ```json
 "layerOverrides": {
-  "health-authorities": { "fillOpacity": 0, "lineWidth": 2.6, "lineOpacity": 1 }
+  "health-authorities": {
+    "fillOpacity": 0,
+    "lineWidth": 2.6,
+    "lineOpacity": 1,
+    "category": {
+      "property": "status",
+      "colors": { "Current": "#047857", "Historical": "#d97706" },
+      "fallback": "#94a3b8"
+    }
+  }
 }
 ```
 
@@ -327,3 +338,32 @@ Three renderer invariants are load-bearing and easy to undo by accident:
   shipped story — it fails if a scene references a layer, place, or highlight
   target that does not exist.
 - `tests/e2e/project-story-map.spec.ts` drives the rendered story in a browser.
+- `tests/e2e/project-story-layouts.spec.ts` traverses the shipped `panel`,
+  `scrolly`, and `slides` examples in both desktop and phone viewports, including
+  canvas sizing, pointer ownership, slide-stack stability, and console errors.
+
+## Renderer verification loop
+
+After changing a package, option, story renderer, or shared map shell, repeat
+audit → focused tests → rendered inspection → fix until every affected gate is
+clean. Use the canonical `/dev/projects/<slug>` route and inspect the browser
+console as well as the visible result.
+
+For shared renderer changes, cover all three layouts with the shipped examples:
+
+- `where-is-north-bc` for `panel`;
+- `bc-population-distribution` for `scrolly`;
+- `roadless-areas-bc-ecoregions` for `slides`.
+
+At desktop and phone sizes, traverse all scenes forward and backward. Confirm
+scene selection, layer and place visibility, highlights/overrides, legend,
+callouts, camera framing, controls, popups, and map-canvas sizing. Also exercise
+the layout-specific interaction: panel sheet/peek behavior, scrolly pointer and
+wheel ownership, or slides arrows/dots/keyboard/swipe, longest-slide sizing, and
+overflow. Fix the owning layer and repeat the failed check; after renderer work,
+repeat the complete browser pass for every affected layout.
+
+Stop when the structural audit and relevant tests pass, all affected
+layout/viewport combinations have been exercised, the console is clean, and no
+visible defect remains. Record unavailable or CORS-blocked sources as
+unverified; they are not passing checks.

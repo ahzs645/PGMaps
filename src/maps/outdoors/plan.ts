@@ -37,11 +37,12 @@ export const AREA_KIND_LABELS: Record<AreaKind, string> = {
   area: 'Area',
 }
 
-export const ROUTE_KINDS = ['corridor', 'water-route', 'travel', 'route'] as const
+export const ROUTE_KINDS = ['corridor', 'access-route', 'water-route', 'travel', 'route'] as const
 export type RouteKind = (typeof ROUTE_KINDS)[number]
 
 export const ROUTE_KIND_LABELS: Record<RouteKind, string> = {
   corridor: 'Vehicle corridor',
+  'access-route': 'Access route',
   'water-route': 'Water route',
   travel: 'Travel range',
   route: 'Route',
@@ -139,9 +140,7 @@ export function roundCoordinate(value: number): number {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value != null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
+  return typeof value === 'object' && value != null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
 }
 
 function normalizeText(value: unknown, maxLength: number): string {
@@ -153,15 +152,11 @@ function normalizeDate(value: unknown): string {
 }
 
 function normalizeLng(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 180
-    ? roundCoordinate(value)
-    : null
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 180 ? roundCoordinate(value) : null
 }
 
 function normalizeLat(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 90
-    ? roundCoordinate(value)
-    : null
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 90 ? roundCoordinate(value) : null
 }
 
 function normalizeWaypoint(value: unknown): PlanWaypoint | null {
@@ -172,9 +167,7 @@ function normalizeWaypoint(value: unknown): PlanWaypoint | null {
   if (lng == null || lat == null) return null
   // Null-island placeholder, not a real fix — see normalizeLinePoints.
   if (lng === 0 && lat === 0) return null
-  const kind = WAYPOINT_KINDS.includes(record.kind as WaypointKind)
-    ? (record.kind as WaypointKind)
-    : 'note'
+  const kind = WAYPOINT_KINDS.includes(record.kind as WaypointKind) ? (record.kind as WaypointKind) : 'note'
   const notes = normalizeText(record.notes, MAX_NOTES_LENGTH)
   return {
     id: typeof record.id === 'string' && record.id ? record.id.slice(0, 40) : createWaypointId(),
@@ -187,10 +180,7 @@ function normalizeWaypoint(value: unknown): PlanWaypoint | null {
 }
 
 /** Uniformly thin a vertex list so its length never exceeds `max`. */
-function downsampleVertices(
-  points: Array<[number, number]>,
-  max: number,
-): Array<[number, number]> {
+function downsampleVertices(points: Array<[number, number]>, max: number): Array<[number, number]> {
   if (points.length <= max) return points
   const step = (points.length - 1) / (max - 1)
   return Array.from({ length: max }, (_, index) => points[Math.round(index * step)])
@@ -292,13 +282,11 @@ export function normalizeOutdoorsPlan(value: unknown): OutdoorsPlan | null {
   if (record.version !== OUTDOORS_PLAN_VERSION) return null
 
   const seenWmuIds = new Set<string>()
-  const wmus = (Array.isArray(record.wmus) ? record.wmus : [])
-    .map(normalizeWmu)
-    .filter((wmu): wmu is PlanWmu => {
-      if (!wmu || seenWmuIds.has(wmu.id)) return false
-      seenWmuIds.add(wmu.id)
-      return true
-    })
+  const wmus = (Array.isArray(record.wmus) ? record.wmus : []).map(normalizeWmu).filter((wmu): wmu is PlanWmu => {
+    if (!wmu || seenWmuIds.has(wmu.id)) return false
+    seenWmuIds.add(wmu.id)
+    return true
+  })
 
   const waypoints = (Array.isArray(record.waypoints) ? record.waypoints : [])
     .map(normalizeWaypoint)
@@ -376,6 +364,7 @@ export function planToGeoJson(plan: OutdoorsPlan): GeoJSON.FeatureCollection {
     features: [
       ...plan.areas.map<GeoJSON.Feature>((area) => ({
         type: 'Feature',
+        id: area.id,
         geometry: { type: 'Polygon', coordinates: area.rings },
         properties: {
           name: area.name,
@@ -386,6 +375,7 @@ export function planToGeoJson(plan: OutdoorsPlan): GeoJSON.FeatureCollection {
       })),
       ...plan.routes.map<GeoJSON.Feature>((route) => ({
         type: 'Feature',
+        id: route.id,
         geometry: { type: 'LineString', coordinates: route.coordinates },
         properties: {
           name: route.name,
@@ -396,6 +386,7 @@ export function planToGeoJson(plan: OutdoorsPlan): GeoJSON.FeatureCollection {
       })),
       ...plan.waypoints.map<GeoJSON.Feature>((waypoint) => ({
         type: 'Feature',
+        id: waypoint.id,
         geometry: { type: 'Point', coordinates: [waypoint.lng, waypoint.lat] },
         properties: {
           name: waypoint.name,
@@ -410,6 +401,7 @@ export function planToGeoJson(plan: OutdoorsPlan): GeoJSON.FeatureCollection {
     ...({
       metadata: {
         schema: OUTDOORS_PLAN_SCHEMA,
+        version: OUTDOORS_PLAN_VERSION,
         name: plan.name,
         activity: plan.activity,
         species: plan.species,
@@ -438,6 +430,7 @@ const KML_CLASS_TO_AREA_KIND: Record<string, AreaKind> = {
 
 const KML_CLASS_TO_ROUTE_KIND: Record<string, RouteKind> = {
   'designated-corridor': 'corridor',
+  'access-candidate': 'access-route',
   'navigable-water': 'water-route',
   'travel-range': 'travel',
 }
@@ -466,23 +459,32 @@ export function planFromGeoJson(value: unknown): PlanImportResult | null {
   if (!record || record.type !== 'FeatureCollection' || !Array.isArray(record.features)) return null
 
   const plan = createEmptyPlan()
-  plan.name = normalizeText(record.name, MAX_NAME_LENGTH)
+  const metadata = asRecord(record.metadata)
+  plan.name = normalizeText(metadata?.name ?? record.name, MAX_NAME_LENGTH)
+  plan.activity = PLAN_ACTIVITIES.includes(metadata?.activity as PlanActivity)
+    ? (metadata?.activity as PlanActivity)
+    : plan.activity
+  plan.species = normalizeText(metadata?.species, MAX_NAME_LENGTH)
+  plan.startDate = normalizeDate(metadata?.startDate)
+  plan.endDate = normalizeDate(metadata?.endDate)
+  plan.notes = normalizeText(metadata?.notes, MAX_NOTES_LENGTH)
+
+  const seenWmuIds = new Set<string>()
+  plan.wmus = (Array.isArray(metadata?.wmus) ? metadata.wmus : []).map(normalizeWmu).filter((wmu): wmu is PlanWmu => {
+    if (!wmu || seenWmuIds.has(wmu.id)) return false
+    seenWmuIds.add(wmu.id)
+    return true
+  })
   let skippedCount = 0
 
-  const addRoute = (
-    name: unknown,
-    kind: RouteKind,
-    coordinates: unknown,
-    notes: unknown,
-  ): boolean => {
-    const route =
-      plan.routes.length < MAX_PLAN_ROUTES ? normalizeRoute({ name, kind, coordinates, notes }) : null
+  const addRoute = (id: unknown, name: unknown, kind: RouteKind, coordinates: unknown, notes: unknown): boolean => {
+    const route = plan.routes.length < MAX_PLAN_ROUTES ? normalizeRoute({ id, name, kind, coordinates, notes }) : null
     if (route) plan.routes.push(route)
     return route != null
   }
 
-  const addArea = (name: unknown, kind: AreaKind, rings: unknown, notes: unknown): boolean => {
-    const area = plan.areas.length < MAX_PLAN_AREAS ? normalizeArea({ name, kind, rings, notes }) : null
+  const addArea = (id: unknown, name: unknown, kind: AreaKind, rings: unknown, notes: unknown): boolean => {
+    const area = plan.areas.length < MAX_PLAN_AREAS ? normalizeArea({ id, name, kind, rings, notes }) : null
     if (area) plan.areas.push(area)
     return area != null
   }
@@ -492,11 +494,16 @@ export function planFromGeoJson(value: unknown): PlanImportResult | null {
     const geometry = asRecord(featureRecord?.geometry)
     const properties = asRecord(featureRecord?.properties) ?? {}
     const planningClass = typeof properties.planningClass === 'string' ? properties.planningClass : ''
-    const { name, description: notes } = properties
+    const { name } = properties
+    const notes = properties.notes ?? properties.description
     // Kinds already in the plan vocabulary (our own GeoJSON exports) win over
     // the bcdatamapper KML classes.
     const kind = properties.kind
     const coordinates = Array.isArray(geometry?.coordinates) ? geometry.coordinates : []
+    const sourceId =
+      typeof featureRecord?.id === 'string' || typeof featureRecord?.id === 'number'
+        ? String(featureRecord.id)
+        : undefined
 
     if (SKIPPED_KML_CLASSES.has(planningClass)) {
       skippedCount += 1
@@ -508,10 +515,9 @@ export function planFromGeoJson(value: unknown): PlanImportResult | null {
       case 'Point': {
         if (plan.waypoints.length < MAX_PLAN_WAYPOINTS) {
           const waypoint = normalizeWaypoint({
+            id: sourceId,
             name,
-            kind: WAYPOINT_KINDS.includes(kind as WaypointKind)
-              ? kind
-              : (KML_CLASS_TO_KIND[planningClass] ?? 'note'),
+            kind: WAYPOINT_KINDS.includes(kind as WaypointKind) ? kind : (KML_CLASS_TO_KIND[planningClass] ?? 'note'),
             lng: coordinates[0],
             lat: coordinates[1],
             notes,
@@ -530,9 +536,9 @@ export function planFromGeoJson(value: unknown): PlanImportResult | null {
           : (KML_CLASS_TO_ROUTE_KIND[planningClass] ?? 'route')
         const lines = geometry.type === 'LineString' ? [coordinates] : coordinates
         for (const [index, line] of lines.entries()) {
-          const partName =
-            lines.length > 1 && typeof name === 'string' && name ? `${name} (${index + 1})` : name
-          imported = addRoute(partName, routeKind, line, notes) || imported
+          const partName = lines.length > 1 && typeof name === 'string' && name ? `${name} (${index + 1})` : name
+          const partId = sourceId && lines.length > 1 ? `${sourceId}-${index + 1}` : sourceId
+          imported = addRoute(partId, partName, routeKind, line, notes) || imported
         }
         break
       }
@@ -543,9 +549,9 @@ export function planFromGeoJson(value: unknown): PlanImportResult | null {
           : (KML_CLASS_TO_AREA_KIND[planningClass] ?? 'area')
         const polygons = geometry.type === 'Polygon' ? [coordinates] : coordinates
         for (const [index, rings] of polygons.entries()) {
-          const partName =
-            polygons.length > 1 && typeof name === 'string' && name ? `${name} (${index + 1})` : name
-          imported = addArea(partName, areaKind, rings, notes) || imported
+          const partName = polygons.length > 1 && typeof name === 'string' && name ? `${name} (${index + 1})` : name
+          const partId = sourceId && polygons.length > 1 ? `${sourceId}-${index + 1}` : sourceId
+          imported = addArea(partId, partName, areaKind, rings, notes) || imported
         }
         break
       }

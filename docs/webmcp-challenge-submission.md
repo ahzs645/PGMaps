@@ -14,7 +14,9 @@ PGMaps turns complex public-interest maps into a shared workspace for people
 and agents. A person keeps the visual, spatial context while an agent uses
 structured WebMCP tools to find the right project, move through a map story,
 control the visible evidence, filter a research collection, and open a location
-for joint inspection.
+for joint inspection. It can also combine historical restaurant-inspection and
+nearby property-crime data through an explicit, adjustable ranking, then open
+the selected establishment on the same map.
 
 ## Why this is a strong fit for WebMCP
 
@@ -42,6 +44,14 @@ places, then select one location so its popup opens on the shared map. This
 combination of structured analysis and immediate visual verification was
 difficult to achieve with either DOM automation or a detached backend tool.
 
+On the Food Safety map, the person can ask for a place with both fewer recent
+inspection violations and fewer nearby mapped property-crime incidents. The
+agent discloses and can adjust the incident radius, historical lookback, and
+relative weighting, compares the currently visible establishments, and opens
+the approved result and its inspection history. The tool reports source
+limitations and does not turn historical records into a guarantee of personal
+safety or food quality.
+
 ## What is new for this challenge
 
 PGMaps and its project renderers existed before the challenge. The challenge
@@ -51,6 +61,8 @@ period began:
 - the imperative WebMCP registration lifecycle and browser type support;
 - page-scoped catalog, story, layer, raster, research-filter, and location
   tools wired to existing PGMaps application actions;
+- site-wide experience discovery plus Food Safety context, filtering,
+  cross-dataset ranking, establishment selection, and inspection-history tools;
 - strict tool input validation, trust/read-only annotations, and compact
   verification results;
 - unit tests plus Chromium end-to-end tests that simulate discovery and tool
@@ -74,6 +86,11 @@ WebMCP extension from the pre-existing mapping application.
 - Apply text, decade, and category filters and see the map and ranked list
   change immediately.
 - Select a result by ID or human-readable name and open its visual popup.
+- Discover and open Food Safety, air quality, census, Index Lab, boundaries,
+  Indigenous research, outdoors planning, and infrastructure experiences.
+- Rank visible food establishments by an adjustable balance of inspection
+  violations and nearby mapped property-crime incidents, then inspect the
+  selected establishment together.
 - Hand control back and forth without creating a separate agent-only workflow.
 
 ## WebMCP implementation
@@ -98,63 +115,59 @@ await document.modelContext.registerTool({
 
 Registrations are page-aware. The catalog offers discovery and navigation;
 map stories offer context, scene, and layer tools; the research explorer offers
-context, filter, and location tools. An `AbortController` unregisters tools
-when the React page state makes them irrelevant. Read operations and UI actions
-carry explicit annotations, inputs are narrowly described and strictly
-validated, and tool results include enough state to verify what happened.
+context, filter, and location tools; and Food Safety offers inspection context,
+map filtering, transparent cross-dataset ranking, and establishment selection.
+Two persistent tools let an agent discover and open the wider set of PGMaps
+experiences. An `AbortController` unregisters page tools when the React page
+state makes them irrelevant. Read operations and UI actions carry explicit
+annotations, inputs are narrowly described and strictly validated, and tool
+results include enough state to verify what happened.
 
 The feature is progressive: browsers without `document.modelContext` use the
 unchanged PGMaps interface.
 
-## Demo video script (target: 2 minutes 35 seconds)
+## Suggested primary demo prompt
 
-### 0:00–0:20 — Problem and premise
+> Find me a restaurant, coffee shop, bakery, or deli that balances the fewest inspection violations with the least nearby property crime. Use the last two years of inspections, require at least one inspection in that period, a 500 metre radius, the last three years of crime data, and a 60% crime / 40% violations weighting. Show me the top three, explain the tradeoff and limitations, then open the best option and its inspection history.
 
-Show the PGMaps catalog and ChatGPT side by side.
+## Demo video script (target: 2 minutes 40 seconds)
 
-Narration: "Maps are hard for agents because the real state lives across a
-canvas, filters, layers, and popups. PGMaps uses WebMCP so the agent can operate
-the same live map I am looking at, through explicit tools instead of guessed
-clicks."
+### 0:00–0:15 — Show the outcome first
 
-Open the browser's Site tools menu briefly to show the two catalog tools.
+Start on PGMaps beside ChatGPT and use the primary prompt. Show the agent
+discovering and opening Food Safety.
 
-### 0:20–1:15 — Story-map collaboration
+Narration: "I want a useful answer that no single screen or dataset can give me:
+a food option with fewer inspection problems and less mapped property crime
+nearby."
 
-Prompt: "Find a map project about climate and health, open the best match, and
-tell me what scenes I can explore."
+### 0:15–1:20 — Cross-dataset food decision
 
-Show the agent call `find_map_projects`, `open_map_project`, and
-`get_map_project_context` while the workspace opens.
+Show `get_food_safety_context` and `rank_food_options`. Hold briefly on the top
+three results, the 500 metre radius, three-year lookback, 60/40 weights, and the
+caveat. Let the agent call `select_food_establishment`; the winning restaurant
+and its inspection panel open on the shared map.
 
-Prompt: "Take me to the scene about the highest burden, then hide one context
-layer so I can compare the map."
+Narration: "The score is transparent and adjustable. It uses historical public
+records as planning context, not as a promise that a place is safe. The agent
+does the comparison while I keep the map, the evidence, and the final choice."
 
-Show `go_to_map_scene` animate the narrative/camera and
-`set_map_layer_visibility` change the visible evidence.
+### 1:20–2:20 — A second kind of shared map
 
-Narration: "The agent reads structured scene and layer state, while I keep the
-spatial context and can intervene with the normal controls."
+Prompt: "Now find a map project about climate and health, open it, go to Future
+Heat, and hide the hospital layer."
 
-### 1:15–2:10 — Research-explorer collaboration
+Show `open_map_experience`, `find_map_projects`, `open_map_project`,
+`go_to_map_scene`, and `set_map_layer_visibility` updating the narrative,
+camera, raster, and visible layer controls.
 
-Return to projects and open the Nechako Watershed Research Portal.
+Narration: "The same WebMCP layer works across analytical decisions and visual
+story maps. Every result lands in the interface the person is already using."
 
-Prompt: "What decades and research categories are available? Filter to one
-decade and the most relevant category for water, then show me the leading
-location."
+### 2:20–2:40 — Implementation and close
 
-Show `get_research_map_context`, `filter_research_map`, another context read,
-and `select_research_location`. Hold on the changed clusters, totals, ranked
-list, and open popup.
-
-Narration: "A detached API could return rows, but WebMCP lets the agent change
-the exact map I am inspecting and gives both of us the same result to verify."
-
-### 2:10–2:35 — Implementation and close
-
-Show the WebMCP registration code, input schema, annotations, and shared React
-action. End on the live map.
+Show the ranking schema, read-only annotation, explicit methodology, and shared
+selection action. End on the selected map result.
 
 Narration: "Tools are registered only when they are useful, inputs are strictly
 validated, and unsupported browsers keep the complete human interface. This is
@@ -166,8 +179,8 @@ the open web as a genuinely shared workspace for people and agents."
 - [ ] Confirm GitHub identifies the repository license at the top of the repo.
 - [ ] Wait for the GitHub Pages deployment and test the live URL in ChatGPT's
       built-in browser with GPT-5.6 Sol or Terra.
-- [ ] Inspect Available site tools on the catalog, a story, and the research
-      explorer; confirm old page tools disappear after navigation.
+- [ ] Inspect Available site tools on Food Safety, the catalog, a story, and the
+      research explorer; confirm old page tools disappear after navigation.
 - [ ] Run the two demo prompts and verify every visible change and returned
       result.
 - [ ] Record at 1080p with readable browser and chat text and clear audio.

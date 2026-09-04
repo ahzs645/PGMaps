@@ -29,27 +29,45 @@ const pathMappings = [
   ['data-sources/healthdata/bc_wait_times/output/bc-wait-specialists.json', 'bc-wait-specialists.json'],
   ['data-sources/healthdata/erstat/output/erstat-hospitals.json', 'erstat-hospitals.json'],
   ['data-sources/healthdata/health_place_registry/health_place_registry.csv', 'health/health-place-registry.csv'],
-  ['data-sources/healthdata/health_place_registry/health_place_registry.geojson', 'health/health-place-registry.geojson'],
+  [
+    'data-sources/healthdata/health_place_registry/health_place_registry.geojson',
+    'health/health-place-registry.geojson',
+  ],
   ['data-sources/healthdata/health_place_registry/health_place_sites.csv', 'health/health-place-sites.csv'],
   ['data-sources/healthdata/health_place_registry/health_place_sites.geojson', 'health/health-place-sites.geojson'],
   ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.csv', 'health/statcan-odhf-bc.csv'],
   ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.geojson', 'health/statcan-odhf-bc.geojson'],
   ['datascrapers/health/msp-facilities/output/msp-facilities.geojson', 'health/msp-facilities.geojson'],
-  ['datascrapers/health/msp-facilities/output/msp-facility-geocode-cache.json', 'health/msp-facility-geocode-cache.json'],
+  [
+    'datascrapers/health/msp-facilities/output/msp-facility-geocode-cache.json',
+    'health/msp-facility-geocode-cache.json',
+  ],
   ['datascrapers/fallout/output', 'fallout'],
   ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],
   ['datascrapers/bc/drought/output', 'drought'],
   ['datascrapers/bc/environmental-reporting/output/manifest.json', 'bc/environmental-reporting/manifest.json'],
-  ['datascrapers/bc/environmental-reporting/output/regional_district_environmental_indicators.json', 'bc/environmental-reporting/regional_district_environmental_indicators.json'],
-  ['datascrapers/bc/environmental-reporting/output/grizzly_bear_population_units_2018.geojson', 'boundaries/BCWildlife/grizzly_bear_population_units_2018.geojson'],
-  ['datascrapers/bc/environmental-reporting/output/aquatic_invasive_species_by_edu.geojson', 'boundaries/BCEcology/ecological_drainage_units_aquatic_invasive_species.geojson'],
+  [
+    'datascrapers/bc/environmental-reporting/output/regional_district_environmental_indicators.json',
+    'bc/environmental-reporting/regional_district_environmental_indicators.json',
+  ],
+  [
+    'datascrapers/bc/environmental-reporting/output/grizzly_bear_population_units_2018.geojson',
+    'boundaries/BCWildlife/grizzly_bear_population_units_2018.geojson',
+  ],
+  [
+    'datascrapers/bc/environmental-reporting/output/aquatic_invasive_species_by_edu.geojson',
+    'boundaries/BCEcology/ecological_drainage_units_aquatic_invasive_species.geojson',
+  ],
   ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
   ['datascrapers/census/output', 'census'],
   ['datascrapers/canada/admin-geographies/output', 'canada-admin'],
   ['datascrapers/bc/outdoors/output', 'bc/outdoors'],
-  ['datascrapers/bc/forest-map-sources/output/bc_bigtree_registry.geojson', 'forest/big-trees/bc_bigtree_registry.geojson'],
+  [
+    'datascrapers/bc/forest-map-sources/output/bc_bigtree_registry.geojson',
+    'forest/big-trees/bc_bigtree_registry.geojson',
+  ],
   ['datascrapers/bc/forest-map-sources/output/species-at-risk', 'forest/species-at-risk'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],
@@ -62,29 +80,77 @@ const pathMappings = [
   ['datascrapers/heat-shade/output', 'heat-shade'],
   ['datascrapers/eccc/output', 'aqmap'],
   ['datascrapers/citypg/source/heat-shade/citypg_trees.geojson', 'heat-shade/citypg_trees.geojson'],
-  ['datascrapers/citypg/source/heat-shade/citypg_park_open_spaces.geojson', 'heat-shade/citypg_park_open_spaces.geojson'],
+  [
+    'datascrapers/citypg/source/heat-shade/citypg_park_open_spaces.geojson',
+    'heat-shade/citypg_park_open_spaces.geojson',
+  ],
   ['datascrapers/citypg/source/heat-shade/citypg_intact_forest.geojson', 'heat-shade/citypg_intact_forest.geojson'],
-  ['datascrapers/citypg/source/heat-shade/citypg_community_forests.geojson', 'heat-shade/citypg_community_forests.geojson'],
-  ['datascrapers/citypg/source/heat-shade/citypg_community_facility.geojson', 'heat-shade/citypg_community_facility.geojson'],
-  ['datascrapers/citypg/source/heat-shade/citypg_response_facilities.geojson', 'heat-shade/citypg_response_facilities.geojson'],
+  [
+    'datascrapers/citypg/source/heat-shade/citypg_community_forests.geojson',
+    'heat-shade/citypg_community_forests.geojson',
+  ],
+  [
+    'datascrapers/citypg/source/heat-shade/citypg_community_facility.geojson',
+    'heat-shade/citypg_community_facility.geojson',
+  ],
+  [
+    'datascrapers/citypg/source/heat-shade/citypg_response_facilities.geojson',
+    'heat-shade/citypg_response_facilities.geojson',
+  ],
   ['datascrapers/walkability/output', 'walkability'],
   ['datascrapers/walkability/source', 'walkability/source'],
   ['datascrapers/citypg/source/public_gis', 'walkability/source/data/public_gis'],
-  ['datascrapers/walkability/source/data/supplemental/osm_crossings.geojson', 'walkability/supplemental/osm_crossings.geojson'],
-  ['datascrapers/walkability/source/data/supplemental/osm_daycares.geojson', 'walkability/supplemental/osm_daycares.geojson'],
-  ['datascrapers/bc/childcare/output/bc_childcare_locations.geojson', 'walkability/source/data/supplemental/bc_childcare_locations.geojson'],
-  ['datascrapers/bc/childcare/output/bc_childcare_locations.geojson', 'walkability/supplemental/bc_childcare_locations.geojson'],
+  [
+    'datascrapers/walkability/source/data/supplemental/osm_crossings.geojson',
+    'walkability/supplemental/osm_crossings.geojson',
+  ],
+  [
+    'datascrapers/walkability/source/data/supplemental/osm_daycares.geojson',
+    'walkability/supplemental/osm_daycares.geojson',
+  ],
+  [
+    'datascrapers/bc/childcare/output/bc_childcare_locations.geojson',
+    'walkability/source/data/supplemental/bc_childcare_locations.geojson',
+  ],
+  [
+    'datascrapers/bc/childcare/output/bc_childcare_locations.geojson',
+    'walkability/supplemental/bc_childcare_locations.geojson',
+  ],
   ['datascrapers/bc/early-learning-boundaries/output/BCSchoolDistricts', 'boundaries/BCSchoolDistricts'],
   ['datascrapers/bc/early-learning-boundaries/output/index.json', 'bc/early-learning-boundaries/index.json'],
-  ['datascrapers/bc/early-learning-boundaries/output/audit-report.json', 'bc/early-learning-boundaries/audit-report.json'],
-  ['datascrapers/transit/source/intercity_bus_stops.geojson', 'walkability/source/data/supplemental/intercity_bus_stops.geojson'],
+  [
+    'datascrapers/bc/early-learning-boundaries/output/audit-report.json',
+    'bc/early-learning-boundaries/audit-report.json',
+  ],
+  [
+    'datascrapers/transit/source/intercity_bus_stops.geojson',
+    'walkability/source/data/supplemental/intercity_bus_stops.geojson',
+  ],
   ['datascrapers/transit/source/intercity_bus_stops.geojson', 'walkability/supplemental/intercity_bus_stops.geojson'],
-  ['datascrapers/transit/source/bc_transit_pg_stops.geojson', 'walkability/source/data/supplemental/bc_transit_pg_stops.geojson'],
-  ['datascrapers/walkability/source/data/supplemental/report_class3_crosswalks_geocoded.geojson', 'walkability/supplemental/report_class3_crosswalks_geocoded.geojson'],
-  ['datascrapers/walkability/source/mobility_reconstruction/missing_poi_supplement.geojson', 'walkability/supplemental/missing_poi_supplement.geojson'],
-  ['datascrapers/walkability/source/mobility_reconstruction/public_mobility_index_asset_scores.csv', 'walkability/assets/public_mobility_index_asset_scores.csv'],
-  ['datascrapers/walkability/source/mobility_reconstruction/prioritization/asset_priority_ranked.csv', 'walkability/assets/asset_priority_ranked.csv'],
-  ['datascrapers/walkability/source/mobility_reconstruction/prioritization/asset_priority_with_costs.csv', 'walkability/assets/asset_priority_with_costs.csv'],
+  [
+    'datascrapers/transit/source/bc_transit_pg_stops.geojson',
+    'walkability/source/data/supplemental/bc_transit_pg_stops.geojson',
+  ],
+  [
+    'datascrapers/walkability/source/data/supplemental/report_class3_crosswalks_geocoded.geojson',
+    'walkability/supplemental/report_class3_crosswalks_geocoded.geojson',
+  ],
+  [
+    'datascrapers/walkability/source/mobility_reconstruction/missing_poi_supplement.geojson',
+    'walkability/supplemental/missing_poi_supplement.geojson',
+  ],
+  [
+    'datascrapers/walkability/source/mobility_reconstruction/public_mobility_index_asset_scores.csv',
+    'walkability/assets/public_mobility_index_asset_scores.csv',
+  ],
+  [
+    'datascrapers/walkability/source/mobility_reconstruction/prioritization/asset_priority_ranked.csv',
+    'walkability/assets/asset_priority_ranked.csv',
+  ],
+  [
+    'datascrapers/walkability/source/mobility_reconstruction/prioritization/asset_priority_with_costs.csv',
+    'walkability/assets/asset_priority_with_costs.csv',
+  ],
   ['datascrapers/bc/flood/output', 'flood'],
   ['datascrapers/food-health/output/water', 'water'],
   ['datascrapers/food-health/output/geocoding', 'geocoding'],
@@ -100,17 +166,47 @@ const pathMappings = [
 ]
 
 const restrictedEarlyLearningMappings = [
-  ['datascrapers/bc/early-learning-boundaries/cache/help_neighbourhoods.geojson', 'boundaries/BCHELP/help_neighbourhoods.geojson'],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/help_neighbourhoods.geojson',
+    'boundaries/BCHELP/help_neighbourhoods.geojson',
+  ],
   ['datascrapers/bc/early-learning-boundaries/cache/mcfd_regions.geojson', 'boundaries/BCMCFD/mcfd_regions.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/mcfd_service_delivery_areas.geojson', 'boundaries/BCMCFD/mcfd_service_delivery_areas.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/mcfd_local_service_areas.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson.gz'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson.gz'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson', 'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson.gz', 'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson.gz'],
-  ['datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_boundary_index.json', 'boundaries/BCMCFD/index.json'],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/mcfd_service_delivery_areas.geojson',
+    'boundaries/BCMCFD/mcfd_service_delivery_areas.geojson',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/mcfd_local_service_areas.geojson',
+    'boundaries/BCMCFD/mcfd_local_service_areas.geojson',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_local_service_areas.geojson.gz',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_local_service_areas.geojson.gz',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_service_delivery_areas.geojson.gz',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_service_delivery_areas.geojson.gz',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_regions.geojson.gz',
+    'boundaries/BCMCFD/dashboard_historical_mcfd_regions.geojson.gz',
+  ],
+  [
+    'datascrapers/bc/early-learning-boundaries/cache/dashboard_mcfd_boundary_index.json',
+    'boundaries/BCMCFD/index.json',
+  ],
 ]
 
 if (includeRestrictedEarlyLearning) {
@@ -191,7 +287,10 @@ function copyPath(sourceRelative, targetRelative) {
     errorOnExist: false,
     filter: (sourcePath) => {
       const relativeSource = relative(vendorRoot, sourcePath)
-      return !skippedSourcePaths.has(relativeSource) && !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
+      return (
+        !skippedSourcePaths.has(relativeSource) &&
+        !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
+      )
     },
   })
 }

@@ -1,7 +1,4 @@
-import type {
-  ProjectSceneDef,
-  ProjectStoryLayerDef,
-} from '@/lib/projectPackages'
+import type { ProjectSceneDef, ProjectStoryCategoryDef, ProjectStoryLayerDef } from '@/lib/projectPackages'
 
 /**
  * Pure scene resolution for JSON map stories: turning a scene's declarative
@@ -26,9 +23,7 @@ const MAX_CAMERA_ZOOM_OUT = 1.5
  */
 export function paneZoomOffset(pane: { width: number; height: number }): number {
   if (!(pane.width > 0) || !(pane.height > 0)) return 0
-  const fit = Math.log2(
-    Math.min(pane.width / CAMERA_REFERENCE_PANE.width, pane.height / CAMERA_REFERENCE_PANE.height),
-  )
+  const fit = Math.log2(Math.min(pane.width / CAMERA_REFERENCE_PANE.width, pane.height / CAMERA_REFERENCE_PANE.height))
   return Math.max(-MAX_CAMERA_ZOOM_OUT, Math.min(0, fit))
 }
 
@@ -43,6 +38,7 @@ export type ResolvedLayer = {
   lineColor: PaintValue
   lineWidth: PaintValue
   lineOpacity: number
+  category?: ProjectStoryCategoryDef
   /** Restricts rendering (and hover hit-testing) to matching features. */
   filter?: unknown[]
 }
@@ -56,10 +52,10 @@ export type LegendEntry = {
 }
 
 /** Categorical fill expression, or the flat fill colour when the layer has no categories. */
-export function baseFillColor(layer: ProjectStoryLayerDef): PaintValue {
-  if (!layer.category) return layer.fillColor
-  const matches = Object.entries(layer.category.colors).flatMap(([value, color]) => [value, color])
-  return ['match', ['get', layer.category.property], ...matches, layer.category.fallback]
+export function baseFillColor(layer: ProjectStoryLayerDef, category = layer.category): PaintValue {
+  if (!category) return layer.fillColor
+  const matches = Object.entries(category.colors).flatMap(([value, color]) => [value, color])
+  return ['match', ['get', category.property], ...matches, category.fallback]
 }
 
 /**
@@ -77,15 +73,17 @@ export function resolveLayer(
   const fillOpacity = override?.fillOpacity ?? layer.fillOpacity
   const lineOpacity = override?.lineOpacity ?? layer.lineOpacity
   const lineWidth = override?.lineWidth ?? layer.lineWidth
+  const category = override?.category ?? layer.category
 
   const resolved: ResolvedLayer = {
     layer,
     label,
-    fillColor: baseFillColor(layer),
+    fillColor: baseFillColor(layer, category),
     fillOpacity,
     lineColor: layer.lineColor,
     lineWidth,
     lineOpacity,
+    category,
   }
 
   const highlight = scene?.highlights?.find((entry) => entry.layerId === layer.id)
@@ -130,7 +128,7 @@ export function buildLegend(
   const entries: LegendEntry[] = []
   for (const resolved of resolvedLayers) {
     if (!visibleLayerIds.has(resolved.layer.id)) continue
-    const { category } = resolved.layer
+    const { category } = resolved
     if (category) {
       for (const [label, color] of Object.entries(category.colors)) {
         entries.push({ key: `${resolved.layer.id}-${label}`, label, color, layerId: resolved.layer.id })

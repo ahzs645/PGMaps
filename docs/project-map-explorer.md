@@ -79,7 +79,9 @@ The `features` array is both configuration and display order. Omit a block to
 remove that capability.
 
 - `summary-stats`: record count, mapped-location count, and/or source year range.
-- `timeline`: sidebar decade filter plus the shared animated map timeline.
+- `timeline`: a standard sidebar decade selector plus the shared animated map
+  timeline. The selector is a static filter; only the shared map-footer control
+  is presented as the timeline.
 - `category-filter`: category totals and filtering.
 - `aggregate-records`: opens records assigned only to configured aggregate
   locations. Text supports a `{count}` placeholder.
@@ -87,6 +89,23 @@ remove that capability.
 - `ranked-list`: ranked mapped locations with a configurable result limit.
 - `map-legend`: shared map legend using the configured categories.
 - `location-popup`: mapped-location detail with a configurable category limit.
+
+## Renderer anatomy
+
+The renderer is partitioned so package options, code components, and model
+guidance have the same boundaries:
+
+- `ProjectMapExplorer.tsx` handles loading, errors, layout, and timeline state.
+- `ProjectExplorerSidebar.tsx` renders configured sidebar blocks in package order.
+- `ProjectExplorerMap.tsx` composes map layers, map-only features, and the shared timeline.
+- `features/*.tsx` contains one file per `ProjectExplorerFeatureDef` option.
+- `adapters/*` owns source-specific loading and normalization.
+- reusable presentation belongs in `src/components/ui`, not inside an adapter or package.
+
+The repo-local `.agents/skills/pgmaps-project-builder` skill mirrors this
+structure with one focused reference per feature. When adding a feature, update
+the TypeScript union, normalizer, component, composition switch, documentation,
+skill reference, tests, and a working package example together.
 
 ## Data ownership and adapter contract
 

@@ -6,16 +6,17 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SharedMapLayout } from '@/components/layout/SharedMapLayout'
 import { Button } from '@/components/ui/button'
 import { MapLoader } from '@/components/ui/map-loader'
+import { useSiteWebMCP } from '@/lib/siteWebMCP'
 import Home from '@/pages/Home'
 
-const FoodMap = lazy(() => import('@/maps/foodmap').then(m => ({ default: m.FoodMap })))
-const AirQualitySection = lazy(() => import('@/maps/airquality').then(m => ({ default: m.AirQualitySection })))
-const CensusSection = lazy(() => import('@/maps/census').then(m => ({ default: m.CensusSection })))
-const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then(m => ({ default: m.ScoreBuilderSection })))
-const ExplorerSection = lazy(() => import('@/maps/explorer').then(m => ({ default: m.ExplorerSection })))
-const PGDataSection = lazy(() => import('@/maps/pgdata').then(m => ({ default: m.PGDataSection })))
+const FoodMap = lazy(() => import('@/maps/foodmap').then((m) => ({ default: m.FoodMap })))
+const AirQualitySection = lazy(() => import('@/maps/airquality').then((m) => ({ default: m.AirQualitySection })))
+const CensusSection = lazy(() => import('@/maps/census').then((m) => ({ default: m.CensusSection })))
+const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then((m) => ({ default: m.ScoreBuilderSection })))
+const ExplorerSection = lazy(() => import('@/maps/explorer').then((m) => ({ default: m.ExplorerSection })))
+const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default: m.PGDataSection })))
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
-const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => ({ default: m.BcAssessmentSection })))
+const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
 const DevBcerBoundaries = lazy(() => import('@/pages/DevBcerBoundaries'))
@@ -32,7 +33,7 @@ const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
 const DevProjects = lazy(() => import('@/pages/DevProjects'))
-const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.AqMapSection })))
+const AqMapSection = lazy(() => import('@/maps/aqmap').then((m) => ({ default: m.AqMapSection })))
 
 function RouteLoadingFallback() {
   return (
@@ -61,49 +62,51 @@ function NotFound() {
 }
 
 function App() {
+  useSiteWebMCP()
+
   return (
     <Shell>
       <ErrorBoundary>
-      <Suspense fallback={<RouteLoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/explorer" element={<ExplorerSection />} />
-          <Route element={<SharedMapLayout />}>
-            <Route path="/foodmap" element={<FoodMap />} />
-            <Route path="/airquality" element={<AirQualitySection />} />
-            <Route path="/pgdata" element={<PGDataSection />} />
-          </Route>
-          <Route path="/census" element={<CensusSection />} />
-          <Route path="/socioeconomic" element={<CensusSection />} />
-          <Route path="/parks" element={<Navigate to="/pgdata?tab=parks" replace />} />
-          <Route path="/score-builder" element={<ScoreBuilderSection />} />
-          <Route path="/misc" element={<MiscDataSection />} />
-          <Route path="/bc-assessment" element={<BcAssessmentSection />} />
-          <Route path="/dev" element={<DevLibrary />} />
-          <Route path="/dev/boundaries" element={<DevBoundaries />} />
-          <Route path="/dev/boundaries/bcer" element={<DevBcerBoundaries />} />
-          <Route path="/dev/design" element={<DevDesign />} />
-          <Route path="/dev/load" element={<DevLoad />} />
-          <Route path="/dev/data" element={<DevData />} />
-          <Route path="/dev/interact" element={<DevInteract />} />
-          <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
-          <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />
-          <Route path="/dev/wait/specialist" element={<Navigate to="/dev/health/wait/specialist" replace />} />
-          <Route path="/dev/health/wait" element={<DevWait />} />
-          <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
-          <Route path="/dev/fallout" element={<DevFallout />} />
-          <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
-          <Route path="/dev/health/msp" element={<DevHealthMsp />} />
-          <Route path="/dev/networks" element={<DevNetworks />} />
-          <Route path="/dev/outdoors" element={<DevOutdoors />} />
-          <Route path="/dev/projects" element={<DevProjects />} />
-          <Route path="/dev/projects/:projectSlug" element={<DevProjects />} />
-          <Route path="/dev/aqmap" element={<AqMapSection />} />
-          <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
-          <Route path="/dev/aqmap/ring" element={<AqMapSection variant="ring" />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/explorer" element={<ExplorerSection />} />
+            <Route element={<SharedMapLayout />}>
+              <Route path="/foodmap" element={<FoodMap />} />
+              <Route path="/airquality" element={<AirQualitySection />} />
+              <Route path="/pgdata" element={<PGDataSection />} />
+            </Route>
+            <Route path="/census" element={<CensusSection />} />
+            <Route path="/socioeconomic" element={<CensusSection />} />
+            <Route path="/parks" element={<Navigate to="/pgdata?tab=parks" replace />} />
+            <Route path="/score-builder" element={<ScoreBuilderSection />} />
+            <Route path="/misc" element={<MiscDataSection />} />
+            <Route path="/bc-assessment" element={<BcAssessmentSection />} />
+            <Route path="/dev" element={<DevLibrary />} />
+            <Route path="/dev/boundaries" element={<DevBoundaries />} />
+            <Route path="/dev/boundaries/bcer" element={<DevBcerBoundaries />} />
+            <Route path="/dev/design" element={<DevDesign />} />
+            <Route path="/dev/load" element={<DevLoad />} />
+            <Route path="/dev/data" element={<DevData />} />
+            <Route path="/dev/interact" element={<DevInteract />} />
+            <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
+            <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />
+            <Route path="/dev/wait/specialist" element={<Navigate to="/dev/health/wait/specialist" replace />} />
+            <Route path="/dev/health/wait" element={<DevWait />} />
+            <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
+            <Route path="/dev/fallout" element={<DevFallout />} />
+            <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
+            <Route path="/dev/health/msp" element={<DevHealthMsp />} />
+            <Route path="/dev/networks" element={<DevNetworks />} />
+            <Route path="/dev/outdoors" element={<DevOutdoors />} />
+            <Route path="/dev/projects" element={<DevProjects />} />
+            <Route path="/dev/projects/:projectSlug" element={<DevProjects />} />
+            <Route path="/dev/aqmap" element={<AqMapSection />} />
+            <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
+            <Route path="/dev/aqmap/ring" element={<AqMapSection variant="ring" />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
     </Shell>
   )

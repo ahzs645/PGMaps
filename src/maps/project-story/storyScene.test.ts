@@ -70,14 +70,40 @@ describe('resolveLayer', () => {
     expect(resolved).toMatchObject({ fillOpacity: 0, lineWidth: 2.8, lineOpacity: 1 })
   })
 
+  it('recolours and rebuilds the legend from a scene category override', () => {
+    const active = scene({
+      layerOverrides: {
+        health: {
+          category: {
+            property: 'status',
+            colors: { Current: '#047857', Historical: '#d97706' },
+            fallback: '#94a3b8',
+          },
+        },
+      },
+    })
+    const resolved = resolveLayer(categoricalLayer, 'Health', active, ACCENT)
+    expect(resolved.fillColor).toEqual([
+      'match',
+      ['get', 'status'],
+      'Current',
+      '#047857',
+      'Historical',
+      '#d97706',
+      '#94a3b8',
+    ])
+    expect(buildLegend(active, [resolved], new Set(['health']), ACCENT).map((entry) => entry.label)).toEqual([
+      'Current',
+      'Historical',
+    ])
+  })
+
   it('dims unmatched features and thickens the matched outline for a highlight', () => {
     const resolved = resolveLayer(
       categoricalLayer,
       'Health',
       scene({
-        highlights: [
-          { layerId: 'health', property: 'HLTH_AUTHORITY_NAME', values: ['Northern'], dimOpacity: 0.07 },
-        ],
+        highlights: [{ layerId: 'health', property: 'HLTH_AUTHORITY_NAME', values: ['Northern'], dimOpacity: 0.07 }],
       }),
       ACCENT,
     )
@@ -93,9 +119,7 @@ describe('resolveLayer', () => {
       'Health',
       scene({
         layerOverrides: { health: { fillOpacity: 0.5 } },
-        highlights: [
-          { layerId: 'health', property: 'HLTH_AUTHORITY_NAME', values: ['Interior'], color: '#b45309' },
-        ],
+        highlights: [{ layerId: 'health', property: 'HLTH_AUTHORITY_NAME', values: ['Interior'], color: '#b45309' }],
       }),
       ACCENT,
     )

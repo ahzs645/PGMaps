@@ -8,7 +8,16 @@ The project catalog and its interactive workspaces expose page-scoped
 [WebMCP](https://webmachinelearning.github.io/webmcp/) tools. In a compatible
 browser, a person and an agent can work on the same live map: find and open a
 project, move through story scenes, control layers, filter a research map, and
-select a place for visual inspection.
+select a place for visual inspection. Site-wide discovery tools can also open
+Food Safety, air quality, census, Index Lab, boundaries, outdoors planning, and
+other PGMaps experiences.
+
+The Food Safety map adds a cross-dataset collaboration: an agent can filter
+historical restaurant inspections, compare establishments by violations and
+nearby mapped property-crime incidents, explain the radius, lookback, and
+weighting used, then open the selected establishment and its inspection history
+on the shared map. The ranking is explicitly exploratory context rather than a
+guarantee of safety or food quality.
 
 Try the deployed catalog at
 [pgmaps.ahmadjalil.com/dev/projects](https://pgmaps.ahmadjalil.com/dev/projects).
@@ -22,8 +31,10 @@ npm run dev
 ```
 
 The implementation is a progressive enhancement: PGMaps keeps its full human
-interface in browsers without WebMCP. Tool registrations live in
-`src/lib/projectWebMCP.ts`, with lifecycle support in `src/lib/webmcp.ts`.
+interface in browsers without WebMCP. Project registrations live in
+`src/lib/projectWebMCP.ts`, site discovery in `src/lib/siteWebMCP.ts`, Food
+Safety tools in `src/maps/foodmap/foodWebMCP.ts`, and lifecycle support in
+`src/lib/webmcp.ts`.
 The [challenge submission brief](docs/webmcp-challenge-submission.md) includes
 the product story, implementation summary, demo script, and final checklist.
 

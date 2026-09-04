@@ -93,14 +93,18 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     [filteredSubmissions, regionalLocationIds],
   )
 
-  const locationCountMap = useMemo(() => {
-    const counts = new Map<string, number>()
+  const locationStatsMap = useMemo(() => {
+    const stats = new Map<string, { count: number; resourceTypes: Record<string, number> }>()
     for (const submission of filteredSubmissions) {
       for (const locationId of submission.locationIds) {
-        counts.set(locationId, (counts.get(locationId) ?? 0) + 1)
+        const current = stats.get(locationId) ?? { count: 0, resourceTypes: {} }
+        current.count += 1
+        current.resourceTypes[submission.resourceTypeMain] =
+          (current.resourceTypes[submission.resourceTypeMain] ?? 0) + 1
+        stats.set(locationId, current)
       }
     }
-    return counts
+    return stats
   }, [filteredSubmissions])
 
   const filteredLocations = useMemo(
@@ -109,11 +113,12 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
         .filter((location) => !regionalLocationIds.has(location.id))
         .map((location) => ({
           ...location,
-          filteredCount: locationCountMap.get(location.id) ?? 0,
+          filteredCount: locationStatsMap.get(location.id)?.count ?? 0,
+          filteredResourceTypes: locationStatsMap.get(location.id)?.resourceTypes ?? {},
         }))
         .filter((location) => location.filteredCount > 0)
         .sort((a, b) => b.filteredCount - a.filteredCount),
-    [locationCountMap, locations, regionalLocationIds],
+    [locationStatsMap, locations, regionalLocationIds],
   )
 
   const locationGeoJSON = useMemo((): GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties> => {
@@ -137,11 +142,12 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
               color: resourceTypeColors[dominantType] ?? resourceTypeColors.other ?? '#94a3b8',
               radius: 6 + Math.sqrt(location.filteredCount / maxCount) * 20,
               dominantType,
+              bandCounts: config.data.categories.map((category) => location.filteredResourceTypes[category.id] ?? 0),
             },
           }
         }),
     }
-  }, [filteredLocations, resourceTypeColors])
+  }, [config.data.categories, filteredLocations, resourceTypeColors])
 
   const filteredStats = useMemo(() => {
     const typeBreakdown = new Map<string, number>()
@@ -191,16 +197,26 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
   const buildDecadeGeoJSON = useCallback(
     (decade: number): GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties> => {
       const mappable = locations.filter((location) => location.coordinates && !regionalLocationIds.has(location.id))
-      const globalMax = Math.max(
-        1,
-        ...mappable.map((location) => Math.max(0, ...Object.values(location.byDecade).map(Number))),
-      )
+      const decadeLocationStats = new Map<string, { count: number; resourceTypes: Record<string, number> }>()
+      for (const submission of submissions) {
+        if (submission.decade !== decade) continue
+        for (const locationId of submission.locationIds) {
+          if (regionalLocationIds.has(locationId)) continue
+          const current = decadeLocationStats.get(locationId) ?? { count: 0, resourceTypes: {} }
+          current.count += 1
+          current.resourceTypes[submission.resourceTypeMain] =
+            (current.resourceTypes[submission.resourceTypeMain] ?? 0) + 1
+          decadeLocationStats.set(locationId, current)
+        }
+      }
+      const globalMax = Math.max(1, ...[...decadeLocationStats.values()].map((item) => item.count))
       return {
         type: 'FeatureCollection',
         features: mappable.flatMap((location) => {
-          const count = location.byDecade[String(decade)] ?? 0
+          const stats = decadeLocationStats.get(location.id)
+          const count = stats?.count ?? 0
           if (!count) return []
-          const dominantType = Object.entries(location.resourceTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
+          const dominantType = Object.entries(stats?.resourceTypes ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
           return [
             {
               type: 'Feature' as const,
@@ -215,13 +231,14 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
                 color: resourceTypeColors[dominantType] ?? resourceTypeColors.other ?? '#94a3b8',
                 radius: 6 + Math.sqrt(count / globalMax) * 22,
                 dominantType,
+                bandCounts: config.data.categories.map((category) => stats?.resourceTypes[category.id] ?? 0),
               },
             },
           ]
         }),
       }
     },
-    [locations, regionalLocationIds, resourceTypeColors],
+    [config.data.categories, locations, regionalLocationIds, resourceTypeColors, submissions],
   )
 
   return {

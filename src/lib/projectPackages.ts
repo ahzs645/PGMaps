@@ -43,11 +43,19 @@ export interface ProjectSceneHighlightDef {
   label?: string
 }
 
+export interface ProjectStoryCategoryDef {
+  property: string
+  colors: Record<string, string>
+  fallback: string
+}
+
 /** Per-scene paint tweaks for an already-visible layer. */
 export interface ProjectSceneLayerOverrideDef {
   fillOpacity?: number
   lineOpacity?: number
   lineWidth?: number
+  /** Recolours one shared source by a different property for this scene. */
+  category?: ProjectStoryCategoryDef
 }
 
 export interface ProjectSceneDef {
@@ -82,10 +90,24 @@ export interface ProjectPortalContextLayerDef {
   id: string
   layerName: string
   mapPath?: string
+  /** Local GeoJSON assembled at build time; when set, replaces the portal WMS tile layer. */
+  data?: string
+  /** Optional exact feature match within a shared local GeoJSON collection. */
+  featureProperty?: string
+  featureValue?: string | number
+  idProperty?: string
+  geometry?: 'polygon' | 'point'
+  /** SVG icon used for local point features. */
+  icon?: string
+  labelProperty?: string
   opacity: number
   legendColor: string
   legendLabel: string
   legendShape?: 'circle' | 'square' | 'line' | 'dashed-line'
+  fillOpacity?: number
+  lineColor?: string
+  lineOpacity?: number
+  lineWidth?: number
 }
 
 export interface ProjectPortalMapDef {
@@ -219,11 +241,7 @@ export interface ProjectStoryLayerDef {
   lineOpacity: number
   lineWidth: number
   circleRadius?: number
-  category?: {
-    property: string
-    colors: Record<string, string>
-    fallback: string
-  }
+  category?: ProjectStoryCategoryDef
   attribution?: string
 }
 
@@ -377,6 +395,19 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
+function normalizeStoryCategory(value: unknown): ProjectStoryCategoryDef | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const category = value as Partial<ProjectStoryCategoryDef>
+  const colors = Object.fromEntries(
+    Object.entries(category.colors ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  )
+  return typeof category.property === 'string' &&
+    typeof category.fallback === 'string' &&
+    Object.keys(colors).length > 0
+    ? { property: category.property, colors, fallback: category.fallback }
+    : undefined
+}
+
 function normalizeSceneHighlights(value: unknown): ProjectSceneHighlightDef[] | undefined {
   const highlights = asArray(value, (item): item is ProjectSceneHighlightDef => {
     const candidate = item as Partial<ProjectSceneHighlightDef>
@@ -406,6 +437,7 @@ function normalizeSceneLayerOverrides(value: unknown): Record<string, ProjectSce
       fillOpacity: isFiniteNumber(override.fillOpacity) ? clamp01(override.fillOpacity) : undefined,
       lineOpacity: isFiniteNumber(override.lineOpacity) ? clamp01(override.lineOpacity) : undefined,
       lineWidth: isFiniteNumber(override.lineWidth) ? Math.max(0, override.lineWidth) : undefined,
+      category: normalizeStoryCategory(override.category),
     }
     const hasValue = Object.values(normalized).some((entry) => entry !== undefined)
     return hasValue ? ([[layerId, normalized]] as Array<[string, ProjectSceneLayerOverrideDef]>) : []
@@ -466,16 +498,14 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
   const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
   return {
     layout: raw.layout === 'scrolly' || raw.layout === 'slides' ? raw.layout : 'panel',
-    sceneTransition:
-      raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
+    sceneTransition: raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
     sceneTransitionMs: isFiniteNumber(raw.sceneTransitionMs)
       ? Math.max(0, Math.min(5000, Math.round(raw.sceneTransitionMs)))
       : 1150,
     mobileSheet: raw.mobileSheet === 'collapsed' || raw.mobileSheet === 'full' ? raw.mobileSheet : 'half',
     mobilePeekSceneText: raw.mobilePeekSceneText === true,
     mobilePeekTicker: raw.mobilePeekTicker === true,
-    legendCollapsed:
-      raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
+    legendCollapsed: raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
     mapControls: raw.mapControls === 'hidden' ? 'hidden' : 'auto',
     cameraFit: raw.cameraFit === 'off' ? 'off' : 'auto',
     slidesSwipeHint:
@@ -508,12 +538,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
       isFiniteNumber(layer.lineWidth)
     )
   }).map((layer) => {
-    const category = layer.category
-    const colors = Object.fromEntries(
-      Object.entries(category?.colors ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-    )
-    const hasCategory =
-      typeof category?.property === 'string' && typeof category.fallback === 'string' && Object.keys(colors).length > 0
+    const category = normalizeStoryCategory(layer.category)
     const attributes = layer.attributes
     const hasAttributes = Boolean(
       attributes &&
@@ -530,8 +555,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
             data: attributes!.data,
             boundaryProperty: attributes!.boundaryProperty,
             attributeProperty: attributes!.attributeProperty,
-            recordsProperty:
-              typeof attributes!.recordsProperty === 'string' ? attributes!.recordsProperty : undefined,
+            recordsProperty: typeof attributes!.recordsProperty === 'string' ? attributes!.recordsProperty : undefined,
           }
         : undefined,
       geometry: layer.geometry === 'point' ? ('point' as const) : ('polygon' as const),
@@ -543,7 +567,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
       lineOpacity: Math.max(0, Math.min(1, layer.lineOpacity)),
       lineWidth: Math.max(0, layer.lineWidth),
       circleRadius: isFiniteNumber(layer.circleRadius) ? Math.max(1, layer.circleRadius) : undefined,
-      category: hasCategory ? { ...category, colors } : undefined,
+      category,
     }
   })
 
@@ -778,8 +802,7 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     status: asString(candidate.status, 'Draft'),
     summary: asString(candidate.summary),
     sourceNote: asString(candidate.sourceNote),
-    angledLegendLabels:
-      typeof candidate.angledLegendLabels === 'boolean' ? candidate.angledLegendLabels : undefined,
+    angledLegendLabels: typeof candidate.angledLegendLabels === 'boolean' ? candidate.angledLegendLabels : undefined,
     details: asArray(candidate.details, (item): item is string => typeof item === 'string'),
     image: typeof image?.src === 'string' ? { src: image.src, alt: asString(image.alt, title) } : undefined,
     links: asArray(candidate.links, isLinkItem),

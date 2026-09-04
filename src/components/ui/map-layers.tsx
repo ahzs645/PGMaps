@@ -1,12 +1,6 @@
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { useMap } from './map'
-import {
-  SELECTION_COLOR,
-  SELECTION_WIDTH,
-  BORDER_COLOR,
-  HEATMAP_COLOR_RAMPS,
-  type HeatmapRampName,
-} from './map-styles'
+import { SELECTION_COLOR, SELECTION_WIDTH, BORDER_COLOR, HEATMAP_COLOR_RAMPS, type HeatmapRampName } from './map-styles'
 import type MapLibreGL from 'maplibre-gl'
 import MapLibreGLRuntime from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
@@ -55,12 +49,7 @@ function isTopPmtilesHoverLayer(map: MapLibreGL.Map, point: MapLibreGL.PointLike
   return map.queryRenderedFeatures(point, { layers: existingLayerIds })[0]?.layer?.id === layerId
 }
 
-function showPmtilesTooltip(
-  map: MapLibreGL.Map,
-  ownerLayerId: string,
-  lngLat: MapLibreGL.LngLatLike,
-  html: string,
-) {
+function showPmtilesTooltip(map: MapLibreGL.Map, ownerLayerId: string, lngLat: MapLibreGL.LngLatLike, html: string) {
   let state = pmtilesTooltipByMap.get(map)
   if (!state) {
     state = {
@@ -282,12 +271,16 @@ function MapFillLayer({
         e.originalEvent?.preventDefault()
         dispatchMobileMapFeatureClick()
         const originalEvent = e.originalEvent
-        onClickRef.current?.(String(id), {
-          shiftKey: originalEvent?.shiftKey === true,
-          altKey: originalEvent?.altKey === true,
-          ctrlKey: originalEvent?.ctrlKey === true,
-          metaKey: originalEvent?.metaKey === true,
-        }, properties ?? {})
+        onClickRef.current?.(
+          String(id),
+          {
+            shiftKey: originalEvent?.shiftKey === true,
+            altKey: originalEvent?.altKey === true,
+            ctrlKey: originalEvent?.ctrlKey === true,
+            metaKey: originalEvent?.metaKey === true,
+          },
+          properties ?? {},
+        )
       }
     }
 
@@ -441,7 +434,20 @@ function MapFillLayer({
       map.setPaintProperty(lineLayerId, 'line-opacity', effectiveLineOpacity as never)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- effectiveFillOpacity/effectiveLineOpacity are derived from fillOpacity + hoverFillOpacity + lineOpacity + visible + fadeMs
-  }, [fillColor, fillOpacity, hoverFillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, visible, fadeEnabled])
+  }, [
+    fillColor,
+    fillOpacity,
+    hoverFillOpacity,
+    fillLayerId,
+    isLoaded,
+    lineColor,
+    lineLayerId,
+    lineOpacity,
+    lineWidth,
+    map,
+    visible,
+    fadeEnabled,
+  ])
 
   // Update selection filter
   useEffect(() => {
@@ -450,8 +456,8 @@ function MapFillLayer({
     map.setFilter(
       selectedLayerId,
       selectedValues.length > 0
-        ? ['in', ['get', idProperty], ['literal', selectedValues]] as never
-        : ['==', ['get', idProperty], ''] as never,
+        ? (['in', ['get', idProperty], ['literal', selectedValues]] as never)
+        : (['==', ['get', idProperty], ''] as never),
     )
   }, [isLoaded, map, selectedLayerId, selectedId, selectedIds, idProperty])
 
@@ -561,12 +567,16 @@ function MapCircleLayer({
       e.originalEvent?.preventDefault()
       dispatchMobileMapFeatureClick()
       const originalEvent = e.originalEvent
-      onClickRef.current?.(String(id), {
-        shiftKey: originalEvent?.shiftKey === true,
-        altKey: originalEvent?.altKey === true,
-        ctrlKey: originalEvent?.ctrlKey === true,
-        metaKey: originalEvent?.metaKey === true,
-      }, properties ?? {})
+      onClickRef.current?.(
+        String(id),
+        {
+          shiftKey: originalEvent?.shiftKey === true,
+          altKey: originalEvent?.altKey === true,
+          ctrlKey: originalEvent?.ctrlKey === true,
+          metaKey: originalEvent?.metaKey === true,
+        },
+        properties ?? {},
+      )
     }
     const handleMouseEnter = () => {
       map.getCanvas().style.cursor = 'pointer'
@@ -655,8 +665,8 @@ function MapCircleLayer({
     map.setFilter(
       selectedLayerId,
       selectedId != null
-        ? ['==', ['get', idProperty], selectedId] as never
-        : ['==', ['get', idProperty], ''] as never,
+        ? (['==', ['get', idProperty], selectedId] as never)
+        : (['==', ['get', idProperty], ''] as never),
     )
   }, [idProperty, isLoaded, map, selectedId, selectedLayerId])
 
@@ -728,8 +738,7 @@ function MapLineLayer({
   idPropRef.current = idProperty
 
   const resolvedSelectionWidth =
-    selectionWidth ??
-    (typeof width === 'number' ? Math.max(width + 2, width * 1.8) : width)
+    selectionWidth ?? (typeof width === 'number' ? Math.max(width + 2, width * 1.8) : width)
 
   // Mount: create source + layers
   useEffect(() => {
@@ -904,7 +913,7 @@ function MapRasterLayer({
           'raster-opacity': opacity,
         },
       },
-      beforeId
+      beforeId,
     )
 
     return () => {
@@ -1002,10 +1011,8 @@ function MapHeatmapLayer({
   )
 
   const paint = useMemo(() => {
-    const weightExpr =
-      weight !== undefined ? weight : (['coalesce', ['get', 'weight'], 1] as unknown)
-    const opacityValue =
-      typeof opacity === 'number' ? opacity : stopsToInterpolate(opacity)
+    const weightExpr = weight !== undefined ? weight : (['coalesce', ['get', 'weight'], 1] as unknown)
+    const opacityValue = typeof opacity === 'number' ? opacity : stopsToInterpolate(opacity)
     return {
       'heatmap-weight': weightExpr,
       'heatmap-intensity': stopsToInterpolate(intensityStops),
@@ -1108,11 +1115,9 @@ function formatClusterCount(total: number): string {
 }
 
 /** Values that require an existing donut marker's SVG to be repainted. */
-function getDonutRenderKey(
-  props: Record<string, unknown>,
-  bandColors: readonly string[],
-): string {
+function getDonutRenderKey(props: Record<string, unknown>, bandColors: readonly string[]): string {
   return [
+    Number(props.aggregate_count) || Number(props.count) || 0,
     Number(props.point_count) || 0,
     ...bandColors.map((_, index) => Number(props[`band${index}`]) || 0),
   ].join(':')
@@ -1131,7 +1136,11 @@ function updateDonutElement(
   centerStyle: 'white' | 'transparent',
 ): void {
   const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
-  const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
+  const total =
+    Number(props.aggregate_count) ||
+    Number(props.count) ||
+    Number(props.point_count) ||
+    counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 50 ? 24 : total >= 25 ? 21 : total >= 10 ? 18 : 15
   const r0 = Math.round(r * 0.62)
   const w = r * 2
@@ -1173,6 +1182,28 @@ function createDonutElement(
   return element
 }
 
+function pieMarkerDonutProperties(
+  properties: Record<string, unknown>,
+  bandColors: readonly string[],
+): Record<string, unknown> {
+  let rawCounts: unknown[] = []
+  if (Array.isArray(properties.bandCounts)) {
+    rawCounts = properties.bandCounts
+  } else if (typeof properties.bandCounts === 'string') {
+    try {
+      const parsed = JSON.parse(properties.bandCounts) as unknown
+      if (Array.isArray(parsed)) rawCounts = parsed
+    } catch {
+      // MapLibre normally JSON-encodes array properties; malformed input falls
+      // back to an empty set of wedges while retaining the location count.
+    }
+  }
+  const counts = bandColors.map((_, index) => Number(rawCounts[index]) || 0)
+  const countedTotal = counts.reduce((sum, count) => sum + count, 0)
+  const total = Number(properties.count) || countedTotal
+  return Object.fromEntries([['point_count', total], ...counts.map((count, index) => [`band${index}`, count] as const)])
+}
+
 const SPIDERFY_LIMIT = 16
 const CLUSTER_LIST_PAGE_SIZE = 50
 
@@ -1181,13 +1212,18 @@ function getClusterLeafProperties(feature: GeoJSON.Feature): Record<string, unkn
 }
 
 function getClusterLeafTitle(properties: Record<string, unknown>, fallbackIndex: number): string {
-  const label = String(properties.spiderTitle ?? '').trim()
+  const label = String(properties.spiderTitle ?? properties.name ?? '').trim()
   return label || `Record ${fallbackIndex + 1}`
 }
 
 function createSpiderElement(
   leaves: GeoJSON.Feature[],
   onSelect: (properties: Record<string, unknown>) => void,
+  pieStyle?: {
+    bandColors: readonly string[]
+    showCount: boolean
+    centerStyle: 'white' | 'transparent'
+  },
 ): HTMLDivElement {
   const root = document.createElement('div')
   root.style.width = '1px'
@@ -1204,7 +1240,9 @@ function createSpiderElement(
   root.appendChild(lines)
 
   const count = leaves.length
-  const radius = count <= 8 ? 42 : 58
+  const radius = pieStyle ? (count <= 8 ? 64 : 82) : count <= 8 ? 42 : 58
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const motionEasing = 'cubic-bezier(0.22, 1, 0.36, 1)'
   leaves.forEach((leaf, index) => {
     const angle = -Math.PI / 2 + (index / count) * Math.PI * 2
     const x = Math.cos(angle) * radius
@@ -1236,18 +1274,37 @@ function createSpiderElement(
 
     const button = document.createElement('button')
     button.type = 'button'
-    button.setAttribute('aria-label', subtitle ? `${title}, ${subtitle}` : title)
+    const countLabel = pieStyle ? `${Number(properties.count) || 0} publications` : ''
+    button.setAttribute(
+      'aria-label',
+      subtitle ? `${title}, ${subtitle}` : countLabel ? `${title}, ${countLabel}` : title,
+    )
     button.title = subtitle ? `${title}\n${subtitle}` : title
     button.style.position = 'absolute'
     button.style.left = `${x}px`
     button.style.top = `${y}px`
-    button.style.width = '18px'
-    button.style.height = '18px'
     button.style.padding = '0'
-    button.style.border = '2px solid #ffffff'
-    button.style.borderRadius = '9999px'
-    button.style.background = color
-    button.style.boxShadow = '0 1px 4px rgba(15,23,42,0.5)'
+    if (pieStyle) {
+      const donut = createDonutElement(
+        pieMarkerDonutProperties(properties, pieStyle.bandColors),
+        pieStyle.bandColors,
+        pieStyle.showCount,
+        pieStyle.centerStyle,
+      )
+      button.style.width = donut.style.width
+      button.style.height = donut.style.height
+      button.style.border = '0'
+      button.style.borderRadius = '9999px'
+      button.style.background = 'transparent'
+      button.appendChild(donut)
+    } else {
+      button.style.width = '18px'
+      button.style.height = '18px'
+      button.style.border = '2px solid #ffffff'
+      button.style.borderRadius = '9999px'
+      button.style.background = color
+      button.style.boxShadow = '0 1px 4px rgba(15,23,42,0.5)'
+    }
     button.style.cursor = 'pointer'
     button.style.pointerEvents = 'auto'
     button.style.transform = 'translate(-50%, -50%)'
@@ -1256,13 +1313,59 @@ function createSpiderElement(
       onSelect(properties)
     })
     root.appendChild(button)
+
+    if (!reduceMotion) {
+      const distance = Math.hypot(x, y)
+      const delay = index * 40
+
+      for (const connector of [halo, line]) {
+        connector.style.strokeDasharray = String(distance)
+        connector.style.strokeDashoffset = '0'
+      }
+
+      requestAnimationFrame(() => {
+        for (const connector of [halo, line]) {
+          connector.animate(
+            [
+              { opacity: 0, strokeDashoffset: String(distance) },
+              { opacity: 1, strokeDashoffset: '0' },
+            ],
+            {
+              duration: 300,
+              delay,
+              easing: motionEasing,
+              fill: 'both',
+            },
+          )
+        }
+
+        button.animate(
+          [
+            {
+              opacity: 0,
+              transform: `translate(-50%, -50%) translate(${-x}px, ${-y}px) scale(0.7)`,
+            },
+            {
+              opacity: 1,
+              transform: 'translate(-50%, -50%) translate(0, 0) scale(1)',
+            },
+          ],
+          {
+            duration: 360,
+            delay,
+            easing: motionEasing,
+            fill: 'both',
+          },
+        )
+      })
+    }
   })
 
   return root
 }
 
 type MapPieClusterLayerProps = {
-  /** GeoJSON points carrying `bandIndex` (wedge tally) and `color` (unclustered dot) properties. */
+  /** GeoJSON points carrying `bandIndex`/`color`, or pre-aggregated `count`/`bandCounts`, properties. */
   data: GeoJSON.FeatureCollection<GeoJSON.Point>
   /** Wedge color per band, indexed by each feature's `bandIndex`. */
   bandColors: readonly string[]
@@ -1276,6 +1379,13 @@ type MapPieClusterLayerProps = {
   centerStyle?: 'white' | 'transparent'
   /** Stroke color around unclustered dots (default: '#ffffff'). */
   pointStrokeColor?: string
+  /**
+   * Treat each input feature as an already-aggregated location. Clusters sum
+   * `count` and `bandCounts`, while isolated features remain full pie markers.
+   */
+  preAggregated?: boolean
+  /** Property used to label isolated pre-aggregated points. */
+  pointLabelProperty?: string
   /**
    * Keep terminal clusters interactive: small stacks spiderfy and large stacks
    * open a paged record list instead of drawing coincident points on top of
@@ -1294,6 +1404,8 @@ function MapPieClusterLayer({
   showCount = true,
   centerStyle = 'white',
   pointStrokeColor = '#ffffff',
+  preAggregated = false,
+  pointLabelProperty,
   expandOverlappingPoints = false,
   onPointClick,
 }: MapPieClusterLayerProps) {
@@ -1301,6 +1413,7 @@ function MapPieClusterLayer({
   const uid = useId().replace(/:/g, '')
   const sourceId = `pie-cluster-src-${uid}`
   const pointLayerId = `pie-cluster-points-${uid}`
+  const labelLayerId = `pie-cluster-labels-${uid}`
   const onPointClickRef = useRef(onPointClick)
 
   useEffect(() => {
@@ -1317,25 +1430,35 @@ function MapPieClusterLayer({
       renderKey: string
       clickState: {
         coordinates: [number, number]
-        clusterId: number
+        clusterId: number | null
         pointCount: number
+        isCluster: boolean
+        properties: Record<string, unknown>
       }
     }
     const markers: Record<string, DonutMarkerState> = {}
     let markersOnScreen: Record<string, DonutMarkerState> = {}
     let spiderMarker: MapLibreGL.Marker | null = null
     let clusterListPopup: MapLibreGL.Popup | null = null
+    let expandedClusterElement: HTMLElement | null = null
 
     const clusterProperties: Record<string, MapLibreGL.ExpressionSpecification> = {}
     bandColors.forEach((_, index) => {
-      clusterProperties[`band${index}`] = ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
+      clusterProperties[`band${index}`] = preAggregated
+        ? ['+', ['coalesce', ['at', index, ['get', 'bandCounts']], 0]]
+        : ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
     })
+    if (preAggregated) {
+      clusterProperties.aggregate_count = ['+', ['coalesce', ['get', 'count'], 0]]
+    }
 
     const clearExpandedCluster = () => {
       spiderMarker?.remove()
       clusterListPopup?.remove()
+      expandedClusterElement?.style.removeProperty('visibility')
       spiderMarker = null
       clusterListPopup = null
+      expandedClusterElement = null
     }
 
     const selectClusterLeaf = (properties: Record<string, unknown>) => {
@@ -1344,9 +1467,15 @@ function MapPieClusterLayer({
       onPointClickRef.current?.(properties)
     }
 
-    const showSpider = (coordinates: [number, number], leaves: GeoJSON.Feature[]) => {
+    const showSpider = (coordinates: [number, number], leaves: GeoJSON.Feature[], clusterElement: HTMLElement) => {
       clearExpandedCluster()
-      const element = createSpiderElement(leaves, selectClusterLeaf)
+      expandedClusterElement = clusterElement
+      clusterElement.style.visibility = 'hidden'
+      const element = createSpiderElement(
+        leaves,
+        selectClusterLeaf,
+        preAggregated ? { bandColors, showCount, centerStyle } : undefined,
+      )
       spiderMarker = new MapLibreGLRuntime.Marker({ element, anchor: 'center' })
         .setLngLat(coordinates)
         .addTo(currentMap)
@@ -1360,7 +1489,8 @@ function MapPieClusterLayer({
     ) => {
       clearExpandedCluster()
       const panel = document.createElement('div')
-      panel.className = 'w-[min(19rem,calc(100vw-3rem))] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl'
+      panel.className =
+        'w-[min(19rem,calc(100vw-3rem))] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl'
 
       const header = document.createElement('div')
       header.className = 'flex items-center justify-between gap-3 border-b border-border px-3 py-2.5'
@@ -1369,7 +1499,8 @@ function MapPieClusterLayer({
       heading.textContent = `${pointCount.toLocaleString()} overlapping records`
       const closeButton = document.createElement('button')
       closeButton.type = 'button'
-      closeButton.className = 'rounded px-1.5 py-0.5 text-lg leading-none text-muted-foreground hover:bg-accent hover:text-foreground'
+      closeButton.className =
+        'rounded px-1.5 py-0.5 text-lg leading-none text-muted-foreground hover:bg-accent hover:text-foreground'
       closeButton.setAttribute('aria-label', 'Close overlapping records')
       closeButton.textContent = '×'
       closeButton.addEventListener('click', clearExpandedCluster)
@@ -1381,7 +1512,8 @@ function MapPieClusterLayer({
       footer.className = 'border-t border-border p-2'
       const loadMoreButton = document.createElement('button')
       loadMoreButton.type = 'button'
-      loadMoreButton.className = 'w-full rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:opacity-80'
+      loadMoreButton.className =
+        'w-full rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:opacity-80'
       footer.appendChild(loadMoreButton)
       panel.append(header, list, footer)
 
@@ -1467,13 +1599,14 @@ function MapPieClusterLayer({
       clusterId: number,
       coordinates: [number, number],
       pointCount: number,
+      clusterElement: HTMLElement,
     ) => {
       if (pointCount > SPIDERFY_LIMIT) {
         showClusterList(source, clusterId, coordinates, pointCount)
         return
       }
       const leaves = await source.getClusterLeaves(clusterId, pointCount, 0)
-      if (!cancelled) showSpider(coordinates, leaves)
+      if (!cancelled) showSpider(coordinates, leaves, clusterElement)
     }
 
     const handlePointClick = (event: MapLibreGL.MapMouseEvent) => {
@@ -1486,32 +1619,46 @@ function MapPieClusterLayer({
       dispatchMobileMapFeatureClick()
       onPointClickRef.current?.(properties)
     }
-    const handlePointEnter = () => { currentMap.getCanvas().style.cursor = 'pointer' }
-    const handlePointLeave = () => { currentMap.getCanvas().style.cursor = '' }
+    const handlePointEnter = () => {
+      currentMap.getCanvas().style.cursor = 'pointer'
+    }
+    const handlePointLeave = () => {
+      currentMap.getCanvas().style.cursor = ''
+    }
 
     const updateMarkers = () => {
       const newMarkers: Record<string, DonutMarkerState> = {}
       for (const feature of currentMap.querySourceFeatures(sourceId)) {
         const props = feature.properties as Record<string, unknown> | null
-        if (!props || !props.cluster) continue
-        const id = `cluster-${props.cluster_id}`
+        if (!props) continue
+        const isCluster = Boolean(props.cluster)
+        if (!isCluster && !preAggregated) continue
+        const id = isCluster
+          ? `cluster-${props.cluster_id}`
+          : `point-${String(props.id ?? feature.id ?? (feature.geometry as GeoJSON.Point).coordinates.join(','))}`
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
-        const clusterId = props.cluster_id as number
-        const pointCount = Number(props.point_count) || 0
-        const renderKey = getDonutRenderKey(props, bandColors)
+        const clusterId = isCluster ? Number(props.cluster_id) : null
+        const pointCount = isCluster ? Number(props.point_count) || 0 : 1
+        const donutProps = isCluster ? props : pieMarkerDonutProperties(props, bandColors)
+        const renderKey = getDonutRenderKey(donutProps, bandColors)
         let markerState = markers[id]
         if (!markerState) {
-          const element = createDonutElement(props, bandColors, showCount, centerStyle)
-          const clickState = { coordinates, clusterId, pointCount }
+          const element = createDonutElement(donutProps, bandColors, showCount, centerStyle)
+          const clickState = { coordinates, clusterId, pointCount, isCluster, properties: props }
           element.addEventListener('click', (domEvent) => {
             domEvent.stopPropagation()
-            const source = currentMap.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
-            if (!source) return
             dispatchMobileMapFeatureClick()
             const current = clickState
-            void source.getClusterExpansionZoom(current.clusterId).then((zoom) => {
+            if (!current.isCluster || current.clusterId === null) {
+              onPointClickRef.current?.(current.properties)
+              return
+            }
+            const currentClusterId = current.clusterId
+            const source = currentMap.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
+            if (!source) return
+            void source.getClusterExpansionZoom(currentClusterId).then((zoom) => {
               if (expandOverlappingPoints && zoom > clusterMaxZoom) {
-                void expandTerminalCluster(source, current.clusterId, current.coordinates, current.pointCount)
+                void expandTerminalCluster(source, currentClusterId, current.coordinates, current.pointCount, element)
                 return
               }
               clearExpandedCluster()
@@ -1531,9 +1678,11 @@ function MapPieClusterLayer({
           markerState.clickState.coordinates = coordinates
           markerState.clickState.clusterId = clusterId
           markerState.clickState.pointCount = pointCount
+          markerState.clickState.isCluster = isCluster
+          markerState.clickState.properties = props
           markerState.marker.setLngLat(coordinates)
           if (markerState.renderKey !== renderKey) {
-            updateDonutElement(markerState.element, props, bandColors, showCount, centerStyle)
+            updateDonutElement(markerState.element, donutProps, bandColors, showCount, centerStyle)
             markerState.renderKey = renderKey
           }
         }
@@ -1575,12 +1724,33 @@ function MapPieClusterLayer({
         id: pointLayerId,
         type: 'circle',
         source: sourceId,
-        filter: ['!', ['has', 'point_count']],
+        filter: preAggregated ? ['has', '__pgmaps_hidden_point__'] : ['!', ['has', 'point_count']],
         paint: {
           'circle-color': ['get', 'color'] as MapLibreGL.ExpressionSpecification,
           'circle-radius': 6,
           'circle-stroke-width': 1.5,
           'circle-stroke-color': pointStrokeColor,
+        },
+      })
+    }
+    if (pointLabelProperty && !currentMap.getLayer(labelLayerId)) {
+      currentMap.addLayer({
+        id: labelLayerId,
+        type: 'symbol',
+        source: sourceId,
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'text-field': ['get', pointLabelProperty],
+          'text-size': 11,
+          'text-offset': [0, 1.8],
+          'text-anchor': 'top',
+          'text-max-width': 8,
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#334155',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
         },
       })
     }
@@ -1604,13 +1774,29 @@ function MapPieClusterLayer({
       markersOnScreen = {}
       try {
         currentMap.getCanvas().style.cursor = ''
+        if (currentMap.getLayer(labelLayerId)) currentMap.removeLayer(labelLayerId)
         if (currentMap.getLayer(pointLayerId)) currentMap.removeLayer(pointLayerId)
         if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId)
       } catch {
         // MapLibre can throw during style teardown.
       }
     }
-  }, [isLoaded, map, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, expandOverlappingPoints, sourceId, pointLayerId])
+  }, [
+    isLoaded,
+    map,
+    bandColors,
+    clusterMaxZoom,
+    clusterRadius,
+    showCount,
+    centerStyle,
+    pointStrokeColor,
+    preAggregated,
+    pointLabelProperty,
+    expandOverlappingPoints,
+    sourceId,
+    pointLayerId,
+    labelLayerId,
+  ])
 
   // Update source data in place. MapLibre re-clusters in a worker, and the render
   // handler above leaves the existing donuts alone until the source reports loaded
@@ -1699,9 +1885,27 @@ function MapPmtilesFillLayer({
   // Creation reads the latest style through a ref so recreating the source
   // (url change) keeps current paint without depending on per-render
   // expression identities; live updates flow through the effects below.
-  const styleRef = useRef({ fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, selectionColor, selectionWidth, visible })
+  const styleRef = useRef({
+    fillColor,
+    fillOpacity,
+    lineColor,
+    lineWidth,
+    lineOpacity,
+    selectionColor,
+    selectionWidth,
+    visible,
+  })
   useEffect(() => {
-    styleRef.current = { fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, selectionColor, selectionWidth, visible }
+    styleRef.current = {
+      fillColor,
+      fillOpacity,
+      lineColor,
+      lineWidth,
+      lineOpacity,
+      selectionColor,
+      selectionWidth,
+      visible,
+    }
   })
 
   useEffect(() => {
@@ -1786,12 +1990,17 @@ function MapPmtilesFillLayer({
         e.originalEvent?.preventDefault()
         dispatchMobileMapFeatureClick()
         const originalEvent = e.originalEvent
-        onClickRef.current?.(String(id), {
-          shiftKey: originalEvent?.shiftKey === true,
-          altKey: originalEvent?.altKey === true,
-          ctrlKey: originalEvent?.ctrlKey === true,
-          metaKey: originalEvent?.metaKey === true,
-        }, properties, e.lngLat ?? null)
+        onClickRef.current?.(
+          String(id),
+          {
+            shiftKey: originalEvent?.shiftKey === true,
+            altKey: originalEvent?.altKey === true,
+            ctrlKey: originalEvent?.ctrlKey === true,
+            metaKey: originalEvent?.metaKey === true,
+          },
+          properties,
+          e.lngLat ?? null,
+        )
       }
     }
 
@@ -1891,11 +2100,24 @@ function MapPmtilesFillLayer({
       map.setPaintProperty(selectedLayerId, 'line-color', selectionColor)
       map.setPaintProperty(selectedLayerId, 'line-width', selectionWidth)
     }
-  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, selectedLayerId, selectionColor, selectionWidth])
+  }, [
+    fillColor,
+    fillLayerId,
+    fillOpacity,
+    isLoaded,
+    lineColor,
+    lineLayerId,
+    lineOpacity,
+    lineWidth,
+    map,
+    selectedLayerId,
+    selectionColor,
+    selectionWidth,
+  ])
 
   useEffect(() => {
     if (!isLoaded || !map) return
-    const nextFilter = filter ? filter as never : null
+    const nextFilter = filter ? (filter as never) : null
     if (map.getLayer(fillLayerId)) map.setFilter(fillLayerId, nextFilter)
     if (map.getLayer(lineLayerId)) map.setFilter(lineLayerId, nextFilter)
   }, [fillLayerId, filter, isLoaded, lineLayerId, map])
@@ -1906,15 +2128,23 @@ function MapPmtilesFillLayer({
     map.setFilter(
       selectedLayerId,
       selectedValues.length > 0
-        ? ['in', ['get', idProperty], ['literal', selectedValues]] as never
-        : ['==', ['get', idProperty], ''] as never,
+        ? (['in', ['get', idProperty], ['literal', selectedValues]] as never)
+        : (['==', ['get', idProperty], ''] as never),
     )
   }, [idProperty, isLoaded, map, selectedId, selectedIds, selectedLayerId])
 
   return null
 }
 
-export { MapFillLayer, MapCircleLayer, MapLineLayer, MapRasterLayer, MapHeatmapLayer, MapPieClusterLayer, MapPmtilesFillLayer }
+export {
+  MapFillLayer,
+  MapCircleLayer,
+  MapLineLayer,
+  MapRasterLayer,
+  MapHeatmapLayer,
+  MapPieClusterLayer,
+  MapPmtilesFillLayer,
+}
 export type {
   MapFillLayerProps,
   MapCircleLayerProps,

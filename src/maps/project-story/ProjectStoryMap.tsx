@@ -17,18 +17,13 @@ import {
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
+import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   downloadProjectPackage,
@@ -37,8 +32,8 @@ import {
   type ProjectStoryLayerDef,
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
-import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { withBase } from '@/lib/dataUrl'
+import { fetchJson } from '@/lib/fetchJson'
 import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
 
@@ -52,11 +47,14 @@ const SCROLL_SETTLE_MS = 160
 const READING_LINE_FRACTION = 0.35
 const EMPTY_FEATURE_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const joinedLayerDataCache = new globalThis.Map<string, Promise<GeoJSON.FeatureCollection>>()
+const compressedLayerDataCache = new globalThis.Map<string, Promise<GeoJSON.FeatureCollection>>()
 
 function joinedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCollection> {
   const join = layer.attributes
   if (!join) return Promise.reject(new Error(`Layer ${layer.id} has no attribute join`))
-  const cacheKey = [layer.data, join.data, join.boundaryProperty, join.attributeProperty, join.recordsProperty].join('|')
+  const cacheKey = [layer.data, join.data, join.boundaryProperty, join.attributeProperty, join.recordsProperty].join(
+    '|',
+  )
   const cached = joinedLayerDataCache.get(cacheKey)
   if (cached) return cached
 
@@ -69,52 +67,79 @@ function joinedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCo
       if (!response.ok) throw new Error(`Attribute request failed: ${response.status}`)
       return response.json() as Promise<Record<string, unknown>>
     }),
-  ]).then(([boundaries, attributePayload]) => {
-    if (boundaries.type !== 'FeatureCollection' || !Array.isArray(boundaries.features)) {
-      throw new Error(`Layer ${layer.id} boundary data is not a FeatureCollection`)
-    }
-    const records = attributePayload[join.recordsProperty ?? 'records']
-    if (!Array.isArray(records)) throw new Error(`Layer ${layer.id} attribute data has no records array`)
-    const byId = new globalThis.Map(
-      records
-        .filter((record): record is Record<string, unknown> => Boolean(record && typeof record === 'object'))
-        .map((record) => [String(record[join.attributeProperty]), record]),
-    )
-    return {
-      ...boundaries,
-      features: boundaries.features.map((feature) => {
-        const properties = feature.properties ?? {}
-        const attributes = byId.get(String(properties[join.boundaryProperty]))
-        return attributes ? { ...feature, properties: { ...properties, ...attributes } } : feature
-      }),
-    }
-  }).catch((error) => {
-    joinedLayerDataCache.delete(cacheKey)
-    throw error
-  })
+  ])
+    .then(([boundaries, attributePayload]) => {
+      if (boundaries.type !== 'FeatureCollection' || !Array.isArray(boundaries.features)) {
+        throw new Error(`Layer ${layer.id} boundary data is not a FeatureCollection`)
+      }
+      const records = attributePayload[join.recordsProperty ?? 'records']
+      if (!Array.isArray(records)) throw new Error(`Layer ${layer.id} attribute data has no records array`)
+      const byId = new globalThis.Map(
+        records
+          .filter((record): record is Record<string, unknown> => Boolean(record && typeof record === 'object'))
+          .map((record) => [String(record[join.attributeProperty]), record]),
+      )
+      return {
+        ...boundaries,
+        features: boundaries.features.map((feature) => {
+          const properties = feature.properties ?? {}
+          const attributes = byId.get(String(properties[join.boundaryProperty]))
+          return attributes ? { ...feature, properties: { ...properties, ...attributes } } : feature
+        }),
+      }
+    })
+    .catch((error) => {
+      joinedLayerDataCache.delete(cacheKey)
+      throw error
+    })
   joinedLayerDataCache.set(cacheKey, pending)
   return pending
 }
 
+function compressedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCollection> {
+  const cached = compressedLayerDataCache.get(layer.data)
+  if (cached) return cached
+  const pending = fetchJson<GeoJSON.FeatureCollection>(layer.data)
+    .then((collection) => {
+      if (collection.type !== 'FeatureCollection' || !Array.isArray(collection.features)) {
+        throw new Error(`Layer ${layer.id} data is not a FeatureCollection`)
+      }
+      return collection
+    })
+    .catch((error) => {
+      compressedLayerDataCache.delete(layer.data)
+      throw error
+    })
+  compressedLayerDataCache.set(layer.data, pending)
+  return pending
+}
+
 function useStoryLayerData(layers: ProjectStoryLayerDef[]) {
-  const [joinedData, setJoinedData] = useState<Record<string, GeoJSON.FeatureCollection>>({})
+  const [loadedData, setLoadedData] = useState<Record<string, GeoJSON.FeatureCollection>>({})
   useEffect(() => {
     let cancelled = false
-    const joinedLayers = layers.filter((layer) => layer.attributes)
-    if (joinedLayers.length === 0) {
-      setJoinedData({})
+    const loadableLayers = layers.filter((layer) => layer.attributes || layer.data.endsWith('.gz'))
+    if (loadableLayers.length === 0) {
+      setLoadedData({})
       return
     }
-    Promise.all(joinedLayers.map(async (layer) => [layer.id, await joinedLayerData(layer)] as const))
+    Promise.all(
+      loadableLayers.map(
+        async (layer) =>
+          [layer.id, await (layer.attributes ? joinedLayerData(layer) : compressedLayerData(layer))] as const,
+      ),
+    )
       .then((entries) => {
-        if (!cancelled) setJoinedData(Object.fromEntries(entries))
+        if (!cancelled) setLoadedData(Object.fromEntries(entries))
       })
       .catch((error) => {
-        if (!cancelled) console.error('Unable to join shared story-map boundaries', error)
+        if (!cancelled) console.error('Unable to load story-map data', error)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [layers])
-  return joinedData
+  return loadedData
 }
 
 /**
@@ -287,10 +312,7 @@ function StoryNarrative({
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
         <header className="border-b bg-muted/20 px-4 py-5">
-          <div
-            className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: accent }}
-          >
+          <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
             Map story
           </div>
           <p className="mt-2 text-sm leading-6 text-foreground">{project.summary}</p>
@@ -356,7 +378,6 @@ function StoryNarrative({
               </article>
             )
           })}
-
         </div>
       </div>
     </aside>
@@ -425,12 +446,11 @@ function ScrollyStory({
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <div ref={mapLayerRef} className="absolute inset-0">{children}</div>
+      <div ref={mapLayerRef} className="absolute inset-0">
+        {children}
+      </div>
 
-      <div
-        ref={scrollRef}
-        className="absolute inset-0 z-10 overflow-y-auto overscroll-contain md:pointer-events-none"
-      >
+      <div ref={scrollRef} className="absolute inset-0 z-10 overflow-y-auto overscroll-contain md:pointer-events-none">
         <header className="flex min-h-[55svh] items-end justify-center px-4 pb-[10svh] pt-24 md:justify-start md:pl-12">
           <div className="pointer-events-auto w-full max-w-md rounded-lg border bg-background/90 p-5 shadow-lg backdrop-blur md:max-w-lg md:p-6">
             <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
@@ -649,9 +669,7 @@ function SlidesStory({
         <Hand className={compactHint ? 'h-10 w-10' : 'h-14 w-14'} />
         <ChevronRight className={cn('opacity-80', compactHint ? 'h-6 w-6' : 'h-8 w-8')} />
       </div>
-      <div className={cn('font-semibold text-white', compactHint ? 'text-base' : 'text-xl')}>
-        Swipe to navigate
-      </div>
+      <div className={cn('font-semibold text-white', compactHint ? 'text-base' : 'text-xl')}>Swipe to navigate</div>
       <button
         type="button"
         onClick={() => setSwipeHintDismissed(true)}
@@ -725,10 +743,7 @@ function SlidesStory({
                 <div
                   key={`${slide.label}-${index}`}
                   aria-hidden={index !== activeSceneIndex}
-                  className={cn(
-                    'col-start-1 row-start-1 text-center',
-                    index !== activeSceneIndex && 'invisible',
-                  )}
+                  className={cn('col-start-1 row-start-1 text-center', index !== activeSceneIndex && 'invisible')}
                 >
                   <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
                     {slide.kicker ?? slide.label}
@@ -814,7 +829,7 @@ export function ProjectStoryMap({
   const accent = config.accent
   const options = config.options
   const isMobile = useIsMobile()
-  const joinedLayerData = useStoryLayerData(config.layers)
+  const loadedLayerData = useStoryLayerData(config.layers)
 
   const mapRef = useRef<MapLibreGL.Map | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -827,9 +842,7 @@ export function ProjectStoryMap({
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [visibleLayerIds, setVisibleLayerIds] = useState(
     () =>
-      new Set(
-        scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id),
-      ),
+      new Set(scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id)),
   )
   const [sidebarWidth, setSidebarWidth] = useState(380)
   const [selectedFeature, setSelectedFeature] = useState<{
@@ -847,9 +860,7 @@ export function ProjectStoryMap({
       const camera = scenes[index]?.camera
       if (!camera) return null
       const offset =
-        map && options.cameraFit === 'auto'
-          ? paneZoomOffset(map.getContainer().getBoundingClientRect())
-          : 0
+        map && options.cameraFit === 'auto' ? paneZoomOffset(map.getContainer().getBoundingClientRect()) : 0
       return {
         center: camera.center,
         zoom: Math.min(config.map.maxZoom, camera.zoom + offset),
@@ -977,8 +988,7 @@ export function ProjectStoryMap({
       cardRefs.current.forEach((card, index) => {
         if (!card) return
         const rect = card.getBoundingClientRect()
-        const distance =
-          readingLine < rect.top ? rect.top - readingLine : Math.max(0, readingLine - rect.bottom)
+        const distance = readingLine < rect.top ? rect.top - readingLine : Math.max(0, readingLine - rect.bottom)
         if (distance < bestDistance) {
           bestDistance = distance
           bestIndex = index
@@ -1051,10 +1061,7 @@ export function ProjectStoryMap({
 
   // Step from the ref, not render state: two quick clicks can both fire
   // before the re-render from the first one commits.
-  const stepScene = useCallback(
-    (direction: number) => goToScene(activeSceneIndexRef.current + direction),
-    [goToScene],
-  )
+  const stepScene = useCallback((direction: number) => goToScene(activeSceneIndexRef.current + direction), [goToScene])
 
   const setLayerVisibility = useCallback((layerId: string, action: 'show' | 'hide' | 'toggle') => {
     setVisibleLayerIds((current) => {
@@ -1092,25 +1099,21 @@ export function ProjectStoryMap({
         // map; on a phone the card lane covers the map and they would be dead
         // chrome over the story.
         controls={
-          options.mapControls === 'hidden'
-            ? null
-            : options.layout === 'scrolly'
-              ? <MapControls position="top-right" showZoom showCompass className="max-md:hidden" />
-              : undefined
+          options.mapControls === 'hidden' ? null : options.layout === 'scrolly' ? (
+            <MapControls position="top-right" showZoom showCompass className="max-md:hidden" />
+          ) : undefined
         }
       >
-
         {resolvedLayers.map((resolved) => {
-          const layerData = resolved.layer.attributes
-            ? joinedLayerData[resolved.layer.id] ?? EMPTY_FEATURE_COLLECTION
-            : resolved.layer.data
+          const layerData =
+            resolved.layer.attributes || resolved.layer.data.endsWith('.gz')
+              ? (loadedLayerData[resolved.layer.id] ?? EMPTY_FEATURE_COLLECTION)
+              : resolved.layer.data
           const selectFeature = (id: string, _event: unknown, properties: Record<string, unknown>) =>
             setSelectedFeature({
               layerId: resolved.layer.id,
               id,
-              title: String(
-                properties[resolved.layer.selectionTitleProperty ?? resolved.layer.labelProperty] ?? id,
-              ),
+              title: String(properties[resolved.layer.selectionTitleProperty ?? resolved.layer.labelProperty] ?? id),
               layerLabel: resolved.label,
               detail: resolved.layer.selectionDetailProperty
                 ? String(properties[resolved.layer.selectionDetailProperty] ?? '') || undefined

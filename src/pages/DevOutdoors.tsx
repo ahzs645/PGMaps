@@ -22,12 +22,7 @@ import { useSearchParams } from 'react-router-dom'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, useMap, type MapRef } from '@/components/ui/map'
-import {
-  MapCircleLayer,
-  MapFillLayer,
-  MapLineLayer,
-  MapPmtilesFillLayer,
-} from '@/components/ui/map-layers'
+import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -88,6 +83,7 @@ const AREA_COLORS: Record<AreaKind, string> = {
 
 const ROUTE_COLORS: Record<RouteKind, string> = {
   corridor: '#f97316',
+  'access-route': '#06b6d4',
   'water-route': '#0ea5e9',
   travel: '#8b5cf6',
   route: '#64748b',
@@ -114,6 +110,46 @@ type WmuLayerInfo = {
 }
 
 type DrawMode = 'waypoint' | 'route' | 'area'
+type PlanStage = 'eligibility' | 'access' | 'field-plan'
+
+const PLAN_STAGES: Array<{ id: PlanStage; shortLabel: string; title: string; description: string }> = [
+  {
+    id: 'eligibility',
+    shortLabel: '1 · Hunt',
+    title: 'Can I hunt here?',
+    description: 'Set the trip context, select management units, and review hunt-area geometry.',
+  },
+  {
+    id: 'access',
+    shortLabel: '2 · Access',
+    title: 'How can I reach it?',
+    description: 'Review closures, corridors, water routes, launches, and candidate access.',
+  },
+  {
+    id: 'field-plan',
+    shortLabel: '3 · Field',
+    title: 'What is my field plan?',
+    description: 'Keep camps, personal routes, travel ranges, notes, and shareable trip details.',
+  },
+]
+
+function waypointIsInStage(waypoint: PlanWaypoint, stage: PlanStage): boolean {
+  if (stage === 'access') return ['access', 'launch', 'site', 'hazard'].includes(waypoint.kind)
+  if (stage === 'field-plan') return ['camp', 'note'].includes(waypoint.kind)
+  return false
+}
+
+function routeIsInStage(route: PlanRoute, stage: PlanStage): boolean {
+  if (stage === 'access') return ['corridor', 'access-route', 'water-route'].includes(route.kind)
+  if (stage === 'field-plan') return ['travel', 'route'].includes(route.kind)
+  return false
+}
+
+function areaIsInStage(area: PlanArea, stage: PlanStage): boolean {
+  if (stage === 'eligibility') return area.kind === 'hunt-area'
+  if (stage === 'access') return ['closure', 'water'].includes(area.kind)
+  return area.kind === 'area'
+}
 
 type SelectedFeature = { type: 'waypoint' | 'route' | 'area'; id: string } | null
 
@@ -140,8 +176,12 @@ function downloadTextFile(fileName: string, text: string, mimeType: string) {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = fileName
+  document.body.append(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  // Revoking synchronously can cancel the download in WebKit and embedded
+  // Chromium shells before they have consumed the object URL.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 function planBounds(plan: OutdoorsPlan): [[number, number], [number, number]] | null {
@@ -161,9 +201,7 @@ function planBounds(plan: OutdoorsPlan): [[number, number], [number, number]] | 
   ]
 }
 
-function coordinateBounds(
-  coordinates: Array<[number, number]>,
-): [[number, number], [number, number]] {
+function coordinateBounds(coordinates: Array<[number, number]>): [[number, number], [number, number]] {
   const lngs = coordinates.map(([lng]) => lng)
   const lats = coordinates.map(([, lat]) => lat)
   return [
@@ -227,9 +265,11 @@ function FeatureRow({
   kinds,
   kindLabels,
   detail,
+  notes,
   selected,
   onNameChange,
   onKindChange,
+  onNotesChange,
   onSelect,
   onZoom,
   onDelete,
@@ -241,23 +281,19 @@ function FeatureRow({
   kinds: readonly string[]
   kindLabels: Record<string, string>
   detail: string
+  notes?: string
   selected: boolean
   onNameChange: (name: string) => void
   onKindChange: (kind: string) => void
+  onNotesChange: (notes: string) => void
   onSelect: () => void
   onZoom: () => void
   onDelete: () => void
 }) {
   return (
-    <li
-      className={`rounded-md border p-2 ${selected ? 'border-primary/60 bg-accent/40' : 'border-border'}`}
-    >
+    <li className={`rounded-md border p-2 ${selected ? 'border-primary/60 bg-accent/40' : 'border-border'}`}>
       <div className="flex items-center gap-1.5">
-        <span
-          className="size-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
+        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
         <input
           className={INPUT_CLASS}
           placeholder={namePlaceholder}
@@ -292,6 +328,14 @@ function FeatureRow({
         </select>
         <span className="text-[11px] tabular-nums text-muted-foreground">{detail}</span>
       </div>
+      {selected && (
+        <textarea
+          className="mt-2 min-h-14 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] leading-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder="Verification, access, or field notes…"
+          value={notes ?? ''}
+          onChange={(event) => onNotesChange(event.target.value)}
+        />
+      )}
     </li>
   )
 }
@@ -306,6 +350,7 @@ function DevOutdoors() {
     initialShareTokenValue ? createEmptyPlan() : (loadStoredPlan() ?? createEmptyPlan()),
   )
   const [planReady, setPlanReady] = useState(() => !initialShareTokenValue)
+  const [activeStage, setActiveStage] = useState<PlanStage>('eligibility')
   const [wmuLayer, setWmuLayer] = useState<WmuLayerInfo | null>(null)
   const [wmuLayerError, setWmuLayerError] = useState<string | null>(null)
   const [drawMode, setDrawMode] = useState<DrawMode | null>(null)
@@ -357,9 +402,7 @@ function DevOutdoors() {
       .then((catalog) => {
         const regulatory = catalog.archives?.find((archive) => archive.id === 'regulatory')
         if (!regulatory?.publicUrl) throw new Error('No regulatory archive in the outdoors catalog')
-        const wmuSource = catalog.sourceManifest?.layers?.find(
-          (layer) => layer.id === WMU_SOURCE_LAYER,
-        )
+        const wmuSource = catalog.sourceManifest?.layers?.find((layer) => layer.id === WMU_SOURCE_LAYER)
         setWmuLayer({
           pmtilesUrl: regulatory.publicUrl,
           version: catalog.storage?.version ?? null,
@@ -437,43 +480,45 @@ function DevOutdoors() {
     [commitViewportToPlan],
   )
 
-  useEffect(() => () => {
-    if (viewportCommitTimer.current != null) window.clearTimeout(viewportCommitTimer.current)
-  }, [])
-
-  const handleWmuClick = useCallback(
-    (id: string, _event: unknown, properties: Record<string, unknown>) => {
-      if (drawModeRef.current) return
-      setPlan((current) => {
-        if (current.wmus.some((wmu) => wmu.id === id)) {
-          return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
-        }
-        const name =
-          typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
-        return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
-      })
+  useEffect(
+    () => () => {
+      if (viewportCommitTimer.current != null) window.clearTimeout(viewportCommitTimer.current)
     },
     [],
   )
 
+  const handleWmuClick = useCallback((id: string, _event: unknown, properties: Record<string, unknown>) => {
+    if (drawModeRef.current) return
+    setPlan((current) => {
+      if (current.wmus.some((wmu) => wmu.id === id)) {
+        return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
+      }
+      const name = typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
+      return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
+    })
+  }, [])
+
   // --- drawing ---------------------------------------------------------------
 
-  const handleDrawClick = useCallback((lngLat: { lng: number; lat: number }) => {
-    const point: [number, number] = [roundCoordinate(lngLat.lng), roundCoordinate(lngLat.lat)]
-    if (drawModeRef.current === 'waypoint') {
-      const waypoint: PlanWaypoint = {
-        id: createWaypointId(),
-        name: '',
-        kind: 'note',
-        lng: point[0],
-        lat: point[1],
+  const handleDrawClick = useCallback(
+    (lngLat: { lng: number; lat: number }) => {
+      const point: [number, number] = [roundCoordinate(lngLat.lng), roundCoordinate(lngLat.lat)]
+      if (drawModeRef.current === 'waypoint') {
+        const waypoint: PlanWaypoint = {
+          id: createWaypointId(),
+          name: '',
+          kind: activeStage === 'access' ? 'access' : 'note',
+          lng: point[0],
+          lat: point[1],
+        }
+        setPlan((current) => ({ ...current, waypoints: [...current.waypoints, waypoint] }))
+        setSelectedFeature({ type: 'waypoint', id: waypoint.id })
+        return
       }
-      setPlan((current) => ({ ...current, waypoints: [...current.waypoints, waypoint] }))
-      setSelectedFeature({ type: 'waypoint', id: waypoint.id })
-      return
-    }
-    setDraftVertices((current) => [...current, point])
-  }, [])
+      setDraftVertices((current) => [...current, point])
+    },
+    [activeStage],
+  )
 
   const startDraw = useCallback((mode: DrawMode) => {
     setDrawMode((current) => (current === mode ? null : mode))
@@ -491,7 +536,7 @@ function DevOutdoors() {
       const route: PlanRoute = {
         id: createWaypointId(),
         name: '',
-        kind: 'route',
+        kind: activeStage === 'access' ? 'access-route' : 'route',
         coordinates: draftVertices,
       }
       setPlan((current) => ({ ...current, routes: [...current.routes, route] }))
@@ -500,7 +545,7 @@ function DevOutdoors() {
       const area: PlanArea = {
         id: createWaypointId(),
         name: '',
-        kind: 'area',
+        kind: activeStage === 'eligibility' ? 'hunt-area' : activeStage === 'access' ? 'closure' : 'area',
         rings: [[...draftVertices, draftVertices[0]]],
       }
       setPlan((current) => ({ ...current, areas: [...current.areas, area] }))
@@ -508,7 +553,7 @@ function DevOutdoors() {
     }
     setDrawMode(null)
     setDraftVertices([])
-  }, [draftVertices])
+  }, [activeStage, draftVertices])
 
   // Layer clicks pass through to the map while drawing; ignore them so a draw
   // click never also changes the selection.
@@ -522,9 +567,7 @@ function DevOutdoors() {
   const updateWaypoint = useCallback((id: string, patch: Partial<PlanWaypoint>) => {
     setPlan((current) => ({
       ...current,
-      waypoints: current.waypoints.map((waypoint) =>
-        waypoint.id === id ? { ...waypoint, ...patch } : waypoint,
-      ),
+      waypoints: current.waypoints.map((waypoint) => (waypoint.id === id ? { ...waypoint, ...patch } : waypoint)),
     }))
   }, [])
 
@@ -577,9 +620,7 @@ function DevOutdoors() {
       setStatusMessage(null)
     } catch {
       setCopyState('failed')
-      setStatusMessage(
-        'This plan is too large for a link (drawn geometry adds up) — use Export plan instead.',
-      )
+      setStatusMessage('This plan is too large for a link (drawn geometry adds up) — use Export plan instead.')
     }
     window.setTimeout(() => setCopyState('idle'), 2000)
   }, [plan])
@@ -658,6 +699,19 @@ function DevOutdoors() {
   // --- derived map data --------------------------------------------------------
 
   const wmuIds = useMemo(() => plan.wmus.map((wmu) => wmu.id), [plan.wmus])
+  const activeStageInfo = PLAN_STAGES.find((stage) => stage.id === activeStage) ?? PLAN_STAGES[0]
+  const visibleWaypoints = useMemo(
+    () => plan.waypoints.filter((waypoint) => waypointIsInStage(waypoint, activeStage)),
+    [activeStage, plan.waypoints],
+  )
+  const visibleRoutes = useMemo(
+    () => plan.routes.filter((route) => routeIsInStage(route, activeStage)),
+    [activeStage, plan.routes],
+  )
+  const visibleAreas = useMemo(
+    () => plan.areas.filter((area) => areaIsInStage(area, activeStage)),
+    [activeStage, plan.areas],
+  )
 
   const wmuFillColor = useMemo(
     () =>
@@ -668,54 +722,48 @@ function DevOutdoors() {
   )
 
   const wmuFillOpacity = useMemo(
-    () =>
-      wmuIds.length > 0
-        ? ['case', ['in', ['get', WMU_ID_PROPERTY], ['literal', wmuIds]], 0.28, 0.05]
-        : 0.08,
+    () => (wmuIds.length > 0 ? ['case', ['in', ['get', WMU_ID_PROPERTY], ['literal', wmuIds]], 0.28, 0.05] : 0.08),
     [wmuIds],
   )
 
   const waypointCollection = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: plan.waypoints.map((waypoint) => ({
+      features: visibleWaypoints.map((waypoint) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [waypoint.lng, waypoint.lat] },
         properties: { id: waypoint.id, name: waypoint.name, kind: waypoint.kind },
       })),
     }),
-    [plan.waypoints],
+    [visibleWaypoints],
   )
 
   const routeCollection = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: plan.routes.map((route) => ({
+      features: visibleRoutes.map((route) => ({
         type: 'Feature',
         geometry: { type: 'LineString', coordinates: route.coordinates },
         properties: { id: route.id, name: route.name, kind: route.kind },
       })),
     }),
-    [plan.routes],
+    [visibleRoutes],
   )
 
   const areaCollection = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: plan.areas.map((area) => ({
+      features: visibleAreas.map((area) => ({
         type: 'Feature',
         geometry: { type: 'Polygon', coordinates: area.rings },
         properties: { id: area.id, name: area.name, kind: area.kind },
       })),
     }),
-    [plan.areas],
+    [visibleAreas],
   )
 
   const draftCollection = useMemo<GeoJSON.FeatureCollection>(() => {
-    const line =
-      drawMode === 'area' && draftVertices.length >= 3
-        ? [...draftVertices, draftVertices[0]]
-        : draftVertices
+    const line = drawMode === 'area' && draftVertices.length >= 3 ? [...draftVertices, draftVertices[0]] : draftVertices
     return {
       type: 'FeatureCollection',
       features:
@@ -794,13 +842,7 @@ function DevOutdoors() {
           </Button>
         </>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-[11px]"
-        onClick={cancelDraw}
-      >
+      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={cancelDraw}>
         <X className="size-3" />
         Cancel
       </Button>
@@ -814,201 +856,244 @@ function DevOutdoors() {
       subtitle="Plan a hunt, share it as a link, or export it"
       titleClassName="text-base"
     >
-      <SidebarSection title="Trip">
-        <div className="space-y-2">
-          <input
-            className={INPUT_CLASS}
-            placeholder="Trip name, e.g. Elk in MU 7-42"
-            value={plan.name}
-            onChange={(event) => setPlan((current) => ({ ...current, name: event.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              className={INPUT_CLASS}
-              value={plan.activity}
-              aria-label="Activity"
-              onChange={(event) =>
-                setPlan((current) => ({ ...current, activity: event.target.value as PlanActivity }))
-              }
+      <div className="border-b border-border px-3 py-3">
+        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Planning steps">
+          {PLAN_STAGES.map((stage) => (
+            <button
+              key={stage.id}
+              type="button"
+              role="tab"
+              aria-selected={activeStage === stage.id}
+              className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                activeStage === stage.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => {
+                cancelDraw()
+                setSelectedFeature(null)
+                setActiveStage(stage.id)
+              }}
             >
-              {Object.entries(ACTIVITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input
-              className={INPUT_CLASS}
-              placeholder="Species, e.g. Elk"
-              value={plan.species}
-              onChange={(event) =>
-                setPlan((current) => ({ ...current, species: event.target.value }))
-              }
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              className={INPUT_CLASS}
-              type="date"
-              aria-label="Start date"
-              value={plan.startDate}
-              onChange={(event) =>
-                setPlan((current) => ({ ...current, startDate: event.target.value }))
-              }
-            />
-            <input
-              className={INPUT_CLASS}
-              type="date"
-              aria-label="End date"
-              value={plan.endDate}
-              onChange={(event) =>
-                setPlan((current) => ({ ...current, endDate: event.target.value }))
-              }
-            />
-          </div>
-          <textarea
-            className="min-h-16 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            placeholder="Notes — closures to verify, gear, access reminders…"
-            value={plan.notes}
-            onChange={(event) => setPlan((current) => ({ ...current, notes: event.target.value }))}
-          />
+              {stage.shortLabel}
+            </button>
+          ))}
         </div>
-      </SidebarSection>
-
-      <SidebarSection title="Management units">
-        {wmuLayerError && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
-            {wmuLayerError}
+        <p className="mt-2 text-xs font-semibold text-foreground">{activeStageInfo.title}</p>
+        <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{activeStageInfo.description}</p>
+        {activeStage !== 'field-plan' && (
+          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-4 text-amber-800 dark:text-amber-200">
+            The blue WMU layer is authoritative. Imported and hand-drawn hunt areas, closures, routes, and access points
+            remain planning references until checked against their official source.
           </p>
         )}
-        {plan.wmus.length === 0 ? (
-          <p className="text-xs leading-5 text-muted-foreground">
-            Click a Wildlife Management Unit on the map to add it to the plan.
-          </p>
-        ) : (
-          <ul className="flex flex-wrap gap-1.5">
-            {plan.wmus.map((wmu) => (
-              <li key={wmu.id}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPlan((current) => ({
-                      ...current,
-                      wmus: current.wmus.filter((entry) => entry.id !== wmu.id),
-                    }))
+      </div>
+
+      {activeStage === 'eligibility' && (
+        <>
+          <SidebarSection title="Trip">
+            <div className="space-y-2">
+              <input
+                className={INPUT_CLASS}
+                placeholder="Trip name, e.g. Elk in MU 7-42"
+                value={plan.name}
+                onChange={(event) => setPlan((current) => ({ ...current, name: event.target.value }))}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className={INPUT_CLASS}
+                  value={plan.activity}
+                  aria-label="Activity"
+                  onChange={(event) =>
+                    setPlan((current) => ({ ...current, activity: event.target.value as PlanActivity }))
                   }
-                  className="inline-flex items-center gap-1 rounded-full border border-emerald-600/40 bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
-                  title="Remove from plan"
                 >
-                  {wmu.name ?? `MU ${wmu.id}`}
-                  <X className="size-3" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {wmuLayer && (
-          <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-            WMU boundaries: BC Data Catalogue snapshot
-            {wmuLayer.sourceUpdated ? ` updated ${wmuLayer.sourceUpdated}` : ''}
-            {wmuLayer.version ? ` (${wmuLayer.version})` : ''}. Always confirm season dates in the
-            official BC hunting regulations before a trip.
-          </p>
-        )}
-      </SidebarSection>
-
-      <SidebarSection
-        title={`Waypoints${plan.waypoints.length > 0 ? ` (${plan.waypoints.length})` : ''}`}
-        actions={
-          <Button
-            type="button"
-            variant={drawMode === 'waypoint' ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 px-2"
-            onClick={() => startDraw('waypoint')}
-          >
-            {drawMode === 'waypoint' ? <Crosshair className="size-3.5" /> : <Plus className="size-3.5" />}
-            {drawMode === 'waypoint' ? 'Click map…' : 'Add'}
-          </Button>
-        }
-      >
-        {plan.waypoints.length === 0 ? (
-          <p className="text-xs leading-5 text-muted-foreground">
-            Use <span className="font-medium text-foreground">Add</span>, then click the map to drop
-            camps, launches, access points, and hazards.
-          </p>
-        ) : (
-          <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            {plan.waypoints.map((waypoint) => (
-              <FeatureRow
-                key={waypoint.id}
-                color={WAYPOINT_COLORS[waypoint.kind]}
-                name={waypoint.name}
-                namePlaceholder="Waypoint name"
-                kind={waypoint.kind}
-                kinds={WAYPOINT_KINDS}
-                kindLabels={WAYPOINT_KIND_LABELS}
-                detail={`${waypoint.lat.toFixed(5)}, ${waypoint.lng.toFixed(5)}`}
-                selected={selectedFeature?.type === 'waypoint' && selectedFeature.id === waypoint.id}
-                onNameChange={(name) => updateWaypoint(waypoint.id, { name })}
-                onKindChange={(kind) => updateWaypoint(waypoint.id, { kind: kind as WaypointKind })}
-                onSelect={() => setSelectedFeature({ type: 'waypoint', id: waypoint.id })}
-                onZoom={() => zoomToWaypoint(waypoint)}
-                onDelete={() => removeFeature('waypoint', waypoint.id)}
+                  {Object.entries(ACTIVITY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={INPUT_CLASS}
+                  placeholder="Species, e.g. Elk"
+                  value={plan.species}
+                  onChange={(event) => setPlan((current) => ({ ...current, species: event.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className={INPUT_CLASS}
+                  type="date"
+                  aria-label="Start date"
+                  value={plan.startDate}
+                  onChange={(event) => setPlan((current) => ({ ...current, startDate: event.target.value }))}
+                />
+                <input
+                  className={INPUT_CLASS}
+                  type="date"
+                  aria-label="End date"
+                  value={plan.endDate}
+                  onChange={(event) => setPlan((current) => ({ ...current, endDate: event.target.value }))}
+                />
+              </div>
+              <textarea
+                className="min-h-16 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder="Notes — closures to verify, gear, access reminders…"
+                value={plan.notes}
+                onChange={(event) => setPlan((current) => ({ ...current, notes: event.target.value }))}
               />
-            ))}
-          </ul>
-        )}
-      </SidebarSection>
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Management units">
+            {wmuLayerError && (
+              <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                {wmuLayerError}
+              </p>
+            )}
+            {plan.wmus.length === 0 ? (
+              <p className="text-xs leading-5 text-muted-foreground">
+                Click a Wildlife Management Unit on the map to add it to the plan.
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {plan.wmus.map((wmu) => (
+                  <li key={wmu.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPlan((current) => ({
+                          ...current,
+                          wmus: current.wmus.filter((entry) => entry.id !== wmu.id),
+                        }))
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-600/40 bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
+                      title="Remove from plan"
+                    >
+                      {wmu.name ?? `MU ${wmu.id}`}
+                      <X className="size-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {wmuLayer && (
+              <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+                WMU boundaries: BC Data Catalogue snapshot
+                {wmuLayer.sourceUpdated ? ` updated ${wmuLayer.sourceUpdated}` : ''}
+                {wmuLayer.version ? ` (${wmuLayer.version})` : ''}. Always confirm season dates in the official BC
+                hunting regulations before a trip.
+              </p>
+            )}
+          </SidebarSection>
+        </>
+      )}
+
+      {activeStage !== 'eligibility' && (
+        <SidebarSection
+          title={`${activeStage === 'access' ? 'Access points' : 'Field waypoints'}${visibleWaypoints.length > 0 ? ` (${visibleWaypoints.length})` : ''}`}
+          actions={
+            <Button
+              type="button"
+              variant={drawMode === 'waypoint' ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => startDraw('waypoint')}
+            >
+              {drawMode === 'waypoint' ? <Crosshair className="size-3.5" /> : <Plus className="size-3.5" />}
+              {drawMode === 'waypoint' ? 'Click map…' : 'Add'}
+            </Button>
+          }
+        >
+          {visibleWaypoints.length === 0 ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              Use <span className="font-medium text-foreground">Add</span>, then click the map to add
+              {activeStage === 'access'
+                ? ' launches, access points, recreation sites, and hazards.'
+                : ' camps and personal notes.'}
+            </p>
+          ) : (
+            <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              {visibleWaypoints.map((waypoint) => (
+                <FeatureRow
+                  key={waypoint.id}
+                  color={WAYPOINT_COLORS[waypoint.kind]}
+                  name={waypoint.name}
+                  namePlaceholder="Waypoint name"
+                  kind={waypoint.kind}
+                  kinds={WAYPOINT_KINDS}
+                  kindLabels={WAYPOINT_KIND_LABELS}
+                  detail={`${waypoint.lat.toFixed(5)}, ${waypoint.lng.toFixed(5)}`}
+                  notes={waypoint.notes}
+                  selected={selectedFeature?.type === 'waypoint' && selectedFeature.id === waypoint.id}
+                  onNameChange={(name) => updateWaypoint(waypoint.id, { name })}
+                  onKindChange={(kind) => updateWaypoint(waypoint.id, { kind: kind as WaypointKind })}
+                  onNotesChange={(notes) => updateWaypoint(waypoint.id, { notes })}
+                  onSelect={() => setSelectedFeature({ type: 'waypoint', id: waypoint.id })}
+                  onZoom={() => zoomToWaypoint(waypoint)}
+                  onDelete={() => removeFeature('waypoint', waypoint.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </SidebarSection>
+      )}
+
+      {activeStage !== 'eligibility' && (
+        <SidebarSection
+          title={`${activeStage === 'access' ? 'Access routes' : 'Field routes'}${visibleRoutes.length > 0 ? ` (${visibleRoutes.length})` : ''}`}
+          actions={
+            <Button
+              type="button"
+              variant={drawMode === 'route' ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => startDraw('route')}
+            >
+              <RouteIcon className="size-3.5" />
+              {drawMode === 'route' ? 'Drawing…' : 'Draw'}
+            </Button>
+          }
+        >
+          {visibleRoutes.length === 0 ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              {activeStage === 'access'
+                ? 'Draw candidate access routes, corridors, and river runs as lines on the map.'
+                : 'Draw personal travel routes and range estimates as lines on the map.'}
+            </p>
+          ) : (
+            <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              {visibleRoutes.map((route) => (
+                <FeatureRow
+                  key={route.id}
+                  color={ROUTE_COLORS[route.kind]}
+                  name={route.name}
+                  namePlaceholder="Route name"
+                  kind={route.kind}
+                  kinds={ROUTE_KINDS}
+                  kindLabels={ROUTE_KIND_LABELS}
+                  detail={`${route.coordinates.length} points`}
+                  notes={route.notes}
+                  selected={selectedFeature?.type === 'route' && selectedFeature.id === route.id}
+                  onNameChange={(name) => updateRoute(route.id, { name })}
+                  onKindChange={(kind) => updateRoute(route.id, { kind: kind as RouteKind })}
+                  onNotesChange={(notes) => updateRoute(route.id, { notes })}
+                  onSelect={() => setSelectedFeature({ type: 'route', id: route.id })}
+                  onZoom={() => {
+                    setSelectedFeature({ type: 'route', id: route.id })
+                    zoomToBounds(coordinateBounds(route.coordinates))
+                  }}
+                  onDelete={() => removeFeature('route', route.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </SidebarSection>
+      )}
 
       <SidebarSection
-        title={`Routes${plan.routes.length > 0 ? ` (${plan.routes.length})` : ''}`}
-        actions={
-          <Button
-            type="button"
-            variant={drawMode === 'route' ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 px-2"
-            onClick={() => startDraw('route')}
-          >
-            <RouteIcon className="size-3.5" />
-            {drawMode === 'route' ? 'Drawing…' : 'Draw'}
-          </Button>
-        }
-      >
-        {plan.routes.length === 0 ? (
-          <p className="text-xs leading-5 text-muted-foreground">
-            Draw travel corridors, river runs, and access routes as lines on the map.
-          </p>
-        ) : (
-          <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            {plan.routes.map((route) => (
-              <FeatureRow
-                key={route.id}
-                color={ROUTE_COLORS[route.kind]}
-                name={route.name}
-                namePlaceholder="Route name"
-                kind={route.kind}
-                kinds={ROUTE_KINDS}
-                kindLabels={ROUTE_KIND_LABELS}
-                detail={`${route.coordinates.length} points`}
-                selected={selectedFeature?.type === 'route' && selectedFeature.id === route.id}
-                onNameChange={(name) => updateRoute(route.id, { name })}
-                onKindChange={(kind) => updateRoute(route.id, { kind: kind as RouteKind })}
-                onSelect={() => setSelectedFeature({ type: 'route', id: route.id })}
-                onZoom={() => {
-                  setSelectedFeature({ type: 'route', id: route.id })
-                  zoomToBounds(coordinateBounds(route.coordinates))
-                }}
-                onDelete={() => removeFeature('route', route.id)}
-              />
-            ))}
-          </ul>
-        )}
-      </SidebarSection>
-
-      <SidebarSection
-        title={`Areas${plan.areas.length > 0 ? ` (${plan.areas.length})` : ''}`}
+        title={`${activeStage === 'eligibility' ? 'Hunt areas' : activeStage === 'access' ? 'Closures & water' : 'Field areas'}${visibleAreas.length > 0 ? ` (${visibleAreas.length})` : ''}`}
         actions={
           <Button
             type="button"
@@ -1022,14 +1107,19 @@ function DevOutdoors() {
           </Button>
         }
       >
-        {plan.areas.length === 0 ? (
+        {visibleAreas.length === 0 ? (
           <p className="text-xs leading-5 text-muted-foreground">
-            Draw closures, hunt areas, and water as polygons — click at least three points, then
-            Finish.
+            Draw{' '}
+            {activeStage === 'eligibility'
+              ? 'a hunt area'
+              : activeStage === 'access'
+                ? 'a closure or water area'
+                : 'a field area'}{' '}
+            as a polygon — click at least three points, then Finish.
           </p>
         ) : (
           <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            {plan.areas.map((area) => (
+            {visibleAreas.map((area) => (
               <FeatureRow
                 key={area.id}
                 color={AREA_COLORS[area.kind]}
@@ -1039,9 +1129,11 @@ function DevOutdoors() {
                 kinds={AREA_KINDS}
                 kindLabels={AREA_KIND_LABELS}
                 detail={`${area.rings[0].length - 1} points`}
+                notes={area.notes}
                 selected={selectedFeature?.type === 'area' && selectedFeature.id === area.id}
                 onNameChange={(name) => updateArea(area.id, { name })}
                 onKindChange={(kind) => updateArea(area.id, { kind: kind as AreaKind })}
+                onNotesChange={(notes) => updateArea(area.id, { notes })}
                 onSelect={() => setSelectedFeature({ type: 'area', id: area.id })}
                 onZoom={() => {
                   setSelectedFeature({ type: 'area', id: area.id })
@@ -1057,7 +1149,13 @@ function DevOutdoors() {
       <SidebarSection title="Save & share">
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={handleCopyLink}>
-            {copyState === 'copied' ? <Check className="size-3.5" /> : copyState === 'failed' ? <Link2 className="size-3.5" /> : <Copy className="size-3.5" />}
+            {copyState === 'copied' ? (
+              <Check className="size-3.5" />
+            ) : copyState === 'failed' ? (
+              <Link2 className="size-3.5" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
             {copyState === 'copied' ? 'Link copied' : 'Copy link'}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={handleExportPlan}>
@@ -1096,9 +1194,9 @@ function DevOutdoors() {
           </p>
         )}
         <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-          The link in the address bar carries waypoint-scale plans; geometry-heavy plans share via
-          Export instead. Exported plan files reopen here via Import, and GeoJSON drops into QGIS,
-          Caltopo, or Avenza. The sample is a real MU 7-42 planning map converted from KML.
+          The link in the address bar carries waypoint-scale plans; geometry-heavy plans share via Export instead.
+          Exported plan files reopen here via Import, and GeoJSON drops into QGIS, Caltopo, or Avenza. The sample is a
+          real MU 7-42 planning map converted from KML.
         </p>
       </SidebarSection>
     </MapSidebarShell>

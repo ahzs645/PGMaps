@@ -12,9 +12,11 @@ import { stringCodec, useUrlState } from '@/hooks/useUrlState'
 import { toggleArrayItem, useToggleArray } from '@/hooks/useToggleArray'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
 import { getHazardRating } from './hazard'
+import { useFoodMapWebMCP, type FoodViolationBucket } from './foodWebMCP'
+import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import type { RestaurantWithStats, HazardRating } from './types'
 
-type ViolationBucket = 'zero' | 'low' | 'medium' | 'high'
+type ViolationBucket = FoodViolationBucket
 
 const VIOLATION_BUCKETS: Array<{
   key: ViolationBucket
@@ -38,7 +40,20 @@ function parseInspectionDate(dateStr: string | undefined): Date | null {
   // Try "DD-MMM-YYYY" format
   const shortMatch = dateStr.match(/(\d{1,2})-(\w{3})-(\d{4})/)
   if (shortMatch) {
-    const months: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 }
+    const months: Record<string, number> = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    }
     return new Date(parseInt(shortMatch[3]), months[shortMatch[2]], parseInt(shortMatch[1]))
   }
 
@@ -65,6 +80,7 @@ function formatMonthYear(date: Date): string {
 
 export default function FoodMap() {
   const { restaurants, loading, error, stats } = useRestaurantData()
+  const { incidents: crimeIncidents, loading: crimeLoading, error: crimeError } = useCrimeData()
 
   // Filter state, persisted to URL search params for shareable links
   const { filters, actions } = useFoodMapFilters()
@@ -78,7 +94,7 @@ export default function FoodMap() {
   } = filters
 
   const [selectedViolationBuckets, setSelectedViolationBuckets] = useState<ViolationBucket[]>(
-    VIOLATION_BUCKETS.map((bucket) => bucket.key)
+    VIOLATION_BUCKETS.map((bucket) => bucket.key),
   )
   const [restaurantName, setRestaurantName] = useUrlState('restaurant', restaurantNameCodec)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -122,8 +138,8 @@ export default function FoodMap() {
     let minDate = new Date()
     let maxDate = new Date(2020, 0, 1)
 
-    restaurants.forEach(r => {
-      (r.inspections || []).forEach(insp => {
+    restaurants.forEach((r) => {
+      ;(r.inspections || []).forEach((insp) => {
         const date = parseInspectionDate(insp.date || insp.inspection_date)
         if (date) {
           if (date < minDate) minDate = date
@@ -146,15 +162,15 @@ export default function FoodMap() {
 
     // Sort inspections by date descending
     const sortedInspections = [...inspections]
-      .map(insp => ({
+      .map((insp) => ({
         ...insp,
-        parsedDate: parseInspectionDate(insp.date || insp.inspection_date)
+        parsedDate: parseInspectionDate(insp.date || insp.inspection_date),
       }))
-      .filter(insp => insp.parsedDate)
+      .filter((insp) => insp.parsedDate)
       .sort((a, b) => (b.parsedDate as Date).getTime() - (a.parsedDate as Date).getTime())
 
     // Find the most recent inspection before or on the target date
-    const inspectionAtDate = sortedInspections.find(insp => {
+    const inspectionAtDate = sortedInspections.find((insp) => {
       const parsed = insp.parsedDate as Date
       return parsed <= targetDate
     })
@@ -169,11 +185,11 @@ export default function FoodMap() {
 
   // Compute violation stats for each restaurant within the timeline
   const restaurantsWithStats = useMemo<RestaurantWithStats[]>(() => {
-    return restaurants.map(r => {
+    return restaurants.map((r) => {
       const inspections = r.inspections || []
 
       const filteredInspections = inspections
-        .filter(insp => {
+        .filter((insp) => {
           const date = parseInspectionDate(insp.date || insp.inspection_date)
           if (!date) return false
           const matchesStart = !violationDateRange.start || date >= violationDateRange.start
@@ -190,10 +206,10 @@ export default function FoodMap() {
       let criticalViolations = 0
       let nonCriticalViolations = 0
 
-      filteredInspections.forEach(insp => {
-        totalViolations += (insp.violations?.length || 0)
-        criticalViolations += (insp.critical_violations_count || 0)
-        nonCriticalViolations += (insp.non_critical_violations_count || 0)
+      filteredInspections.forEach((insp) => {
+        totalViolations += insp.violations?.length || 0
+        criticalViolations += insp.critical_violations_count || 0
+        nonCriticalViolations += insp.non_critical_violations_count || 0
       })
 
       const risk = summarizeViolationRisk(filteredInspections)
@@ -207,8 +223,8 @@ export default function FoodMap() {
           critical: criticalViolations,
           nonCritical: nonCriticalViolations,
           inspectionCount: filteredInspections.length,
-          risk: totalViolations > 0 ? risk : createEmptyViolationRiskSummary()
-        }
+          risk: totalViolations > 0 ? risk : createEmptyViolationRiskSummary(),
+        },
       }
 
       // Get hazard rating at the timeline date (for hazard mode)
@@ -219,25 +235,35 @@ export default function FoodMap() {
   }, [restaurants, violationDateRange, timelineDate, getHazardRatingAtDate])
 
   const filteredRestaurants = useMemo(() => {
-    return restaurantsWithStats.filter(r => {
+    return restaurantsWithStats.filter((r) => {
       // In hazard mode, filter by the rating at the selected date
       const ratingToCheck = visualizationMode === 'hazard' ? r.hazardRatingAtDate : getHazardRating(r)
 
       const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
       const violationCount = r.violationStats?.total || 0
-      const matchesViolationBucket = visualizationMode !== 'violations' || VIOLATION_BUCKETS.some((bucket) => (
-        selectedViolationBuckets.includes(bucket.key) && bucket.matches(violationCount)
-      ))
+      const matchesViolationBucket =
+        visualizationMode !== 'violations' ||
+        VIOLATION_BUCKETS.some(
+          (bucket) => selectedViolationBuckets.includes(bucket.key) && bucket.matches(violationCount),
+        )
       const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
-      const matchesSearch = !searchQuery ||
+      const matchesSearch =
+        !searchQuery ||
         r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.address.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesHazard && matchesViolationBucket && matchesFacility && matchesSearch
     })
-  }, [restaurantsWithStats, visualizationMode, selectedHazardRatings, selectedViolationBuckets, selectedFacilityTypes, searchQuery])
+  }, [
+    restaurantsWithStats,
+    visualizationMode,
+    selectedHazardRatings,
+    selectedViolationBuckets,
+    selectedFacilityTypes,
+    searchQuery,
+  ])
 
   const geocodedRestaurants = useMemo(() => {
-    return filteredRestaurants.filter(r => r.latitude && r.longitude)
+    return filteredRestaurants.filter((r) => r.latitude && r.longitude)
   }, [filteredRestaurants])
 
   // The URL param is the single source of truth for the selection: deriving
@@ -256,7 +282,7 @@ export default function FoodMap() {
       totalViolations: all.reduce((sum, r) => sum + (r.violationStats?.total || 0), 0),
       criticalViolations: all.reduce((sum, r) => sum + (r.violationStats?.critical || 0), 0),
       totalInspections: all.reduce((sum, r) => sum + (r.violationStats?.inspectionCount || 0), 0),
-      restaurantsWithViolations: all.filter(r => (r.violationStats?.total || 0) > 0).length
+      restaurantsWithViolations: all.filter((r) => (r.violationStats?.total || 0) > 0).length,
     }
   }, [restaurantsWithStats])
 
@@ -264,9 +290,9 @@ export default function FoodMap() {
   const hazardStatsAtDate = useMemo(() => {
     const all = restaurantsWithStats
     return {
-      Low: all.filter(r => r.hazardRatingAtDate === 'Low').length,
-      Moderate: all.filter(r => r.hazardRatingAtDate === 'Moderate').length,
-      Unknown: all.filter(r => r.hazardRatingAtDate === 'Unknown').length
+      Low: all.filter((r) => r.hazardRatingAtDate === 'Low').length,
+      Moderate: all.filter((r) => r.hazardRatingAtDate === 'Moderate').length,
+      Unknown: all.filter((r) => r.hazardRatingAtDate === 'Unknown').length,
     }
   }, [restaurantsWithStats])
 
@@ -277,9 +303,8 @@ export default function FoodMap() {
       active: selectedViolationBuckets.includes(bucket.key),
     }))
   }, [restaurantsWithStats, selectedViolationBuckets])
-  const showLegend = visualizationMode === 'violations'
-    ? selectedViolationBuckets.length > 0
-    : selectedHazardRatings.length > 0
+  const showLegend =
+    visualizationMode === 'violations' ? selectedViolationBuckets.length > 0 : selectedHazardRatings.length > 0
 
   const toggleHazardRating = useToggleArray(selectedHazardRatings, actions.setHazardRatings)
 
@@ -288,18 +313,27 @@ export default function FoodMap() {
   }, [])
 
   // Handlers
-  const selectRestaurant = useCallback((restaurant: RestaurantWithStats | null) => {
-    setRestaurantName(restaurant ? restaurant.name : '')
-  }, [setRestaurantName])
+  const selectRestaurant = useCallback(
+    (restaurant: RestaurantWithStats | null) => {
+      setRestaurantName(restaurant ? restaurant.name : '')
+    },
+    [setRestaurantName],
+  )
 
-  const handleRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    selectRestaurant(selectedRestaurant?.details_url === restaurant.details_url ? null : restaurant)
-  }, [selectRestaurant, selectedRestaurant])
+  const handleRestaurantClick = useCallback(
+    (restaurant: RestaurantWithStats) => {
+      selectRestaurant(selectedRestaurant?.details_url === restaurant.details_url ? null : restaurant)
+    },
+    [selectRestaurant, selectedRestaurant],
+  )
 
-  const handleMapRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    handleRestaurantClick(restaurant)
-    setShowSidebar(true)
-  }, [handleRestaurantClick])
+  const handleMapRestaurantClick = useCallback(
+    (restaurant: RestaurantWithStats) => {
+      handleRestaurantClick(restaurant)
+      setShowSidebar(true)
+    },
+    [handleRestaurantClick],
+  )
 
   const clearSelection = useCallback(() => {
     selectRestaurant(null)
@@ -310,17 +344,46 @@ export default function FoodMap() {
     setShowInspectionPanel(true)
   }, [])
 
-  const handleMapViewInspections = useCallback((restaurant: RestaurantWithStats) => {
-    selectRestaurant(restaurant)
-    setShowSidebar(true)
-    setShowInspectionPanel(true)
-  }, [selectRestaurant])
+  const handleMapViewInspections = useCallback(
+    (restaurant: RestaurantWithStats) => {
+      selectRestaurant(restaurant)
+      setShowSidebar(true)
+      setShowInspectionPanel(true)
+    },
+    [selectRestaurant],
+  )
 
-  const handleRouletteSelectOnMap = useCallback((restaurant: RestaurantWithStats) => {
-    selectRestaurant(restaurant)
-    setShowRoulette(false)
-    setShowSidebar(true)
-  }, [selectRestaurant])
+  const handleRouletteSelectOnMap = useCallback(
+    (restaurant: RestaurantWithStats) => {
+      selectRestaurant(restaurant)
+      setShowRoulette(false)
+      setShowSidebar(true)
+    },
+    [selectRestaurant],
+  )
+
+  useFoodMapWebMCP({
+    loading,
+    error,
+    restaurants: restaurantsWithStats,
+    filteredRestaurants,
+    geocodedRestaurants,
+    selectedRestaurant,
+    filters,
+    filterActions: actions,
+    selectedViolationBuckets,
+    setSelectedViolationBuckets,
+    violationTimelineLabel,
+    timelineStats,
+    hazardStatsAtDate,
+    crimeIncidents,
+    crimeLoading,
+    crimeError,
+    clearSelection,
+    selectRestaurant,
+    showRestaurant: () => setShowSidebar(true),
+    showInspections: openInspectionPanel,
+  })
 
   return (
     <>
@@ -328,12 +391,18 @@ export default function FoodMap() {
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         mobilePeekTitle={<>Food Safety | {geocodedRestaurants.length.toLocaleString()} on map</>}
-        mobilePeekSubtitle={<>{selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}</>}
-        selectedFeatureMobilePeek={selectedRestaurant ? {
-          title: selectedRestaurant.name,
-          subtitle: selectedRestaurant.full_address || selectedRestaurant.address,
-        } : undefined}
-        sidebar={(
+        mobilePeekSubtitle={
+          <>{selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}</>
+        }
+        selectedFeatureMobilePeek={
+          selectedRestaurant
+            ? {
+                title: selectedRestaurant.name,
+                subtitle: selectedRestaurant.full_address || selectedRestaurant.address,
+              }
+            : undefined
+        }
+        sidebar={
           <Sidebar
             className={MAP_SIDEBAR_CLASS}
             data={{
@@ -356,127 +425,129 @@ export default function FoodMap() {
             onToggleTimeline={() => setShowTimeline(!showTimeline)}
             onOpenRoulette={() => setShowRoulette(true)}
           />
-        )}
+        }
       >
         <div className="relative h-full">
-        <RestaurantMap
-          restaurants={geocodedRestaurants}
-          selectedRestaurant={selectedRestaurant}
-          visualizationMode={visualizationMode}
-          markerStyle={filters.markerStyle}
-          loading={loading}
-          onRestaurantClick={handleMapRestaurantClick}
-          onViewInspections={handleMapViewInspections}
-          onClearSelection={clearSelection}
-        />
-
-        {/* Timeline */}
-        {showTimeline && (
-          <Timeline
-            startDate={inspectionDateRange.start}
-            endDate={inspectionDateRange.end}
-            currentDate={timelineDate}
-            onDateChange={setTimelineDate}
-            onClose={() => setShowTimeline(false)}
+          <RestaurantMap
+            restaurants={geocodedRestaurants}
+            selectedRestaurant={selectedRestaurant}
+            visualizationMode={visualizationMode}
+            markerStyle={filters.markerStyle}
+            loading={loading}
+            onRestaurantClick={handleMapRestaurantClick}
+            onViewInspections={handleMapViewInspections}
+            onClearSelection={clearSelection}
           />
-        )}
 
-        {showLegend && (
-          <MapLegendPanel
-            className="max-w-[200px]"
-            title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
-            collapsible
-            collapsed={legendCollapsed}
-            onCollapsedChange={setLegendCollapsed}
-            elevated={showTimeline}
-            contentClassName="space-y-1 text-xs text-muted-foreground"
-            actions={legendCollapsed ? null : visualizationMode === 'violations' ? (
-              <span className="inline-flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
-                  className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedViolationBuckets([])}
-                  className="font-medium text-muted-foreground hover:text-foreground"
-                >
-                  None
-                </button>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => actions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
-                  className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => actions.setHazardRatings([])}
-                  className="font-medium text-muted-foreground hover:text-foreground"
-                >
-                  None
-                </button>
-              </span>
-            )}
-          >
-            {/* Violations legend */}
-            {visualizationMode === 'violations' && (
-              <div className="space-y-0.5 md:space-y-1">
-                <div className="pb-0.5 text-xs leading-snug text-muted-foreground">{violationTimelineLabel}</div>
-                {violationBucketRows.map((bucket) => (
+          {/* Timeline */}
+          {showTimeline && (
+            <Timeline
+              startDate={inspectionDateRange.start}
+              endDate={inspectionDateRange.end}
+              currentDate={timelineDate}
+              onDateChange={setTimelineDate}
+              onClose={() => setShowTimeline(false)}
+            />
+          )}
+
+          {showLegend && (
+            <MapLegendPanel
+              className="max-w-[200px]"
+              title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
+              collapsible
+              collapsed={legendCollapsed}
+              onCollapsedChange={setLegendCollapsed}
+              elevated={showTimeline}
+              contentClassName="space-y-1 text-xs text-muted-foreground"
+              actions={
+                legendCollapsed ? null : visualizationMode === 'violations' ? (
+                  <span className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
+                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedViolationBuckets([])}
+                      className="font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      None
+                    </button>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => actions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
+                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => actions.setHazardRatings([])}
+                      className="font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      None
+                    </button>
+                  </span>
+                )
+              }
+            >
+              {/* Violations legend */}
+              {visualizationMode === 'violations' && (
+                <div className="space-y-0.5 md:space-y-1">
+                  <div className="pb-0.5 text-xs leading-snug text-muted-foreground">{violationTimelineLabel}</div>
+                  {violationBucketRows.map((bucket) => (
+                    <LegendItem
+                      key={bucket.key}
+                      color={bucket.color}
+                      label={bucket.label}
+                      value={bucket.count.toLocaleString()}
+                      active={bucket.active}
+                      onClick={() => toggleViolationBucket(bucket.key)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Hazard rating legend with counts */}
+              {visualizationMode === 'hazard' && (
+                <div className="space-y-0.5 md:space-y-1">
                   <LegendItem
-                    key={bucket.key}
-                    color={bucket.color}
-                    label={bucket.label}
-                    value={bucket.count.toLocaleString()}
-                    active={bucket.active}
-                    onClick={() => toggleViolationBucket(bucket.key)}
+                    color="#22c55e"
+                    label="Low"
+                    value={hazardStatsAtDate.Low}
+                    active={selectedHazardRatings.includes('Low')}
+                    onClick={() => toggleHazardRating('Low')}
                   />
-                ))}
-              </div>
-            )}
+                  <LegendItem
+                    color="#f59e0b"
+                    label="Moderate"
+                    value={hazardStatsAtDate.Moderate}
+                    active={selectedHazardRatings.includes('Moderate')}
+                    onClick={() => toggleHazardRating('Moderate')}
+                  />
+                  <LegendItem
+                    color="#6b7280"
+                    label="Unknown"
+                    value={hazardStatsAtDate.Unknown}
+                    active={selectedHazardRatings.includes('Unknown')}
+                    onClick={() => toggleHazardRating('Unknown')}
+                  />
+                </div>
+              )}
 
-            {/* Hazard rating legend with counts */}
-            {visualizationMode === 'hazard' && (
-              <div className="space-y-0.5 md:space-y-1">
-                <LegendItem
-                  color="#22c55e"
-                  label="Low"
-                  value={hazardStatsAtDate.Low}
-                  active={selectedHazardRatings.includes('Low')}
-                  onClick={() => toggleHazardRating('Low')}
-                />
-                <LegendItem
-                  color="#f59e0b"
-                  label="Moderate"
-                  value={hazardStatsAtDate.Moderate}
-                  active={selectedHazardRatings.includes('Moderate')}
-                  onClick={() => toggleHazardRating('Moderate')}
-                />
-                <LegendItem
-                  color="#6b7280"
-                  label="Unknown"
-                  value={hazardStatsAtDate.Unknown}
-                  active={selectedHazardRatings.includes('Unknown')}
-                  onClick={() => toggleHazardRating('Unknown')}
-                />
-              </div>
-            )}
-
-            {visualizationMode === 'violations' && (
-              <div className="mt-2 border-t border-border pt-2">
-                <MapSizeLegend minLabel="Size" maxLabel="count" sizes={[10, 14, 18]} />
-              </div>
-            )}
-          </MapLegendPanel>
-        )}
+              {visualizationMode === 'violations' && (
+                <div className="mt-2 border-t border-border pt-2">
+                  <MapSizeLegend minLabel="Size" maxLabel="count" sizes={[10, 14, 18]} />
+                </div>
+              )}
+            </MapLegendPanel>
+          )}
         </div>
       </MapSectionLayout>
 

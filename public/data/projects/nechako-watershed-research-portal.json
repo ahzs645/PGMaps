@@ -240,8 +240,7 @@
       },
       {
         "type": "map-legend",
-        "title": "Resource types",
-        "description": "Circle size represents publication count."
+        "title": "Resource types"
       },
       {
         "type": "location-popup",

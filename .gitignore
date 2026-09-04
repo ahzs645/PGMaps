@@ -63,6 +63,7 @@ public/data/bc/
 public/data/bc-assessment/
 public/data/bc-wait-specialists.json
 public/data/boundaries/
+public/data/boundary-search/
 public/data/cell-coverage/
 public/data/census/
 public/data/canada-admin/
@@ -137,3 +138,4 @@ public/data/health/msp-facilities.geojson
 public/data/health/msp-facility-geocode-cache.json
 public/data/health/bccdc-chronic-disease-tableau/
 public/data/health/phsa-community-health/
+public/data/health/echoscreen-northern-health-hospitals.geojson

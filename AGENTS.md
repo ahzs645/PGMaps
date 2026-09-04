@@ -21,3 +21,9 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `docs/project-map-stories.md` is the contract for `story-map-v1` project packages: the scene and layer schema, every `workspace.options` field, and what each `layout` replicates.
 - Read its **Changing the renderer** section before editing `src/maps/project-story/`. It lists the files a new story option has to touch together, and the renderer invariants that break silently — scene cameras are re-fitted to the map pane rather than used verbatim, chrome in the `scrolly`/`slides` layouts sits in a `pointer-events-none` overlay, and the slides pane sizes itself by rendering every slide stacked.
 - Story packages live in `public/data/projects/*.json` and are listed in `index.json`; regenerate that index with `npm run projects:index` after adding or renaming one.
+
+## Project packages
+
+- For project-package creation, renderer changes, capability additions, or package audits, read `.agents/skills/pgmaps-project-builder/SKILL.md` and only the references it routes to for the active project mode.
+- `docs/project-map-explorer.md` is the contract for `map-explorer-v1`. Keep each feature option in its own file under `src/maps/project-explorer/features/`; keep data-source normalization in `adapters/`, shared presentation in `src/components/ui/`, and orchestration in the top-level explorer files.
+- Audit a repository-ready package with `node .agents/skills/pgmaps-project-builder/scripts/audit-project-package.mjs public/data/projects/<package>.json` before handing it off. Use `--draft` only for an explicitly incomplete review artifact and resolve its warnings before registration.

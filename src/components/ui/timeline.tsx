@@ -729,7 +729,7 @@ export function Timeline({
                     style={{
                       width: useFixedBuckets ? `${bucketWidth}px` : undefined,
                       height: `${height}%`,
-                      backgroundColor: inWindow ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
+                      backgroundColor: inWindow ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                       opacity: inWindow ? 1 : 0.2,
                       borderRadius: '1px 1px 0 0',
                       minWidth: '2px',

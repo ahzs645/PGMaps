@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const browserExecutablePath = process.env.PGMAPS_PLAYWRIGHT_EXECUTABLE_PATH
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -16,19 +18,20 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:42173',
     trace: 'on-first-retry',
     launchOptions: {
-      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox']
-    }
+      ...(browserExecutablePath ? { executablePath: browserExecutablePath } : {}),
+      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+    },
   },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 42173 --strictPort',
     url: 'http://127.0.0.1:42173',
     reuseExistingServer: false,
-    timeout: 120_000
+    timeout: 120_000,
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
-    }
-  ]
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
 })
