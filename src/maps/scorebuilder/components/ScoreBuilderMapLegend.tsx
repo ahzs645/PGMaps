@@ -78,7 +78,12 @@ export function ScoreBuilderMapLegend({
           {bcEnviroScreenMapView ? (
             <>
               <h4 className="mb-2 text-xs font-semibold text-foreground">{bcEnviroScreenMapView.label}</h4>
-              <MapSteppedLegend bands={bcEnviroScreenMapView.bands} angledLabels={bcEnviroScreenMapView.binCount > 5} />
+              <MapSteppedLegend
+                bands={bcEnviroScreenMapView.bands}
+                labels={bcEnviroScreenMapView.legendLabels}
+                angledLabels={bcEnviroScreenMapView.binCount > 5}
+                data-bc-enviro-screen-legend="true"
+              />
               {!compact && (
                 <div className="mt-2 text-xs leading-snug text-muted-foreground">
                   {bcEnviroScreenMapView.binCount} equal-interval classes across the provincial LHA release. Green is

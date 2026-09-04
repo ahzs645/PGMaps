@@ -187,7 +187,9 @@ export function ProjectScoreMapPreview({
               <div className="text-xs font-semibold text-foreground">{bcEnviroScreenMapView.label}</div>
               <MapSteppedLegend
                 bands={bcEnviroScreenMapView.bands}
+                labels={bcEnviroScreenMapView.legendLabels}
                 angledLabels={bcEnviroScreenMapView.binCount > 5}
+                data-bc-enviro-screen-legend="true"
               />
               <div className="text-xs leading-snug text-muted-foreground">
                 {bcEnviroScreenMapView.binCount} equal-interval classes across {bcEnviroScreenMapView.valueCount}{' '}

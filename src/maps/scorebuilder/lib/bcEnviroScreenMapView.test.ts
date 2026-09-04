@@ -4,6 +4,7 @@ import {
   BC_ENVIRO_SCREEN_MAP_OPTION_GROUPS,
   BC_ENVIRO_SCREEN_MISSING_COLOR,
   buildBcEnviroScreenMapView,
+  getBcEnviroScreenLegendLabels,
   getBcEnviroScreenMapValue,
 } from './bcEnviroScreenMapView'
 
@@ -76,5 +77,13 @@ describe('BC EnviroScreen map view', () => {
     expect(view.valueCount).toBe(1)
     expect(view.missingCount).toBe(1)
     expect(view.regionFillColors.missing).toBe(BC_ENVIRO_SCREEN_MISSING_COLOR)
+  })
+
+  it('keeps every dense colour band but prints only four evenly spaced legend labels', () => {
+    const view = buildBcEnviroScreenMapView([region('low', 0, 1), region('high', 100, 2)], 'overallScore', 10)
+
+    expect(view.bands).toHaveLength(10)
+    expect(view.legendLabels).toEqual(['0–10', '', '', '30–40', '', '', '60–70', '', '', '90–100'])
+    expect(getBcEnviroScreenLegendLabels(view.bands).filter(Boolean)).toHaveLength(4)
   })
 })

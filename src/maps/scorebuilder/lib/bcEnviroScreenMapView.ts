@@ -38,12 +38,30 @@ export interface BcEnviroScreenMapView {
   label: string
   binCount: number
   bands: BcEnviroScreenMapBand[]
+  legendLabels: string[]
   regionFillColors: Record<string, string>
   min: number
   max: number
   average: number
   valueCount: number
   missingCount: number
+}
+
+const MAX_DENSE_LEGEND_LABELS = 4
+
+/**
+ * Keep every colour band while thinning only the printed labels when the
+ * historical 2–10 bin control produces a dense legend.
+ */
+export function getBcEnviroScreenLegendLabels(bands: readonly BcEnviroScreenMapBand[]): string[] {
+  if (bands.length <= 5) return bands.map((band) => band.label)
+
+  const visibleIndexes = new Set(
+    Array.from({ length: MAX_DENSE_LEGEND_LABELS }, (_, index) =>
+      Math.round((index * (bands.length - 1)) / (MAX_DENSE_LEGEND_LABELS - 1)),
+    ),
+  )
+  return bands.map((band, index) => (visibleIndexes.has(index) ? band.label : ''))
 }
 
 const COMPONENT_OPTIONS: Array<{ key: BcEnviroScreenComponent; label: string }> = [
@@ -207,6 +225,7 @@ export function buildBcEnviroScreenMapView(
     label: OPTION_BY_VALUE.get(variable)?.label ?? variable,
     binCount,
     bands,
+    legendLabels: getBcEnviroScreenLegendLabels(bands),
     regionFillColors,
     min,
     max,

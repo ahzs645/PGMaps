@@ -26,7 +26,7 @@ export function BcEnviroScreenMapControls({
   return (
     <section
       className={cn(
-        'absolute z-20 w-[min(22rem,calc(100%-1rem))] rounded-lg border border-violet-200 bg-background/95 p-3 shadow-xl backdrop-blur dark:border-violet-900/70',
+        'absolute z-20 w-[min(18rem,calc(100%-1rem))] rounded-lg border border-violet-200 bg-background/95 p-3 shadow-xl backdrop-blur dark:border-violet-900/70',
         isDesktop ? 'left-3 top-3' : 'left-2 top-[calc(env(safe-area-inset-top)+7.1rem)]',
       )}
       aria-label="BC EnviroScreen map controls"
