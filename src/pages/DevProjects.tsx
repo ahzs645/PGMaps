@@ -55,6 +55,7 @@ import {
   type ProjectPortalRasterLayerDef,
   type ProjectTheme,
 } from '@/lib/projectPackages'
+import { useLoadedProjectWebMCP, useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 import { ProjectStoryMap } from '@/maps/project-story/ProjectStoryMap'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
@@ -1218,16 +1219,32 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
     setVisibleLayerIds(new Set(scene.visibleLayerIds))
   }
 
-  function toggleLayer(layerId: string) {
+  function setLayerVisibility(layerId: string, action: 'show' | 'hide' | 'toggle') {
     const layer = project.layers.find((item) => item.id === layerId)
     if (!layer || layer.locked) return
     setVisibleLayerIds((current) => {
       const next = new Set(current)
-      if (next.has(layerId)) next.delete(layerId)
+      if (action === 'show') next.add(layerId)
+      else if (action === 'hide') next.delete(layerId)
+      else if (next.has(layerId)) next.delete(layerId)
       else next.add(layerId)
       return next
     })
   }
+
+  function toggleLayer(layerId: string) {
+    setLayerVisibility(layerId, 'toggle')
+  }
+
+  useLoadedProjectWebMCP({
+    project,
+    activeSceneIndex,
+    visibleLayerIds,
+    rasterOpacity,
+    applyScene,
+    setLayerVisibility,
+    setRasterOpacity,
+  })
 
   const leftSidebar = (
     <aside className="flex h-full min-h-0 flex-col border-r bg-background">
@@ -1552,6 +1569,12 @@ export default function DevProjects() {
     if (projectSlug === slug) backToCatalog()
     if (previewProjectSlug === slug) setPreviewProjectSlug(null)
   }
+
+  useProjectCatalogWebMCP({
+    active: !projectSlug,
+    projects,
+    navigate,
+  })
 
   if (projectSlug && !routedProjectReady) {
     return (

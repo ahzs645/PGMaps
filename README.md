@@ -2,6 +2,31 @@
 
 PGMaps is the frontend map app. Data scraper tooling and scraper-related source documentation live in the `bcdatamapper` submodule:
 
+## Agent-native maps with WebMCP
+
+The project catalog and its interactive workspaces expose page-scoped
+[WebMCP](https://webmachinelearning.github.io/webmcp/) tools. In a compatible
+browser, a person and an agent can work on the same live map: find and open a
+project, move through story scenes, control layers, filter a research map, and
+select a place for visual inspection.
+
+Try the deployed catalog at
+[pgmaps.ahmadjalil.com/dev/projects](https://pgmaps.ahmadjalil.com/dev/projects).
+ChatGPT's built-in browser supports these site tools. For local testing in
+Google Chrome, enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome,
+and run:
+
+```bash
+npm install
+npm run dev
+```
+
+The implementation is a progressive enhancement: PGMaps keeps its full human
+interface in browsers without WebMCP. Tool registrations live in
+`src/lib/projectWebMCP.ts`, with lifecycle support in `src/lib/webmcp.ts`.
+The [challenge submission brief](docs/webmcp-challenge-submission.md) includes
+the product story, implementation summary, demo script, and final checklist.
+
 ```text
 vendor/bcdatamapper
 ```

@@ -13,6 +13,7 @@ import type {
   ProjectExplorerSummaryIcon,
   ProjectMapExplorerWorkspaceDef,
 } from '@/lib/projectPackages'
+import { useResearchExplorerWebMCP } from '@/lib/projectWebMCP'
 import { cn } from '@/lib/utils'
 
 import type { ExplorerLocationFeatureProperties, ResearchRecord } from './adapters/researchRecordsTypes'
@@ -29,6 +30,7 @@ export function ProjectMapExplorer({
 }) {
   const [timelineMode, setTimelineMode] = useState(false)
   const data = useResearchRecordsAdapter(config)
+  useResearchExplorerWebMCP({ title, data })
 
   if (data.loading) {
     return (

@@ -244,6 +244,7 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     selectedDecade,
     setSelectedDecade,
     selectedTypes,
+    setSelectedTypes,
     toggleResourceType,
     searchQuery,
     setSearchQuery,

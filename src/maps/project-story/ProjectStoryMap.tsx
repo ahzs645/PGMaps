@@ -37,6 +37,7 @@ import {
   type ProjectStoryLayerDef,
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
+import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { withBase } from '@/lib/dataUrl'
 import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -1055,14 +1056,26 @@ export function ProjectStoryMap({
     [goToScene],
   )
 
-  function toggleLayer(layerId: string) {
+  const setLayerVisibility = useCallback((layerId: string, action: 'show' | 'hide' | 'toggle') => {
     setVisibleLayerIds((current) => {
       const next = new Set(current)
-      if (next.has(layerId)) next.delete(layerId)
+      if (action === 'show') next.add(layerId)
+      else if (action === 'hide') next.delete(layerId)
+      else if (next.has(layerId)) next.delete(layerId)
       else next.add(layerId)
       return next
     })
-  }
+  }, [])
+
+  const toggleLayer = useCallback((layerId: string) => setLayerVisibility(layerId, 'toggle'), [setLayerVisibility])
+
+  useStoryMapWebMCP({
+    project,
+    activeSceneIndex,
+    visibleLayerIds,
+    goToScene,
+    setLayerVisibility,
+  })
 
   const mapCanvas = (
     <>
