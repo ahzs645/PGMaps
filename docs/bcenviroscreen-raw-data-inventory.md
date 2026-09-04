@@ -175,18 +175,20 @@ The candidate method:
 
 1. Filter BC Census Divisions, both sexes, age 15 years and over.
 2. Test annual-average monthly values for 2014-2018.
-3. Test all income benefits, regular benefits, and regular benefits without declared earnings.
-4. Divide CD counts by 2016 CD population, labour force, and age-15-plus denominators.
-5. Attribute each CD value to LHAs by primary 2016 DA-to-LHA/CD membership.
-6. Test 2016 Census CSD income-source percentages, weighted to LHA by 2016 DA age-15-plus denominators.
-7. Test 2016 Census CSD EI recipient counts divided by LHA population, labour force, and age-15-plus denominators.
-8. Test PHSA CHSA social/economic fields weighted to LHA.
+3. Test the archived-profile four-quarter window: December 2011 plus March, June, and September 2012.
+4. Test all income benefits, regular benefits, and regular benefits without declared earnings.
+5. Divide CD counts by 2016 CD population, labour force, and age-15-plus denominators.
+6. Attribute each CD value to LHAs by primary 2016 DA-to-LHA/CD membership.
+7. Test 2016 Census CSD income-source percentages, weighted to LHA by 2016 DA age-15-plus denominators.
+8. Test 2016 Census CSD EI recipient counts divided by LHA population, labour force, and age-15-plus denominators.
+9. Test PHSA CHSA social/economic fields weighted to LHA.
 
 Best current EI validation:
 
 | Candidate | Mean absolute difference | Pearson r | Prince George rebuilt | Prince George Shiny | Status |
 | --- | ---: | ---: | ---: | ---: | --- |
 | `statcan_ei_2014_regular_benefits_without_declared_earnings_per_100_age_15plus` | 0.309 | 0.7229 | 1.794 | 2.2 | Best all-BC raw candidate found so far; useful replacement for Census unemployment, but still not exact. |
+| `statcan_ei_2011_12_four_quarter_end_sep_2012_regular_benefits_without_declared_earnings_per_100_population` | 0.309 | 0.6961 | 1.839 | 2.2 | Best raw-error candidate by a narrow margin and the documented historical window, but lower rank agreement. Substituting it lowers overall-score r from `0.958348` to `0.957522` and increases overall MAD from `3.401` to `3.915`, so it remains an explicit historical sensitivity rather than the selected reconstruction input. |
 | `statcan_ei_2015_regular_benefits_without_declared_earnings_per_100_age_15plus` | 0.448 | 0.6944 | 2.208 | 2.2 | Very close for Prince George, weaker all-BC. |
 | `statcan_census_2016_ei_other_benefits_estimated_with_amount_per_100_age_15plus_csd_weighted` | 0.794 | 0.3400 | 0.560 | 2.2 | Best Census count/denominator transform, but weak correlation and only 60 matched LHAs. |
 | `phsa_chsa_social_physical_environment_percentage_of_people_15_commuting_to_work_by_other_means_2016` | 0.905 | 0.0671 | 1.253 | 2.2 | Best PHSA CHSA social/economic raw-value candidate, but no useful rank match. |
@@ -204,6 +206,7 @@ The initial DA-summed tenant burden candidate undercounted many small/rural LHAs
 | Candidate | Mean absolute difference | Pearson r | Prince George rebuilt | Prince George Shiny | Status |
 | --- | ---: | ---: | ---: | ---: | --- |
 | `renter_housing_burden_ge50_percent` | 2.226 | 0.9308 | 39.012 | 38.1 | Best current match. Weighted average of published DA tenant-burden percentages for DAs with at least 50 tenant households. |
+| `renter_housing_burden_ge50_min_coverage_50_percent` | 1.911 | 0.9562 | 39.012 | 38.1 | Coverage-aware sensitivity: retains 78 comparable LHAs and excludes seven low-coverage values. It improves raw fit among retained rows but worsens the complete score reconstruction when missing values change component denominators, so it is not selected silently. |
 | `renter_housing_burden_ge30_percent` | 3.434 | 0.9390 | 35.058 | 38.1 | Slightly stronger rank correlation, weaker raw-value fit. |
 | `renter_housing_burden_percent` | 5.910 | 0.8870 | 32.551 | 38.1 | Previous best candidate; includes small-denominator DAs. |
 
@@ -405,7 +408,7 @@ Current best selected fields:
 | Wildfire burn area | `spatial.wildfire_2010_2019_area_percent` | 1.515 | 1.5 | Matched. |
 | Low education | `census_2016.low_education_15plus_percent` | 20.776 | 20.8 | Matched. |
 | Linguistic isolation | `census_2016.linguistic_isolation_percent` | 0.345 | 0.4 | Matched within rounding. |
-| Industrial sites | `spatial.industrial_sites_timber_operating_mines_oil_unique_count` | 19 | 19 | PG matched; all-BC MAD improved from about 7.2 to 2.0. |
+| Industrial sites | `nrcan_industrial.nrcan_current_mills_mines_smelters_oil_gas_count` | 16 | 19 | Current official NRCan source-family proxy; all-BC MAD `0.719`, r `0.9477`. It improves the complete reconstruction despite the PG raw residual. |
 | Ozone | `canue_postal.canue_postal_2015_o3chg_a__o3chg15_01` | 20.532 | 20.5 | Matched within rounding/portal-vintage noise. |
 | PM2.5 | `canue_postal.canue_postal_2012_pm25dal_a__pm25dal12_01` | 5.665 | 5.6 | Matched within rounding/portal-vintage noise. |
 | Water quality exceedances | `ems.2016_2019_freshwater_qa_no_f_paper_sample_location_any_exceedance_share` | 0.660 | 0.7 | PG matches after rounding; all-BC fit improved but exact archived EMS extract still unresolved. |
@@ -613,7 +616,7 @@ The `hybrid-current-with-cd-benchmark-gaps` mode uses the same rebuilt indicator
 - Exact health inputs for all LHAs. COPD, low birth weight, and cancer are now strong matches from PHSA public LHA downloads plus the 2011 DA centroid denominator. Diabetes is close. Hypertension still needs the exact chronic-disease metric/vintage used by the Shiny app.
 - Province-wide traffic-density raw source. BC traffic-volume archives, current Traffic Data Program WFS geometry, TSG survey downloads, generated TMS site-report annual AADT values, and generated UTV segment-report annual AADT values are now staged. The best transparent 2018 UTV report proxy assigns segment AADT by representative point and sums by primary Census Division (`r=0.9618`; Prince George `35436` vs Shiny `26727`). This is likely the correct MoTI source family but still does not reproduce Shiny raw values. The Shiny-derived CD/source-region benchmark table is staged, including Prince George `traffic_density=26727`; the paper's exact Census-Division summary rule/table or original MoTI extract has not been found.
 - Disturbed landscape is resolved with IFL 2016. Remaining residual is negligible and likely due to rounding or boundary clipping differences.
-- Source behind the Shiny `Industrial sites` indicator. We have component layers for remediation sites, timber facilities, mines, oil/gas, and NPRI metadata, but not a confirmed one-to-one source or calculation that reproduces the Shiny count.
+- Exact September 2020 binaries behind the Shiny `Industrial sites` indicator. The current official NRCan source family is now fully represented—mills, producing coal/metal/nonmetal mines, smelters/refineries, and oil/gas fields—and is the selected proxy (`MAD 0.719`, `r 0.9477`). The remaining gap is source vintage plus the paper's hazardous-waste component, not the percentile formula.
 - Trans Mountain pipeline for exact `linear_footprint`. DRA MPAR now makes the linear-footprint rebuild a strong match; remaining residual may be source vintage, representative-point road assignment instead of exact clipping, missing Trans Mountain, or boundary differences.
 
 ## Disk note
