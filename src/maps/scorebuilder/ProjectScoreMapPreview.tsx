@@ -22,7 +22,7 @@ import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
 import {
   BC_ENVIRO_SCREEN_DEFAULT_COLOR_BINS,
   BC_ENVIRO_SCREEN_DEFAULT_MAP_VARIABLE,
-  buildBcEnviroScreenMapView,
+  createBcEnviroScreenMapViewCache,
   type BcEnviroScreenMapVariable,
 } from './lib/bcEnviroScreenMapView'
 
@@ -108,20 +108,20 @@ export function ProjectScoreMapPreview({
 
   const bcEnviroScreenMapActive =
     showScoreSurface && previewControl.methodSettings.aggregation === 'bcEnviroScreenProduct'
-  const bcEnviroScreenMapView = useMemo(
+  const bcEnviroScreenMapViewCache = useMemo(
     () =>
       bcEnviroScreenMapActive
-        ? buildBcEnviroScreenMapView(
-            results.unfilteredScoredRegions,
-            bcEnviroScreenMapVariable,
-            bcEnviroScreenColorBins,
-          )
+        ? createBcEnviroScreenMapViewCache(results.unfilteredScoredRegions)
         : null,
+    [bcEnviroScreenMapActive, results.unfilteredScoredRegions],
+  )
+  const bcEnviroScreenMapView = useMemo(
+    () =>
+      bcEnviroScreenMapViewCache?.get(bcEnviroScreenMapVariable, bcEnviroScreenColorBins) ?? null,
     [
       bcEnviroScreenColorBins,
-      bcEnviroScreenMapActive,
+      bcEnviroScreenMapViewCache,
       bcEnviroScreenMapVariable,
-      results.unfilteredScoredRegions,
     ],
   )
 

@@ -4,6 +4,7 @@ import {
   BC_ENVIRO_SCREEN_MAP_OPTION_GROUPS,
   BC_ENVIRO_SCREEN_MISSING_COLOR,
   buildBcEnviroScreenMapView,
+  createBcEnviroScreenMapViewCache,
   getBcEnviroScreenLegendLabels,
   getBcEnviroScreenMapValue,
 } from './bcEnviroScreenMapView'
@@ -85,5 +86,25 @@ describe('BC EnviroScreen map view', () => {
     expect(view.bands).toHaveLength(10)
     expect(view.legendLabels).toEqual(['0–10', '', '', '30–40', '', '', '60–70', '', '', '90–100'])
     expect(getBcEnviroScreenLegendLabels(view.bands).filter(Boolean)).toHaveLength(4)
+  })
+
+  it('reuses recent map views and evicts the least recently used combinations', () => {
+    const cache = createBcEnviroScreenMapViewCache([region('low', 0, 1), region('high', 100, 2)], 2)
+    const twoBins = cache.get('overallScore', 2)
+    const threeBins = cache.get('overallScore', 3)
+
+    expect(cache.get('overallScore', 2)).toBe(twoBins)
+    expect(cache.size).toBe(2)
+
+    cache.get('overallScore', 4)
+    expect(cache.size).toBe(2)
+    expect(cache.get('overallScore', 3)).not.toBe(threeBins)
+  })
+
+  it('normalizes requested bin counts before choosing a cache entry', () => {
+    const cache = createBcEnviroScreenMapViewCache([region('low', 0, 1), region('high', 100, 2)])
+
+    expect(cache.get('overallScore', 50)).toBe(cache.get('overallScore', 10))
+    expect(cache.size).toBe(1)
   })
 })

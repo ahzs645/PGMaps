@@ -47,6 +47,11 @@ export interface BcEnviroScreenMapView {
   missingCount: number
 }
 
+export interface BcEnviroScreenMapViewCache {
+  get: (variable: BcEnviroScreenMapVariable, requestedBinCount: number) => BcEnviroScreenMapView
+  readonly size: number
+}
+
 const MAX_DENSE_LEGEND_LABELS = 4
 
 /**
@@ -232,5 +237,42 @@ export function buildBcEnviroScreenMapView(
     average,
     valueCount: finiteValues.length,
     missingCount: regions.length - finiteValues.length,
+  }
+}
+
+/**
+ * Cache recent map-variable/bin combinations for one immutable set of scored
+ * regions. The caller replaces this cache when those regions are no longer
+ * current; the LRU bound prevents old display choices from accumulating.
+ */
+export function createBcEnviroScreenMapViewCache(
+  regions: ScoredBoundaryRegion[],
+  maxEntries = 18,
+): BcEnviroScreenMapViewCache {
+  const entries = new Map<string, BcEnviroScreenMapView>()
+  const entryLimit = Math.max(1, Math.floor(maxEntries))
+
+  return {
+    get(variable, requestedBinCount) {
+      const binCount = clampBinCount(requestedBinCount)
+      const key = `${variable}\u0000${binCount}`
+      const cached = entries.get(key)
+      if (cached) {
+        entries.delete(key)
+        entries.set(key, cached)
+        return cached
+      }
+
+      const view = buildBcEnviroScreenMapView(regions, variable, binCount)
+      entries.set(key, view)
+      if (entries.size > entryLimit) {
+        const leastRecentlyUsedKey = entries.keys().next().value
+        if (leastRecentlyUsedKey !== undefined) entries.delete(leastRecentlyUsedKey)
+      }
+      return view
+    },
+    get size() {
+      return entries.size
+    },
   }
 }
