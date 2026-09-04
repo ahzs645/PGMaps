@@ -44,6 +44,7 @@
     "environmental-burden:pesticide-proxy": "npm --prefix vendor/bcdatamapper run environmental-burden:pesticide-proxy --",
     "environmental-burden:bc-enviro-screen:shiny-table": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:shiny-table --",
     "environmental-burden:bc-enviro-screen:raw-seed": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:raw-seed --",
+    "environmental-burden:bc-enviro-screen:nrcan-industrial-lha": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:nrcan-industrial-lha --",
     "environmental-burden:bc-enviro-screen:linear-footprint-sources": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:linear-footprint-sources --",
     "environmental-burden:bc-enviro-screen:canue-lha": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:canue-lha --",
     "environmental-burden:bc-enviro-screen:canue-postal-lha": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:canue-postal-lha --",

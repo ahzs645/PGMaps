@@ -259,6 +259,24 @@ Initial validation results:
 | Remediation sites | `remediation_sites_site_id_lte_23504_count` | 0.820 | 0.99999 | Empirical paper-era source-vintage proxy using `SITE_ID <= 23504`. Prince George rebuild is 575 vs Shiny 575. Current-source count remains 656 for Prince George. |
 | Industrial sites | `industrial_sites_timber_operating_mines_oil_unique_count` | 1.978 | 0.8371 | Stronger PG/all-BC count candidate: timber facilities + operating major mine representative points + unique oil field names. Prince George rebuild is 19 vs Shiny 19. |
 
+The current official NRCan source family has since been added as a separate,
+reproducible industrial-sites candidate. It combines forestry mills; producing
+metal, nonmetal, and coal mines; smelters/refineries; and oil/gas fields, with
+each point assigned to its containing LHA:
+
+```bash
+npm run environmental-burden:bc-enviro-screen:nrcan-industrial-lha
+```
+
+| Candidate | Mean absolute difference | Pearson r | Prince George rebuilt | Prince George Shiny | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `nrcan_current_mills_mines_smelters_oil_gas_count` | 0.719 | 0.9477 | 16 | 19 | Best current all-BC industrial reconstruction. Uses the complete paper source family, but current source snapshots rather than confirmed September 2020 binaries. |
+
+Selecting this candidate improves the reconstruction's environmental-effects
+correlation from `0.928680` to `0.975536`, and the overall-score correlation
+from `0.944351` to `0.958348`. Prince George's overall score becomes
+`57.581667` versus the displayed Shiny benchmark of `57.6`.
+
 The first industrial-site proxy counted all oil/gas field polygon intersections, which severely over-counted northeast LHAs. The current best candidate instead assigns oil/gas field representative points to LHAs and counts unique oil-field names, combined with timber facility points and operating major mine representative points. Remediation and oil/gas layers do not expose usable source-date fields in the current WFS payload, and timber only exposes a 2026 update date plus current status.
 
 The paper's `linear_footprint` indicator is a separate line-density calculation. The downloader stores BCER/BCGW line sources as paged GeoJSON in EPSG:3005 under `large/linear-footprint/` so lengths can be measured directly in metres:

@@ -12,8 +12,9 @@
   "sourceNote": "Generated from the score-builder preset \"bcEnviroScreenReconstruction\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
   "details": [
     "Research reconstruction across all 89 BC Local Health Areas; it is not an official Province of British Columbia or paper-author product.",
-    "The current complete-total hypertension scenario has all-BC correlation 0.944351; Prince George scores 57.349866 versus the displayed Shiny benchmark of 57.6.",
-    "Correlation is validation evidence, not proof that every source vintage is exact. Climate inputs remain benchmark-derived gaps and several other inputs are proxies."
+    "The current reconstruction has all-BC correlation 0.958348; Prince George scores 57.581667 versus the displayed Shiny benchmark of 57.6.",
+    "The industrial-sites input now uses the complete current NRCan source family and remains a paper-vintage proxy. Correlation is validation evidence, not proof that every source vintage is exact.",
+    "Climate inputs remain benchmark-derived gaps and several other inputs remain proxies."
   ],
   "links": [],
   "catalogMetrics": [
@@ -27,7 +28,7 @@
     },
     {
       "label": "Validation r",
-      "value": "0.944351"
+      "value": "0.958348"
     }
   ],
   "layers": [

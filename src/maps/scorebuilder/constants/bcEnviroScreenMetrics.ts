@@ -60,7 +60,9 @@ const SEEDS: IndicatorSeed[] = [
     key: 'industrial_sites',
     label: 'Industrial sites',
     component: 'environmentalEffects',
-    freshness: 'Current-source proxy',
+    freshness: 'Current official NRCan source-family proxy',
+    caveat:
+      'Combines current NRCan mills, producing mines, smelters/refineries, and oil/gas fields. The exact September 2020 binaries were not recovered.',
   },
   {
     key: 'linear_footprint',
