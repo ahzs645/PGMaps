@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Map, MapControls, MapPopup } from '@/components/ui/map'
 import { MapPieClusterLayer } from '@/components/ui/map-layers'
@@ -27,11 +27,11 @@ export function ProjectExplorerMap({
   const decadeValues = useMemo(() => data.decades.map((item) => item.decade), [data.decades])
   const firstDecade = decadeValues[0] ?? new Date().getFullYear()
   const lastDecade = decadeValues[decadeValues.length - 1] ?? firstDecade
-  const [currentDate, setCurrentDate] = useState(() => new Date(lastDecade, 0, 1))
+  const currentDate = new Date(data.timelineDecade ?? lastDecade, 0, 1)
   const currentDecade = Math.floor(currentDate.getFullYear() / 10) * 10
   const currentIndex = data.decades.findIndex((item) => item.decade === currentDecade)
   const decadeSummary = currentIndex >= 0 ? data.decades[currentIndex] : undefined
-  const timelineData = data.buildDecadeGeoJSON(currentDecade)
+  const timelineData = locationGeoJSON
   const activeGeoJSON = timelineMode ? timelineData : locationGeoJSON
   const bucketCounts = useMemo(
     () => new globalThis.Map(data.decades.map((item) => [String(item.decade), item.total])),
@@ -54,7 +54,7 @@ export function ProjectExplorerMap({
       zoom={config.map.zoom}
       minZoom={config.map.minZoom}
       maxZoom={config.map.maxZoom}
-      controls={<MapControls position="top-right" showZoom showCompass showFullscreen />}
+      controls={<MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass showFullscreen />}
     >
       <MapPieClusterLayer
         data={activeGeoJSON}
@@ -111,7 +111,7 @@ export function ProjectExplorerMap({
           currentDate={currentDate}
           onDateChange={(date) => {
             setSelectedLocationId(null)
-            setCurrentDate(date)
+            data.setTimelineDecade(Math.floor(date.getFullYear() / 10) * 10)
           }}
           onClose={onExitTimeline}
           bucketCounts={bucketCounts}

@@ -206,7 +206,7 @@ export async function resolveNationsAtPoint(
 ): Promise<string[]> {
   const matches = await queryNativeLandSource(lat, lng, signal)
   const territoryNames = matches.filter((match) => match.label === 'Native Land territory overlap').map((match) => match.name)
-  const names = territoryNames.length > 0 ? territoryNames : matches.map((match) => match.name)
+  const names = territoryNames
 
   const aliasIndex = graph ? buildNationAliasIndex(graph) : null
   const seen = new Set<string>()

@@ -14,7 +14,7 @@ import type {
 
 export const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
   verified: {
-    label: 'Verified relationships',
+    label: 'Documented relationships',
     type: 'Curated wording graph',
     description: 'Reviewed place-to-Nation and people-group relationships used to generate controlled acknowledgement variants.',
   },

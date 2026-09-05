@@ -4,6 +4,7 @@ import { haversineKm } from '@/lib/geo'
 
 export type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 export type MatchType = 'place' | 'municipality' | 'boundary'
+export type AcknowledgementPurpose = 'venue' | 'operations' | 'distributed'
 export type WordingMode = 'short' | 'formal' | 'event' | 'institutional'
 
 /** Whose voice the acknowledgement is spoken in. */
@@ -16,6 +17,7 @@ export type WordingOptions = {
   perspective?: SpeakerPerspective
   /** Organization name, used when perspective is 'organization'. */
   organizationName?: string
+  purpose?: AcknowledgementPurpose
 }
 
 export type RelationshipSource = {
@@ -61,12 +63,15 @@ export type PlaceRecord = {
   type: string
   locationNames?: string[]
   addressAliases?: string[]
+  /** Broad consistency check for place-name matching, never a territory boundary. */
+  matchRegion?: { latitude: number; longitude: number; radiusKm: number }
 }
 
 export type PlaceRelationshipRecord = {
   id: string
   placeId: string
   relationshipType:
+    | 'continuing_relationships'
     | 'traditional_territory'
     | 'traditional_territories'
     | 'traditional_lands'
@@ -188,15 +193,12 @@ export function referenceAreaLabel(graph: RelationshipGraph, areaId: string) {
   return graph.referenceAreas?.find((area) => area.id === areaId)?.name ?? areaId
 }
 
-export function selectedNationIdsForRelationship(
-  relationship: PlaceRelationshipRecord,
-  selectedIds: string[],
-) {
-  if (selectedIds.length === 0) return relationship.nationIds
+export function selectedNationIdsForRelationship(relationship: PlaceRelationshipRecord, selectedIds?: string[]) {
+  if (selectedIds === undefined) return relationship.nationIds
   const selected = new Set(selectedIds)
   // Candidate identity is the stable nation.id, so selection matches directly.
   const filtered = relationship.nationIds.filter((nationId) => selected.has(nationId))
-  return filtered.length > 0 ? filtered : relationship.nationIds
+  return filtered
 }
 
 export function peopleGroupIdsForNations(relationship: PlaceRelationshipRecord, nationIds: string[]) {
@@ -208,41 +210,53 @@ export function peopleGroupIdsForNations(relationship: PlaceRelationshipRecord, 
   return Array.from(ids)
 }
 
-export function buildAffiliationSentence(graph: RelationshipGraph, relationship: PlaceRelationshipRecord, nationIds: string[]) {
-  if (!relationship.nationPeopleGroups) return ''
-
+export function buildAffiliationSentence(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  nationIds: string[],
+) {
   const grouped = new Map<string, string[]>()
   nationIds.forEach((nationId) => {
-    const peopleGroupIds = relationship.nationPeopleGroups?.[nationId] ?? []
-    peopleGroupIds.forEach((peopleGroupId) => {
-      const names = grouped.get(peopleGroupId) ?? []
-      names.push(nationName(graph, nationId))
-      grouped.set(peopleGroupId, names)
-    })
+    const peopleGroupIds =
+      relationship.nationPeopleGroups?.[nationId] ??
+      (graph.nations.find((nation) => nation.id === nationId)?.peopleGroupIds ?? []).filter((id) =>
+        relationship.peopleGroupIds?.includes(id),
+      )
+    peopleGroupIds
+      .filter((peopleGroupId) => peopleGroupId !== nationId)
+      .forEach((peopleGroupId) => {
+        const names = grouped.get(peopleGroupId) ?? []
+        names.push(nationName(graph, nationId))
+        grouped.set(peopleGroupId, names)
+      })
   })
 
-  const clauses = Array.from(grouped.entries()).map(([peopleGroupId, names]) => (
-    `${formatList(names)} ${names.length === 1 ? 'is' : 'are'} part of the ${peopleGroupName(graph, peopleGroupId)}`
-  ))
+  const clauses = Array.from(grouped.entries()).map(
+    ([peopleGroupId, names]) =>
+      `${formatList(names)} ${names.length === 1 ? 'is' : 'are'} part of the ${peopleGroupName(graph, peopleGroupId)}`,
+  )
   return clauses.length > 0 ? `${formatList(clauses)}.` : ''
 }
 
 export function relationshipCorePhrase(
   graph: RelationshipGraph,
   relationship: PlaceRelationshipRecord,
-  selectedIds: string[] = [],
+  selectedIds?: string[],
   options: WordingOptions = defaultWordingOptions,
 ) {
   const nationIds = selectedNationIdsForRelationship(relationship, selectedIds)
+  if (!nationIds.length) return ''
   const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
   const peopleGroups = options.includePeopleGroupContext
     ? peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
     : []
 
+  if (relationship.relationshipType === 'continuing_relationships') return ''
+
   if (relationship.relationshipType === 'traditional_lands') {
-    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)} of ` : ''
-    const treatyPrefix = options.includeTreatyContext && relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
-    return `${treatyPrefix}the traditional lands of ${peoplePhrase}${nations}`
+    const treaty =
+      options.includeTreatyContext && relationship.treatyName ? ` in ${relationship.treatyName} territory` : ''
+    return `the traditional lands of ${nations}${treaty}`
   }
 
   if (relationship.relationshipType === 'operations_on_territories') {
@@ -257,12 +271,16 @@ export function relationshipCorePhrase(
     return `the ${qualifiers}${status}territory of the ${nations}`
   }
 
-  if (relationship.relationshipType === 'academic_campus_on_territory' || relationship.relationshipType === 'campus_on_territory') {
+  if (
+    relationship.relationshipType === 'academic_campus_on_territory' ||
+    relationship.relationshipType === 'campus_on_territory'
+  ) {
     const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
     const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-    const languagePrefix = options.includePeopleGroupContext && relationship.languageContext?.length
-      ? `${formatList(relationship.languageContext)} `
-      : ''
+    const languagePrefix =
+      options.includePeopleGroupContext && relationship.languageContext?.length
+        ? `${formatList(relationship.languageContext)} `
+        : ''
     return `the ${qualifiers}${status}territory of the ${languagePrefix}${nations}`
   }
 
@@ -273,14 +291,15 @@ export function relationshipCorePhrase(
   }
 
   if (relationship.relationshipType === 'village_lands_within_treaty') {
-    const treaty = options.includeTreatyContext && relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
-    return `on ${relationship.landName ?? 'Village Lands'}${treaty}`
+    const treaty =
+      options.includeTreatyContext && relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
+    return relationship.landName ? `on ${relationship.landName}${treaty}` : ''
   }
 
   const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-  const territory = relationship.relationshipType === 'traditional_territories' ? 'traditional territories' : 'traditional territory'
-  const peoplePhrase = peopleGroups.length === 1 ? `, part of the ${peopleGroups[0]} territory` : ''
-  return `${status}${territory} of ${nations}${peoplePhrase}`
+  const territory =
+    relationship.relationshipType === 'traditional_territories' ? 'traditional territories' : 'traditional territory'
+  return `${status}${territory} of ${nations}`
 }
 
 /** Prefix a core phrase with "on" unless it already opens with one (e.g. "on Village Lands"). */
@@ -288,161 +307,184 @@ function onPhrase(core: string) {
   return /^on\b/i.test(core) ? core : `on ${core}`
 }
 
-// Acknowledgements lead with the territory itself — the matched place name is
-// intentionally NOT spoken. An institution name therefore only appears when the
-// speaker is an organization (via organizationName); it never leaks into the
-// individual/community voice, nor onto a point that merely falls inside a
-// nearby territory polygon. `ctx.place` is kept for callers but left unspoken.
-function composeAcknowledgement(
-  mode: WordingMode,
-  perspective: SpeakerPerspective,
-  ctx: { place: string; core: string; affiliation: string; organizationName?: string },
-) {
-  const { core, affiliation } = ctx
-  const situated = onPhrase(core)
+/** Only reviewed place-specific facts can supply generated location claims. */
+export function usableRelationships(match: MatchedRelationshipPlace) {
+  if (match.place.type === 'boundary_reference_area') return []
+  return match.relationships.filter((relation) =>
+    ['verified_institutional', 'verified_local_context', 'verified_institutional_context'].includes(
+      relation.verificationStatus,
+    ),
+  )
+}
 
-  if (perspective === 'individual') {
-    if (mode === 'short') return `I am ${situated}.`
-    if (mode === 'formal') return `I respectfully acknowledge that I am ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional') return `I am ${situated}. ${affiliation}`.trim()
-    return `I am grateful to be ${situated}. ${affiliation}`.trim()
-  }
-
-  if (perspective === 'organization') {
-    const org = ctx.organizationName?.trim() || 'Our organization'
-    if (mode === 'short') return `${org} operates ${situated}.`
-    if (mode === 'formal') return `${org} respectfully acknowledges that it operates ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional') return `${org} operates ${situated}. ${affiliation}`.trim()
-    return `On behalf of ${org}, we are grateful to gather ${situated}. ${affiliation}`.trim()
-  }
-
-  // collective (default)
-  if (mode === 'short') return `We are ${situated}.`
-  if (mode === 'formal') return `We respectfully acknowledge that we are ${situated}. ${affiliation}`.trim()
-  if (mode === 'institutional') return `We are ${situated}. ${affiliation}`.trim()
-  return `We are grateful to gather ${situated}. ${affiliation}`.trim()
+function acknowledgementSubject(options: { perspective?: SpeakerPerspective; organizationName?: string }) {
+  return options.perspective === 'individual'
+    ? 'I'
+    : options.perspective === 'organization'
+      ? options.organizationName?.trim() || 'Our organization'
+      : 'We'
 }
 
 export function buildRelationshipAcknowledgement(
   mode: WordingMode,
   graph: RelationshipGraph,
   match: MatchedRelationshipPlace,
-  selectedIds: string[] = [],
+  selectedIds?: string[],
   options: WordingOptions = defaultWordingOptions,
 ) {
-  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds, options))
-  const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
-  const affiliation = options.includePeopleGroupContext
-    ? match.relationships
-      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(relationship, selectedIds)))
-      .filter(Boolean)
-      .join(' ')
+  if (match.place.type === 'operations_area' && (options.purpose ?? 'venue') !== 'operations') return ''
+  const usable = usableRelationships(match)
+  const ids = selectedIds ?? [...new Set(usable.flatMap((relation) => relation.nationIds))]
+  // A checkbox changes the selection, never the strength or meaning of evidence.
+  if (!ids.length || ids.some((id) => !usable.some((relation) => relation.nationIds.includes(id)))) return ''
+  const relationships = usable.filter((relation) => selectedNationIdsForRelationship(relation, ids).length)
+  const phrases = [
+    ...new Set(relationships.map((relation) => relationshipCorePhrase(graph, relation, ids, options)).filter(Boolean)),
+  ]
+  const core = formatList(phrases)
+  const subject = acknowledgementSubject(options)
+  const verb = subject === 'I' || subject === 'We' ? 'acknowledge' : 'acknowledges'
+  const purpose = options.purpose ?? 'venue'
+  let lead = ''
+  if (core) {
+    const situated = onPhrase(core)
+    if (purpose === 'operations') {
+      const operate = subject === 'I' || subject === 'We' ? 'work' : 'operates'
+      lead = `${subject} ${operate} ${situated}.`
+    } else if (purpose === 'distributed') {
+      lead = `${subject} ${mode === 'formal' ? 'respectfully ' : ''}${verb} that this location is ${situated}.`
+    } else {
+      const voice = options.perspective === 'organization' ? `On behalf of ${subject}, we` : subject
+      const isIndividual = options.perspective === 'individual'
+      const opening =
+        mode === 'event'
+          ? `${isIndividual ? 'am' : 'are'} grateful to ${isIndividual ? 'be' : 'gather'}`
+          : mode === 'formal'
+            ? `respectfully acknowledge that ${isIndividual ? 'I am' : 'we are'}`
+            : isIndividual
+              ? 'am'
+              : 'are'
+      lead = `${voice} ${opening} ${situated}.`
+    }
+  }
+  const continuingIds = [
+    ...new Set(
+      relationships
+        .filter((relation) => relation.relationshipType === 'continuing_relationships')
+        .flatMap((relation) => selectedNationIdsForRelationship(relation, ids)),
+    ),
+  ]
+  const continuing = continuingIds.length
+    ? `${subject} ${verb} the continuing relationships of ${formatList(continuingIds.map((id) => nationName(graph, id)))} with these lands.`
     : ''
-
-  return composeAcknowledgement(mode, options.perspective ?? 'collective', {
-    place: match.place.name,
-    core,
-    affiliation,
-    organizationName: options.organizationName,
-  })
+  const affiliation =
+    options.includePeopleGroupContext && mode !== 'short'
+      ? [
+          ...new Set(
+            relationships
+              .filter((relation) => relation.relationshipType !== 'continuing_relationships')
+              .map((relation) =>
+                buildAffiliationSentence(graph, relation, selectedNationIdsForRelationship(relation, ids)),
+              )
+              .filter(Boolean),
+          ),
+        ].join(' ')
+      : ''
+  return [lead, continuing, affiliation].filter(Boolean).join(' ')
 }
 
+/** A list of names alone supports respectful recognition, not a territorial assertion. */
 export function buildFallbackAcknowledgement(
   mode: WordingMode,
   nationNames: string[],
   options: { perspective?: SpeakerPerspective; organizationName?: string } = {},
 ) {
-  const names = nationNames.length > 0 ? formatList(nationNames) : '[selected Nation(s)]'
-  const territories = `the traditional territories of ${names}`
-  const perspective = options.perspective ?? 'collective'
-
-  if (perspective === 'individual') {
-    if (mode === 'short') return `I am on ${territories}.`
-    if (mode === 'formal') return `I respectfully acknowledge that I am on ${territories}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
-    if (mode === 'institutional') return `I work on ${territories}.`
-    return `I am grateful to be on ${territories}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
-  }
-
-  if (perspective === 'organization') {
-    const org = options.organizationName?.trim() || 'Our organization'
-    if (mode === 'short') return `${org} operates on ${territories}.`
-    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}. We recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
-    if (mode === 'institutional') return `${org} operates on ${territories}.`
-    return `On behalf of ${org}, we are grateful to gather on ${territories}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
-  }
-
-  if (mode === 'short') {
-    return `This place is on ${territories}.`
-  }
-
-  if (mode === 'formal') {
-    return `We respectfully acknowledge that we are on ${territories}. We recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
-  }
-
-  if (mode === 'institutional') {
-    return `We work on ${territories}.`
-  }
-
-  return `We are grateful to gather on ${territories}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+  if (!nationNames.length) return ''
+  const subject = acknowledgementSubject(options)
+  const verb = subject === 'I' || subject === 'We' ? 'acknowledge and respect' : 'acknowledges and respects'
+  return `${subject} ${mode === 'formal' ? 'respectfully ' : ''}${verb} ${formatList([...new Set(nationNames)])}.`
 }
 
-/**
- * Region-wide acknowledgement for operations spread across many territories
- * (e.g. a provincial Crown agency). Names a region instead of specific Nations,
- * in any of the three speaker voices.
- */
+/** Regional recognition never implies attendance, residence, or operations across a region. */
 export function buildRegionalAcknowledgement(
   mode: WordingMode,
   options: { perspective?: SpeakerPerspective; organizationName?: string; regionName?: string } = {},
 ) {
-  const region = options.regionName?.trim() || 'British Columbia'
-  const territories = `the traditional territories of First Nations across ${region}`
-  const perspective = options.perspective ?? 'collective'
+  const subject = acknowledgementSubject(options)
+  const verb = subject === 'I' || subject === 'We' ? 'acknowledge' : 'acknowledges'
+  return `${subject} ${mode === 'formal' ? 'respectfully ' : ''}${verb} the traditional territories of First Nations across ${options.regionName?.trim() || 'British Columbia'}.`
+}
 
-  if (perspective === 'individual') {
-    if (mode === 'short') return `I acknowledge ${territories}.`
-    if (mode === 'formal') return `I respectfully acknowledge ${territories}, and the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-    if (mode === 'institutional') return `I carry out my work on ${territories}.`
-    return `I am grateful to live and work on ${territories}.`
-  }
+export type AcknowledgementLocation = {
+  label: string
+  match: MatchedRelationshipPlace | null
+  selectedIds: string[]
+}
 
-  if (perspective === 'organization') {
-    const org = options.organizationName?.trim() || 'Our organization'
-    if (mode === 'short') return `${org} operates on ${territories}.`
-    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}, and recognizes the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-    if (mode === 'institutional') return `${org} operates on ${territories}.`
-    return `On behalf of ${org}, we are grateful to carry out our work on ${territories}.`
-  }
-
-  if (mode === 'short') return `We acknowledge ${territories}.`
-  if (mode === 'formal') return `We respectfully acknowledge ${territories}, and recognize the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-  if (mode === 'institutional') return `We carry out our work on ${territories}.`
-  return `We are grateful to gather and work on ${territories}.`
+/** Keep each location's facts together; callers explicitly choose a venue or a multi-location purpose. */
+export function buildLocatedAcknowledgement(
+  mode: WordingMode,
+  graph: RelationshipGraph,
+  locations: AcknowledgementLocation[],
+  options: WordingOptions = defaultWordingOptions,
+) {
+  const purpose = options.purpose ?? 'venue'
+  if (!locations.length || (purpose === 'venue' && locations.length !== 1)) return ''
+  const paragraphs = locations.map((location) => {
+    if (!location.match) return ''
+    const text = buildRelationshipAcknowledgement(mode, graph, location.match, location.selectedIds, options)
+    if (!text) return ''
+    if (purpose === 'venue') return text
+    return `${purpose === 'distributed' ? 'For participants joining from' : 'At'} ${location.label}:\n${text}`
+  })
+  return paragraphs.every(Boolean) ? paragraphs.join('\n\n') : ''
 }
 
 export function normalizeMatchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
 }
 
-export function relationshipPlaceScore(place: PlaceRecord, result: GeocodeLike, addressInput: string) {
-  const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
-  const addressScore = (place.addressAliases ?? []).reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length + (place.type === 'municipality' ? 0 : 1000)) : score
-  }, 0)
-
-  if (addressScore > 0) return addressScore
-
-  return [place.name, ...(place.locationNames ?? [])].reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length) : score
-  }, 0)
+export function relationshipPlaceScore(place: PlaceRecord, result: GeocodeLike, _addressInput: string) {
+  const region = place.matchRegion
+  if (
+    !region ||
+    !Number.isFinite(result.latitude) ||
+    !Number.isFinite(result.longitude) ||
+    haversineKm(region.latitude, region.longitude, result.latitude, result.longitude) > region.radiusKm
+  )
+    return 0
+  // Do not concatenate strings: that can manufacture a match across their join.
+  // Whole normalized tokens prevent 1499 George Street matching 499 George Street.
+  const haystacks = [result.fullAddress].map((value) => ` ${normalizeMatchText(value)} `)
+  const contains = (alias: string) => {
+    const normalized = normalizeMatchText(alias)
+    return normalized && haystacks.some((text) => text.includes(` ${normalized} `))
+  }
+  const addressScore = (place.addressAliases ?? []).reduce(
+    (score, alias) =>
+      contains(alias)
+        ? Math.max(score, normalizeMatchText(alias).length + (place.type === 'municipality' ? 0 : 1000))
+        : score,
+    0,
+  )
+  return (
+    addressScore ||
+    [place.name, ...(place.locationNames ?? [])].reduce(
+      (score, alias) => (contains(alias) ? Math.max(score, normalizeMatchText(alias).length) : score),
+      0,
+    )
+  )
 }
 
 export function placeMatchType(place: PlaceRecord): MatchType {
-  return place.type === 'municipality' ? 'municipality' : 'place'
+  return place.type === 'boundary_reference_area'
+    ? 'boundary'
+    : place.type === 'municipality'
+      ? 'municipality'
+      : 'place'
 }
 
 export function matchRelationshipPlace(
@@ -458,7 +500,7 @@ export function matchRelationshipPlace(
     .sort((left, right) => right.score - left.score)
 
   const place = ranked[0]?.place
-  if (!place) return null
+  if (!place || (ranked[1] && ranked[0].score === ranked[1].score)) return null
 
   const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
   return relationships.length > 0 ? { place, relationships } : null
@@ -473,9 +515,10 @@ export async function relationshipReferencesPoint(
   loadGeoJsonLayer: GeoJsonLoader,
 ) {
   const pt = point([lng, lat])
-  const referenceAreas = relationship.referenceAreaIds
-    ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
-    .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
+  const referenceAreas =
+    relationship.referenceAreaIds
+      ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
+      .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
 
   for (const area of referenceAreas) {
     const source = area.geometrySource
@@ -501,6 +544,7 @@ export async function matchBoundaryRelationshipPlace(
   resolveGeometryUrl: GeometryUrlResolver,
   loadGeoJsonLayer: GeoJsonLoader,
 ): Promise<MatchedRelationshipPlace | null> {
+  const matches: MatchedRelationshipPlace[] = []
   for (const relationship of graph.placeRelationships) {
     if (!relationship.referenceAreaIds?.length) continue
     const place = graph.places.find((place) => place.id === relationship.placeId)
@@ -509,10 +553,21 @@ export async function matchBoundaryRelationshipPlace(
     // context places only, never to an institution/campus-specific place; that
     // way a point near (but not at) UBC reads as Musqueam territory, not "at UBC".
     if (!place || place.type !== 'boundary_reference_area') continue
-    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude, resolveGeometryUrl, loadGeoJsonLayer))) continue
-    return { place, relationships: [relationship] }
+    if (
+      !(await relationshipReferencesPoint(
+        graph,
+        relationship,
+        result.latitude,
+        result.longitude,
+        resolveGeometryUrl,
+        loadGeoJsonLayer,
+      ))
+    )
+      continue
+    matches.push({ place, relationships: [relationship] })
   }
-  return null
+  if (!matches.length) return null
+  return { place: matches[0].place, relationships: matches.flatMap((match) => match.relationships) }
 }
 
 export function uniqueMatches(matches: SourceMatch[]) {
@@ -526,18 +581,20 @@ export function uniqueMatches(matches: SourceMatch[]) {
 }
 
 export function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
-  return uniqueMatches(match.relationships.flatMap((relationship) => (
-    relationship.nationIds.map((nationId) => ({
-      source: 'verified' as SourceKey,
-      name: nationName(graph, nationId),
-      label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
-      detail: [
-        ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
-        ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
-      ].join(' / '),
-      verificationStatus: relationship.verificationStatus,
-    }))
-  )))
+  return uniqueMatches(
+    match.relationships.flatMap((relationship) =>
+      relationship.nationIds.map((nationId) => ({
+        source: 'verified' as SourceKey,
+        name: nationName(graph, nationId),
+        label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
+        detail: [
+          ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
+          ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
+        ].join(' / '),
+        verificationStatus: relationship.verificationStatus,
+      })),
+    ),
+  )
 }
 
 export { haversineKm }
@@ -591,7 +648,10 @@ export function summarizeMultiPoint(
   let spread = 0
   for (let i = 0; i < points.length; i++) {
     for (let j = i + 1; j < points.length; j++) {
-      spread = Math.max(spread, haversineKm(points[i].latitude, points[i].longitude, points[j].latitude, points[j].longitude))
+      spread = Math.max(
+        spread,
+        haversineKm(points[i].latitude, points[i].longitude, points[j].latitude, points[j].longitude),
+      )
     }
   }
 
@@ -609,8 +669,8 @@ export function buildMultiPointAcknowledgement(
   summary: MultiPointSummary,
   options: MultiPointAcknowledgementOptions = {},
 ) {
-  const { nationNames = summary.nationNames, forceRegional, forceSpecific, ...wordingOptions } = options
-  if (forceRegional || (!forceSpecific && summary.suggestRegional)) {
+  const { nationNames = summary.nationNames, forceRegional, ...wordingOptions } = options
+  if (forceRegional) {
     return buildRegionalAcknowledgement(mode, wordingOptions)
   }
   return buildFallbackAcknowledgement(mode, nationNames, wordingOptions)
@@ -645,7 +705,7 @@ export function compareNationSets(expected: string[], actual: string[]): NationS
   const matched: string[] = []
   const missed: string[] = []
   expected.forEach((name, index) => {
-    (normActual.some((value) => nameMatches(value, normExpected[index])) ? matched : missed).push(name)
+    ;(normActual.some((value) => nameMatches(value, normExpected[index])) ? matched : missed).push(name)
   })
   const extra = actual.filter((_, index) => !normExpected.some((value) => nameMatches(value, normActual[index])))
   return { matched, missed, extra }

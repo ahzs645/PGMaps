@@ -33,7 +33,7 @@ export function TimelineFeature({
         value={selectedDecade === null ? 'all' : String(selectedDecade)}
         onValueChange={(value) => onSelectDecade(value === 'all' ? null : Number(value))}
         options={[
-          { value: 'all', label: 'All decades' },
+          ...(!timelineMode ? [{ value: 'all', label: 'All decades' }] : []),
           ...decades.map((item) => ({
             value: String(item.decade),
             label: `${item.decade}s (${item.total.toLocaleString()})`,

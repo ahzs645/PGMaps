@@ -1,0 +1,18 @@
+.ack-builder :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 3px;
+}
+.ack-builder :is(input, textarea, select) {
+  color: #0f172a;
+}
+.ack-builder button:disabled {
+  cursor: not-allowed;
+}
+@media (max-width: 639px) {
+  .ack-builder :is(input, textarea, select) {
+    font-size: 16px;
+  }
+  .ack-builder:has(input:focus, textarea:focus, select:focus) .ack-step-actions {
+    position: static;
+  }
+}

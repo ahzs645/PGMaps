@@ -16,7 +16,6 @@ import { useExplorerTimeline } from './hooks/useExplorerTimeline'
 
 export default function ExplorerSection() {
   const isMobileViewport = useIsMobile()
-  const [showMobileLegend, setShowMobileLegend] = useState(true)
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const {
@@ -101,6 +100,8 @@ export default function ExplorerSection() {
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
           onExport={handleExport}
+          showHeatmap={showHeatmap}
+          onToggleHeatmap={() => setShowHeatmap((current) => !current)}
         />
       }
     >
@@ -131,10 +132,8 @@ export default function ExplorerSection() {
             legendDatasets={legendDatasets}
             datasetStats={datasetStats}
             selectedItem={selectedItem}
-            showHeatmap={showHeatmap}
-            onToggleHeatmap={() => setShowHeatmap((current) => !current)}
-            showMobileLegend={showMobileLegend}
-            onToggleMobileLegend={() => setShowMobileLegend((current) => !current)}
+            defaultDetailDisplay="count"
+            allowDetailToggle
           />
         )}
 

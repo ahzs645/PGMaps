@@ -81,13 +81,19 @@ remove that capability.
 - `summary-stats`: record count, mapped-location count, and/or source year range.
 - `timeline`: a standard sidebar decade selector plus the shared animated map
   timeline. The selector is a static filter; only the shared map-footer control
-  is presented as the timeline.
+  is presented as the timeline. Search and category filters apply to every
+  playback bucket, popup, legend count, and sidebar total. While playback is open,
+  the chosen bucket drives the sidebar's decade; closing playback restores the
+  previous static decade filter. Bucket histograms span the source decade range
+  and include zero-result buckets.
 - `category-filter`: category totals and filtering.
 - `aggregate-records`: opens records assigned only to configured aggregate
   locations. Text supports a `{count}` placeholder.
 - `search`: searches any configured combination of title, author, and tags.
-- `ranked-list`: ranked mapped locations with a configurable result limit.
-- `map-legend`: shared map legend using the configured categories.
+- `ranked-list`: ranked mapped locations with a configurable page size (`limit`).
+  Page controls expose all matching locations without mounting an unbounded list.
+- `map-legend`: shared map legend using the configured categories; collapsed by
+  default on phones. Map controls use the shared shell's mobile offsets.
 - `location-popup`: mapped-location detail with a configurable category limit.
 
 ## Renderer anatomy
@@ -125,3 +131,8 @@ are generated from feature indexes rather than listed as independent catalog
 packages. The proposed `feature-subprojects-v1` contract, route conventions,
 licensing boundary, and implementation sequence are documented in
 [`docs/flood-studies-snowpack-subprojects.md`](./flood-studies-snowpack-subprojects.md).
+
+Aggregate-record dialogs use bounded 20-record pages. Keep paging and filtering
+in their owning feature/adapter; do not truncate records silently or make the
+map compositor manage list pagination. The shared pagination hook resets on
+filter changes and clamps the page when a result set shrinks.

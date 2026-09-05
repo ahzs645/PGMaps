@@ -35,7 +35,7 @@ test.describe('North / South census subdivision boundaries', () => {
     await expect(page.getByText('North', { exact: true })).toBeVisible()
     await expect(page.getByText('South', { exact: true })).toBeVisible()
 
-    const search = page.getByPlaceholder('Search name, code, source, variant')
+    const search = page.getByPlaceholder('Filter selected layers')
     await search.fill('5953023')
     await page.getByRole('button', { name: /Prince George/ }).first().click()
     await expect(page.locator('.maplibregl-popup').getByText('North', { exact: true })).toBeVisible()

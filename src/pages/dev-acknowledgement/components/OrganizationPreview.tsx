@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, ExternalLink, MapPin, Quote } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Copy, ExternalLink, MapPin, Quote } from 'lucide-react'
+import { useCopyText } from '../hooks/useCopyText'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { buildFallbackAcknowledgement, buildRegionalAcknowledgement } from '@/lib/acknowledgement/engine'
@@ -39,16 +40,24 @@ function FitToCampuses({ campuses }: { campuses: LatLng[] }) {
       south = Math.min(south, campus.latitude)
       north = Math.max(north, campus.latitude)
     }
-    map.fitBounds([[west, south], [east, north]], { padding: 56, maxZoom: 10, duration: 600 })
+    map.fitBounds(
+      [
+        [west, south],
+        [east, north],
+      ],
+      { padding: 56, maxZoom: 10, duration: 600 },
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, key])
   return null
 }
 
+export type OrganizationDraftOptions = { wordingMode: WordingMode; scope: AcknowledgementScope; regionName: string }
+
 type OrganizationPreviewProps = {
   orgId: string | null
   /** Load this org's campuses onto the Map & Nations tab. */
-  onPreviewOnMap: (id: string) => void
+  onPreviewOnMap: (id: string, options: OrganizationDraftOptions) => void
 }
 
 /**
@@ -58,19 +67,18 @@ type OrganizationPreviewProps = {
  * state initializes from that org (voice = organization, name = org name).
  */
 export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPreviewProps) {
-  const org = orgId ? organizations.find((item) => item.id === orgId) ?? null : null
+  const org = orgId ? (organizations.find((item) => item.id === orgId) ?? null) : null
 
   const [wordingMode, setWordingMode] = useState<WordingMode>('institutional')
   const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
   const [organizationName, setOrganizationName] = useState(org?.name ?? '')
-  const [scope, setScope] = useState<AcknowledgementScope>(org?.framing === 'regional' ? 'regional' : 'specific')
+  const [scope, setScope] = useState<AcknowledgementScope>(
+    org?.framing === 'regional' || !org?.acknowledges.length ? 'regional' : 'specific',
+  )
   const [regionName, setRegionName] = useState('British Columbia')
   const [wordingOptions, setWordingOptions] = useState(defaultWordingOptions)
-  const [copied, setCopied] = useState(false)
-  const copiedTimeoutRef = useRef<number | null>(null)
-  useEffect(() => () => {
-    if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
-  }, [])
+  const { copy, message } = useCopyText()
+  const [showMap, setShowMap] = useState(false)
 
   if (!org) {
     return (
@@ -80,34 +88,40 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
     )
   }
 
-  const statement = scope === 'regional'
-    ? buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
-    : buildFallbackAcknowledgement(wordingMode, org.acknowledges, { perspective, organizationName })
+  const statement =
+    scope === 'regional'
+      ? buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
+      : org.acknowledges.length
+        ? buildFallbackAcknowledgement(wordingMode, org.acknowledges, { perspective, organizationName })
+        : ''
 
   // The note earns its place when it adds territory status ("Unceded territories of…")
   // or describes the org's approach. Hide it when it's just the same Nation list already
   // shown under "Names" (some records duplicate the list verbatim in the note).
-  const normalizeList = (value: string) => value.toLowerCase().replace(/\band\b/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+  const normalizeList = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\band\b/g, ' ')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
   const noteIsJustNames = org.note != null && normalizeList(org.note) === normalizeList(org.acknowledges.join(' '))
 
-  const copyStatement = async () => {
-    if (!statement) return
-    try {
-      // navigator.clipboard is undefined in non-secure contexts.
-      await navigator.clipboard.writeText(statement)
-      setCopied(true)
-      if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
-      copiedTimeoutRef.current = window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
-    }
-  }
-
-  const toggleOption = (option: WordingToggle) => setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
+  const toggleOption = (option: WordingToggle) =>
+    setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
 
   return (
     <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
       {org.campuses.length > 0 && (
+        <button
+          type="button"
+          aria-expanded={showMap}
+          onClick={() => setShowMap((value) => !value)}
+          className="m-3 min-h-11 rounded-lg border px-3 text-sm"
+        >
+          {showMap ? 'Hide location map' : 'View location map'}
+        </button>
+      )}
+      {showMap && org.campuses.length > 0 && (
         <div className="relative min-h-[16rem] border-b">
           <LocalMapBoundary result={null}>
             <PgMap
@@ -118,12 +132,20 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
               pitch={0}
               bearing={0}
               showStyleLoadingOverlay={false}
-             controls={<MapControls position="top-right" showFullscreen />}>
+              controls={<MapControls position="top-right" showFullscreen />}
+            >
               <FitToCampuses campuses={org.campuses} />
               {org.campuses.map((campus, index) => (
-                <MapMarker key={`${campus.name}-${index}`} longitude={campus.longitude} latitude={campus.latitude} anchor="bottom">
+                <MapMarker
+                  key={`${campus.name}-${index}`}
+                  longitude={campus.longitude}
+                  latitude={campus.latitude}
+                  anchor="bottom"
+                >
                   <MarkerContent>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-teal-700 text-xs font-semibold text-white shadow-lg">{index + 1}</span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-teal-700 text-xs font-semibold text-white shadow-lg">
+                      {index + 1}
+                    </span>
                   </MarkerContent>
                 </MapMarker>
               ))}
@@ -137,26 +159,36 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-900">{org.name}</h2>
             <div className="mt-1 flex flex-wrap gap-1">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">{humanize(org.sector)}</span>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">{humanize(org.framing)}</span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
+                {humanize(org.sector)}
+              </span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
+                {humanize(org.framing)}
+              </span>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => onPreviewOnMap(org.id)}
-            className="inline-flex flex-none items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-teal-800 transition hover:border-teal-300"
+            onClick={() => onPreviewOnMap(org.id, { wordingMode, scope, regionName })}
+            className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-teal-800 transition hover:border-teal-300"
           >
             <MapPin className="h-4 w-4" />
-            Open on Map & Nations
+            Use this draft in builder
           </button>
         </div>
 
         {org.note && !noteIsJustNames && <p className="mt-3 text-sm leading-6 text-slate-600">{org.note}</p>}
 
         <div className="mt-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Names ({org.acknowledges.length})</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Names ({org.acknowledges.length})
+          </div>
           <div className="mt-1 text-sm leading-6 text-slate-800">
-            {org.acknowledges.length ? org.acknowledges.join(', ') : <span className="text-slate-400">Region-wide — no specific Nations</span>}
+            {org.acknowledges.length ? (
+              org.acknowledges.join(', ')
+            ) : (
+              <span className="text-slate-400">Region-wide — no specific Nations</span>
+            )}
           </div>
         </div>
 
@@ -176,26 +208,46 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
             ) : (
               <p className="text-sm leading-6 text-slate-500">No official acknowledgement wording found.</p>
             )}
-            <a href={org.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-800">
+            <a
+              href={org.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-800"
+            >
               Open source <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         )}
 
         <div className="mt-4 rounded-lg border border-teal-200 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Generated acknowledgement</h3>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-slate-900">Generated recognition draft</h3>
             <button
               type="button"
-              onClick={copyStatement}
+              onClick={() => void copy(statement)}
               disabled={!statement}
-              className="inline-flex items-center gap-1 text-xs font-medium text-teal-800 disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-teal-800 disabled:opacity-40"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              <Copy className="h-4 w-4" /> Copy organization draft
             </button>
           </div>
-          <p className="rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-900">{statement}</p>
+          {!statement && (
+            <p className="mb-3 text-sm text-amber-950">This source lists no specific Nations. Choose Regional below.</p>
+          )}
+          <p className="mb-3 text-sm text-slate-600">
+            Names alone do not establish a location’s territorial relationship. This draft recognizes the listed Nations
+            and Peoples; use the official source wording for territorial details.
+          </p>
+          <textarea
+            aria-label="Organization draft"
+            readOnly
+            value={statement}
+            onFocus={(event) => event.currentTarget.select()}
+            className="min-h-44 w-full rounded-md border bg-slate-50 p-3 text-base leading-7 text-slate-900"
+          />
+          <p role="status" className="mt-2 text-sm text-teal-900">
+            {message}
+          </p>
           <div className="mt-3">
             <WordingOptionsControls
               wordingMode={wordingMode}
@@ -218,22 +270,30 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
 
         {org.campuses.length > 0 && (
           <div className="mt-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Locations ({org.campuses.length})</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Locations ({org.campuses.length})
+            </div>
             <div className="mt-1 space-y-1.5">
               {org.campuses.map((campus, index) => {
                 const locationType = campus.type ?? inferLocationType(campus.name, org.sector)
                 return (
                   <div key={`${campus.name}-${index}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
-                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">{index + 1}</span>
+                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">
+                      {index + 1}
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="truncate font-medium text-slate-900">{campus.name}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                          <span className="break-words font-medium text-slate-900">{campus.name}</span>
                           {locationType && (
-                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">{locationType}</span>
+                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                              {locationType}
+                            </span>
                           )}
                         </span>
-                        <span className="flex-none font-mono text-xs text-slate-500">{campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}</span>
+                        <span className="flex-none font-mono text-xs text-slate-500">
+                          {campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}
+                        </span>
                       </div>
                       {campus.acknowledges.length > 0 && (
                         <div className="mt-0.5 text-slate-600">{campus.acknowledges.join(', ')}</div>
@@ -247,7 +307,12 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
         )}
 
         <div className="mt-3 border-t pt-3">
-          <a href={org.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-teal-800">
+          <a
+            href={org.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-teal-800"
+          >
             Official acknowledgement source <ExternalLink className="h-3 w-3" />
           </a>
         </div>

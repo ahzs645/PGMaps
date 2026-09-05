@@ -1,8 +1,5 @@
 import area from '@turf/area'
 import bbox from '@turf/bbox'
-import difference from '@turf/difference'
-import intersect from '@turf/intersect'
-import union from '@turf/union'
 import createWebShareEngine from '@firstform/json-url/web-share'
 import {
   ArrowDown,
@@ -48,6 +45,11 @@ import {
 } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
+import { useBoundaryDifference } from '@/maps/boundaries/useBoundaryDifference'
+import type { DifferenceLayer } from '@/maps/boundaries/boundaryDifference'
+import { PaginatedBoundaryList } from '@/maps/boundaries/PaginatedBoundaryList'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { usePagination } from '@/hooks/usePagination'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -92,24 +94,6 @@ interface SelectedFocusCard {
   subtitle: string
   areaLabel?: string
   onOpen: () => void
-}
-
-interface SurfaceDifference {
-  overlap: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
-  onlyA: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
-  onlyB: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
-  overlapKm2: number
-  onlyAKm2: number
-  onlyBKm2: number
-  aShare: number
-  bShare: number
-}
-
-interface DiffSurface {
-  id: string
-  name: string
-  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
-  areaKm2: number
 }
 
 type BoundaryBbox = [number, number, number, number]
@@ -809,7 +793,7 @@ function PolygonFocusControls({
       <button
         type="button"
         onClick={() => onIsolate(targets)}
-        className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+        className="inline-flex h-11 md:h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
       >
         <Focus className="size-3.5" />
         {multiple ? `Show ${targets.length} selected` : 'Show only'}
@@ -817,7 +801,7 @@ function PolygonFocusControls({
       <button
         type="button"
         onClick={() => onHide(targets)}
-        className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+        className="inline-flex h-11 md:h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
       >
         <EyeOff className="size-3.5" />
         {multiple ? `Hide ${targets.length} selected` : 'Hide'}
@@ -826,7 +810,7 @@ function PolygonFocusControls({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+          className="inline-flex h-11 md:h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
         >
           <RotateCcw className="size-3.5" />
           Clear focus
@@ -836,68 +820,20 @@ function PolygonFocusControls({
   )
 }
 
+const singleFeatureCollections = new WeakMap<
+  GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>,
+  GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+>()
 function singleFeatureCollection(
   feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null,
 ): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> {
-  return feature ? { type: 'FeatureCollection', features: [feature] } : EMPTY_COLLECTION
-}
-
-function diffSurfaceFromLayer(layer: ActiveLayerView, regions: StudyAreaRegion[]): DiffSurface | null {
-  const polygonRegions = regions.filter(
-    (region) => region.feature.geometry.type === 'Polygon' || region.feature.geometry.type === 'MultiPolygon',
-  )
-  if (polygonRegions.length === 0 || polygonRegions.length > MAX_LAYER_DIFF_FEATURES) return null
-
-  try {
-    const dissolved = polygonRegions.reduce<GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null>(
-      (current, region) => {
-        const feature = region.feature
-        if (!current) return feature
-        return union(current as never, feature as never) as GeoJSON.Feature<
-          GeoJSON.Polygon | GeoJSON.MultiPolygon
-        > | null
-      },
-      null,
-    )
-
-    if (!dissolved) return null
-    const surfaceAreaKm2 = featureAreaKm2(dissolved)
-    return {
-      id: layer.key,
-      name: `${layer.label} · ${layer.optionLabel}`,
-      feature: {
-        ...dissolved,
-        properties: {
-          ...(dissolved.properties ?? {}),
-          id: `layer-diff:${layer.key}`,
-          boundaryId: `layer-diff:${layer.key}`,
-          boundaryName: `${layer.label} · ${layer.optionLabel}`,
-        },
-      },
-      areaKm2: surfaceAreaKm2,
-    }
-  } catch {
-    return null
+  if (!feature) return EMPTY_COLLECTION
+  let collection = singleFeatureCollections.get(feature)
+  if (!collection) {
+    collection = { type: 'FeatureCollection', features: [feature] }
+    singleFeatureCollections.set(feature, collection)
   }
-}
-
-function polygonFeature(
-  feature: GeoJSON.Feature<GeoJSON.Geometry | null> | null,
-  properties: Record<string, unknown>,
-): GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null {
-  if (!feature?.geometry || (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon'))
-    return null
-  return {
-    type: 'Feature',
-    geometry: feature.geometry,
-    properties,
-  }
-}
-
-function featureAreaKm2(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null): number {
-  if (!feature) return 0
-  const squareMeters = area(feature as never)
-  return Number.isFinite(squareMeters) && squareMeters > 0 ? squareMeters / 1_000_000 : 0
+  return collection
 }
 
 function findSelectedParentBoundary(
@@ -958,45 +894,6 @@ function mapBcDaChunkFeatureToRegion(
     bounds,
     areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
   } satisfies StudyAreaRegion
-}
-
-function buildSurfaceDifference(a: DiffSurface, b: DiffSurface): SurfaceDifference {
-  try {
-    const overlap = polygonFeature(
-      intersect(a.feature as never, b.feature as never) as GeoJSON.Feature<GeoJSON.Geometry | null> | null,
-      { id: 'surface-overlap', boundaryId: 'surface-overlap', boundaryName: 'Overlap' },
-    )
-    const onlyA = polygonFeature(
-      difference(a.feature as never, b.feature as never) as GeoJSON.Feature<GeoJSON.Geometry | null> | null,
-      { id: 'surface-only-a', boundaryId: 'surface-only-a', boundaryName: `Only ${a.name}` },
-    )
-    const onlyB = polygonFeature(
-      difference(b.feature as never, a.feature as never) as GeoJSON.Feature<GeoJSON.Geometry | null> | null,
-      { id: 'surface-only-b', boundaryId: 'surface-only-b', boundaryName: `Only ${b.name}` },
-    )
-    const overlapKm2 = featureAreaKm2(overlap)
-    return {
-      overlap,
-      onlyA,
-      onlyB,
-      overlapKm2,
-      onlyAKm2: featureAreaKm2(onlyA),
-      onlyBKm2: featureAreaKm2(onlyB),
-      aShare: a.areaKm2 > 0 ? overlapKm2 / a.areaKm2 : 0,
-      bShare: b.areaKm2 > 0 ? overlapKm2 / b.areaKm2 : 0,
-    }
-  } catch {
-    return {
-      overlap: null,
-      onlyA: null,
-      onlyB: null,
-      overlapKm2: 0,
-      onlyAKm2: a.areaKm2,
-      onlyBKm2: b.areaKm2,
-      aShare: 0,
-      bShare: 0,
-    }
-  }
 }
 
 function FitToRegions({
@@ -1173,6 +1070,18 @@ function DevBoundaries() {
   const [censusChunkErrors, setCensusChunkErrors] = useState<Partial<Record<ChunkedCensusLevel, string>>>({})
   const [censusLoadingChunkIds, setCensusLoadingChunkIds] = useState<string[]>([])
   const censusRequestedChunkIds = useRef(new Set<string>())
+  const chunkRequests = useRef(new globalThis.Map<string, AbortController>())
+  const layerRequests = useRef(new globalThis.Map<string, AbortController>())
+  useEffect(() => {
+    const chunks = chunkRequests.current
+    const layers = layerRequests.current
+    return () => {
+      chunks.forEach((controller) => controller.abort())
+      layers.forEach((controller) => controller.abort())
+      chunks.clear()
+      layers.clear()
+    }
+  }, [])
   const [enabledCensusParentLevels, setEnabledCensusParentLevels] = useState<CensusParentLevel[]>([])
   const [parentBoundaryCache, setParentBoundaryCache] = useState<
     Partial<Record<CensusParentLevel, ParentBoundaryCacheEntry>>
@@ -1354,7 +1263,18 @@ function DevBoundaries() {
       boundarySearchSource,
     ],
   )
-  const boundarySearchResults = useMemo(() => boundarySearchMatches.slice(0, 60), [boundarySearchMatches])
+  const searchPagination = usePagination(
+    boundarySearchMatches,
+    20,
+    JSON.stringify([
+      boundarySearchQuery,
+      boundarySearchGroup,
+      boundarySearchSource,
+      boundarySearchLevel,
+      boundarySearchMatchMode,
+    ]),
+  )
+  const boundarySearchResults = searchPagination.items
   const boundarySearchMatchLayers = useMemo<ActiveLayer[]>(() => {
     const seen = new Set<string>()
     return boundarySearchMatches.flatMap(({ record }) => {
@@ -1430,7 +1350,24 @@ function DevBoundaries() {
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
 
   useEffect(() => {
-    const layersToLoad = activeLayers.filter((layer) => !isChunkedCensusLayer(layer) && !cache[layer.key])
+    const activeKeys = new Set(activeLayers.map((layer) => layer.key))
+    const removedKeys: string[] = []
+    layerRequests.current.forEach((controller, key) => {
+      if (!activeKeys.has(key)) {
+        controller.abort()
+        layerRequests.current.delete(key)
+        removedKeys.push(key)
+      }
+    })
+    if (removedKeys.length)
+      queueMicrotask(() =>
+        setCache((current) =>
+          Object.fromEntries(Object.entries(current).filter(([key]) => !removedKeys.includes(key))),
+        ),
+      )
+    const layersToLoad = activeLayers.filter(
+      (layer) => !isChunkedCensusLayer(layer) && !cache[layer.key] && !layerRequests.current.has(layer.key),
+    )
     if (layersToLoad.length === 0) return
 
     queueMicrotask(() => {
@@ -1446,14 +1383,18 @@ function DevBoundaries() {
     })
 
     layersToLoad.forEach((layer) => {
-      loadBoundaryExplorerStudyAreaRegions(layer.source, layer.level)
+      const controller = new AbortController()
+      layerRequests.current.set(layer.key, controller)
+      loadBoundaryExplorerStudyAreaRegions(layer.source, layer.level, controller.signal)
         .then((regions) => {
+          if (controller.signal.aborted) return
           setCache((current) => ({
             ...current,
             [layer.key]: { regions, state: 'ready' },
           }))
         })
         .catch((err) => {
+          if (controller.signal.aborted) return
           setCache((current) => ({
             ...current,
             [layer.key]: {
@@ -1462,6 +1403,9 @@ function DevBoundaries() {
               error: (err as Error).message || 'Unable to load boundary layer.',
             },
           }))
+        })
+        .finally(() => {
+          if (layerRequests.current.get(layer.key) === controller) layerRequests.current.delete(layer.key)
         })
     })
   }, [activeLayers, cache])
@@ -1495,12 +1439,28 @@ function DevBoundaries() {
   }, [activeCensusChunkLevel, censusChunkErrors, censusChunkManifests])
 
   useEffect(() => {
+    const wantedKeys = new Set(
+      activeVisibleCensusChunks.map((chunk) =>
+        activeCensusChunkLevel && activeCensusChunkDetailLevel
+          ? censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
+          : '',
+      ),
+    )
+    chunkRequests.current.forEach((controller, key) => {
+      if (!wantedKeys.has(key)) {
+        controller.abort()
+        chunkRequests.current.delete(key)
+        censusRequestedChunkIds.current.delete(key)
+      }
+    })
     if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel || activeVisibleCensusChunks.length === 0) return
 
-    const chunksToLoad = activeVisibleCensusChunks.filter((chunk) => {
-      const key = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
-      return !censusChunkRegionsByKey[key] && !censusRequestedChunkIds.current.has(key)
-    })
+    const chunksToLoad = activeVisibleCensusChunks
+      .filter((chunk) => {
+        const key = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
+        return !censusChunkRegionsByKey[key] && !censusRequestedChunkIds.current.has(key)
+      })
+      .slice(0, Math.max(0, 4 - chunkRequests.current.size))
 
     if (chunksToLoad.length === 0) return
 
@@ -1512,7 +1472,9 @@ function DevBoundaries() {
 
     chunksToLoad.forEach((chunk) => {
       const chunkKey = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
-      fetch(chunkUrl(activeCensusChunkLevel, chunk.path))
+      const controller = new AbortController()
+      chunkRequests.current.set(chunkKey, controller)
+      fetch(chunkUrl(activeCensusChunkLevel, chunk.path), { signal: controller.signal })
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${chunk.path}: ${response.status}`)
@@ -1520,6 +1482,7 @@ function DevBoundaries() {
           return response.json() as Promise<BcDaChunkFeatureCollection>
         })
         .then((collection) => {
+          if (controller.signal.aborted) return
           const regions = collection.features
             .map((feature) => mapBcDaChunkFeatureToRegion(feature, activeCensusChunkLevel))
             .filter((region): region is StudyAreaRegion => region !== null)
@@ -1528,24 +1491,59 @@ function DevBoundaries() {
           setCensusChunkRegionsByKey((current) => ({ ...current, [chunkKey]: regions }))
         })
         .catch((err) => {
-          censusRequestedChunkIds.current.delete(chunkKey)
+          if (controller.signal.aborted) return
           setCensusChunkErrors((current) => ({
             ...current,
             [activeCensusChunkLevel]: (err as Error).message || `Unable to load ${chunk.path}.`,
           }))
         })
         .finally(() => {
+          if (chunkRequests.current.get(chunkKey) === controller) chunkRequests.current.delete(chunkKey)
           setCensusLoadingChunkIds((current) => current.filter((id) => id !== chunkKey))
         })
     })
-  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, activeVisibleCensusChunks, censusChunkRegionsByKey])
+  }, [
+    activeCensusChunkDetailLevel,
+    activeCensusChunkLevel,
+    activeVisibleCensusChunks,
+    censusChunkRegionsByKey,
+    censusLoadingChunkIds,
+  ])
+
+  // Keep the current rendered detail plus a small navigation cache, rather than every viewport visited.
+  useEffect(() => {
+    const activeKeys = new Set(
+      activeVisibleCensusChunks.map((chunk) =>
+        activeCensusChunkLevel && activeCensusChunkDetailLevel
+          ? censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
+          : '',
+      ),
+    )
+    const stale = Object.keys(censusChunkRegionsByKey).filter(
+      (key) => !activeKeys.has(key) && !renderedVisibleCensusChunkKeys.has(key),
+    )
+    const evicted = new Set(stale.slice(0, Math.max(0, stale.length - 16)))
+    if (!evicted.size) return
+    evicted.forEach((key) => censusRequestedChunkIds.current.delete(key))
+    queueMicrotask(() =>
+      setCensusChunkRegionsByKey((current) =>
+        Object.fromEntries(Object.entries(current).filter(([key]) => !evicted.has(key))),
+      ),
+    )
+  }, [
+    activeVisibleCensusChunks,
+    activeCensusChunkLevel,
+    activeCensusChunkDetailLevel,
+    censusChunkRegionsByKey,
+    renderedVisibleCensusChunkKeys,
+  ])
 
   useEffect(() => {
     if (!bcDaActive || !bcDaManifest) return
     const parentByLevel = new globalThis.Map(parentBoundaryOptions.map((parent) => [parent.level, parent]))
     const levelsToLoad = enabledCensusParentLevels.filter((level) => {
       const entry = parentBoundaryCache[level]
-      return parentByLevel.has(level) && (!entry || entry.state === 'error')
+      return parentByLevel.has(level) && !entry
     })
     if (levelsToLoad.length === 0) return
 
@@ -1735,31 +1733,33 @@ function DevBoundaries() {
     }
     return null
   }, [layerDiffLayers, layerDiffRegionCounts])
-  const layerDiffSurfaces = useMemo<[DiffSurface, DiffSurface] | null>(() => {
-    if (layerDiffBlockedReason || layerDiffLayers.length !== 2) return null
-    const surfaces = layerDiffLayers.map((layer) =>
-      diffSurfaceFromLayer(layer, visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions),
-    )
-    return surfaces[0] && surfaces[1] ? [surfaces[0], surfaces[1]] : null
-  }, [layerDiffBlockedReason, layerDiffLayers, visibleLayerRegionsByKey])
-  const surfaceDifference = useMemo(
-    () => (compareRegions.length === 2 ? buildSurfaceDifference(compareRegions[0], compareRegions[1]) : null),
-    [compareRegions],
-  )
-  const layerSurfaceDifference = useMemo(
-    () => (layerDiffSurfaces ? buildSurfaceDifference(layerDiffSurfaces[0], layerDiffSurfaces[1]) : null),
-    [layerDiffSurfaces],
-  )
-  const activeDifferenceSurfaces = layerDifferenceMode
-    ? layerDiffSurfaces
-    : surfaceDifferenceMode && compareRegions.length === 2
-      ? ([compareRegions[0], compareRegions[1]] as [DiffSurface, DiffSurface])
-      : null
-  const activeSurfaceDifference = layerDifferenceMode
-    ? layerSurfaceDifference
-    : surfaceDifferenceMode
-      ? surfaceDifference
-      : null
+  const differenceRequest = useMemo<[DifferenceLayer, DifferenceLayer] | null>(() => {
+    if (layerDifferenceMode && !layerDiffBlockedReason && layerDiffLayers.length === 2) {
+      return layerDiffLayers.map((layer) => ({
+        id: layer.key,
+        name: `${layer.label} · ${layer.optionLabel}`,
+        features: (visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions).map((region) => region.feature),
+      })) as [DifferenceLayer, DifferenceLayer]
+    }
+    if (surfaceDifferenceMode && compareRegions.length === 2) {
+      return compareRegions.map((region) => ({
+        id: region.id,
+        name: region.name,
+        features: [region.feature],
+      })) as [DifferenceLayer, DifferenceLayer]
+    }
+    return null
+  }, [
+    layerDifferenceMode,
+    layerDiffBlockedReason,
+    layerDiffLayers,
+    visibleLayerRegionsByKey,
+    surfaceDifferenceMode,
+    compareRegions,
+  ])
+  const differenceJob = useBoundaryDifference(differenceRequest)
+  const activeDifferenceSurfaces = differenceJob.result?.surfaces ?? null
+  const activeSurfaceDifference = differenceJob.result?.difference ?? null
   const activeLoading = activeLayerViews.some((layer) => layer.loading)
   const activeErrors = activeLayerViews.filter((layer) => layer.error)
   const topLayerKey = activeLayerViews[activeLayerViews.length - 1]?.key ?? null
@@ -2253,13 +2253,283 @@ function DevBoundaries() {
     return cards
   }, [enabledParentBoundaryViews, pmtilesFeatureCache, regionByFocusKey, selectPolygonFocus, selectedPolygonFocuses])
 
+  const selectedPagination = usePagination(selectedFocusCards, 12, '')
+  const detailsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isMobile && (compareIds.length || selectedPolygonFocuses.length || layerDifferenceMode)) {
+      detailsRef.current?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [isMobile, compareIds, selectedPolygonFocuses, layerDifferenceMode])
+  const details = (
+    <div ref={detailsRef} data-boundary-details>
+      {' '}
+      {selectedFocusCards.length > 0 && compareRegions.length === 0 && !layerDifferenceMode && (
+        <div
+          className={cn(
+            'rounded-lg border border-border bg-background/95',
+            isMobile ? 'm-3' : 'absolute bottom-4 left-4 right-4 z-20 shadow-xl backdrop-blur',
+          )}
+        >
+          <div
+            className={cn(
+              'flex flex-wrap items-center justify-between gap-2 p-2.5',
+              selectedTrayExpanded && 'border-b',
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedTrayExpanded((current) => !current)}
+              className="flex min-h-11 md:min-h-8 min-w-[12rem] flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+              aria-expanded={selectedTrayExpanded}
+            >
+              <SquareStack className="size-4 shrink-0 text-muted-foreground" />
+              <h2 className="text-sm font-semibold md:truncate">{selectedFocusCards.length} selected boundaries</h2>
+              <ChevronUp
+                className={cn(
+                  'ml-auto size-4 shrink-0 text-muted-foreground transition-transform',
+                  !selectedTrayExpanded && 'rotate-180',
+                )}
+              />
+            </button>
+            <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1">
+              <button
+                type="button"
+                onClick={isolateSelectedFocuses}
+                className="inline-flex h-11 md:h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={`Show only ${selectedFocusCards.length} selected boundaries`}
+              >
+                <Focus className="size-3.5" />
+                <span className="hidden sm:inline">Show only</span>
+              </button>
+              <button
+                type="button"
+                onClick={hideSelectedFocuses}
+                className="inline-flex h-11 md:h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={`Exclude ${selectedFocusCards.length} selected boundaries`}
+              >
+                <EyeOff className="size-3.5" />
+                <span className="hidden sm:inline">Exclude</span>
+              </button>
+              <button
+                type="button"
+                onClick={clearSelectedFocuses}
+                className="flex size-11 md:size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Clear selected boundaries"
+                title="Clear selected boundaries"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+          {selectedTrayExpanded && (
+            <>
+              <div
+                key={selectedPagination.page}
+                className="grid max-h-48 gap-2 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {selectedPagination.items.map((card) => (
+                  <div key={polygonFocusKey(card.focus)} className="group relative rounded-md border bg-background p-3">
+                    <button type="button" onClick={card.onOpen} className="block w-full pr-11 md:pr-7 text-left">
+                      <div className="line-clamp-1 text-sm font-medium text-foreground">{card.title}</div>
+                      <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{card.subtitle}</div>
+                      {card.areaLabel && (
+                        <div className="mt-3 flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Area</span>
+                          <span className="font-semibold text-foreground">{card.areaLabel}</span>
+                        </div>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedFocus(card.focus)}
+                      className="absolute right-2 top-2 flex size-11 md:size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                      aria-label={`Remove ${card.title}`}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {selectedPagination.pageCount > 1 && (
+                <PaginationControls
+                  page={selectedPagination.page}
+                  pageCount={selectedPagination.pageCount}
+                  onPageChange={selectedPagination.setPage}
+                  label="Selected boundary pages"
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {(compareRegions.length > 0 || layerDifferenceMode) && (
+        <div
+          className={cn(
+            'rounded-lg border border-border bg-background/95',
+            isMobile
+              ? 'm-3'
+              : 'absolute bottom-4 left-1/2 z-20 w-[min(48rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] overflow-y-auto -translate-x-1/2 shadow-xl backdrop-blur',
+          )}
+        >
+          <div className="flex items-center justify-between gap-3 border-b p-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Layers className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold md:truncate">
+                {layerDifferenceMode ? 'Diff active layers' : 'Compare selected boundaries'}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={clearCompare}
+              className="flex size-11 md:size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Clear comparison"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="border-b p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-foreground">Layer diff</div>
+                <div className="text-xs text-muted-foreground">
+                  {layerDifferenceMode
+                    ? 'Shows overlap and area unique to each whole active layer.'
+                    : 'Shows overlap and area unique to each selected boundary.'}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={!layerDifferenceMode && compareRegions.length !== 2}
+                onClick={
+                  layerDifferenceMode
+                    ? () => setLayerDifferenceMode(false)
+                    : () => setSurfaceDifferenceMode((current) => !current)
+                }
+                className={cn(
+                  'h-11 md:h-8 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2)
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                {layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2)
+                  ? 'Hide diff'
+                  : 'Show diff'}
+              </button>
+            </div>
+            {!layerDifferenceMode && compareRegions.length !== 2 && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Select exactly two areas to enable surface difference mode.
+              </div>
+            )}
+            {differenceJob.loading && (
+              <p role="status" className="mt-2 text-xs">
+                Calculating comparison… You can keep using the map.
+              </p>
+            )}
+            {(differenceJob.error || (layerDifferenceMode && layerDiffBlockedReason)) && (
+              <div role="alert" className="mt-2 text-xs text-destructive">
+                {differenceJob.error || layerDiffBlockedReason}
+                {differenceJob.error && (
+                  <button type="button" className="ml-2 min-h-11 underline md:min-h-8" onClick={differenceJob.retry}>
+                    Retry comparison
+                  </button>
+                )}
+              </div>
+            )}
+            {activeSurfaceDifference && activeDifferenceSurfaces && (
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                <div className="rounded border bg-amber-500/10 p-2">
+                  <div className="text-xs text-muted-foreground">Overlap</div>
+                  <div className="font-semibold text-foreground">
+                    {activeSurfaceDifference.overlapKm2 === 0
+                      ? '0 km²'
+                      : formatArea(activeSurfaceDifference.overlapKm2)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {Math.round(activeSurfaceDifference.aShare * 100)}% of A ·{' '}
+                    {Math.round(activeSurfaceDifference.bShare * 100)}% of B
+                  </div>
+                </div>
+                <div className="rounded border bg-green-500/10 p-2">
+                  <div className="text-xs text-muted-foreground">Only A</div>
+                  <div className="font-semibold text-foreground">
+                    {activeSurfaceDifference.onlyAKm2 === 0 ? '0 km²' : formatArea(activeSurfaceDifference.onlyAKm2)}
+                  </div>
+                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                    {activeDifferenceSurfaces[0].name}
+                  </div>
+                </div>
+                <div className="rounded border bg-sky-500/10 p-2">
+                  <div className="text-xs text-muted-foreground">Only B</div>
+                  <div className="font-semibold text-foreground">
+                    {activeSurfaceDifference.onlyBKm2 === 0 ? '0 km²' : formatArea(activeSurfaceDifference.onlyBKm2)}
+                  </div>
+                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                    {activeDifferenceSurfaces[1].name}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="grid gap-2 p-3 sm:grid-cols-3">
+            {layerDifferenceMode && activeDifferenceSurfaces
+              ? activeDifferenceSurfaces.map((surface, index) => (
+                  <div key={surface.id} className="rounded-md border bg-background p-3 text-left">
+                    <div className="line-clamp-1 text-sm font-medium text-foreground">{surface.name}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Layer {index === 0 ? 'A' : 'B'} dissolved surface
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Area</span>
+                      <span className="font-semibold text-foreground">{formatArea(surface.areaKm2)}</span>
+                    </div>
+                  </div>
+                ))
+              : compareRegions.map((region) => (
+                  <button
+                    key={region.id}
+                    type="button"
+                    onClick={() => {
+                      setFitSelectedRegion(true)
+                      setSelectedId(region.id)
+                    }}
+                    className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-accent"
+                  >
+                    <div className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {sourceLabel(region.source)} · {getStudyAreaLevelLabel(region.level)}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Area</span>
+                      <span className="font-semibold text-foreground">{formatArea(region.areaKm2)}</span>
+                    </div>
+                  </button>
+                ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   const sidebar = (
     <MapSidebarShell
       className={cn(MAP_SIDEBAR_CLASS, 'min-w-0')}
       title="Boundaries"
       subtitle="Compare study-area layers"
       titleClassName="text-base"
+      actions={
+        <button
+          type="button"
+          onClick={() => handleSourcePickerOpenChange(true)}
+          className="inline-flex h-11 md:h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+          Add
+        </button>
+      }
     >
+      {isMobile && details}
       <SidebarSection title="Find any boundary">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2271,7 +2541,7 @@ function DevBoundaries() {
               setBoundarySearchRequested(true)
               setBoundarySearchQuery(event.target.value)
             }}
-            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="Search all names, codes, and properties"
           />
         </div>
@@ -2281,7 +2551,7 @@ function DevBoundaries() {
             aria-label="Choose boundary search match mode"
             value={boundarySearchMatchMode}
             onChange={(event) => setBoundarySearchMatchMode(event.target.value as BoundarySearchMatchMode)}
-            className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+            className="h-11 md:h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             <option value="contains">Anywhere in text</option>
             <option value="startsWith">Starts with query</option>
@@ -2297,7 +2567,7 @@ function DevBoundaries() {
               setBoundarySearchSource('')
               setBoundarySearchLevel('')
             }}
-            className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+            className="h-11 md:h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             <option value="">All categories</option>
             {boundarySearchGroups.map((group) => (
@@ -2313,7 +2583,7 @@ function DevBoundaries() {
               setBoundarySearchSource(event.target.value as BoundarySource | '')
               setBoundarySearchLevel('')
             }}
-            className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+            className="h-11 md:h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             <option value="">All sources</option>
             {boundarySearchSources.map((option) => (
@@ -2326,7 +2596,7 @@ function DevBoundaries() {
             aria-label="Filter boundary search by level"
             value={boundarySearchLevel}
             onChange={(event) => setBoundarySearchLevel(event.target.value as RegionLevel | '')}
-            className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+            className="h-11 md:h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             <option value="">All levels</option>
             {boundarySearchLevels.map((option) => (
@@ -2375,7 +2645,7 @@ function DevBoundaries() {
             <button
               type="button"
               onClick={selectAllBoundarySearchMatches}
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              className="inline-flex h-11 md:h-7 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               title={`Select all ${boundarySearchMatches.length.toLocaleString()} matching boundaries on the map`}
             >
               <SquareStack className="size-3.5" />
@@ -2384,7 +2654,11 @@ function DevBoundaries() {
           </div>
         )}
         {boundarySearchResults.length > 0 && (
-          <div className="mt-2 max-h-72 divide-y overflow-y-auto rounded-md border bg-background">
+          <div
+            key={searchPagination.page}
+            data-boundary-search-results
+            className="mt-2 max-h-72 divide-y overflow-y-auto rounded-md border bg-background"
+          >
             {boundarySearchResults.map(({ record, matchedField }) => {
               const opening = boundarySearchTarget?.record.id === record.id
               const identityField =
@@ -2429,27 +2703,17 @@ function DevBoundaries() {
             })}
           </div>
         )}
-        {boundarySearchMatches.length > boundarySearchResults.length && (
-          <div className="mt-1 text-xs text-muted-foreground">
-            Showing the first {boundarySearchResults.length}; Select all includes all{' '}
-            {formatNumber(boundarySearchMatches.length)} matches.
-          </div>
+        {searchPagination.pageCount > 1 && (
+          <PaginationControls
+            page={searchPagination.page}
+            pageCount={searchPagination.pageCount}
+            onPageChange={searchPagination.setPage}
+            label="Boundary search pages"
+          />
         )}
       </SidebarSection>
 
-      <SidebarSection
-        title="Study areas"
-        actions={
-          <button
-            type="button"
-            onClick={() => handleSourcePickerOpenChange(true)}
-            className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Plus className="size-3.5" />
-            Add
-          </button>
-        }
-      >
+      <SidebarSection title="Study areas">
         {activeSources.length === 0 && boundarySearchLayers.length === 0 ? (
           <button
             type="button"
@@ -2554,7 +2818,7 @@ function DevBoundaries() {
                   onClick={showWholeLayerDiff}
                   disabled={Boolean(layerDiffBlockedReason)}
                   className={cn(
-                    'inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                    'inline-flex h-11 md:h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                     layerDifferenceMode
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -2613,14 +2877,14 @@ function DevBoundaries() {
                   <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
                     {sourceLabel(source)}
                   </span>
-                  <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="min-w-0 truncate rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
                     {index === activeSources.length - 1 ? 'Top' : `Layer ${index + 1}`}
                   </span>
                   <button
                     type="button"
                     onClick={() => moveSource(source, -1)}
                     disabled={index === 0}
-                    className="flex size-6 items-center justify-center rounded border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                    className="flex size-11 md:size-6 items-center justify-center rounded border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
                     aria-label={`Move ${sourceLabel(source)} down`}
                     title="Move lower"
                   >
@@ -2630,7 +2894,7 @@ function DevBoundaries() {
                     type="button"
                     onClick={() => moveSource(source, 1)}
                     disabled={index === activeSources.length - 1}
-                    className="flex size-6 items-center justify-center rounded border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                    className="flex size-11 md:size-6 items-center justify-center rounded border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
                     aria-label={`Move ${sourceLabel(source)} up`}
                     title="Move higher"
                   >
@@ -2805,7 +3069,7 @@ function DevBoundaries() {
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="Filter selected layers"
           />
         </div>
@@ -2836,12 +3100,50 @@ function DevBoundaries() {
             Loading selected study areas
           </div>
         )}
+        {enabledCensusParentLevels.map(
+          (level) =>
+            parentBoundaryCache[level]?.state === 'error' && (
+              <div
+                key={level}
+                role="alert"
+                className="m-4 rounded-md border border-destructive/40 p-3 text-sm text-destructive"
+              >
+                {parentBoundaryCache[level]?.error}
+                <button
+                  type="button"
+                  className="block min-h-11 underline"
+                  onClick={() => setParentBoundaryCache((current) => ({ ...current, [level]: undefined }))}
+                >
+                  Retry {getStudyAreaLevelLabel(level)} outline
+                </button>
+              </div>
+            ),
+        )}
         {activeErrors.map((layer) => (
           <div
             key={layer.key}
             className="m-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
           >
             {layer.label}: {layer.error}
+            <button
+              type="button"
+              className="mt-2 block min-h-11 underline md:min-h-8"
+              onClick={() => {
+                if (isChunkedCensusLayer(layer)) {
+                  censusRequestedChunkIds.current.forEach((key) => {
+                    if (!censusChunkRegionsByKey[key] && !chunkRequests.current.has(key))
+                      censusRequestedChunkIds.current.delete(key)
+                  })
+                  setCensusChunkErrors({})
+                  setCensusLoadingChunkIds((current) => [...current])
+                } else
+                  setCache((current) =>
+                    Object.fromEntries(Object.entries(current).filter(([key]) => key !== layer.key)),
+                  )
+              }}
+            >
+              Retry {layer.label}
+            </button>
           </div>
         ))}
         {!activeLoading && activeErrors.length === 0 && (
@@ -2865,79 +3167,80 @@ function DevBoundaries() {
                       trial layer yet.
                     </div>
                   )}
-                  {displayedRegions.slice(0, 120).map((region) => {
-                    const comparing = compareIds.includes(region.id)
-                    return (
-                      <div
-                        key={region.id}
-                        className={cn(
-                          'px-4 py-3 transition-colors hover:bg-accent',
-                          selectedId === region.id && 'bg-primary/10',
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            setFitSelectedRegion(!event.shiftKey)
-                            if (event.shiftKey) {
-                              setSelectedId(null)
-                              setSelectedParentId(null)
-                              setSelectedPmtilesFeature(null)
-                            } else {
-                              setSelectedId(region.id)
-                              setSelectedParentId(null)
-                              setSelectedPmtilesFeature(null)
-                            }
-                            selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
-                          }}
-                          className="w-full text-left"
-                        >
-                          <div className="mb-1 flex items-start justify-between gap-2">
-                            <span className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</span>
-                            <span
-                              className="mt-1 size-2.5 shrink-0 rounded-full"
-                              style={{
-                                backgroundColor: isNorthSouthCsdLayer(layer)
-                                  ? northSouthColor(region.feature.properties ?? {})
-                                  : layer.colors.fill,
-                              }}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                            <span>{region.code}</span>
-                            <span>{formatArea(region.areaKm2)}</span>
-                          </div>
-                          {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}) && (
-                            <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                              {censusParentSummary(region.feature.properties ?? {})}
-                            </div>
+                  <PaginatedBoundaryList
+                    items={displayedRegions}
+                    resetKey={`${layer.key}:${query}:${polygonFocusActive}`}
+                    label={`${layer.label} boundary pages`}
+                  >
+                    {(region) => {
+                      const comparing = compareIds.includes(region.id)
+                      return (
+                        <div
+                          key={region.id}
+                          className={cn(
+                            'px-4 py-3 transition-colors hover:bg-accent',
+                            selectedId === region.id && 'bg-primary/10',
                           )}
-                        </button>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
-                            {sourceLabel(region.source)} · {getStudyAreaLevelLabel(region.level)}
-                          </span>
+                        >
                           <button
                             type="button"
-                            onClick={() => toggleCompare(region.id)}
-                            className={cn(
-                              'rounded border px-2 py-0.5 text-xs font-medium transition-colors',
-                              comparing
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'bg-background text-muted-foreground hover:text-foreground',
-                            )}
+                            onClick={(event) => {
+                              setFitSelectedRegion(!event.shiftKey)
+                              if (event.shiftKey) {
+                                setSelectedId(null)
+                                setSelectedParentId(null)
+                                setSelectedPmtilesFeature(null)
+                              } else {
+                                setSelectedId(region.id)
+                                setSelectedParentId(null)
+                                setSelectedPmtilesFeature(null)
+                              }
+                              selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
+                            }}
+                            className="w-full text-left"
                           >
-                            {comparing ? 'Comparing' : 'Compare'}
+                            <div className="mb-1 flex items-start justify-between gap-2">
+                              <span className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</span>
+                              <span
+                                className="mt-1 size-2.5 shrink-0 rounded-full"
+                                style={{
+                                  backgroundColor: isNorthSouthCsdLayer(layer)
+                                    ? northSouthColor(region.feature.properties ?? {})
+                                    : layer.colors.fill,
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                              <span>{region.code}</span>
+                              <span>{formatArea(region.areaKm2)}</span>
+                            </div>
+                            {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}) && (
+                              <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
+                                {censusParentSummary(region.feature.properties ?? {})}
+                              </div>
+                            )}
                           </button>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="min-w-0 truncate rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+                              {sourceLabel(region.source)} · {getStudyAreaLevelLabel(region.level)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleCompare(region.id)}
+                              className={cn(
+                                'min-h-11 md:min-h-7 shrink-0 rounded border px-2 py-0.5 text-xs font-medium transition-colors',
+                                comparing
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'bg-background text-muted-foreground hover:text-foreground',
+                              )}
+                            >
+                              {comparing ? 'Comparing' : 'Compare'}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                  {displayedRegions.length > 120 && (
-                    <div className="p-4 text-xs text-muted-foreground">
-                      Showing first 120 {layer.optionLabel} results. Use search to narrow this layer.
-                    </div>
-                  )}
+                      )
+                    }}
+                  </PaginatedBoundaryList>
                 </div>
               )
             })}
@@ -2992,7 +3295,7 @@ function DevBoundaries() {
           fitSelectedRegion={fitSelectedRegion}
           fitLayerRegions={!polygonFocusActive && !boundarySearchTarget && boundarySearchLayers.length === 0}
         />
-        {activeLayerViews.map((layer) => {
+        {activeLayerViews.map((layer, layerIndex) => {
           const focusedRegions = renderedLayerRegionsByKey[layer.key] ?? layer.filteredRegions
           const layerHiddenForParentOutlines = hideBcDaChunksForParents && isBcDaSimplifiedLayer(layer)
           const layerVisible =
@@ -3033,9 +3336,10 @@ function DevBoundaries() {
             layerVisible &&
             (!denseDbLayer || focusedRegions.length <= 2500)
           return (
-            <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
+            <Fragment key={layer.key}>
               {denseDbLayer ? (
                 <MapPmtilesFillLayer
+                  layerOrder={layerIndex}
                   url={BC_DB_PMTILES_URL}
                   sourceLayer={BC_DB_PMTILES_SOURCE_LAYER}
                   fillColor={layer.colors.fill}
@@ -3070,6 +3374,7 @@ function DevBoundaries() {
                 />
               ) : (
                 <MapFillLayer
+                  layerOrder={layerIndex}
                   data={layerFeatureCollection(focusedRegions)}
                   fillColor={northSouthLayer ? NORTH_SOUTH_CSD_FILL_EXPRESSION : layer.colors.fill}
                   fillOpacity={fillOpacity}
@@ -3109,6 +3414,7 @@ function DevBoundaries() {
                     <MapFillLayer
                       key={parentScope}
                       data={parentBoundaryCollectionsByLevel.get(view.level) ?? view.data}
+                      layerOrder={layerIndex + 0.1 + CENSUS_PARENT_LEVEL_ORDER.indexOf(view.level) * 0.01}
                       fillColor={view.style.fill}
                       fillOpacity={0.035}
                       lineColor={view.style.line}
@@ -3137,6 +3443,7 @@ function DevBoundaries() {
         {activeSurfaceDifference && activeDifferenceSurfaces && (
           <>
             <MapFillLayer
+              layerOrder={activeLayerViews.length + 0}
               data={singleFeatureCollection(activeSurfaceDifference.onlyA)}
               fillColor="#22c55e"
               fillOpacity={0.38}
@@ -3152,6 +3459,7 @@ function DevBoundaries() {
               }
             />
             <MapFillLayer
+              layerOrder={activeLayerViews.length + 1}
               data={singleFeatureCollection(activeSurfaceDifference.onlyB)}
               fillColor="#38bdf8"
               fillOpacity={0.38}
@@ -3167,6 +3475,7 @@ function DevBoundaries() {
               }
             />
             <MapFillLayer
+              layerOrder={activeLayerViews.length + 2}
               data={singleFeatureCollection(activeSurfaceDifference.overlap)}
               fillColor="#f59e0b"
               fillOpacity={0.58}
@@ -3243,7 +3552,7 @@ function DevBoundaries() {
                 <button
                   type="button"
                   onClick={() => toggleCompare(selectedRegion.id)}
-                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+                  className="inline-flex h-11 md:h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
                 >
                   <ChevronsUpDown className="size-3.5" />
                   {compareIds.includes(selectedRegion.id) ? 'Remove from compare' : 'Add to compare'}
@@ -3252,7 +3561,7 @@ function DevBoundaries() {
                   type="button"
                   onClick={() => showLayerDiff(selectedRegion.id)}
                   disabled={compareIds.length === 0 && !compareIds.includes(selectedRegion.id)}
-                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-11 md:h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                   title={
                     compareIds.length === 0 ? 'Add one boundary to compare first' : 'Show selected-boundary difference'
                   }
@@ -3372,210 +3681,7 @@ function DevBoundaries() {
         )}
       </Map>
 
-      {selectedFocusCards.length > 0 && compareRegions.length === 0 && !layerDifferenceMode && (
-        <div className="absolute bottom-4 left-3 right-3 z-20 max-w-full rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur sm:left-4 sm:right-4">
-          <div
-            className={cn(
-              'flex flex-wrap items-center justify-between gap-2 p-2.5',
-              selectedTrayExpanded && 'border-b',
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedTrayExpanded((current) => !current)}
-              className="flex min-w-[12rem] flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent"
-              aria-expanded={selectedTrayExpanded}
-            >
-              <SquareStack className="size-4 shrink-0 text-muted-foreground" />
-              <h2 className="truncate text-sm font-semibold">{selectedFocusCards.length} selected boundaries</h2>
-              <ChevronUp
-                className={cn(
-                  'ml-auto size-4 shrink-0 text-muted-foreground transition-transform',
-                  !selectedTrayExpanded && 'rotate-180',
-                )}
-              />
-            </button>
-            <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1">
-              <button
-                type="button"
-                onClick={isolateSelectedFocuses}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title={`Show only ${selectedFocusCards.length} selected boundaries`}
-              >
-                <Focus className="size-3.5" />
-                <span className="hidden sm:inline">Show only</span>
-              </button>
-              <button
-                type="button"
-                onClick={hideSelectedFocuses}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title={`Exclude ${selectedFocusCards.length} selected boundaries`}
-              >
-                <EyeOff className="size-3.5" />
-                <span className="hidden sm:inline">Exclude</span>
-              </button>
-              <button
-                type="button"
-                onClick={clearSelectedFocuses}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Clear selected boundaries"
-                title="Clear selected boundaries"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-          {selectedTrayExpanded && (
-            <div className="grid max-h-48 gap-2 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3">
-              {selectedFocusCards.map((card) => (
-                <div key={polygonFocusKey(card.focus)} className="group relative rounded-md border bg-background p-3">
-                  <button type="button" onClick={card.onOpen} className="block w-full pr-7 text-left">
-                    <div className="line-clamp-1 text-sm font-medium text-foreground">{card.title}</div>
-                    <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{card.subtitle}</div>
-                    {card.areaLabel && (
-                      <div className="mt-3 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Area</span>
-                        <span className="font-semibold text-foreground">{card.areaLabel}</span>
-                      </div>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeSelectedFocus(card.focus)}
-                    className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                    aria-label={`Remove ${card.title}`}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {(compareRegions.length > 0 || layerDifferenceMode) && (
-        <div className="absolute bottom-4 left-1/2 z-20 w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur">
-          <div className="flex items-center justify-between gap-3 border-b p-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <Layers className="size-4 text-muted-foreground" />
-              <h2 className="truncate text-sm font-semibold">
-                {layerDifferenceMode ? 'Diff active layers' : 'Compare selected boundaries'}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={clearCompare}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Clear comparison"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-          <div className="border-b p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-foreground">Layer diff</div>
-                <div className="text-xs text-muted-foreground">
-                  {layerDifferenceMode
-                    ? 'Shows overlap and area unique to each whole active layer.'
-                    : 'Shows overlap and area unique to each selected boundary.'}
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={layerDifferenceMode ? !layerSurfaceDifference : compareRegions.length !== 2}
-                onClick={
-                  layerDifferenceMode
-                    ? () => setLayerDifferenceMode(false)
-                    : () => setSurfaceDifferenceMode((current) => !current)
-                }
-                className={cn(
-                  'h-8 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                  layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2)
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                {layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2)
-                  ? 'Hide diff'
-                  : 'Show diff'}
-              </button>
-            </div>
-            {!layerDifferenceMode && compareRegions.length !== 2 && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Select exactly two areas to enable surface difference mode.
-              </div>
-            )}
-            {layerDifferenceMode && !layerSurfaceDifference && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                {layerDiffBlockedReason ?? 'Unable to dissolve one of the selected layers.'}
-              </div>
-            )}
-            {activeSurfaceDifference && activeDifferenceSurfaces && (
-              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                <div className="rounded border bg-amber-500/10 p-2">
-                  <div className="text-xs text-muted-foreground">Overlap</div>
-                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.overlapKm2)}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {Math.round(activeSurfaceDifference.aShare * 100)}% of A ·{' '}
-                    {Math.round(activeSurfaceDifference.bShare * 100)}% of B
-                  </div>
-                </div>
-                <div className="rounded border bg-green-500/10 p-2">
-                  <div className="text-xs text-muted-foreground">Only A</div>
-                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyAKm2)}</div>
-                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                    {activeDifferenceSurfaces[0].name}
-                  </div>
-                </div>
-                <div className="rounded border bg-sky-500/10 p-2">
-                  <div className="text-xs text-muted-foreground">Only B</div>
-                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyBKm2)}</div>
-                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                    {activeDifferenceSurfaces[1].name}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="grid gap-2 p-3 sm:grid-cols-3">
-            {layerDifferenceMode && activeDifferenceSurfaces
-              ? activeDifferenceSurfaces.map((surface, index) => (
-                  <div key={surface.id} className="rounded-md border bg-background p-3 text-left">
-                    <div className="line-clamp-1 text-sm font-medium text-foreground">{surface.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Layer {index === 0 ? 'A' : 'B'} dissolved surface
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Area</span>
-                      <span className="font-semibold text-foreground">{formatArea(surface.areaKm2)}</span>
-                    </div>
-                  </div>
-                ))
-              : compareRegions.map((region) => (
-                  <button
-                    key={region.id}
-                    type="button"
-                    onClick={() => {
-                      setFitSelectedRegion(true)
-                      setSelectedId(region.id)
-                    }}
-                    className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-accent"
-                  >
-                    <div className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {sourceLabel(region.source)} · {getStudyAreaLevelLabel(region.level)}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Area</span>
-                      <span className="font-semibold text-foreground">{formatArea(region.areaKm2)}</span>
-                    </div>
-                  </button>
-                ))}
-          </div>
-        </div>
-      )}
+      {!isMobile && details}
     </MapSectionLayout>
   )
 }

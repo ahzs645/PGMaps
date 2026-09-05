@@ -39,6 +39,7 @@ test.describe('JSON map story', () => {
     await expect
       .poll(() => layerRequests, { timeout: 30_000 })
       .toContain('/data/boundaries/BCMoH/simplified/health_authorities.json')
+    expect(layerRequests).not.toContain('/data/census/canada-csd/provinces/59.geojson.gz')
   })
 
   test('fills its container instead of leaving a stale undersized canvas', async ({ page }) => {
@@ -122,14 +123,13 @@ test.describe('JSON map story', () => {
     await page.goto(STORY_URL)
     // Scene 1 shows the health-authority regions by full name; entries from
     // other scenes' layers (e.g. the BCER zones) are not listed at all.
-    await expect(page.getByRole('button', { name: 'Vancouver Island', exact: true })).toBeVisible()
+    await expect(page.getByText('Vancouver Island', { exact: true })).toBeVisible()
     await expect(page.getByText('Story layers')).toBeHidden()
-    // Scene 5's BCER zones are absent (role-scoped: the narrative text also
-    // mentions the zone names, but only legend entries are toggle buttons).
-    await expect(page.getByRole('button', { name: 'South West', exact: true })).toBeHidden()
+    // Scene 5's BCER category keys are absent; the narrative callout is separate.
+    await expect(page.locator('span').filter({ hasText: /^South West$/ })).toBeHidden()
     // Scene 4 adds the three finer health boundary levels.
     for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next scene' }).click()
-    await expect(page.getByRole('button', { name: 'Local Health Areas', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Local Health Areas On', exact: true })).toBeVisible()
   })
 
   test('advancing a scene swaps the visible layers and the callout', async ({ page }) => {
@@ -147,6 +147,6 @@ test.describe('JSON map story', () => {
     await expect(
       page.getByRole('button', { name: /For energy regulation, Prince George is southwest/ }),
     ).toHaveAttribute('aria-current', 'step')
-    await expect(page.getByRole('button', { name: 'South West', exact: true })).toBeVisible()
+    await expect(page.locator('span').filter({ hasText: /^South West$/ })).toBeVisible()
   })
 })

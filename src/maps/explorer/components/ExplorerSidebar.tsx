@@ -44,6 +44,8 @@ interface ExplorerSidebarProps {
   dateRange: { from: string; to: string }
   onDateRangeChange: (range: { from: string; to: string }) => void
   onExport: (format: 'csv' | 'geojson') => void
+  showHeatmap: boolean
+  onToggleHeatmap: () => void
 }
 
 
@@ -75,6 +77,8 @@ export function ExplorerSidebar({
   dateRange,
   onDateRangeChange,
   onExport,
+  showHeatmap,
+  onToggleHeatmap,
 }: ExplorerSidebarProps) {
   const datasetSet = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
 
@@ -94,6 +98,21 @@ export function ExplorerSidebar({
       title="Explorer"
       subtitle="Showcase all point, line, and polygon datasets in one map."
       dataset={DATASETS.explorer}
+      actions={
+        <button
+          type="button"
+          onClick={onToggleHeatmap}
+          aria-pressed={showHeatmap}
+          className={cn(
+            'inline-flex min-h-10 items-center justify-center rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8',
+            showHeatmap
+              ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+              : 'border-input text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+        >
+          {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
+        </button>
+      }
     >
       {/* Geometry filters */}
       <SidebarSection title="Geometry Types">

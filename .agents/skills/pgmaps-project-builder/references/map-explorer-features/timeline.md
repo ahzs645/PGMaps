@@ -21,3 +21,7 @@ or height-offset behavior inside an explorer.
 The v1 contract supports decade granularity only. Expanding granularity requires
 adapter capability negotiation and synchronized parser, renderer, docs, tests,
 and examples.
+
+Search/category predicates are shared across buckets, legend, popups, and sidebar.
+The playing decade temporarily replaces the static decade filter; leaving playback
+restores it. Bucket counts retain empty decades so zero results stay explicit.

@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type MapLibreGL from 'maplibre-gl'
 import {
   ArrowDown,
   ArrowLeft,
@@ -14,6 +12,10 @@ import {
   RotateCcw,
   X,
 } from 'lucide-react'
+import type MapLibreGL from 'maplibre-gl'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { storySourceKey } from './storySources'
+import { useStorySources } from './useStorySources'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
@@ -22,20 +24,17 @@ import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/compo
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
-import { cn } from '@/lib/utils'
-import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { escapeHtml } from '@/lib/escapeHtml'
 import {
   downloadProjectPackage,
   type ProjectPackage,
   type ProjectSceneDef,
-  type ProjectStoryLayerDef,
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
-import { withBase } from '@/lib/dataUrl'
-import { fetchJson } from '@/lib/fetchJson'
+import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
+import { cn } from '@/lib/utils'
 import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
-import { escapeHtml } from '@/lib/escapeHtml'
 
 /** Crossfade duration when scene changes swap map layers. */
 const LAYER_FADE_MS = 300
@@ -45,103 +44,6 @@ const PROGRAMMATIC_SCROLL_MS = 300
 const SCROLL_SETTLE_MS = 160
 /** The card under this fraction of the viewport height is the active scene. */
 const READING_LINE_FRACTION = 0.35
-const EMPTY_FEATURE_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-const joinedLayerDataCache = new globalThis.Map<string, Promise<GeoJSON.FeatureCollection>>()
-const compressedLayerDataCache = new globalThis.Map<string, Promise<GeoJSON.FeatureCollection>>()
-
-function joinedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCollection> {
-  const join = layer.attributes
-  if (!join) return Promise.reject(new Error(`Layer ${layer.id} has no attribute join`))
-  const cacheKey = [layer.data, join.data, join.boundaryProperty, join.attributeProperty, join.recordsProperty].join(
-    '|',
-  )
-  const cached = joinedLayerDataCache.get(cacheKey)
-  if (cached) return cached
-
-  const pending = Promise.all([
-    fetch(withBase(layer.data)).then((response) => {
-      if (!response.ok) throw new Error(`Boundary request failed: ${response.status}`)
-      return response.json() as Promise<GeoJSON.FeatureCollection>
-    }),
-    fetch(withBase(join.data)).then((response) => {
-      if (!response.ok) throw new Error(`Attribute request failed: ${response.status}`)
-      return response.json() as Promise<Record<string, unknown>>
-    }),
-  ])
-    .then(([boundaries, attributePayload]) => {
-      if (boundaries.type !== 'FeatureCollection' || !Array.isArray(boundaries.features)) {
-        throw new Error(`Layer ${layer.id} boundary data is not a FeatureCollection`)
-      }
-      const records = attributePayload[join.recordsProperty ?? 'records']
-      if (!Array.isArray(records)) throw new Error(`Layer ${layer.id} attribute data has no records array`)
-      const byId = new globalThis.Map(
-        records
-          .filter((record): record is Record<string, unknown> => Boolean(record && typeof record === 'object'))
-          .map((record) => [String(record[join.attributeProperty]), record]),
-      )
-      return {
-        ...boundaries,
-        features: boundaries.features.map((feature) => {
-          const properties = feature.properties ?? {}
-          const attributes = byId.get(String(properties[join.boundaryProperty]))
-          return attributes ? { ...feature, properties: { ...properties, ...attributes } } : feature
-        }),
-      }
-    })
-    .catch((error) => {
-      joinedLayerDataCache.delete(cacheKey)
-      throw error
-    })
-  joinedLayerDataCache.set(cacheKey, pending)
-  return pending
-}
-
-function compressedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCollection> {
-  const cached = compressedLayerDataCache.get(layer.data)
-  if (cached) return cached
-  const pending = fetchJson<GeoJSON.FeatureCollection>(layer.data)
-    .then((collection) => {
-      if (collection.type !== 'FeatureCollection' || !Array.isArray(collection.features)) {
-        throw new Error(`Layer ${layer.id} data is not a FeatureCollection`)
-      }
-      return collection
-    })
-    .catch((error) => {
-      compressedLayerDataCache.delete(layer.data)
-      throw error
-    })
-  compressedLayerDataCache.set(layer.data, pending)
-  return pending
-}
-
-function useStoryLayerData(layers: ProjectStoryLayerDef[]) {
-  const [loadedData, setLoadedData] = useState<Record<string, GeoJSON.FeatureCollection>>({})
-  useEffect(() => {
-    let cancelled = false
-    const loadableLayers = layers.filter((layer) => layer.attributes || layer.data.endsWith('.gz'))
-    if (loadableLayers.length === 0) {
-      setLoadedData({})
-      return
-    }
-    Promise.all(
-      loadableLayers.map(
-        async (layer) =>
-          [layer.id, await (layer.attributes ? joinedLayerData(layer) : compressedLayerData(layer))] as const,
-      ),
-    )
-      .then((entries) => {
-        if (!cancelled) setLoadedData(Object.fromEntries(entries))
-      })
-      .catch((error) => {
-        if (!cancelled) console.error('Unable to load story-map data', error)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [layers])
-  return loadedData
-}
-
 /**
  * The authored `map.minZoom` says how far a reader may pinch out; it is not a
  * statement about how the renderer may frame a scene. So when the pane fit
@@ -412,6 +314,8 @@ function ScrollyStory({
   onStepScene,
   scrollRef,
   cardRefs,
+  exploringMap,
+  onExploreMap,
   chrome,
   children,
 }: {
@@ -424,6 +328,8 @@ function ScrollyStory({
   onStepScene: (direction: number) => void
   scrollRef: React.RefObject<HTMLDivElement>
   cardRefs: React.MutableRefObject<Array<HTMLElement | null>>
+  exploringMap: boolean
+  onExploreMap: (exploring: boolean) => void
   chrome: React.ReactNode
   children: React.ReactNode
 }) {
@@ -436,13 +342,13 @@ function ScrollyStory({
     // Non-passive: the wheel belongs to the story, not to the page or the map.
     const onWheel = (event: WheelEvent) => {
       const scroller = scrollRef.current
-      if (!scroller) return
+      if (!scroller || exploringMap) return
       event.preventDefault()
       scroller.scrollTop += event.deltaY
     }
     layer.addEventListener('wheel', onWheel, { passive: false })
     return () => layer.removeEventListener('wheel', onWheel)
-  }, [scrollRef])
+  }, [scrollRef, exploringMap])
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
@@ -450,7 +356,14 @@ function ScrollyStory({
         {children}
       </div>
 
-      <div ref={scrollRef} className="absolute inset-0 z-10 overflow-y-auto overscroll-contain md:pointer-events-none">
+      <div
+        ref={scrollRef}
+        aria-hidden={exploringMap || undefined}
+        className={cn(
+          'absolute inset-0 z-10 overflow-y-auto overscroll-contain md:pointer-events-none',
+          exploringMap && 'invisible pointer-events-none',
+        )}
+      >
         <header className="flex min-h-[55svh] items-end justify-center px-4 pb-[10svh] pt-24 md:justify-start md:pl-12">
           <div className="pointer-events-auto w-full max-w-md rounded-lg border bg-background/90 p-5 shadow-lg backdrop-blur md:max-w-lg md:p-6">
             <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
@@ -543,6 +456,14 @@ function ScrollyStory({
         <ArrowLeft className="h-3.5 w-3.5" />
         All projects
       </button>
+      <Button
+        variant="outline"
+        className="absolute bottom-4 left-3 z-30 h-11 shadow-md md:hidden"
+        aria-pressed={exploringMap}
+        onClick={() => onExploreMap(!exploringMap)}
+      >
+        {exploringMap ? 'Read story' : 'Explore map'}
+      </Button>
       {/* Long stories are a lot of wheel on a desktop screen; the stepper jumps
           a scene at a time without giving up the scroll-driven reading. */}
       <div className="absolute left-3 top-14 z-20 hidden items-center gap-1 rounded-md border bg-background/90 px-1 py-1 shadow-sm backdrop-blur md:flex">
@@ -610,6 +531,10 @@ function SlidesStory({
   chrome: React.ReactNode
   children: React.ReactNode
 }) {
+  const narrativeRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    narrativeRef.current?.scrollTo({ top: 0 })
+  }, [activeSceneIndex])
   const isMobile = useIsMobile()
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(false)
@@ -735,7 +660,7 @@ function SlidesStory({
         </button>
 
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-12 py-4 md:px-24 md:py-6">
+          <div ref={narrativeRef} className="min-h-0 flex-1 overflow-y-auto px-12 py-4 md:px-24 md:py-6">
             {/* One grid cell, every slide stacked in it: the cell is as tall as
                 the longest slide, so stepping never resizes the pane. */}
             <div className="mx-auto grid max-w-2xl">
@@ -829,7 +754,7 @@ export function ProjectStoryMap({
   const accent = config.accent
   const options = config.options
   const isMobile = useIsMobile()
-  const loadedLayerData = useStoryLayerData(config.layers)
+  const [exploringMap, setExploringMap] = useState(false)
 
   const mapRef = useRef<MapLibreGL.Map | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -854,6 +779,16 @@ export function ProjectStoryMap({
   } | null>(null)
 
   const activeScene = scenes[activeSceneIndex]
+  const visibleLayers = useMemo(
+    () => config.layers.filter((layer) => visibleLayerIds.has(layer.id)),
+    [config.layers, visibleLayerIds],
+  )
+  const geoJsonLayers = useMemo(() => visibleLayers.filter((layer) => layer.format !== 'pmtiles'), [visibleLayers])
+  const { sources, retry: retrySources } = useStorySources(geoJsonLayers)
+  const pendingLayers = geoJsonLayers.filter(
+    (layer) => !sources.has(storySourceKey(layer)) || sources.get(storySourceKey(layer))?.status === 'loading',
+  )
+  const failedLayers = geoJsonLayers.filter((layer) => sources.get(storySourceKey(layer))?.status === 'error')
 
   const sceneCamera = useCallback(
     (map: MapLibreGL.Map | null | undefined, index: number) => {
@@ -1100,57 +1035,92 @@ export function ProjectStoryMap({
         // chrome over the story.
         controls={
           options.mapControls === 'hidden' ? null : options.layout === 'scrolly' ? (
-            <MapControls position="top-right" showZoom showCompass className="max-md:hidden" />
+            <MapControls
+              position="top-right"
+              showZoom
+              showCompass
+              className={cn(!exploringMap && 'max-md:hidden')}
+              mobilePosition="bottom-right"
+            />
           ) : undefined
         }
       >
-        {resolvedLayers.map((resolved) => {
-          const layerData =
-            resolved.layer.attributes || resolved.layer.data.endsWith('.gz')
-              ? (loadedLayerData[resolved.layer.id] ?? EMPTY_FEATURE_COLLECTION)
-              : resolved.layer.data
-          const selectFeature = (id: string, _event: unknown, properties: Record<string, unknown>) =>
-            setSelectedFeature({
-              layerId: resolved.layer.id,
-              id,
-              title: String(properties[resolved.layer.selectionTitleProperty ?? resolved.layer.labelProperty] ?? id),
-              layerLabel: resolved.label,
-              detail: resolved.layer.selectionDetailProperty
-                ? String(properties[resolved.layer.selectionDetailProperty] ?? '') || undefined
-                : undefined,
-            })
-          const hoverHtml = (properties: Record<string, unknown>) =>
-            `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
+        {resolvedLayers
+          .filter((resolved) => visibleLayerIds.has(resolved.layer.id))
+          .map((resolved) => {
+            const sourceKey = JSON.stringify([storySourceKey(resolved.layer), resolved.layer.idProperty])
+            const uniqueSource =
+              visibleLayers.filter((layer) => storySourceKey(layer) === storySourceKey(resolved.layer)).length === 1
+            const renderKey = uniqueSource ? sourceKey : resolved.layer.id
+            const source = sources.get(storySourceKey(resolved.layer))
+            if (resolved.layer.format !== 'pmtiles' && source?.status !== 'ready') return null
+            const layerData = source?.status === 'ready' ? source.data : resolved.layer.data
+            const selectFeature = (id: string, _event: unknown, properties: Record<string, unknown>) =>
+              setSelectedFeature({
+                layerId: resolved.layer.id,
+                id,
+                title: String(properties[resolved.layer.selectionTitleProperty ?? resolved.layer.labelProperty] ?? id),
+                layerLabel: resolved.label,
+                detail: resolved.layer.selectionDetailProperty
+                  ? String(properties[resolved.layer.selectionDetailProperty] ?? '') || undefined
+                  : undefined,
+              })
+            const hoverHtml = (properties: Record<string, unknown>) =>
+              `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
               <div class="font-semibold">${escapeHtml(properties[resolved.layer.labelProperty])}</div>
               <div class="mt-0.5 text-muted-foreground">${escapeHtml(resolved.label)}</div>
             </div>`
 
-          if (resolved.layer.geometry === 'point') {
-            return (
-              <MapCircleLayer
-                key={resolved.layer.id}
-                data={layerData}
-                idProperty={resolved.layer.idProperty}
-                color={resolved.fillColor}
-                opacity={resolved.fillOpacity}
-                radius={resolved.layer.circleRadius ?? 5.5}
-                strokeColor={resolved.lineColor}
-                strokeWidth={resolved.lineWidth}
-                visible={visibleLayerIds.has(resolved.layer.id)}
-                filter={resolved.filter as never}
-                selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
-                onFeatureClick={selectFeature}
-                hoverHtml={hoverHtml}
-              />
-            )
-          }
+            if (resolved.layer.geometry === 'point') {
+              return (
+                <MapCircleLayer
+                  layerOrder={config.layers.findIndex((layer) => layer.id === resolved.layer.id)}
+                  key={renderKey}
+                  sourceKey={JSON.stringify([storySourceKey(resolved.layer), resolved.layer.idProperty])}
+                  data={layerData}
+                  idProperty={resolved.layer.idProperty}
+                  color={resolved.fillColor}
+                  opacity={resolved.fillOpacity}
+                  radius={resolved.layer.circleRadius ?? 5.5}
+                  strokeColor={resolved.lineColor}
+                  strokeWidth={resolved.lineWidth}
+                  visible={visibleLayerIds.has(resolved.layer.id)}
+                  filter={resolved.filter as never}
+                  selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
+                  onFeatureClick={selectFeature}
+                  hoverHtml={hoverHtml}
+                />
+              )
+            }
 
-          if (resolved.layer.format === 'pmtiles' && resolved.layer.sourceLayer) {
+            if (resolved.layer.format === 'pmtiles' && resolved.layer.sourceLayer) {
+              return (
+                <MapPmtilesFillLayer
+                  layerOrder={config.layers.findIndex((layer) => layer.id === resolved.layer.id)}
+                  key={resolved.layer.id}
+                  url={resolved.layer.data}
+                  sourceLayer={resolved.layer.sourceLayer}
+                  idProperty={resolved.layer.idProperty}
+                  fillColor={resolved.fillColor}
+                  fillOpacity={resolved.fillOpacity}
+                  lineColor={resolved.lineColor}
+                  lineOpacity={resolved.lineOpacity}
+                  lineWidth={resolved.lineWidth}
+                  visible={visibleLayerIds.has(resolved.layer.id)}
+                  filter={resolved.filter}
+                  selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
+                  onFeatureClick={selectFeature}
+                  hoverHtml={hoverHtml}
+                />
+              )
+            }
+
             return (
-              <MapPmtilesFillLayer
-                key={resolved.layer.id}
-                url={resolved.layer.data}
-                sourceLayer={resolved.layer.sourceLayer}
+              <MapFillLayer
+                layerOrder={config.layers.findIndex((layer) => layer.id === resolved.layer.id)}
+                key={renderKey}
+                sourceKey={sourceKey}
+                data={layerData}
                 idProperty={resolved.layer.idProperty}
                 fillColor={resolved.fillColor}
                 fillOpacity={resolved.fillOpacity}
@@ -1158,33 +1128,14 @@ export function ProjectStoryMap({
                 lineOpacity={resolved.lineOpacity}
                 lineWidth={resolved.lineWidth}
                 visible={visibleLayerIds.has(resolved.layer.id)}
-                filter={resolved.filter}
+                filter={resolved.filter as never}
+                fadeMs={LAYER_FADE_MS}
                 selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
                 onFeatureClick={selectFeature}
                 hoverHtml={hoverHtml}
               />
             )
-          }
-
-          return (
-            <MapFillLayer
-              key={resolved.layer.id}
-              data={layerData}
-              idProperty={resolved.layer.idProperty}
-              fillColor={resolved.fillColor}
-              fillOpacity={resolved.fillOpacity}
-              lineColor={resolved.lineColor}
-              lineOpacity={resolved.lineOpacity}
-              lineWidth={resolved.lineWidth}
-              visible={visibleLayerIds.has(resolved.layer.id)}
-              filter={resolved.filter as never}
-              fadeMs={LAYER_FADE_MS}
-              selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
-              onFeatureClick={selectFeature}
-              hoverHtml={hoverHtml}
-            />
-          )
-        })}
+          })}
 
         {activePlaces.map((place) => (
           <MapMarker key={place.id} longitude={place.coordinates[0]} latitude={place.coordinates[1]} anchor="bottom">
@@ -1213,8 +1164,23 @@ export function ProjectStoryMap({
 
   const mapChrome = (
     <>
+      {(pendingLayers.length > 0 || failedLayers.length > 0) && (
+        <div className="pointer-events-auto absolute left-3 top-28 z-20 max-w-[min(20rem,calc(100%-6rem))] rounded-lg border bg-background/95 p-3 text-xs shadow-md md:top-24">
+          {pendingLayers.length > 0 && (
+            <p role="status">Loading {pendingLayers.map((layer) => layerLabels[layer.id] ?? layer.id).join(', ')}…</p>
+          )}
+          {failedLayers.length > 0 && (
+            <div role="alert">
+              <p>Could not load {failedLayers.map((layer) => layerLabels[layer.id] ?? layer.id).join(', ')}.</p>
+              <Button variant="outline" className="mt-2 h-11 md:h-8" onClick={retrySources}>
+                Retry layers
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       {selectedFeature && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-3 top-16 z-20 md:top-3 flex justify-center">
           <div className="pointer-events-auto flex max-h-[min(60vh,32rem)] w-full max-w-md items-start gap-3 rounded-lg border bg-background/95 px-3 py-2.5 text-sm shadow-lg backdrop-blur">
             <div className="min-w-0 flex-1">
               <div className="font-semibold leading-5 text-foreground">{selectedFeature.title}</div>
@@ -1272,20 +1238,44 @@ export function ProjectStoryMap({
           ) : null
         }
       >
-        {/* One merged legend: entries carry their layer, so clicking one
-            toggles that layer — no separate "Story layers" list. */}
-        <MapLegendSection columns={legendEntries.length > 5 ? 2 : 1} scroll={legendEntries.length > 12}>
-          {legendEntries.map((entry) => (
-            <LegendItem
-              key={entry.key}
-              color={entry.color}
-              label={entry.label}
-              swatchShape="circle"
-              active={entry.layerId ? visibleLayerIds.has(entry.layerId) : true}
-              onClick={entry.layerId ? () => toggleLayer(entry.layerId as string) : undefined}
-            />
-          ))}
-        </MapLegendSection>
+        <div className="space-y-3">
+          {resolvedLayers
+            .filter(
+              (resolved) =>
+                activeScene?.visibleLayerIds.includes(resolved.layer.id) || visibleLayerIds.has(resolved.layer.id),
+            )
+            .map((resolved) => (
+              <div key={resolved.layer.id}>
+                <button
+                  type="button"
+                  aria-pressed={visibleLayerIds.has(resolved.layer.id)}
+                  onClick={() => toggleLayer(resolved.layer.id)}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded text-left text-xs font-semibold md:min-h-8"
+                >
+                  <span>{resolved.label}</span>
+                  <span className="text-muted-foreground">{visibleLayerIds.has(resolved.layer.id) ? 'On' : 'Off'}</span>
+                </button>
+                <MapLegendSection columns={1} scroll={legendEntries.length > 12}>
+                  {legendEntries
+                    .filter((entry) => entry.layerId === resolved.layer.id)
+                    .map((entry) => (
+                      <LegendItem
+                        key={entry.key}
+                        color={entry.color}
+                        label={entry.label}
+                        swatchShape="circle"
+                        active={visibleLayerIds.has(resolved.layer.id)}
+                      />
+                    ))}
+                </MapLegendSection>
+              </div>
+            ))}
+          {legendEntries
+            .filter((entry) => !entry.layerId)
+            .map((entry) => (
+              <LegendItem key={entry.key} color={entry.color} label={entry.label} swatchShape="circle" />
+            ))}
+        </div>
       </MapLegendPanel>
     </>
   )
@@ -1293,6 +1283,8 @@ export function ProjectStoryMap({
   if (options.layout === 'scrolly') {
     return (
       <ScrollyStory
+        exploringMap={isMobile && exploringMap}
+        onExploreMap={setExploringMap}
         project={project}
         scenes={scenes}
         activeSceneIndex={activeSceneIndex}

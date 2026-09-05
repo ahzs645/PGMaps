@@ -13,8 +13,8 @@ export type AcknowledgementScope = 'specific' | 'regional'
 const MODES: WordingMode[] = ['short', 'formal', 'event', 'institutional']
 
 const PERSPECTIVES: { value: SpeakerPerspective; label: string }[] = [
-  { value: 'collective', label: 'Community' },
-  { value: 'individual', label: 'Individual' },
+  { value: 'collective', label: 'We / group' },
+  { value: 'individual', label: 'I / individual' },
   { value: 'organization', label: 'Organization' },
 ]
 
@@ -61,14 +61,15 @@ export function WordingOptionsControls({
 }: WordingOptionsControlsProps) {
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {MODES.map((mode) => (
           <button
             key={mode}
             type="button"
             onClick={() => onWordingModeChange(mode)}
+            aria-pressed={wordingMode === mode}
             className={cn(
-              'rounded-md border px-2 py-2 text-xs font-medium',
+              'min-h-11 rounded-md border px-2 py-2 text-sm font-medium',
               wordingMode === mode ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
             )}
           >
@@ -79,14 +80,15 @@ export function WordingOptionsControls({
       {showVoice && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Voice</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-3">
             {PERSPECTIVES.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => onPerspectiveChange(value)}
+                aria-pressed={perspective === value}
                 className={cn(
-                  'rounded-md border px-2 py-2 text-xs font-medium',
+                  'min-h-11 rounded-md border px-2 py-2 text-sm font-medium',
                   perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
                 )}
               >
@@ -100,7 +102,7 @@ export function WordingOptionsControls({
               onChange={(event) => onOrganizationNameChange(event.target.value)}
               placeholder="Organization name (e.g. UNBC)"
               aria-label="Organization name"
-              className="mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none"
+              className="mt-2 w-full rounded-md border bg-white px-3 py-2 min-h-11 text-base"
             />
           )}
         </div>
@@ -113,8 +115,9 @@ export function WordingOptionsControls({
               key={value}
               type="button"
               onClick={() => onScopeChange(value)}
+              aria-pressed={scope === value}
               className={cn(
-                'rounded-md border px-2 py-2 text-xs font-medium',
+                'min-h-11 rounded-md border px-2 py-2 text-sm font-medium',
                 scope === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
               )}
             >
@@ -128,26 +131,39 @@ export function WordingOptionsControls({
             onChange={(event) => onRegionNameChange(event.target.value)}
             placeholder="Region (e.g. British Columbia)"
             aria-label="Region name"
-            className="mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none"
+            className="mt-2 w-full rounded-md border bg-white px-3 py-2 min-h-11 text-base"
           />
         )}
       </div>
       {showContextToggles && scope !== 'regional' && (
         <div className="grid gap-2 text-xs leading-5 text-slate-600">
-          {([
-            ['includeTreatyContext', 'Treaty context', 'Include phrases such as Treaty 8 territory or Nisg̱a’a Treaty territory when present.'],
-            ['includePeopleGroupContext', 'People-group context', 'Include connected peoples such as Dakelh, Dane-zaa, Ts’msyen, or Nisg̱a’a when present.'],
-          ] as const).map(([option, label, description]) => (
+          {(
+            [
+              [
+                'includeTreatyContext',
+                'Treaty context',
+                'Include phrases such as Treaty 8 territory or Nisg̱a’a Treaty territory when present.',
+              ],
+              [
+                'includePeopleGroupContext',
+                'People-group context',
+                'Include connected peoples such as Dakelh, Dane-zaa, Ts’msyen, or Nisg̱a’a when present.',
+              ],
+            ] as const
+          ).map(([option, label, description]) => (
             <button
               key={option}
               type="button"
               onClick={() => onToggleOption(option)}
+              aria-pressed={wordingOptions[option]}
               className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
             >
-              <span className={cn(
-                'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
-                wordingOptions[option] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
-              )}>
+              <span
+                className={cn(
+                  'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
+                  wordingOptions[option] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
+                )}
+              >
                 {wordingOptions[option] && <Check className="h-3.5 w-3.5" />}
               </span>
               <span>

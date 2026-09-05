@@ -1,3 +1,4 @@
+import { filterResearchRecords, summarizeResearchDecades } from './filterResearchRecords'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { fetchJson } from '@/lib/fetchJson'
@@ -12,7 +13,7 @@ import type {
 } from './researchRecordsTypes'
 import { researchLocationDisplayName } from './researchLocationNames'
 
-export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef) {
+export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef, timelineMode = false) {
   const [overview, setOverview] = useState<ResearchRecordsOverview | null>(null)
   const [submissions, setSubmissions] = useState<ResearchRecord[]>([])
   const [locations, setLocations] = useState<ResearchRecordsLocation[]>([])
@@ -22,6 +23,8 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
   const [reloadKey, setReloadKey] = useState(0)
 
   const [selectedDecade, setSelectedDecade] = useState<number | null>(null)
+  const [timelineDecade, setTimelineDecade] = useState<number | null>(null)
+  const effectiveDecade = timelineMode ? (timelineDecade ?? decades.at(-1)?.decade ?? null) : selectedDecade
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
@@ -73,15 +76,18 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     return () => controller.abort()
   }, [config.data.baseUrl, config.data.files, reloadKey])
 
-  const filteredSubmissions = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase()
-    return submissions.filter((submission) => {
-      if (selectedDecade !== null && submission.decade !== selectedDecade) return false
-      if (selectedTypes.size > 0 && !selectedTypes.has(submission.resourceTypeMain)) return false
-      if (!normalizedQuery) return true
-      return recordMatchesQuery(submission, normalizedQuery, searchFields)
-    })
-  }, [searchFields, searchQuery, selectedDecade, selectedTypes, submissions])
+  const matchingSubmissions = useMemo(
+    () => filterResearchRecords(submissions, searchQuery, selectedTypes, searchFields),
+    [submissions, searchQuery, selectedTypes, searchFields],
+  )
+  const filteredDecades = useMemo(
+    () => summarizeResearchDecades(matchingSubmissions, decades),
+    [matchingSubmissions, decades],
+  )
+  const filteredSubmissions = useMemo(
+    () => matchingSubmissions.filter((record) => effectiveDecade === null || record.decade === effectiveDecade),
+    [matchingSubmissions, effectiveDecade],
+  )
 
   const regionalOnlySubmissions = useMemo(
     () =>
@@ -128,7 +134,8 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
       features: filteredLocations
         .filter((location) => location.coordinates)
         .map((location) => {
-          const dominantType = Object.entries(location.resourceTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
+          const dominantType =
+            Object.entries(location.filteredResourceTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
           return {
             type: 'Feature',
             geometry: {
@@ -163,16 +170,11 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
 
   const allResourceTypes = useMemo(() => {
     const types = new Map<string, number>()
-    const normalizedQuery = searchQuery.trim().toLowerCase()
-    for (const submission of submissions) {
-      if (selectedDecade !== null && submission.decade !== selectedDecade) continue
-      if (normalizedQuery && !recordMatchesQuery(submission, normalizedQuery, searchFields)) {
-        continue
-      }
-      types.set(submission.resourceTypeMain, (types.get(submission.resourceTypeMain) ?? 0) + 1)
+    for (const record of filterResearchRecords(submissions, searchQuery, new Set(), searchFields, effectiveDecade)) {
+      types.set(record.resourceTypeMain, (types.get(record.resourceTypeMain) ?? 0) + 1)
     }
     return [...types.entries()].sort((a, b) => b[1] - a[1])
-  }, [searchFields, searchQuery, selectedDecade, submissions])
+  }, [searchFields, searchQuery, effectiveDecade, submissions])
 
   const selectedLocation = useMemo(
     () => filteredLocations.find((location) => location.id === selectedLocationId) ?? null,
@@ -194,57 +196,10 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     setSearchQuery('')
   }, [])
 
-  const buildDecadeGeoJSON = useCallback(
-    (decade: number): GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties> => {
-      const mappable = locations.filter((location) => location.coordinates && !regionalLocationIds.has(location.id))
-      const decadeLocationStats = new Map<string, { count: number; resourceTypes: Record<string, number> }>()
-      for (const submission of submissions) {
-        if (submission.decade !== decade) continue
-        for (const locationId of submission.locationIds) {
-          if (regionalLocationIds.has(locationId)) continue
-          const current = decadeLocationStats.get(locationId) ?? { count: 0, resourceTypes: {} }
-          current.count += 1
-          current.resourceTypes[submission.resourceTypeMain] =
-            (current.resourceTypes[submission.resourceTypeMain] ?? 0) + 1
-          decadeLocationStats.set(locationId, current)
-        }
-      }
-      const globalMax = Math.max(1, ...[...decadeLocationStats.values()].map((item) => item.count))
-      return {
-        type: 'FeatureCollection',
-        features: mappable.flatMap((location) => {
-          const stats = decadeLocationStats.get(location.id)
-          const count = stats?.count ?? 0
-          if (!count) return []
-          const dominantType = Object.entries(stats?.resourceTypes ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
-          return [
-            {
-              type: 'Feature' as const,
-              geometry: {
-                type: 'Point' as const,
-                coordinates: [location.coordinates!.lon, location.coordinates!.lat],
-              },
-              properties: {
-                id: location.id,
-                name: location.name,
-                count,
-                color: resourceTypeColors[dominantType] ?? resourceTypeColors.other ?? '#94a3b8',
-                radius: 6 + Math.sqrt(count / globalMax) * 22,
-                dominantType,
-                bandCounts: config.data.categories.map((category) => stats?.resourceTypes[category.id] ?? 0),
-              },
-            },
-          ]
-        }),
-      }
-    },
-    [config.data.categories, locations, regionalLocationIds, resourceTypeColors, submissions],
-  )
-
   return {
     overview,
     submissions,
-    decades,
+    decades: filteredDecades,
     loading,
     error,
     retry: () => {
@@ -258,8 +213,10 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     filteredStats,
     allResourceTypes,
     regionalOnlySubmissions,
-    selectedDecade,
-    setSelectedDecade,
+    selectedDecade: effectiveDecade,
+    setSelectedDecade: timelineMode ? setTimelineDecade : setSelectedDecade,
+    timelineDecade: effectiveDecade,
+    setTimelineDecade,
     selectedTypes,
     setSelectedTypes,
     toggleResourceType,
@@ -269,21 +226,9 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     setSelectedLocationId,
     selectedLocation,
     clearFilters,
-    buildDecadeGeoJSON,
     resourceTypeColors,
     resourceTypeLabels,
   }
 }
 
 export type ResearchRecordsAdapterData = ReturnType<typeof useResearchRecordsAdapter>
-
-function recordMatchesQuery(
-  record: ResearchRecord,
-  normalizedQuery: string,
-  fields: Array<'title' | 'author' | 'tags'>,
-) {
-  return fields.some((field) => {
-    if (field === 'tags') return record.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
-    return record[field]?.toLowerCase().includes(normalizedQuery) ?? false
-  })
-}

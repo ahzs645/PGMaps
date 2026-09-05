@@ -13,21 +13,26 @@ export function MatchTypesPanel({ enabledMatchTypes, onToggle }: MatchTypesPanel
   return (
     <CollapsiblePanel title="Match Types" icon={<ShieldCheck className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="space-y-2 text-xs leading-5 text-slate-600">
-        {([
-          ['place', 'Exact places', 'Campuses, institutes, and named facilities with curated records.'],
-          ['municipality', 'Municipal context', 'City-level records such as Prince George.'],
-          ['boundary', 'Boundary context', 'Point-in-polygon matches from configured reference areas.'],
-        ] as const).map(([matchType, label, description]) => (
+        {(
+          [
+            ['place', 'Exact places', 'Campuses, institutes, and named facilities with curated records.'],
+            ['municipality', 'Municipal context', 'City-level records such as Prince George.'],
+            ['boundary', 'Boundary context', 'Point-in-polygon matches from configured reference areas.'],
+          ] as const
+        ).map(([matchType, label, description]) => (
           <button
             key={matchType}
             type="button"
             onClick={() => onToggle(matchType)}
+            aria-pressed={enabledMatchTypes[matchType]}
             className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
           >
-            <span className={cn(
-              'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
-              enabledMatchTypes[matchType] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
-            )}>
+            <span
+              className={cn(
+                'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
+                enabledMatchTypes[matchType] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
+              )}
+            >
               {enabledMatchTypes[matchType] && <Check className="h-3.5 w-3.5" />}
             </span>
             <span>

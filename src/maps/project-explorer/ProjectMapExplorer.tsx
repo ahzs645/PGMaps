@@ -20,7 +20,7 @@ export function ProjectMapExplorer({
   onBack: () => void
 }) {
   const [timelineMode, setTimelineMode] = useState(false)
-  const data = useResearchRecordsAdapter(config)
+  const data = useResearchRecordsAdapter(config, timelineMode)
   useResearchExplorerWebMCP({ title, data })
 
   if (data.loading) {

@@ -1,3 +1,5 @@
+import { registerMapLayerOrder } from './map-layer-order'
+import { retainGeoJsonSource, updateGeoJsonSource, releaseGeoJsonSource } from './map-shared-source'
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { useMap } from './map'
 import { SELECTION_COLOR, SELECTION_WIDTH, BORDER_COLOR, HEATMAP_COLOR_RAMPS, type HeatmapRampName } from './map-styles'
@@ -85,7 +87,10 @@ function removePmtilesTooltip(map: MapLibreGL.Map, ownerLayerId: string) {
 type MapFillLayerProps = {
   /** GeoJSON FeatureCollection data or a URL MapLibre can fetch */
   data: GeoJSON.FeatureCollection | string
+  /** Opt-in sharing for layers with identical data and feature identity. */
+  sourceKey?: string
   /** Fill color — static string or MapLibre expression (e.g. ['get', 'color']) */
+  layerOrder?: number
   fillColor: string | StyleExpression
   /** Fill opacity (default: 0.72) — number or MapLibre expression */
   fillOpacity?: number | StyleExpression
@@ -136,7 +141,9 @@ type MapFillLayerProps = {
 }
 
 function MapFillLayer({
+  layerOrder,
   data,
+  sourceKey,
   fillColor,
   fillOpacity = 0.72,
   lineColor = BORDER_COLOR,
@@ -158,7 +165,7 @@ function MapFillLayer({
 }: MapFillLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
-  const sourceId = `fill-src-${uid}`
+  const sourceId = sourceKey ? `fill-shared-${sourceKey}` : `fill-src-${uid}`
   const fillLayerId = `fill-layer-${uid}`
   const lineLayerId = `fill-line-${uid}`
   const selectedLayerId = `fill-sel-${uid}`
@@ -192,16 +199,7 @@ function MapFillLayer({
   useEffect(() => {
     if (!isLoaded || !map) return
 
-    map.addSource(sourceId, {
-      type: 'geojson',
-      // Start empty and let the data effect below submit the real collection
-      // once. Passing `data` here and then calling setData in the next effect
-      // cloned and indexed every initial polygon twice.
-      data: { type: 'FeatureCollection', features: [] },
-      // feature-state needs a stable per-feature id; source GeoJSON here rarely
-      // carries a top-level `id`, so promote the property we already key on.
-      ...(hoverEnabled && { promoteId: idPropRef.current }),
-    })
+    retainGeoJsonSource(map, sourceId, hoverEnabled ? idPropRef.current : undefined)
 
     map.addLayer({
       id: fillLayerId,
@@ -358,7 +356,10 @@ function MapFillLayer({
     map.on('mouseleave', fillLayerId, handleMouseLeave)
     const detachPointerDismiss = attachPointerDismiss(map, removeTooltip)
 
+    const releaseOrder = registerMapLayerOrder(map, [fillLayerId, lineLayerId, selectedLayerId], layerOrder)
+
     return () => {
+      releaseOrder()
       try {
         map.off('click', fillLayerId, handleClick as never)
         map.off('mouseenter', fillLayerId, handleMouseEnter)
@@ -380,19 +381,18 @@ function MapFillLayer({
         if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
         if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
+        releaseGeoJsonSource(map, sourceId)
       } catch {
         // Map already destroyed during unmount
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, map])
+  }, [isLoaded, map, sourceId, layerOrder])
 
   // Update source data
   useEffect(() => {
     if (!isLoaded || !map) return
-    const source = map.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
-    source?.setData(data)
+    updateGeoJsonSource(map, sourceId, data)
   }, [data, isLoaded, map, sourceId])
 
   // Update the optional base-layer filter without rebuilding the source.
@@ -472,6 +472,9 @@ function MapFillLayer({
 
 type MapCircleLayerProps = {
   data: GeoJSON.FeatureCollection | string
+  /** Opt-in sharing for layers with identical data and feature identity. */
+  sourceKey?: string
+  layerOrder?: number
   color: string | StyleExpression
   radius?: number | StyleExpression
   opacity?: number | StyleExpression
@@ -491,7 +494,9 @@ type MapCircleLayerProps = {
 }
 
 function MapCircleLayer({
+  layerOrder,
   data,
+  sourceKey,
   color,
   radius = 5.5,
   opacity = 0.92,
@@ -507,7 +512,7 @@ function MapCircleLayer({
 }: MapCircleLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
-  const sourceId = `circle-src-${uid}`
+  const sourceId = sourceKey ? `circle-shared-${sourceKey}` : `circle-src-${uid}`
   const layerId = `circle-layer-${uid}`
   const selectedLayerId = `circle-sel-${uid}`
   const onClickRef = useRef(onFeatureClick)
@@ -523,10 +528,7 @@ function MapCircleLayer({
 
   useEffect(() => {
     if (!isLoaded || !map) return
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    })
+    retainGeoJsonSource(map, sourceId)
     map.addLayer({
       id: layerId,
       type: 'circle',
@@ -613,7 +615,10 @@ function MapCircleLayer({
     map.on('mouseleave', layerId, handleMouseLeave)
     const detachPointerDismiss = attachPointerDismiss(map, removeTooltip)
 
+    const releaseOrder = registerMapLayerOrder(map, [layerId, selectedLayerId], layerOrder)
+
     return () => {
+      releaseOrder()
       try {
         map.off('click', layerId, handleClick as never)
         map.off('mouseenter', layerId, handleMouseEnter)
@@ -625,18 +630,17 @@ function MapCircleLayer({
         if (!map.getStyle()) return
         if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
         if (map.getLayer(layerId)) map.removeLayer(layerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
+        releaseGeoJsonSource(map, sourceId)
       } catch {
         // Map already destroyed during unmount.
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, map])
+  }, [isLoaded, map, sourceId, layerOrder])
 
   useEffect(() => {
     if (!isLoaded || !map) return
-    const source = map.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
-    source?.setData(data)
+    updateGeoJsonSource(map, sourceId, data)
   }, [data, isLoaded, map, sourceId])
 
   useEffect(() => {
@@ -1813,6 +1817,7 @@ function MapPieClusterLayer({
 type MapPmtilesFillLayerProps = {
   url: string
   sourceLayer: string
+  layerOrder?: number
   fillColor: string | StyleExpression
   fillOpacity?: number | StyleExpression
   lineColor?: string | StyleExpression
@@ -1836,6 +1841,7 @@ type MapPmtilesFillLayerProps = {
 }
 
 function MapPmtilesFillLayer({
+  layerOrder,
   url,
   sourceLayer,
   fillColor,
@@ -2051,7 +2057,10 @@ function MapPmtilesFillLayer({
     map.on('mousemove', fillLayerId, handleMouseMove as never)
     map.on('mouseleave', fillLayerId, handleMouseLeave)
 
+    const releaseOrder = registerMapLayerOrder(map, [fillLayerId, lineLayerId, selectedLayerId], layerOrder)
+
     return () => {
+      releaseOrder()
       try {
         map.off('click', fillLayerId, handleClick as never)
         map.off('mouseenter', fillLayerId, handleMouseEnter)
@@ -2075,7 +2084,7 @@ function MapPmtilesFillLayer({
         // Map already destroyed during unmount
       }
     }
-  }, [fillLayerId, isLoaded, lineLayerId, map, selectedLayerId, sourceId, sourceLayer, url])
+  }, [fillLayerId, isLoaded, layerOrder, lineLayerId, map, selectedLayerId, sourceId, sourceLayer, url])
 
   useEffect(() => {
     if (!isLoaded || !map) return

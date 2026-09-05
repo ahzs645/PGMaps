@@ -41,9 +41,9 @@ describe('verificationConfidence', () => {
     expect(verificationConfidence('template_context')).toBe('review_required')
   })
 
-  it('defaults unknown/absent verified status to strong', () => {
-    expect(verificationConfidence(undefined)).toBe('strong')
-    expect(verificationConfidence('something_new')).toBe('strong')
+  it('requires review for unknown or absent verification status', () => {
+    expect(verificationConfidence(undefined)).toBe('review_required')
+    expect(verificationConfidence('something_new')).toBe('review_required')
   })
 })
 

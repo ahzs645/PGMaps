@@ -31,24 +31,24 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
   }, [query])
 
   return (
-    <aside className="flex max-h-96 flex-col overflow-hidden rounded-lg border bg-white shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start">
+    <aside className="flex flex-col rounded-lg border bg-white shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start">
       <div className="border-b p-3">
         <h2 className="text-sm font-semibold">Organizations</h2>
         <p className="mt-0.5 text-xs leading-4 text-slate-500">
-          {organizations.length} presets · click one to preview on the map
+          {organizations.length} examples · choose one to review its source and draft
         </p>
-        <label className="mt-2 flex min-h-9 items-center gap-2 rounded-md border bg-white px-2.5">
+        <label className="mt-2 flex min-h-11 items-center gap-2 rounded-md border bg-white px-2.5">
           <Search className="h-3.5 w-3.5 flex-none text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search"
             aria-label="Search organizations"
-            className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+            className="min-w-0 flex-1 bg-transparent text-base outline-none"
           />
         </label>
       </div>
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1 p-2 lg:overflow-y-auto">
         {filtered.map((org) => (
           <button
             key={org.id}
@@ -56,11 +56,11 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
             onClick={() => onSelect(org.id)}
             aria-current={selectedId === org.id}
             className={cn(
-              'block w-full rounded-md border px-2 py-1.5 text-left transition',
+              'block min-h-11 w-full rounded-md border px-2 py-1.5 text-left transition',
               selectedId === org.id ? 'border-teal-300 bg-teal-50' : 'border-transparent hover:bg-slate-50',
             )}
           >
-            <div className="truncate text-xs font-medium text-slate-900">{org.name}</div>
+            <div className="break-words text-sm font-medium text-slate-900">{org.name}</div>
             <div className="truncate text-xs text-slate-500">
               {humanize(org.sector)} ·{' '}
               {org.acknowledges.length

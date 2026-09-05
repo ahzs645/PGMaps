@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronUp, Layers } from 'lucide-react'
+import { useState } from 'react'
+import { Layers } from 'lucide-react'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
-import { cn } from '@/lib/utils'
 import { datasetById, GEOMETRY_TYPE_LABEL } from '../constants'
 import type { ExplorerDatasetDefinition, ExplorerDatasetStat, ExplorerItem } from '../types'
 
@@ -8,81 +8,87 @@ interface ExplorerLegendProps {
   legendDatasets: ExplorerDatasetDefinition[]
   datasetStats: ExplorerDatasetStat[]
   selectedItem: ExplorerItem | null
-  showHeatmap: boolean
-  onToggleHeatmap: () => void
-  showMobileLegend: boolean
-  onToggleMobileLegend: () => void
+  /** Show one detail at a time; counts are the default. */
+  defaultDetailDisplay?: 'count' | 'type'
+  /** Disable to keep the configured detail fixed. */
+  allowDetailToggle?: boolean
 }
 
 export function ExplorerLegend({
   legendDatasets,
   datasetStats,
   selectedItem,
-  showHeatmap,
-  onToggleHeatmap,
-  showMobileLegend,
-  onToggleMobileLegend,
+  defaultDetailDisplay = 'count',
+  allowDetailToggle = true,
 }: ExplorerLegendProps) {
+  const [detailDisplay, setDetailDisplay] = useState(defaultDetailDisplay)
+  const display = allowDetailToggle ? detailDisplay : defaultDetailDisplay
+  const nextDisplay = display === 'count' ? 'type' : 'count'
+  const toggleDetails = () => setDetailDisplay(nextDisplay)
+
   return (
     <MapLegendPanel
       title="Active Layers"
       icon={<Layers className="h-3.5 w-3.5 shrink-0" />}
       collapsible
-      contentClassName={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}
-      actions={
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground md:hidden">
-            {legendDatasets.length}
-          </span>
-          <button
-            type="button"
-            onClick={onToggleMobileLegend}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
-            aria-label={showMobileLegend ? 'Hide active layer legend' : 'Show active layer legend'}
-            aria-expanded={showMobileLegend}
-          >
-            {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={onToggleHeatmap}
-            className={`inline-flex rounded border px-2 py-0.5 text-xs font-medium transition-colors ${
-              showHeatmap
-                ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
-                : 'border-input text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
-          </button>
-        </div>
-      }
+      contentClassName="space-y-1"
     >
-      <MapLegendSection>
-        {legendDatasets.slice(0, 8).map((dataset) => {
-          const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)
-          return (
-            <LegendItem
-              key={dataset.id}
-              color={dataset.color}
-              label={dataset.label}
-              value={`${GEOMETRY_TYPE_LABEL[dataset.geometryType]} | ${stat?.count.toLocaleString() || 0}`}
-            />
-          )
-        })}
-        {legendDatasets.length === 0 && (
-          <div className="text-xs text-muted-foreground">No active layers in current filter.</div>
-        )}
-        {legendDatasets.length > 8 && (
-          <div className="pt-1 text-xs text-muted-foreground">+{legendDatasets.length - 8} more layers</div>
-        )}
-      </MapLegendSection>
-      {selectedItem && (
-        <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-          Selected: <span className="font-medium text-foreground">{selectedItem.name}</span>
-          <div>
-            {datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}
+      <div
+        role={allowDetailToggle ? 'button' : undefined}
+        tabIndex={allowDetailToggle ? 0 : undefined}
+        aria-label={
+          allowDetailToggle
+            ? `Active layer ${display === 'count' ? 'counts' : 'types'}. Show all ${nextDisplay === 'count' ? 'counts' : 'types'}`
+            : undefined
+        }
+        onClick={allowDetailToggle ? toggleDetails : undefined}
+        onKeyDown={
+          allowDetailToggle
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  toggleDetails()
+                }
+              }
+            : undefined
+        }
+        className={
+          allowDetailToggle
+            ? '-m-2 rounded-md p-2 cursor-pointer touch-manipulation hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            : undefined
+        }
+      >
+        <MapLegendSection>
+          {legendDatasets.slice(0, 8).map((dataset) => {
+            const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)
+            return (
+              <LegendItem
+                key={dataset.id}
+                color={dataset.color}
+                label={dataset.label}
+                className="min-h-8 md:min-h-6"
+                value={
+                  display === 'count' ? (stat?.count ?? 0).toLocaleString() : GEOMETRY_TYPE_LABEL[dataset.geometryType]
+                }
+              />
+            )
+          })}
+          {legendDatasets.length === 0 && (
+            <div className="text-xs text-muted-foreground">No active layers in current filter.</div>
+          )}
+          {legendDatasets.length > 8 && (
+            <div className="pt-1 text-xs text-muted-foreground">+{legendDatasets.length - 8} more layers</div>
+          )}
+        </MapLegendSection>
+        {selectedItem && (
+          <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+            Selected: <span className="font-medium text-foreground">{selectedItem.name}</span>
+            <div>
+              {datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </MapLegendPanel>
   )
 }

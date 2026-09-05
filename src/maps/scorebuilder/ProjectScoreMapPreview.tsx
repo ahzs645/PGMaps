@@ -109,20 +109,12 @@ export function ProjectScoreMapPreview({
   const bcEnviroScreenMapActive =
     showScoreSurface && previewControl.methodSettings.aggregation === 'bcEnviroScreenProduct'
   const bcEnviroScreenMapViewCache = useMemo(
-    () =>
-      bcEnviroScreenMapActive
-        ? createBcEnviroScreenMapViewCache(results.unfilteredScoredRegions)
-        : null,
+    () => (bcEnviroScreenMapActive ? createBcEnviroScreenMapViewCache(results.unfilteredScoredRegions) : null),
     [bcEnviroScreenMapActive, results.unfilteredScoredRegions],
   )
   const bcEnviroScreenMapView = useMemo(
-    () =>
-      bcEnviroScreenMapViewCache?.get(bcEnviroScreenMapVariable, bcEnviroScreenColorBins) ?? null,
-    [
-      bcEnviroScreenColorBins,
-      bcEnviroScreenMapViewCache,
-      bcEnviroScreenMapVariable,
-    ],
+    () => bcEnviroScreenMapViewCache?.get(bcEnviroScreenMapVariable, bcEnviroScreenColorBins) ?? null,
+    [bcEnviroScreenColorBins, bcEnviroScreenMapViewCache, bcEnviroScreenMapVariable],
   )
 
   const hiddenFillColors = useMemo(() => {
@@ -174,7 +166,7 @@ export function ProjectScoreMapPreview({
         />
       )}
 
-      <MapLegendPanel title={project.title} width="sm" collapsible>
+      <MapLegendPanel title={project.title} width="sm" collapsible defaultCollapsed={!isDesktop}>
         <div className="space-y-2">
           {/*
             The score palette only describes the boundary surface. When the
@@ -192,8 +184,8 @@ export function ProjectScoreMapPreview({
                 data-bc-enviro-screen-legend="true"
               />
               <div className="text-xs leading-snug text-muted-foreground">
-                {bcEnviroScreenMapView.binCount} equal-interval classes across {bcEnviroScreenMapView.valueCount}{' '}
-                LHAs. Click an LHA for its full score and indicator profile.
+                {bcEnviroScreenMapView.binCount} equal-interval classes across {bcEnviroScreenMapView.valueCount} LHAs.
+                Click an LHA for its full score and indicator profile.
               </div>
               {bcEnviroScreenMapView.missingCount > 0 && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

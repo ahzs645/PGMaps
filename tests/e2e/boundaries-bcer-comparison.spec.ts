@@ -6,8 +6,8 @@ test.describe('BCER boundary geometry comparison', () => {
 
     await expect(page.getByRole('heading', { name: 'BCER admin zones: optimized vs raw' })).toBeVisible()
     await expect(page.getByText('Raw payload')).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByText('7.02 MiB')).toBeVisible()
-    await expect(page.getByText('316 KiB')).toBeVisible()
+    await expect(page.getByText('7.02 MiB', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('316 KiB', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Topology check')).toBeVisible()
     await expect(page.getByText('Pass', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Optimized snapshot' })).toBeVisible()

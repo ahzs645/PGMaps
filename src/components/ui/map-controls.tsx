@@ -70,7 +70,7 @@ function ControlButton({
       aria-label={label}
       type="button"
       className={cn(
-        "flex size-11 items-center justify-center transition-colors hover:bg-accent dark:hover:bg-accent/40 md:size-10",
+        "flex size-11 items-center justify-center transition-colors hover:bg-accent dark:hover:bg-accent/40 md:size-8",
         disabled && "opacity-50 pointer-events-none cursor-not-allowed"
       )}
       disabled={disabled}
@@ -225,7 +225,7 @@ function CompassButton({ onClick }: { onClick: () => void }) {
       <svg
         ref={compassRef}
         viewBox="0 0 24 24"
-        className="size-5 transition-transform duration-200"
+        className="size-5 transition-transform duration-200 md:size-4"
         style={{ transformStyle: "preserve-3d" }}
       >
         <path d="M12 2L16 12H12V2Z" className="fill-red-500" />

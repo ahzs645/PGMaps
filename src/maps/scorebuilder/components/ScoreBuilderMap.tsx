@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map as PgMap, MapClusterLayer, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
+import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { hexToRgbaArray } from '@/lib/color'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
@@ -59,10 +59,6 @@ interface WalkabilityLiveGridState {
 }
 
 const ZOOM = PG_DEFAULT_ZOOM
-const SCORE_BUILDER_MAP_STYLES = {
-  light: MAP_STYLES.light,
-  dark: MAP_STYLES.light,
-}
 
 export function ScoreBuilderMap({
   regions,
@@ -173,7 +169,7 @@ export function ScoreBuilderMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} styles={SCORE_BUILDER_MAP_STYLES} loading={loading}>
+      <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
 
         {walkabilitySourceSurface && (
           <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />

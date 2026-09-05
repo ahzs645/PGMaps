@@ -62,8 +62,8 @@ export function verificationConfidence(status: string | undefined): Confidence {
     case 'template_context':
       return 'review_required'
     default:
-      // Unknown/absent status on a verified curated match: treat as strong.
-      return 'strong'
+      // Unknown metadata cannot establish that a relationship was reviewed.
+      return 'review_required'
   }
 }
 
@@ -105,7 +105,7 @@ export function buildCandidates(
       }
 
       if (match.source === 'verified') {
-        const rank = VERIFICATION_RANK[match.verificationStatus ?? ''] ?? 0
+        const rank = VERIFICATION_RANK[match.verificationStatus ?? ''] ?? 2
         const prev = verifiedStatusByKey.get(key)
         if (!prev || rank < prev.rank) verifiedStatusByKey.set(key, { status: match.verificationStatus, rank })
       }

@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const STORIES = [
-  { layout: 'panel', slug: 'where-is-north-bc', scenes: 5 },
+  { layout: 'panel', slug: 'where-is-north-bc', scenes: 9 },
+  { layout: 'panel', slug: 'canada-administrative-divisions', scenes: 11 },
   { layout: 'scrolly', slug: 'bc-population-distribution', scenes: 4 },
   {
     layout: 'slides',
@@ -64,9 +65,10 @@ async function stepToScene({
 
 for (const story of STORIES) {
   for (const viewport of VIEWPORTS) {
-    test(`${story.layout} story passes the ${viewport.name} interaction loop`, async ({ browser }) => {
+    test(`${story.layout} story passes the ${viewport.name} interaction loop (${story.slug})`, async ({ browser }) => {
       test.setTimeout(60_000)
       const context = await browser.newContext({
+        ignoreHTTPSErrors: true,
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: viewport.isMobile,
         hasTouch: viewport.hasTouch,
@@ -86,7 +88,7 @@ for (const story of STORIES) {
       page.on('pageerror', (error) => consoleProblems.push(`pageerror: ${error.message}`))
       page.on('requestfailed', (request) => {
         const url = new URL(request.url())
-        if (url.origin === 'http://127.0.0.1:42173') {
+        if (url.origin === new URL(page.url()).origin && request.failure()?.errorText !== 'net::ERR_ABORTED') {
           localRequestFailures.push(`${url.pathname}: ${request.failure()?.errorText}`)
         }
       })

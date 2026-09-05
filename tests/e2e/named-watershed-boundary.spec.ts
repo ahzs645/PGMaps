@@ -12,7 +12,7 @@ test('loads the full Nechako named watershed from the compressed stream-order sh
   ).toBeVisible({ timeout: 60_000 })
   await expect(page.getByText(/boundaries overlap by design/i)).toBeVisible()
 
-  await page.getByPlaceholder('Search name, code, source, variant').fill('Nechako River')
+  await page.getByPlaceholder('Filter selected layers').fill('Nechako River')
   await expect(
     page.getByText('Named watersheds · Stream Order 8 · 1'),
   ).toBeVisible()

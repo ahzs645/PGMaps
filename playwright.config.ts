@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const browserExecutablePath = process.env.PGMAPS_PLAYWRIGHT_EXECUTABLE_PATH
+const externalBaseURL = process.env.PGMAPS_E2E_BASE_URL
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -15,19 +16,24 @@ export default defineConfig({
   // 5s expect timeout flakes on first paint.
   expect: { timeout: 15_000 },
   use: {
-    baseURL: 'http://127.0.0.1:42173',
+    baseURL: externalBaseURL ?? 'http://127.0.0.1:42173',
+    ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     launchOptions: {
       ...(browserExecutablePath ? { executablePath: browserExecutablePath } : {}),
-      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+      args: browserExecutablePath
+        ? []
+        : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
     },
   },
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 42173 --strictPort',
-    url: 'http://127.0.0.1:42173',
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: externalBaseURL
+    ? undefined
+    : {
+        command: 'npm run dev -- --host 127.0.0.1 --port 42173 --strictPort',
+        url: 'http://127.0.0.1:42173',
+        reuseExistingServer: false,
+        timeout: 120_000,
+      },
   projects: [
     {
       name: 'chromium',

@@ -113,8 +113,9 @@ optional; omitted fields keep the defaults shown here:
     desktop the story layer only claims the pointer where a card actually is,
     so the map behind stays pannable and keeps its zoom controls; a wheel over
     the bare map still scrolls the story. On phones the card lane covers the
-    map, so the story layer keeps the whole surface — otherwise every swipe
-    would pan the map instead of moving the story.
+    map, so reading mode keeps the whole surface for story scrolling. An
+    **Explore map** button hides the card lane and enables direct map interaction
+    and zoom controls. **Read story** restores the same reading position.
   - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
     map on top, a slide pane below with arrow gutters, dot navigation, keyboard
     arrows, and horizontal swipe on touch. The map stays interactive. The pane
@@ -143,7 +144,7 @@ optional; omitted fields keep the defaults shown here:
   mobile only), `"always"`, or `"never"`. In `scrolly` the panel sits top-right
   on phones, the one corner the centred card lane never reaches.
 - `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
-  layouts keep them on desktop only, where the pointer reaches the map.
+  layouts show them on desktop and in mobile Explore map mode.
 - `cameraFit` — `"auto"` (default) re-fits every scene camera to the map pane
   it actually got. Scene zooms are authored against a desktop-sized map, and
   the same zoom on a phone — or in the short map pane of a `slides` story —
@@ -270,12 +271,34 @@ source by different properties without loading duplicate map sources.
 ```
 
 The legend is derived automatically from the visible layers' categories plus any
-labelled highlights. Set `legend` on a scene to replace it outright when the
+labelled highlights. Each layer has one explicit On/Off button; category swatches
+are explanatory keys, not individual category filters. Set `legend` on a scene to replace it outright when the
 derived one would be noisy:
 
 ```json
 "legend": [{ "label": "Census North", "color": "#2563eb" }]
 ```
+
+## Source loading and growth
+
+Only visible layers mount map sources. GeoJSON (including gzip and attribute
+joins) loads through `storySources.ts` and `useStorySources.ts`; PMTiles remains
+streamed by the map. Do not add an eager `config.layers` fetch elsewhere.
+
+The story owns an active-source store, deduplicated by data URL and join definition.
+Changing styles over the same data reuses the collection; map fill/circle layers
+use an opt-in shared source key so thematic styles do not independently index it.
+Draw order follows the package layer order even when source requests finish out
+of order. Successful sources publish independently. A failed source shows a named Retry
+layers action, while other layers remain usable. Switching scenes aborts obsolete
+requests and releases inactive collections; leaving the project releases all of
+them. Returning to a released source may fetch/parse it again (HTTP caching still
+applies). This is a deliberate memory bound, not a permanent project-wide cache.
+
+A large source is still large when its scene becomes active. For growing datasets,
+prefer simplified geometry, compact properties, or PMTiles over full observation
+archives. Update scraper-owned datasets in the scraper submodule first. No renderer
+change can substitute for a suitable source representation.
 
 ## Authoring workflow
 
@@ -367,3 +390,7 @@ Stop when the structural audit and relevant tests pass, all affected
 layout/viewport combinations have been exercised, the console is clean, and no
 visible defect remains. Record unavailable or CORS-blocked sources as
 unverified; they are not passing checks.
+
+The mobile scrolly Explore map mode must preserve the card scroller and map
+instances; do not unmount them to switch modes. Slide changes reset only the
+narrative scroll position, preserving the longest-slide grid measurement.

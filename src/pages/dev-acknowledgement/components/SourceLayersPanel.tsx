@@ -7,7 +7,7 @@ import type { SourceKey, SourceLookupState, SourceStatus } from '../types'
 
 function sourceLookupMessage(status: SourceStatus) {
   if (status === 'loading') return 'Checking'
-  if (status === 'success') return 'Local'
+  if (status === 'success') return 'Loaded'
   if (status === 'error') return 'Issue'
   if (status === 'skipped') return 'Manual'
   return 'Ready'
@@ -21,8 +21,8 @@ type SourceLayersPanelProps = {
 
 export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: SourceLayersPanelProps) {
   return (
-    <CollapsiblePanel title="Source Layers" icon={<Layers3 className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
+    <CollapsiblePanel title="Source evidence" icon={<Layers3 className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
+      <div className="space-y-2">
         {(Object.keys(sourceMeta) as SourceKey[]).map((source) => {
           const isManualReference = sourceLookups[source].status === 'skipped'
           return (
@@ -32,7 +32,7 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
               onClick={() => onToggle(source)}
               disabled={isManualReference}
               aria-pressed={enabledSources[source]}
-              className="flex min-w-48 items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-75 lg:w-full lg:min-w-0"
+              className="flex min-h-11 w-full min-w-0 items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-75 lg:w-full lg:min-w-0"
             >
               <span
                 className={cn(
@@ -43,7 +43,7 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
                 {enabledSources[source] && <Check className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0">
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-2">
                   <span className="block text-sm font-medium">{sourceMeta[source].label}</span>
                   <span
                     className={cn(
@@ -59,6 +59,7 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
                   </span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-500">{sourceMeta[source].type}</span>
+                <span className="mt-1 block text-sm leading-5 text-slate-600">{sourceMeta[source].description}</span>
                 {sourceLookups[source].message && (
                   <span className="mt-1 block text-xs leading-4 text-slate-500">{sourceLookups[source].message}</span>
                 )}
@@ -67,6 +68,20 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
           )
         })}
       </div>
+      {enabledSources.nativeLand &&
+        sourceLookups.nativeLand.matches.some((match) => match.label !== 'Native Land territory overlap') && (
+          <div className="mt-3 rounded-lg bg-stone-50 p-3 text-sm leading-6">
+            <p className="font-medium">Language and treaty context</p>
+            <p className="text-slate-600">These names are not added to Nation selections.</p>
+            {sourceLookups.nativeLand.matches
+              .filter((match) => match.label !== 'Native Land territory overlap')
+              .map((match) => (
+                <p key={`${match.label}:${match.name}`}>
+                  {match.label}: {match.name}
+                </p>
+              ))}
+          </div>
+        )}
     </CollapsiblePanel>
   )
 }

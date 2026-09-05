@@ -1,3 +1,6 @@
+import { usePagination } from '@/hooks/usePagination'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { useRef } from 'react'
 import { RankedBarList } from '@/components/ui/ranked-bar-list'
 import { SidebarSection } from '@/components/ui/map-panels'
 
@@ -15,10 +18,13 @@ export function RankedListFeature({
   locationPlural: string
   onSelect: (locationId: string) => void
 }) {
+  const root = useRef<HTMLDivElement>(null)
+  const pagination = usePagination(locations, feature.limit, locations.map((location) => location.id).join(','))
   return (
     <SidebarSection title={feature.title} className="border-b-0 p-3">
+      <div ref={root} className="scroll-mt-3" />
       <RankedBarList
-        items={locations.map((location) => ({
+        items={pagination.items.map((location) => ({
           id: location.id,
           label: location.name,
           value: location.filteredCount,
@@ -27,6 +33,17 @@ export function RankedListFeature({
         emptyMessage={`No ${locationPlural} match filters`}
         onSelect={(item) => onSelect(item.id)}
       />
+      {pagination.pageCount > 1 && (
+        <PaginationControls
+          label="Location pages"
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          onPageChange={(page) => {
+            pagination.setPage(page)
+            root.current?.scrollIntoView({ block: 'nearest' })
+          }}
+        />
+      )}
     </SidebarSection>
   )
 }

@@ -1,3 +1,6 @@
+import { usePagination } from '@/hooks/usePagination'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { useRef } from 'react'
 import { Globe } from 'lucide-react'
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -47,6 +50,8 @@ export function AggregateRecordsDialog({
   recordSingular: string
   onOpenChange: (open: boolean) => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pagination = usePagination(submissions, 20, `${open}:${submissions.map((record) => record.id).join(',')}`)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent variant="sheet" elevated className="gap-0 p-0 sm:max-h-[80dvh] sm:max-w-lg">
@@ -56,8 +61,8 @@ export function AggregateRecordsDialog({
             {applyCountTemplate(feature.modalDescription, submissions.length)}
           </DialogDescription>
         </div>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-          {submissions.map((submission) => (
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          {pagination.items.map((submission) => (
             <article key={submission.id} className="rounded-md border bg-muted/20 p-3">
               <h3 className="text-sm font-medium leading-5 text-foreground">
                 {submission.title || `Untitled ${recordSingular}`}
@@ -70,6 +75,17 @@ export function AggregateRecordsDialog({
             </article>
           ))}
         </div>
+        {pagination.pageCount > 1 && (
+          <PaginationControls
+            label="Record pages"
+            page={pagination.page}
+            pageCount={pagination.pageCount}
+            onPageChange={(page) => {
+              pagination.setPage(page)
+              scrollRef.current?.scrollTo({ top: 0 })
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

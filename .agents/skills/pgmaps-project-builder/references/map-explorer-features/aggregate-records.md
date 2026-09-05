@@ -17,3 +17,5 @@ specific mappable location.
 `{count}` is the only template token. The adapter determines which records are
 aggregate-only from `workspace.data.aggregateLocationIds`. The feature owns its
 trigger and dialog; the shared dialog shell owns modal behavior.
+
+The dialog pages records in groups of 20 through the shared pagination control.

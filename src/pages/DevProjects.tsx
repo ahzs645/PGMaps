@@ -1,46 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { usePagination } from '@/hooks/usePagination'
+import { iconClass, KIND_LABELS } from '@/maps/project-workspace/projectPresentation'
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   Check,
   ChevronDown,
-  ChevronRight,
   Download,
-  Eye,
-  EyeOff,
   ExternalLink,
   FileText,
   FolderKanban,
-  FolderOpen,
   Layers,
-  Map as MapIcon,
-  PanelRight,
   Search,
   Settings2,
-  SlidersHorizontal,
   Trash2,
   Upload,
   X,
 } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import {
-  DESKTOP_SIDEBAR_MAX_WIDTH,
-  DESKTOP_SIDEBAR_MIN_WIDTH,
-  MapSectionLayout,
-} from '@/components/layout/MapSectionLayout'
-import { Map as PgMap, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map'
-import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
-import { MAP_STYLES } from '@/components/ui/map-styles'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
-import { Slider } from '@/components/ui/slider'
-import { fetchJson } from '@/lib/fetchJson'
-import { useLoadedProjectWebMCP, useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
-import { cn } from '@/lib/utils'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   buildProjectLabUrl,
   downloadProjectPackage,
@@ -48,21 +30,15 @@ import {
   importProjectPackageFile,
   loadLocalProjectPackages,
   loadProjectCatalogSummaries,
-  projectRecipeBars,
   removeLocalProjectPackage,
   type ProjectKind,
-  type ProjectLayerDef,
   type ProjectPackage,
-  type ProjectPortalContextLayerDef,
-  type ProjectPortalMapDef,
-  type ProjectPortalRasterLayerDef,
   type ProjectTheme,
 } from '@/lib/projectPackages'
-import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
-import { ProjectStoryMap } from '@/maps/project-story/ProjectStoryMap'
-import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
+import { useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
+import { cn } from '@/lib/utils'
 
-type ControllerTab = 'layers' | 'project'
+const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
 type CatalogFilter = 'all' | ProjectKind
 
 const THEME_ACCENT: Record<ProjectTheme, string> = {
@@ -74,16 +50,8 @@ const THEME_ACCENT: Record<ProjectTheme, string> = {
   slate: 'border-slate-400 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-950/35 dark:text-slate-100',
 }
 
-const THEME_ICON: Record<ProjectTheme, string> = {
-  cyan: 'bg-cyan-600',
-  amber: 'bg-amber-600',
-  emerald: 'bg-emerald-600',
-  blue: 'bg-blue-600',
-  slate: 'bg-slate-600',
-}
-
 const FILTER_OPTIONS: Array<{ value: CatalogFilter; label: string }> = [
-  { value: 'all', label: 'All projects' },
+  { value: 'all', label: 'All types' },
   { value: 'map-story', label: 'Map stories' },
   { value: 'raster-story', label: 'Raster stories' },
   { value: 'index-preset', label: 'Index presets' },
@@ -114,108 +82,8 @@ const FEATURED_PROJECT_SLUGS = [
 
 const FEATURED_PROJECT_ORDER = new Map<string, number>(FEATURED_PROJECT_SLUGS.map((slug, index) => [slug, index]))
 
-const KIND_LABELS: Record<ProjectKind, string> = {
-  'map-story': 'Map story',
-  'raster-story': 'Raster story',
-  'index-preset': 'Index preset',
-  'research-pack': 'Research pack',
-}
-
-const TAB_LABELS: Record<ControllerTab, string> = {
-  layers: 'Layers',
-  project: 'Project',
-}
-
-const PROJECT_MAP_STYLES = {
-  light: MAP_STYLES.light,
-  dark: MAP_STYLES.light,
-}
-
-const HEALTH_AUTHORITY_BOUNDARIES_URL = '/data/boundaries/BCMoH/simplified/health_authorities.json'
-const NORTHERN_HEALTH_FILTER = ['==', ['get', 'HLTH_AUTHORITY_NAME'], 'Northern']
-
 function accentClass(project: ProjectPackage): string {
   return THEME_ACCENT[project.theme]
-}
-
-function iconClass(project: ProjectPackage): string {
-  return THEME_ICON[project.theme]
-}
-
-function buildPortalWmsTileUrl(portal: ProjectPortalMapDef, layerName: string, mapPath?: string) {
-  return [
-    `${portal.endpoint}?MAP=${encodeURIComponent(mapPath ?? portal.defaultMapPath)}`,
-    'SERVICE=WMS',
-    'VERSION=1.1.1',
-    'REQUEST=GetMap',
-    `LAYERS=${encodeURIComponent(layerName)}`,
-    'STYLES=',
-    'FORMAT=image/png',
-    'TRANSPARENT=TRUE',
-    'SRS=EPSG:3857',
-    'WIDTH=256',
-    'HEIGHT=256',
-    'BBOX={bbox-epsg-3857}',
-  ].join('&')
-}
-
-function buildPortalWmsLegendUrl(portal: ProjectPortalMapDef, layerName: string, mapPath?: string) {
-  const params = new URLSearchParams({
-    MAP: mapPath ?? portal.defaultMapPath,
-    SERVICE: 'WMS',
-    VERSION: '1.1.1',
-    REQUEST: 'GetLegendGraphic',
-    LAYER: layerName,
-    FORMAT: 'image/png',
-    STYLE: 'default',
-  })
-  return `${portal.endpoint}?${params.toString()}`
-}
-
-function defaultVisibleLayerIds(project: ProjectPackage) {
-  return new Set(project.layers.filter((layer) => layer.checked).map((layer) => layer.id))
-}
-
-function ProjectPortalPointLayer({ layer }: { layer: ProjectPortalContextLayerDef }) {
-  const [collection, setCollection] = useState<GeoJSON.FeatureCollection<GeoJSON.Point> | null>(null)
-
-  useEffect(() => {
-    if (!layer.data) return
-    const controller = new AbortController()
-    fetchJson<GeoJSON.FeatureCollection<GeoJSON.Point>>(layer.data, controller.signal)
-      .then(setCollection)
-      .catch(() => setCollection(null))
-    return () => controller.abort()
-  }, [layer.data])
-
-  if (!collection) return null
-
-  return collection.features.map((feature, index) => {
-    const [longitude, latitude] = feature.geometry.coordinates
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
-    const properties = feature.properties ?? {}
-    const label = String(properties[layer.labelProperty ?? 'name'] ?? 'Hospital')
-    const key = String(properties[layer.idProperty ?? 'id'] ?? feature.id ?? index)
-
-    return (
-      <MapMarker key={key} longitude={longitude} latitude={latitude} anchor="center">
-        <MarkerContent>
-          <div className="flex size-8 items-center justify-center drop-shadow-md" aria-label={label}>
-            <img src={layer.icon} alt="" className="size-8" />
-          </div>
-        </MarkerContent>
-        <MarkerTooltip className="px-2 py-1 text-xs font-semibold">{label}</MarkerTooltip>
-      </MapMarker>
-    )
-  })
-}
-
-function layerIcon(layer: ProjectLayerDef) {
-  if (layer.type === 'raster') return <MapIcon className="h-3.5 w-3.5" />
-  if (layer.type === 'boundary') return <PanelRight className="h-3.5 w-3.5" />
-  if (layer.type === 'point') return <FolderOpen className="h-3.5 w-3.5" />
-  if (layer.type === 'line') return <SlidersHorizontal className="h-3.5 w-3.5" />
-  return <Layers className="h-3.5 w-3.5" />
 }
 
 function useProjectPackages() {
@@ -258,379 +126,6 @@ function useProjectPackages() {
   }, [])
 
   return { projects, loading: staticProjects === null, loadError, importProject, removeProject }
-}
-
-function ProjectPortalMapPreview({
-  project,
-  portal,
-  visibleLayerIds,
-  rasterOpacity,
-  className,
-}: {
-  project: ProjectPackage
-  portal: ProjectPortalMapDef
-  visibleLayerIds: Set<string>
-  rasterOpacity: number
-  className?: string
-}) {
-  const activeRasterLayers = portal.rasterLayers.filter((layer) => visibleLayerIds.has(layer.id))
-  const activeContextLayers = portal.contextLayers.filter((layer) => visibleLayerIds.has(layer.id))
-  const activeRasterLayer = activeRasterLayers[activeRasterLayers.length - 1] ?? null
-  const showLocalBoundary = Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
-
-  return (
-    <div className={cn('relative overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
-      <PgMap
-        className="h-full w-full"
-        center={portal.center}
-        zoom={portal.zoom}
-        minZoom={3}
-        maxZoom={11}
-        styles={PROJECT_MAP_STYLES}
-        showStyleLoadingOverlay={false}
-      >
-        {activeRasterLayers.map((layer) => (
-          <MapRasterLayer
-            key={layer.id}
-            tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
-            opacity={rasterOpacity / 100}
-            tileSize={256}
-            minZoom={3}
-            maxZoom={11}
-            attribution="Nechako Watershed Portal, ClimateData.ca"
-          />
-        ))}
-
-        {activeContextLayers.map((layer) =>
-          layer.data && layer.geometry === 'point' ? (
-            <ProjectPortalPointLayer key={`${layer.id}-${layer.layerName}`} layer={layer} />
-          ) : layer.data ? (
-            <MapFillLayer
-              key={`${layer.id}-${layer.layerName}`}
-              data={layer.data}
-              idProperty={layer.idProperty}
-              filter={
-                layer.featureProperty && layer.featureValue !== undefined
-                  ? ['==', ['get', layer.featureProperty], layer.featureValue]
-                  : undefined
-              }
-              fillColor={layer.legendColor}
-              fillOpacity={layer.fillOpacity ?? layer.opacity}
-              lineColor={layer.lineColor ?? layer.legendColor}
-              lineOpacity={layer.lineOpacity ?? 1}
-              lineWidth={layer.lineWidth ?? 1.5}
-            />
-          ) : (
-            <MapRasterLayer
-              key={`${layer.id}-${layer.layerName}`}
-              tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
-              opacity={layer.opacity}
-              tileSize={256}
-              minZoom={3}
-              maxZoom={12}
-              attribution="Nechako Watershed Portal"
-            />
-          ),
-        )}
-
-        {showLocalBoundary && (
-          <MapFillLayer
-            data={HEALTH_AUTHORITY_BOUNDARIES_URL}
-            filter={NORTHERN_HEALTH_FILTER}
-            fillColor="#06b6d4"
-            fillOpacity={0.07}
-            lineColor="#0f172a"
-            lineWidth={1.5}
-            lineOpacity={0.68}
-          />
-        )}
-
-        <ProjectPortalMapLegend
-          project={project}
-          portal={portal}
-          visibleLayerIds={visibleLayerIds}
-          activeRasterLayer={activeRasterLayer}
-        />
-      </PgMap>
-    </div>
-  )
-}
-
-function ProjectPortalMapLegend({
-  project,
-  portal,
-  visibleLayerIds,
-  activeRasterLayer,
-}: {
-  project: ProjectPackage
-  portal: ProjectPortalMapDef
-  visibleLayerIds: Set<string>
-  activeRasterLayer: ProjectPortalRasterLayerDef | null
-}) {
-  const activeRasterLabel = activeRasterLayer
-    ? (project.layers.find((layer) => layer.id === activeRasterLayer.id)?.label ?? activeRasterLayer.layerName)
-    : null
-  const showLocalBoundary = Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
-  const activeContextLayers = portal.contextLayers.filter((layer) => visibleLayerIds.has(layer.id))
-
-  return (
-    <MapLegendPanel title="Legend" width="sm" collapsible className="max-h-[min(28rem,calc(100%-2rem))] overflow-auto">
-      <div className="space-y-3">
-        {activeRasterLayer ? (
-          <div>
-            <div className="mb-1 text-xs font-semibold text-foreground">{activeRasterLabel}</div>
-            <img
-              src={buildPortalWmsLegendUrl(portal, activeRasterLayer.layerName, activeRasterLayer.mapPath)}
-              alt={`${activeRasterLabel} legend`}
-              className="max-h-24 w-full rounded border bg-white object-contain p-1"
-            />
-            <div className="mt-1 text-xs leading-snug text-muted-foreground">
-              Portal WMS raster, ClimateData.ca source layer.
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="mb-1 text-xs font-semibold text-foreground">{KIND_LABELS[project.kind]}</div>
-            <MapGradientLegendItem
-              colors={project.legend.map((item) => item.color)}
-              minLabel={project.legend[0]?.label ?? 'Lower'}
-              maxLabel={project.legend[project.legend.length - 1]?.label ?? 'Higher'}
-            />
-          </div>
-        )}
-
-        <div className="space-y-1 border-t pt-2 text-xs">
-          {showLocalBoundary && (
-            <LegendItem color="#0f172a" label="Northern Health" value="local BCMoH" swatchShape="line" />
-          )}
-          {activeContextLayers.map((layer) => (
-            <LegendItem
-              key={`${layer.id}-${layer.layerName}`}
-              color={layer.legendColor}
-              label={layer.legendLabel}
-              swatchShape={layer.legendShape}
-              swatch={layer.icon ? <img src={layer.icon} alt="" className="size-4" aria-hidden="true" /> : undefined}
-            />
-          ))}
-          {!showLocalBoundary && activeContextLayers.length === 0 && (
-            <div className="text-xs leading-snug text-muted-foreground">Toggle layers to update the map stack.</div>
-          )}
-        </div>
-      </div>
-    </MapLegendPanel>
-  )
-}
-
-function ProjectWorkspaceMap({
-  project,
-  visibleLayerIds,
-  rasterOpacity,
-  className,
-}: {
-  project: ProjectPackage
-  visibleLayerIds: Set<string>
-  rasterOpacity: number
-  className?: string
-}) {
-  if (project.portalMap) {
-    return (
-      <ProjectPortalMapPreview
-        project={project}
-        portal={project.portalMap}
-        visibleLayerIds={visibleLayerIds}
-        rasterOpacity={rasterOpacity}
-        className={className}
-      />
-    )
-  }
-
-  if (project.lab) {
-    const showScoreSurface = project.layers.some((layer) => layer.role === 'score' && visibleLayerIds.has(layer.id))
-    const showPoints = project.layers.some((layer) => layer.role === 'points' && visibleLayerIds.has(layer.id))
-    return (
-      <ProjectScoreMapPreview
-        project={project}
-        showScoreSurface={showScoreSurface}
-        showPoints={showPoints}
-        className={className}
-      />
-    )
-  }
-
-  return (
-    <div className={cn('flex items-center justify-center bg-muted/30 text-sm text-muted-foreground', className)}>
-      This package has no map recipe.
-    </div>
-  )
-}
-
-function LayerToggle({ layer, visible, onToggle }: { layer: ProjectLayerDef; visible: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={layer.locked}
-      className="flex w-full items-center gap-3 rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-70"
-    >
-      <span
-        className={cn(
-          'flex h-5 w-5 shrink-0 items-center justify-center rounded border',
-          visible ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-muted',
-        )}
-      >
-        {visible && <Check className="h-3.5 w-3.5" />}
-      </span>
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        {layerIcon(layer)}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{layer.label}</span>
-        <span className="block text-xs capitalize text-muted-foreground">{layer.type}</span>
-      </span>
-      {visible ? (
-        <Eye className="h-4 w-4 text-muted-foreground" />
-      ) : (
-        <EyeOff className="h-4 w-4 text-muted-foreground" />
-      )}
-    </button>
-  )
-}
-
-function ProjectController({
-  project,
-  activeTab,
-  onTabChange,
-  visibleLayerIds,
-  onLayerToggle,
-  rasterOpacity,
-  onRasterOpacityChange,
-  className,
-}: {
-  project: ProjectPackage
-  activeTab: ControllerTab
-  onTabChange: (tab: ControllerTab) => void
-  visibleLayerIds: Set<string>
-  onLayerToggle: (layerId: string) => void
-  rasterOpacity: number
-  onRasterOpacityChange: (value: number) => void
-  className?: string
-}) {
-  const recipeBars = projectRecipeBars(project)
-
-  return (
-    <aside className={cn('flex min-h-0 flex-col rounded-lg border bg-card shadow-sm', className)}>
-      <div className="border-b p-3">
-        <div className="grid grid-cols-2 rounded-md bg-muted p-1">
-          {(Object.keys(TAB_LABELS) as ControllerTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => onTabChange(tab)}
-              className={cn(
-                'h-8 rounded text-xs font-semibold transition-colors',
-                activeTab === tab
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        {activeTab === 'layers' && (
-          <div className="space-y-4">
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-foreground">Map Stack</div>
-                <span className="text-xs text-muted-foreground">
-                  {visibleLayerIds.size}/{project.layers.length}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {project.layers.map((layer) => (
-                  <LayerToggle
-                    key={layer.id}
-                    layer={layer}
-                    visible={visibleLayerIds.has(layer.id)}
-                    onToggle={() => onLayerToggle(layer.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {project.portalMap && (
-              <div className="rounded-lg border bg-background p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
-                  <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
-                </div>
-                <Slider
-                  value={[rasterOpacity]}
-                  min={20}
-                  max={100}
-                  step={5}
-                  onValueChange={(value) => onRasterOpacityChange(value[0] ?? rasterOpacity)}
-                  aria-label="Raster opacity"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'project' && (
-          <div className="space-y-4">
-            {recipeBars.length > 0 && (
-              <div>
-                <div className="mb-2 text-sm font-semibold text-foreground">Recipe</div>
-                <div className="space-y-2">
-                  {recipeBars.map((item) => (
-                    <div key={item.label} className="rounded-md border bg-background p-2.5">
-                      <div className="mb-1.5 flex items-center justify-between gap-3">
-                        <span className="truncate text-xs font-medium text-foreground">{item.label}</span>
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {item.value > 0 ? '+' : ''}
-                          {item.value}
-                        </span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn('h-full rounded-full', item.tone)}
-                          style={{ width: `${Math.max(8, Math.min(100, Math.abs(item.value)))}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <div className="mb-2 text-sm font-semibold text-foreground">Project Files</div>
-              <div className="space-y-2">
-                {project.files.map((file) => (
-                  <div key={file.label} className="flex items-start gap-3 rounded-md border bg-background px-3 py-2">
-                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-foreground">{file.label}</div>
-                      <div className="text-xs leading-5 text-muted-foreground">{file.detail}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
-  )
-}
-
-function clampPanelWidth(width: number, fallback: number) {
-  if (!Number.isFinite(width)) return fallback
-  return Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, Math.round(width)))
 }
 
 function ProjectDetailSections({ project, onRemove }: { project: ProjectPackage; onRemove?: (slug: string) => void }) {
@@ -888,7 +383,7 @@ function ProjectCatalogMobileCard({
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button type="button" size="sm" onClick={onOpen}>
+          <Button type="button" size="sm" className="min-h-11" onClick={onOpen}>
             Enter Project
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -908,7 +403,7 @@ function ProjectCatalogMobileCard({
         <div className="border-t">
           {labUrl && (
             <div className="border-b p-3">
-              <Button asChild variant="outline" size="sm" className="w-full">
+              <Button asChild variant="outline" size="sm" className="min-h-11 w-full">
                 <Link to={labUrl}>
                   <Settings2 className="h-4 w-4" />
                   Open in Index Lab
@@ -933,7 +428,7 @@ function ProjectCatalogPreview({
   onRemove: (slug: string) => void
 }) {
   return (
-    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm lg:flex">
+    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm xl:flex">
       <div className="border-b p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -999,6 +494,16 @@ function ProjectCatalogPage({
   importError: string | null
 }) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null)
+  const desktop = useMediaQuery('(min-width: 1280px)')
+  const resultsRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  const pagination = usePagination(projects, 12, JSON.stringify([query, filter, showingMoreProjects]))
+  const changePage = (page: number) => {
+    pagination.setPage(page)
+    setExpandedSlug(null)
+    resultsRef.current?.scrollTo({ top: 0 })
+    headerRef.current?.scrollIntoView({ block: 'start' })
+  }
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   function onToggleExpand(slug: string) {
@@ -1009,16 +514,17 @@ function ProjectCatalogPage({
     ? 'Loading project packages…'
     : loadError
       ? 'The project manifest failed to load.'
-      : additionalProjectCount > 0
-        ? 'Matching projects are available under More projects.'
-        : 'No projects match the current search.'
+      : 'No projects match the current search.'
 
   return (
-    <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 lg:h-[calc(100vh-4rem)] lg:min-h-[720px]">
-      <div className="mx-auto max-w-[98rem] gap-4 lg:grid lg:h-full lg:grid-cols-[minmax(40rem,1.35fr)_minmax(24rem,0.85fr)]">
-        <section className="flex min-h-0 flex-col rounded-lg border bg-background shadow-sm">
-          <header className="border-b p-4">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 xl:h-[calc(100vh-4rem)] xl:min-h-0">
+      <div className="mx-auto max-w-[98rem] gap-4 xl:grid xl:h-full xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-lg border bg-background shadow-sm">
+          <header
+            ref={headerRef}
+            className="sticky top-16 z-20 shrink-0 scroll-mt-16 rounded-t-lg border-b bg-background p-3 sm:p-4 xl:static"
+          >
+            <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
               <div className="hidden min-w-0 sm:block">
                 <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -1027,25 +533,26 @@ function ProjectCatalogPage({
                 </p>
               </div>
 
-              <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_7.75rem] gap-2 sm:min-w-[28rem] sm:grid-cols-[2.25rem_minmax(0,1fr)_10rem]">
+              <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-2 sm:grid-cols-[2.75rem_minmax(0,1fr)_10rem]">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 w-9 px-0"
+                  className="h-11 w-11 px-0 sm:h-9"
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Import project package"
                   title="Import project package"
                 >
                   <Upload className="h-4 w-4" />
                 </Button>
-                <div className="relative min-w-0">
-                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <div className="relative col-span-2 row-start-1 min-w-0 sm:col-span-1 sm:col-start-2">
+                  <Search className="pointer-events-none absolute left-3 top-3.5 sm:top-2.5 h-4 w-4 text-muted-foreground" />
                   <input
                     value={query}
                     onChange={(event) => onQueryChange(event.target.value)}
                     placeholder="Search projects"
-                    className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/25"
+                    aria-label="Search projects"
+                    className="h-11 w-full rounded-md sm:h-9 border bg-background pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
                 <AppSelect
@@ -1054,6 +561,7 @@ function ProjectCatalogPage({
                   options={FILTER_OPTIONS}
                   triggerAriaLabel="Filter projects"
                   className="min-w-0"
+                  triggerClassName="h-11 sm:h-9"
                 />
                 <input
                   ref={fileInputRef}
@@ -1068,6 +576,21 @@ function ProjectCatalogPage({
                 />
               </div>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <span role="status" className="text-xs text-muted-foreground">
+                {pagination.start}–{pagination.end} of {projects.length} projects
+              </span>
+              {additionalProjectCount > 0 && !query.trim() && filter === 'all' && (
+                <Button
+                  variant="outline"
+                  className="h-11 sm:h-9"
+                  aria-pressed={showingMoreProjects}
+                  onClick={onToggleMoreProjects}
+                >
+                  {showingMoreProjects ? 'Show featured' : 'Browse all projects'}
+                </Button>
+              )}
+            </div>
             {importError && (
               <div className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
                 {importError}
@@ -1075,440 +598,140 @@ function ProjectCatalogPage({
             )}
           </header>
 
-          <div className="hidden min-h-0 flex-1 overflow-auto lg:block">
-            <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left">
-              <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
-                <tr>
-                  <th className="w-[48%] px-4 py-3 font-semibold">Project</th>
-                  <th className="w-[20%] px-3 py-3 font-semibold">Type</th>
-                  <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
-                  <th className="w-[14%] px-4 py-3 text-right font-semibold">Open</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {projects.map((project) => {
-                  const active = selectedProject?.slug === project.slug
-                  return (
-                    <tr
-                      key={project.slug}
-                      className={cn('align-top transition-colors', active ? 'bg-primary/5' : 'hover:bg-muted/30')}
-                    >
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => onSelectProject(project.slug)}
-                          className="flex w-full min-w-0 items-start gap-3 text-left"
-                        >
-                          <span
-                            className={cn(
-                              'flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white',
-                              iconClass(project),
-                            )}
+          {desktop ? (
+            <div ref={resultsRef} className="min-h-0 flex-1 overflow-auto">
+              <table className="w-full table-fixed border-separate border-spacing-0 text-left">
+                <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
+                  <tr>
+                    <th className="w-[48%] px-4 py-3 font-semibold">Project</th>
+                    <th className="w-[20%] px-3 py-3 font-semibold">Type</th>
+                    <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
+                    <th className="w-[14%] px-4 py-3 text-right font-semibold">Open</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {pagination.items.map((project) => {
+                    const active = selectedProject?.slug === project.slug
+                    return (
+                      <tr
+                        key={project.slug}
+                        className={cn('align-top transition-colors', active ? 'bg-primary/5' : 'hover:bg-muted/30')}
+                      >
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => onSelectProject(project.slug)}
+                            className="flex w-full min-w-0 items-start gap-3 text-left"
                           >
-                            <FolderKanban className="h-4 w-4" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span className="truncate text-sm font-semibold text-foreground">{project.title}</span>
-                              {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                            <span
+                              className={cn(
+                                'flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white',
+                                iconClass(project),
+                              )}
+                            >
+                              <FolderKanban className="h-4 w-4" />
                             </span>
-                            <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {project.summary}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-sm font-semibold text-foreground">{project.title}</span>
+                                {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                              </span>
+                              <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                                {project.summary}
+                              </span>
                             </span>
-                          </span>
-                        </button>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div>
-                          <span
-                            className={cn(
-                              'inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold',
-                              accentClass(project),
-                            )}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div>
+                            <span
+                              className={cn(
+                                'inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold',
+                                accentClass(project),
+                              )}
+                            >
+                              {KIND_LABELS[project.kind]}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
+                          <div>
+                            <span className="font-medium text-foreground">
+                              {project.catalogCounts?.layers ?? project.layers.length}
+                            </span>{' '}
+                            layers
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">
+                              {project.catalogCounts?.scenes ?? project.scenes.length}
+                            </span>{' '}
+                            scenes
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">{project.lab ? 'Lab' : 'Story'}</span> recipe
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            type="button"
+                            variant={active ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => onOpenProject(project.slug)}
                           >
-                            {KIND_LABELS[project.kind]}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
-                        <div>
-                          <span className="font-medium text-foreground">
-                            {project.catalogCounts?.layers ?? project.layers.length}
-                          </span>{' '}
-                          layers
-                        </div>
-                        <div>
-                          <span className="font-medium text-foreground">
-                            {project.catalogCounts?.scenes ?? project.scenes.length}
-                          </span>{' '}
-                          scenes
-                        </div>
-                        <div>
-                          <span className="font-medium text-foreground">{project.lab ? 'Lab' : 'Story'}</span> recipe
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          type="button"
-                          variant={active ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => onOpenProject(project.slug)}
-                        >
-                          Enter
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                            Enter
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
 
-            {projects.length === 0 && (
-              <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
-            )}
-
-            {additionalProjectCount > 0 && (
-              <div className="border-t p-3 text-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onToggleMoreProjects}
-                  aria-expanded={showingMoreProjects}
-                  className="w-full"
-                >
-                  {showingMoreProjects ? 'Show fewer projects' : `More projects (${additionalProjectCount})`}
-                  <ChevronDown className={cn('h-4 w-4 transition-transform', showingMoreProjects && 'rotate-180')} />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3 p-3 lg:hidden">
-            {projects.map((project) => (
-              <ProjectCatalogMobileCard
-                key={project.slug}
-                project={project}
-                expanded={expandedSlug === project.slug}
-                onToggleExpand={() => onToggleExpand(project.slug)}
-                onOpen={() => onOpenProject(project.slug)}
-                onRemove={onRemoveProject}
-              />
-            ))}
-            {projects.length === 0 && (
-              <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
-            )}
-            {additionalProjectCount > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onToggleMoreProjects}
-                aria-expanded={showingMoreProjects}
-                className="w-full"
-              >
-                {showingMoreProjects ? 'Show fewer projects' : `More projects (${additionalProjectCount})`}
-                <ChevronDown className={cn('h-4 w-4 transition-transform', showingMoreProjects && 'rotate-180')} />
-              </Button>
-            )}
-          </div>
-        </section>
-
-        {selectedProject ? (
-          <ProjectCatalogPreview
-            project={selectedProject}
-            onOpenProject={() => onOpenProject(selectedProject.slug)}
-            onRemove={onRemoveProject}
-          />
-        ) : (
-          <aside className="hidden min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm lg:flex">
-            Select a project to preview its details.
-          </aside>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
-  const isMobile = useIsMobile()
-  const [activeTab, setActiveTab] = useState<ControllerTab>('project')
-  const [activeSceneIndex, setActiveSceneIndex] = useState(0)
-  const [rasterOpacity, setRasterOpacity] = useState(82)
-  const [visibleLayerIds, setVisibleLayerIds] = useState<Set<string>>(() => defaultVisibleLayerIds(project))
-  const [showRightSidebar, setShowRightSidebar] = useState(true)
-  const [sidebarWidth, setSidebarWidth] = useState(() => clampPanelWidth(320, 320))
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => clampPanelWidth(360, 360))
-
-  const activeScene = project.scenes[activeSceneIndex] ?? project.scenes[0]
-  const labUrl = buildProjectLabUrl(project)
-
-  function applyScene(index: number) {
-    const scene = project.scenes[index]
-    if (!scene) return
-    setActiveSceneIndex(index)
-    setVisibleLayerIds(new Set(scene.visibleLayerIds))
-  }
-
-  function setLayerVisibility(layerId: string, action: 'show' | 'hide' | 'toggle') {
-    const layer = project.layers.find((item) => item.id === layerId)
-    if (!layer || layer.locked) return
-    setVisibleLayerIds((current) => {
-      const next = new Set(current)
-      if (action === 'show') next.add(layerId)
-      else if (action === 'hide') next.delete(layerId)
-      else if (next.has(layerId)) next.delete(layerId)
-      else next.add(layerId)
-      return next
-    })
-  }
-
-  function toggleLayer(layerId: string) {
-    setLayerVisibility(layerId, 'toggle')
-  }
-
-  useLoadedProjectWebMCP({
-    project,
-    activeSceneIndex,
-    visibleLayerIds,
-    rasterOpacity,
-    applyScene,
-    setLayerVisibility,
-    setRasterOpacity,
-  })
-
-  const leftSidebar = (
-    <aside className="flex h-full min-h-0 flex-col border-r bg-background">
-      <div className="border-b p-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 inline-flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All projects
-        </button>
-
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white',
-              iconClass(project),
-            )}
-          >
-            <FolderKanban className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-bold leading-tight text-foreground">{project.title}</h1>
-            <div className="mt-1 text-xs text-muted-foreground">{project.region}</div>
-          </div>
-        </div>
-
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">{project.summary}</p>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto p-3">
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          {[
-            ['Owner', project.owner],
-            [project.created ? 'Created' : 'Updated', project.created ?? project.updated],
-            ['Type', KIND_LABELS[project.kind]],
-            ['Status', project.status],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-md border bg-muted/20 px-2.5 py-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-              <div className="mt-0.5 truncate text-xs font-semibold text-foreground">{value}</div>
+              {projects.length === 0 && (
+                <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+              )}
             </div>
-          ))}
-        </div>
-
-        <div className="mb-4">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <BookOpen className="h-3.5 w-3.5" />
-            Story Scenes
-          </div>
-          <div className="space-y-2">
-            {project.scenes.map((scene, index) => (
-              <button
-                key={scene.label}
-                type="button"
-                onClick={() => applyScene(index)}
-                className={cn(
-                  'w-full rounded-md border bg-background p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/50',
-                  index === activeSceneIndex && 'border-primary bg-primary/5',
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-foreground">{scene.label}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{scene.text}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {labUrl && (
-        <div className="border-t p-3">
-          <Button asChild size="sm" className="w-full">
-            <Link to={labUrl}>
-              <Settings2 className="h-4 w-4" />
-              Open in Index Lab
-            </Link>
-          </Button>
-        </div>
-      )}
-    </aside>
-  )
-
-  const rightSidebar = (
-    <ProjectController
-      project={project}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      visibleLayerIds={visibleLayerIds}
-      onLayerToggle={toggleLayer}
-      rasterOpacity={rasterOpacity}
-      onRasterOpacityChange={setRasterOpacity}
-      className="h-full rounded-none border-0 border-l shadow-none"
-    />
-  )
-
-  const mobileSidebar = (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      {labUrl && (
-        <div className="flex justify-end border-b p-3">
-          <Button asChild size="sm" variant="outline">
-            <Link to={labUrl}>
-              <Settings2 className="h-4 w-4" />
-              Index Lab
-            </Link>
-          </Button>
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <BookOpen className="h-3.5 w-3.5" />
-            Story Scenes
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {project.scenes.map((scene, index) => (
-              <button
-                key={scene.label}
-                type="button"
-                onClick={() => applyScene(index)}
-                className={cn(
-                  'rounded-md border bg-background px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors',
-                  index === activeSceneIndex ? 'border-primary bg-primary/5' : 'hover:bg-muted/50',
-                )}
-              >
-                {scene.label}
-              </button>
-            ))}
-          </div>
-          {activeScene && (
-            <div className="mt-2 rounded-md border bg-muted/20 p-3">
-              <div className="text-sm font-semibold text-foreground">{activeScene.title}</div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>
+          ) : (
+            <div ref={resultsRef} className="grid gap-3 p-3 md:grid-cols-2">
+              {pagination.items.map((project) => (
+                <ProjectCatalogMobileCard
+                  key={project.slug}
+                  project={project}
+                  expanded={expandedSlug === project.slug}
+                  onToggleExpand={() => onToggleExpand(project.slug)}
+                  onOpen={() => onOpenProject(project.slug)}
+                  onRemove={onRemoveProject}
+                />
+              ))}
+              {projects.length === 0 && (
+                <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+              )}
             </div>
           )}
-        </div>
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Layers className="h-3.5 w-3.5" />
-              Map Stack
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {visibleLayerIds.size}/{project.layers.length}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {project.layers.map((layer) => (
-              <LayerToggle
-                key={layer.id}
-                layer={layer}
-                visible={visibleLayerIds.has(layer.id)}
-                onToggle={() => toggleLayer(layer.id)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {project.portalMap && (
-          <div className="rounded-lg border bg-background p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
-              <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
-            </div>
-            <Slider
-              value={[rasterOpacity]}
-              min={20}
-              max={100}
-              step={5}
-              onValueChange={(value) => setRasterOpacity(value[0] ?? rasterOpacity)}
-              aria-label="Raster opacity"
+          {pagination.pageCount > 1 && (
+            <PaginationControls
+              label="Project pages"
+              page={pagination.page}
+              pageCount={pagination.pageCount}
+              onPageChange={changePage}
             />
-          </div>
-        )}
+          )}
+        </section>
+
+        {desktop &&
+          (selectedProject ? (
+            <ProjectCatalogPreview
+              project={selectedProject}
+              onOpenProject={() => onOpenProject(selectedProject.slug)}
+              onRemove={onRemoveProject}
+            />
+          ) : (
+            <aside className="hidden min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm xl:flex">
+              Select a project to preview its details.
+            </aside>
+          ))}
       </div>
-    </div>
-  )
-
-  return (
-    <div className="h-[100dvh] min-h-[640px] md:h-[calc(100vh-3.5rem)]">
-      <MapSectionLayout
-        sidebar={isMobile ? mobileSidebar : leftSidebar}
-        desktopSidebarWidth={sidebarWidth}
-        onDesktopSidebarWidthChange={setSidebarWidth}
-        mobileInitialSheetState="collapsed"
-        mobileCollapsedVisibleHeight={68}
-        mobileSheetContentClassName="pb-0"
-        mobilePeek={
-          <div className="min-w-0 text-left">
-            <div className="truncate text-xs font-semibold text-foreground">{project.title}</div>
-            <div className="truncate text-xs text-muted-foreground">{activeScene?.title ?? project.region}</div>
-          </div>
-        }
-        showMobilePeek
-        rightSidebar={rightSidebar}
-        showDesktopRightSidebar={showRightSidebar}
-        onToggleDesktopRightSidebar={() => setShowRightSidebar((current) => !current)}
-        desktopRightSidebarWidth={rightSidebarWidth}
-        onDesktopRightSidebarWidthChange={setRightSidebarWidth}
-      >
-        <div className="relative h-full min-h-0">
-          <ProjectWorkspaceMap
-            project={project}
-            visibleLayerIds={visibleLayerIds}
-            rasterOpacity={rasterOpacity}
-            className="h-full min-h-0"
-          />
-        </div>
-      </MapSectionLayout>
-    </div>
-  )
-}
-
-function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
-  const workspace = project.workspace
-  if (!workspace) return null
-
-  if (workspace.type === 'story-map') {
-    return (
-      <div className="h-[100dvh] bg-background md:h-[calc(100vh-3.5rem)]">
-        <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
-      </div>
-    )
-  }
-
-  return (
-    <div className="h-[100dvh] bg-background md:h-[calc(100vh-3.5rem)]">
-      <ProjectMapExplorer title={project.title} config={workspace} onBack={onBack} />
     </div>
   )
 }
@@ -1552,7 +775,7 @@ export default function DevProjects() {
     return projects.filter((project) => {
       if (filter !== 'all' && project.kind !== filter) return false
       if (!normalizedQuery) return true
-      return `${project.title} ${project.summary} ${project.lab?.presetKey ?? ''}`
+      return `${project.slug} ${project.title} ${project.summary} ${project.lab?.presetKey ?? ''}`
         .toLowerCase()
         .includes(normalizedQuery)
     })
@@ -1572,7 +795,10 @@ export default function DevProjects() {
     return { featuredProjects: featured, additionalProjects: additional }
   }, [matchingProjects])
 
-  const filteredProjects = showingMoreProjects ? [...featuredProjects, ...additionalProjects] : featuredProjects
+  const filteredProjects =
+    showingMoreProjects || query.trim() || filter !== 'all'
+      ? [...featuredProjects, ...additionalProjects]
+      : featuredProjects
   const selectedPreviewProject =
     filteredProjects.find((project) => project.slug === previewProjectSlug) ?? filteredProjects[0] ?? null
 
@@ -1590,6 +816,8 @@ export default function DevProjects() {
       setImportError(null)
       setShowingMoreProjects(true)
       setPreviewProjectSlug(imported.slug)
+      setFilter('all')
+      setQuery(imported.slug)
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'The file could not be imported.')
     }
@@ -1616,10 +844,17 @@ export default function DevProjects() {
   }
 
   if (selectedProject) {
-    if (selectedProject.workspace) {
-      return <ConfiguredProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
-    }
-    return <LoadedProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
+    return (
+      <Suspense
+        fallback={
+          <div role="status" className="flex h-full items-center justify-center p-8">
+            Loading project…
+          </div>
+        }
+      >
+        <ProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
+      </Suspense>
+    )
   }
 
   return (

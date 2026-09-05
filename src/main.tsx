@@ -13,7 +13,11 @@ if ('serviceWorker' in navigator) {
       const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js`
       void navigator.serviceWorker
         .register(serviceWorkerUrl, { updateViaCache: 'none' })
-        .then((registration) => registration.update())
+        .then((registration) => registration?.update())
+        .catch(() => {
+          // Offline caching is optional; restricted browsers and failed updates
+          // must not produce an unhandled rejection while the app is usable.
+        })
     } else {
       void navigator.serviceWorker.getRegistrations().then((registrations) => {
         registrations.forEach((registration) => void registration.unregister())
