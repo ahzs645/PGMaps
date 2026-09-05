@@ -38,7 +38,7 @@ export function useRestaurantData(enabled = true) {
         fetch(`${import.meta.env.BASE_URL}data/restaurants.json`),
         fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`),
         fetch(`${import.meta.env.BASE_URL}data/restaurant-location-overrides.json`),
-        fetch(`${import.meta.env.BASE_URL}data/geocoding/geocoded_locations.json`)
+        fetch(`${import.meta.env.BASE_URL}data/ui/restaurant-locations.json`)
       ])
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`)

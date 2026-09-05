@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
@@ -45,7 +46,6 @@ interface ExplorerSidebarProps {
   onExport: (format: 'csv' | 'geojson') => void
 }
 
-const MAX_VISIBLE_ROWS = 250
 
 export function formatRelevance(value: number): string {
   return `${Math.round(value)}`
@@ -87,7 +87,6 @@ export function ExplorerSidebar({
     [items],
   )
 
-  const displayedItems = useMemo(() => items.slice(0, MAX_VISIBLE_ROWS), [items])
 
   return (
     <MapSidebarShell
@@ -295,7 +294,6 @@ export function ExplorerSidebar({
         <div>
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>{items.length.toLocaleString()} items visible</span>
-            {items.length > MAX_VISIBLE_ROWS && <span>Showing {MAX_VISIBLE_ROWS}</span>}
           </div>
 
           {errors.length > 0 && (
@@ -306,8 +304,8 @@ export function ExplorerSidebar({
             </div>
           )}
 
-          <div className="divide-y divide-border">
-            {displayedItems.map((item) => {
+          <VirtualResultList items={items} getKey={(item) => item.id} estimateSize={68} label="Explorer results">
+            {(item) => {
               const isSelected = selectedItem?.id === item.id
               return (
                 <button
@@ -335,8 +333,8 @@ export function ExplorerSidebar({
                   <div className="text-xs text-muted-foreground">{item.subtitle}</div>
                 </button>
               )
-            })}
-          </div>
+            }}
+          </VirtualResultList>
         </div>
       )}
     </MapSidebarShell>

@@ -16,8 +16,8 @@
     "early-learning-boundaries:sync:local": "npm run early-learning-boundaries:capture-dashboard-lsa && npm --prefix vendor/bcdatamapper run early-learning-boundaries:sync -- && PGMAPS_INCLUDE_RESTRICTED_EARLY_LEARNING=1 npm run data:sync-from-bcdatamapper",
     "aqmap:pm25-snapshot": "npm --prefix vendor/bcdatamapper run eccc:pm25-snapshot",
     "aqmap:fire-danger-vector": "node scripts/build-aqmap-fire-danger-vector.mjs",
-    "data:sync-from-bcdatamapper": "node scripts/sync-bcdatamapper-data.mjs && npm run projects:echoscreen-data",
-    "data:sync-from-bcdatamapper:clean": "node scripts/sync-bcdatamapper-data.mjs --clean && npm run projects:echoscreen-data",
+    "data:sync-from-bcdatamapper": "node scripts/sync-bcdatamapper-data.mjs && npm run projects:echoscreen-data && npm run data:build-ui",
+    "data:sync-from-bcdatamapper:clean": "node scripts/sync-bcdatamapper-data.mjs --clean && npm run projects:echoscreen-data && npm run data:build-ui",
     "preview": "vite preview",
     "citypg:sync": "npm --prefix vendor/bcdatamapper run citypg:sync --",
     "citypg:business-licences:sync": "npm --prefix vendor/bcdatamapper run citypg:business-licences:sync --",
@@ -133,7 +133,8 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "data:build-ui": "node scripts/build-ui-data.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",

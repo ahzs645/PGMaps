@@ -77,11 +77,16 @@ export function RestaurantCard({
   // The stats badges only count the selected period, so an all-time fallback
   // inspection needs to say so or the card contradicts itself.
   const latestInspectionOutsidePeriod = !restaurant.filteredInspections?.length && Boolean(restaurant.inspections?.length)
+  const Root = onClick ? 'button' : 'div'
 
   return (
-    <div
+    <Root
+      type={onClick ? 'button' : undefined}
+      aria-pressed={onClick ? Boolean(isSelected) : undefined}
+      data-restaurant-id={onClick ? restaurant.details_url : undefined}
       className={cn(
-        'cursor-pointer p-3 transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/60',
+        'block w-full p-3 text-left transition-colors',
+        onClick && 'cursor-pointer hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-slate-800/60',
         isSelected && 'bg-sky-50 dark:bg-sky-950/30'
       )}
       onClick={onClick}
@@ -189,6 +194,6 @@ export function RestaurantCard({
           )}
         </div>
       </div>
-    </div>
+    </Root>
   )
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
@@ -377,8 +378,8 @@ export function Sidebar({
             <span>{restaurants.length} restaurants</span>
             <span className="text-muted-foreground">Click for details</span>
           </div>
-          <div className="divide-y divide-border">
-            {restaurants.map((restaurant) => (
+          <VirtualResultList items={restaurants} getKey={(restaurant) => restaurant.details_url} estimateSize={108} label="Restaurants">
+            {(restaurant) => (
               <RestaurantCard
                 key={restaurant.details_url}
                 restaurant={restaurant}
@@ -386,8 +387,8 @@ export function Sidebar({
                 visualizationMode={visualizationMode}
                 onClick={() => onRestaurantClick(restaurant)}
               />
-            ))}
-          </div>
+            )}
+          </VirtualResultList>
         </div>
       )}
     </MapSidebarShell>

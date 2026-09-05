@@ -394,7 +394,7 @@ export function MapSidebarShell({
         titleClassName={titleClassName}
       />
       {dataset && <DatasetInfo dataset={dataset} />}
-      <div className={cn('min-h-0 flex-1 overflow-y-auto', scrollClassName, contentClassName)} {...restContentProps}>
+      <div data-map-sidebar-scroll="true" className={cn('min-h-0 flex-1 overflow-y-auto', scrollClassName, contentClassName)} {...restContentProps}>
         {children}
       </div>
     </div>

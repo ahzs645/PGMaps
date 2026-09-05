@@ -685,7 +685,7 @@ export default function ScoreBuilderSection() {
 
                   {!isDesktop && (
                     <div
-                      className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
+                      className="absolute left-2 right-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex flex-wrap items-center gap-1.5"
                       data-score-builder-mobile-actions="true"
                     >
                       <button

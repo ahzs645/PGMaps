@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useToggleArray } from '@/hooks/useToggleArray'
-import { useUrlParamSync } from '@/hooks/useUrlState'
+import { stringArrayCodec, useUrlParamSync } from '@/hooks/useUrlState'
 import { EXPLORER_DATASETS } from '../constants'
 import type { ExplorerDatasetId, ExplorerGeometryType, SpatialFilter } from '../types'
 
@@ -22,6 +22,9 @@ export const DEFAULT_ACTIVE_DATASET_IDS: ExplorerDatasetId[] = [
   'parks',
 ]
 
+const geometryCodec = stringArrayCodec(ALL_GEOMETRY_TYPES, ALL_GEOMETRY_TYPES)
+const datasetCodec = stringArrayCodec(ALL_DATASET_IDS, DEFAULT_ACTIVE_DATASET_IDS)
+
 /**
  * URL-synced explorer filter state: geometry types, active datasets, text
  * search, sort mode, date range, heatmap flag, plus map selection state.
@@ -29,15 +32,12 @@ export const DEFAULT_ACTIVE_DATASET_IDS: ExplorerDatasetId[] = [
 export function useExplorerFilters() {
   const [searchParams] = useSearchParams()
   const [geometryFilters, setGeometryFilters] = useState<ExplorerGeometryType[]>(() => {
-    const values = (searchParams.get('geom') || '').split(',').filter(Boolean) as ExplorerGeometryType[]
-    return values.length ? values.filter((value) => ALL_GEOMETRY_TYPES.includes(value)) : ALL_GEOMETRY_TYPES
+    return geometryCodec.decode(searchParams.get('geom'))
   })
   const [activeDatasetIds, setActiveDatasetIds] = useState<ExplorerDatasetId[]>(() => {
-    const datasetParam = searchParams.get('datasets') || ''
+    const datasetParam = searchParams.get('datasets')
     if (datasetParam === 'all') return ALL_DATASET_IDS
-    const values = datasetParam.split(',').filter(Boolean) as ExplorerDatasetId[]
-    const valid = values.filter((value) => ALL_DATASET_IDS.includes(value))
-    return valid.length ? valid : DEFAULT_ACTIVE_DATASET_IDS
+    return datasetCodec.decode(datasetParam)
   })
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [sortMode, setSortMode] = useState<SortMode>(() => (searchParams.get('sort') === 'name' ? 'name' : 'relevance'))
@@ -49,17 +49,12 @@ export function useExplorerFilters() {
   }))
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
 
-  const defaultDatasetsActive =
-    activeDatasetIds.length === DEFAULT_ACTIVE_DATASET_IDS.length &&
-    DEFAULT_ACTIVE_DATASET_IDS.every((datasetId) => activeDatasetIds.includes(datasetId))
   useUrlParamSync({
     datasets:
       activeDatasetIds.length === ALL_DATASET_IDS.length
         ? 'all'
-        : defaultDatasetsActive
-          ? null
-          : activeDatasetIds.join(','),
-    geom: geometryFilters.length === ALL_GEOMETRY_TYPES.length ? null : geometryFilters.join(','),
+        : datasetCodec.encode(activeDatasetIds),
+    geom: geometryCodec.encode(geometryFilters),
     q: searchQuery.trim(),
     sort: sortMode === 'relevance' ? null : sortMode,
     from: dateRange.from,

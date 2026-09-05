@@ -3,12 +3,12 @@ import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { MapPinned } from 'lucide-react'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { SharedMapLayout } from '@/components/layout/SharedMapLayout'
 import { Button } from '@/components/ui/button'
 import { MapLoader } from '@/components/ui/map-loader'
 import { useSiteWebMCP } from '@/lib/siteWebMCP'
 import Home from '@/pages/Home'
 
+const SharedMapLayout = lazy(() => import('@/components/layout/SharedMapLayout').then((m) => ({ default: m.SharedMapLayout })))
 const FoodMap = lazy(() => import('@/maps/foodmap').then((m) => ({ default: m.FoodMap })))
 const AirQualitySection = lazy(() => import('@/maps/airquality').then((m) => ({ default: m.AirQualitySection })))
 const CensusSection = lazy(() => import('@/maps/census').then((m) => ({ default: m.CensusSection })))

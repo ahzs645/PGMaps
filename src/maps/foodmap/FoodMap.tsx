@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
@@ -97,6 +97,7 @@ export default function FoodMap() {
     VIOLATION_BUCKETS.map((bucket) => bucket.key),
   )
   const [restaurantName, setRestaurantName] = useUrlState('restaurant', restaurantNameCodec)
+  const selectedRowTrigger = useRef<HTMLButtonElement | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
   const [showRoulette, setShowRoulette] = useState(false)
@@ -322,6 +323,8 @@ export default function FoodMap() {
 
   const handleRestaurantClick = useCallback(
     (restaurant: RestaurantWithStats) => {
+      const active = document.activeElement
+      selectedRowTrigger.current = active instanceof HTMLButtonElement && active.dataset.restaurantId === restaurant.details_url ? active : null
       selectRestaurant(selectedRestaurant?.details_url === restaurant.details_url ? null : restaurant)
     },
     [selectRestaurant, selectedRestaurant],
@@ -338,6 +341,14 @@ export default function FoodMap() {
   const clearSelection = useCallback(() => {
     selectRestaurant(null)
     setShowInspectionPanel(false)
+    const trigger = selectedRowTrigger.current
+    if (trigger?.isConnected) {
+      requestAnimationFrame(() => {
+        const rect = trigger.getBoundingClientRect()
+        if (rect.width && rect.top >= 0 && rect.bottom <= window.innerHeight) trigger.focus({ preventScroll: true })
+        else document.querySelector<HTMLElement>('[data-map-mobile-sheet-handle]')?.focus({ preventScroll: true })
+      })
+    }
   }, [selectRestaurant])
 
   const openInspectionPanel = useCallback(() => {

@@ -13,7 +13,7 @@ test.describe('Global Search', () => {
     // Should show map section quick links by default
     await expect(page.getByText('Food Safety Map')).toBeVisible()
     await expect(page.getByText('Air Quality Map')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Parks & Trails Parks, trails, and amenities' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Parks & Trails Parks, trails, and amenities' })).toBeVisible()
   })
 
   test('filters results by search query', async ({ page }) => {
@@ -32,15 +32,14 @@ test.describe('Global Search', () => {
     await expect(page.getByText('Air Quality Map')).toBeVisible()
   })
 
-  test('opens above map pages on mobile', async ({ page }) => {
+  test('opens the map search panel on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/airquality', { waitUntil: 'domcontentloaded' })
-
+    const handle = page.locator('[data-map-mobile-sheet-handle]')
+    await expect(handle).toBeVisible()
     await page.getByRole('button', { name: 'Open search' }).click()
-
-    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
-    await expect(searchInput).toBeVisible()
-    await expect(page.getByText('Food Safety Map')).toBeVisible()
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+    await expect(page.getByPlaceholder('Search monitors, city, network, parameter...')).toBeFocused()
   })
 
   test('closes on Escape', async ({ page }) => {

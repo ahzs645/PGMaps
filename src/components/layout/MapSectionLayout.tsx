@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/mobile-feature-card'
 import { MAP_OVERLAY_ROOT_STYLE } from '@/components/ui/map-overlay'
 import { isMobileViewport } from '@/hooks/useIsMobile'
+import { MAP_SEARCH_REQUEST } from '@/lib/mapSearch'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
 
@@ -278,6 +279,7 @@ export function MapSectionLayout({
   const onToggleDesktopSidebar = onToggleDesktopSidebarProp ?? toggleUncontrolledSidebar
 
   const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>(mobileInitialSheetState)
+  const mobileSheetStateRef = useRef<MobileSheetState>(mobileInitialSheetState)
   const [mobileFeatureCardOpen, setMobileFeatureCardOpen] = useState(false)
   const [mobileControlsInFront, setMobileControlsInFront] = useState(false)
   const [mobileFeaturePeek, setMobileFeaturePeek] = useState<{ title?: string; subtitle?: string }>({})
@@ -288,6 +290,9 @@ export function MapSectionLayout({
   const handleRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const scrimRef = useRef<HTMLDivElement>(null)
+  const rightSidebarRef = useRef<HTMLDivElement>(null)
+  const searchTargetRef = useRef<HTMLInputElement | null>(null)
+  const [searchRequest, setSearchRequest] = useState(0)
 
   // Drag bookkeeping (refs for zero re-renders during drag)
   const dragging = useRef(false)
@@ -344,6 +349,7 @@ export function MapSectionLayout({
   }, [getFullSnapOffset, getSheetHeight, mobileCollapsedVisibleHeight, mobileControlsInFront, mobileFeatureCardOpen, mobileScrimEnabled, mobileSheetInteractive])
 
   const updateMobileSheetState = useCallback((state: MobileSheetState) => {
+    mobileSheetStateRef.current = state
     setMobileSheetState(state)
     onMobileSheetStateChange?.(state)
   }, [onMobileSheetStateChange])
@@ -410,6 +416,61 @@ export function MapSectionLayout({
   }, [stackBehindFeatureCard])
 
   useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const openSearch = (event: Event) => {
+      const selector = 'input[data-map-search-input="true"]'
+      const leftInput = contentRef.current?.querySelector<HTMLInputElement>(selector)
+      const rightInput = rightSidebarRef.current?.querySelector<HTMLInputElement>(selector)
+      const input = leftInput ?? rightInput
+      if (!input || disableSidebar || (isMobileViewport() && suppressMobileSheet)) return
+      event.preventDefault()
+      searchTargetRef.current = input
+      if (isMobileViewport()) {
+        setMobileControlsInFront(true)
+        window.dispatchEvent(new CustomEvent(MOBILE_MAP_CONTROLS_FRONT_EVENT))
+        suppressScrim.current = false
+        updateMobileSheetState('full')
+        // Reveal synchronously before focus; do not let scroll-to-focus move the map.
+        applyTransform(getFullSnapOffset(), false)
+      } else if (leftInput && !showDesktopSidebar) {
+        onToggleDesktopSidebar()
+      } else if (!leftInput && !showDesktopRightSidebar) {
+        onToggleDesktopRightSidebar?.()
+      }
+      setSearchRequest((request) => request + 1)
+    }
+    root.addEventListener(MAP_SEARCH_REQUEST, openSearch)
+    return () => root.removeEventListener(MAP_SEARCH_REQUEST, openSearch)
+  }, [applyTransform, disableSidebar, getFullSnapOffset, onToggleDesktopRightSidebar, onToggleDesktopSidebar, showDesktopRightSidebar, showDesktopSidebar, suppressMobileSheet, updateMobileSheetState])
+
+  useLayoutEffect(() => {
+    const input = searchTargetRef.current
+    const root = rootRef.current
+    if (!searchRequest || !input || !root || !input.getClientRects().length) return
+    input.focus({ preventScroll: true })
+    input.select()
+    // Only scroll the panel's own scroll containers, never the map/layout ancestors.
+    const reveal = () => {
+      const viewportBottom = window.visualViewport
+        ? window.visualViewport.offsetTop + window.visualViewport.height
+        : window.innerHeight
+      for (let parent = input.parentElement; parent && parent !== root; parent = parent.parentElement) {
+        if (!/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) continue
+        const field = input.getBoundingClientRect()
+        const pane = parent.getBoundingClientRect()
+        const bottom = Math.min(pane.bottom, viewportBottom) - 16
+        if (field.bottom > bottom) parent.scrollTop += field.bottom - bottom
+        else if (field.top < pane.top + 16) parent.scrollTop -= pane.top + 16 - field.top
+      }
+    }
+    reveal()
+    const revealFocused = () => { if (document.activeElement === input) reveal() }
+    window.visualViewport?.addEventListener('resize', revealFocused)
+    return () => window.visualViewport?.removeEventListener('resize', revealFocused)
+  }, [searchRequest])
+
+  useEffect(() => {
     if (!isMobileViewport()) return
     if (mobileSnapVisibleHeight != null) {
       const sheetHeight = getSheetHeight()
@@ -473,15 +534,21 @@ export function MapSectionLayout({
         }
       } else if (!dragging.current) {
         const sheetHeight = getSheetHeight()
-        const state = stateFromTranslate(curY.current, sheetHeight, getFullSnapOffset(), mobileCollapsedVisibleHeight)
-        applyTransform(getSnapPositions(sheetHeight, getFullSnapOffset(), mobileCollapsedVisibleHeight)[state], false)
+        // Desktop has no translateY. Preserve the logical mobile snap when
+        // crossing a breakpoint rather than interpreting that zero as "full".
+        applyTransform(getSnapPositions(sheetHeight, getFullSnapOffset(), mobileCollapsedVisibleHeight)[mobileSheetStateRef.current], false)
       }
     }
     const onOrientationChange = () => setTimeout(onResize, 150)
 
     window.addEventListener('resize', onResize)
     window.addEventListener('orientationchange', onOrientationChange)
+    // React can change the pane height after the window resize event (for
+    // example when Index Lab removes its desktop header on a phone).
+    const observer = new ResizeObserver(onResize)
+    if (rootRef.current) observer.observe(rootRef.current)
     return () => {
+      observer.disconnect()
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onOrientationChange)
     }
@@ -818,7 +885,7 @@ export function MapSectionLayout({
       ref={rootRef}
       data-map-layout-root="true"
       className={cn(
-        'relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950',
+        'relative flex h-full w-full overflow-clip bg-slate-100 dark:bg-slate-950',
         // Padding (not a wrapper element) keeps the existing flex row untouched
         // for every page that does not use a bottom pane. Desktop only — the
         // mobile table renders as a sheet instead.
@@ -973,9 +1040,10 @@ export function MapSectionLayout({
       {rightSidebar && (
         <>
           <div
+            ref={rightSidebarRef}
             className={cn(
-              'hidden lg:block lg:relative lg:h-full lg:shrink-0 lg:overflow-visible',
-              showDesktopRightSidebar ? 'lg:w-[var(--desktop-right-sidebar-width)]' : 'lg:w-0',
+              'hidden md:block md:absolute md:right-0 md:top-0 md:z-30 md:h-full md:shrink-0 md:overflow-visible lg:relative lg:z-10',
+              showDesktopRightSidebar ? 'md:w-[var(--desktop-right-sidebar-width)]' : 'md:w-0',
             )}
             style={{ '--desktop-right-sidebar-width': `${desktopRightSidebarWidth}px` } as CSSProperties}
             data-map-right-sidebar="true"
@@ -990,7 +1058,7 @@ export function MapSectionLayout({
                       type="button"
                       onClick={onToggleDesktopRightSidebar}
                       aria-label="Hide right sidebar"
-                      className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 lg:flex"
+                      className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
                     >
                       <ChevronsRight className="h-4 w-4" />
                     </button>
@@ -1016,7 +1084,7 @@ export function MapSectionLayout({
               onClick={onToggleDesktopRightSidebar}
               aria-label="Show right sidebar"
               style={{ right: 0 }}
-              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 lg:flex"
+              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
             >
               <ChevronsLeft className="h-4 w-4" />
             </button>

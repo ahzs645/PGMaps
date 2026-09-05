@@ -1,0 +1,69 @@
+{
+  "comparedEstablishments": 228,
+  "eligibleEstablishments": 114,
+  "mappedCrimeIncidentsLoaded": 24675,
+  "parameters": {
+    "radiusMeters": 500,
+    "crimeLookbackMonths": 36,
+    "crimeWeightPercent": 60,
+    "violationWeightPercent": 40,
+    "requireInspections": true,
+    "inspectionPeriod": "Oct 2024-Sep 2026"
+  },
+  "methodology": "Eligible establishments receive percentile burdens for violations in the active food-map period and mapped property-crime incidents within the chosen radius and lookback. By default, places without an inspection in that period are excluded rather than treated as zero-risk. The weighted burden is inverted to a 0-100 suitability score; higher is better.",
+  "caveat": "This is exploratory planning context, not a guarantee of personal safety or food quality. Incident locations and inspection records are historical and may be incomplete or spatially generalized.",
+  "ranked": [
+    {
+      "name": "Brewed Coffee & Co.",
+      "address": "4141 Airport Road, Prince George, V2N 4M6",
+      "facilityType": "Coffee Shop",
+      "hazardRating": "Low",
+      "violations": 0,
+      "criticalViolations": 0,
+      "inspections": 2,
+      "riskBand": "Unknown",
+      "riskScore": 0,
+      "latestInspection": "9-Oct-2025",
+      "mapped": true,
+      "nearbyCrimeIncidents": 0,
+      "crimePercentile": 0,
+      "violationPercentile": 0,
+      "suitabilityScore": 100
+    },
+    {
+      "name": "Tim Hortons 121502",
+      "address": "110 - 7393 Boundary Road, Prince George, V2N 6C9",
+      "facilityType": "Restaurant",
+      "hazardRating": "Low",
+      "violations": 0,
+      "criticalViolations": 0,
+      "inspections": 1,
+      "riskBand": "Unknown",
+      "riskScore": 0,
+      "latestInspection": "19-Dec-2024",
+      "mapped": true,
+      "nearbyCrimeIncidents": 15,
+      "crimePercentile": 1.8,
+      "violationPercentile": 0,
+      "suitabilityScore": 98.9
+    },
+    {
+      "name": "Crave Cafe",
+      "address": "3137 Vista Ridge Drive, Prince George, V2N 5G7",
+      "facilityType": "Restaurant",
+      "hazardRating": "Low",
+      "violations": 0,
+      "criticalViolations": 0,
+      "inspections": 1,
+      "riskBand": "Unknown",
+      "riskScore": 0,
+      "latestInspection": "9-Oct-2025",
+      "mapped": true,
+      "nearbyCrimeIncidents": 19,
+      "crimePercentile": 2.7,
+      "violationPercentile": 0,
+      "suitabilityScore": 98.4
+    }
+  ],
+  "nextStep": "Discuss the tradeoff with the user, then call select_food_establishment for \"Brewed Coffee & Co.\" if they approve."
+}
