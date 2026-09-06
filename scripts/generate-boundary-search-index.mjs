@@ -86,6 +86,38 @@ function scalarFields(properties) {
     .filter(([, value]) => value.length > 0 && value.length <= 240)
 }
 
+function isInheritedHierarchyField(source, level, key) {
+  if (/^parent/i.test(key)) return true
+
+  if (source === 'census') {
+    if (level === 'da') return /^(?:PRUID|CD(?:UID|NAME|TYPE)|CSD(?:UID|NAME|TYPE))$/i.test(key)
+    if (level === 'csd' || level === 'northSouthCsd') return /^(?:PRUID|CD(?:UID|NAME|TYPE))$/i.test(key)
+    if (level === 'cd') return /^PRUID$/i.test(key)
+  }
+
+  if (source === 'bcHealth') {
+    if (level === 'chsa') return /^(?:LOCAL_HLTH_AREA|HLTH_SERVICE_DLVR_AREA|HLTH_AUTHORITY)/i.test(key)
+    if (level === 'lha') return /^(?:HLTH_SERVICE_DLVR_AREA|HLTH_AUTHORITY)/i.test(key)
+    if (level === 'hsda') return /^HLTH_AUTHORITY/i.test(key)
+  }
+
+  if (source === 'watershed' && level === 'assessmentWatershed') {
+    return /^WATERSHED_GROUP_(?:ID|CODE|NAME)$/i.test(key)
+  }
+
+  if (source === 'bcDrainage') {
+    if (level === 'drainageRegion') return /^(?:ODA_|Code_ADO$)/i.test(key)
+    if (level === 'oceanDrainageArea') return /^drainageRegionNames$/i.test(key)
+  }
+
+  if (source === 'bcWildfire') {
+    if (level === 'fireZone') return /^FIRE_CENTRE$/i.test(key)
+    if (level === 'fireCentre') return /^(?:fireZoneNames|headquarters)$/i.test(key)
+  }
+
+  return false
+}
+
 function firstValue(properties, keys, fallback = '') {
   for (const key of keys) {
     const value = properties?.[key]
@@ -127,7 +159,8 @@ function makeRecord({ source, level, code, name, feature, fields, bounds = featu
   const sourceMetadata = SOURCE_METADATA[source]
   if (!sourceMetadata) throw new Error(`Missing source metadata for ${source}`)
   const levelLabel = LEVEL_LABELS[level] ?? level
-  const normalizedFields = fields ?? scalarFields(feature?.properties)
+  const normalizedFields = (fields ?? scalarFields(feature?.properties))
+    .filter(([key]) => !isInheritedHierarchyField(source, level, key))
   const searchText = normalizeSearchText([
     name,
     code,

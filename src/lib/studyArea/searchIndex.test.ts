@@ -51,6 +51,19 @@ const records: BoundarySearchRecord[] = [
     ),
   },
   {
+    id: 'census:da:59510158',
+    source: 'census',
+    sourceLabel: 'Census boundaries',
+    group: 'Administrative',
+    level: 'da',
+    levelLabel: 'Dissemination Area',
+    code: '59510158',
+    name: 'DA 59510158',
+    bounds: [-127, 53, -122, 56],
+    fields: [['parentCdName', 'Bulkley-Nechako']],
+    searchText: normalizeBoundarySearchText('DA 59510158 Census boundaries Administrative Dissemination Area'),
+  },
+  {
     id: 'bcRfc:rfcSnowBasin:3',
     source: 'bcRfc',
     sourceLabel: 'BC RFC basins',
@@ -82,6 +95,15 @@ describe('boundary search index', () => {
     expect(
       searchBoundaryCatalog(records, 'nechako', { source: 'watershed', level: 'watershedGroup' })[0].record.code,
     ).toBe('NECH')
+  })
+
+  it('does not match a descendant through inherited hierarchy metadata', () => {
+    expect(searchBoundaryCatalog(records, 'Bulkley-Nechako').map(({ record }) => record.id)).toEqual([
+      'census:cd:5951',
+    ])
+    expect(searchBoundaryCatalog(records, '59510158').map(({ record }) => record.id)).toEqual([
+      'census:da:59510158',
+    ])
   })
 
   it('ranks an exact code before a property-only match', () => {

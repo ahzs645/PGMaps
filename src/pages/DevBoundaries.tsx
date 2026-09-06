@@ -538,53 +538,61 @@ function regionSearchText(region: StudyAreaRegion) {
   return text
 }
 
-function censusParentRows(properties: Record<string, unknown>) {
+function censusParentRows(properties: Record<string, unknown>, currentLevel?: RegionLevel) {
   return [
     {
+      level: 'cd' as RegionLevel,
       label: 'Census division',
       code: properties.parentCdId ?? properties.CDUID,
       name: properties.parentCdName ?? properties.CDNAME,
     },
     {
+      level: 'csd' as RegionLevel,
       label: 'Subdivision',
       code: properties.parentCsdId ?? properties.CSDUID,
       name: properties.parentCsdName ?? properties.CSDNAME,
     },
     {
+      level: 'ct' as RegionLevel,
       label: 'Census tract',
       code: properties.parentCtId ?? properties.CTUID,
       name: properties.parentCtName ?? properties.CTNAME,
     },
     {
+      level: 'da' as RegionLevel,
       label: 'Dissemination area',
       code: properties.parentDaId ?? properties.DAUID,
       name: properties.parentDaName ?? properties.DANAME,
     },
     {
+      level: 'chsa' as RegionLevel,
       label: 'CHSA',
       code: properties.parentChsaId,
       name: properties.parentChsaName,
     },
     {
+      level: 'lha' as RegionLevel,
       label: 'Local Health Area',
       code: properties.parentLhaId,
       name: properties.parentLhaName,
     },
     {
+      level: 'hsda' as RegionLevel,
       label: 'HSDA',
       code: properties.parentHsdaId,
       name: properties.parentHsdaName,
     },
     {
+      level: 'healthAuthority' as RegionLevel,
       label: 'Health Authority',
       code: properties.parentHealthAuthorityId,
       name: properties.parentHealthAuthorityName,
     },
-  ].filter((row) => row.code || row.name)
+  ].filter((row) => row.level !== currentLevel && (row.code || row.name))
 }
 
-function censusParentSummary(properties: Record<string, unknown>) {
-  const rows = censusParentRows(properties)
+function censusParentSummary(properties: Record<string, unknown>, currentLevel?: RegionLevel) {
+  const rows = censusParentRows(properties, currentLevel)
   if (rows.length === 0) return null
   return rows
     .map((row) => `${row.label}: ${row.name ?? row.code}${row.code && row.name ? ` (${row.code})` : ''}`)
@@ -3214,9 +3222,9 @@ function DevBoundaries() {
                               <span>{region.code}</span>
                               <span>{formatArea(region.areaKm2)}</span>
                             </div>
-                            {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}) && (
+                            {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}, region.level) && (
                               <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                                {censusParentSummary(region.feature.properties ?? {})}
+                                {censusParentSummary(region.feature.properties ?? {}, region.level)}
                               </div>
                             )}
                           </button>
@@ -3360,7 +3368,7 @@ function DevBoundaries() {
                   hoverHtml={
                     hoverEnabled
                       ? (properties) => {
-                          const parents = censusParentSummary(properties)
+                          const parents = censusParentSummary(properties, layer.level)
                           return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
 	                          <div class="font-semibold leading-5">${escapeHtml(pmtilesFeatureName(properties))}</div>
 	                          <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(layer.source))} &middot; ${escapeHtml(getStudyAreaLevelLabel(layer.level))}</div>
@@ -3392,7 +3400,7 @@ function DevBoundaries() {
                   hoverHtml={
                     hoverEnabled
                       ? (properties) => {
-                          const parents = censusParentSummary(properties)
+                          const parents = censusParentSummary(properties, layer.level)
                           const northSouth = northSouthValue(properties)
                           return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
                           <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
@@ -3511,9 +3519,9 @@ function DevBoundaries() {
                 </div>
               )}
               {selectedRegion.source === 'census' &&
-                censusParentRows(selectedRegion.feature.properties ?? {}).length > 0 && (
+                censusParentRows(selectedRegion.feature.properties ?? {}, selectedRegion.level).length > 0 && (
                   <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
-                    {censusParentRows(selectedRegion.feature.properties ?? {}).map((row) => (
+                    {censusParentRows(selectedRegion.feature.properties ?? {}, selectedRegion.level).map((row) => (
                       <div key={row.label} className="flex items-start justify-between gap-3">
                         <span className="text-muted-foreground">{row.label}</span>
                         <span className="text-right font-medium text-foreground">
@@ -3601,9 +3609,9 @@ function DevBoundaries() {
               <div className="mt-1 text-xs text-muted-foreground">
                 {pmtilesFeatureCode(selectedPmtilesFeature.properties)}
               </div>
-              {censusParentRows(selectedPmtilesFeature.properties).length > 0 && (
+              {censusParentRows(selectedPmtilesFeature.properties, BC_DB_CHUNKED_LEVEL).length > 0 && (
                 <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
-                  {censusParentRows(selectedPmtilesFeature.properties).map((row) => (
+                  {censusParentRows(selectedPmtilesFeature.properties, BC_DB_CHUNKED_LEVEL).map((row) => (
                     <div key={row.label} className="flex items-start justify-between gap-3">
                       <span className="text-muted-foreground">{row.label}</span>
                       <span className="text-right font-medium text-foreground">

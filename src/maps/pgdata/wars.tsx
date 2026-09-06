@@ -1273,6 +1273,10 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
             sizes={[8, 16, 24]}
             color="rgb(100 116 139 / 0.6)"
           />
+          <MapLegendNote>
+            Numbers count records. Click a ring to zoom or browse overlapping records.
+            Shared coordinates are source locations, not necessarily precise collision sites.
+          </MapLegendNote>
         </>
       )}
       {wars.showHeatmap && (

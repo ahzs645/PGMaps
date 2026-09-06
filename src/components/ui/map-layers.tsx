@@ -1373,7 +1373,7 @@ type MapPieClusterLayerProps = {
   data: GeoJSON.FeatureCollection<GeoJSON.Point>
   /** Wedge color per band, indexed by each feature's `bandIndex`. */
   bandColors: readonly string[]
-  /** Maximum zoom level to cluster points on (default: 14). */
+  /** Maximum clustering zoom, or the record-expansion threshold when expandOverlappingPoints is enabled (default: 14). */
   clusterMaxZoom?: number
   /** Cluster radius in pixels (default: 46). */
   clusterRadius?: number
@@ -1427,6 +1427,12 @@ function MapPieClusterLayer({
   useEffect(() => {
     if (!isLoaded || !map) return
     const currentMap = map
+    // Retain clusters through every reachable camera zoom. Otherwise wheel,
+    // pinch, or URL zoom can bypass terminal-cluster clicks and hide coincident
+    // records behind a single dot. Keep clusterMaxZoom as the click threshold.
+    const sourceClusterMaxZoom = expandOverlappingPoints
+      ? Math.max(clusterMaxZoom, Math.ceil(currentMap.getMaxZoom()))
+      : clusterMaxZoom
     let cancelled = false
     type DonutMarkerState = {
       marker: MapLibreGL.Marker
@@ -1718,7 +1724,8 @@ function MapPieClusterLayer({
         // timeline scrub produced a new set.
         data: { type: 'FeatureCollection', features: [] },
         cluster: true,
-        clusterMaxZoom,
+        clusterMaxZoom: sourceClusterMaxZoom,
+        maxzoom: Math.max(18, sourceClusterMaxZoom + 1),
         clusterRadius,
         clusterProperties,
       })
