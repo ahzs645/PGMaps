@@ -13,9 +13,11 @@ import {
   X,
 } from 'lucide-react'
 import type MapLibreGL from 'maplibre-gl'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ClimateStatus } from './StoryClimateLayers'
 import { storySourceKey } from './storySources'
 import { useStorySources } from './useStorySources'
+import { StorySourceInfo } from './StorySourceInfo'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
@@ -38,6 +40,7 @@ import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './story
 
 /** Crossfade duration when scene changes swap map layers. */
 const LAYER_FADE_MS = 300
+const StoryClimateLayers = lazy(() => import('./StoryClimateLayers'))
 /** Initial mute window after the stepper starts a programmatic scroll. */
 const PROGRAMMATIC_SCROLL_MS = 300
 /** A muted scroll keeps extending the mute until events stop for this long. */
@@ -532,8 +535,10 @@ function SlidesStory({
   children: React.ReactNode
 }) {
   const narrativeRef = useRef<HTMLDivElement>(null)
+  const dotsRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     narrativeRef.current?.scrollTo({ top: 0 })
+    dotsRef.current?.querySelector('[aria-current="step"]')?.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [activeSceneIndex])
   const isMobile = useIsMobile()
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -705,26 +710,33 @@ function SlidesStory({
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent" />
         </div>
 
-        <div className="flex items-center justify-center gap-2 border-t px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
-          {scenes.map((item, index) => (
-            <button
-              key={`${item.label}-${index}`}
-              type="button"
-              onClick={() => onSelectScene(index)}
-              aria-label={`Go to scene ${index + 1}`}
-              aria-current={index === activeSceneIndex ? 'step' : undefined}
-              className="flex h-6 w-6 items-center justify-center"
-            >
-              <span
-                className={cn(
-                  'h-2 w-2 rounded-full transition-colors',
-                  index === activeSceneIndex ? '' : 'bg-muted-foreground/30',
-                )}
-                style={index === activeSceneIndex ? { backgroundColor: accent } : undefined}
-              />
-            </button>
-          ))}
-          <span className="ml-1 text-xs tabular-nums text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 border-t px-12 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 md:px-4">
+          <div
+            ref={dotsRef}
+            className="flex min-w-0 items-center gap-2 overflow-x-auto"
+            onTouchStart={(event) => event.stopPropagation()}
+            onTouchEnd={(event) => event.stopPropagation()}
+          >
+            {scenes.map((item, index) => (
+              <button
+                key={`${item.label}-${index}`}
+                type="button"
+                onClick={() => onSelectScene(index)}
+                aria-label={`Go to scene ${index + 1}`}
+                aria-current={index === activeSceneIndex ? 'step' : undefined}
+                className="flex h-6 w-6 shrink-0 items-center justify-center"
+              >
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full transition-colors',
+                    index === activeSceneIndex ? '' : 'bg-muted-foreground/30',
+                  )}
+                  style={index === activeSceneIndex ? { backgroundColor: accent } : undefined}
+                />
+              </button>
+            ))}
+          </div>
+          <span className="ml-1 shrink-0 text-xs tabular-nums text-muted-foreground">
             {activeSceneIndex + 1}/{scenes.length}
           </span>
         </div>
@@ -783,7 +795,23 @@ export function ProjectStoryMap({
     () => config.layers.filter((layer) => visibleLayerIds.has(layer.id)),
     [config.layers, visibleLayerIds],
   )
-  const geoJsonLayers = useMemo(() => visibleLayers.filter((layer) => layer.format !== 'pmtiles'), [visibleLayers])
+  const [climateStatus, setClimateStatus] = useState<ClimateStatus | null>(null)
+  const [climateRetry, setClimateRetry] = useState(0)
+  const [displayedClimateLayers, setDisplayedClimateLayers] = useState<ReturnType<typeof resolveLayer>[]>([])
+  const [readDirection, setReadDirection] = useState(1)
+  const displayClimate = useCallback(
+    (layers: ReturnType<typeof resolveLayer>[]) => {
+      setDisplayedClimateLayers(layers)
+      setSelectedFeature((current) =>
+        config.layers.some((l) => l.id === current?.layerId && l.format === 'climate-grid') ? null : current,
+      )
+    },
+    [config.layers],
+  )
+  const geoJsonLayers = useMemo(
+    () => visibleLayers.filter((layer) => !layer.format || layer.format === 'geojson'),
+    [visibleLayers],
+  )
   const { sources, retry: retrySources } = useStorySources(geoJsonLayers)
   const pendingLayers = geoJsonLayers.filter(
     (layer) => !sources.has(storySourceKey(layer)) || sources.get(storySourceKey(layer))?.status === 'loading',
@@ -836,6 +864,49 @@ export function ProjectStoryMap({
     () => config.layers.map((layer) => resolveLayer(layer, layerLabels[layer.id] ?? layer.id, activeScene, accent)),
     [accent, activeScene, config.layers, layerLabels],
   )
+  const climateLayers = useMemo(
+    () =>
+      resolvedLayers.filter(
+        (resolved) => resolved.layer.format === 'climate-grid' && visibleLayerIds.has(resolved.layer.id),
+      ),
+    [resolvedLayers, visibleLayerIds],
+  )
+  const hasClimate = config.layers.some((layer) => layer.format === 'climate-grid')
+  const readAhead = useMemo(() => {
+    const index = activeSceneIndex + readDirection
+    const next = scenes[index]
+    if (!next || !sameLayerSet(visibleLayerIds, activeScene?.visibleLayerIds ?? [])) return null
+    return {
+      layers: config.layers
+        .filter((layer) => layer.format === 'climate-grid' && next.visibleLayerIds.includes(layer.id))
+        .map((layer) => resolveLayer(layer, layerLabels[layer.id] ?? layer.id, next, accent)),
+      camera: (map: MapLibreGL.Map) => sceneCamera(map, index),
+    }
+  }, [
+    activeSceneIndex,
+    readDirection,
+    scenes,
+    activeScene,
+    visibleLayerIds,
+    config.layers,
+    layerLabels,
+    accent,
+    sceneCamera,
+  ])
+  // Retained climate data keeps its own labels and bins until the overlay swaps.
+  const retainingClimate =
+    displayedClimateLayers.length > 0 &&
+    !sameLayerSet(
+      new Set(displayedClimateLayers.map((l) => l.layer.id)),
+      climateLayers.map((l) => l.layer.id),
+    )
+  const legendLayers = useMemo(
+    () =>
+      retainingClimate
+        ? [...displayedClimateLayers, ...resolvedLayers.filter((l) => l.layer.format !== 'climate-grid')]
+        : resolvedLayers,
+    [retainingClimate, resolvedLayers, displayedClimateLayers],
+  )
 
   // The layers panel only covers what the scene uses (plus anything the reader
   // toggled on themselves) — layers from other scenes would just be noise.
@@ -844,12 +915,15 @@ export function ProjectStoryMap({
   const legendEntries = useMemo(() => {
     const sceneLayerIds = new Set(activeScene?.visibleLayerIds ?? [])
     const listedIds = new Set(
-      resolvedLayers
+      legendLayers
         .map((resolved) => resolved.layer.id)
-        .filter((id) => sceneLayerIds.has(id) || visibleLayerIds.has(id)),
+        .filter(
+          (id) =>
+            sceneLayerIds.has(id) || visibleLayerIds.has(id) || displayedClimateLayers.some((l) => l.layer.id === id),
+        ),
     )
-    return buildLegend(activeScene, resolvedLayers, listedIds, accent)
-  }, [accent, activeScene, resolvedLayers, visibleLayerIds])
+    return buildLegend(retainingClimate ? undefined : activeScene, legendLayers, listedIds, accent)
+  }, [accent, activeScene, legendLayers, visibleLayerIds, displayedClimateLayers, retainingClimate])
 
   const activePlaces = useMemo(() => {
     if (!activeScene?.placeIds) return []
@@ -875,6 +949,7 @@ export function ProjectStoryMap({
       // Scroll events re-derive the scene every frame; re-applying the active
       // one would restart the camera ease and stomp manual layer toggles.
       if (!force && index === activeSceneIndexRef.current) return
+      if (index !== activeSceneIndexRef.current) setReadDirection(index > activeSceneIndexRef.current ? 1 : -1)
       activeSceneIndexRef.current = index
       setActiveSceneIndex(index)
       setVisibleLayerIds(new Set(scene.visibleLayerIds))
@@ -1045,8 +1120,20 @@ export function ProjectStoryMap({
           ) : undefined
         }
       >
+        {hasClimate && (
+          <Suspense fallback={null}>
+            <StoryClimateLayers
+              layers={climateLayers}
+              retry={climateRetry}
+              onStatus={setClimateStatus}
+              onSelect={setSelectedFeature}
+              onDisplay={displayClimate}
+              readAhead={readAhead}
+            />
+          </Suspense>
+        )}
         {resolvedLayers
-          .filter((resolved) => visibleLayerIds.has(resolved.layer.id))
+          .filter((resolved) => visibleLayerIds.has(resolved.layer.id) && resolved.layer.format !== 'climate-grid')
           .map((resolved) => {
             const sourceKey = JSON.stringify([storySourceKey(resolved.layer), resolved.layer.idProperty])
             const uniqueSource =
@@ -1164,6 +1251,33 @@ export function ProjectStoryMap({
 
   const mapChrome = (
     <>
+      {options.layout !== 'panel' && (
+        <StorySourceInfo project={project} className={options.layout === 'scrolly' ? 'md:top-24' : undefined} />
+      )}
+      {climateLayers.length > 0 && climateStatus && (
+        <div
+          data-testid="climate-status"
+          data-selection={climateStatus.selection}
+          data-status={climateStatus.status}
+          data-cells={climateStatus.cells}
+          className={
+            climateStatus.status === 'ready' || retainingClimate
+              ? 'sr-only'
+              : 'pointer-events-auto absolute left-3 top-28 z-20 max-w-[min(20rem,calc(100%-6rem))] rounded-lg border bg-background/95 p-3 text-xs shadow-md md:top-24'
+          }
+        >
+          <p role={climateStatus.status === 'error' ? 'alert' : 'status'}>{climateStatus.message}</p>
+          {climateStatus.status === 'error' && (
+            <Button
+              variant="outline"
+              className="mt-2 h-11 md:h-8"
+              onClick={() => setClimateRetry((value) => value + 1)}
+            >
+              Retry climate layers
+            </Button>
+          )}
+        </div>
+      )}
       {(pendingLayers.length > 0 || failedLayers.length > 0) && (
         <div className="pointer-events-auto absolute left-3 top-28 z-20 max-w-[min(20rem,calc(100%-6rem))] rounded-lg border bg-background/95 p-3 text-xs shadow-md md:top-24">
           {pendingLayers.length > 0 && (
@@ -1205,7 +1319,7 @@ export function ProjectStoryMap({
 
       <MapLegendPanel
         title="Map layers"
-        description={activeScene?.label}
+        description={retainingClimate ? 'Updating map · previous climate layer shown' : activeScene?.label}
         icon={<Layers className="h-3.5 w-3.5" />}
         // The scrolly/slides layouts hang the chrome in a pointer-events-none
         // overlay, so the panel re-enables its own pointer events. In slides
@@ -1213,7 +1327,8 @@ export function ProjectStoryMap({
         // so the legend moves to the opposite corner there.
         className={cn(
           'pointer-events-auto',
-          options.layout === 'slides' && 'max-md:left-3 max-md:right-auto',
+          options.layout === 'slides' &&
+            'flex max-h-[calc(100%-8rem)] flex-col max-md:left-3 max-md:right-auto md:max-h-[calc(100%-4rem)] [&>div:first-child]:shrink-0',
           // Scrolly's card lane spans a phone's full width, so the bottom
           // corners are card territory; the legend takes the top corner the
           // cards never reach, clear of the floating mobile toolbar.
@@ -1224,7 +1339,7 @@ export function ProjectStoryMap({
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
         defaultCollapsed={options.legendCollapsed === 'auto' ? isMobile : options.legendCollapsed === 'always'}
-        contentClassName="space-y-3"
+        contentClassName={cn('space-y-3', options.layout === 'slides' && 'min-h-0 overflow-y-auto')}
         actions={
           sceneOverridden ? (
             <button
@@ -1239,21 +1354,30 @@ export function ProjectStoryMap({
         }
       >
         <div className="space-y-3">
-          {resolvedLayers
+          {legendLayers
             .filter(
               (resolved) =>
-                activeScene?.visibleLayerIds.includes(resolved.layer.id) || visibleLayerIds.has(resolved.layer.id),
+                activeScene?.visibleLayerIds.includes(resolved.layer.id) ||
+                visibleLayerIds.has(resolved.layer.id) ||
+                (retainingClimate && resolved.layer.format === 'climate-grid'),
             )
             .map((resolved) => (
               <div key={resolved.layer.id}>
                 <button
                   type="button"
                   aria-pressed={visibleLayerIds.has(resolved.layer.id)}
+                  disabled={retainingClimate && resolved.layer.format === 'climate-grid'}
                   onClick={() => toggleLayer(resolved.layer.id)}
                   className="flex min-h-11 w-full items-center justify-between gap-3 rounded text-left text-xs font-semibold md:min-h-8"
                 >
                   <span>{resolved.label}</span>
-                  <span className="text-muted-foreground">{visibleLayerIds.has(resolved.layer.id) ? 'On' : 'Off'}</span>
+                  <span className="text-muted-foreground">
+                    {retainingClimate && resolved.layer.format === 'climate-grid'
+                      ? 'Displayed'
+                      : visibleLayerIds.has(resolved.layer.id)
+                        ? 'On'
+                        : 'Off'}
+                  </span>
                 </button>
                 <MapLegendSection columns={1} scroll={legendEntries.length > 12}>
                   {legendEntries
@@ -1264,7 +1388,10 @@ export function ProjectStoryMap({
                         color={entry.color}
                         label={entry.label}
                         swatchShape="circle"
-                        active={visibleLayerIds.has(resolved.layer.id)}
+                        active={
+                          visibleLayerIds.has(resolved.layer.id) ||
+                          (retainingClimate && resolved.layer.format === 'climate-grid')
+                        }
                       />
                     ))}
                 </MapLegendSection>

@@ -388,8 +388,22 @@ if (project.workspace?.type === 'map-explorer') {
       if (layer?.format === 'pmtiles' && (typeof layer.sourceLayer !== 'string' || layer.sourceLayer.trim() === '')) {
         errors.push(`${scope}.sourceLayer is required for PMTiles`)
       }
-      if (layer?.format !== undefined && !['geojson', 'pmtiles'].includes(layer.format)) {
-        errors.push(`${scope}.format must be geojson or pmtiles when provided`)
+      if (layer?.format !== undefined && !['geojson', 'pmtiles', 'climate-grid'].includes(layer.format)) {
+        errors.push(`${scope}.format must be geojson, pmtiles or climate-grid when provided`)
+      }
+      if (layer?.format === 'climate-grid') {
+        const c = layer.climate
+        const valid = c && typeof c.product === 'string' && c.product.trim() &&
+          /^\d{4}-\d{4}$/.test(c.horizon ?? '') && [null, 'p10', 'p50', 'p90'].includes(c.percentile) &&
+          ['annual', 'spring', 'summer', 'autumn', 'winter'].includes(c.season) &&
+          ['absolute', 'source-delta'].includes(c.measure) &&
+          (c.measure === 'absolute' ? c.baseline === null : /^\d{4}-\d{4}$/.test(c.baseline ?? '')) &&
+          Array.isArray(c.domain) && c.domain.length === 2 && c.domain.every(Number.isFinite) && c.domain[0] < c.domain[1] &&
+          Array.isArray(c.colors) && c.colors.length >= 2 && c.colors.length <= 9 && c.colors.every(color => /^#[\da-f]{6}$/i.test(color)) &&
+          (c.breaks === undefined || Array.isArray(c.breaks) && c.breaks.length === c.colors.length - 1 && c.breaks.every((edge, index) => Number.isFinite(edge) && (index === 0 || edge > c.breaks[index - 1]))) &&
+          typeof c.units === 'string' && c.units.trim() &&
+          (c.minZoom === undefined || Number.isFinite(c.minZoom) && c.minZoom >= 0 && c.minZoom <= 22)
+        if (!valid) errors.push(`${scope}.climate must specify an exact band selection, units, fixed increasing domain and 2–9 hex colours`)
       }
       for (const key of ['fillOpacity', 'lineOpacity']) {
         if (typeof layer?.[key] !== 'number' || !Number.isFinite(layer[key]) || layer[key] < 0 || layer[key] > 1) {

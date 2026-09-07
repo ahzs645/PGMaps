@@ -1,4 +1,5 @@
 import type { ProjectSceneDef, ProjectStoryCategoryDef, ProjectStoryLayerDef } from '@/lib/projectPackages'
+import { climateLegend } from './adapters/climateStyle'
 
 /**
  * Pure scene resolution for JSON map stories: turning a scene's declarative
@@ -129,7 +130,15 @@ export function buildLegend(
   for (const resolved of resolvedLayers) {
     if (!visibleLayerIds.has(resolved.layer.id)) continue
     const { category } = resolved
-    if (category) {
+    if (resolved.layer.format === 'climate-grid' && resolved.layer.climate) {
+      climateLegend(resolved.layer.climate).forEach((entry, index) =>
+        entries.push({
+          ...entry,
+          key: `${resolved.layer.id}-${index}`,
+          layerId: resolved.layer.id,
+        }),
+      )
+    } else if (category) {
       for (const [label, color] of Object.entries(category.colors)) {
         entries.push({ key: `${resolved.layer.id}-${label}`, label, color, layerId: resolved.layer.id })
       }

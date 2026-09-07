@@ -117,7 +117,7 @@ optional; omitted fields keep the defaults shown here:
     **Explore map** button hides the card lane and enables direct map interaction
     and zoom controls. **Read story** restores the same reading position.
   - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
-    map on top, a slide pane below with arrow gutters, dot navigation, keyboard
+    map on top, a slide pane below with arrow gutters, horizontally scrollable dot navigation, keyboard
     arrows, and horizontal swipe on touch. The map stays interactive. The pane
     is as tall as the story's longest slide rather than a fixed fraction of the
     screen, so no slide is cut off and stepping never resizes the map; on a
@@ -170,6 +170,10 @@ uses `layout: "scrolly"` as working examples of the replicated layouts.
 `mobilePeekTicker: true` as a working example of the map-first mobile
 presentation.
 
+Map-first `slides` and `scrolly` layouts also expose **Sources and downloads**,
+including the source note, detailed interpretation, related links and story JSON.
+Slide legends scroll within the available map pane instead of clipping above it.
+
 ## GeoJSON layers
 
 Every `workspace.layers` entry references polygon GeoJSON and shares its `id`
@@ -212,6 +216,96 @@ For categorical fills, add a property-to-colour mapping:
 Layer order in `workspace.layers` is draw order: later layers appear above
 earlier layers. Top-level `layers` controls catalog labels and default
 visibility; `workspace.layers` controls data and map styling.
+
+## Native climate-grid layers
+
+`format: "climate-grid"` streams BCDataMapper `bcdatamapper-native-grid-v1`
+releases through the scraper-owned adapter and an interleaved Deck.gl overlay.
+`data` is an HTTPS manifest URL (prefer a pinned release), not an embedded raster
+or GeoJSON collection. The example collection is generated explicitly with
+`npm run projects:climate-stories`; ordinary app builds do not contact PAVICS or
+regenerate climate values. Processing and data remain in `vendor/bcdatamapper`
+and R2. The generator authors only project metadata, scenes and presentation.
+
+```json
+{
+  "id": "late-century-heat",
+  "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+  "format": "climate-grid",
+  "climate": {
+    "product": "txgt_29",
+    "horizon": "2071-2100",
+    "percentile": "p50",
+    "season": "annual",
+    "measure": "absolute",
+    "baseline": null,
+    "domain": [0, 100],
+    "colors": ["#edf8fb", "#b3cde3", "#8c96c6", "#8856a7", "#810f7c"],
+    "units": "days"
+  },
+  "idProperty": "cellId",
+  "labelProperty": "value",
+  "fillColor": "#8856a7",
+  "fillOpacity": 0.78,
+  "lineColor": "#ffffff",
+  "lineOpacity": 0,
+  "lineWidth": 0
+}
+```
+
+Band selection must be explicit and match exactly once. Percentiles are
+`p10`, `p50`, `p90`, or `null` for an archive without that dimension. Seasons
+are `annual`, `spring`, `summer`, `autumn`, `winter`. `measure` is `absolute`
+with `baseline: null`, or `source-delta` with a baseline `YYYY-YYYY` period.
+Source-delta bands are used directly, never reconstructed by subtracting
+marginal percentiles. Display units must match the selected band's metadata.
+
+`domain` contains two finite increasing numbers; `colors` has 2–9 six-digit
+hex colours. These form equal-width bins, clamped at either end, automatically
+shown in the layer legend. Optional `breaks` supplies unequal bin edges instead:
+exactly `colors.length - 1` finite increasing values (for example `[1, 10, 30, 60]`
+with five colours). The first and last bins are open-ended. Keep the same scale across comparable scenes. These
+are value bins, not health-risk categories. `fillOpacity` overrides work;
+categorical styles, feature highlights, outlines and attribute joins do not
+apply to climate cells. Climate cells draw below basemap labels and the story's
+GeoJSON/PMTiles overlays, irrespective of their position in `workspace.layers`.
+Author climate layers before contextual boundaries/points to reflect this order.
+
+Only active climate layers draw. The climate controller remains mounted for the
+story's lifetime, including introductory scenes with no climate layer. Geometry
+indices and Float64 value blocks are fetched for the current viewport and decoded
+without interpolation. An app-owned byte-budgeted LRU retains decompressed blocks
+across scenes: 96 MiB on desktop, 48 MiB when opened at phone width. This is a
+transport-cache limit, not a total browser/GPU memory limit. Returning to retained
+periods reuses all-band blocks; evicted blocks may require fetching again.
+
+After the current view completes and the reader settles for 800 ms, the controller
+may warm **one adjacent scene** in the last navigation direction, using its camera
+fitted to the actual map pane. It retains bytes, not another decoded polygon scene.
+Speculation admits at most 32 MiB of new decompressed bytes per attempt, never
+evicts foreground cache entries, and stops on navigation, pan, unmount, hidden
+tabs, or reported data-saver/2G/3G connections. Manual layer overrides disable
+read-ahead. Speculative failures are silent; foreground failures remain retryable.
+The same viewport and zoom gates apply before any fine-grid value blocks load.
+
+Completed scenes swap as a unit. While loading, retained climate cells keep their
+previous legend (explicitly labelled as such); colors, legend and picking then
+switch to the new band. Existing grid geometry and Deck layer identities are reused
+when cell IDs/missing-value masks match. Picking reads the current band's exact
+properties, never stale properties on retained geometry. Errors, empty views,
+zoom gates and turning off all climate layers clear the surface. Leaving the
+story releases the cache and drawn/staging scenes. A 180,000-cell viewport budget
+bounds each decoded scene; authored `minZoom`
+(0–22, optional) adds a finer-grid gate. Snow stories use level 7 and start at a
+local view, while retaining BC-wide source coverage. Zoom out farther and a
+visible prompt replaces loading; no coarse synthetic grid is substituted.
+Cells with missing source values stay transparent. Clicks show units, period,
+percentile, scenario, cell ID and the stored numeric value. Loading, empty,
+zoom-gated and retryable-error states are explicit. Other story layers remain
+usable during an error. `StoryClimateLayers.tsx` owns the overlay and lifecycle;
+`adapters/climateStore.ts` owns transport caching/read-ahead and geometry reuse;
+`adapters/climateStyle.ts` owns pure display bins, and the native decoder stays
+in the scraper submodule. Do not route these manifests through `storySources`.
 
 ## Scene tools
 
@@ -357,6 +451,11 @@ Three renderer invariants are load-bearing and easy to undo by accident:
 - `src/maps/project-story/storyScene.test.ts` covers scene resolution: paint
   expressions for highlights and overrides, legend derivation, and the camera
   pane fit.
+- `src/maps/project-story/climateStore.test.ts` covers byte budgets, release
+  isolation/pinning, speculative admission, aborts/retries, and geometry reuse.
+- `tests/e2e/project-climate-stories.spec.ts` traverses every climate story on
+  desktop/phone, verifies warm period switches make no extra climate requests,
+  and checks read-ahead, data saver, retained legends and current-band picking.
 - `src/maps/project-story/whereIsNorthBc.test.ts` is the authoring guard for the
   shipped story — it fails if a scene references a layer, place, or highlight
   target that does not exist.

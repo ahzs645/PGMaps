@@ -96,6 +96,43 @@ function storyPackage(data = '/data/example.geojson'): RawStoryPackage {
 }
 
 describe('story project packages', () => {
+  const climate = {
+    product: 'txgt_29',
+    horizon: '2071-2100',
+    percentile: 'p50',
+    season: 'annual',
+    measure: 'absolute',
+    baseline: null,
+    domain: [0, 100],
+    colors: ['#ffffff', '#000000'],
+    units: 'days',
+    minZoom: 7,
+  }
+  it('preserves exact native-climate selections and validates imported display metadata', () => {
+    const raw = storyPackage('https://data.example.com/manifest.json')
+    Object.assign(raw.workspace.layers[0], { format: 'climate-grid', climate })
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({ layers: [{ format: 'climate-grid', climate }] })
+    for (const invalid of [
+      undefined,
+      { ...climate, domain: [10, 0] },
+      { ...climate, breaks: [5, 10] },
+      { ...climate, breaks: [NaN] },
+      { ...climate, colors: ['red'] },
+      { ...climate, percentile: 'p80' },
+      { ...climate, season: 'fall' },
+      { ...climate, baseline: '1971-2000' },
+      { ...climate, measure: 'source-delta' },
+      { ...climate, minZoom: -1 },
+      { ...climate, units: '' },
+    ]) {
+      raw.workspace.layers[0].climate = invalid
+      expect(normalizeProjectPackage(raw)?.workspace).toBeUndefined()
+    }
+    raw.workspace.layers[0].climate = { ...climate, product: 'PAS', percentile: null }
+    expect(normalizeProjectPackage(raw)?.workspace).toBeDefined()
+    raw.workspace.layers[0].climate = { ...climate, measure: 'source-delta', baseline: '1971-2000' }
+    expect(normalizeProjectPackage(raw)?.workspace).toBeDefined()
+  })
   it('normalizes a JSON-driven story workspace', () => {
     const project = normalizeProjectPackage(storyPackage())
     expect(project?.kind).toBe('map-story')

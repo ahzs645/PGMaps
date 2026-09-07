@@ -1,0 +1,421 @@
+{
+  "version": 1,
+  "slug": "bc-climate-wettest-five-days",
+  "title": "B.C. Climate · Annual maximum 5-day precipitation",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "PGMaps",
+  "updated": "2026-09-06",
+  "region": "British Columbia",
+  "status": "Exploratory climate story",
+  "summary": "The map shows the 30-year mean of the largest five-consecutive-day precipitation total in each year, in mm. A guided comparison of the historical baseline, future periods and ensemble percentiles, with values streamed from R2.",
+  "sourceNote": "PGMaps-authored interpretation, not an official Northern Health publication. Climate cells stream from a pinned BCDataMapper R2 release: CanDCS-U6 / ClimateData.ca via PAVICS, plus archived ClimateBC PAS. SSP5-8.5 is one high-emissions scenario, not an assigned probability. Native BC-intersecting cells retain their whole footprints; missing values are transparent, not zero. Grid values are not the report’s population-weighted health-region summaries. Display colours use fixed bins and do not classify health risk.",
+  "details": [
+    "Periods are 30-year climatologies, not forecasts for individual years. P10/P50/P90 describe the supplied ensemble distribution, not a complete uncertainty range or three emissions scenarios.",
+    "The report compares 1971–2000, 2041–2070 and 2071–2100. The pinned release retains additional periods and source-delta bands; the guided stories show absolute values. The full data preview remains available in the source links.",
+    "Temperature conversion and precipitation metadata caveats are documented in the release. Accumulated precipitation is displayed in mm without multiplying source values by days. Snow provenance is archived ClimateBC; the report identifies v7.41 but the archive version was not independently established."
+  ],
+  "links": [
+    {
+      "label": "Full R2 data preview: all indicators, bands and periods",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/preview.html"
+    },
+    {
+      "label": "Pinned climate manifest and provenance",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json"
+    },
+    {
+      "label": "Climate source inventory",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/sources.json"
+    },
+    {
+      "label": "Northern Health resilience narrative",
+      "href": "/dev/projects/northern-health-climate-resilience"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Story scenes",
+      "value": "5"
+    },
+    {
+      "label": "Scenario",
+      "value": "SSP5-8.5"
+    }
+  ],
+  "layers": [
+    {
+      "id": "rx5day-1971-2000-p50-annual",
+      "label": "Annual maximum 5-day precipitation · 1971-2000 · P50",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "rx5day-2041-2070-p50-annual",
+      "label": "Annual maximum 5-day precipitation · 2041-2070 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "rx5day-2071-2100-p50-annual",
+      "label": "Annual maximum 5-day precipitation · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "rx5day-2071-2100-p10-annual",
+      "label": "Annual maximum 5-day precipitation · 2071-2100 · P10",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "rx5day-2071-2100-p90-annual",
+      "label": "Annual maximum 5-day precipitation · 2071-2100 · P90",
+      "type": "boundary",
+      "checked": false
+    }
+  ],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "Historical baseline",
+      "kicker": "01 · Annual maximum 5-day precipitation",
+      "title": "When precipitation persists",
+      "text": "The map shows the 30-year mean of the largest five-consecutive-day precipitation total in each year, in mm. Pan and zoom across BC; click a coloured cell to inspect its stored value. The colour scale stays fixed between scenes.",
+      "focus": "1971-2000 · P50 · mm",
+      "visibleLayerIds": [
+        "rx5day-1971-2000-p50-annual"
+      ],
+      "camera": {
+        "center": [
+          -126.4,
+          54.8
+        ],
+        "zoom": 4.05
+      },
+      "callout": {
+        "label": "Reference period",
+        "value": "1971-2000 · P50",
+        "detail": "SSP5-8.5 · annual · mm · native cells, not regional means"
+      }
+    },
+    {
+      "label": "Mid-century",
+      "kicker": "02 · Annual maximum 5-day precipitation",
+      "title": "Mid-century",
+      "text": "This is an accumulated amount, not a count of events. Runoff and flooding also depend on terrain, drainage, soils, snowmelt and other local conditions. Pan and zoom across BC; click a coloured cell to inspect its stored value. The colour scale stays fixed between scenes.",
+      "focus": "2041-2070 · P50 · mm",
+      "visibleLayerIds": [
+        "rx5day-2041-2070-p50-annual"
+      ],
+      "camera": {
+        "center": [
+          -126.4,
+          54.8
+        ],
+        "zoom": 4.05
+      },
+      "callout": {
+        "label": "Projection period",
+        "value": "2041-2070 · P50",
+        "detail": "SSP5-8.5 · annual · mm · native cells, not regional means"
+      }
+    },
+    {
+      "label": "Late-century",
+      "kicker": "03 · Annual maximum 5-day precipitation",
+      "title": "Late-century",
+      "text": "This is an accumulated amount, not a count of events. Runoff and flooding also depend on terrain, drainage, soils, snowmelt and other local conditions. Pan and zoom across BC; click a coloured cell to inspect its stored value. The colour scale stays fixed between scenes.",
+      "focus": "2071-2100 · P50 · mm",
+      "visibleLayerIds": [
+        "rx5day-2071-2100-p50-annual"
+      ],
+      "camera": {
+        "center": [
+          -126.4,
+          54.8
+        ],
+        "zoom": 4.05
+      },
+      "callout": {
+        "label": "Projection period",
+        "value": "2071-2100 · P50",
+        "detail": "SSP5-8.5 · annual · mm · native cells, not regional means"
+      }
+    },
+    {
+      "label": "P10",
+      "kicker": "04 · Annual maximum 5-day precipitation",
+      "title": "Late-century, P10",
+      "text": "This is the 10th percentile for 2071–2100 under the same scenario. Compare it with P50 and the other percentile using the unchanged colour scale; it is not a best/worst-case guarantee. Pan and zoom across BC; click a coloured cell to inspect its stored value. The colour scale stays fixed between scenes.",
+      "focus": "2071-2100 · P10 · mm",
+      "visibleLayerIds": [
+        "rx5day-2071-2100-p10-annual"
+      ],
+      "camera": {
+        "center": [
+          -126.4,
+          54.8
+        ],
+        "zoom": 4.05
+      },
+      "callout": {
+        "label": "Ensemble percentile",
+        "value": "2071-2100 · P10",
+        "detail": "SSP5-8.5 · annual · mm · native cells, not regional means"
+      }
+    },
+    {
+      "label": "P90",
+      "kicker": "05 · Annual maximum 5-day precipitation",
+      "title": "Late-century, P90",
+      "text": "This is the 90th percentile for 2071–2100 under the same scenario. Compare it with P50 and the other percentile using the unchanged colour scale; it is not a best/worst-case guarantee. Pan and zoom across BC; click a coloured cell to inspect its stored value. The colour scale stays fixed between scenes.",
+      "focus": "2071-2100 · P90 · mm",
+      "visibleLayerIds": [
+        "rx5day-2071-2100-p90-annual"
+      ],
+      "camera": {
+        "center": [
+          -126.4,
+          54.8
+        ],
+        "zoom": 4.05
+      },
+      "callout": {
+        "label": "Ensemble percentile",
+        "value": "2071-2100 · P90",
+        "detail": "SSP5-8.5 · annual · mm · native cells, not regional means"
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "bc-climate-wettest-five-days.json",
+      "detail": "Narrative, band selections, colours and cameras only; no climate arrays embedded."
+    },
+    {
+      "label": "R2 native-grid release",
+      "detail": "Gzipped geometry indices and lossless Float64 values, fetched only for the active map view."
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "accent": "#0369a1",
+    "options": {
+      "layout": "slides",
+      "sceneTransition": "ease",
+      "sceneTransitionMs": 650,
+      "legendCollapsed": "auto",
+      "slidesSwipeHint": "off"
+    },
+    "map": {
+      "center": [
+        -126.4,
+        54.8
+      ],
+      "zoom": 4.05,
+      "minZoom": 2.5,
+      "maxZoom": 12,
+      "basemap": "light"
+    },
+    "places": [],
+    "layers": [
+      {
+        "id": "rx5day-1971-2000-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx5day",
+          "horizon": "1971-2000",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            20,
+            340
+          ],
+          "breaks": [
+            50,
+            100,
+            250,
+            500
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "rx5day-2041-2070-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx5day",
+          "horizon": "2041-2070",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            20,
+            340
+          ],
+          "breaks": [
+            50,
+            100,
+            250,
+            500
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "rx5day-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx5day",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            20,
+            340
+          ],
+          "breaks": [
+            50,
+            100,
+            250,
+            500
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "rx5day-2071-2100-p10-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx5day",
+          "horizon": "2071-2100",
+          "percentile": "p10",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            20,
+            340
+          ],
+          "breaks": [
+            50,
+            100,
+            250,
+            500
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "rx5day-2071-2100-p90-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx5day",
+          "horizon": "2071-2100",
+          "percentile": "p90",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            20,
+            340
+          ],
+          "breaks": [
+            50,
+            100,
+            250,
+            500
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      }
+    ]
+  }
+}

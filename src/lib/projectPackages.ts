@@ -214,11 +214,30 @@ export interface ProjectMapExplorerWorkspaceDef {
   features: ProjectExplorerFeatureDef[]
 }
 
+export interface ProjectStoryClimateDef {
+  product: string
+  horizon: string
+  percentile: 'p10' | 'p50' | 'p90' | null
+  season: 'annual' | 'spring' | 'summer' | 'autumn' | 'winter'
+  measure: 'absolute' | 'source-delta'
+  baseline: string | null
+  /** Fixed display bins, shared across comparable scenes; never a risk score. */
+  domain: [number, number]
+  /** Optional unequal bin edges; exactly colors.length - 1 increasing values. */
+  breaks?: number[]
+  colors: string[]
+  units: string
+  /** Fine grids are fetched only when zoomed in; viewport cell budget also applies. */
+  minZoom?: number
+}
+
 export interface ProjectStoryLayerDef {
   id: string
   data: string
   /** Source transport. GeoJSON is the default; PMTiles requires sourceLayer. */
-  format?: 'geojson' | 'pmtiles'
+  format?: 'geojson' | 'pmtiles' | 'climate-grid'
+  /** `data` points to a BCDataMapper native-grid-v1 manifest, not embedded cells. */
+  climate?: ProjectStoryClimateDef
   /** Vector layer name inside a PMTiles archive. */
   sourceLayer?: string
   /** Optional tabular attributes joined onto shared boundary geometry at load time. */
@@ -524,11 +543,13 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
 
   const layers = asArray(value.layers, (item): item is ProjectStoryLayerDef => {
     const layer = item as Partial<ProjectStoryLayerDef>
-    const format = layer?.format === 'pmtiles' ? 'pmtiles' : 'geojson'
+    const format = layer?.format ?? 'geojson'
     return (
       typeof layer?.id === 'string' &&
       isProjectDataUrl(layer.data) &&
+      ['geojson', 'pmtiles', 'climate-grid'].includes(format) &&
       (format !== 'pmtiles' || typeof layer.sourceLayer === 'string') &&
+      (format !== 'climate-grid' || isStoryClimate(layer.climate)) &&
       typeof layer.idProperty === 'string' &&
       typeof layer.labelProperty === 'string' &&
       typeof layer.fillColor === 'string' &&
@@ -548,7 +569,8 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     )
     return {
       ...layer,
-      format: layer.format === 'pmtiles' ? ('pmtiles' as const) : ('geojson' as const),
+      format: layer.format ?? ('geojson' as const),
+      climate: layer.format === 'climate-grid' ? layer.climate : undefined,
       sourceLayer: layer.format === 'pmtiles' ? layer.sourceLayer : undefined,
       attributes: hasAttributes
         ? {
@@ -593,6 +615,38 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     layers,
     places,
   }
+}
+
+function isStoryClimate(value: unknown): value is ProjectStoryClimateDef {
+  const c = value as Partial<ProjectStoryClimateDef> | null
+  return Boolean(
+    c &&
+    typeof c.product === 'string' &&
+    c.product.trim() &&
+    typeof c.horizon === 'string' &&
+    /^\d{4}-\d{4}$/.test(c.horizon) &&
+    [null, 'p10', 'p50', 'p90'].includes(c.percentile as never) &&
+    ['annual', 'spring', 'summer', 'autumn', 'winter'].includes(c.season ?? '') &&
+    ['absolute', 'source-delta'].includes(c.measure ?? '') &&
+    (c.measure === 'absolute'
+      ? c.baseline === null
+      : typeof c.baseline === 'string' && /^\d{4}-\d{4}$/.test(c.baseline)) &&
+    Array.isArray(c.domain) &&
+    c.domain.length === 2 &&
+    c.domain.every(isFiniteNumber) &&
+    c.domain[0] < c.domain[1] &&
+    Array.isArray(c.colors) &&
+    c.colors.length >= 2 &&
+    c.colors.length <= 9 &&
+    c.colors.every((color) => typeof color === 'string' && /^#[\da-f]{6}$/i.test(color)) &&
+    (c.breaks === undefined ||
+      (Array.isArray(c.breaks) &&
+        c.breaks.length === c.colors.length - 1 &&
+        c.breaks.every((edge, index) => isFiniteNumber(edge) && (index === 0 || edge > c.breaks![index - 1])))) &&
+    typeof c.units === 'string' &&
+    c.units.trim() &&
+    (c.minZoom === undefined || (isFiniteNumber(c.minZoom) && c.minZoom >= 0 && c.minZoom <= 22)),
+  )
 }
 
 function isLegendItem(item: unknown): item is { label: string; color: string } {

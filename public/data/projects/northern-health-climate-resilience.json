@@ -1,0 +1,2018 @@
+{
+  "version": 1,
+  "slug": "northern-health-climate-resilience",
+  "title": "Northern Health · Climate-resilient care",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "PGMaps",
+  "updated": "2026-09-06",
+  "region": "British Columbia",
+  "status": "Exploratory climate story",
+  "summary": "An independent map-story adaptation of the supplied Northern Health briefing: changing heat, precipitation and seasons, followed by all 18 hospital communities.",
+  "sourceNote": "PGMaps-authored interpretation, not an official Northern Health publication. Climate cells stream from a pinned BCDataMapper R2 release: CanDCS-U6 / ClimateData.ca via PAVICS, plus archived ClimateBC PAS. SSP5-8.5 is one high-emissions scenario, not an assigned probability. Native BC-intersecting cells retain their whole footprints; missing values are transparent, not zero. Grid values are not the report’s population-weighted health-region summaries. Display colours use fixed bins and do not classify health risk.",
+  "details": [
+    "Periods are 30-year climatologies, not forecasts for individual years. P10/P50/P90 describe the supplied ensemble distribution, not a complete uncertainty range or three emissions scenarios.",
+    "The report compares 1971–2000, 2041–2070 and 2071–2100. The pinned release retains additional periods and source-delta bands; the guided stories show absolute values. The full data preview remains available in the source links.",
+    "Temperature conversion and precipitation metadata caveats are documented in the release. Accumulated precipitation is displayed in mm without multiplying source values by days. Snow provenance is archived ClimateBC; the report identifies v7.41 but the archive version was not independently established.",
+    "Narrative source: the user-supplied Northern Health climate-resilient health facilities briefing (sections Context, Methodology, Regional Projections and Site Specific Projections; publication date not supplied). Regional callouts are explicitly report-reported population-weighted figures, not newly validated calculations.",
+    "Source corrections: txgt_29 is >29°C; rx1day/rx5day are amounts, not event counts; tn_min and tn_mean are distinct. Inconsistent copied changes, percentages and units in site tables are intentionally not reproduced. Hospital names and verification flags come from the existing snapshot."
+  ],
+  "links": [
+    {
+      "label": "Full R2 data preview: all indicators, bands and periods",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/preview.html"
+    },
+    {
+      "label": "Pinned climate manifest and provenance",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json"
+    },
+    {
+      "label": "Climate source inventory",
+      "href": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/sources.json"
+    },
+    {
+      "label": "Mean annual temperature",
+      "href": "/dev/projects/bc-climate-mean-temperature"
+    },
+    {
+      "label": "Cooling degree days above 18°C",
+      "href": "/dev/projects/bc-climate-cooling-degree-days"
+    },
+    {
+      "label": "Heating degree days below 18°C",
+      "href": "/dev/projects/bc-climate-heating-degree-days"
+    },
+    {
+      "label": "Days above 29°C",
+      "href": "/dev/projects/bc-climate-days-above-29c"
+    },
+    {
+      "label": "Hottest day of the year",
+      "href": "/dev/projects/bc-climate-hottest-day"
+    },
+    {
+      "label": "Coldest night of the year",
+      "href": "/dev/projects/bc-climate-coldest-night"
+    },
+    {
+      "label": "Nights above 18°C",
+      "href": "/dev/projects/bc-climate-nights-above-18c"
+    },
+    {
+      "label": "Annual frost days",
+      "href": "/dev/projects/bc-climate-frost-days"
+    },
+    {
+      "label": "Annual ice days",
+      "href": "/dev/projects/bc-climate-ice-days"
+    },
+    {
+      "label": "Frost-free season length",
+      "href": "/dev/projects/bc-climate-frost-free-season"
+    },
+    {
+      "label": "Annual total precipitation",
+      "href": "/dev/projects/bc-climate-annual-precipitation"
+    },
+    {
+      "label": "Annual maximum 1-day precipitation",
+      "href": "/dev/projects/bc-climate-wettest-day"
+    },
+    {
+      "label": "Annual maximum 5-day precipitation",
+      "href": "/dev/projects/bc-climate-wettest-five-days"
+    },
+    {
+      "label": "Days above 32°C",
+      "href": "/dev/projects/bc-climate-days-above-32c"
+    },
+    {
+      "label": "Mean daily minimum temperature",
+      "href": "/dev/projects/bc-climate-mean-daily-minimum"
+    },
+    {
+      "label": "Mean daily maximum temperature",
+      "href": "/dev/projects/bc-climate-mean-daily-maximum"
+    },
+    {
+      "label": "Seasonal total precipitation",
+      "href": "/dev/projects/bc-climate-seasonal-precipitation"
+    },
+    {
+      "label": "Annual precipitation as snow",
+      "href": "/dev/projects/bc-climate-precipitation-as-snow"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Story scenes",
+      "value": "32"
+    },
+    {
+      "label": "Scenario",
+      "value": "SSP5-8.5"
+    },
+    {
+      "label": "Hospital communities",
+      "value": "18"
+    }
+  ],
+  "layers": [
+    {
+      "id": "tg_mean-1971-2000-p50-annual",
+      "label": "Mean annual temperature · 1971-2000 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "tg_mean-2041-2070-p50-annual",
+      "label": "Mean annual temperature · 2041-2070 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "tg_mean-2071-2100-p50-annual",
+      "label": "Mean annual temperature · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "txgt_29-2071-2100-p50-annual",
+      "label": "Days above 29°C · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "ccdcold_18-2071-2100-p50-annual",
+      "label": "Cooling degree days above 18°C · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "tr_18-2071-2100-p50-annual",
+      "label": "Nights above 18°C · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "prcptot-2071-2100-p50-annual",
+      "label": "Annual total precipitation · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "rx1day-2071-2100-p50-annual",
+      "label": "Annual maximum 1-day precipitation · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "prcptot_seasonal-2071-2100-p50-winter",
+      "label": "Seasonal total precipitation · winter · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "prcptot_seasonal-2071-2100-p50-summer",
+      "label": "Seasonal total precipitation · summer · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "PAS-2071-2100-ensemble-annual",
+      "label": "Annual precipitation as snow · 2071-2100 · archive",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "frost_free_season-2071-2100-p50-annual",
+      "label": "Frost-free season length · 2071-2100 · P50",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "health-authorities",
+      "label": "Northern Health boundary",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "hospitals",
+      "label": "Report hospital locations",
+      "type": "point",
+      "checked": true
+    }
+  ],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "Why this story",
+      "title": "Plan for the climate a facility will operate in",
+      "text": "The supplied Northern Health briefing argues that historical baselines alone are insufficient for long-lived facilities. Its central message is continuity of care: bring forward-looking climate information into planning, then assess local vulnerability and operational needs. This PGMaps adaptation is not an official Northern Health publication. The boundary is the existing BCMoH vector; red points locate the 18 report communities’ hospitals.",
+      "kicker": "01 · Northern Health",
+      "focus": "Northern Health · report hospital communities",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ]
+    },
+    {
+      "label": "Baseline",
+      "title": "Start with a reference, not a prediction",
+      "text": "The report uses 1971–2000 as its historical baseline. These cells show the corresponding mean annual temperature climatology. Its regional tables use Census 2021 population weights, while its site analysis samples locations. Neither is the same as the raw grid map shown here.",
+      "kicker": "02 · Northern Health",
+      "focus": "Mean annual temperature · 1971-2000 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "tg_mean-1971-2000-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "3.9°C",
+        "detail": "Baseline mean annual temperature. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Mid-century",
+      "title": "A warmer background for care delivery",
+      "text": "Move to 2041–2070 under SSP5-8.5. The report links warmer conditions to the need to review facility resilience over its operating life. This scenario is one planning lens, not a probability assigned to the future. Colours use the same temperature scale as the baseline.",
+      "kicker": "03 · Northern Health",
+      "focus": "Mean annual temperature · 2041-2070 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "tg_mean-2041-2070-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "6.9°C",
+        "detail": "2041–2070 mean annual temperature; baseline 3.9°C. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Late-century",
+      "title": "Look beyond the next capital cycle",
+      "text": "The 2071–2100 view extends the same scenario farther into the future. The report’s long-term perspective matters for assets intended to provide care for decades. P50 is an ensemble median, not certainty; each indicator story also shows P10 and P90.",
+      "kicker": "04 · Northern Health",
+      "focus": "Mean annual temperature · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "tg_mean-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "8.9°C",
+        "detail": "2071–2100 mean annual temperature; baseline 3.9°C. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Daytime heat",
+      "title": "Heat is more than the annual average",
+      "text": "Days above 29°C provide a different lens from mean temperature. The threshold is 29°C, not the older UI label of 30°C. The report connects hotter conditions to cooling and service-continuity concerns; this map does not model indoor overheating or health impacts.",
+      "kicker": "05 · Northern Health",
+      "focus": "Days above 29°C · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "4 → 18 → 35 days",
+        "detail": "1971–2000 → 2041–2070 → 2071–2100. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Cooling",
+      "title": "Read the change in accumulated heat",
+      "text": "Cooling degree days describe accumulated temperature excess above 18°C, in °C·days. The report uses this as a climate input to facility planning. Actual energy use and indoor conditions also require building, equipment, occupancy and operational information.",
+      "kicker": "06 · Northern Health",
+      "focus": "Cooling degree days above 18°C · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "ccdcold_18-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "23 → 137 → 319 °C·days",
+        "detail": "Historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Warm nights",
+      "title": "Keep the daily low in view",
+      "text": "Nights above 18°C add information that daytime maxima cannot provide. In the report they sit alongside daytime heat and degree days, not in place of them. An outdoor grid-cell climatology cannot determine how a particular patient room will perform.",
+      "kicker": "07 · Northern Health",
+      "focus": "Nights above 18°C · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "tr_18-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ]
+    },
+    {
+      "label": "Annual water",
+      "title": "More annual precipitation is not the whole water story",
+      "text": "The report anticipates higher annual precipitation and asks planners to consider water-related resilience. Total precipitation includes rain and snow water equivalent. It does not directly tell us flood depth, stormwater capacity, or reliable summer water supply.",
+      "kicker": "08 · Northern Health",
+      "focus": "Annual total precipitation · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "prcptot-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "753 → 836 → 880 mm",
+        "detail": "Annual totals: historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Heavy precipitation",
+      "title": "Examine the wettest day separately",
+      "text": "The largest one-day amount is a distinct indicator from the annual total. The source report sometimes describes this as more days of heavy precipitation; the actual rx1day variable is an amount in mm, not an event count. Local flood or drainage assessment needs additional evidence.",
+      "kicker": "09 · Northern Health",
+      "focus": "Annual maximum 1-day precipitation · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "rx1day-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ]
+    },
+    {
+      "label": "Winter",
+      "title": "Separate the seasons",
+      "text": "Winter precipitation is the December–February total, combining rain and snow water equivalent. The report’s winter and summer patterns differ, so an annual total should not stand in for both. The next scene keeps the scale fixed and switches to summer.",
+      "kicker": "10 · Northern Health",
+      "focus": "Seasonal total precipitation · winter · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "prcptot_seasonal-2071-2100-p50-winter",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "216 → 237 → 247 mm",
+        "detail": "Winter totals: historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Summer",
+      "title": "Little change in a regional mean can hide local differences",
+      "text": "The report’s population-weighted summer total changes little, even while it describes coastal and interior differences. Read each native cell on its own terms. Precipitation alone does not measure drought; temperature, evapotranspiration, storage and water demand also matter.",
+      "kicker": "11 · Northern Health",
+      "focus": "Seasonal total precipitation · summer · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "prcptot_seasonal-2071-2100-p50-summer",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "187 → 187 → 189 mm",
+        "detail": "Summer totals: historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Snow",
+      "title": "A separate archive for precipitation as snow",
+      "text": "This scene zooms to Prince George to show the finer ClimateBC PAS grid. The archive remains BC-wide: pan elsewhere to inspect it. PAS is water-equivalent precipitation falling as snow, not snow depth. Unlike U6, these archived future ensemble rasters do not provide P10/P50/P90 bands.",
+      "kicker": "12 · Northern Health",
+      "focus": "Annual precipitation as snow · 2071-2100 · archive",
+      "camera": {
+        "center": [
+          -122.76,
+          53.91
+        ],
+        "zoom": 9.4
+      },
+      "visibleLayerIds": [
+        "PAS-2071-2100-ensemble-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "204 → 162 → 113 mm",
+        "detail": "Annual PAS: historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Changing seasons",
+      "title": "A longer frost-free interval",
+      "text": "The report uses frost-free season length to illustrate broader seasonal change. The indicator describes the interval between spring and autumn frosts; it does not itself predict pollen, food production, pests or disease. Those pathways require further assessment.",
+      "kicker": "13 · Northern Health",
+      "focus": "Frost-free season length · 2071-2100 · P50",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "frost_free_season-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ],
+      "callout": {
+        "label": "Supplied report · population-weighted HA summary",
+        "value": "126 → 177 → 205 days",
+        "detail": "Frost-free season: historical → mid-century → late-century. These figures are quoted from the report, not recalculated from the map cells."
+      }
+    },
+    {
+      "label": "Burns Lake",
+      "title": "Burns Lake: bring the regional story to a community",
+      "kicker": "14 · Hospital communities",
+      "text": "Burns Lake & District Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Burns Lake · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -125.7612502,
+          54.2357487
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "burns-lake-district-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Burns Lake & District Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Burns Lake",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Chetwynd",
+      "title": "Chetwynd: bring the regional story to a community",
+      "kicker": "15 · Hospital communities",
+      "text": "Chetwynd General Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Chetwynd · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -121.6445431,
+          55.6959815
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "chetwynd-general-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Chetwynd General Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Chetwynd",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Daajing Giids",
+      "title": "Daajing Giids: bring the regional story to a community",
+      "kicker": "16 · Hospital communities",
+      "text": "Haida Gwaii Hospital & Health Centre - Xaayda Gwaay Ngaaysdll Naay is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Daajing Giids · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -132.0705826,
+          53.2548117
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "haida-gwaii-hospital-health-centre-xaayda-gwaay-ngaaysdll-naay"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Haida Gwaii Hospital & Health Centre - Xaayda Gwaay Ngaaysdll Naay"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Daajing Giids",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Dawson Creek",
+      "title": "Dawson Creek: bring the regional story to a community",
+      "kicker": "17 · Hospital communities",
+      "text": "Dawson Creek Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Dawson Creek · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -120.2356029,
+          55.7498607
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "dawson-creek-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Dawson Creek Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Dawson Creek",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Fort Nelson",
+      "title": "Fort Nelson: bring the regional story to a community",
+      "kicker": "18 · Hospital communities",
+      "text": "Fort Nelson General Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Fort Nelson · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -122.704787,
+          58.8090391
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "fort-nelson-general-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Fort Nelson General Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Fort Nelson",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Fort St. James",
+      "title": "Fort St. James: bring the regional story to a community",
+      "kicker": "19 · Hospital communities",
+      "text": "Stuart Lake Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Fort St. James · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -124.2422686,
+          54.4407648
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "stuart-lake-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Stuart Lake Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Fort St. James",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Fort St. John",
+      "title": "Fort St. John: bring the regional story to a community",
+      "kicker": "20 · Hospital communities",
+      "text": "Fort St John General Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Fort St. John · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -120.8161127,
+          56.2560541
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "fort-st-john-general-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Fort St John General Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Fort St. John",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Hazelton",
+      "title": "Hazelton: bring the regional story to a community",
+      "kicker": "21 · Hospital communities",
+      "text": "Wrinch Memorial Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Hazelton · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -127.6515954,
+          55.2589989
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "wrinch-memorial-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Wrinch Memorial Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Hazelton",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Kitimat",
+      "title": "Kitimat: bring the regional story to a community",
+      "kicker": "22 · Hospital communities",
+      "text": "Kitimat General Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Kitimat · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -128.6474501,
+          54.0504911
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "kitimat-general-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Kitimat General Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Kitimat",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Mackenzie",
+      "title": "Mackenzie: bring the regional story to a community",
+      "kicker": "23 · Hospital communities",
+      "text": "Mackenzie & District Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Mackenzie · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -123.1013184,
+          55.3379008
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "mackenzie-district-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Mackenzie & District Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Mackenzie",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Masset",
+      "title": "Masset: bring the regional story to a community",
+      "kicker": "24 · Hospital communities",
+      "text": "Northern Haida Gwaii Hospital And Health Centre. is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Masset · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -132.1568764,
+          54.0205509
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "northern-haida-gwaii-hospital-and-health-centre"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Northern Haida Gwaii Hospital And Health Centre."
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Masset",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "McBride",
+      "title": "McBride: bring the regional story to a community",
+      "kicker": "25 · Hospital communities",
+      "text": "McBride and District Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "McBride · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -120.1611409,
+          53.3009477
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "mcbride-and-district-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "McBride and District Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "McBride",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Prince George",
+      "title": "Prince George: bring the regional story to a community",
+      "kicker": "26 · Hospital communities",
+      "text": "University Hospital of Northern BC is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Prince George · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -122.763478,
+          53.9112808
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "university-hospital-of-northern-bc"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "University Hospital of Northern BC"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Prince George",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Prince Rupert",
+      "title": "Prince Rupert: bring the regional story to a community",
+      "kicker": "27 · Hospital communities",
+      "text": "Prince Rupert Regional Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Prince Rupert · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -130.3317532,
+          54.3043705
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "prince-rupert-regional-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Prince Rupert Regional Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Prince Rupert",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Quesnel",
+      "title": "Quesnel: bring the regional story to a community",
+      "kicker": "28 · Hospital communities",
+      "text": "G. R. Baker Memorial Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Quesnel · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -122.500067,
+          52.981682
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "g-r-baker-memorial-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "G. R. Baker Memorial Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Quesnel",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Smithers",
+      "title": "Smithers: bring the regional story to a community",
+      "kicker": "29 · Hospital communities",
+      "text": "Bulkley Valley District Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Smithers · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -127.1622546,
+          54.78461
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "bulkley-valley-district-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Bulkley Valley District Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Smithers",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Terrace",
+      "title": "Terrace: bring the regional story to a community",
+      "kicker": "30 · Hospital communities",
+      "text": "Mills Memorial Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. Names and coordinates are retained from the existing snapshot, not reverified as a current facility inventory.",
+      "focus": "Terrace · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -128.5961926,
+          54.5113996
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "mills-memorial-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "Mills Memorial Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Terrace",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Vanderhoof",
+      "title": "Vanderhoof: bring the regional story to a community",
+      "kicker": "31 · Hospital communities",
+      "text": "St. John Hospital is the facility name in the existing source snapshot. This chapter holds the same late-century >29°C indicator across all 18 communities so the mapped values remain comparable. Click a climate cell to inspect it; the point is a location reference, not a claim of building-scale accuracy. This hospital point is marked geocoded_needs_review in the source and needs location review before site-specific use.",
+      "focus": "Vanderhoof · 2071–2100 · P50 · days >29°C",
+      "visibleLayerIds": [
+        "txgt_29-2071-2100-p50-annual",
+        "health-authorities",
+        "hospitals"
+      ],
+      "camera": {
+        "center": [
+          -124.0110024,
+          54.0285233
+        ],
+        "zoom": 8
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        },
+        {
+          "layerId": "hospitals",
+          "property": "id",
+          "values": [
+            "st-john-hospital"
+          ],
+          "dimOpacity": 0,
+          "color": "#dc2626",
+          "label": "St. John Hospital"
+        }
+      ],
+      "callout": {
+        "label": "Community screening, not site design",
+        "value": "Vanderhoof",
+        "detail": "The report’s copied site-change columns are not reproduced: several contain inconsistent units or arithmetic. The map exposes the source cell instead."
+      }
+    },
+    {
+      "label": "Putting it together",
+      "title": "Use the climate evidence, then assess the facility",
+      "text": "The report’s message is to preserve essential care as conditions change. Climate indicators inform that conversation; they do not replace a facility vulnerability assessment or engineering design. Explore the individual indicator stories for baseline, future and ensemble comparisons. This adaptation keeps report-reported regional statistics separate from native grid values, preserves the whole BC dataset, and does not reproduce inconsistent site-table deltas.",
+      "kicker": "32 · Northern Health",
+      "focus": "Northern Health · report hospital communities",
+      "camera": {
+        "center": [
+          -126.6,
+          56.35
+        ],
+        "zoom": 4.45
+      },
+      "visibleLayerIds": [
+        "health-authorities",
+        "hospitals"
+      ],
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "dimOpacity": 0,
+          "color": "#0f766e"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "northern-health-climate-resilience.json",
+      "detail": "Narrative, band selections, colours and cameras only; no climate arrays embedded."
+    },
+    {
+      "label": "R2 native-grid release",
+      "detail": "Gzipped geometry indices and lossless Float64 values, fetched only for the active map view."
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "accent": "#0369a1",
+    "options": {
+      "layout": "slides",
+      "sceneTransition": "ease",
+      "sceneTransitionMs": 650,
+      "legendCollapsed": "auto",
+      "slidesSwipeHint": "off"
+    },
+    "map": {
+      "center": [
+        -126.6,
+        56.35
+      ],
+      "zoom": 4.45,
+      "minZoom": 2.5,
+      "maxZoom": 12,
+      "basemap": "light"
+    },
+    "places": [],
+    "layers": [
+      {
+        "id": "tg_mean-1971-2000-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "tg_mean",
+          "horizon": "1971-2000",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            -9,
+            18
+          ],
+          "breaks": [
+            -5,
+            0,
+            5,
+            10
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "°C"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "tg_mean-2041-2070-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "tg_mean",
+          "horizon": "2041-2070",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            -9,
+            18
+          ],
+          "breaks": [
+            -5,
+            0,
+            5,
+            10
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "°C"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "tg_mean-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "tg_mean",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            -9,
+            18
+          ],
+          "breaks": [
+            -5,
+            0,
+            5,
+            10
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "°C"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "txgt_29-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "txgt_29",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            140
+          ],
+          "breaks": [
+            1,
+            10,
+            30,
+            60
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "days"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "ccdcold_18-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "ccdcold_18",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            1500
+          ],
+          "breaks": [
+            20,
+            100,
+            300,
+            600
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "°C·days"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "tr_18-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "tr_18",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            120
+          ],
+          "breaks": [
+            1,
+            5,
+            15,
+            30
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "days"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "prcptot-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "prcptot",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            200,
+            3900
+          ],
+          "breaks": [
+            500,
+            1000,
+            2000,
+            4000
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "rx1day-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "rx1day",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            10,
+            150
+          ],
+          "breaks": [
+            25,
+            50,
+            100,
+            200
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "prcptot_seasonal-2071-2100-p50-winter",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "prcptot_seasonal",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "winter",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            1600
+          ],
+          "breaks": [
+            100,
+            300,
+            600,
+            1200
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "prcptot_seasonal-2071-2100-p50-summer",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "prcptot_seasonal",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "summer",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            1600
+          ],
+          "breaks": [
+            100,
+            300,
+            600,
+            1200
+          ],
+          "colors": [
+            "#f1eef6",
+            "#bdc9e1",
+            "#74a9cf",
+            "#2b8cbe",
+            "#045a8d"
+          ],
+          "units": "mm"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "PAS-2071-2100-ensemble-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "PAS",
+          "horizon": "2071-2100",
+          "percentile": null,
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            9000
+          ],
+          "breaks": [
+            100,
+            300,
+            700,
+            1500
+          ],
+          "colors": [
+            "#f7fcf0",
+            "#ccebc5",
+            "#7bccc4",
+            "#2b8cbe",
+            "#084081"
+          ],
+          "units": "mm",
+          "minZoom": 7
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#2b8cbe",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "Archived ClimateBC · BCDataMapper/R2"
+      },
+      {
+        "id": "frost_free_season-2071-2100-p50-annual",
+        "data": "https://data.map.ahmad.sh/climate/bc-climate-u6/releases/01b4b7e982f9b2e6d042/manifest.json",
+        "format": "climate-grid",
+        "climate": {
+          "product": "frost_free_season",
+          "horizon": "2071-2100",
+          "percentile": "p50",
+          "season": "annual",
+          "measure": "absolute",
+          "baseline": null,
+          "domain": [
+            0,
+            370
+          ],
+          "breaks": [
+            60,
+            120,
+            180,
+            240
+          ],
+          "colors": [
+            "#edf8fb",
+            "#b3cde3",
+            "#8c96c6",
+            "#8856a7",
+            "#810f7c"
+          ],
+          "units": "days"
+        },
+        "idProperty": "cellId",
+        "labelProperty": "value",
+        "fillColor": "#8856a7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
+        "attribution": "ClimateData.ca / PCIC · PAVICS · BCDataMapper/R2"
+      },
+      {
+        "id": "health-authorities",
+        "data": "/data/boundaries/BCMoH/simplified/health_authorities.json",
+        "idProperty": "HLTH_AUTHORITY_CODE",
+        "labelProperty": "HLTH_AUTHORITY_NAME",
+        "fillColor": "#0f766e",
+        "fillOpacity": 0,
+        "lineColor": "#0f766e",
+        "lineOpacity": 0.85,
+        "lineWidth": 1.5,
+        "attribution": "B.C. Ministry of Health"
+      },
+      {
+        "id": "hospitals",
+        "data": "/data/health/echoscreen-northern-health-hospitals.geojson",
+        "geometry": "point",
+        "idProperty": "id",
+        "labelProperty": "name",
+        "selectionDetailProperty": "verificationStatus",
+        "fillColor": "#dc2626",
+        "fillOpacity": 1,
+        "circleRadius": 6,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 2,
+        "attribution": "Existing PGMaps HealthLinkBC hospital snapshot; names/coordinates are not a current facility inventory"
+      }
+    ]
+  }
+}
