@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Activity, Flame, Hammer, Settings as SettingsIcon, Undo2 } from 'lucide-react'
+import { Redo2, Undo2 } from 'lucide-react'
 import {
   DESKTOP_SIDEBAR_MAX_WIDTH,
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
-import { cn } from '@/lib/utils'
 import type { MapRef } from '@/components/ui/map'
-import { IndexLabHeader, ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
+import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
+import { IndexLabHeader, MapLensToggle, type MapLens } from './components/IndexLabHeader'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
-import { ScorePresetDialog } from './components/ScorePresetDialog'
+import { RecipesDialog } from './components/RecipesDialog'
 import { SCORE_PRESETS } from './constants'
+import { presetAppliesToBoundary } from './lib/presets'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderCoverageNotice } from './components/ScoreBuilderCoverageNotice'
@@ -57,6 +58,8 @@ interface StoredLayoutPrefs {
 
 const DEFAULT_SIDEBAR_WIDTH = 300
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 380
+/** Both side panels only fit alongside a useful map from Tailwind's `xl` breakpoint up. */
+const BOTH_PANELS_MEDIA_QUERY = '(min-width: 1280px)'
 
 type LabViewMode = 'build' | 'explore'
 
@@ -124,16 +127,16 @@ export default function ScoreBuilderSection() {
   )
 
   // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
-  // except the right panel on narrow desktops/tablets where both panels would crowd out the map.
+  // except the right panel below `xl` where both panels would crowd out the map.
   const [showSidebar, setShowSidebar] = useState(() => readLayoutPrefs().showSidebar ?? !sb.initializedFromUrlWeights)
   const [showRightSidebar, setShowRightSidebar] = useState(() => {
     const stored = readLayoutPrefs().showRightSidebar
     if (stored != null) return stored
-    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1100px)').matches) return false
+    if (typeof window !== 'undefined' && !window.matchMedia(BOTH_PANELS_MEDIA_QUERY).matches) return false
     return !sb.initializedFromUrlWeights
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
+  const [recipesOpen, setRecipesOpen] = useState(false)
   const [bcEnviroScreenMapVariable, setBcEnviroScreenMapVariable] = useState<BcEnviroScreenMapVariable>(
     BC_ENVIRO_SCREEN_DEFAULT_MAP_VARIABLE,
   )
@@ -369,6 +372,32 @@ export default function ScoreBuilderSection() {
     ],
   )
 
+  // Map lens: Score, Density, or Correlate. The reducer keeps the two modes mutually exclusive.
+  const lens: MapLens = state.correlateMode ? 'correlate' : state.densityMode ? 'density' : 'score'
+  // On a phone, choosing a lens raises the sheet to the lens panel so its controls are reachable.
+  const [mobileSnap, setMobileSnap] = useState<{ state: 'half'; key: number } | null>(null)
+  const { handleToggleDensityMode, handleToggleCorrelateMode } = sb
+  const handleLensChange = useCallback(
+    (next: MapLens) => {
+      if (next === 'score') {
+        if (state.densityMode) handleToggleDensityMode()
+        if (state.correlateMode) handleToggleCorrelateMode()
+        return
+      }
+      if (next === 'density' && !state.densityMode) handleToggleDensityMode()
+      if (next === 'correlate' && !state.correlateMode) handleToggleCorrelateMode()
+      if (!isDesktop) setMobileSnap((current) => ({ state: 'half', key: (current?.key ?? 0) + 1 }))
+    },
+    [handleToggleCorrelateMode, handleToggleDensityMode, isDesktop, state.correlateMode, state.densityMode],
+  )
+
+  const visiblePresets = useMemo(
+    () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, state.boundarySource)),
+    [state.boundarySource],
+  )
+  const openRecipes = useCallback(() => setRecipesOpen(true), [])
+  const openSettings = useCallback(() => setSettingsOpen(true), [])
+
   const desktopLeftPanel = (
     <ScoreBuilderLeftPanel
       boundarySource={state.boundarySource}
@@ -409,15 +438,8 @@ export default function ScoreBuilderSection() {
       loading={datasets.loading}
       dataErrors={datasets.dataErrors}
       weights={state.weights}
-      metrics={sb.activeMetricDefinitions}
-      onWeightChange={sb.handleWeightChange}
-      onAddMetric={sb.handleAddMetric}
-      onApplyPreset={sb.handleApplyPreset}
-      boundarySource={state.boundarySource}
       activePresetKey={results.activePresetKey}
       hasActiveBoundarySurface={!sb.showWalkabilitySourceSurface}
-      equationPreview={results.equationPreview}
-      metricRanges={metricRanges}
       scoreSpread={results.scoreSpread}
       populationEquitySummary={results.populationEquitySummary}
       densityMetric={state.densityMetric}
@@ -440,7 +462,6 @@ export default function ScoreBuilderSection() {
       onExport={handleExport}
       onShareUrl={sb.handleShareUrl}
       activeExampleKey={results.resolvedExampleKey}
-      isDesktop={isDesktop}
       correlateMode={state.correlateMode}
       onToggleCorrelateMode={sb.handleToggleCorrelateMode}
       densityMode={state.densityMode}
@@ -465,49 +486,44 @@ export default function ScoreBuilderSection() {
       className="h-full w-full border-0 shadow-none"
       loading={datasets.loading}
       dataErrors={datasets.dataErrors}
+      activeRecipeLabel={activeRecipeLabel}
+      activeRecipeDescription={activeRecipeDescription}
       boundarySource={state.boundarySource}
       onBoundarySourceChange={sb.setBoundarySource}
       selectedRegionLevel={sb.selectedRegionLevel}
       onRegionLevelChange={sb.handleRegionLevelChange}
       boundaryLevelOptions={sb.boundaryLevelOptions}
       metrics={sb.activeMetricDefinitions}
+      weights={state.weights}
+      onWeightChange={sb.handleWeightChange}
       onAddMetric={sb.handleAddMetric}
+      enabledDataSources={state.enabledDataSources}
+      onToggleDataSource={sb.toggleDataSource}
       onEnableDataSource={sb.enableDataSource}
-      networkCounts={points.networkCounts}
-      selectedNetworks={state.selectedNetworks}
-      onToggleNetwork={sb.toggleNetwork}
-      onSelectAllNetworks={sb.selectAllNetworks}
-      onClearNetworks={sb.clearNetworks}
       showPoints={state.showPoints}
       onTogglePoints={sb.togglePoints}
       canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
       mapSurface={state.mapSurface}
       onMapSurfaceChange={sb.handleMapSurfaceChange}
-      enabledDataSources={state.enabledDataSources}
-      onToggleDataSource={sb.toggleDataSource}
-      weights={state.weights}
-      onWeightChange={sb.handleWeightChange}
-      onApplyPreset={sb.handleApplyPreset}
-      activePresetKey={results.activePresetKey}
-      equationPreview={results.equationPreview}
-      scoreSpread={results.scoreSpread}
-      populationEquitySummary={results.populationEquitySummary}
+      lens={lens}
       densityMetric={state.densityMetric}
       onDensityMetricChange={sb.setDensityMetric}
       onBuildDensityScore={sb.handleBuildDensityScore}
       densitySummary={results.densitySummary}
       densityLeaders={results.densityLeaders}
+      onToggleCorrelateMode={sb.handleToggleCorrelateMode}
+      correlateMetricX={state.correlateMetricX}
+      correlateMetricY={state.correlateMetricY}
+      onCorrelateMetricXChange={sb.setCorrelateMetricX}
+      onCorrelateMetricYChange={sb.setCorrelateMetricY}
+      correlateVisStyle={state.correlateVisStyle}
+      onCorrelateVisStyleChange={sb.setCorrelateVisStyle}
+      correlationResult={correlationResult}
+      correlationTopPairs={correlationTopPairs}
+      onApplyTopPair={sb.applyCorrelatePair}
+      scoreSpread={results.scoreSpread}
+      populationEquitySummary={results.populationEquitySummary}
       regions={results.scoredRegions}
-      totalRegionCount={results.unfilteredScoredRegions.length}
-      excludedRegionCount={excludedRegionCount}
-      scoreFilters={state.scoreFilters}
-      onToggleScoreFilter={sb.toggleScoreFilter}
-      methodSettings={state.methodSettings}
-      onMethodSettingsChange={sb.setMethodSettings}
-      componentSummaries={results.componentSummaries}
-      robustnessResults={results.robustnessResults}
-      scoreBands={results.scoreBands}
-      scenarioComparison={results.scenarioComparison}
       filteredRegions={results.filteredRegions}
       selectedRegion={results.selectedRegion}
       searchQuery={state.searchQuery}
@@ -521,20 +537,13 @@ export default function ScoreBuilderSection() {
       onClearComparison={sb.clearComparison}
       onExport={handleExport}
       onShareUrl={sb.handleShareUrl}
-      activeExampleKey={results.resolvedExampleKey}
-      onApplyExample={sb.applyExample}
-      isDesktop={isDesktop}
-      customMetricRecipes={state.customMetricRecipes}
-      datasetProfiles={datasetProfiles}
-      onCreateCustomMetric={sb.handleCreateCustomMetric}
-      onRemoveCustomMetric={sb.handleRemoveCustomMetric}
-      userDatasets={userDatasets.summaries}
-      onUploadUserDataset={userDatasets.uploadDataset}
-      onRemoveUserDataset={userDatasets.removeDataset}
       baseline={baseline}
       baselineComparison={baselineComparison}
       onPinBaseline={pinBaseline}
       onClearBaseline={clearBaseline}
+      onOpenRecipes={openRecipes}
+      onOpenSettings={openSettings}
+      onOpenBuild={() => setViewMode('build')}
     />
   )
 
@@ -557,11 +566,10 @@ export default function ScoreBuilderSection() {
       equationPreview={results.equationPreview}
       scoreSpread={results.scoreSpread}
       scoredRegions={results.scoredRegions}
+      metricRanges={metricRanges}
       loading={datasets.loading}
       activeRecipeLabel={activeRecipeLabel}
       activeRecipeDescription={activeRecipeDescription}
-      activePresetKey={results.activePresetKey}
-      onApplyPreset={sb.handleApplyPreset}
       baseline={baseline}
       baselineComparison={baselineComparison}
       onPinBaseline={pinBaseline}
@@ -570,10 +578,24 @@ export default function ScoreBuilderSection() {
       showPoints={state.showPoints}
       regionFillColors={mapRegionFillColors}
       onSwitchToExplore={() => setViewMode('explore')}
-      onOpenSettings={() => setSettingsOpen(true)}
-      onExportProjectPackage={handleExportProjectPackage}
+      onOpenRecipes={openRecipes}
+      onOpenSettings={openSettings}
+      onUndo={sb.undo}
+      onRedo={sb.redo}
+      canUndo={sb.canUndo}
+      canRedo={sb.canRedo}
+      customMetricRecipes={state.customMetricRecipes}
+      datasetProfiles={datasetProfiles}
+      onCreateCustomMetric={sb.handleCreateCustomMetric}
+      onRemoveCustomMetric={sb.handleRemoveCustomMetric}
+      userDatasets={userDatasets.summaries}
+      onUploadUserDataset={userDatasets.uploadDataset}
+      onRemoveUserDataset={userDatasets.removeDataset}
     />
   )
+
+  const mobileIconButtonClass =
+    'inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors disabled:opacity-40'
 
   return (
     <>
@@ -587,9 +609,15 @@ export default function ScoreBuilderSection() {
               onSwitchToBuild={() => setViewMode('build')}
               title={activeRecipeLabel}
               description={activeRecipeDescription}
-              onOpenPresets={() => setPresetDialogOpen(true)}
-              onExportPackage={() => handleExportProjectPackage(activeRecipeLabel)}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenRecipes={openRecipes}
+              onOpenSettings={openSettings}
+              onUndo={sb.undo}
+              onRedo={sb.redo}
+              canUndo={sb.canUndo}
+              canRedo={sb.canRedo}
+              lens={lens}
+              onLensChange={handleLensChange}
+              onExport={handleExport}
             />
           )}
           <div className="min-h-0 flex-1">
@@ -599,16 +627,14 @@ export default function ScoreBuilderSection() {
               desktopSidebarWidth={sidebarWidth}
               onDesktopSidebarWidthChange={setSidebarWidth}
               mobileInitialSheetState="collapsed"
-              mobilePeek={
-                <div className="min-w-0 text-left">
-                  <div className="truncate text-xs font-semibold text-foreground">
-                    Index Lab | {results.scoredRegions.length.toLocaleString()} regions
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {results.selectedRegion?.region.name || activeRecipeLabel}
-                  </div>
-                </div>
+              mobilePeekTitle={activeRecipeLabel}
+              mobilePeekSubtitle={
+                results.selectedRegion
+                  ? `#${results.selectedRegion.rank} ${results.selectedRegion.region.name}`
+                  : `${results.scoredRegions.length.toLocaleString()} regions · avg ${results.scoreSpread.average.toFixed(1)}`
               }
+              mobileSnapTo={mobileSnap?.state}
+              mobileSnapKey={mobileSnap?.key}
               sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
               rightSidebar={isDesktop ? desktopRightPanel : undefined}
               showDesktopRightSidebar={showRightSidebar}
@@ -628,16 +654,6 @@ export default function ScoreBuilderSection() {
                     equationPreview={results.equationPreview}
                     onWeightChange={sb.handleWeightChange}
                     onAddMetric={sb.handleAddMetric}
-                    onExport={handleExport}
-                    correlateMode={state.correlateMode}
-                    onToggleCorrelateMode={sb.handleToggleCorrelateMode}
-                    densityMode={state.densityMode}
-                    onToggleDensityMode={sb.handleToggleDensityMode}
-                    onOpenSettings={() => setSettingsOpen(true)}
-                    onUndo={sb.undo}
-                    onRedo={sb.redo}
-                    canUndo={sb.canUndo}
-                    canRedo={sb.canRedo}
                   />
                 )}
 
@@ -683,65 +699,33 @@ export default function ScoreBuilderSection() {
                     />
                   )}
 
+                  {/* Phone strip: one lens segment plus undo/redo. Build, Recipes, and Settings live in the sheet. */}
                   {!isDesktop && (
                     <div
-                      className="absolute left-2 right-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex flex-wrap items-center gap-1.5"
+                      className="absolute left-2 right-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
                       data-score-builder-mobile-actions="true"
                     >
-                      <button
-                        type="button"
-                        onClick={sb.handleToggleDensityMode}
-                        aria-pressed={state.densityMode}
-                        className={cn(
-                          'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
-                          state.densityMode
-                            ? 'border-amber-500 bg-amber-500 text-white'
-                            : 'border-border bg-background/95 text-foreground',
-                        )}
-                      >
-                        <Flame className="h-3.5 w-3.5" />
-                        Density
-                      </button>
-                      <button
-                        type="button"
-                        onClick={sb.handleToggleCorrelateMode}
-                        aria-pressed={state.correlateMode}
-                        className={cn(
-                          'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
-                          state.correlateMode
-                            ? 'border-cyan-500 bg-cyan-500 text-white'
-                            : 'border-border bg-background/95 text-foreground',
-                        )}
-                      >
-                        <Activity className="h-3.5 w-3.5" />
-                        Correlate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('build')}
-                        aria-label="Open build view"
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-background/95 px-3 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors"
-                      >
-                        <Hammer className="h-3.5 w-3.5" />
-                        Build
-                      </button>
-                      <button
-                        type="button"
-                        onClick={sb.undo}
-                        disabled={!sb.canUndo}
-                        aria-label="Undo"
-                        className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors disabled:opacity-40"
-                      >
-                        <Undo2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSettingsOpen(true)}
-                        aria-label="Open index settings"
-                        className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors"
-                      >
-                        <SettingsIcon className="h-4 w-4" />
-                      </button>
+                      <MapLensToggle lens={lens} onLensChange={handleLensChange} size="lg" className="min-w-0" />
+                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={sb.undo}
+                          disabled={!sb.canUndo}
+                          aria-label="Undo"
+                          className={mobileIconButtonClass}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={sb.redo}
+                          disabled={!sb.canRedo}
+                          aria-label="Redo"
+                          className={mobileIconButtonClass}
+                        >
+                          <Redo2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -749,6 +733,7 @@ export default function ScoreBuilderSection() {
                     <ScoreBuilderMobileRegionCard
                       region={results.selectedRegion}
                       drivers={results.selectedRegionDrivers}
+                      enabledDataSources={state.enabledDataSources}
                       pinned={state.comparisonIds.includes(results.selectedRegion.region.id)}
                       onOpenInsight={() => sb.handleOpenRegionInsight(results.selectedRegion!.region.id)}
                       onToggleComparison={() => sb.toggleComparison(results.selectedRegion!.region.id)}
@@ -784,12 +769,20 @@ export default function ScoreBuilderSection() {
         </div>
       )}
 
-      <ScorePresetDialog
-        open={presetDialogOpen}
-        onOpenChange={setPresetDialogOpen}
-        presets={SCORE_PRESETS}
+      <RecipesDialog
+        open={recipesOpen}
+        onOpenChange={setRecipesOpen}
+        presets={visiblePresets}
         activePresetKey={results.activePresetKey}
         onApplyPreset={sb.handleApplyPreset}
+        activeExampleKey={results.resolvedExampleKey}
+        onApplyExample={sb.applyExample}
+        savedIndexes={sb.savedIndexes}
+        onSaveIndex={sb.saveCurrentIndex}
+        onApplySavedIndex={sb.applySavedIndex}
+        onDeleteSavedIndex={sb.deleteSavedIndex}
+        onExportProjectPackage={handleExportProjectPackage}
+        activeRecipeLabel={activeRecipeLabel}
       />
 
       <ScoreBuilderRegionInsightDialog
@@ -805,8 +798,6 @@ export default function ScoreBuilderSection() {
       <ScoreBuilderSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        activeExampleKey={results.resolvedExampleKey}
-        onApplyExample={sb.applyExample}
         weights={state.weights}
         methodSettings={state.methodSettings}
         onMethodSettingsChange={sb.setMethodSettings}
@@ -822,12 +813,6 @@ export default function ScoreBuilderSection() {
         excludedRegionCount={excludedRegionCount}
         scoreSpread={results.scoreSpread}
         robustnessResults={results.robustnessResults}
-        savedIndexes={sb.savedIndexes}
-        onSaveIndex={sb.saveCurrentIndex}
-        onApplySavedIndex={sb.applySavedIndex}
-        onDeleteSavedIndex={sb.deleteSavedIndex}
-        onExportProjectPackage={handleExportProjectPackage}
-        activeRecipeLabel={activeRecipeLabel}
       />
     </>
   )

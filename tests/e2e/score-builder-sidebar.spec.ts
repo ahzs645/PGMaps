@@ -35,11 +35,25 @@ const boundaryMatrix = {
   ],
 } as const
 
+/** Presets live on the Presets tab of the unified Recipes dialog. */
+async function openRecipesTab(page: Page, tab: 'Examples' | 'Presets' | 'Projects' | 'My indexes') {
+  await page.getByRole('button', { name: 'Browse recipes' }).first().click()
+  const dialog = page.getByRole('dialog', { name: 'Recipes' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('tab', { name: tab }).click()
+  return dialog
+}
+
 async function applyPresetFromDialog(page: Page, presetName: string) {
-  await page.getByRole('button', { name: /Browse presets|Browse/ }).click()
-  await expect(page.getByRole('dialog', { name: 'Browse Presets' })).toBeVisible()
-  await page.getByRole('button', { name: presetName }).click()
-  await expect(page.getByRole('dialog', { name: 'Browse Presets' })).toHaveCount(0)
+  const dialog = await openRecipesTab(page, 'Presets')
+  await dialog.getByRole('button', { name: presetName }).click()
+  await expect(page.getByRole('dialog', { name: 'Recipes' })).toHaveCount(0)
+}
+
+/** Opens the in-place weight editor for an equation-bar chip. */
+async function openChipEditor(page: Page, metricKey: string) {
+  await page.locator(`[data-score-builder-term-label="${metricKey}"]`).click()
+  await expect(page.locator(`[data-score-builder-weight-popover="${metricKey}"]`)).toBeVisible()
 }
 
 function dataSourceButton(page: Page, label: string) {
@@ -90,7 +104,7 @@ async function openPanels(page: Page) {
   }
 }
 
-/** Density and Correlate are map-lens toggles in the equation bar, not standalone right-panel tabs. */
+/** Density and Correlate are map-lens toggles in the Index Lab header, not standalone right-panel tabs. */
 async function setMapLens(page: Page, lens: 'Score' | 'Density' | 'Correlate') {
   await page.getByRole('group', { name: 'Map lens' }).getByRole('button', { name: lens }).click()
 }
@@ -172,11 +186,10 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('clicking an example card immediately applies it to the builder', async ({ page }) => {
-    // On desktop, examples live in the Index settings dialog.
-    await page.getByRole('button', { name: 'Index settings' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Index settings' })
-    await dialog.getByRole('tab', { name: 'Examples' }).click()
+    // Examples live on the Examples tab of the Recipes dialog.
+    const dialog = await openRecipesTab(page, 'Examples')
     await dialog.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
+    await expect(page.getByRole('dialog', { name: 'Recipes' })).toHaveCount(0)
 
     await expect(page.locator('[data-index-lab-header="true"]').first()).toContainText(
       'Air Monitoring Gaps (Tract)',
@@ -264,11 +277,10 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page).toHaveURL(/src=bcHealth.*level=chsa/)
   })
 
-  test('right-panel tabs expose equation, density, and region workflows', async ({ page }) => {
-    await page.locator('[data-score-builder-tab="equation"]').click()
-    await expect(page.locator('[data-score-builder-section="equation"]')).toBeVisible()
+  test('right panel follows the map lens between density and regions', async ({ page }) => {
+    await expect(page.locator('[data-score-builder-section="regions"]')).toBeVisible()
 
-    // Density is a map lens; enabling it surfaces the density tab.
+    // Density is a map lens; enabling it surfaces the density panel.
     await setMapLens(page, 'Density')
     await expect(page.locator('[data-score-builder-section="density"]')).toBeVisible()
     await expect(page.getByLabel('Density metric')).toBeVisible()
@@ -293,8 +305,8 @@ test.describe('Score Builder desktop interface', () => {
     // Equation-term chips live in the always-visible top equation bar.
     await expect(page.locator('[data-score-builder-equation-term="shadeGap"]')).toBeVisible()
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(1)
-    // The numeric weight input lives in the equation tab's composer.
-    await page.locator('[data-score-builder-tab="equation"]').click()
+    // The numeric weight input lives in the chip's in-place editor.
+    await openChipEditor(page, 'shadeGap')
     await expect(page.locator('[data-score-builder-equation-number="shadeGap"]')).toHaveValue('100')
   })
 
@@ -324,11 +336,13 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('priority mode can rank active metrics and apply weights', async ({ page }) => {
-    await page.locator('[data-score-builder-tab="equation"]').click()
-    await page.getByRole('button', { name: 'Priority' }).click()
-    await expect(page.getByText('Priority ranking')).toBeVisible()
+    // Priority ranking is a Build-view equation mode.
+    await page.getByRole('group', { name: 'Lab view' }).getByRole('button', { name: 'Build' }).click()
+    const builderMode = page.getByRole('group', { name: 'Builder mode' })
+    await builderMode.getByRole('button', { name: 'Priority' }).click()
+    await expect(page.getByRole('button', { name: 'Apply ranking' })).toBeVisible()
     await page.getByRole('button', { name: 'Apply ranking' }).click()
-    await page.getByRole('button', { name: 'Formula' }).click()
+    await builderMode.getByRole('button', { name: 'Formula' }).click()
     await expect(page.locator('[data-score-builder-equation-number="parkDensity"]')).toHaveValue('80')
   })
 
@@ -400,8 +414,7 @@ test.describe('Score Builder desktop interface', () => {
     await expect(levelSelectTrigger(page)).toContainText('CHSA')
     await expect(page).toHaveURL(/src=bcHealth/)
 
-    await page.getByRole('button', { name: /Browse presets|Browse/ }).click()
-    const dialog = page.getByRole('dialog', { name: 'Browse Presets' })
+    const dialog = await openRecipesTab(page, 'Presets')
     await expect(dialog.getByRole('button', { name: /Balanced Coverage/ })).toBeVisible()
     await expect(dialog.getByRole('button', { name: /Low-Cost Expansion/ })).toBeVisible()
     await expect(dialog.getByRole('button', { name: /Reference Strength/ })).toBeVisible()
@@ -426,24 +439,69 @@ test.describe('Score Builder desktop interface', () => {
 })
 
 test.describe('Score Builder mobile interface', () => {
-  test('mobile sheet opens to usable controls and exposes equation editing', async ({ page }) => {
-    await page.setViewportSize({ width: 600, height: 963 })
-    await page.goto(
-      '/score-builder?src=census&level=ct&w=0%2C0%2C0%2C0%2C0%2C0%2C0%2C22%2C28%2C20%2C15%2C0%2C0%2C0%2C0%2C15%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0&ds=parks%2Ccensus',
-      {
-        waitUntil: 'domcontentloaded',
-      },
-    )
+  const MOBILE_URL =
+    '/score-builder?src=census&level=ct&w=0%2C0%2C0%2C0%2C0%2C0%2C0%2C22%2C28%2C20%2C15%2C0%2C0%2C0%2C0%2C15%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0&ds=parks%2Ccensus'
 
-    await expect(page.locator('[data-score-builder-share="true"]')).toBeVisible()
-    await expect(page.locator('[data-score-builder-section-nav="examples"]')).toBeVisible()
+  test('phone sheet edits weights in place and follows the map lens', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(MOBILE_URL, { waitUntil: 'domcontentloaded' })
 
-    await page.locator('[data-score-builder-section-nav="equation"]').click()
-    const equationSection = page.locator('[data-score-builder-section="equation"]')
-    await expect(equationSection).toBeVisible()
-    await expect(equationSection.getByText('Active terms')).toBeVisible()
-    await expect(equationSection.getByRole('button', { name: 'All metrics' })).toBeVisible()
-    await expect(equationSection.getByText('Parks & Recreation')).toBeVisible()
-    await expect(page.getByText('Custom metric weight editing is available on desktop')).toHaveCount(0)
+    const handle = page.locator('[data-map-mobile-sheet-handle="true"]')
+    await expect(handle).toBeVisible()
+    // Collapsed, the sheet peeks the recipe name rather than a page title.
+    await expect(handle).toContainText('Custom index')
+    await expect(page.getByText('Index Lab', { exact: true })).toHaveCount(1)
+
+    await handle.press('End')
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+
+    const sheet = page.locator('[data-score-builder-mobile-sheet="true"]')
+    await expect(sheet.getByRole('button', { name: 'Browse recipes' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: 'Open build view' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: 'Open index settings' })).toBeVisible()
+    await expect(sheet.locator('[data-score-builder-share="true"]')).toBeVisible()
+
+    const equationSection = sheet.locator('[data-score-builder-section="equation"]')
+    await expect(equationSection.locator('[data-score-builder-weight-row]')).toHaveCount(5)
+    await expect(equationSection.getByRole('button', { name: 'Add metric' })).toBeVisible()
+    // Method, model, and examples no longer crowd the sheet; they sit behind Settings and Recipes.
+    await expect(page.locator('[data-score-builder-section-nav]')).toHaveCount(0)
+
+    // Same weight editor as the Build view, with phone-sized targets. Rows start
+    // collapsed; tapping the value reveals the slider and number input.
+    const flip = equationSection.locator('[data-score-builder-flip="parkDensity"]')
+    const flipBox = await flip.boundingBox()
+    expect(flipBox!.height).toBeGreaterThanOrEqual(40)
+    await expect(equationSection.locator('[data-score-builder-equation-slider]')).toHaveCount(0)
+    await equationSection.locator('[data-score-builder-weight-value="parkAreaRatio"]').click()
+    await expect(equationSection.locator('[data-score-builder-equation-slider="parkAreaRatio"]')).toBeVisible()
+    await equationSection.locator('[data-score-builder-equation-number="parkAreaRatio"]').fill('40')
+    await expect(page).toHaveURL(/w=.*40/)
+
+    // Choosing a lens raises the sheet to that lens panel.
+    await handle.press('Home')
+    await page.getByRole('group', { name: 'Map lens' }).getByRole('button', { name: 'Density' }).click()
+    await expect(handle).toHaveAttribute('aria-valuenow', '1')
+    await expect(sheet.locator('[data-score-builder-lens-panel="density"]')).toBeVisible()
+    await expect(sheet.getByLabel('Density metric')).toBeVisible()
+  })
+
+  test('phone Build view puts results under the equation and adds metrics through the picker', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`${MOBILE_URL}&view=build`, { waitUntil: 'domcontentloaded' })
+
+    const equation = page.locator('[data-score-builder-section="equation"]')
+    await expect(equation.locator('[data-score-builder-weight-row]')).toHaveCount(5)
+    // The library column is gone below lg; the picker takes its place.
+    await expect(page.locator('[data-score-builder-metric-library="true"]')).toHaveCount(0)
+    await equation.getByRole('button', { name: 'Add metric' }).click()
+    await expect(page.getByRole('dialog', { name: 'Add Metric' })).toBeVisible()
+    await page.getByRole('button', { name: /Raw Sensor Count/i }).click()
+    await expect(equation.locator('[data-score-builder-weight-row]')).toHaveCount(6)
+
+    // Live results sit directly under the equation instead of at the bottom of the page.
+    const equationBox = await equation.boundingBox()
+    const resultsBox = await page.locator('[data-score-builder-live-results="true"]').boundingBox()
+    expect(resultsBox!.y - (equationBox!.y + equationBox!.height)).toBeLessThan(40)
   })
 })

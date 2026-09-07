@@ -13,7 +13,8 @@ test.describe('Score Builder model stability (desktop)', () => {
 
   test('invalid weight drafts do not remove a metric or reset the auto palette', async ({ page }) => {
     await expect(page.getByText('Benefit score')).toBeVisible()
-    await page.getByRole('tab', { name: 'Equation' }).click()
+    // Weights are edited in the chip's in-place popover.
+    await page.locator('[data-score-builder-term-label="parkAreaRatio"]').click()
 
     const parkAreaWeight = page.locator('[data-score-builder-equation-number="parkAreaRatio"]')
     await expect(parkAreaWeight).toHaveValue('28')
@@ -36,7 +37,8 @@ test.describe('Score Builder model stability (desktop)', () => {
 
   test('slider center touch does not remove a metric or reset the auto palette', async ({ page }) => {
     await expect(page.getByText('Benefit score')).toBeVisible()
-    await page.getByRole('tab', { name: 'Equation' }).click()
+    // Weights are edited in the chip's in-place popover.
+    await page.locator('[data-score-builder-term-label="parkAreaRatio"]').click()
 
     const parkAreaWeight = page.locator('[data-score-builder-equation-number="parkAreaRatio"]')
     const parkAreaSlider = page.locator('[data-score-builder-equation-slider="parkAreaRatio"]')
