@@ -160,29 +160,29 @@ export default function Home() {
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
-      <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
+      <div className="container mx-auto px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
         {/* Hero Section */}
-        <div className="mb-8 text-center sm:mb-12">
-          <h1 className="mb-4 text-5xl font-bold tracking-tight sm:text-6xl">
+        <div className="mb-6 text-center sm:mb-12">
+          <h1 className="mb-3 text-3xl font-bold tracking-tight sm:mb-4 sm:text-5xl md:text-6xl">
             Prince George Data Platform
           </h1>
-          <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
             Explore and analyze multiple datasets about Prince George through interactive maps.
             Combine layers, build custom scores, and discover insights about your community.
           </p>
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-10 flex flex-col justify-center gap-3 sm:mb-12 sm:flex-row sm:gap-4">
-          <Button asChild size="lg" className="w-full sm:w-auto">
+        <div className="mb-8 flex flex-row justify-center gap-3 sm:mb-12 sm:gap-4">
+          <Button asChild size="lg" className="min-w-0 flex-1 sm:flex-none">
             <Link to="/explorer">
               <Layers className="h-5 w-5 mr-2" />
               Open Explorer
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <Button asChild variant="outline" size="lg" className="min-w-0 flex-1 sm:flex-none">
             <Link to="/score-builder">
-              <BarChart3 className="h-5 w-5 mr-2" />
+              <Calculator className="h-5 w-5 mr-2" />
               Open Index Lab
             </Link>
           </Button>

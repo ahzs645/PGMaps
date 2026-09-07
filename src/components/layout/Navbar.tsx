@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -66,6 +67,9 @@ export function Navbar() {
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const primaryNavRef = useRef<HTMLElement>(null)
+  // The desktop nav scrolls sideways between md and xl; these fades say so.
+  const [navOverflow, setNavOverflow] = useState({ left: false, right: false })
   const locationParams = new URLSearchParams(location.search)
   const isProjectPage = location.pathname.startsWith('/dev/projects/') || (
     location.pathname === '/dev/projects' && locationParams.has('project')
@@ -152,6 +156,24 @@ export function Navbar() {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [closeMobileMenu, mobileMenuOpen])
+
+  useEffect(() => {
+    const nav = primaryNavRef.current
+    if (!nav) return
+    const sync = () => {
+      const left = nav.scrollLeft > 2
+      const right = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2
+      setNavOverflow((current) => (current.left === left && current.right === right ? current : { left, right }))
+    }
+    sync()
+    nav.addEventListener('scroll', sync, { passive: true })
+    const observer = new ResizeObserver(sync)
+    observer.observe(nav)
+    return () => {
+      nav.removeEventListener('scroll', sync)
+      observer.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     const handleToolbarVisibility = (event: Event) => {
@@ -253,6 +275,18 @@ export function Navbar() {
                   </Link>
                 )
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  toggleTheme()
+                  closeMobileMenu()
+                }}
+                className="mt-1 flex w-full items-center gap-3 rounded-md border-t border-border px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                aria-label="Toggle theme"
+              >
+                {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
             </nav>
           )}
         </div>,
@@ -312,7 +346,27 @@ export function Navbar() {
             <ChevronDown className={cn('size-3.5 shrink-0 transition-transform', mobileMenuOpen && 'rotate-180')} />
           </button>
 
-          <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] md:flex [&::-webkit-scrollbar]:hidden" aria-label="Primary navigation">
+          <div className="relative hidden min-w-0 flex-1 md:block">
+            {navOverflow.left && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent"
+              />
+            )}
+            {navOverflow.right && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-0.5"
+              >
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            )}
+          <nav
+            ref={primaryNavRef}
+            onWheel={handleHorizontalWheelScroll}
+            className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-label="Primary navigation"
+          >
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
@@ -333,6 +387,7 @@ export function Navbar() {
               </Link>
             ))}
           </nav>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 md:gap-1">
@@ -343,7 +398,8 @@ export function Navbar() {
             size="icon"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className={cn('pointer-events-auto h-11 w-11 rounded-md border md:h-10 md:w-10 md:border-transparent md:bg-transparent md:shadow-none md:backdrop-blur-none md:hover:bg-accent', mobileGlassButtonClass)}
+            // On phones the theme switch lives in the menu so the floating row stays to search + info.
+            className="pointer-events-auto hidden h-10 w-10 rounded-md text-muted-foreground hover:bg-accent md:inline-flex"
           >
             {resolvedTheme === 'dark' ? (
               <Sun className="h-5 w-5" />

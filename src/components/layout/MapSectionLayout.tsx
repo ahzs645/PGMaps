@@ -246,7 +246,8 @@ export function MapSectionLayout({
   mobilePeekTitle,
   mobilePeekSubtitle,
   selectedFeatureMobilePeek,
-  showMobilePeek = false,
+  // A supplied peek is meant to be seen; sections only need the flag to hide one conditionally.
+  showMobilePeek = mobilePeek != null || mobilePeekTitle != null || mobilePeekSubtitle != null,
   showMobileSheetChevron = true,
   mobileSidebar,
   mobileSnapTo,
@@ -995,9 +996,11 @@ export function MapSectionLayout({
           <div
             ref={contentRef}
             className={cn(
-              'min-h-0 flex-1 overflow-hidden overscroll-y-contain pb-[calc(env(safe-area-inset-bottom)+4rem)] md:h-full md:!touch-auto md:pb-0',
+              'min-h-0 flex-1 overflow-hidden overscroll-y-contain pb-[calc(env(safe-area-inset-bottom)+4rem)] transition-opacity duration-200 md:h-full md:!touch-auto md:pb-0 md:opacity-100',
               mobileSheetContentClassName,
               mobileSheetState === 'full' ? 'touch-auto' : 'touch-none',
+              // The peek is the collapsed sheet's whole face; the panel's own header must not show under it.
+              showMobilePeek && mobileSheetState === 'collapsed' && 'opacity-0',
             )}
             data-map-mobile-sheet-content="true"
           >
@@ -1058,7 +1061,7 @@ export function MapSectionLayout({
                       type="button"
                       onClick={onToggleDesktopRightSidebar}
                       aria-label="Hide right sidebar"
-                      className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
+                      className="absolute left-0 top-1/2 z-20 hidden h-16 w-8 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
                     >
                       <ChevronsRight className="h-4 w-4" />
                     </button>
@@ -1084,7 +1087,7 @@ export function MapSectionLayout({
               onClick={onToggleDesktopRightSidebar}
               aria-label="Show right sidebar"
               style={{ right: 0 }}
-              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
+              className="absolute top-1/2 z-20 hidden h-16 w-8 -translate-y-1/2 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
             >
               <ChevronsLeft className="h-4 w-4" />
             </button>
