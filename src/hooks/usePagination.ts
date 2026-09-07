@@ -3,6 +3,9 @@ import { useState } from 'react'
 /** Bounded pages; changing a filter resets the view without a stale render. */
 export function usePagination<T>(items: readonly T[], pageSize: number, resetKey: string) {
   const [position, setPosition] = useState({ key: resetKey, page: 0 })
+  // Commit the new key as well as displaying page zero. Otherwise clearing a
+  // search can resurrect the page saved under its previous (empty) key.
+  if (position.key !== resetKey) setPosition({ key: resetKey, page: 0 })
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
   const page = position.key === resetKey ? Math.min(position.page, pageCount - 1) : 0
   return {

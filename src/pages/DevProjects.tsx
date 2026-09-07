@@ -1,4 +1,13 @@
 import { PaginationControls } from '@/components/ui/pagination-controls'
+import { ProjectCollectionCards } from '@/components/projects/ProjectCollectionCards'
+import {
+  collectionMembers,
+  getCollectionForProject,
+  getProjectCollection,
+  summarizeCollections,
+  type ProjectCollection,
+  type ProjectCollectionSummary,
+} from '@/lib/projectCollections'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { usePagination } from '@/hooks/usePagination'
 import { iconClass, KIND_LABELS } from '@/maps/project-workspace/projectPresentation'
@@ -460,6 +469,10 @@ function ProjectCatalogPreview({
 
 function ProjectCatalogPage({
   projects,
+  collection,
+  collections,
+  unknownCollection,
+  onLeaveCollection,
   additionalProjectCount,
   showingMoreProjects,
   loading,
@@ -477,6 +490,10 @@ function ProjectCatalogPage({
   importError,
 }: {
   projects: ProjectPackage[]
+  collection?: ProjectCollection
+  collections: ProjectCollectionSummary[]
+  unknownCollection: boolean
+  onLeaveCollection: () => void
   additionalProjectCount: number
   showingMoreProjects: boolean
   loading: boolean
@@ -497,7 +514,7 @@ function ProjectCatalogPage({
   const desktop = useMediaQuery('(min-width: 1280px)')
   const resultsRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLElement>(null)
-  const pagination = usePagination(projects, 12, JSON.stringify([query, filter, showingMoreProjects]))
+  const pagination = usePagination(projects, 12, JSON.stringify([query, filter, showingMoreProjects, collection?.slug]))
   const changePage = (page: number) => {
     pagination.setPage(page)
     setExpandedSlug(null)
@@ -514,7 +531,9 @@ function ProjectCatalogPage({
     ? 'Loading project packages…'
     : loadError
       ? 'The project manifest failed to load.'
-      : 'No projects match the current search.'
+      : unknownCollection
+        ? 'This project folder does not exist.'
+        : 'No projects match the current search.'
 
   return (
     <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 xl:h-[calc(100vh-4rem)] xl:min-h-0">
@@ -524,12 +543,25 @@ function ProjectCatalogPage({
             ref={headerRef}
             className="sticky top-16 z-20 shrink-0 scroll-mt-16 rounded-t-lg border-b bg-background p-3 sm:p-4 xl:static"
           >
+            {(collection || unknownCollection) && (
+              <nav aria-label="Project breadcrumb" className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={onLeaveCollection}
+                  className="min-h-11 rounded px-2 text-primary underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  All projects
+                </button>
+                <span aria-hidden="true">/</span>
+                <span aria-current="page">{collection?.title ?? 'Unknown folder'}</span>
+              </nav>
+            )}
             <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
-              <div className="hidden min-w-0 sm:block">
-                <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+              <div className={cn('min-w-0 sm:block', !collection && 'hidden')}>
+                <h1 className="text-2xl font-bold tracking-tight">{collection?.title ?? 'Projects'}</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Open a project to explore its map and story, or send its recipe to Index Lab and play with the weights
-                  yourself.
+                  {collection?.description ??
+                    'Open a project to explore its map and story, or send its recipe to Index Lab and play with the weights yourself.'}
                 </p>
               </div>
 
@@ -579,6 +611,8 @@ function ProjectCatalogPage({
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <span role="status" className="text-xs text-muted-foreground">
                 {pagination.start}–{pagination.end} of {projects.length} projects
+                {collections.length > 0 &&
+                  ` · ${collections.length} ${collections.length === 1 ? 'folder' : 'folders'}`}
               </span>
               {additionalProjectCount > 0 && !query.trim() && filter === 'all' && (
                 <Button
@@ -600,6 +634,7 @@ function ProjectCatalogPage({
 
           {desktop ? (
             <div ref={resultsRef} className="min-h-0 flex-1 overflow-auto">
+              <ProjectCollectionCards collections={collections} />
               <table className="w-full table-fixed border-separate border-spacing-0 text-left">
                 <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
                   <tr>
@@ -688,25 +723,28 @@ function ProjectCatalogPage({
                 </tbody>
               </table>
 
-              {projects.length === 0 && (
+              {projects.length === 0 && collections.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
               )}
             </div>
           ) : (
-            <div ref={resultsRef} className="grid gap-3 p-3 md:grid-cols-2">
-              {pagination.items.map((project) => (
-                <ProjectCatalogMobileCard
-                  key={project.slug}
-                  project={project}
-                  expanded={expandedSlug === project.slug}
-                  onToggleExpand={() => onToggleExpand(project.slug)}
-                  onOpen={() => onOpenProject(project.slug)}
-                  onRemove={onRemoveProject}
-                />
-              ))}
-              {projects.length === 0 && (
-                <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
-              )}
+            <div ref={resultsRef}>
+              <ProjectCollectionCards collections={collections} />
+              <div className="grid gap-3 p-3 md:grid-cols-2">
+                {pagination.items.map((project) => (
+                  <ProjectCatalogMobileCard
+                    key={project.slug}
+                    project={project}
+                    expanded={expandedSlug === project.slug}
+                    onToggleExpand={() => onToggleExpand(project.slug)}
+                    onOpen={() => onOpenProject(project.slug)}
+                    onRemove={onRemoveProject}
+                  />
+                ))}
+                {projects.length === 0 && collections.length === 0 && (
+                  <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+                )}
+              </div>
             </div>
           )}
           {pagination.pageCount > 1 && (
@@ -741,6 +779,9 @@ export default function DevProjects() {
   const navigate = useNavigate()
   const { projectSlug: routeProjectSlug } = useParams<{ projectSlug?: string }>()
   const [searchParams] = useSearchParams()
+  const collectionSlug = searchParams.get('collection')
+  const collection = getProjectCollection(collectionSlug)
+  const unknownCollection = Boolean(collectionSlug && !collection)
   const legacyProjectSlug = searchParams.get('project')
   const projectSlug = routeProjectSlug ?? legacyProjectSlug
   // Catalog entries are metadata-only summaries; a routed project needs its
@@ -773,19 +814,27 @@ export default function DevProjects() {
   const matchingProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return projects.filter((project) => {
+      if (unknownCollection || (collection && !collection.projectSlugs.includes(project.slug))) return false
       if (filter !== 'all' && project.kind !== filter) return false
       if (!normalizedQuery) return true
-      return `${project.slug} ${project.title} ${project.summary} ${project.lab?.presetKey ?? ''}`
+      const folder = getCollectionForProject(project.slug)
+      return `${project.slug} ${project.title} ${project.summary} ${project.lab?.presetKey ?? ''} ${folder?.title ?? ''}`
         .toLowerCase()
         .includes(normalizedQuery)
     })
-  }, [filter, projects, query])
+  }, [collection, filter, projects, query, unknownCollection])
+
+  const collections = useMemo(
+    () => (collectionSlug ? [] : summarizeCollections(projects, matchingProjects)),
+    [collectionSlug, projects, matchingProjects],
+  )
 
   const { featuredProjects, additionalProjects } = useMemo(() => {
     const featured: ProjectPackage[] = []
     const additional: ProjectPackage[] = []
 
     for (const project of matchingProjects) {
+      if (getCollectionForProject(project.slug)) continue
       if (FEATURED_PROJECT_ORDER.has(project.slug)) featured.push(project)
       else additional.push(project)
     }
@@ -795,8 +844,9 @@ export default function DevProjects() {
     return { featuredProjects: featured, additionalProjects: additional }
   }, [matchingProjects])
 
-  const filteredProjects =
-    showingMoreProjects || query.trim() || filter !== 'all'
+  const filteredProjects = collection
+    ? collectionMembers(collection, matchingProjects)
+    : showingMoreProjects || query.trim() || filter !== 'all'
       ? [...featuredProjects, ...additionalProjects]
       : featuredProjects
   const selectedPreviewProject =
@@ -810,6 +860,13 @@ export default function DevProjects() {
     navigate('/dev/projects')
   }
 
+  function leaveCollection() {
+    setQuery('')
+    setFilter('all')
+    setPreviewProjectSlug(null)
+    navigate('/dev/projects')
+  }
+
   async function handleImportFile(file: File) {
     try {
       const imported = await importProject(file)
@@ -818,6 +875,7 @@ export default function DevProjects() {
       setPreviewProjectSlug(imported.slug)
       setFilter('all')
       setQuery(imported.slug)
+      navigate('/dev/projects')
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'The file could not be imported.')
     }
@@ -860,6 +918,10 @@ export default function DevProjects() {
   return (
     <ProjectCatalogPage
       projects={filteredProjects}
+      collection={collection}
+      collections={collections}
+      unknownCollection={unknownCollection}
+      onLeaveCollection={leaveCollection}
       additionalProjectCount={additionalProjects.length}
       showingMoreProjects={showingMoreProjects}
       loading={loading}
