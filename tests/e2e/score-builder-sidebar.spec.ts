@@ -467,10 +467,14 @@ test.describe('Score Builder mobile interface', () => {
     // Method, model, and examples no longer crowd the sheet; they sit behind Settings and Recipes.
     await expect(page.locator('[data-score-builder-section-nav]')).toHaveCount(0)
 
-    // Same weight editor as the Build view, with phone-sized targets.
+    // Same weight editor as the Build view, with phone-sized targets. Rows start
+    // collapsed; tapping the value reveals the slider and number input.
     const flip = equationSection.locator('[data-score-builder-flip="parkDensity"]')
     const flipBox = await flip.boundingBox()
     expect(flipBox!.height).toBeGreaterThanOrEqual(40)
+    await expect(equationSection.locator('[data-score-builder-equation-slider]')).toHaveCount(0)
+    await equationSection.locator('[data-score-builder-weight-value="parkAreaRatio"]').click()
+    await expect(equationSection.locator('[data-score-builder-equation-slider="parkAreaRatio"]')).toBeVisible()
     await equationSection.locator('[data-score-builder-equation-number="parkAreaRatio"]').fill('40')
     await expect(page).toHaveURL(/w=.*40/)
 

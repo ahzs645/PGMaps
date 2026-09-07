@@ -938,7 +938,8 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="relative flex shrink-0 cursor-grab touch-none flex-col select-none rounded-t-lg active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:hidden"
+            // Keyboard focus lights up the grip pill rather than boxing the whole strip in a ring.
+            className="group relative flex shrink-0 cursor-grab touch-none flex-col select-none rounded-t-lg active:cursor-grabbing focus-visible:outline-none md:hidden"
             role="separator"
             aria-orientation="horizontal"
             aria-label="Drag to resize sheet"
@@ -960,7 +961,7 @@ export function MapSectionLayout({
             }}
           >
             <div className="flex justify-center py-2" aria-hidden="true">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/30 transition-[width,background-color] group-focus-visible:w-16 group-focus-visible:bg-cyan-500" />
             </div>
             {((showMobilePeek && mobileSheetState === 'collapsed') || (mobileFeatureCardOpen && mobileControlsInFront)) && (
               <div
