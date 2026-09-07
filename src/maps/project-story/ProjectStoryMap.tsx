@@ -4,9 +4,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Download,
   Hand,
-  Info,
   Layers,
   MapPin,
   RotateCcw,
@@ -21,19 +19,13 @@ import { StorySourceInfo } from './StorySourceInfo'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { escapeHtml } from '@/lib/escapeHtml'
-import {
-  downloadProjectPackage,
-  type ProjectPackage,
-  type ProjectSceneDef,
-  type ProjectStoryWorkspaceDef,
-} from '@/lib/projectPackages'
+import { type ProjectPackage, type ProjectSceneDef, type ProjectStoryWorkspaceDef } from '@/lib/projectPackages'
 import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { cn } from '@/lib/utils'
 import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
@@ -125,7 +117,6 @@ function StoryNarrative({
   onStepScene: (direction: number) => void
 }) {
   const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
-  const [sourceNoteOpen, setSourceNoteOpen] = useState(false)
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-r bg-background">
@@ -139,34 +130,7 @@ function StoryNarrative({
             <ArrowLeft className="h-3.5 w-3.5" />
             All projects
           </button>
-          <div className="flex items-center gap-1.5">
-            {project.sourceNote && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSourceNoteOpen(true)}
-                aria-label="Source note"
-              >
-                <Info className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <Button type="button" variant="outline" size="sm" onClick={() => downloadProjectPackage(project)}>
-              <Download className="h-3.5 w-3.5" />
-              JSON
-            </Button>
-          </div>
         </div>
-
-        <Dialog open={sourceNoteOpen} onOpenChange={setSourceNoteOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Source note</DialogTitle>
-              <DialogDescription className="sr-only">Where this story's data comes from</DialogDescription>
-            </DialogHeader>
-            <p className="text-sm leading-6 text-muted-foreground">{project.sourceNote}</p>
-          </DialogContent>
-        </Dialog>
 
         <div className="mt-3 flex items-start gap-3">
           <div
@@ -1251,9 +1215,7 @@ export function ProjectStoryMap({
 
   const mapChrome = (
     <>
-      {options.layout !== 'panel' && (
-        <StorySourceInfo project={project} className={options.layout === 'scrolly' ? 'md:top-24' : undefined} />
-      )}
+      <StorySourceInfo project={project} />
       {climateLayers.length > 0 && climateStatus && (
         <div
           data-testid="climate-status"
@@ -1319,14 +1281,14 @@ export function ProjectStoryMap({
 
       <MapLegendPanel
         title="Map layers"
-        description={retainingClimate ? 'Updating map · previous climate layer shown' : activeScene?.label}
+        description={retainingClimate ? 'Updating map · previous climate layer shown' : undefined}
         icon={<Layers className="h-3.5 w-3.5" />}
         // The scrolly/slides layouts hang the chrome in a pointer-events-none
         // overlay, so the panel re-enables its own pointer events. In slides
         // mode the phone-sized map pane keeps its zoom controls bottom-right,
         // so the legend moves to the opposite corner there.
         className={cn(
-          'pointer-events-auto',
+          'story-map-legend pointer-events-auto',
           options.layout === 'slides' &&
             'flex max-h-[calc(100%-8rem)] flex-col max-md:left-3 max-md:right-auto md:max-h-[calc(100%-4rem)] [&>div:first-child]:shrink-0',
           // Scrolly's card lane spans a phone's full width, so the bottom
@@ -1365,19 +1327,15 @@ export function ProjectStoryMap({
               <div key={resolved.layer.id}>
                 <button
                   type="button"
-                  aria-pressed={visibleLayerIds.has(resolved.layer.id)}
+                  aria-pressed={
+                    visibleLayerIds.has(resolved.layer.id) ||
+                    (retainingClimate && resolved.layer.format === 'climate-grid')
+                  }
                   disabled={retainingClimate && resolved.layer.format === 'climate-grid'}
                   onClick={() => toggleLayer(resolved.layer.id)}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded text-left text-xs font-semibold md:min-h-8"
+                  className="flex min-h-11 w-full items-center rounded text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 md:min-h-8"
                 >
                   <span>{resolved.label}</span>
-                  <span className="text-muted-foreground">
-                    {retainingClimate && resolved.layer.format === 'climate-grid'
-                      ? 'Displayed'
-                      : visibleLayerIds.has(resolved.layer.id)
-                        ? 'On'
-                        : 'Off'}
-                  </span>
                 </button>
                 <MapLegendSection columns={1} scroll={legendEntries.length > 12}>
                   {legendEntries

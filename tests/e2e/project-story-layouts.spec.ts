@@ -104,6 +104,22 @@ for (const story of STORIES) {
         if (await swipeHint.isVisible().catch(() => false)) await swipeHint.click()
         await expectActiveScene(page, 0)
 
+        const info = page.locator('#dataset-info-toolbar-slot').getByRole('button', { name: 'Sources and downloads' })
+        await expect(info).toBeVisible()
+        await expect(info).toHaveText('')
+        const searchBox = (await page.getByRole('button', { name: 'Open search', exact: true }).boundingBox())!
+        const infoBox = (await info.boundingBox())!
+        expect(infoBox.x - searchBox.x - searchBox.width).toBeGreaterThanOrEqual(0)
+        expect(infoBox.x - searchBox.x - searchBox.width).toBeLessThanOrEqual(16)
+        expect(Math.abs(infoBox.y - searchBox.y)).toBeLessThanOrEqual(2)
+        await info.focus()
+        await page.keyboard.press('Enter')
+        await expect(page.getByRole('dialog')).toContainText('Sources and interpretation')
+        await expect(page.getByRole('button', { name: 'Download story JSON' })).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(info).toBeFocused()
+        await expect(page.locator('.story-map-legend').getByText(/^(On|Off)$/)).toHaveCount(0)
+
         const size = await canvas.evaluate((node) => {
           const container = node.closest('.maplibregl-map') as HTMLElement
           return {

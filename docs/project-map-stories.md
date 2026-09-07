@@ -170,8 +170,12 @@ uses `layout: "scrolly"` as working examples of the replicated layouts.
 `mobilePeekTicker: true` as a working example of the map-first mobile
 presentation.
 
-Map-first `slides` and `scrolly` layouts also expose **Sources and downloads**,
-including the source note, detailed interpretation, related links and story JSON.
+All story layouts expose **Sources and downloads** through the information icon
+beside search in the shared toolbar, including the source note, detailed
+interpretation, related links and story JSON. This replaces the floating text
+button and the panel sidebar's separate source-note/JSON buttons. The icon has
+an accessible label, supports keyboard activation, and receives focus again when
+the dialog closes.
 Slide legends scroll within the available map pane instead of clipping above it.
 
 ## GeoJSON layers
@@ -365,7 +369,11 @@ source by different properties without loading duplicate map sources.
 ```
 
 The legend is derived automatically from the visible layers' categories plus any
-labelled highlights. Each layer has one explicit On/Off button; category swatches
+labelled highlights. The legend omits the repeated scene subtitle (such as
+“spring · P10”) and visible On/Off text. The full layer name and color scale remain;
+each layer name is a toggle with `aria-pressed`, keyboard focus, and dimmed styling
+when off. A temporary loading notice still identifies retained climate data.
+Category swatches
 are explanatory keys, not individual category filters. Set `legend` on a scene to replace it outright when the
 derived one would be noisy:
 
@@ -406,7 +414,7 @@ change can substitute for a suitable source representation.
    enabled.
 5. Add the filename to `public/data/projects/index.json`.
 6. Open `/dev/projects?project=<slug>` and scroll through every scene.
-7. Use the built-in JSON button to download the normalized project package and
+7. Use the toolbar information icon's **Download story JSON** button to download the normalized project package and
    confirm it can be imported again.
 
 ## Changing the renderer

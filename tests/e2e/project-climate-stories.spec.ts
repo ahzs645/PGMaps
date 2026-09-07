@@ -9,6 +9,53 @@ const viewports = [
   { name: 'phone', width: 390, height: 844 },
 ]
 
+for (const viewport of viewports)
+  test(`seasonal legend is compact and sources live beside search on ${viewport.name}`, async ({ page }, testInfo) => {
+    const story = stories.find((s) => s.slug === 'bc-climate-seasonal-precipitation')!
+    const index = story.scenes.findIndex((s: { label: string }) => s.label === 'spring · P10')
+    expect(index).toBeGreaterThanOrEqual(0)
+    await page.setViewportSize(viewport)
+    await page.goto(`/dev/projects/${story.slug}`)
+    await page.getByRole('button', { name: `Go to scene ${index + 1}`, exact: true }).click()
+    await checkScene(page, story, index)
+    const expand = page.getByRole('button', { name: 'Expand legend', exact: true })
+    if (await expand.isVisible()) await expand.click()
+    const legend = page.locator('.story-map-legend')
+    await expect(legend.getByText('Map layers', { exact: true })).toBeVisible()
+    const toggle = legend.getByRole('button', {
+      name: 'Seasonal total precipitation · spring · 2071-2100 · P10',
+      exact: true,
+    })
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(legend.getByText('100 to < 300 mm', { exact: true })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath(`compact-legend-${viewport.name}.png`) })
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await expect(toggle).toHaveCSS('opacity', '0.5')
+    await expect(legend.getByText(/^(On|Off)$/)).toHaveCount(0)
+    await toggle.click()
+    await checkScene(page, story, index)
+    const info = page.locator('#dataset-info-toolbar-slot').getByRole('button', { name: 'Sources and downloads' })
+    await expect(info).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'Sources and downloads' })).toHaveCount(1)
+    await expect(info).toHaveText('')
+    const search = (await page.getByRole('button', { name: 'Open search', exact: true }).boundingBox())!
+    const box = (await info.boundingBox())!
+    expect(box.x - search.x - search.width).toBeGreaterThanOrEqual(0)
+    expect(box.x - search.x - search.width).toBeLessThanOrEqual(16)
+    await info.click()
+    await expect(page.getByRole('dialog')).toContainText(story.sourceNote)
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download story JSON' }).click()
+    expect((await download).suggestedFilename()).toContain(story.slug)
+    await page.keyboard.press('Escape')
+    await expect(info).toBeFocused()
+    // A story's toolbar portal must not leak into the project catalog.
+    if (viewport.name === 'phone') await page.getByRole('link', { name: 'Back to all projects', exact: true }).click()
+    else await page.getByRole('button', { name: 'All projects', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Sources and downloads' })).toHaveCount(0)
+  })
+
 async function checkScene(page: Page, story: (typeof stories)[number], index: number) {
   await expect(page.getByRole('button', { name: `Go to scene ${index + 1}`, exact: true })).toHaveAttribute(
     'aria-current',
@@ -27,6 +74,9 @@ async function checkScene(page: Page, story: (typeof stories)[number], index: nu
     await expect(status).toHaveAttribute('data-status', 'ready', { timeout: 45_000 })
     expect(Number(await status.getAttribute('data-cells'))).toBeGreaterThan(0)
   } else await expect(page.getByTestId('climate-status')).toHaveCount(0)
+  const legend = page.locator('.story-map-legend')
+  await expect(legend.getByText(story.scenes[index].label, { exact: true })).toHaveCount(0)
+  await expect(legend.getByText(/^(On|Off|Displayed)$/)).toHaveCount(0)
 }
 
 for (const viewport of viewports)
@@ -263,7 +313,7 @@ for (const viewport of viewports)
       await page.getByRole('button', { name: 'Next scene', exact: true }).click()
       await expect(page.getByTestId('climate-status')).toHaveAttribute('data-status', 'loading')
       await expect(page.getByText('Updating map · previous climate layer shown')).toBeVisible()
-      const displayed = page.getByRole('button', { name: /Mean annual temperature.*2071-2100.*Displayed/ })
+      const displayed = page.getByRole('button', { name: /Mean annual temperature.*2071-2100/ })
       await expect(displayed).toBeVisible()
       await expect(displayed).toBeDisabled()
       // toBeVisible alone does not detect clipping inside a scrolling legend.
@@ -279,7 +329,7 @@ for (const viewport of viewports)
       release()
       await checkScene(page, story, 4)
       await expect(page.getByText('Updating map · previous climate layer shown')).toHaveCount(0)
-      await expect(page.getByRole('button', { name: /Days above 29°C.*2071-2100.*On/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Days above 29°C.*2071-2100/ })).toBeVisible()
     } finally {
       release()
     }

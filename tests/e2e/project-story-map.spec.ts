@@ -115,7 +115,7 @@ test.describe('JSON map story', () => {
 
   test('shows the source note in an info dialog', async ({ page }) => {
     await page.goto(STORY_URL)
-    await page.getByRole('button', { name: 'Source note' }).click()
+    await page.getByRole('button', { name: 'Sources and downloads' }).click()
     await expect(page.getByRole('dialog')).toContainText('administrative and statistical definitions')
   })
 
@@ -129,7 +129,7 @@ test.describe('JSON map story', () => {
     await expect(page.locator('span').filter({ hasText: /^South West$/ })).toBeHidden()
     // Scene 4 adds the three finer health boundary levels.
     for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next scene' }).click()
-    await expect(page.getByRole('button', { name: 'Local Health Areas On', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Local Health Areas', exact: true })).toBeVisible()
   })
 
   test('advancing a scene swaps the visible layers and the callout', async ({ page }) => {
