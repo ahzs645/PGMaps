@@ -6,6 +6,7 @@ import { useDeckOverlay } from '@/components/ui/map-deck'
 import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
 import type { MapMouseEvent } from 'maplibre-gl'
 import type { ResolvedLayer } from './storyScene'
+import type { ProjectStoryLayerDef } from '@/lib/projectPackages'
 import { climateColor } from './adapters/climateStyle'
 import type {
   Cells,
@@ -19,12 +20,14 @@ import {
   type ClimateTile,
 } from './adapters/climateStore'
 import type { Map as MapInstance } from 'maplibre-gl'
+import { ClimatePreparation } from './adapters/climatePreparation'
 
 export type ClimateStatus = {
   status: 'loading' | 'ready' | 'error' | 'zoom' | 'empty'
   message: string
   cells: number
   selection: string
+  preloaded?: boolean
 }
 type LoadedTile = Omit<ClimateTile, 'data'> & { geometry: Cells; properties: Map<string, CellProperties> }
 export type ClimateReadAhead = {
@@ -46,6 +49,7 @@ function cellSelection(p: CellProperties, resolved: ResolvedLayer, scenario: str
 
 export default function StoryClimateLayers({
   layers,
+  storyLayers,
   retry,
   onStatus,
   onSelect,
@@ -53,6 +57,7 @@ export default function StoryClimateLayers({
   readAhead,
 }: {
   layers: ResolvedLayer[]
+  storyLayers: readonly ProjectStoryLayerDef[]
   retry: number
   onStatus: (state: ClimateStatus) => void
   onSelect: (selection: Selection) => void
@@ -61,13 +66,22 @@ export default function StoryClimateLayers({
 }) {
   const { map, isLoaded } = useMap()
   const [tiles, setTiles] = useState<LoadedTile[]>([])
+  const [prepared] = useState(() => new ClimatePreparation())
   const [store] = useState(
     () =>
       new ClimateStore(
         typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 48 * 1024 * 1024 : undefined,
+        undefined,
+        storyLayers,
       ),
   )
-  useEffect(() => () => store.clear(), [store])
+  useEffect(
+    () => () => {
+      store.clear()
+      prepared.clear()
+    },
+    [store, prepared],
+  )
   const rebuildRef = useRef<() => void>(() => {})
   const overlayRef = useDeckOverlay({
     onAttach: () => rebuildRef.current(),
@@ -93,6 +107,7 @@ export default function StoryClimateLayers({
     }
     const scheduleAhead = () => {
       stopAhead()
+      prepared.clear()
       if (!ready || !readAhead?.layers.length || !canPrefetch(document.hidden, connection)) return
       timer = setTimeout(() => {
         if (!active || map.isMoving() || !canPrefetch(document.hidden, connection)) return
@@ -110,7 +125,13 @@ export default function StoryClimateLayers({
         }).getBounds()
         ahead = new AbortController()
         // Speculation is optional: errors/budgets are silent and foreground retries normally.
-        void store.load(readAhead.layers, extent, camera.zoom, ahead.signal, true).catch(() => {})
+        const signal = ahead.signal
+        void store
+          .load(readAhead.layers, extent, camera.zoom, signal, 'prepare')
+          .then((next) => {
+            if (active && !signal.aborted) prepared.set(readAhead.layers, { ...camera, width, height }, next)
+          })
+          .catch(() => {})
       }, 800)
     }
     const report = (state: Omit<ClimateStatus, 'selection'>) =>
@@ -138,7 +159,17 @@ export default function StoryClimateLayers({
           bounds.getEast(),
           bounds.getNorth(),
         ]
-        const loaded = await store.load(layers, extent, map.getZoom(), signal)
+        const center = map.getCenter()
+        const { width, height } = map.getContainer().getBoundingClientRect()
+        const warmed = prepared.take(layers, {
+          center: [center.lng, center.lat],
+          zoom: map.getZoom(),
+          bearing: map.getBearing(),
+          pitch: map.getPitch(),
+          width,
+          height,
+        })
+        const loaded = warmed ?? (await store.load(layers, extent, map.getZoom(), signal))
         if (current()) {
           const cells = loaded.reduce((sum, tile) => sum + tile.data.features.length, 0)
           setTiles((previous) =>
@@ -151,6 +182,7 @@ export default function StoryClimateLayers({
           report({
             status: cells ? 'ready' : 'empty',
             cells,
+            preloaded: Boolean(warmed),
             message: cells
               ? `${cells.toLocaleString()} native climate cells loaded. Click a cell for its value.`
               : 'No source values in this view. Pan back into BC; missing cells are not zero.',
@@ -193,7 +225,7 @@ export default function StoryClimateLayers({
       document.removeEventListener('visibilitychange', scheduleAhead)
       connection?.removeEventListener('change', scheduleAhead)
     }
-  }, [map, isLoaded, layers, retry, onStatus, readAhead, store])
+  }, [map, isLoaded, layers, retry, onStatus, readAhead, store, prepared])
 
   useEffect(() => {
     if (!map || !isLoaded) return

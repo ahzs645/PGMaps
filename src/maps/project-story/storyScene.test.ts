@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ProjectSceneDef, ProjectStoryLayerDef } from '@/lib/projectPackages'
-import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
+import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet, sameStoryCamera } from './storyScene'
 
 const ACCENT = '#047857'
+
+describe('sameStoryCamera', () => {
+  const camera = { center: [-125, 54] as [number, number], zoom: 4.05, bearing: 0, pitch: 0 }
+  it('skips identical fitted cameras and insignificant floating-point drift', () => {
+    expect(sameStoryCamera(camera, { ...camera })).toBe(true)
+    expect(sameStoryCamera(camera, { ...camera, center: [-125 + 1e-10, 54], zoom: 4.05 + 1e-10 })).toBe(true)
+    expect(sameStoryCamera(camera, { ...camera, center: [235, 54], bearing: 360 })).toBe(true)
+  })
+  it('does not suppress a real camera move or resetting a manually panned view', () => {
+    for (const changed of [
+      { ...camera, center: [-124, 54] as [number, number] },
+      { ...camera, center: [-125, 54.01] as [number, number] },
+      { ...camera, zoom: 4.06 },
+      { ...camera, bearing: 1 },
+      { ...camera, pitch: 1 },
+    ])
+      expect(sameStoryCamera(camera, changed)).toBe(false)
+  })
+})
 
 const plainLayer: ProjectStoryLayerDef = {
   id: 'regions',

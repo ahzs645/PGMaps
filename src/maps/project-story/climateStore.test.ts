@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ClimateStore, canPrefetch, reuseClimateGeometry } from './adapters/climateStore'
 import { resolveLayer } from './storyScene'
+import { ClimatePreparation, type ClimateFrame } from './adapters/climatePreparation'
 import type { ProjectStoryLayerDef } from '@/lib/projectPackages'
-import type { Cells } from '../../../vendor/bcdatamapper/datascrapers/climate/climatedata-ca/bc-climate/deckgl.mjs'
+import {
+  decodeTile,
+  type Cells,
+} from '../../../vendor/bcdatamapper/datascrapers/climate/climatedata-ca/bc-climate/deckgl.mjs'
 
 const base = 'https://example.test/release/'
 const band = {
@@ -90,9 +94,9 @@ const extent: [number, number, number, number] = [0, 0, 1, 1]
 const signal = () => new AbortController().signal
 
 describe('bounded climate read-ahead', () => {
-  it('reuses release/geometry/all-band bytes forward and back without rounding values', async () => {
+  it('reuses release/geometry/story-band bytes forward and back without rounding values', async () => {
     const { fetcher } = fixture()
-    const store = new ClimateStore(undefined, fetcher)
+    const store = new ClimateStore(undefined, fetcher, [layer().layer, layer('2071-2100').layer])
     const first = await store.load([layer()], extent, 8, signal())
     const calls = fetcher.mock.calls.length
     expect(first[0].data.features[0].properties.value).toBe(Math.PI)
@@ -117,6 +121,37 @@ describe('bounded climate read-ahead', () => {
     const calls = fetcher.mock.calls.length
     expect((await store.load([layer()], extent, 8, signal()))[0].data.features).toHaveLength(2)
     expect(fetcher).toHaveBeenCalledTimes(calls)
+  })
+
+  it('prepares the next small scene with exact values before navigation', async () => {
+    const { fetcher } = fixture()
+    const store = new ClimateStore(undefined, fetcher)
+    const layers = [layer('2071-2100')]
+    const prepared = await store.load(layers, extent, 8, signal(), 'prepare')
+    const calls = fetcher.mock.calls.length
+    expect(prepared).toEqual(await store.load(layers, extent, 8, signal()))
+    expect(fetcher).toHaveBeenCalledTimes(calls)
+    const slot = new ClimatePreparation()
+    const frame: ClimateFrame = { center: [0, 0], zoom: 8, bearing: 0, pitch: 0, width: 390, height: 400 }
+    slot.set(layers, frame, prepared)
+    expect(slot.take(layers, frame)).toBe(prepared)
+    expect(slot.take(layers, frame)).toBeUndefined()
+    for (const changed of [{ zoom: 9 }, { center: [1, 0] as [number, number] }, { width: 400 }, { height: 500 }]) {
+      slot.set(layers, frame, prepared)
+      expect(slot.take(layers, { ...frame, ...changed })).toBeUndefined()
+    }
+    slot.set(layers, frame, prepared)
+    expect(slot.take([layer()], frame)).toBeUndefined()
+    slot.set(layers, frame, prepared)
+    slot.clear()
+    expect(slot.take(layers, frame)).toBeUndefined()
+  })
+
+  it('keeps preparation of large fine-grid views byte-only', async () => {
+    const { fetcher } = fixture(40_001)
+    const store = new ClimateStore(undefined, fetcher)
+    expect(await store.load([layer()], extent, 8, signal(), 'prepare')).toEqual([])
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith('values.bin'))).toBe(true)
   })
 
   it('pins latest once even when transport bytes are evicted', async () => {
@@ -170,7 +205,8 @@ describe('bounded climate read-ahead', () => {
   it('bounds retained bytes and refuses speculative blocks that would evict foreground data', async () => {
     const { assets, fetcher } = fixture()
     const total = [...assets.values()].reduce((sum, value) => sum + value.byteLength, 0)
-    const store = new ClimateStore(total - 1, fetcher)
+    const budget = total - assets.get(`${base}values.bin`)!.byteLength + 2 * 8 - 1
+    const store = new ClimateStore(budget, fetcher)
     await expect(store.load([layer()], extent, 8, signal(), true)).rejects.toThrow()
     expect(fetcher.mock.calls.some(([url]) => url.endsWith('values.bin'))).toBe(false)
     const retained = store.retainedBytes
@@ -180,7 +216,66 @@ describe('bounded climate read-ahead', () => {
     expect(fetcher).toHaveBeenCalledTimes(calls)
     // Foreground can evict the least recently used bytes to complete the view.
     await store.load([layer()], extent, 8, signal())
-    expect(store.retainedBytes).toBeLessThanOrEqual(total - 1)
+    expect(store.retainedBytes).toBeLessThanOrEqual(budget)
+  })
+
+  it('retains only story-used band copies when the archive is larger than the cache', async () => {
+    const { assets, fetcher } = fixture(128)
+    const product = JSON.parse(new TextDecoder().decode(assets.get(`${base}product.json`)))
+    product.bands.push(...Array.from({ length: 466 }, (_, i) => ({ ...band, horizon: `unused-${i}` })))
+    assets.set(`${base}product.json`, new TextEncoder().encode(JSON.stringify(product)))
+    const archive = new Uint8Array(468 * 128 * 8)
+    archive.set(assets.get(`${base}values.bin`)!)
+    new DataView(archive.buffer).setFloat64(8, Number.NaN, true)
+    assets.set(`${base}values.bin`, archive)
+    const budget = 256 * 1024
+    expect(archive.byteLength).toBeGreaterThan(budget)
+    const store = new ClimateStore(budget, fetcher, [layer().layer, layer('2071-2100').layer])
+    const first = await store.load([layer()], extent, 8, signal())
+    const grid = JSON.parse(new TextDecoder().decode(assets.get(`${base}grid.json`)))
+    const geometry = JSON.parse(new TextDecoder().decode(assets.get(`${base}geometry.json`)))
+    expect(first[0].data).toEqual(decodeTile(grid, grid.tiles[0], geometry.indices, archive, product, 0))
+    const future = await store.load([layer('2071-2100')], extent, 8, signal())
+    expect(future[0].data).toEqual(decodeTile(grid, grid.tiles[0], geometry.indices, archive, product, 1))
+    await store.load([layer()], extent, 8, signal())
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('values.bin'))).toHaveLength(1)
+    const metadataBytes = [...assets]
+      .filter(([url]) => !url.endsWith('values.bin'))
+      .reduce((sum, [, v]) => sum + v.byteLength, 0)
+    expect(store.retainedBytes).toBe(metadataBytes + 2 * 128 * 8)
+    // A subarray would report small byteLength but still retain the full archive.
+    for (const [key, bytes] of store['cache']) {
+      if (key.includes('#band=')) expect(bytes.buffer.byteLength).toBe(bytes.byteLength)
+    }
+  })
+
+  it('does not retain optional bands at the expense of the active band', async () => {
+    const { assets, fetcher } = fixture()
+    const metadata = [...assets]
+      .filter(([url]) => !url.endsWith('values.bin'))
+      .reduce((sum, [, v]) => sum + v.byteLength, 0)
+    const store = new ClimateStore(metadata + 16, fetcher, [layer().layer, layer('2071-2100').layer])
+    await store.load([layer()], extent, 8, signal())
+    const calls = fetcher.mock.calls.length
+    await store.load([layer()], extent, 8, signal())
+    expect(fetcher).toHaveBeenCalledTimes(calls)
+    expect(store.retainedBytes).toBe(metadata + 16)
+  })
+
+  it('does not cache band copies from an aborted value download', async () => {
+    const { fetcher } = fixture()
+    const controller = new AbortController()
+    const store = new ClimateStore(
+      undefined,
+      async (url) => {
+        const bytes = await fetcher(url)
+        if (url.endsWith('values.bin')) controller.abort()
+        return bytes
+      },
+      [layer().layer, layer('2071-2100').layer],
+    )
+    await expect(store.load([layer()], extent, 8, controller.signal)).rejects.toThrow()
+    expect([...store['cache'].keys()].some((key) => key.includes('#band='))).toBe(false)
   })
 
   it('never caches a canceled response and retries failures', async () => {

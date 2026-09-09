@@ -28,7 +28,7 @@ import { escapeHtml } from '@/lib/escapeHtml'
 import { type ProjectPackage, type ProjectSceneDef, type ProjectStoryWorkspaceDef } from '@/lib/projectPackages'
 import { useStoryMapWebMCP } from '@/lib/projectWebMCP'
 import { cn } from '@/lib/utils'
-import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
+import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet, sameStoryCamera } from './storyScene'
 
 /** Crossfade duration when scene changes swap map layers. */
 const LAYER_FADE_MS = 300
@@ -923,6 +923,20 @@ export function ProjectStoryMap({
       const camera = sceneCamera(map, index)
       if (!map || !camera) return
       allowZoomFloor(map, camera.zoom)
+      const center = map.getCenter()
+      if (
+        !map.isMoving() &&
+        sameStoryCamera(
+          {
+            center: [center.lng, center.lat],
+            zoom: map.getZoom(),
+            bearing: map.getBearing(),
+            pitch: map.getPitch(),
+          },
+          camera,
+        )
+      )
+        return
       const { sceneTransition, sceneTransitionMs } = options
       if (prefersReducedMotion() || sceneTransition === 'jump') map.jumpTo(camera)
       else if (sceneTransition === 'fly') map.flyTo({ ...camera, duration: sceneTransitionMs })
@@ -1088,6 +1102,7 @@ export function ProjectStoryMap({
           <Suspense fallback={null}>
             <StoryClimateLayers
               layers={climateLayers}
+              storyLayers={config.layers}
               retry={climateRetry}
               onStatus={setClimateStatus}
               onSelect={setSelectedFeature}
@@ -1220,6 +1235,7 @@ export function ProjectStoryMap({
         <div
           data-testid="climate-status"
           data-selection={climateStatus.selection}
+          data-preloaded={Boolean(climateStatus.preloaded)}
           data-status={climateStatus.status}
           data-cells={climateStatus.cells}
           className={

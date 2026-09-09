@@ -128,7 +128,10 @@ optional; omitted fields keep the defaults shown here:
   interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
   Readers with reduced motion enabled always get an instant jump.
 - `sceneTransitionMs` — duration of `ease`/`fly` transitions in milliseconds,
-  clamped to 0-5000.
+  clamped to 0-5000. An already-settled camera matching the fitted destination
+  skips the animation entirely, so a band-only change does not wait for a
+  no-op camera movement. Real moves, including resets after manual panning,
+  still use the configured transition.
 - `mobileSheet` — where the mobile bottom sheet opens when the story loads:
   `"collapsed"` (map-first, narrative in the peek bar), `"half"`, or `"full"`.
   Desktop is unaffected.
@@ -278,15 +281,28 @@ Author climate layers before contextual boundaries/points to reflect this order.
 Only active climate layers draw. The climate controller remains mounted for the
 story's lifetime, including introductory scenes with no climate layer. Geometry
 indices and Float64 value blocks are fetched for the current viewport and decoded
-without interpolation. An app-owned byte-budgeted LRU retains decompressed blocks
-across scenes: 96 MiB on desktop, 48 MiB when opened at phone width. This is a
+without interpolation. An app-owned byte-budgeted LRU retains metadata, geometry
+indices and compact Float64 bands across scenes: 96 MiB on desktop, 48 MiB when
+opened at phone width. Value archives still download/decompress as a whole tile,
+but only bands used by the current story are copied into the cache; unused
+periods/percentiles/seasons are discarded. The active band is admitted first;
+other story bands use spare capacity without evicting it. Copies own their
+buffers, rather than retaining the full archive through subarray views. This is a
 transport-cache limit, not a total browser/GPU memory limit. Returning to retained
-periods reuses all-band blocks; evicted blocks may require fetching again.
+periods reuses these compact bands; evicted bands may require fetching again.
+The selected source band and its metadata are passed unchanged to the native
+decoder, with no rounding, resampling, or changes to missing-value handling.
 
 After the current view completes and the reader settles for 800 ms, the controller
 may warm **one adjacent scene** in the last navigation direction, using its camera
-fitted to the actual map pane. It retains bytes, not another decoded polygon scene.
-Speculation admits at most 32 MiB of new decompressed bytes per attempt, never
+fitted to the actual map pane. For views up to 40,000 source cells it also decodes
+one next scene while the current section remains on screen. Navigation consumes
+that staging slot only if the full layer selection, camera and pane dimensions
+still match; otherwise it discards it and loads the actual view. Larger fine-grid
+views warm bytes only. The prepared slot is separate from the transport byte cap,
+holds at most one scene, and is cleared on consumption, replacement, hidden/data-saver
+state or unmount. No speculative layers are drawn or made pickable.
+Speculation processes at most 32 MiB of new decompressed archive/metadata bytes per attempt, never
 evicts foreground cache entries, and stops on navigation, pan, unmount, hidden
 tabs, or reported data-saver/2G/3G connections. Manual layer overrides disable
 read-ahead. Speculative failures are silent; foreground failures remain retryable.
@@ -460,7 +476,11 @@ Three renderer invariants are load-bearing and easy to undo by accident:
   expressions for highlights and overrides, legend derivation, and the camera
   pane fit.
 - `src/maps/project-story/climateStore.test.ts` covers byte budgets, release
-  isolation/pinning, speculative admission, aborts/retries, and geometry reuse.
+  isolation/pinning, speculative admission, aborts/retries, geometry reuse, and
+  bounded next-scene preparation/consumption.
+- `tests/e2e/climate-band-performance.spec.ts` checks desktop/phone heat and
+  seasonal precipitation band switches without refetching, even with a long
+  configured camera animation and reduced motion disabled.
 - `tests/e2e/project-climate-stories.spec.ts` traverses every climate story on
   desktop/phone, verifies warm period switches make no extra climate requests,
   and checks read-ahead, data saver, retained legends and current-band picking.

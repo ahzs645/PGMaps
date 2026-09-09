@@ -9,8 +9,11 @@ import {
   type Tile,
 } from '../../../../vendor/bcdatamapper/datascrapers/climate/climatedata-ca/bc-climate/deckgl.mjs'
 import type { ResolvedLayer } from '../storyScene'
+import type { ProjectStoryLayerDef } from '@/lib/projectPackages'
 
 export const MAX_VIEW_CELLS = 180_000
+// One prepared province-wide coarse scene, never a second large fine-grid view.
+export const MAX_PREPARED_CELLS = 40_000
 const MIB = 1024 * 1024
 export const PREFETCH_BYTES = 32 * MIB
 export type Extent = [number, number, number, number]
@@ -37,8 +40,11 @@ export function canPrefetch(hidden: boolean, connection?: { saveData?: boolean; 
 
 /** App-owned transport policy; source parsing/Float64 decoding stay scraper-owned.
  * One store per mounted story, keyed by absolute release URL. Raw decompressed
- * bytes use a byte-budgeted LRU; speculative reads never evict foreground data.
- * Decoded GeoJSON is owned only by the displayed/staging scene, not this cache.
+ * metadata/geometry bytes and compact selected-band bytes use a byte-budgeted
+ * LRU; speculative reads never evict foreground data. Full archive value blocks
+ * are transient: slice copies prevent small bands retaining a huge ArrayBuffer.
+ * Decoded GeoJSON is owned only by the displayed/staging scene and one bounded
+ * next-scene preparation slot in the controller, not this transport cache.
  */
 export class ClimateStore {
   private cache = new Map<string, Uint8Array>()
@@ -47,6 +53,7 @@ export class ClimateStore {
   constructor(
     readonly maxBytes = 96 * MIB,
     private fetcher = fetchBytes,
+    private storyLayers: readonly ProjectStoryLayerDef[] = [],
   ) {}
   get retainedBytes() {
     return this.bytes
@@ -61,17 +68,37 @@ export class ClimateStore {
     this.bytes = 0
   }
 
-  private async read(url: string, options: ReadOptions, expectedBytes = 0) {
+  private cached(url: string, options: ReadOptions) {
     options.signal.throwIfAborted()
     const hit = this.cache.get(url)
-    if (hit) {
-      // Speculation must not change the foreground working set's eviction order.
-      if (!options.speculative) {
-        this.cache.delete(url)
-        this.cache.set(url, hit)
-      }
-      return hit
+    if (hit && !options.speculative) {
+      this.cache.delete(url)
+      this.cache.set(url, hit)
     }
+    return hit
+  }
+
+  private retain(url: string, bytes: Uint8Array, noEviction: boolean) {
+    if (bytes.byteLength > this.maxBytes) return
+    if (noEviction && bytes.byteLength > this.maxBytes - this.bytes) return
+    const previous = this.cache.get(url)
+    if (previous) {
+      this.bytes -= previous.byteLength
+      this.cache.delete(url)
+    }
+    while (this.bytes + bytes.byteLength > this.maxBytes) {
+      const oldest = this.cache.keys().next().value!
+      this.bytes -= this.cache.get(oldest)!.byteLength
+      this.cache.delete(oldest)
+    }
+    this.cache.set(url, bytes)
+    this.bytes += bytes.byteLength
+  }
+
+  private async read(url: string, options: ReadOptions, expectedBytes = 0) {
+    options.signal.throwIfAborted()
+    const hit = this.cached(url, options)
+    if (hit) return hit
     const room = this.maxBytes - this.bytes
     if (options.speculative && (expectedBytes > Math.min(room, options.speculative.remaining) || room <= 0))
       throw new PrefetchBudgetError()
@@ -82,14 +109,51 @@ export class ClimateStore {
       if (options.speculative.remaining < 0 || bytes.byteLength > this.maxBytes - this.bytes)
         throw new PrefetchBudgetError()
     }
-    if (bytes.byteLength <= this.maxBytes) {
-      while (this.bytes + bytes.byteLength > this.maxBytes) {
-        const oldest = this.cache.keys().next().value!
-        this.bytes -= this.cache.get(oldest)!.byteLength
-        this.cache.delete(oldest)
+    this.retain(url, bytes, Boolean(options.speculative))
+    return bytes
+  }
+
+  private selectedIndices(resolved: ResolvedLayer, product: Product, index: number) {
+    const source = absoluteSource(resolved.layer.data)
+    const indices = new Set([index])
+    for (const layer of this.storyLayers) {
+      if (!layer.climate || layer.climate.product !== product.id || absoluteSource(layer.data) !== source) continue
+      // An invalid inactive selection must not break the current valid scene.
+      // It is validated normally if/when the reader activates that layer.
+      try {
+        indices.add(selectBand(product, bandSelection({ layer })).index)
+      } catch {
+        /* not a selectable band */
       }
-      this.cache.set(url, bytes)
-      this.bytes += bytes.byteLength
+    }
+    return [...indices]
+  }
+
+  private async readBand(url: string, product: Product, tile: Tile, indices: number[], options: ReadOptions) {
+    const key = (index: number) => `${url}#band=${index}`
+    const selected = indices[0]
+    const hit = this.cached(key(selected), options)
+    if (hit) return hit
+    const bandBytes = tile.count * 8
+    const expectedBytes = product.bands.length * bandBytes
+    // Speculation still bounds full decompression work, even though only small
+    // band copies survive. It may not displace foreground entries.
+    if (
+      options.speculative &&
+      (expectedBytes > options.speculative.remaining || bandBytes > this.maxBytes - this.bytes)
+    )
+      throw new PrefetchBudgetError()
+    const archive = await this.fetcher(url, { signal: options.signal })
+    options.signal.throwIfAborted()
+    if (archive.byteLength !== expectedBytes) throw new Error('Climate tile dimensions mismatch')
+    if (options.speculative) options.speculative.remaining -= archive.byteLength
+    const bytes = archive.slice(selected * bandBytes, (selected + 1) * bandBytes)
+    this.retain(key(selected), bytes, Boolean(options.speculative))
+    // Retain other story-used bands from this already-downloaded tile only when
+    // there is room. Never evict the selected band for these optional copies.
+    for (const index of indices.slice(1)) {
+      if (this.cache.has(key(index)) || bandBytes > this.maxBytes - this.bytes) continue
+      this.retain(key(index), archive.slice(index * bandBytes, (index + 1) * bandBytes), true)
     }
     return bytes
   }
@@ -155,27 +219,33 @@ export class ClimateStore {
     extent: Extent,
     zoom: number,
     signal: AbortSignal,
-    prefetch = false,
+    prefetch: boolean | 'prepare' = false,
   ): Promise<ClimateTile[]> {
     const options: ReadOptions = { signal, ...(prefetch ? { speculative: { remaining: PREFETCH_BYTES } } : {}) }
     const loaded: ClimateTile[] = []
     // Validate the entire view's cell budget BEFORE requesting any value blocks.
     const plans = await this.plan(layers, extent, zoom, options)
+    const prepare =
+      prefetch === 'prepare' &&
+      plans.reduce((sum, plan) => sum + plan.tiles.reduce((n, tile) => n + tile.count, 0), 0) <= MAX_PREPARED_CELLS
     for (const { resolved, product, grid, tiles, base, scenario, slot } of plans) {
       const { index } = selectBand(product, bandSelection(resolved))
+      const indices = this.selectedIndices(resolved, product, index)
+      const selectedProduct = { ...product, bands: [product.bands[index]] }
       for (const tile of tiles) {
         const item = product.tiles.find((t) => t.id === tile.id)
         if (!item) throw new Error(`Missing value tile: ${tile.id}`)
         const geometry = await this.json<{ indices: number[] }>(new URL(tile.geometry, base).href, options)
-        const values = await this.read(new URL(item.path, base).href, options, product.bands.length * tile.count * 8)
+        const values = await this.readBand(new URL(item.path, base).href, product, tile, indices, options)
         signal.throwIfAborted()
-        // Read-ahead retains bytes only, never a second fine-grid polygon scene.
-        if (!prefetch)
+        // Large fine-grid scenes remain byte-only; small next views can be
+        // decoded while the reader is still on the preceding section.
+        if (!prefetch || prepare)
           loaded.push({
             id: `climate-${base.href}-${slot}-${grid.id}-${tile.id}`,
             resolved,
             scenario,
-            data: decodeTile(grid, tile, geometry.indices, values, product, index),
+            data: decodeTile(grid, tile, geometry.indices, values, selectedProduct, 0),
           })
       }
     }
@@ -183,7 +253,11 @@ export class ClimateStore {
   }
 }
 
-function bandSelection({ layer: { climate: c } }: ResolvedLayer) {
+function absoluteSource(source: string) {
+  return new URL(source, globalThis.location?.href ?? 'http://localhost/').href
+}
+
+function bandSelection({ layer: { climate: c } }: Pick<ResolvedLayer, 'layer'>) {
   return {
     horizon: c!.horizon,
     percentile: c!.percentile,

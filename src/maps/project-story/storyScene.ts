@@ -15,6 +15,20 @@ const CAMERA_REFERENCE_PANE = { width: 1000, height: 700 }
  *  province-wide frame stops reading as a place and starts reading as a globe. */
 const MAX_CAMERA_ZOOM_OUT = 1.5
 
+type StoryCamera = { center: [number, number]; zoom: number; bearing: number; pitch: number }
+
+/** Ignore floating-point camera noise, not real pans, zooms or rotations. */
+export function sameStoryCamera(current: StoryCamera, target: StoryCamera): boolean {
+  const angleDifference = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
+  return (
+    angleDifference(current.center[0], target.center[0]) < 1e-7 &&
+    Math.abs(current.center[1] - target.center[1]) < 1e-7 &&
+    Math.abs(current.zoom - target.zoom) < 1e-7 &&
+    angleDifference(current.bearing, target.bearing) < 1e-7 &&
+    Math.abs(current.pitch - target.pitch) < 1e-7
+  )
+}
+
 /**
  * Zoom correction that keeps the authored ground extent in frame on a map pane
  * smaller than the one the story was written against. Zoom is log2 of scale, so
