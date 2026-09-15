@@ -1331,7 +1331,7 @@ export function ProjectStoryMap({
           ) : null
         }
       >
-        <div className="space-y-3">
+        <div className="space-y-2">
           {legendLayers
             .filter(
               (resolved) =>
@@ -1339,38 +1339,54 @@ export function ProjectStoryMap({
                 visibleLayerIds.has(resolved.layer.id) ||
                 (retainingClimate && resolved.layer.format === 'climate-grid'),
             )
-            .map((resolved) => (
-              <div key={resolved.layer.id}>
-                <button
-                  type="button"
-                  aria-pressed={
-                    visibleLayerIds.has(resolved.layer.id) ||
-                    (retainingClimate && resolved.layer.format === 'climate-grid')
-                  }
-                  disabled={retainingClimate && resolved.layer.format === 'climate-grid'}
-                  onClick={() => toggleLayer(resolved.layer.id)}
-                  className="flex min-h-11 w-full items-center rounded text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 md:min-h-8"
-                >
-                  <span>{resolved.label}</span>
-                </button>
-                <MapLegendSection columns={1} scroll={legendEntries.length > 12}>
-                  {legendEntries
-                    .filter((entry) => entry.layerId === resolved.layer.id)
-                    .map((entry) => (
+            .map((resolved) => {
+              const entries = legendEntries.filter((entry) => entry.layerId === resolved.layer.id)
+              const active =
+                visibleLayerIds.has(resolved.layer.id) ||
+                (retainingClimate && resolved.layer.format === 'climate-grid')
+              const locked = retainingClimate && resolved.layer.format === 'climate-grid'
+              // A plain layer's only legend entry is its own name; render it as
+              // one toggleable row (swatch plus name) instead of the name twice.
+              // A single named category keeps the header so its label survives.
+              if (entries.length === 1 && entries[0].label === resolved.label) {
+                return (
+                  <LegendItem
+                    key={resolved.layer.id}
+                    color={entries[0].color}
+                    label={resolved.label}
+                    swatchShape="circle"
+                    active={active}
+                    disabled={locked}
+                    onClick={() => toggleLayer(resolved.layer.id)}
+                    className="min-h-11 font-semibold text-foreground md:min-h-7"
+                  />
+                )
+              }
+              return (
+                <div key={resolved.layer.id}>
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    disabled={locked}
+                    onClick={() => toggleLayer(resolved.layer.id)}
+                    className="flex min-h-11 w-full items-center rounded px-2 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 md:min-h-7 md:px-1"
+                  >
+                    <span>{resolved.label}</span>
+                  </button>
+                  <MapLegendSection columns={1} scroll={legendEntries.length > 12}>
+                    {entries.map((entry) => (
                       <LegendItem
                         key={entry.key}
                         color={entry.color}
                         label={entry.label}
                         swatchShape="circle"
-                        active={
-                          visibleLayerIds.has(resolved.layer.id) ||
-                          (retainingClimate && resolved.layer.format === 'climate-grid')
-                        }
+                        active={active}
                       />
                     ))}
-                </MapLegendSection>
-              </div>
-            ))}
+                  </MapLegendSection>
+                </div>
+              )
+            })}
           {legendEntries
             .filter((entry) => !entry.layerId)
             .map((entry) => (

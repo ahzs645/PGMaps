@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
+  FolderKanban,
   Search,
   X,
   UtensilsCrossed,
@@ -19,6 +20,8 @@ import { requestMapSearch } from '@/lib/mapSearch'
 import { CANUE_V2_CATALOG_URL, type CanueV2Catalog } from '@/maps/pgdata/canueV2'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
+import { collectionHref, collectionMembers, PROJECT_COLLECTIONS } from '@/lib/projectCollections'
+import { KIND_LABELS } from '@/maps/project-workspace/projectPresentation'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 
 interface SearchItem {
@@ -180,6 +183,15 @@ function staticSearchIndex(): SearchItem[] {
       iconColor: 'text-violet-600',
     },
     {
+      id: 'nav-projects',
+      label: 'Projects',
+      sublabel: 'Map stories, project folders, and Index Lab presets',
+      section: 'Maps',
+      sectionPath: '/dev/projects',
+      icon: FolderKanban,
+      iconColor: 'text-cyan-600',
+    },
+    {
       id: 'nav-scorebuilder',
       label: 'Index Lab',
       sublabel: 'Transparent weighted civic indices',
@@ -195,7 +207,8 @@ function staticSearchIndex(): SearchItem[] {
 }
 
 const STATIC_INDEX = staticSearchIndex()
-type SearchRow = Pick<SearchItem, 'id' | 'label' | 'sublabel' | 'params'>
+/** Rows may name their own path when one source spans many routes (e.g. project pages). */
+type SearchRow = Pick<SearchItem, 'id' | 'label' | 'sublabel' | 'params'> & Partial<Pick<SearchItem, 'sectionPath'>>
 type SearchSource = {
   key: string
   section: string
@@ -238,6 +251,37 @@ const SEARCH_SOURCES: SearchSource[] = [
     icon: Building2,
     iconColor: 'text-slate-500',
     load: localIndex('properties'),
+  },
+  {
+    key: 'projects',
+    section: 'Projects',
+    sectionPath: '/dev/projects',
+    icon: FolderKanban,
+    iconColor: 'text-cyan-600',
+    load: async () => {
+      // Metadata-only catalog summaries (one index fetch); the package module
+      // is loaded on demand so the navbar bundle stays small.
+      const { loadProjectCatalogSummaries } = await import('@/lib/projectPackages')
+      const projects = await loadProjectCatalogSummaries()
+      const folders: SearchRow[] = PROJECT_COLLECTIONS.map((collection) => {
+        const total = collectionMembers(collection, projects).length
+        return {
+          id: `folder-${collection.slug}`,
+          label: collection.title,
+          sublabel: `Project folder | ${total} ${total === 1 ? 'project' : 'projects'} | ${collection.description}`,
+          sectionPath: collectionHref(collection.slug),
+        }
+      })
+      return [
+        ...folders,
+        ...projects.map((project) => ({
+          id: `project-${project.slug}`,
+          label: project.title,
+          sublabel: `${KIND_LABELS[project.kind]} | ${project.summary}`,
+          sectionPath: `/dev/projects/${encodeURIComponent(project.slug)}`,
+        })),
+      ]
+    },
   },
   {
     key: 'canue',
@@ -295,7 +339,7 @@ function loadSearchSource(source: SearchSource): Promise<SearchItem[]> {
       rows.map((row) => ({
         ...row,
         section: source.section,
-        sectionPath: source.sectionPath,
+        sectionPath: row.sectionPath ?? source.sectionPath,
         icon: source.icon,
         iconColor: source.iconColor,
       })),
@@ -455,7 +499,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
       >
         <DialogTitle className="sr-only">Search PGMaps</DialogTitle>
         <DialogDescription className="sr-only">
-          Search maps, datasets, restaurants, parks, and properties.
+          Search maps, projects, datasets, restaurants, parks, and properties.
         </DialogDescription>
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
           <Search className="h-5 w-5 text-muted-foreground" />
@@ -469,7 +513,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search restaurants, parks, maps..."
+            placeholder="Search projects, restaurants, parks, maps..."
             aria-label="Search PGMaps"
             role="combobox"
             aria-autocomplete="list"

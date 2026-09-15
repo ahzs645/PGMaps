@@ -14,7 +14,9 @@ resilience narrative, EchoScreen, and all 18 climate-category stories. Counts ar
 derived from loaded catalog summaries, not hard-coded in the UI.
 
 - Share a folder with `/dev/projects?collection=bc-climate-health`.
-- The root catalog shows folders plus ungrouped projects. Members are not repeated
+- The root catalog lists folders as ordinary entries, pinned ahead of the
+  ungrouped projects in the same table (desktop) or card grid (smaller widths);
+  see `src/components/projects/ProjectFolderEntries.tsx`. Members are not repeated
   as top-level entries, including in “Browse all projects”.
 - Root search and type filters return matching folders with matching/total counts.
   Opening a folder retains those filters. Inside a folder, search and pagination

@@ -14,7 +14,8 @@ for (const width of [320, 390, 1024, 1440]) {
     await expect(rows).toHaveCount(12)
     expect(await page.locator(width < 1280 ? 'tbody tr' : 'article').count()).toBe(0)
     const input = await search.boundingBox()
-    expect(input!.width).toBeGreaterThan(220)
+    // One-row header: search shares the row with the filter and import buttons.
+    expect(input!.width).toBeGreaterThan(Math.min(220, width * 0.55))
     await page.getByRole('button', { name: 'Browse all projects' }).click()
     await expect(rows).toHaveCount(12)
     await page

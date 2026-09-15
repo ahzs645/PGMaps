@@ -1,5 +1,4 @@
-import { PaginationControls } from '@/components/ui/pagination-controls'
-import { ProjectCollectionCards } from '@/components/projects/ProjectCollectionCards'
+import { ProjectFolderCard, ProjectFolderRow } from '@/components/projects/ProjectFolderEntries'
 import {
   collectionMembers,
   getCollectionForProject,
@@ -23,6 +22,7 @@ import {
   Layers,
   Search,
   Settings2,
+  SlidersHorizontal,
   Trash2,
   Upload,
   X,
@@ -49,6 +49,8 @@ import { cn } from '@/lib/utils'
 
 const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
 type CatalogFilter = 'all' | ProjectKind
+/** Folders and projects share one paginated list; folders are pinned first. */
+type CatalogEntry = { type: 'folder'; summary: ProjectCollectionSummary } | { type: 'project'; project: ProjectPackage }
 
 const THEME_ACCENT: Record<ProjectTheme, string> = {
   cyan: 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100',
@@ -370,7 +372,7 @@ function ProjectCatalogMobileCard({
   const labUrl = buildProjectLabUrl(project)
 
   return (
-    <article className="overflow-hidden rounded-lg border bg-background shadow-sm">
+    <article data-entry="project" className="overflow-hidden rounded-lg border bg-background shadow-sm">
       <div className="p-3">
         <div className="flex items-start gap-3">
           <span
@@ -514,7 +516,14 @@ function ProjectCatalogPage({
   const desktop = useMediaQuery('(min-width: 1280px)')
   const resultsRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLElement>(null)
-  const pagination = usePagination(projects, 12, JSON.stringify([query, filter, showingMoreProjects, collection?.slug]))
+  const entries = useMemo<CatalogEntry[]>(
+    () => [
+      ...collections.map((summary): CatalogEntry => ({ type: 'folder', summary })),
+      ...projects.map((project): CatalogEntry => ({ type: 'project', project })),
+    ],
+    [collections, projects],
+  )
+  const pagination = usePagination(entries, 12, JSON.stringify([query, filter, showingMoreProjects, collection?.slug]))
   const changePage = (page: number) => {
     pagination.setPage(page)
     setExpandedSlug(null)
@@ -522,6 +531,7 @@ function ProjectCatalogPage({
     headerRef.current?.scrollIntoView({ block: 'start' })
   }
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const canToggleMoreProjects = additionalProjectCount > 0 && !query.trim() && filter === 'all'
 
   function onToggleExpand(slug: string) {
     setExpandedSlug((current) => (current === slug ? null : slug))
@@ -536,12 +546,14 @@ function ProjectCatalogPage({
         : 'No projects match the current search.'
 
   return (
-    <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 xl:h-[calc(100vh-4rem)] xl:min-h-0">
+    // Below md the catalog is full-bleed: the navbar floats over the page, so
+    // the sticky header owns the clearance beneath it instead of the wrapper.
+    <div className="bg-muted/30 text-foreground md:p-5 xl:h-[calc(100vh-4rem)] xl:min-h-0">
       <div className="mx-auto max-w-[98rem] gap-4 xl:grid xl:h-full xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
-        <section className="flex min-h-0 min-w-0 flex-col rounded-lg border bg-background shadow-sm">
+        <section className="flex min-h-0 min-w-0 flex-col bg-background md:rounded-lg md:border md:shadow-sm">
           <header
             ref={headerRef}
-            className="sticky top-16 z-20 shrink-0 scroll-mt-16 rounded-t-lg border-b bg-background p-3 sm:p-4 xl:static"
+            className="sticky top-0 z-20 shrink-0 border-b bg-background p-3 pt-[calc(env(safe-area-inset-top)+4rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:rounded-t-lg md:pt-4 xl:static"
           >
             {(collection || unknownCollection) && (
               <nav aria-label="Project breadcrumb" className="mb-3 flex flex-wrap items-center gap-2 text-sm">
@@ -565,19 +577,9 @@ function ProjectCatalogPage({
                 </p>
               </div>
 
-              <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-2 sm:grid-cols-[2.75rem_minmax(0,1fr)_10rem]">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-11 w-11 px-0 sm:h-9"
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="Import project package"
-                  title="Import project package"
-                >
-                  <Upload className="h-4 w-4" />
-                </Button>
-                <div className="relative col-span-2 row-start-1 min-w-0 sm:col-span-1 sm:col-start-2">
+              {/* One row at every width: search, type filter (icon-only on phones), import. */}
+              <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_2.75rem]">
+                <div className="relative min-w-0">
                   <Search className="pointer-events-none absolute left-3 top-3.5 sm:top-2.5 h-4 w-4 text-muted-foreground" />
                   <input
                     value={query}
@@ -590,11 +592,36 @@ function ProjectCatalogPage({
                 <AppSelect
                   value={filter}
                   onValueChange={(value) => onFilterChange(value as CatalogFilter)}
-                  options={FILTER_OPTIONS}
+                  options={FILTER_OPTIONS.map((option) => ({
+                    ...option,
+                    selectedLabel: (
+                      <>
+                        <SlidersHorizontal
+                          className={cn('h-4 w-4 sm:hidden', filter !== 'all' && 'text-primary')}
+                          aria-hidden="true"
+                        />
+                        <span className="hidden sm:inline">{option.label}</span>
+                      </>
+                    ),
+                  }))}
                   triggerAriaLabel="Filter projects"
                   className="min-w-0"
-                  triggerClassName="h-11 sm:h-9"
+                  triggerClassName={cn(
+                    'h-11 justify-center px-0 [&>svg:last-child]:hidden sm:h-9 sm:justify-between sm:px-3 sm:[&>svg:last-child]:block',
+                    filter !== 'all' && 'border-primary/60',
+                  )}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-11 w-11 px-0 sm:h-9"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Import project package"
+                  title="Import project package"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -608,23 +635,6 @@ function ProjectCatalogPage({
                 />
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <span role="status" className="text-xs text-muted-foreground">
-                {pagination.start}–{pagination.end} of {projects.length} projects
-                {collections.length > 0 &&
-                  ` · ${collections.length} ${collections.length === 1 ? 'folder' : 'folders'}`}
-              </span>
-              {additionalProjectCount > 0 && !query.trim() && filter === 'all' && (
-                <Button
-                  variant="outline"
-                  className="h-11 sm:h-9"
-                  aria-pressed={showingMoreProjects}
-                  onClick={onToggleMoreProjects}
-                >
-                  {showingMoreProjects ? 'Show featured' : 'Browse all projects'}
-                </Button>
-              )}
-            </div>
             {importError && (
               <div className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
                 {importError}
@@ -634,7 +644,6 @@ function ProjectCatalogPage({
 
           {desktop ? (
             <div ref={resultsRef} className="min-h-0 flex-1 overflow-auto">
-              <ProjectCollectionCards collections={collections} />
               <table className="w-full table-fixed border-separate border-spacing-0 text-left">
                 <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
                   <tr>
@@ -645,11 +654,16 @@ function ProjectCatalogPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {pagination.items.map((project) => {
+                  {pagination.items.map((entry) => {
+                    if (entry.type === 'folder') {
+                      return <ProjectFolderRow key={`folder:${entry.summary.collection.slug}`} summary={entry.summary} />
+                    }
+                    const { project } = entry
                     const active = selectedProject?.slug === project.slug
                     return (
                       <tr
                         key={project.slug}
+                        data-entry="project"
                         className={cn('align-top transition-colors', active ? 'bg-primary/5' : 'hover:bg-muted/30')}
                       >
                         <td className="px-4 py-3">
@@ -723,38 +737,80 @@ function ProjectCatalogPage({
                 </tbody>
               </table>
 
-              {projects.length === 0 && collections.length === 0 && (
+              {entries.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
               )}
             </div>
           ) : (
             <div ref={resultsRef}>
-              <ProjectCollectionCards collections={collections} />
               <div className="grid gap-3 p-3 md:grid-cols-2">
-                {pagination.items.map((project) => (
-                  <ProjectCatalogMobileCard
-                    key={project.slug}
-                    project={project}
-                    expanded={expandedSlug === project.slug}
-                    onToggleExpand={() => onToggleExpand(project.slug)}
-                    onOpen={() => onOpenProject(project.slug)}
-                    onRemove={onRemoveProject}
-                  />
-                ))}
-                {projects.length === 0 && collections.length === 0 && (
+                {pagination.items.map((entry) =>
+                  entry.type === 'folder' ? (
+                    <ProjectFolderCard key={`folder:${entry.summary.collection.slug}`} summary={entry.summary} />
+                  ) : (
+                    <ProjectCatalogMobileCard
+                      key={entry.project.slug}
+                      project={entry.project}
+                      expanded={expandedSlug === entry.project.slug}
+                      onToggleExpand={() => onToggleExpand(entry.project.slug)}
+                      onOpen={() => onOpenProject(entry.project.slug)}
+                      onRemove={onRemoveProject}
+                    />
+                  ),
+                )}
+                {entries.length === 0 && (
                   <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
                 )}
               </div>
             </div>
           )}
-          {pagination.pageCount > 1 && (
-            <PaginationControls
-              label="Project pages"
-              page={pagination.page}
-              pageCount={pagination.pageCount}
-              onPageChange={changePage}
-            />
-          )}
+          {/* The count and scope toggle describe the list, so they sit at its end
+              (pinned on desktop, where the list scrolls internally). */}
+          <footer className="flex flex-wrap items-center justify-between gap-2 border-t bg-background p-3">
+            <span role="status" className="text-xs tabular-nums text-muted-foreground">
+              {pagination.start}–{pagination.end} of {entries.length}
+              {collections.length > 0
+                ? ` · ${collections.length} ${collections.length === 1 ? 'folder' : 'folders'} · ${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`
+                : ' projects'}
+            </span>
+            {(canToggleMoreProjects || pagination.pageCount > 1) && (
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                {canToggleMoreProjects && (
+                  <Button
+                    variant="outline"
+                    className="h-11 flex-1 sm:h-9 sm:flex-none"
+                    aria-pressed={showingMoreProjects}
+                    onClick={onToggleMoreProjects}
+                  >
+                    {showingMoreProjects ? 'Show featured' : `Browse all projects`}
+                    {!showingMoreProjects && (
+                      <span className="text-muted-foreground">+{additionalProjectCount}</span>
+                    )}
+                  </Button>
+                )}
+                {pagination.pageCount > 1 && (
+                  <nav aria-label="Project pages" className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-11 sm:h-9"
+                      disabled={pagination.page === 0}
+                      onClick={() => changePage(pagination.page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-11 sm:h-9"
+                      disabled={pagination.page + 1 >= pagination.pageCount}
+                      onClick={() => changePage(pagination.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </nav>
+                )}
+              </div>
+            )}
+          </footer>
         </section>
 
         {desktop &&
