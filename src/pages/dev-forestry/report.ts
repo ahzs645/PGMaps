@@ -42,8 +42,9 @@ export type ReportInput = {
   inventorySource?: string | null
 }
 
+/** One decimal always, so a column of areas lines up rather than ragging. */
 const hectares = (squareMetres: number) =>
-  `${(squareMetres / 10_000).toLocaleString('en-CA', { maximumFractionDigits: 1 })} ha`
+  `${(squareMetres / 10_000).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha`
 
 const percent = (value: number, digits = 1) => `${value.toFixed(digits)}%`
 
