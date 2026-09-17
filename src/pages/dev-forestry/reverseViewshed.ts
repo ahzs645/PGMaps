@@ -266,6 +266,55 @@ export function computeReverseViewshed(
   }
 }
 
+/**
+ * The searched roads themselves, graded by exposure.
+ *
+ * Same reasoning as the forward corridor: stations are a sampling interval, not
+ * a property of the road, and a line of dots reads as the former. Each segment
+ * joins two consecutive stations on one road and carries the mean of their two
+ * figures, so nothing is drawn that was not computed.
+ */
+export function reverseRoadsToGeoJson(result: ReverseViewshedResult | null): GeoJSON.FeatureCollection {
+  if (!result) return { type: 'FeatureCollection', features: [] }
+
+  const byRoad = new Map<string, ReverseStation[]>()
+  for (const station of result.stations) {
+    const existing = byRoad.get(station.roadId)
+    if (existing) existing.push(station)
+    else byRoad.set(station.roadId, [station])
+  }
+
+  const features: GeoJSON.Feature[] = []
+  for (const [roadId, stations] of byRoad) {
+    // Stations come back in the order they were walked, but sorting makes the
+    // segments independent of that and costs nothing at these counts.
+    stations.sort((a, b) => a.distanceAlongMeters - b.distanceAlongMeters)
+    for (let index = 1; index < stations.length; index += 1) {
+      const from = stations[index - 1]
+      const to = stations[index]
+      const id = `${roadId}-seg-${index}`
+      features.push({
+        type: 'Feature',
+        id,
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [from.lng, from.lat],
+            [to.lng, to.lat],
+          ],
+        },
+        properties: {
+          id,
+          roadId,
+          visiblePercent: (from.visiblePercent + to.visiblePercent) / 2,
+          seen: from.visiblePercent > 0 || to.visiblePercent > 0 ? 1 : 0,
+        },
+      })
+    }
+  }
+  return { type: 'FeatureCollection', features }
+}
+
 /** Sampled road points as map features, for colouring by exposure. */
 export function reverseStationsToGeoJson(result: ReverseViewshedResult | null): GeoJSON.FeatureCollection {
   if (!result) return { type: 'FeatureCollection', features: [] }

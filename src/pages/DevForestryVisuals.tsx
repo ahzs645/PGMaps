@@ -20,7 +20,7 @@ import { DriveCamera } from './dev-forestry/DriveCamera'
 import { ForestOverlay } from './dev-forestry/ForestOverlay'
 import { bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
-import { reverseStationsToGeoJson } from './dev-forestry/reverseViewshed'
+import { reverseRoadsToGeoJson } from './dev-forestry/reverseViewshed'
 import { collectRoadsFromMap, snapCorridorToRoad, type RoadCandidate } from './dev-forestry/roadSnap'
 import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
@@ -30,6 +30,7 @@ import {
   createEmptyScene,
   createId,
   createSampleScene,
+  corridorExposureToGeoJson,
   draftLineToGeoJson,
   loadStoredScene,
   pointsToGeoJson,
@@ -49,6 +50,27 @@ import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/
 
 const VISIBLE_COLOR = '#ef4444'
 const SCREENED_COLOR = '#0f766e'
+
+/**
+ * Exposure, cold to hot. Sequential in one hue family from slate through amber
+ * to the same red the visible ground uses, so a hot road and red ground read as
+ * the same thing.
+ */
+const EXPOSURE_RAMP = [
+  'interpolate',
+  ['linear'],
+  ['get', 'visiblePercent'],
+  0,
+  '#94a3b8',
+  1,
+  '#fcd34d',
+  15,
+  '#f59e0b',
+  40,
+  '#ea580c',
+  70,
+  VISIBLE_COLOR,
+] as const
 
 const DEFAULT_DRIVE: DriveState = {
   active: false,
@@ -589,9 +611,14 @@ function DevForestryVisuals() {
   const draftVertices = useMemo(() => pointsToGeoJson(draftCoordinates), [draftCoordinates])
   const stationCollection = useMemo(() => stationsToGeoJson(result), [result])
   const inventoryCollection = useMemo(() => unitsToGeoJson(inventory.units), [inventory.units])
-  const reverseStationCollection = useMemo(
-    () => reverseStationsToGeoJson(analysis.reverseState.result),
+  const reverseRoadCollection = useMemo(
+    () => reverseRoadsToGeoJson(analysis.reverseState.result),
     [analysis.reverseState.result],
+  )
+  // The road graded by what it sees, rather than the stations it was sampled at.
+  const corridorExposureCollection = useMemo(
+    () => corridorExposureToGeoJson(result, selectedTargetId),
+    [result, selectedTargetId],
   )
 
   // Where the eye is on the road. The map's centre is no use for this: pitched
@@ -854,39 +881,37 @@ function DevForestryVisuals() {
           strokeWidth={0}
         />
 
-        {/* The reverse answer sits on the roads themselves: a hot dot is a place
-            the block is in view from, a cold one a place it is hidden. */}
-        <MapCircleLayer
-          data={reverseStationCollection}
-          color={[
-            'interpolate',
-            ['linear'],
-            ['get', 'visiblePercent'],
-            0,
-            '#64748b',
-            1,
-            '#fbbf24',
-            25,
-            '#f97316',
-            60,
-            VISIBLE_COLOR,
-          ]}
-          radius={['case', ['==', ['get', 'seen'], 1], 5, 2.5]}
-          opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.4]}
-          strokeColor="#ffffff"
-          strokeWidth={['case', ['==', ['get', 'seen'], 1], 1.2, 0]}
+        {/* The reverse answer sits on the roads themselves: a hot stretch is
+            road the block is in view from, a cold one road where it is hidden.
+            Drawn as the road rather than as the points it was sampled at. */}
+        <MapLineLayer
+          data={reverseRoadCollection}
+          color={EXPOSURE_RAMP as never}
+          width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
+          opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
           visible={!drive.active}
         />
 
         {/* From eye level the road is directly under the camera, where a line
             and its stations fill the frame instead of marking anything. */}
         <MapLineLayer data={corridorCollection} color="#1d4ed8" width={3} opacity={0.9} visible={!drive.active} />
+        {/* Once a run exists the corridor carries its own answer: how much of
+            the block each stretch of road sees, graded along it. */}
+        <MapLineLayer
+          data={corridorExposureCollection}
+          color={EXPOSURE_RAMP as never}
+          width={5}
+          opacity={0.95}
+          visible={!drive.active}
+        />
+        {/* Only the assessment viewpoint keeps a marker — it is a single place,
+            not a sample of a continuum. */}
         <MapCircleLayer
           data={stationCollection}
-          color={['case', ['==', ['get', 'assessment'], 1], '#facc15', '#1d4ed8']}
-          radius={['case', ['==', ['get', 'assessment'], 1], 5, 3]}
+          color="#facc15"
+          radius={['case', ['==', ['get', 'assessment'], 1], 6, 0]}
           strokeColor="#ffffff"
-          strokeWidth={1.2}
+          strokeWidth={['case', ['==', ['get', 'assessment'], 1], 1.5, 0]}
           visible={!drive.active}
         />
         <MapCircleLayer
@@ -936,6 +961,15 @@ function DevForestryVisuals() {
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
               Assessment viewpoint
+            </span>
+            {/* The ramp itself, so a grey stretch of road reads as "sees
+                nothing from here" rather than as an unstyled line. */}
+            <span className="flex items-center gap-1.5 pt-0.5">
+              <span
+                className="h-1.5 w-10 shrink-0 rounded-full"
+                style={{ backgroundImage: `linear-gradient(to right, #94a3b8, #fcd34d, #f59e0b, ${VISIBLE_COLOR})` }}
+              />
+              Road: none → most in view
             </span>
           </div>
         </MapOverlay>

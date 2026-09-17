@@ -264,6 +264,56 @@ export function samplesToGeoJson(
 }
 
 /** The stations the analysis measured from, for the map and for drive playback. */
+/**
+ * The road itself, graded by how much of a block each stretch of it sees.
+ *
+ * Stations are discrete — one sightline calculation every `stationSpacingMeters`
+ * — but the road is not, and a line of dots reads as a sampling artefact rather
+ * than as exposure. Each segment between two stations carries the mean of their
+ * two figures, so the colour runs continuously along the road and still says
+ * only what was actually computed.
+ */
+export function corridorExposureToGeoJson(
+  result: AnalysisResult | null,
+  targetId: string | null,
+): GeoJSON.FeatureCollection {
+  const empty = { type: 'FeatureCollection' as const, features: [] }
+  if (!result || result.stations.length < 2) return empty
+
+  // The selected block if it was assessed, otherwise the worst case over all of
+  // them — a road is exposed if it sees any of the proposal.
+  const blocks = result.targets.filter((target) => target.role === 'block')
+  const chosen = blocks.find((target) => target.targetId === targetId)
+  const sources = chosen ? [chosen] : blocks
+  if (sources.length === 0) return empty
+
+  const exposureAt = (index: number) =>
+    sources.reduce((worst, target) => Math.max(worst, target.stations[index]?.visiblePercent ?? 0), 0)
+
+  const features: GeoJSON.Feature[] = []
+  for (let index = 1; index < result.stations.length; index += 1) {
+    const from = result.stations[index - 1]
+    const to = result.stations[index]
+    features.push({
+      type: 'Feature',
+      id: `corridor-${index}`,
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [from.lng, from.lat],
+          [to.lng, to.lat],
+        ],
+      },
+      properties: {
+        id: `corridor-${index}`,
+        visiblePercent: (exposureAt(index - 1) + exposureAt(index)) / 2,
+        distanceAlongMeters: from.distanceAlongMeters,
+      },
+    })
+  }
+  return { type: 'FeatureCollection', features }
+}
+
 export function stationsToGeoJson(result: AnalysisResult | null): GeoJSON.FeatureCollection {
   if (!result) return { type: 'FeatureCollection', features: [] }
   return {

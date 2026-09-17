@@ -228,6 +228,16 @@ If more than a third of the terrain tiles fail to load the run is refused
 outright: ground the mosaic is missing never blocks a sightline, so a run built
 on absent tiles would report everything as visible.
 
+### Roads are drawn as roads, not as samples
+
+Viewing stations are a sampling interval — one sightline calculation every
+`stationSpacingMeters` — not a property of the road. Drawing them as dots makes
+the interval look like the answer, so both the corridor and the searched roads
+are drawn as **line segments between consecutive stations**, each carrying the
+mean of the two figures at its ends. Nothing is coloured that was not computed,
+and a grey stretch is road the block cannot be seen from. Only the assessment
+viewpoint keeps a marker, because it is a single place rather than a sample.
+
 ## Working backwards from the block
 
 The forward run answers "how much of this block does this road see", which needs

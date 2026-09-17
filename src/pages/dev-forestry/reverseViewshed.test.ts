@@ -4,6 +4,7 @@ import { buildCanopyGrid } from './canopy'
 import {
   DEFAULT_REVERSE_SETTINGS,
   computeReverseViewshed,
+  reverseRoadsToGeoJson,
   reverseStationsToGeoJson,
   type ReverseRoad,
 } from './reverseViewshed'
@@ -130,5 +131,67 @@ describe('reverseStationsToGeoJson', () => {
 
   it('is empty without a result', () => {
     expect(reverseStationsToGeoJson(null).features).toHaveLength(0)
+  })
+})
+
+describe('reverseRoadsToGeoJson', () => {
+  it('draws the road as segments rather than the points it was sampled at', () => {
+    const result = computeReverseViewshed(FLAT, [BLOCK], [northSouth('near', 0.012)], SETTINGS)
+    const collection = reverseRoadsToGeoJson(result)
+
+    // One fewer segment than stations: segments join consecutive pairs.
+    expect(collection.features).toHaveLength(result.stations.length - 1)
+    expect(collection.features.every((feature) => feature.geometry.type === 'LineString')).toBe(true)
+    expect(
+      collection.features.every((feature) => (feature.geometry as GeoJSON.LineString).coordinates.length === 2),
+    ).toBe(true)
+  })
+
+  it('gives each segment the mean of the two stations it joins', () => {
+    const result = computeReverseViewshed(FLAT, [BLOCK], [northSouth('near', 0.012)], SETTINGS)
+    const stations = [...result.stations].sort((a, b) => a.distanceAlongMeters - b.distanceAlongMeters)
+    const first = reverseRoadsToGeoJson(result).features[0]
+
+    expect(first.properties?.visiblePercent).toBeCloseTo(
+      (stations[0].visiblePercent + stations[1].visiblePercent) / 2,
+      6,
+    )
+    // Nothing is drawn hotter or colder than what was computed at its ends.
+    const percents = reverseRoadsToGeoJson(result).features.map((f) => Number(f.properties?.visiblePercent))
+    const bounds = stations.map((station) => station.visiblePercent)
+    expect(Math.max(...percents)).toBeLessThanOrEqual(Math.max(...bounds) + 1e-9)
+    expect(Math.min(...percents)).toBeGreaterThanOrEqual(Math.min(...bounds) - 1e-9)
+  })
+
+  it('keeps roads apart rather than joining the end of one to the start of the next', () => {
+    const result = computeReverseViewshed(
+      FLAT,
+      [BLOCK],
+      [northSouth('west', 0.012), northSouth('east', 0.036)],
+      SETTINGS,
+    )
+    const features = reverseRoadsToGeoJson(result)
+    const roads = new Set(features.features.map((feature) => feature.properties?.roadId))
+
+    expect(roads).toEqual(new Set(['west', 'east']))
+    // Two roads of n stations give (n-1) segments each, never (2n-1).
+    expect(features.features).toHaveLength(result.stations.length - roads.size)
+  })
+
+  it('marks a stretch that sees nothing', () => {
+    const ridge = profile((lng) => (lng > 0.015 && lng < 0.017 ? 400 : 0))
+    const blocked = reverseRoadsToGeoJson(
+      computeReverseViewshed(ridge, [BLOCK], [northSouth('behind-ridge', 0.008)], SETTINGS),
+    )
+    expect(blocked.features.every((feature) => feature.properties?.seen === 0)).toBe(true)
+  })
+
+  it('is empty without a result, and for a road with a single station', () => {
+    expect(reverseRoadsToGeoJson(null).features).toHaveLength(0)
+    const single = computeReverseViewshed(FLAT, [BLOCK], [northSouth('near', 0.012)], {
+      ...SETTINGS,
+      stationSpacingMeters: 100_000,
+    })
+    expect(reverseRoadsToGeoJson(single).features.length).toBeLessThan(2)
   })
 })
