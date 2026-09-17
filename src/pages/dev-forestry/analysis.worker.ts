@@ -9,7 +9,9 @@ import { analysisBounds, buildStations, computeAnalysis } from './analysis'
 import { fetchCanopyStands } from './bcVisualInventory'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
+import { DEFAULT_REVERSE_SETTINGS, computeReverseViewshed } from './reverseViewshed'
 import { MAX_DEM_TILES, demResolutionMeters, demTileRange } from './terrain'
+import { polygonBounds } from './visibility'
 import type { AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
 
 const workerScope = globalThis as unknown as {
@@ -22,7 +24,7 @@ const post = (message: AnalysisWorkerResponse, transfer?: Transferable[]) => {
   workerScope.postMessage(message, transfer)
 }
 
-async function runAnalysis(request: AnalysisWorkerRequest) {
+async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'analyze' }>) {
   const { requestId, input } = request
   const stations = buildStations(input)
   if (stations.length === 0) throw new Error('Place a viewpoint on the road first')
@@ -101,8 +103,75 @@ async function runAnalysis(request: AnalysisWorkerRequest) {
   post({ type: 'result', requestId, result }, transfer)
 }
 
+/**
+ * The reverse run: fetch terrain over the blocks and every road, then score the
+ * roads. Blocks are few and roads are many, so the DEM is the same cost and the
+ * sightline count is bounded by the road sampling rather than the grid.
+ */
+async function runReverse(request: Extract<AnalysisWorkerRequest, { type: 'reverse' }>) {
+  const { requestId, input } = request
+  if (input.blocks.length === 0) throw new Error('Draw or select a block first')
+  if (input.roads.length === 0) throw new Error('No roads in view to test against')
+
+  // Terrain has to cover both ends of every sightline: the blocks and the roads.
+  const lngs = input.roads.flatMap((road) => road.coordinates.map(([lng]) => lng))
+  const lats = input.roads.flatMap((road) => road.coordinates.map(([, lat]) => lat))
+  for (const block of input.blocks) {
+    const blockBounds = polygonBounds(block.geometry)
+    lngs.push(blockBounds[0], blockBounds[2])
+    lats.push(blockBounds[1], blockBounds[3])
+  }
+  if (lngs.length === 0) throw new Error('Nothing to work from')
+
+  const bounds: [number, number, number, number] = [
+    Math.min(...lngs),
+    Math.min(...lats),
+    Math.max(...lngs),
+    Math.max(...lats),
+  ]
+
+  const range = demTileRange(bounds, input.settings.demZoom, 600)
+  if (range.tileCount > MAX_DEM_TILES) {
+    throw new Error(`This view needs ${range.tileCount} terrain tiles. Zoom in, or lower the terrain detail.`)
+  }
+
+  post({ type: 'progress', requestId, progress: { phase: 'terrain', completed: 0, total: range.tileCount } })
+  const { grid } = await loadElevationGrid({
+    range,
+    onProgress: (completed, total) => {
+      post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
+    },
+  })
+
+  post({ type: 'progress', requestId, progress: { phase: 'sightlines', completed: 0, total: 1 } })
+  const result = computeReverseViewshed(
+    grid,
+    input.blocks.map((block) => block.geometry),
+    input.roads,
+    {
+      ...DEFAULT_REVERSE_SETTINGS,
+      observerHeightMeters: input.settings.observerHeightMeters,
+      targetOffsetMeters: input.settings.targetOffsetMeters,
+      maxViewDistanceMeters: input.settings.maxViewDistanceMeters,
+      demResolutionMeters: demResolutionMeters(bounds[1], input.settings.demZoom),
+    },
+  )
+
+  post({ type: 'reverse-result', requestId, result })
+}
+
 workerScope.onmessage = (event: MessageEvent<AnalysisWorkerRequest>) => {
   const request = event.data
+  if (request?.type === 'reverse') {
+    runReverse(request).catch((error: unknown) => {
+      post({
+        type: 'error',
+        requestId: request.requestId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    })
+    return
+  }
   if (request?.type !== 'analyze') return
   runAnalysis(request).catch((error: unknown) => {
     post({

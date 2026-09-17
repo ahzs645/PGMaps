@@ -6,10 +6,12 @@ import {
   Gauge,
   Landmark,
   Loader2,
+  Magnet,
   MapPin,
   Mountain,
   Pause,
   Play,
+  Radar,
   RotateCcw,
   Route,
   Ruler,
@@ -17,6 +19,7 @@ import {
   SquareDashed,
   Trash2,
   TreePine,
+  Trees,
   X,
   ZoomIn,
 } from 'lucide-react'
@@ -32,7 +35,7 @@ import { ResultsPanel } from './ResultsPanel'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from './terrain'
 import type { AnalysisSettings, TargetPolygon, TargetRole, Viewpoint } from './types'
-import type { AnalysisState } from './useVisibilityAnalysis'
+import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { lineLengthMeters } from './visibility'
 import {
   ALTERATION_BASIS_LABELS,
@@ -67,6 +70,12 @@ export type DriveState = {
   /** Block to face, or null to look along the road. */
   lookAtTargetId: string | null
   exaggeration: number
+  /** Whether standing timber is drawn around the camera. */
+  forest: boolean
+  /** Height of the stand the trees are drawn at, in metres. */
+  treeHeightMeters: number
+  /** Width of the timber-free strip along the road, in metres. */
+  roadClearWidthMeters: number
 }
 
 const INPUT_CLASS =
@@ -139,9 +148,21 @@ type SidebarProps = {
   draftCoordinates: Array<[number, number]>
   onFinishDraft: () => void
 
+  /** Replaces the drawn corridor with the road the basemap says it traces. */
+  onSnapToRoad: () => void
+  snapMessage: string | null
+
   analysis: AnalysisState
   onRun: () => void
   onCancel: () => void
+
+  reverse: ReverseState
+  onRunReverse: () => void
+  /** Adopts one of the ranked roads as the corridor. */
+  onUseRoad: (roadId: string) => void
+
+  /** What the 3D stand is drawing, or why it is not. */
+  forestStatus: { treeCount: number; error: string | null } | null
 
   selectedTargetId: string | null
   onSelectTarget: (targetId: string) => void
@@ -175,9 +196,15 @@ export function Sidebar({
   onDrawModeChange,
   draftCoordinates,
   onFinishDraft,
+  onSnapToRoad,
+  snapMessage,
   analysis,
   onRun,
   onCancel,
+  reverse,
+  onRunReverse,
+  onUseRoad,
+  forestStatus,
   selectedTargetId,
   onSelectTarget,
   drive,
@@ -204,6 +231,7 @@ export function Sidebar({
   const corridorLength =
     viewpoint.mode === 'corridor' && viewpoint.coordinates.length > 1 ? lineLengthMeters(viewpoint.coordinates) : 0
   const running = analysis.status === 'running'
+  const reverseRunning = reverse.status === 'running'
   const result = analysis.result
 
   const driveStation =
@@ -335,6 +363,16 @@ export function Sidebar({
             >
               <X className="h-3.5 w-3.5" />
             </button>
+          </div>
+        )}
+
+        {hasViewpoint && (
+          <div className="mb-3">
+            <Button type="button" variant="outline" size="sm" className="w-full" onClick={onSnapToRoad}>
+              <Magnet className="h-4 w-4" />
+              Snap to the nearest road
+            </Button>
+            {snapMessage && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{snapMessage}</p>}
           </div>
         )}
 
@@ -843,6 +881,88 @@ export function Sidebar({
         </Button>
       </SidebarSection>
 
+      {/* The same question the other way round: rather than picking a road and
+          asking what it sees, take the block and find the roads that see it. */}
+      <SidebarSection title="Which roads see the block" icon={Radar}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={blocks.length === 0 || reverseRunning}
+          onClick={onRunReverse}
+        >
+          {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+          {reverseRunning ? 'Searching…' : 'Find them on screen'}
+        </Button>
+        <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+          Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first — roads
+          off screen are not searched.
+        </p>
+
+        {reverseRunning && reverse.progress && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {reverse.progress.phase === 'terrain'
+              ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
+              : 'Tracing sightlines…'}
+          </p>
+        )}
+
+        {reverse.error && (
+          <InlineAlert className="mt-2" tone="error">
+            {reverse.error}
+          </InlineAlert>
+        )}
+
+        {reverse.result && reverse.result.roads.length === 0 && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            No road on screen can see it
+            {reverse.result.outOfRangeRoadCount > 0
+              ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
+              : '.'}
+          </p>
+        )}
+
+        {reverse.result && reverse.result.roads.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {reverse.result.roads.slice(0, 8).map((road) => (
+              <li key={road.roadId}>
+                <button
+                  type="button"
+                  className="w-full rounded-md border border-border p-2 text-left hover:bg-accent"
+                  onClick={() => onUseRoad(road.roadId)}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-xs font-medium text-foreground">{road.name}</span>
+                    <span
+                      className={cn(
+                        'shrink-0 text-xs font-semibold tabular-nums',
+                        road.maxVisiblePercent > 0 ? 'text-rose-600' : 'text-muted-foreground',
+                      )}
+                    >
+                      {road.maxVisiblePercent.toFixed(0)}%
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
+                    {road.seeingStationCount === 0
+                      ? 'Hidden from every point on it'
+                      : `Seen from ${(road.exposedLengthFraction * 100).toFixed(0)}% of its length · ` +
+                        `nearest ${(road.nearestDistanceMeters / 1000).toFixed(1)} km`}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {reverse.result && reverse.result.roads.length > 0 && (
+          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+            Percentages are the share of the block&rsquo;s ground area in view from one point. Pick a road to make it
+            the corridor, then run the full assessment for the figures an objective is judged on.
+          </p>
+        )}
+      </SidebarSection>
+
       {result && (
         <SidebarSection title="Results" icon={Gauge}>
           <ResultsPanel
@@ -938,6 +1058,58 @@ export function Sidebar({
                   </p>
                 </div>
               )}
+
+              {/* The block as a coloured polygon tells you where it is. The
+                  block as the gap where the trees stop tells you whether you
+                  can see it, which is the thing the objective is about. */}
+              <div className="rounded-md border border-border p-2">
+                <ToggleChip active={drive.forest} onClick={() => onDriveChange({ forest: !drive.forest })}>
+                  <span className="inline-flex items-center gap-1">
+                    <Trees className="h-3 w-3" /> Stand the timber up
+                  </span>
+                </ToggleChip>
+                {drive.forest ? (
+                  <div className="mt-2">
+                    <NumberField
+                      label="Stand height"
+                      value={drive.treeHeightMeters}
+                      min={5}
+                      max={60}
+                      step={1}
+                      suffix="m"
+                      hint="Timber fills the view and the block and any existing opening take it off, so the cut reads as a gap. A drawn picture, not an inventory."
+                      onChange={(value) => onDriveChange({ treeHeightMeters: value })}
+                    />
+                    <div className="mt-3">
+                      <NumberField
+                        label="Cleared width along the road"
+                        value={drive.roadClearWidthMeters}
+                        min={6}
+                        max={400}
+                        step={2}
+                        suffix="m"
+                        hint="A 28 m tree standing 15 m away fills the sky, so from a narrow road you see timber and nothing else — which is the honest picture, and useless for judging a hillside. Widen this to open the foreground. It changes only what is drawn; the percentages do not move."
+                        onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
+                      />
+                    </div>
+                    {forestStatus?.error ? (
+                      <InlineAlert className="mt-2" tone="error">
+                        {forestStatus.error}
+                      </InlineAlert>
+                    ) : (
+                      forestStatus !== null && (
+                        <p className="mt-1.5 text-[10px] text-muted-foreground">
+                          {forestStatus.treeCount.toLocaleString()} stems standing around the camera.
+                        </p>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+                    Bare ground — the hillside as the terrain model has it.
+                  </p>
+                )}
+              </div>
 
               <NumberField
                 label="Terrain exaggeration"

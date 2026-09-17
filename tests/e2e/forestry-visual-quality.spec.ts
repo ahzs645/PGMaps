@@ -253,4 +253,51 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Back to the map' }).click()
     await expect(page.getByText('Standing on the road')).toHaveCount(0)
   })
+
+  // The 3D stand itself is not covered here: the stubbed style never reports
+  // itself loaded, so nothing that waits on the map being ready runs. What is
+  // covered is the control and its copy; the geometry and placement carry unit
+  // tests, and the drawing was checked against live terrain in a real browser.
+  test('offers the 3D stand and says what bare ground means', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await openPage(page)
+
+    await setNumberField(page, 'Eye height above the road', '500')
+    await setNumberField(page, 'Max view distance', '40')
+    await page.getByRole('button', { name: 'Run visibility' }).click()
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+
+    await page.getByRole('button', { name: 'Look from the road' }).click()
+    await expect(page.getByLabel(/Stand height/)).toHaveValue('28')
+    await expect(page.getByLabel(/Cleared width along the road/)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Stand the timber up' }).click()
+    await expect(page.getByText(/Bare ground/)).toBeVisible()
+    await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
+  })
+
+  test('says which roads see the block, or that none on screen do', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await openPage(page)
+
+    // The stubbed basemap draws no roads, which is the same answer a real one
+    // gives when zoomed out past where it draws them.
+    await page.getByRole('button', { name: 'Find them on screen' }).click()
+    await expect(page.getByText(/No roads in view to test against|No road on screen can see it/)).toBeVisible({
+      timeout: 120_000,
+    })
+  })
+
+  test('leaves a drawn corridor alone when no road is near it', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await openPage(page)
+
+    await page.getByRole('button', { name: 'Snap to the nearest road' }).click()
+    await expect(page.getByText(/No roads drawn at this zoom|Nothing within 250 m/)).toBeVisible()
+    // The corridor is untouched, so the run it feeds is unchanged.
+    await expect(page.getByText(/points · .* km/)).toBeVisible()
+  })
 })

@@ -26,9 +26,11 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 
 - `docs/forestry-visual-quality.md` is the contract for `/dev/forestry/visual-quality`: what each reported percentage means, what the sightline model does and does not include, and the run's cost limits.
 - Read its **Drive the view** section before touching `src/pages/dev-forestry/DriveCamera.tsx`. The eye-level camera depends on MapLibre behaviour that fails silently — an omitted `roll` argument reaches `jumpTo` as `undefined` and leaves the transform's projection matrices null from then on.
+- Do not move the 3D stand onto a deck.gl overlay. Under this camera `map.transform.elevation` is a camera-fitting residual (about −294 m at Tabor Mountain), not the ground under the map centre, and deck.gl derives its camera height from it — so its camera lands at sea level while MapLibre's is on the hillside, and nothing draws with no error reported anywhere. `treeLayer.ts` takes MapLibre's own `modelViewProjectionMatrix` for that reason.
+- Anything that needs the camera's ground position during a drive must take the viewing station, not `map.getCenter()`. Pitched at the horizon from eye level, the map centre is kilometres away on the skyline.
 - `vqo.ts` holds two threshold scales on purpose: perspective-view ranges define the objective, planimetric ranges are the timber-supply proxy, and they are not interchangeable. Judge a number against the scale it was measured on.
 - The DataBC lookup in `bcVisualInventory.ts` is a deliberate exception to the snapshot policy above: it is a live per-place query of a few polygons, not a dataset the app ships. Anything needing the inventory offline or at full resolution belongs in `bcdatamapper`.
-- Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, and `shapeImport.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser.
+- Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, `shapeImport.ts`, `reverseViewshed.ts`, `roadSnap.ts`, and `forest.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser. `roadSnap.ts` takes a structural `RoadQueryMap` rather than a MapLibre map for the same reason.
 
 ## Project packages
 

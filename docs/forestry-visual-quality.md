@@ -188,6 +188,46 @@ If more than a third of the terrain tiles fail to load the run is refused
 outright: ground the mosaic is missing never blocks a sightline, so a run built
 on absent tiles would report everything as visible.
 
+## Working backwards from the block
+
+The forward run answers "how much of this block does this road see", which needs
+you to already know which road matters. **"Which roads see the block"** answers it
+the other way round: every road the basemap is currently drawing is sampled at
+intervals, each station traces sightlines to a grid over the block, and the
+result is a ranked list — the most it is ever exposed, the share of each road's
+length it can be seen from, and how close that road comes.
+
+Picking a road makes it the corridor, so the full assessment can then be run
+along it for the figures an objective is actually judged on. The reverse run is a
+coarser grid on purpose: it ranks roads, it does not produce a percentage anyone
+should write down.
+
+It reads the roads from the **rendered basemap**, so it answers for the current
+view at the current zoom — roads off screen are not searched, and at a zoom where
+the basemap does not draw resource roads they are not there to be found. (The
+province's own Digital Road Atlas view is published with a null object-id field
+and its spatial queries return nothing, so it is not a usable source.)
+
+## Snapping the corridor to a road
+
+A hand-drawn line is a guess at where the road goes, and the guess shows up in
+the numbers: a vertex that lands in a gully or on the far bank puts a viewing
+station somewhere no driver ever is, and that station reports seeing nothing.
+**"Snap to the nearest road"** replaces the drawing with the road the basemap
+draws, trimmed to the stretch that was drawn — so a short sketch along a highway
+does not return the whole highway.
+
+The road a drawing was tracing is the one its vertices sit closest to on average.
+A line further than 250 m from every road on screen is left alone, with a note
+saying so rather than snapping to something arbitrary. Note that at a zoom-11
+view a single screen pixel is about 30 m, so drawing within snapping distance
+means zooming in first.
+
+Vector tiles split one road into many features and styles draw each of them twice
+(a casing under a fill), so the candidates are deduplicated by geometry, merged
+by name or highway number, and — for the unnamed roads that are most of the
+resource network — chained together by shared endpoints.
+
 ## Drive the view
 
 "Look from the road" puts the camera at eye height on the corridor and turns on
@@ -208,6 +248,42 @@ Two MapLibre details this depends on:
 - Pitch is clamped to 85°, MapLibre's supported ceiling. A block sitting above
   the horizon is framed slightly high rather than centred.
 
+### Standing the timber up
+
+"Stand the timber up" draws the stand as instanced 3D conifers on the terrain.
+It is a drawn picture, not an inventory: timber fills the view at a height you
+set, and the proposal, every existing opening, and the road corridor take it off
+again. The point is that a cutblock then reads as a **gap in the canopy**, which
+is what a visual quality objective is actually written about — a coloured
+polygon on a bare hillside tells you where a block is, not whether you can see
+it.
+
+Three things this needs to get right, all learned the hard way:
+
+- **The patch follows the eye, not the map centre.** With the camera at ground
+  level and pitched at the horizon, `map.getCenter()` is where the view ray meets
+  the ground plane — ten-odd kilometres out and, in MapLibre's model, below sea
+  level. A patch grown there is a two-pixel smudge on the skyline. The forest is
+  grown around the current viewing station instead.
+- **The road is a clearing.** A 28 m tree standing 15 m away subtends 62°, so at
+  a true right-of-way width the near timber fills the frame and nothing beyond it
+  can be judged. The corridor is buffered out of the stand, and the cleared width
+  is a control — widening it is a viewing aid and moves no number.
+- **Two shells.** A stocked stand out to a few hundred metres, then a much
+  coarser one out to the block. At a kilometre a stem is a pixel or two and only
+  the texture matters, so the same budget goes much further.
+
+It draws through a **MapLibre custom layer**, not a deck.gl overlay, and that is
+deliberate. deck.gl's MapLibre integration derives its camera height from
+`map.transform.elevation`, documented as the ground elevation under the map
+centre. Under this drive camera that value is a camera-fitting residual — about
+−294 m at Tabor Mountain — and deck.gl's camera lands at sea level while
+MapLibre's is on the hillside at 707 m. Nothing draws, with no error anywhere:
+the layer is added, the model is built and instanced, `render` is called, and
+`gl.getError()` is clean. Taking `modelViewProjectionMatrix` straight from the
+render call sidesteps the question — the trees are projected by exactly the
+matrix that projected the ground under them.
+
 ## Files
 
 | Path | Role |
@@ -224,9 +300,14 @@ Two MapLibre details this depends on:
 | `src/pages/dev-forestry/bcVisualInventory.ts` | Live DataBC lookup for sensitivity units, objectives, and VAC |
 | `src/pages/dev-forestry/DriveCamera.tsx` | Eye-level camera and playback |
 | `src/pages/dev-forestry/TerrainSupport.tsx` | Hillshade, 3D terrain, and sky |
+| `src/pages/dev-forestry/reverseViewshed.ts` | Working backwards: which roads can see a block |
+| `src/pages/dev-forestry/roadSnap.ts` | Roads from the basemap; locking a drawn line onto one |
+| `src/pages/dev-forestry/forest.ts` | Tree geometry, stem placement, and the road buffer |
+| `src/pages/dev-forestry/treeLayer.ts` | The MapLibre custom layer that draws the stand |
+| `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 
-`terrain.ts`, `visibility.ts`, `vqo.ts`, and `shapeImport.ts` are pure and carry
-unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
+`terrain.ts`, `visibility.ts`, `vqo.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
+`roadSnap.ts`, and `forest.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
 against synthetic terrain or real tiles outside a browser. `demLoader.ts` takes
 an injectable decoder for the same reason — the browser path uses
 `createImageBitmap` and `OffscreenCanvas`, which Node has neither of.

@@ -1,6 +1,7 @@
 /** Shared shapes for the forestry visual-quality utility. */
 
 import { DEFAULT_DEM_ZOOM } from './terrain'
+import type { ReverseViewshedResult } from './reverseViewshed'
 import type { VacRating, VisualQualityClassId } from './vqo'
 
 /** A spot beside the road, or a length of road driven end to end. */
@@ -200,13 +201,19 @@ export type AnalysisProgress = {
   total: number
 }
 
-export type AnalysisWorkerRequest = {
-  type: 'analyze'
-  requestId: number
-  input: AnalysisInput
+/** Working backwards: which roads can see these blocks. */
+export type ReverseInput = {
+  blocks: Array<{ id: string; name: string; geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon }>
+  roads: Array<{ id: string; name: string; roadClass: string | null; coordinates: Array<[number, number]> }>
+  settings: AnalysisSettings
 }
+
+export type AnalysisWorkerRequest =
+  | { type: 'analyze'; requestId: number; input: AnalysisInput }
+  | { type: 'reverse'; requestId: number; input: ReverseInput }
 
 export type AnalysisWorkerResponse =
   | { type: 'progress'; requestId: number; progress: AnalysisProgress }
   | { type: 'result'; requestId: number; result: AnalysisResult }
+  | { type: 'reverse-result'; requestId: number; result: ReverseViewshedResult }
   | { type: 'error'; requestId: number; message: string }

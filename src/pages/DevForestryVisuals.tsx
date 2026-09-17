@@ -15,7 +15,11 @@ import {
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
 import { DriveCamera } from './dev-forestry/DriveCamera'
+import { ForestOverlay } from './dev-forestry/ForestOverlay'
+import { bufferLine } from './dev-forestry/forest'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
+import { reverseStationsToGeoJson } from './dev-forestry/reverseViewshed'
+import { collectRoadsFromMap, snapCorridorToRoad, type RoadCandidate } from './dev-forestry/roadSnap'
 import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
 import { readShapeFile } from './dev-forestry/shapeImport'
@@ -36,7 +40,7 @@ import {
   targetsToGeoJson,
   type ForestryScene,
 } from './dev-forestry/scene'
-import type { AnalysisInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
+import type { AnalysisInput, ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
@@ -51,6 +55,11 @@ const DEFAULT_DRIVE: DriveState = {
   positionMeters: 0,
   lookAtTargetId: null,
   exaggeration: 1,
+  forest: true,
+  treeHeightMeters: 28,
+  // Wider than a road, deliberately: at a true right-of-way width the near
+  // timber fills the frame and nothing beyond it can be judged.
+  roadClearWidthMeters: 90,
 }
 
 const FIT_PADDING = { top: 72, bottom: 72, left: 48, right: 48 }
@@ -117,6 +126,11 @@ function DevForestryVisuals() {
   const [showInventory, setShowInventory] = useState(true)
   const [driveStationIndex, setDriveStationIndex] = useState(0)
   const [seekVersion, setSeekVersion] = useState(0)
+  const [snapMessage, setSnapMessage] = useState<string | null>(null)
+  const [forestStatus, setForestStatus] = useState<{ treeCount: number; error: string | null } | null>(null)
+  // The roads the last reverse run was scored against, so a result can be
+  // turned back into a corridor without re-querying a map that has since moved.
+  const reverseRoadsRef = useRef<RoadCandidate[]>([])
   const preDriveViewport = useRef<{
     center: [number, number]
     zoom: number
@@ -411,6 +425,99 @@ function DevForestryVisuals() {
     analysis.run(input)
   }, [analysis, scene])
 
+  /**
+   * Replaces the drawn viewpoint with the road it was tracing.
+   *
+   * A hand-drawn line puts viewing stations wherever the click landed, which in
+   * steep ground is often over the bank or in the ditch — and a station in the
+   * ditch reports seeing nothing. The road the basemap draws is where a driver
+   * actually is.
+   */
+  const handleSnapToRoad = useCallback(() => {
+    const map = mapRef.current
+    if (!map || scene.viewpoint.coordinates.length === 0) return
+
+    const roads = collectRoadsFromMap(map)
+    if (roads.length === 0) {
+      setSnapMessage('No roads drawn at this zoom. Zoom in until the road shows, then try again.')
+      return
+    }
+
+    const snapped = snapCorridorToRoad(scene.viewpoint.coordinates, roads)
+    if (!snapped) {
+      setSnapMessage('Nothing within 250 m of the line. Draw closer to the road, or zoom in.')
+      return
+    }
+
+    setScene((current) => ({
+      ...current,
+      viewpoint: {
+        ...current.viewpoint,
+        name: snapped.road.name,
+        mode: 'corridor',
+        coordinates: snapped.coordinates,
+      },
+    }))
+    setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
+    setSnapMessage(
+      `Locked onto ${snapped.road.name} — ${(lineLengthMeters(snapped.coordinates) / 1000).toFixed(2)} km, ` +
+        `moved about ${snapped.meanOffsetMeters.toFixed(0)} m.`,
+    )
+  }, [scene.viewpoint.coordinates])
+
+  /** Scores every road on screen by how much of the selected block it can see. */
+  const handleRunReverse = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const selected = scene.targets.find((target) => target.id === selectedTargetId && target.role === 'block')
+    const blocks = selected ? [selected] : scene.targets.filter((target) => target.role === 'block')
+    if (blocks.length === 0) return
+
+    const roads = collectRoadsFromMap(map)
+    reverseRoadsRef.current = roads
+
+    const input: ReverseInput = {
+      blocks: blocks.map((block) => ({ id: block.id, name: block.name, geometry: block.geometry })),
+      roads: roads.map((road) => ({
+        id: road.id,
+        name: road.name,
+        roadClass: road.roadClass,
+        coordinates: road.coordinates,
+      })),
+      settings: scene.settings,
+    }
+    setDrive((current) => ({ ...current, active: false, playing: false }))
+    analysis.runReverse(input)
+  }, [analysis, scene.settings, scene.targets, selectedTargetId])
+
+  /** Turns one of the ranked roads into the corridor the assessment runs along. */
+  const handleUseRoad = useCallback(
+    (roadId: string) => {
+      const road = reverseRoadsRef.current.find((entry) => entry.id === roadId)
+      if (!road || road.coordinates.length < 2) return
+
+      setScene((current) => ({
+        ...current,
+        viewpoint: { ...current.viewpoint, name: road.name, mode: 'corridor', coordinates: road.coordinates },
+      }))
+      setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
+      setSnapMessage(`Corridor set to ${road.name}. Run the visibility assessment for the full figures.`)
+      fitBounds(
+        road.coordinates.reduce<[number, number, number, number]>(
+          (box, [lng, lat]) => [
+            Math.min(box[0], lng),
+            Math.min(box[1], lat),
+            Math.max(box[2], lng),
+            Math.max(box[3], lat),
+          ],
+          [Infinity, Infinity, -Infinity, -Infinity],
+        ),
+      )
+    },
+    [fitBounds],
+  )
+
   const handleZoomToTarget = useCallback(
     (targetId: string) => {
       const target = scene.targets.find((entry) => entry.id === targetId)
@@ -464,6 +571,35 @@ function DevForestryVisuals() {
   const draftVertices = useMemo(() => pointsToGeoJson(draftCoordinates), [draftCoordinates])
   const stationCollection = useMemo(() => stationsToGeoJson(result), [result])
   const inventoryCollection = useMemo(() => unitsToGeoJson(inventory.units), [inventory.units])
+  const reverseStationCollection = useMemo(
+    () => reverseStationsToGeoJson(analysis.reverseState.result),
+    [analysis.reverseState.result],
+  )
+
+  // Where the eye is on the road. The map's centre is no use for this: pitched
+  // at the horizon from ground level, it sits kilometres out at the skyline.
+  const driveEye = useMemo(() => {
+    const station = result?.stations[driveStationIndex]
+    return station ? { lng: station.lng, lat: station.lat } : null
+  }, [driveStationIndex, result])
+
+  // Timber fills the view and the openings take it off. Not the landform: that
+  // is an assessment unit drawn around a hill, not a stand boundary, and the
+  // road an assessment is written from is usually outside it.
+  const forestStands = useMemo<GeoJSON.Polygon[]>(() => [], [])
+  const forestClearings = useMemo(() => {
+    const openings: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon> = scene.targets
+      .filter((target) => target.role === 'block' || target.role === 'harvested')
+      .map((target) => target.geometry)
+
+    // The road is a clearing too. Without it the camera stands inside the timber
+    // and the drive shows a trunk, which is not what a road looks like.
+    const corridor =
+      scene.viewpoint.mode === 'corridor'
+        ? bufferLine(scene.viewpoint.coordinates, drive.roadClearWidthMeters / 2)
+        : null
+    return corridor ? [...openings, corridor] : openings
+  }, [drive.roadClearWidthMeters, scene.targets, scene.viewpoint])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -556,9 +692,15 @@ function DevForestryVisuals() {
       onDrawModeChange={handleDrawModeChange}
       draftCoordinates={draftCoordinates}
       onFinishDraft={finishDraft}
+      onSnapToRoad={handleSnapToRoad}
+      snapMessage={snapMessage}
       analysis={analysis.state}
       onRun={handleRun}
       onCancel={analysis.cancel}
+      reverse={analysis.reverseState}
+      onRunReverse={handleRunReverse}
+      onUseRoad={handleUseRoad}
+      forestStatus={forestStatus}
       selectedTargetId={selectedTargetId}
       onSelectTarget={setSelectedTargetId}
       drive={drive}
@@ -600,6 +742,15 @@ function DevForestryVisuals() {
           exaggeration={drive.exaggeration}
           hillshade
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
+        />
+        <ForestOverlay
+          active={drive.active && drive.forest}
+          centre={driveEye}
+          stands={forestStands}
+          clearings={forestClearings}
+          standHeightMeters={drive.treeHeightMeters}
+          exaggeration={drive.exaggeration}
+          onStatus={setForestStatus}
         />
         <MapDrawCapture
           active={drawMode !== 'none'}
@@ -668,6 +819,30 @@ function DevForestryVisuals() {
           radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}
           opacity={['case', ['==', ['get', 'visible'], 1], 0.95, 0.35]}
           strokeWidth={0}
+        />
+
+        {/* The reverse answer sits on the roads themselves: a hot dot is a place
+            the block is in view from, a cold one a place it is hidden. */}
+        <MapCircleLayer
+          data={reverseStationCollection}
+          color={[
+            'interpolate',
+            ['linear'],
+            ['get', 'visiblePercent'],
+            0,
+            '#64748b',
+            1,
+            '#fbbf24',
+            25,
+            '#f97316',
+            60,
+            VISIBLE_COLOR,
+          ]}
+          radius={['case', ['==', ['get', 'seen'], 1], 5, 2.5]}
+          opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.4]}
+          strokeColor="#ffffff"
+          strokeWidth={['case', ['==', ['get', 'seen'], 1], 1.2, 0]}
+          visible={!drive.active}
         />
 
         {/* From eye level the road is directly under the camera, where a line
