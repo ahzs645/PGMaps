@@ -227,6 +227,13 @@ export function VisibilityProfile({
             <span className="font-medium text-foreground">{hovered.visiblePercent.toFixed(1)}%</span> visible at{' '}
             {(hovered.distanceAlongMeters / 1000).toFixed(2)} km
           </>
+        ) : positionMeters != null ? (
+          // Two rules, and only one of them was ever named.
+          <>
+            <span className="font-medium text-foreground">Dashed</span> rule marks the assessment viewpoint,{' '}
+            <span className="font-medium text-sky-600 dark:text-sky-400">blue</span> where you are standing. Click to
+            move.
+          </>
         ) : (
           'Dashed rule marks the assessment viewpoint. Click to drive from a point.'
         )}
