@@ -6,6 +6,7 @@
  * tests against synthetic terrain.
  */
 
+import type { CanopySource } from './canopy'
 import { EARTH_RADIUS_METERS, lngLatToMercator, mercatorToLngLat, type ElevationSource } from './terrain'
 
 export type GeoPoint = { lng: number; lat: number }
@@ -113,6 +114,12 @@ export function testSightline(
   observer: GroundPoint,
   target: GroundPoint,
   options: SightlineOptions,
+  /**
+   * Standing vegetation, added to the ground along the profile. Timber between
+   * the viewer and the target blocks the view exactly as terrain does, and it
+   * is the single biggest thing bare-earth terrain gets wrong.
+   */
+  canopy?: CanopySource,
 ): SightlineResult {
   const distanceMeters = haversineMeters(observer, target)
   if (distanceMeters > options.maxDistanceMeters) {
@@ -150,8 +157,11 @@ export function testSightline(
     mercY += stepY
     groundDistance += stepDistance
 
-    const terrain = sampleElevation(source, mercX, mercY)
-    if (Number.isNaN(terrain)) continue
+    const ground = sampleElevation(source, mercX, mercY)
+    if (Number.isNaN(ground)) continue
+    // Screening stands on top of the ground, so it lifts the blocking height
+    // rather than replacing it.
+    const terrain = canopy ? ground + canopy.heightAtMercator(mercX, mercY) : ground
 
     // Terrain blocks once it rises above the ray, after allowing for the drop
     // it takes over this distance and for interpolation noise.

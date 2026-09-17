@@ -94,6 +94,8 @@ export function createSampleScene(): ForestryScene {
         role: 'block',
         objectiveId: 'partial-retention',
         vac: null,
+        harvestYear: null,
+        clearcutPercent: null,
         geometry: box(-122.5085, 53.883, 0.009, 0.005),
         source: 'Sample scenario',
       },
@@ -103,6 +105,8 @@ export function createSampleScene(): ForestryScene {
         role: 'block',
         objectiveId: 'partial-retention',
         vac: null,
+        harvestYear: null,
+        clearcutPercent: null,
         geometry: box(-122.434, 53.873, 0.009, 0.005),
         source: 'Sample scenario',
       },
@@ -112,6 +116,8 @@ export function createSampleScene(): ForestryScene {
         role: 'landscape',
         objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
         vac: 'medium',
+        harvestYear: null,
+        clearcutPercent: null,
         geometry: box(-122.52, 53.888, 0.055, 0.028),
         source: 'Sample scenario',
       },
@@ -145,6 +151,7 @@ export function sceneBounds(scene: ForestryScene): BBox | null {
 export const ROLE_COLORS: Record<TargetRole, string> = {
   block: '#dc2626',
   landscape: '#0ea5e9',
+  harvested: '#a16207',
 }
 
 /** Polygon outlines and fills, coloured by role and by whether a result exists. */
@@ -350,9 +357,11 @@ export function parseScene(input: unknown): ForestryScene | null {
           {
             id: typeof target.id === 'string' ? target.id : createId('target'),
             name: typeof target.name === 'string' ? target.name : 'Polygon',
-            role: target.role === 'landscape' ? 'landscape' : 'block',
+            role: target.role === 'landscape' ? 'landscape' : target.role === 'harvested' ? 'harvested' : 'block',
             objectiveId: isClassId(target.objectiveId) ? target.objectiveId : DEFAULT_VISUAL_QUALITY_CLASS_ID,
             vac: isVacRating(target.vac) ? target.vac : null,
+            harvestYear: typeof target.harvestYear === 'number' ? target.harvestYear : null,
+            clearcutPercent: typeof target.clearcutPercent === 'number' ? target.clearcutPercent : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -378,6 +387,12 @@ export function parseScene(input: unknown): ForestryScene | null {
       stationSpacingMeters: numeric(raw.settings?.stationSpacingMeters, base.settings.stationSpacingMeters),
       maxViewDistanceMeters: numeric(raw.settings?.maxViewDistanceMeters, base.settings.maxViewDistanceMeters),
       sampleBudget: numeric(raw.settings?.sampleBudget, base.settings.sampleBudget),
+      greenUpAgeYears: numeric(raw.settings?.greenUpAgeYears, base.settings.greenUpAgeYears),
+      screeningEnabled:
+        typeof raw.settings?.screeningEnabled === 'boolean'
+          ? raw.settings.screeningEnabled
+          : base.settings.screeningEnabled,
+      minCrownClosurePercent: numeric(raw.settings?.minCrownClosurePercent, base.settings.minCrownClosurePercent),
     },
     thresholds: parseThresholds(raw.thresholds),
   }

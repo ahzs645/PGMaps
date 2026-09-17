@@ -128,6 +128,13 @@ async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') 
   )
 }
 
+/** The lookup also asks for existing openings; keep the test off the network. */
+async function stubHarvest(page: Page, features: unknown[] = []) {
+  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/4/query**', (route) =>
+    route.fulfill({ json: { type: 'FeatureCollection', features } }),
+  )
+}
+
 async function openPage(page: Page) {
   // The page restores its last scene from storage; tests want the sample.
   await page.addInitScript(() => window.localStorage.clear())
@@ -196,6 +203,7 @@ test.describe('forestry visual quality', () => {
     await stubBasemap(page)
     await stubTerrain(page)
     await stubInventory(page)
+    await stubHarvest(page)
     await openPage(page)
 
     await page.getByRole('button', { name: 'Look up this view' }).click()
@@ -218,6 +226,7 @@ test.describe('forestry visual quality', () => {
     await stubBasemap(page)
     await stubTerrain(page)
     await stubInventory(page, 'empty')
+    await stubHarvest(page)
     await openPage(page)
 
     await page.getByRole('button', { name: 'Look up this view' }).click()

@@ -9,6 +9,7 @@ import { escapeHtml } from '@/lib/escapeHtml'
 
 import {
   clampQueryBounds,
+  fetchHarvestedAreas,
   fetchSensitivityUnits,
   unitsToGeoJson,
   type BcSensitivityUnit,
@@ -59,7 +60,11 @@ type InventoryState = {
   units: BcSensitivityUnit[]
   error: string | null
   truncated: boolean
+  harvestCount: number
 }
+
+/** Marks openings pulled from DataBC, so a re-lookup replaces them cleanly. */
+const HARVEST_SOURCE = 'BC consolidated cutblocks'
 
 /** Closes a traced ring and rejects anything too small to be a polygon. */
 function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | null {
@@ -107,6 +112,7 @@ function DevForestryVisuals() {
     units: [],
     error: null,
     truncated: false,
+    harvestCount: 0,
   })
   const [showInventory, setShowInventory] = useState(true)
   const [driveStationIndex, setDriveStationIndex] = useState(0)
@@ -216,6 +222,8 @@ function DevForestryVisuals() {
           role: drawMode,
           objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
           vac: null,
+          harvestYear: null,
+          clearcutPercent: null,
           geometry,
           source: 'Drawn here',
         })
@@ -246,6 +254,8 @@ function DevForestryVisuals() {
           role: 'block' as const,
           objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
           vac: null,
+          harvestYear: null,
+          clearcutPercent: null,
           geometry: polygon.geometry,
           source: file.name,
         }))
@@ -303,25 +313,66 @@ function DevForestryVisuals() {
     const view = map.getBounds()
     const bounds = clampQueryBounds([view.getWest(), view.getSouth(), view.getEast(), view.getNorth()])
 
-    setInventory({ status: 'loading', units: [], error: null, truncated: false })
+    setInventory({ status: 'loading', units: [], error: null, truncated: false, harvestCount: 0 })
     setShowInventory(true)
     try {
-      const { units, truncated } = await fetchSensitivityUnits(bounds)
-      setInventory({ status: 'ready', units, error: null, truncated })
+      // Existing openings come back in the same pass: the objective is met or
+      // missed by what is on the ground plus what is proposed, not by the
+      // proposal alone. They settle independently — losing the openings should
+      // cost the cumulative figure, not the objective lookup as well.
+      const [inventorySettled, harvestSettled] = await Promise.allSettled([
+        fetchSensitivityUnits(bounds),
+        fetchHarvestedAreas(bounds),
+      ])
+      if (inventorySettled.status === 'rejected') throw inventorySettled.reason
+      const inventoryResult = inventorySettled.value
+      const harvestResult = harvestSettled.status === 'fulfilled' ? harvestSettled.value : { areas: [] }
+
+      setScene((current) => {
+        const kept = current.targets.filter(
+          (target) => !(target.role === 'harvested' && target.source === HARVEST_SOURCE),
+        )
+        return {
+          ...current,
+          targets: [
+            ...kept,
+            ...harvestResult.areas.map((area) => ({
+              id: createId('harvested'),
+              name: area.name,
+              role: 'harvested' as const,
+              objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+              vac: null,
+              harvestYear: area.harvestYear,
+              clearcutPercent: area.clearcutPercent,
+              geometry: area.geometry,
+              source: HARVEST_SOURCE,
+            })),
+          ],
+        }
+      })
+
+      setInventory({
+        status: 'ready',
+        units: inventoryResult.units,
+        error: null,
+        truncated: inventoryResult.truncated,
+        harvestCount: harvestResult.areas.length,
+      })
     } catch (error) {
       setInventory({
         status: 'error',
         units: [],
         error: error instanceof Error ? error.message : String(error),
         truncated: false,
+        harvestCount: 0,
       })
     }
   }, [])
 
   /** Adopts an inventory polygon as the landform, carrying its rating across. */
   const handleAdoptUnit = useCallback(
-    (polygonNumber: string) => {
-      const unit = inventory.units.find((entry) => entry.polygonNumber === polygonNumber)
+    (unitId: string) => {
+      const unit = inventory.units.find((entry) => entry.id === unitId)
       if (!unit) return
 
       const objectiveId = unit.objectiveId ?? unit.recommendedId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID
@@ -332,10 +383,12 @@ function DevForestryVisuals() {
         role: 'landscape',
         objectiveId,
         vac: unit.vac,
+        harvestYear: null,
+        clearcutPercent: null,
         geometry: unit.geometry,
         source: 'BC visual landscape inventory',
       })
-      setSelectedTargetId(polygonNumber)
+      setSelectedTargetId(unitId)
     },
     [addTarget, inventory.units],
   )
@@ -348,8 +401,11 @@ function DevForestryVisuals() {
         name: target.name,
         role: target.role,
         geometry: target.geometry,
+        harvestYear: target.harvestYear,
+        clearcutPercent: target.clearcutPercent,
       })),
       settings: scene.settings,
+      assessmentYear: new Date().getFullYear(),
     }
     setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
     analysis.run(input)
@@ -389,6 +445,7 @@ function DevForestryVisuals() {
 
   const blockCollection = useMemo(() => targetsToGeoJson(scene.targets, 'block'), [scene.targets])
   const landscapeCollection = useMemo(() => targetsToGeoJson(scene.targets, 'landscape'), [scene.targets])
+  const harvestedCollection = useMemo(() => targetsToGeoJson(scene.targets, 'harvested'), [scene.targets])
   const corridorCollection = useMemo(
     () =>
       scene.viewpoint.mode === 'corridor'
@@ -570,6 +627,20 @@ function DevForestryVisuals() {
           fillOpacity={0.08}
           lineColor={ROLE_COLORS.landscape}
           lineWidth={1.6}
+          lineOpacity={0.8}
+          idProperty="id"
+          selectedId={selectedTargetId}
+          onFeatureClick={(id) => setSelectedTargetId(id)}
+          hoverHtml={targetHoverHtml}
+        />
+        {/* Existing openings sit under the proposal, in a duller colour: they
+            are context for the cumulative number, not the thing being assessed. */}
+        <MapFillLayer
+          data={harvestedCollection}
+          fillColor={ROLE_COLORS.harvested}
+          fillOpacity={0.22}
+          lineColor={ROLE_COLORS.harvested}
+          lineWidth={1}
           lineOpacity={0.8}
           idProperty="id"
           selectedId={selectedTargetId}

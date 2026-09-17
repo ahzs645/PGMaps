@@ -4,7 +4,7 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
-import type { AnalysisResult, TargetPolygon, TargetVisibility } from './types'
+import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import {
   VIEWING_ZONES,
   assessObjective,
@@ -21,7 +21,7 @@ import {
 type AlterationScale = {
   basis: AlterationBasis
   title: string
-  percent: number
+  breakdown: AlterationBreakdown
   verdict: ObjectiveVerdict
   note: string
 }
@@ -115,43 +115,36 @@ export function ResultsPanel({
   // The two scales answer different questions and have different thresholds, so
   // each is judged against its own. Reporting only one of them is how a
   // perspective number ends up measured against a planimetric allowance.
-  const scales: AlterationScale[] =
-    landformTarget && result.perspectiveAlterationPercent !== null
-      ? [
-          {
-            basis: 'perspective',
-            title: 'Alteration in perspective view',
-            percent: result.perspectiveAlterationPercent,
-            verdict: assessObjective(
-              result.perspectiveAlterationPercent,
-              landformTarget.objectiveId,
-              'perspective',
-              thresholds,
-            ),
-            note: 'The scale the objective is defined on: the share of the landform’s visible face that reads as altered from the assessment viewpoint.',
-          },
-          ...(result.planimetricAlterationPercent !== null
-            ? [
-                {
-                  basis: 'planimetric' as const,
-                  title: 'Planimetric denudation',
-                  percent: result.planimetricAlterationPercent,
-                  verdict: assessObjective(
-                    result.planimetricAlterationPercent,
-                    landformTarget.objectiveId,
-                    'planimetric',
-                    thresholds,
-                  ),
-                  note: `Flat map area, visible or not — the scale timber supply analyses model against.${
-                    landformTarget.vac
-                      ? ` Visual absorption capability is ${landformTarget.vac}, so Table 4 puts the figure for this class at ${vacDenudationPercent(landformTarget.objectiveId, landformTarget.vac)}%.`
-                      : ' No visual absorption capability rating, so the class maximum is used.'
-                  }`,
-                },
-              ]
-            : []),
-        ]
-      : []
+  const scales: AlterationScale[] = []
+  if (landformTarget) {
+    const add = (basis: AlterationBasis, title: string, breakdown: AlterationBreakdown | null, note: string) => {
+      if (!breakdown) return
+      scales.push({
+        basis,
+        title,
+        breakdown,
+        verdict: assessObjective(breakdown.cumulativePercent, landformTarget.objectiveId, basis, thresholds),
+        note,
+      })
+    }
+
+    add(
+      'perspective',
+      'Alteration in perspective view',
+      result.perspectiveAlteration,
+      'The scale the objective is defined on: the share of the landform’s visible face that reads as altered from the assessment viewpoint.',
+    )
+    add(
+      'planimetric',
+      'Planimetric denudation',
+      result.planimetricAlteration,
+      `Flat map area, visible or not — the scale timber supply analyses model against.${
+        landformTarget.vac
+          ? ` Visual absorption capability is ${landformTarget.vac}, so Table 4 puts the figure for this class at ${vacDenudationPercent(landformTarget.objectiveId, landformTarget.vac)}%.`
+          : ' No visual absorption capability rating, so the class maximum is used.'
+      }`,
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -170,12 +163,20 @@ export function ResultsPanel({
                 <div>
                   <p className="text-xs text-muted-foreground">{scale.title}</p>
                   <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">
-                    {scale.percent.toFixed(1)}
+                    {scale.breakdown.cumulativePercent.toFixed(1)}
                     <span className="text-lg font-semibold">%</span>
                   </p>
                 </div>
                 <VerdictBadge met={scale.verdict.met} label={scale.verdict.met ? 'Within range' : 'Over range'} />
               </div>
+              {/* What is already on the ground versus what this proposal adds —
+                  the objective is met or missed by the total, not the increment. */}
+              {scale.breakdown.existingPercent > 0 && (
+                <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+                  {scale.breakdown.existingPercent.toFixed(1)}% already harvested +{' '}
+                  {scale.breakdown.proposedPercent.toFixed(1)}% proposed
+                </p>
+              )}
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 Against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
                 {scale.verdict.objective.label.toLowerCase()} range is{' '}
@@ -338,8 +339,10 @@ export function ResultsPanel({
         />
         <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-4 text-muted-foreground">
           <TriangleAlert className="mt-px h-3 w-3 shrink-0" />
-          Bare-earth terrain only — standing timber, screening vegetation, and roadside cover are not modelled. This is
-          a screening tool, not a visual impact assessment.
+          {result.canopyCoverageFraction === null
+            ? 'Bare-earth terrain only — standing timber is not modelled, so screened blocks read as visible.'
+            : 'Terrain plus inventory stand height. Understorey, roadside cover, and retention inside a block are still not modelled.'}{' '}
+          This is a screening tool, not a visual impact assessment.
         </p>
       </div>
     </div>

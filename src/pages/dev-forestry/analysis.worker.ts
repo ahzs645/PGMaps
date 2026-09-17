@@ -6,6 +6,8 @@
  */
 
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
+import { fetchCanopyStands } from './bcVisualInventory'
+import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
 import { MAX_DEM_TILES, demResolutionMeters, demTileRange } from './terrain'
 import type { AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
@@ -62,6 +64,18 @@ async function runAnalysis(request: AnalysisWorkerRequest) {
     )
   }
 
+  // Screening timber is optional context: a failed inventory query costs
+  // accuracy, not the whole run, so it degrades to a bare-earth answer.
+  let canopyStands: CanopyStand[] = []
+  if (input.settings.screeningEnabled) {
+    try {
+      const canopy = await fetchCanopyStands(bounds)
+      canopyStands = canopy.stands
+    } catch {
+      canopyStands = []
+    }
+  }
+
   const result = computeAnalysis(
     grid,
     input,
@@ -71,6 +85,7 @@ async function runAnalysis(request: AnalysisWorkerRequest) {
       resolutionMeters: demResolutionMeters(stations[0].lat, input.settings.demZoom),
     },
     (progress) => post({ type: 'progress', requestId, progress }),
+    canopyStands,
   )
 
   // Sample buffers are the bulk of the payload; handing over their memory

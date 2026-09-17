@@ -15,12 +15,14 @@ export type Viewpoint = {
 }
 
 /**
- * Blocks are what gets assessed; a landform is what they are assessed against.
+ * Blocks are what gets assessed; a landform is what they are assessed against;
+ * harvested ground is what has already been taken off it.
+ *
  * Percent alteration is written against a readily identifiable landform — a hill
  * or mountain bounded by ridges, valleys, shorelines, and skylines — rather than
  * against an entire visible landscape.
  */
-export type TargetRole = 'block' | 'landscape'
+export type TargetRole = 'block' | 'landscape' | 'harvested'
 
 export type TargetPolygon = {
   id: string
@@ -33,6 +35,13 @@ export type TargetPolygon = {
    * inventory has no rating, which is much of the province.
    */
   vac: VacRating | null
+  /** Year the opening was harvested, on existing disturbance. */
+  harvestYear: number | null
+  /**
+   * Share of an existing opening that was clearcut rather than partial cut.
+   * Only the clearcut part reads as denudation.
+   */
+  clearcutPercent: number | null
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   /** Where it came from, shown in the sidebar so imports stay traceable. */
   source: string
@@ -51,6 +60,17 @@ export type AnalysisSettings = {
   maxViewDistanceMeters: number
   /** Target number of grid samples per polygon. */
   sampleBudget: number
+  /**
+   * Years after harvest at which an opening is treated as recovered and stops
+   * counting as alteration. The references give the green-up *height* a slope
+   * needs (Table 6), not how long a site takes to reach it, so this is a
+   * planning assumption rather than a published figure.
+   */
+  greenUpAgeYears: number
+  /** Whether standing timber is added to the sightline as screening. */
+  screeningEnabled: boolean
+  /** Stands more open than this do not screen. */
+  minCrownClosurePercent: number
 }
 
 export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
@@ -60,12 +80,19 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   stationSpacingMeters: 150,
   maxViewDistanceMeters: 12000,
   sampleBudget: 900,
+  greenUpAgeYears: 20,
+  // Off by default: the live source covers managed openings only, so leaving it
+  // on would imply more screening than the data can support.
+  screeningEnabled: false,
+  minCrownClosurePercent: 30,
 }
 
 export type AnalysisInput = {
   viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'>
-  targets: Array<Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry'>>
+  targets: Array<Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry' | 'harvestYear' | 'clearcutPercent'>>
   settings: AnalysisSettings
+  /** Year the run is assessed in, so green-up is reproducible. */
+  assessmentYear: number
 }
 
 export type StationResult = {
@@ -110,6 +137,14 @@ export type TargetVisibility = {
   meanSlopePercent: number | null
   /** Polygon area falling inside the landform, or null when there is no landform. */
   areaInsideLandformMeters: number | null
+  /** The same, minus ground an existing opening already holds. */
+  newAreaInsideLandformMeters: number | null
+  /** Solid angle of visible ground not already held by an existing opening. */
+  visibleApparentSolidAngleNew: number
+  /** How much of this polygon reads as denudation, 0–1. */
+  alterationWeight: number
+  /** True for an existing opening that has passed green-up. */
+  recovered: boolean
   /** True when every station sits beyond the maximum view distance. */
   outOfRange: boolean
   stations: StationResult[]
@@ -124,22 +159,39 @@ export type AnalysisResult = {
   assessmentStationIndex: number
   targets: TargetVisibility[]
   /**
-   * Altered share of the landform's visible face at the assessment station —
-   * the scale a visual quality objective is defined on. Null until a landform
+   * Alteration on the scale a visual quality objective is defined on: the
+   * landform's visible face, from the assessment station. Null until a landform
    * is supplied to divide by.
    */
-  perspectiveAlterationPercent: number | null
+  perspectiveAlteration: AlterationBreakdown | null
   /**
-   * Altered share of the landform's map area, visible or not — the looser
-   * scale timber supply analyses model against.
+   * Alteration on the looser scale timber supply analyses model against: the
+   * landform's map area, visible or not.
    */
-  planimetricAlterationPercent: number | null
+  planimetricAlteration: AlterationBreakdown | null
   landformAreaMeters: number | null
+  /** Existing openings excluded because they have passed green-up. */
+  recoveredOpeningCount: number
+  /** Share of the analysis area carrying screening timber, or null when off. */
+  canopyCoverageFraction: number | null
+  /** Inventory stands the screening grid was built from. */
+  canopyStandCount: number
   demTileCount: number
   demResolutionMeters: number
   /** Tiles the DEM source did not return; their ground is treated as unknown. */
   missingTileCount: number
   elapsedMs: number
+}
+
+/**
+ * Alteration split into what is already on the ground and what is proposed.
+ * Proposed excludes ground that already counts as existing, so a block laid
+ * over an old opening is not charged twice.
+ */
+export type AlterationBreakdown = {
+  existingPercent: number
+  proposedPercent: number
+  cumulativePercent: number
 }
 
 export type AnalysisProgress = {

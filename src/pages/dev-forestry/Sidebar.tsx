@@ -55,6 +55,8 @@ export type InventoryState = {
   units: BcSensitivityUnit[]
   error: string | null
   truncated: boolean
+  /** Existing openings pulled in alongside the inventory. */
+  harvestCount: number
 }
 
 export type DriveState = {
@@ -154,7 +156,7 @@ type SidebarProps = {
   showInventory: boolean
   onToggleInventory: () => void
   onLookupInventory: () => void
-  onAdoptUnit: (polygonNumber: string) => void
+  onAdoptUnit: (unitId: string) => void
 
   onLoadSample: () => void
   onClearScene: () => void
@@ -589,13 +591,14 @@ export function Sidebar({
                 {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective ·{' '}
                 {inventorySummary.withVac} with a VAC rating
                 {inventory.truncated ? ' · more exist than were returned' : ''}
+                {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
               </p>
               <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
                 {ratedUnits.map((unit) => (
-                  <li key={unit.polygonNumber}>
+                  <li key={unit.id}>
                     <button
                       type="button"
-                      onClick={() => onAdoptUnit(unit.polygonNumber)}
+                      onClick={() => onAdoptUnit(unit.id)}
                       className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
                     >
                       <span
@@ -738,6 +741,39 @@ export function Sidebar({
             onChange={(value) => onSettingsChange({ ...settings, targetOffsetMeters: value })}
           />
         </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <NumberField
+            label="Green-up age"
+            suffix="yr"
+            value={settings.greenUpAgeYears}
+            min={0}
+            max={100}
+            step={1}
+            onChange={(value) => onSettingsChange({ ...settings, greenUpAgeYears: value })}
+          />
+          <NumberField
+            label="Screening crown closure"
+            suffix="%"
+            value={settings.minCrownClosurePercent}
+            min={0}
+            max={100}
+            step={5}
+            onChange={(value) => onSettingsChange({ ...settings, minCrownClosurePercent: value })}
+          />
+        </div>
+        <label className="mt-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-3.5 w-3.5"
+            checked={settings.screeningEnabled}
+            onChange={(event) => onSettingsChange({ ...settings, screeningEnabled: event.target.checked })}
+          />
+          <span className="text-[11px] leading-4 text-muted-foreground">
+            <span className="font-medium text-foreground">Screen with standing timber.</span> Adds the vegetation
+            inventory&apos;s projected stand height to the ground along each sightline, so a block behind mature timber
+            reads as hidden. Openings and the proposal itself are treated as cleared.
+          </span>
+        </label>
         <div className="mt-3">
           <NumberField
             label="Sample points per polygon"

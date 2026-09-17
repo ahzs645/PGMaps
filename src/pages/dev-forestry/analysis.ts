@@ -7,6 +7,7 @@
  * nothing else.
  */
 
+import { buildCanopyGrid, type CanopyStand } from './canopy'
 import { demResolutionMeters, type Bounds, type ElevationSource } from './terrain'
 import {
   DEFAULT_SIGHTLINE_OPTIONS,
@@ -27,7 +28,15 @@ import {
   type SightlineOptions,
 } from './visibility'
 import { VIEWING_ZONES, viewingZoneFor } from './vqo'
-import type { AnalysisInput, AnalysisProgress, AnalysisResult, StationResult, TargetVisibility } from './types'
+import type {
+  AlterationBreakdown,
+  AnalysisInput,
+  AnalysisProgress,
+  AnalysisResult,
+  StationResult,
+  TargetRole,
+  TargetVisibility,
+} from './types'
 
 /**
  * Ceiling on sightlines per run, chosen to keep a worst case around ten
@@ -50,11 +59,18 @@ export type TerrainInfo = {
 export type PreparedTarget = {
   id: string
   name: string
-  role: 'block' | 'landscape'
+  role: TargetRole
   geometry: PolygonGeometry
   spacingMeters: number
   areaMeters: number
   inRange: boolean
+  /**
+   * How much of this polygon reads as denudation, 0–1. Existing openings count
+   * only their clearcut share, and nothing at all once they pass green-up.
+   */
+  alterationWeight: number
+  /** True for an existing opening excluded because regeneration has caught up. */
+  recovered: boolean
 }
 
 /** Shortest distance from a point to a bounding box, in metres. */
@@ -84,12 +100,25 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
   const demResolution = demResolutionMeters(midLat, input.settings.demZoom)
   const minSpacing = Math.max(5, demResolution * MIN_SAMPLE_SPACING_FACTOR)
 
-  const prepared = input.targets.map((target) => {
+  const prepared = input.targets.map((target): PreparedTarget => {
     const bounds = polygonBounds(target.geometry)
     const nearest = stations.reduce(
       (closest, station) => Math.min(closest, distanceToBounds(station, bounds)),
       Number.POSITIVE_INFINITY,
     )
+
+    // An opening older than green-up has grown back into forest cover and stops
+    // counting; a partial cut only ever counted for its clearcut share.
+    const age =
+      target.role === 'harvested' && typeof target.harvestYear === 'number'
+        ? input.assessmentYear - target.harvestYear
+        : null
+    const recovered = age !== null && age >= input.settings.greenUpAgeYears
+    const clearcutFraction =
+      target.role === 'harvested' && typeof target.clearcutPercent === 'number'
+        ? Math.max(0, Math.min(1, target.clearcutPercent / 100))
+        : 1
+
     return {
       id: target.id,
       name: target.name,
@@ -98,6 +127,8 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
       spacingMeters: spacingForSampleBudget(target.geometry, input.settings.sampleBudget, minSpacing),
       areaMeters: polygonAreaMeters(target.geometry),
       inRange: nearest <= input.settings.maxViewDistanceMeters,
+      alterationWeight: recovered ? 0 : clearcutFraction,
+      recovered,
     }
   })
 
@@ -168,11 +199,32 @@ export function computeAnalysis(
   input: AnalysisInput,
   terrain: TerrainInfo,
   onProgress?: (progress: AnalysisProgress) => void,
+  /**
+   * Inventory stands to screen with. Built into a grid here rather than by the
+   * caller so the rule for what ground is currently open — the same green-up
+   * and clearcut logic the alteration figures use — lives in one place.
+   */
+  canopyStands: CanopyStand[] = [],
 ): AnalysisResult {
   const startedAt = Date.now()
   const stations = buildStations(input)
   const prepared = prepareTargets(input, stations)
   const options = sightlineOptions(input, terrain.resolutionMeters)
+
+  // Screening is built before any sightline runs: the proposal and every
+  // opening that has not grown back are standing on cleared ground.
+  const canopyBounds = analysisBounds(input, stations)
+  const canopy =
+    input.settings.screeningEnabled && canopyStands.length > 0 && canopyBounds
+      ? buildCanopyGrid(
+          canopyStands,
+          canopyBounds,
+          prepared
+            .filter((target) => target.role === 'block' || (target.role === 'harvested' && !target.recovered))
+            .map((target) => target.geometry),
+          { minCrownClosurePercent: input.settings.minCrownClosurePercent },
+        )
+      : null
 
   const stationPoints: GroundPoint[] = stations.map((station) => ({
     lng: station.lng,
@@ -240,7 +292,7 @@ export function computeAnalysis(
         const sample = samples[sampleIndex]
         if (Number.isNaN(sample.groundElevationMeters)) continue
 
-        const result = testSightline(source, station, sample, options)
+        const result = testSightline(source, station, sample, options, canopy ?? undefined)
         if (!result.visible) continue
 
         visibleCount += 1
@@ -287,6 +339,12 @@ export function computeAnalysis(
   const landform = prepared.find((target) => target.role === 'landscape') ?? null
   const landformGeometry = landform?.geometry ?? null
 
+  // Openings that still read as disturbance. Recovered ones are out entirely,
+  // so ground under them is available to a proposed block again.
+  const countedOpenings = prepared
+    .filter((target) => target.role === 'harvested' && target.alterationWeight > 0)
+    .map((target) => target.geometry)
+
   const targets: TargetVisibility[] = passes.map((pass) => {
     const sampleCount = pass.samples.length
     const positions = new Float64Array(sampleCount * 2)
@@ -295,11 +353,14 @@ export function computeAnalysis(
     let visibleSamples = 0
     let apparentTotal = 0
     let apparentVisible = 0
+    let apparentVisibleNew = 0
     let nearestVisible: number | null = null
     let farthestVisible: number | null = null
     let slopeTotal = 0
     let slopeSamples = 0
     let samplesInsideLandform = 0
+    let samplesAlreadyAltered = 0
+    const alreadyAltered = new Uint8Array(sampleCount)
     const visibleAreaByZone = emptyZoneTotals()
     const assessmentRow = assessmentStationIndex * sampleCount
 
@@ -316,15 +377,27 @@ export function computeAnalysis(
       positions[index * 2 + 1] = sample.lat
       elevations[index] = sample.groundElevationMeters
 
-      if (pass.target.role === 'block' && landformGeometry) {
+      if (pass.target.role !== 'landscape' && landformGeometry) {
         if (pointInPolygon(landformGeometry, sample.lng, sample.lat)) samplesInsideLandform += 1
+      }
+
+      // Ground a still-counting opening already covers is existing alteration,
+      // so a proposed block laid over it must not be charged for it again.
+      if (pass.target.role === 'block' && countedOpenings.length > 0) {
+        if (countedOpenings.some((opening) => pointInPolygon(opening, sample.lng, sample.lat))) {
+          alreadyAltered[index] = 1
+          samplesAlreadyAltered += 1
+        }
       }
 
       if (assessmentObserver && !Number.isNaN(sample.groundElevationMeters)) {
         const normal = terrainNormal(source, sample.lng, sample.lat, pass.target.spacingMeters)
         const solidAngle = apparentSolidAngle(assessmentObserver, sample, pass.sampleAreaMeters, normal)
         apparentTotal += solidAngle
-        if (pass.visibleByStation[assessmentRow + index] === 1) apparentVisible += solidAngle
+        if (pass.visibleByStation[assessmentRow + index] === 1) {
+          apparentVisible += solidAngle
+          if (alreadyAltered[index] !== 1) apparentVisibleNew += solidAngle
+        }
 
         // The normal already carries the gradient: its horizontal length over
         // its vertical one is the tangent of the slope, which is slope percent.
@@ -373,6 +446,13 @@ export function computeAnalysis(
       meanSlopePercent: slopeSamples > 0 ? slopeTotal / slopeSamples : null,
       areaInsideLandformMeters:
         landformGeometry && sampleCount > 0 ? (samplesInsideLandform / sampleCount) * pass.target.areaMeters : null,
+      newAreaInsideLandformMeters:
+        landformGeometry && sampleCount > 0
+          ? ((samplesInsideLandform - samplesAlreadyAltered) / sampleCount) * pass.target.areaMeters
+          : null,
+      visibleApparentSolidAngleNew: apparentVisibleNew,
+      alterationWeight: pass.target.alterationWeight,
+      recovered: pass.target.recovered,
       outOfRange: !pass.target.inRange,
       stations: stationResults,
     }
@@ -381,25 +461,49 @@ export function computeAnalysis(
   // A visual quality objective is written against the altered share of an
   // identifiable landform, so both figures need one to divide by. Without a
   // landform the page reports per-block visibility and says so.
-  const blockSolidAngle = targets.reduce(
-    (total, target) => (target.role === 'block' ? total + target.visibleApparentSolidAngle : total),
-    0,
-  )
   const landformSolidAngle = targets.reduce(
     (total, target) => (target.role === 'landscape' ? total + target.visibleApparentSolidAngle : total),
-    0,
-  )
-
-  // The planimetric figure is flat map area, visible or not: that is what the
-  // timber-supply scale is applied to. Forest cover is not modelled, so the
-  // denominator is the landform's whole area rather than its "green" area.
-  const alteredInsideLandform = targets.reduce(
-    (total, target) => (target.role === 'block' ? total + (target.areaInsideLandformMeters ?? 0) : total),
     0,
   )
   const landformArea = targets.reduce(
     (total, target) => (target.role === 'landscape' ? total + target.areaMeters : total),
     0,
+  )
+
+  /** Existing and proposed shares of a denominator, and their sum. */
+  const breakdown = (
+    denominator: number,
+    existing: (target: TargetVisibility) => number,
+    proposed: (target: TargetVisibility) => number,
+  ): AlterationBreakdown | null => {
+    if (denominator <= 0) return null
+    const existingTotal = targets.reduce(
+      (total, target) => (target.role === 'harvested' ? total + existing(target) * target.alterationWeight : total),
+      0,
+    )
+    const proposedTotal = targets.reduce(
+      (total, target) => (target.role === 'block' ? total + proposed(target) : total),
+      0,
+    )
+    const existingPercent = (existingTotal / denominator) * 100
+    const proposedPercent = (proposedTotal / denominator) * 100
+    return { existingPercent, proposedPercent, cumulativePercent: existingPercent + proposedPercent }
+  }
+
+  const perspectiveAlteration = breakdown(
+    landformSolidAngle,
+    (target) => target.visibleApparentSolidAngle,
+    // Proposed counts only ground an opening is not already holding.
+    (target) => target.visibleApparentSolidAngleNew,
+  )
+
+  // The planimetric figure is flat map area, visible or not: that is what the
+  // timber-supply scale is applied to. Forest cover is not modelled, so the
+  // denominator is the landform's whole area rather than its "green" area.
+  const planimetricAlteration = breakdown(
+    landformArea,
+    (target) => target.areaInsideLandformMeters ?? 0,
+    (target) => target.newAreaInsideLandformMeters ?? 0,
   )
 
   return {
@@ -413,12 +517,15 @@ export function computeAnalysis(
     corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
     assessmentStationIndex,
     targets,
-    perspectiveAlterationPercent: landformSolidAngle > 0 ? (blockSolidAngle / landformSolidAngle) * 100 : null,
-    planimetricAlterationPercent: landformArea > 0 ? (alteredInsideLandform / landformArea) * 100 : null,
+    perspectiveAlteration,
+    planimetricAlteration,
     landformAreaMeters: landformArea > 0 ? landformArea : null,
+    recoveredOpeningCount: prepared.filter((target) => target.role === 'harvested' && target.recovered).length,
     demTileCount: terrain.tileCount,
     demResolutionMeters: terrain.resolutionMeters,
     missingTileCount: terrain.missingTileCount,
+    canopyCoverageFraction: canopy ? canopy.coverageFraction() : null,
+    canopyStandCount: canopy ? canopyStands.length : 0,
     elapsedMs: Date.now() - startedAt,
   }
 }

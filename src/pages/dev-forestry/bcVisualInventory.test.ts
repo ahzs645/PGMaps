@@ -120,6 +120,7 @@ describe('parseSensitivityUnits', () => {
       type: 'FeatureCollection',
       features: [
         feature({
+          OBJECTID: 4211,
           VLI_POLYGON_NO: 1668,
           REC_EVQO_CODE: 'PR',
           REC_VAC_FINAL_VALUE_CODE: 'M',
@@ -130,6 +131,7 @@ describe('parseSensitivityUnits', () => {
       ],
     })
 
+    expect(unit.id).toBe('4211')
     expect(unit.polygonNumber).toBe('1668')
     expect(unit.name).toBe('VLI 1668')
     expect(unit.objectiveId).toBe('partial-retention')
@@ -158,6 +160,29 @@ describe('parseSensitivityUnits', () => {
     })
     expect(unit.objectiveId).toBeNull()
     expect(unit.recommendedId).toBe('retention')
+  })
+
+  it('keys features by OBJECTID, since polygon numbers repeat province-wide', () => {
+    // Six separate polygons carry VLI_POLYGON_NO 968; keying on it would make
+    // them a single, un-selectable feature.
+    const units = parseSensitivityUnits({
+      type: 'FeatureCollection',
+      features: [
+        feature({ OBJECTID: 11, VLI_POLYGON_NO: 968, REC_EVQO_CODE: 'PR' }),
+        feature({ OBJECTID: 22, VLI_POLYGON_NO: 968, REC_EVQO_CODE: 'M' }),
+      ],
+    })
+    expect(units.map((unit) => unit.id)).toEqual(['11', '22'])
+    expect(new Set(units.map((unit) => unit.polygonNumber)).size).toBe(1)
+    expect(unitsToGeoJson(units).features.map((entry) => entry.id)).toEqual(['11', '22'])
+  })
+
+  it('falls back to a positional key when OBJECTID is absent', () => {
+    const units = parseSensitivityUnits({
+      type: 'FeatureCollection',
+      features: [feature({ VLI_POLYGON_NO: 968 }), feature({ VLI_POLYGON_NO: 968 })],
+    })
+    expect(units.map((unit) => unit.id)).toEqual(['968-0', '968-1'])
   })
 
   it('drops features with no polygon or no identifier', () => {

@@ -12,6 +12,7 @@
  * instead (see AGENTS.md).
  */
 
+import type { CanopyStand } from './canopy'
 import type { PolygonGeometry } from './visibility'
 import type { VacRating, VisualQualityClassId } from './vqo'
 
@@ -24,6 +25,16 @@ export const BC_VISUAL_LAYERS = {
   sensitivityUnits: 6,
   establishedVqo: 14,
   scenicAreas: 28,
+  /** Harvested Areas of BC (Consolidated Cutblocks) — existing disturbance. */
+  harvestedAreas: 4,
+  /**
+   * RESULTS forest cover — carries a real species height and crown closure for
+   * the ground it covers. Note it covers *managed openings* only: there is no
+   * province-wide live canopy layer in this service (layer 22 is the VRI
+   * **Dead** layer, standing dead timber, which is not what screens a view).
+   * Full-landscape canopy needs VRI rank-1 through the bcdatamapper pipeline.
+   */
+  forestCover: 27,
 } as const
 
 export const BC_VISUAL_ATTRIBUTION =
@@ -70,7 +81,13 @@ export function vacRatingForCode(code: unknown): VacRating | null {
 }
 
 export type BcSensitivityUnit = {
-  /** `VLI_POLYGON_NO`, unique within the inventory. */
+  /**
+   * Stable unique key, from the layer's `OBJECTID`. `VLI_POLYGON_NO` is *not*
+   * unique province-wide — six separate polygons carry number 968 — so it
+   * cannot be used to identify a feature.
+   */
+  id: string
+  /** `VLI_POLYGON_NO`, the inventory's own label for the unit. */
   polygonNumber: string
   name: string
   /** Established objective, or null where none has been set. */
@@ -106,6 +123,7 @@ export function buildInventoryQueryUrl(
     outSR: '4326',
     spatialRel: 'esriSpatialRelIntersects',
     outFields: [
+      'OBJECTID',
       'VLI_POLYGON_NO',
       'REC_EVQO_CODE',
       'REC_RVQC_CODE',
@@ -155,7 +173,7 @@ export function parseSensitivityUnits(payload: unknown): BcSensitivityUnit[] {
   const collection = payload as { features?: unknown }
   if (!Array.isArray(collection?.features)) return []
 
-  return collection.features.flatMap((entry): BcSensitivityUnit[] => {
+  return collection.features.flatMap((entry, index): BcSensitivityUnit[] => {
     const feature = entry as { geometry?: unknown; properties?: Record<string, unknown> }
     const geometry = feature.geometry as PolygonGeometry | undefined
     if (geometry?.type !== 'Polygon' && geometry?.type !== 'MultiPolygon') return []
@@ -164,9 +182,13 @@ export function parseSensitivityUnits(payload: unknown): BcSensitivityUnit[] {
     const polygonNumber = String(properties.VLI_POLYGON_NO ?? '').trim()
     if (!polygonNumber) return []
 
+    // OBJECTID is the only unique key here; fall back to position so a feature
+    // is still selectable if the service ever omits it.
+    const id = String(properties.OBJECTID ?? '').trim() || `${polygonNumber}-${index}`
     const objectiveId = visualQualityClassForCode(properties.REC_EVQO_CODE)
     return [
       {
+        id,
         polygonNumber,
         name: `VLI ${polygonNumber}`,
         objectiveId,
@@ -235,10 +257,10 @@ export function unitsToGeoJson(units: BcSensitivityUnit[]): GeoJSON.FeatureColle
     type: 'FeatureCollection',
     features: units.map((unit) => ({
       type: 'Feature',
-      id: unit.polygonNumber,
+      id: unit.id,
       geometry: unit.geometry,
       properties: {
-        id: unit.polygonNumber,
+        id: unit.id,
         name: unit.name,
         objectiveId: unit.objectiveId ?? '',
         vac: unit.vac ?? '',
@@ -250,4 +272,175 @@ export function unitsToGeoJson(units: BcSensitivityUnit[]): GeoJSON.FeatureColle
       },
     })),
   }
+}
+
+export type BcHarvestedArea = {
+  openingId: string
+  name: string
+  /** Mid-year of harvest, which is what green-up is measured from. */
+  harvestYear: number | null
+  /** Share of the opening that was clearcut rather than partial cut. */
+  clearcutPercent: number | null
+  areaHectares: number | null
+  geometry: PolygonGeometry
+}
+
+const HARVEST_FIELDS = [
+  'OPENING_ID',
+  'AREA_HA',
+  'HARVEST_MID_YEAR_CALENDAR',
+  'HARVEST_START_YEAR_CALENDAR',
+  'PERCENT_CLEARCUT',
+  'DATA_SOURCE',
+].join(',')
+
+/** ArcGIS query URL for consolidated cutblocks over a bbox. */
+export function buildHarvestQueryUrl(
+  bounds: Bounds,
+  { simplifyDegrees = DEFAULT_SIMPLIFY_DEGREES, maxRecords = MAX_RECORDS }: InventoryQueryOptions = {},
+): string {
+  const parameters = new URLSearchParams({
+    geometry: bounds.join(','),
+    geometryType: 'esriGeometryEnvelope',
+    inSR: '4326',
+    outSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    outFields: HARVEST_FIELDS,
+    returnGeometry: 'true',
+    resultRecordCount: String(maxRecords),
+    f: 'geojson',
+  })
+  if (simplifyDegrees > 0) parameters.set('maxAllowableOffset', String(simplifyDegrees))
+  return `${BC_VISUAL_SERVICE}/${BC_VISUAL_LAYERS.harvestedAreas}/query?${parameters.toString()}`
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+export function parseHarvestedAreas(payload: unknown): BcHarvestedArea[] {
+  const collection = payload as { features?: unknown }
+  if (!Array.isArray(collection?.features)) return []
+
+  return collection.features.flatMap((entry, index): BcHarvestedArea[] => {
+    const feature = entry as { geometry?: unknown; properties?: Record<string, unknown> }
+    const geometry = feature.geometry as PolygonGeometry | undefined
+    if (geometry?.type !== 'Polygon' && geometry?.type !== 'MultiPolygon') return []
+
+    const properties = feature.properties ?? {}
+    // Openings detected from imagery carry no opening id, so fall back to the
+    // feature's position rather than dropping real disturbance on the ground.
+    const openingId = String(properties.OPENING_ID ?? '').trim() || `cutblock-${index + 1}`
+    const harvestYear =
+      finiteNumber(properties.HARVEST_MID_YEAR_CALENDAR) ?? finiteNumber(properties.HARVEST_START_YEAR_CALENDAR)
+
+    return [
+      {
+        openingId,
+        name: harvestYear ? `Cutblock ${openingId} (${harvestYear})` : `Cutblock ${openingId}`,
+        harvestYear,
+        clearcutPercent: finiteNumber(properties.PERCENT_CLEARCUT),
+        areaHectares: finiteNumber(properties.AREA_HA),
+        geometry,
+      },
+    ]
+  })
+}
+
+export type HarvestQueryResult = {
+  areas: BcHarvestedArea[]
+  truncated: boolean
+}
+
+/**
+ * Fetches existing openings over a bbox. What counts as current alteration is
+ * decided later, by green-up age and clearcut share — this returns everything
+ * so the cut-off stays a visible setting rather than a hidden filter.
+ */
+export async function fetchHarvestedAreas(
+  bounds: Bounds,
+  options: InventoryQueryOptions & { signal?: AbortSignal } = {},
+): Promise<HarvestQueryResult> {
+  const response = await fetch(buildHarvestQueryUrl(bounds, options), { signal: options.signal })
+  if (!response.ok) {
+    throw new Error(`BC harvest service returned ${response.status} ${response.statusText}`)
+  }
+
+  const payload = await response.json()
+  const failure = (payload as { error?: { message?: string } }).error
+  if (failure) throw new Error(failure.message ?? 'The BC harvest service rejected the query')
+
+  const areas = parseHarvestedAreas(payload)
+  const maxRecords = options.maxRecords ?? MAX_RECORDS
+  return { areas, truncated: areas.length >= maxRecords }
+}
+
+/** ArcGIS query URL for the stand heights that screen a sightline. */
+export function buildCanopyQueryUrl(
+  bounds: Bounds,
+  { simplifyDegrees = DEFAULT_SIMPLIFY_DEGREES, maxRecords = MAX_RECORDS }: InventoryQueryOptions = {},
+): string {
+  const parameters = new URLSearchParams({
+    geometry: bounds.join(','),
+    geometryType: 'esriGeometryEnvelope',
+    inSR: '4326',
+    outSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    outFields: 'I_SPECIES_HEIGHT_1,I_CROWN_CLOSURE_PERCENT,I_SPECIES_CODE_1,REFERENCE_YEAR',
+    returnGeometry: 'true',
+    resultRecordCount: String(maxRecords),
+    f: 'geojson',
+  })
+  if (simplifyDegrees > 0) parameters.set('maxAllowableOffset', String(simplifyDegrees))
+  return `${BC_VISUAL_SERVICE}/${BC_VISUAL_LAYERS.forestCover}/query?${parameters.toString()}`
+}
+
+export function parseCanopyStands(payload: unknown): CanopyStand[] {
+  const collection = payload as { features?: unknown }
+  if (!Array.isArray(collection?.features)) return []
+
+  return collection.features.flatMap((entry): CanopyStand[] => {
+    const feature = entry as { geometry?: unknown; properties?: Record<string, unknown> }
+    const geometry = feature.geometry as PolygonGeometry | undefined
+    if (geometry?.type !== 'Polygon' && geometry?.type !== 'MultiPolygon') return []
+
+    const properties = feature.properties ?? {}
+    const heightMeters = finiteNumber(properties.I_SPECIES_HEIGHT_1)
+    // A stand with no projected height screens nothing this page can defend.
+    if (heightMeters === null || heightMeters <= 0) return []
+
+    return [
+      {
+        heightMeters,
+        crownClosurePercent: finiteNumber(properties.I_CROWN_CLOSURE_PERCENT),
+        geometry,
+      },
+    ]
+  })
+}
+
+/**
+ * Fetches stand heights over a bbox, for screening.
+ *
+ * Coverage is partial by construction — this is silviculture forest cover, so
+ * it describes managed openings and their regeneration rather than the whole
+ * forest. It is enough to stop a fifteen-year-old block reading as bare ground,
+ * and not enough to model a mature stand screening a view across a valley.
+ */
+export async function fetchCanopyStands(
+  bounds: Bounds,
+  options: InventoryQueryOptions & { signal?: AbortSignal } = {},
+): Promise<{ stands: CanopyStand[]; truncated: boolean }> {
+  const response = await fetch(buildCanopyQueryUrl(bounds, options), { signal: options.signal })
+  if (!response.ok) {
+    throw new Error(`BC vegetation inventory returned ${response.status} ${response.statusText}`)
+  }
+
+  const payload = await response.json()
+  const failure = (payload as { error?: { message?: string } }).error
+  if (failure) throw new Error(failure.message ?? 'The BC vegetation inventory rejected the query')
+
+  const stands = parseCanopyStands(payload)
+  const maxRecords = options.maxRecords ?? MAX_RECORDS
+  return { stands, truncated: stands.length >= maxRecords }
 }

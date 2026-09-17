@@ -90,6 +90,46 @@ removed against residual tree height, returning the class most likely achieved.
 It is exposed as a helper rather than wired into the visibility run, which
 models clearcuts.
 
+## Existing harvest and cumulative alteration
+
+An objective is met or missed by what is on the ground **plus** what is
+proposed, so "Look up this view" also pulls the province's consolidated
+cutblocks and the results report existing + proposed = cumulative.
+
+- **Green-up.** An opening older than the green-up age stops counting, because
+  regeneration has grown back into forest cover. The references give the green-up
+  *height* a slope needs (Table 6), not how long a site takes to reach it, so
+  the age is a stated planning assumption and is editable. Around Prince George
+  most recorded harvest is 2003–2005, which sits right on a 20-year default —
+  moving it to 25 flips those openings back into the count.
+- **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
+  that was 40% clearcut counts 40%.
+- **No double counting.** A proposed block laid over an opening that still
+  counts is not charged for that ground again; ground under a *recovered*
+  opening is free for the proposal to claim.
+
+## Screening timber
+
+Terrain is only half of what hides a block: a stand between the road and the
+block blocks the view as a ridge does. `canopy.ts` rasterises stand heights into
+a grid in the same Mercator space the sightline walks, so screening costs one
+array lookup per profile step, and clears that canopy inside the proposal and
+inside any opening that has not grown back.
+
+The engine is complete and tested. **The BC data behind it is not.** There is no
+province-wide live canopy layer in the DataBC forest-vegetation service — its
+only VRI layer is the *Dead* layer (standing dead timber), which is not what
+screens a view. What is wired is RESULTS forest cover, which carries a real
+species height and crown closure but covers **managed openings only**. That is
+enough to stop a fifteen-year-old block reading as bare ground and not enough to
+model a mature stand screening a view across a valley, so screening is **off by
+default**. Full-landscape canopy means VRI rank-1 (`VEG_COMP_LYR_R1_POLY`)
+through the bcdatamapper pipeline.
+
+Stands more open than a crown-closure threshold do not screen at all. The
+inventory carries no transmission model, so that cut-off is a stated assumption
+rather than a published figure.
+
 ## What it does not model
 
 Bare-earth terrain only. Standing timber, screening vegetation along the road,
