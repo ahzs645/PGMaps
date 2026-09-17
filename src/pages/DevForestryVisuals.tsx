@@ -20,6 +20,7 @@ import { DriveCamera } from './dev-forestry/DriveCamera'
 import { ForestOverlay } from './dev-forestry/ForestOverlay'
 import { bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
+import { buildReport } from './dev-forestry/report'
 import { reverseRoadsToGeoJson } from './dev-forestry/reverseViewshed'
 import { collectRoadsFromMap, snapCorridorToRoad, type RoadCandidate } from './dev-forestry/roadSnap'
 import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
@@ -112,8 +113,8 @@ function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | 
   return { type: 'Polygon', coordinates: [ring] }
 }
 
-function downloadJson(fileName: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+function downloadFile(fileName: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }))
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = fileName
@@ -567,8 +568,26 @@ function DevForestryVisuals() {
   )
 
   const handleExport = useCallback(() => {
-    downloadJson('forestry-visual-quality-scene.json', serializeScene(scene))
+    downloadFile('forestry-visual-quality-scene.json', serializeScene(scene), 'application/json')
   }, [scene])
+
+  /** The run written up, for somebody to check every figure in. */
+  const handleExportReport = useCallback(() => {
+    if (!result) return
+    const source = inventory.units.length > 0 ? 'BC visual landscape inventory (DataBC)' : null
+    downloadFile(
+      `visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`,
+      buildReport({
+        result,
+        targets: scene.targets,
+        thresholds: scene.thresholds,
+        viewpointName: scene.viewpoint.name || 'Unnamed viewpoint',
+        generatedAt: new Date(),
+        inventorySource: source,
+      }),
+      'text/markdown',
+    )
+  }, [inventory.units.length, result, scene])
 
   const handleLoadSample = useCallback(() => {
     const sample = createSampleScene()
@@ -773,6 +792,7 @@ function DevForestryVisuals() {
       onLoadSample={handleLoadSample}
       onClearScene={handleClearScene}
       onExport={handleExport}
+      onExportReport={result ? handleExportReport : null}
     />
   )
 

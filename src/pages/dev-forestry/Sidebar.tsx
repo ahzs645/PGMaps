@@ -2,6 +2,7 @@ import {
   Crosshair,
   Download,
   Eye,
+  FileText,
   FileUp,
   Gauge,
   Landmark,
@@ -187,6 +188,8 @@ type SidebarProps = {
   onLoadSample: () => void
   onClearScene: () => void
   onExport: () => void
+  /** Downloads the run as a worksheet; null until there is a run to write up. */
+  onExportReport: (() => void) | null
 }
 
 export function Sidebar({
@@ -224,6 +227,7 @@ export function Sidebar({
   onLoadSample,
   onClearScene,
   onExport,
+  onExportReport,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Which scale the threshold editor is showing. Purely a view concern — both
@@ -875,6 +879,13 @@ export function Sidebar({
           <InlineAlert className="mt-2" tone="error">
             {analysis.error}
           </InlineAlert>
+        )}
+
+        {onExportReport && (
+          <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onExportReport}>
+            <FileText className="h-4 w-4" />
+            Download the worksheet
+          </Button>
         )}
 
         <Button

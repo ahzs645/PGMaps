@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -226,6 +227,7 @@ test.describe('forestry visual quality', () => {
   })
 
   test('reports every block as visible when nothing can block the view', async ({ page }) => {
+    test.setTimeout(180_000)
     await stubBasemap(page)
     await stubTerrain(page)
     await stubVegetation(page)
@@ -242,15 +244,49 @@ test.describe('forestry visual quality', () => {
     })
 
     // Both blocks, whole: a bare "100" would also match the chart's axis label,
-    // so assert on the rows that only a fully visible block can produce.
-    await expect(page.getByText('131.2 ha of 131.2 ha')).toHaveCount(2)
-    await expect(page.getByText('100.0%')).toHaveCount(2)
+    // so assert on the rows that only a fully visible block can produce. The
+    // 40 km view distance above makes this the heaviest run in the file, and
+    // the per-block rows land after the headline under parallel load, so these
+    // get more than the default expect budget.
+    await expect(page.getByText('131.2 ha of 131.2 ha')).toHaveCount(2, { timeout: 60_000 })
+    await expect(page.getByText('100.0%')).toHaveCount(2, { timeout: 60_000 })
 
     // Both scales are reported, each against its own thresholds. Collapsing
     // them into one number is the mistake this page previously made.
     await expect(page.getByText('Alteration in perspective view')).toBeVisible()
     await expect(page.getByText('Planimetric denudation')).toBeVisible()
     await expect(page.getByText('Bare-earth terrain only', { exact: false })).toBeVisible()
+  })
+
+  test('writes the run up as a worksheet you can check the figures in', async ({ page }) => {
+    test.setTimeout(180_000)
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    await openPage(page)
+
+    // Nothing to download before there is a run to write up.
+    await expect(page.getByRole('button', { name: 'Download the worksheet' })).toHaveCount(0)
+
+    // Well above the default 1.6 m, and inside the field's own 100 m ceiling so
+    // the figure the worksheet quotes back is the one that was typed.
+    await setNumberField(page, 'Eye height above the road', '90')
+    await page.getByRole('button', { name: 'Run visibility' }).click()
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+
+    const downloaded = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download the worksheet' }).click()
+    const download = await downloaded
+    expect(download.suggestedFilename()).toMatch(/^visual-quality-worksheet-\d{4}-\d{2}-\d{2}\.md$/)
+
+    const text = await readFile(await download.path(), 'utf8')
+    expect(text.split('\n')[0]).toBe('# Visual quality screening worksheet')
+    expect(text).toContain('Not a visual impact assessment')
+    // The figures are this run's, not a canned page: the eye height set above,
+    // the flat stub terrain, and the fact that nothing screened the view.
+    expect(text).toContain('90 m above the road')
+    expect(text).toContain('Standing timber is **not** modelled')
+    expect(text).toContain('## What this run does not model')
   })
 
   test('refuses to report numbers when the terrain cannot be fetched', async ({ page }) => {
