@@ -10,7 +10,6 @@ import {
   assessObjective,
   rangeFloorFor,
   vacDenudationPercent,
-  vegHeightForSlope,
   visualQualityClass,
   type AlterationBasis,
   type ObjectiveVerdict,
@@ -262,16 +261,16 @@ export function ResultsPanel({
                         block.farthestVisibleDistanceMeters,
                       )}`,
                     },
-                    ...(block.meanSlopePercent !== null
+                    ...(block.meanSlopePercent !== null && block.vegHeightMeters !== null
                       ? [
                           {
                             // Steeper ground shows more of the cut surface, so
                             // regeneration has to be taller before the opening
-                            // reads as forest again.
+                            // reads as forest again. The height is weighted over
+                            // the block's own slope classes rather than read off
+                            // the mean, which is what the procedure asks for.
                             label: 'Mean slope · green-up height',
-                            value: `${block.meanSlopePercent.toFixed(0)}% · ${vegHeightForSlope(
-                              block.meanSlopePercent,
-                            ).toFixed(1)} m`,
+                            value: `${block.meanSlopePercent.toFixed(0)}% · ${block.vegHeightMeters.toFixed(1)} m`,
                           },
                         ]
                       : []),

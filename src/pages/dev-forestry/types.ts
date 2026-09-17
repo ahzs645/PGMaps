@@ -134,8 +134,15 @@ export type TargetVisibility = {
   visibleAreaByZone: Record<string, number>
   nearestVisibleDistanceMeters: number | null
   farthestVisibleDistanceMeters: number | null
-  /** Mean ground slope over the polygon, in percent — drives green-up height. */
+  /** Mean ground slope over the polygon, in percent. */
   meanSlopePercent: number | null
+  /**
+   * Visually effective green-up height, in metres: Table 6's height for each
+   * sample's own slope class, weighted by the ground each sample stands for,
+   * which is the procedure the 1998 document sets out. Reading one height off
+   * the mean slope gives a different — and, on mixed ground, wrong — answer.
+   */
+  vegHeightMeters: number | null
   /** Polygon area falling inside the landform, or null when there is no landform. */
   areaInsideLandformMeters: number | null
   /** The same, minus ground an existing opening already holds. */

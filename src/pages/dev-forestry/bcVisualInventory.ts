@@ -409,10 +409,16 @@ export function parseCanopyStands(payload: unknown): CanopyStand[] {
     // A stand with no projected height screens nothing this page can defend.
     if (heightMeters === null || heightMeters <= 0) return []
 
+    const speciesCode = typeof properties.I_SPECIES_CODE_1 === 'string' ? properties.I_SPECIES_CODE_1.trim() : ''
+
     return [
       {
         heightMeters,
         crownClosurePercent: finiteNumber(properties.I_CROWN_CLOSURE_PERCENT),
+        // The leading species is already on the wire for this query; it is what
+        // lets the drawn stand be the species actually recorded on the ground
+        // rather than a regional guess.
+        speciesCode: speciesCode || null,
         geometry,
       },
     ]

@@ -9,14 +9,16 @@ import { escapeHtml } from '@/lib/escapeHtml'
 
 import {
   clampQueryBounds,
+  fetchCanopyStands,
   fetchHarvestedAreas,
   fetchSensitivityUnits,
   unitsToGeoJson,
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
+import type { CanopyStand } from './dev-forestry/canopy'
 import { DriveCamera } from './dev-forestry/DriveCamera'
 import { ForestOverlay } from './dev-forestry/ForestOverlay'
-import { bufferLine } from './dev-forestry/forest'
+import { bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
 import { reverseStationsToGeoJson } from './dev-forestry/reverseViewshed'
 import { collectRoadsFromMap, snapCorridorToRoad, type RoadCandidate } from './dev-forestry/roadSnap'
@@ -71,6 +73,8 @@ type InventoryState = {
   error: string | null
   truncated: boolean
   harvestCount: number
+  /** Surveyed stands, for drawing the 3D timber as what is recorded there. */
+  stands: CanopyStand[]
 }
 
 /** Marks openings pulled from DataBC, so a re-lookup replaces them cleanly. */
@@ -123,6 +127,7 @@ function DevForestryVisuals() {
     error: null,
     truncated: false,
     harvestCount: 0,
+    stands: [],
   })
   const [showInventory, setShowInventory] = useState(true)
   const [driveStationIndex, setDriveStationIndex] = useState(0)
@@ -332,20 +337,26 @@ function DevForestryVisuals() {
     const view = map.getBounds()
     const bounds = clampQueryBounds([view.getWest(), view.getSouth(), view.getEast(), view.getNorth()])
 
-    setInventory({ status: 'loading', units: [], error: null, truncated: false, harvestCount: 0 })
+    setInventory({ status: 'loading', units: [], error: null, truncated: false, harvestCount: 0, stands: [] })
     setShowInventory(true)
     try {
       // Existing openings come back in the same pass: the objective is met or
       // missed by what is on the ground plus what is proposed, not by the
       // proposal alone. They settle independently — losing the openings should
       // cost the cumulative figure, not the objective lookup as well.
-      const [inventorySettled, harvestSettled] = await Promise.allSettled([
+      // Forest cover comes back in the same pass. It is what lets the 3D stand
+      // draw the species and height the province recorded rather than a
+      // regional mix, and like the openings it settles on its own — losing it
+      // should cost the drawing, not the objective lookup.
+      const [inventorySettled, harvestSettled, standsSettled] = await Promise.allSettled([
         fetchSensitivityUnits(bounds),
         fetchHarvestedAreas(bounds),
+        fetchCanopyStands(bounds),
       ])
       if (inventorySettled.status === 'rejected') throw inventorySettled.reason
       const inventoryResult = inventorySettled.value
       const harvestResult = harvestSettled.status === 'fulfilled' ? harvestSettled.value : { areas: [] }
+      const standsResult = standsSettled.status === 'fulfilled' ? standsSettled.value : { stands: [] }
 
       setScene((current) => {
         const kept = current.targets.filter(
@@ -376,6 +387,7 @@ function DevForestryVisuals() {
         error: null,
         truncated: inventoryResult.truncated,
         harvestCount: harvestResult.areas.length,
+        stands: standsResult.stands,
       })
     } catch (error) {
       setInventory({
@@ -384,6 +396,7 @@ function DevForestryVisuals() {
         error: error instanceof Error ? error.message : String(error),
         truncated: false,
         harvestCount: 0,
+        stands: [],
       })
     }
   }, [])
@@ -592,6 +605,19 @@ function DevForestryVisuals() {
   // is an assessment unit drawn around a hill, not a stand boundary, and the
   // road an assessment is written from is usually outside it.
   const forestStands = useMemo<GeoJSON.Polygon[]>(() => [], [])
+  // What the province recorded on this ground, reduced to what the drawing
+  // needs. Coverage is managed openings only, so most of a view falls through
+  // to the regional mix — which is why the panel reports how much did not.
+  const forestInventory = useMemo<InventoryStand[]>(
+    () =>
+      inventory.stands.map((stand) => ({
+        geometry: stand.geometry,
+        species: speciesFromCode(stand.speciesCode),
+        heightMeters: stand.heightMeters > 0 ? stand.heightMeters : null,
+      })),
+    [inventory.stands],
+  )
+
   const forestClearings = useMemo(() => {
     const openings: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon> = scene.targets
       .filter((target) => target.role === 'block' || target.role === 'harvested')
@@ -754,6 +780,7 @@ function DevForestryVisuals() {
           stands={forestStands}
           clearings={forestClearings}
           standHeightMeters={drive.treeHeightMeters}
+          inventory={forestInventory}
           style={drive.treeStyle}
           exaggeration={drive.exaggeration}
           onStatus={setForestStatus}

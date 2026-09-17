@@ -27,7 +27,7 @@ import {
   type PolygonGeometry,
   type SightlineOptions,
 } from './visibility'
-import { VIEWING_ZONES, viewingZoneFor } from './vqo'
+import { VIEWING_ZONES, vegHeightForSlope, viewingZoneFor } from './vqo'
 import type {
   AlterationBreakdown,
   AnalysisInput,
@@ -358,6 +358,13 @@ export function computeAnalysis(
     let farthestVisible: number | null = null
     let slopeTotal = 0
     let slopeSamples = 0
+    // Green-up height is area-weighted over slope classes, not read off the
+    // mean slope. The 1998 procedures are explicit: work out the hectares in
+    // each slope class and weight each class's height by its area. Every grid
+    // sample stands for the same ground, so weighting by area is averaging the
+    // per-sample heights — and it is not the same answer as one lookup on the
+    // mean, because Table 6 is a step function.
+    let vegHeightTotal = 0
     let samplesInsideLandform = 0
     let samplesAlreadyAltered = 0
     const alreadyAltered = new Uint8Array(sampleCount)
@@ -402,7 +409,9 @@ export function computeAnalysis(
         // The normal already carries the gradient: its horizontal length over
         // its vertical one is the tangent of the slope, which is slope percent.
         if (normal[2] > 0) {
-          slopeTotal += (Math.hypot(normal[0], normal[1]) / normal[2]) * 100
+          const slopePercent = (Math.hypot(normal[0], normal[1]) / normal[2]) * 100
+          slopeTotal += slopePercent
+          vegHeightTotal += vegHeightForSlope(slopePercent)
           slopeSamples += 1
         }
       }
@@ -444,6 +453,7 @@ export function computeAnalysis(
       nearestVisibleDistanceMeters: nearestVisible,
       farthestVisibleDistanceMeters: farthestVisible,
       meanSlopePercent: slopeSamples > 0 ? slopeTotal / slopeSamples : null,
+      vegHeightMeters: slopeSamples > 0 ? vegHeightTotal / slopeSamples : null,
       areaInsideLandformMeters:
         landformGeometry && sampleCount > 0 ? (samplesInsideLandform / sampleCount) * pass.target.areaMeters : null,
       newAreaInsideLandformMeters:

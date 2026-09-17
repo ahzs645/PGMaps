@@ -4,6 +4,7 @@ import { computeAnalysis } from './analysis'
 import type { ElevationSource } from './terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
 import { polygonAreaMeters } from './visibility'
+import { vegHeightForSlope } from './vqo'
 
 /** Perfectly flat ground, so the answer is the area arithmetic and nothing else. */
 const FLAT: ElevationSource = { elevationAt: () => 0 }
@@ -176,5 +177,59 @@ describe('cumulative alteration', () => {
       { id: 'proposed', role: 'block', geometry: outside },
     ])
     expect(result.planimetricAlteration!.proposedPercent).toBeCloseTo(0, 5)
+  })
+})
+
+describe('visually effective green-up height', () => {
+  /**
+   * Ground that is flat over its western half and steep over its eastern half.
+   * The 1998 procedures say to work out the hectares in each slope class and
+   * area-weight each class's height — not to read one height off the mean slope,
+   * which on ground like this lands in a class that barely exists.
+   */
+  const SPLIT: ElevationSource = {
+    elevationAt: (lng) => (lng > 0 ? (lng - 0) * 111_320 * 0.55 : 0),
+  }
+
+  function greenUp(source: ElevationSource) {
+    const block = box(-0.008, -0.004, 0.008, 0.004)
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+      targets: [
+        { id: 'block', name: 'block', role: 'block', geometry: block, harvestYear: null, clearcutPercent: null },
+      ],
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 6000,
+        maxViewDistanceMeters: 40000,
+        sampleBudget: 900,
+      },
+      assessmentYear: 2026,
+    }
+    const target = computeAnalysis(source, input, TERRAIN).targets[0]
+    return { slope: target.meanSlopePercent, height: target.vegHeightMeters }
+  }
+
+  it('gives flat ground the table floor', () => {
+    const { slope, height } = greenUp(FLAT)
+    expect(slope).toBeCloseTo(0, 3)
+    // Table 6: 0–5% slope needs a 3.0 m tree.
+    expect(height).toBeCloseTo(3.0, 5)
+  })
+
+  it('weights over the slope classes rather than reading the mean', () => {
+    const { slope, height } = greenUp(SPLIT)
+
+    // Half the block is flat and half is around 55%, so the mean lands in the
+    // middle of the table while almost no ground is actually there.
+    expect(slope).toBeGreaterThan(20)
+    expect(slope).toBeLessThan(35)
+    expect(vegHeightForSlope(slope!)).toBeGreaterThan(4.5)
+
+    // The area-weighted answer sits between the two classes that exist: 3.0 m
+    // over the flat half and 7.5–8.0 m over the steep half.
+    expect(height).toBeGreaterThan(4.6)
+    expect(height).toBeLessThan(6.2)
+    expect(height).not.toBeCloseTo(vegHeightForSlope(slope!), 5)
   })
 })

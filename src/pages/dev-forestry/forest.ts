@@ -8,8 +8,10 @@
  *
  * So the trees are not decoration. They are placed on the ground the stand
  * covers and removed from the ground the block takes, which makes the opening
- * visible as an opening. Everything here is our own geometry over MIT
- * libraries (deck.gl for instancing, MapLibre for the terrain underneath).
+ * visible as an opening. Where the province has surveyed the ground, they are
+ * the species and height it recorded; elsewhere they fall back to a regional
+ * mix, and the page says which. Everything here is our own geometry, drawn over
+ * MapLibre's terrain.
  */
 
 import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
@@ -55,6 +57,62 @@ export type TreeInstance = {
   species: TreeSpeciesId
   /** Which drawn silhouette of that species this stem uses. */
   variant: number
+}
+
+/**
+ * BC inventory species codes, onto the four the page draws.
+ *
+ * The inventory records dozens of species and this draws four silhouettes, so
+ * each code maps to the one it most resembles from a road: anything spire-like
+ * and shade-tolerant reads as fir, the true firs and Douglas-fir included;
+ * broadleaves read as aspen. A drawing decision, not a taxonomy.
+ */
+const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
+  // Pines
+  PL: 'pine',
+  PLI: 'pine',
+  P: 'pine',
+  PY: 'pine',
+  PW: 'pine',
+  PA: 'pine',
+  // Spruces
+  S: 'spruce',
+  SX: 'spruce',
+  SE: 'spruce',
+  SW: 'spruce',
+  SB: 'spruce',
+  SS: 'spruce',
+  // Firs, true and Douglas, plus hemlock and cedar — narrow crowns from a road
+  BL: 'fir',
+  B: 'fir',
+  BA: 'fir',
+  BG: 'fir',
+  FD: 'fir',
+  FDI: 'fir',
+  F: 'fir',
+  HW: 'fir',
+  H: 'fir',
+  CW: 'fir',
+  C: 'fir',
+  // Broadleaves
+  AT: 'aspen',
+  AC: 'aspen',
+  ACT: 'aspen',
+  A: 'aspen',
+  EP: 'aspen',
+  E: 'aspen',
+  MB: 'aspen',
+  DR: 'aspen',
+  W: 'aspen',
+}
+
+/** The drawn species for an inventory code, or null where it is not one we draw. */
+export function speciesFromCode(code: string | null | undefined): TreeSpeciesId | null {
+  if (!code) return null
+  const key = code.trim().toUpperCase()
+  // Codes carry a leading-species suffix in places (`PLI`, `FDI`); try the full
+  // code, then the two-letter stem, then the genus letter.
+  return SPECIES_CODE_MAP[key] ?? SPECIES_CODE_MAP[key.slice(0, 2)] ?? SPECIES_CODE_MAP[key.slice(0, 1)] ?? null
 }
 
 /** Picks a species from a mix, given a value in [0, 1). */
@@ -206,7 +264,21 @@ export type TreePlacementOptions = {
   maxTrees?: number
   /** Species composition of the stand. Defaults to a BC interior mix. */
   speciesMix?: ReadonlyArray<{ species: TreeSpeciesId; share: number }>
+  /**
+   * Stands the inventory actually recorded. Where one covers a stem, its
+   * species and height are used in place of the mix and the default height —
+   * so the drawn stand is the stand on the ground wherever the province has
+   * surveyed it, and a regional guess only where it has not.
+   */
+  inventory?: ReadonlyArray<InventoryStand>
   seed?: number
+}
+
+/** A surveyed stand, reduced to what the drawing needs. */
+export type InventoryStand = {
+  geometry: PolygonGeometry
+  species: TreeSpeciesId | null
+  heightMeters: number | null
 }
 
 const METERS_PER_DEGREE_LAT = 111_320
@@ -230,6 +302,7 @@ export function placeTrees({
   heightMeters = 28,
   maxTrees = 60_000,
   speciesMix = DEFAULT_SPECIES_MIX,
+  inventory = [],
   seed = 1,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
@@ -264,6 +337,15 @@ export function placeTrees({
   // one thing here that gets expensive.
   const standBoxes = stands.map((stand) => polygonBounds(stand))
   const clearingBoxes = clearings.map((clearing) => polygonBounds(clearing))
+  const inventoryBoxes = inventory.map((stand) => polygonBounds(stand.geometry))
+  const surveyedAt = (lng: number, lat: number): InventoryStand | null => {
+    for (let index = 0; index < inventory.length; index += 1) {
+      const box = inventoryBoxes[index]
+      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) continue
+      if (pointInPolygon(inventory[index].geometry, lng, lat)) return inventory[index]
+    }
+    return null
+  }
   const inside = (
     polygons: PolygonGeometry[],
     boxes: Array<[number, number, number, number]>,
@@ -300,12 +382,15 @@ export function placeTrees({
       // A gap in a real stand is a blowdown or a wet spot, not a lawn.
       if (random() < 0.06) continue
 
-      const species = speciesFromMix(random(), speciesMix)
+      // Where the province has surveyed this ground, draw what it recorded.
+      const surveyed = inventory.length > 0 ? surveyedAt(lng, lat) : null
+      const species = surveyed?.species ?? speciesFromMix(random(), speciesMix)
+      const standHeight = surveyed?.heightMeters ?? heightMeters
       trees.push({
         lng,
         lat,
         elevationMeters: 0,
-        heightMeters: heightMeters * (0.55 + random() * 0.75),
+        heightMeters: standHeight * (0.55 + random() * 0.75),
         // Species sets the crown, with a little spread inside it — no two trees
         // in a stand are the same shape.
         slenderness: SPECIES_CROWN_RATIO[species] * (0.85 + random() * 0.3),

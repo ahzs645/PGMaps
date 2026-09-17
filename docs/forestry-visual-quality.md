@@ -47,7 +47,7 @@ editable — a district holding a scenic area to its own numbers should use thos
 | **Share of its apparent size in view** | The same question weighted by how the block presents itself from the assessment viewpoint — foreshortened ground counts for less than ground facing the road. |
 | **Alteration in perspective view** | The blocks' apparent area over the landform's visible apparent area, from the assessment viewpoint. The scale the objective is defined on. |
 | **Planimetric denudation** | The blocks' map area inside the landform over the landform's area, visible or not. The scale timber supply models against. |
-| **Mean slope · green-up height** | Mean ground slope over the block, and the regeneration height at which it stops reading as disturbance (Table 6). |
+| **Mean slope · green-up height** | Mean ground slope over the block, and the regeneration height at which it stops reading as disturbance (Table 6), area-weighted over the block's own slope classes. |
 | **Foreground / middleground / background** | Visible hectares split at 1 km and 8 km, following the BC visual landscape inventory. |
 
 The **assessment viewpoint** is the station along the road where the blocks
@@ -99,7 +99,13 @@ cutblocks and the results report existing + proposed = cumulative.
 - **Green-up.** An opening older than the green-up age stops counting, because
   regeneration has grown back into forest cover. The references give the green-up
   *height* a slope needs (Table 6), not how long a site takes to reach it, so
-  the age is a stated planning assumption and is editable. Around Prince George
+  the age is a stated planning assumption and is editable. The **height** is
+  computed the way the procedure sets out — hectares in each slope class,
+  weighted by area — rather than by reading one height off the mean slope. Every
+  grid sample stands for the same ground, so that is the mean of each sample's
+  own Table 6 height. It is not the same answer: Table 6 is a step function, so
+  on a block that is half flat and half steep the mean slope lands in a class
+  that barely exists. Around Prince George
   most recorded harvest is 2003–2005, which sits right on a 20-year default —
   moving it to 25 flips those openings back into the count.
 - **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
@@ -135,9 +141,20 @@ rather than a published figure.
 Bare-earth terrain only. Standing timber, screening vegetation along the road,
 retained patches inside a block, and roadside cut-and-fill are not in the DEM,
 so a block screened in reality by a strip of leave trees will read as visible
-here. Forest cover is not modelled either, so the planimetric denominator is the
-landform's whole area rather than its "green" area, which reads low against a
-landform carrying much non-forested ground.
+here.
+
+**The planimetric denominator is not yet the one the procedure asks for.** The
+1998 document is explicit: visual landscape management "applies a percent
+denudation figure to the total green (forested) portion of the visual landscape,
+whether the area is available for harvest or not." This page divides by the
+landform's whole area, forested or not, so on a landform carrying rock, water,
+or alpine the planimetric figure reads **low** — the denominator is too big.
+Fixing it needs a forested-area mask, which means VRI rank-1
+(`VEG_COMP_LYR_R1_POLY`) through the bcdatamapper pipeline; the live DataBC
+forest-vegetation service publishes only its *Dead* layer, and RESULTS forest
+cover covers managed openings rather than the landscape. Until then the
+perspective figure is the more trustworthy of the two, and it is the one the
+objective is defined on anyway.
 
 The percentages are also only the numeric half of the test. The Forest Planning
 and Practices Regulation defines the classes by visual dominance as well: how
@@ -274,6 +291,14 @@ silhouette with a bole and drooping whorls reads as a tree and a cone never does
 **Solid cones** carry real geometry and real normals, so they light correctly
 from any angle and are honest from directly above. They are kept for that, and
 for comparison.
+
+Species and height come from **RESULTS forest cover** wherever the province has
+surveyed the ground — the same query that feeds screening already carries
+`I_SPECIES_CODE_1` and `I_SPECIES_HEIGHT_1`, so a fifteen-year-old opening draws
+as nine-metre regeneration of the species planted rather than as mature timber.
+Coverage is managed openings only, so most of a view falls through to a regional
+mix, and the panel says how much did. Run "Look up this view" first to have any
+of it.
 
 The silhouettes are generated in `impostor.ts` rather than shipped as assets:
 four BC interior species (lodgepole pine's long clean bole and short crown,

@@ -8,6 +8,7 @@ import {
   coniferMesh,
   crownColor,
   placeTrees,
+  speciesFromCode,
   speciesFromMix,
 } from './forest'
 import { pointInPolygon, polygonAreaMeters } from './visibility'
@@ -291,6 +292,73 @@ describe('placeTrees species', () => {
       speciesMix: [{ species: 'spruce', share: 1 }],
     })
     expect(trees.every((tree) => tree.species === 'spruce')).toBe(true)
+  })
+})
+
+describe('speciesFromCode', () => {
+  it('reads the codes the BC inventory actually uses', () => {
+    expect(speciesFromCode('PL')).toBe('pine')
+    expect(speciesFromCode('PLI')).toBe('pine')
+    expect(speciesFromCode('SX')).toBe('spruce')
+    expect(speciesFromCode('SE')).toBe('spruce')
+    expect(speciesFromCode('BL')).toBe('fir')
+    expect(speciesFromCode('FDI')).toBe('fir')
+    expect(speciesFromCode('AT')).toBe('aspen')
+    expect(speciesFromCode('EP')).toBe('aspen')
+  })
+
+  it('falls back through the code to its stem and its genus', () => {
+    // A code with a variant suffix we have no entry for still resolves.
+    expect(speciesFromCode('SWB')).toBe('spruce')
+    expect(speciesFromCode('BGXX')).toBe('fir')
+    expect(speciesFromCode('pl')).toBe('pine')
+  })
+
+  it('says so rather than guessing when there is no code', () => {
+    expect(speciesFromCode(null)).toBeNull()
+    expect(speciesFromCode('')).toBeNull()
+    expect(speciesFromCode('ZZ')).toBeNull()
+  })
+})
+
+describe('placeTrees against surveyed stands', () => {
+  const surveyed = box(CENTRE.lng - 0.002, CENTRE.lat - 0.002, CENTRE.lng + 0.002, CENTRE.lat + 0.002)
+
+  it('draws what the province recorded where it recorded it', () => {
+    const trees = placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: 400,
+      spacingMeters: 6,
+      heightMeters: 28,
+      inventory: [{ geometry: surveyed, species: 'aspen', heightMeters: 9 }],
+    })
+
+    const inside = trees.filter((tree) => pointInPolygon(surveyed, tree.lng, tree.lat))
+    const outside = trees.filter((tree) => !pointInPolygon(surveyed, tree.lng, tree.lat))
+
+    expect(inside.length).toBeGreaterThan(100)
+    expect(outside.length).toBeGreaterThan(100)
+    expect(inside.every((tree) => tree.species === 'aspen')).toBe(true)
+    // Nine-metre regeneration, not the 28 m default the rest of the view uses.
+    expect(Math.max(...inside.map((tree) => tree.heightMeters))).toBeLessThan(28 * 0.55)
+    expect(Math.max(...outside.map((tree) => tree.heightMeters))).toBeGreaterThan(20)
+  })
+
+  it('falls back to the mix where a stand carries no species or height', () => {
+    const trees = placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: 300,
+      spacingMeters: 6,
+      inventory: [{ geometry: surveyed, species: null, heightMeters: null }],
+    })
+    const inside = trees.filter((tree) => pointInPolygon(surveyed, tree.lng, tree.lat))
+
+    expect(inside.length).toBeGreaterThan(50)
+    expect(new Set(inside.map((tree) => tree.species)).size).toBeGreaterThan(1)
   })
 })
 

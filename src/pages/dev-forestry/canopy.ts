@@ -26,6 +26,11 @@ export type CanopyStand = {
   heightMeters: number
   /** Crown closure as a percentage, or null where the inventory has none. */
   crownClosurePercent: number | null
+  /**
+   * Leading species code as the inventory spells it — `PL`, `SX`, `BL`, `AT`.
+   * Optional: screening does not care what the trees are, only how tall.
+   */
+  speciesCode?: string | null
   geometry: PolygonGeometry
 }
 

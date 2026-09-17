@@ -61,6 +61,8 @@ export type InventoryState = {
   truncated: boolean
   /** Existing openings pulled in alongside the inventory. */
   harvestCount: number
+  /** Surveyed stands, which the 3D timber is drawn from where they cover the ground. */
+  stands: Array<{ speciesCode?: string | null }>
 }
 
 export type DriveState = {
@@ -633,6 +635,7 @@ export function Sidebar({
                 {inventorySummary.withVac} with a VAC rating
                 {inventory.truncated ? ' · more exist than were returned' : ''}
                 {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
+                {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
               </p>
               <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
                 {ratedUnits.map((unit) => (
@@ -1133,6 +1136,9 @@ export function Sidebar({
                           {forestStatus.treeCount.toLocaleString()} stems standing around the camera ·{' '}
                           {forestStatus.trianglesPerTree} triangles each ·{' '}
                           {((forestStatus.treeCount * forestStatus.trianglesPerTree) / 1e6).toFixed(2)}M a frame.
+                          {inventory.stands.length > 0
+                            ? ` Species and height come from ${inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
+                            : ' Species and height are a regional mix — run the BC inventory lookup to draw what the province recorded here.'}
                         </p>
                       )
                     )}

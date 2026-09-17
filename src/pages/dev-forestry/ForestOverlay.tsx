@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef } from 'react'
 
 import { useMap } from '@/components/ui/map'
 
-import { coniferMesh, placeTrees, type TreeInstance } from './forest'
+import { coniferMesh, placeTrees, type InventoryStand, type TreeInstance } from './forest'
 import { buildImpostorAtlas } from './impostor'
 import { createTreeLayer, type TreeStyle } from './treeLayer'
 import { haversineMeters, type PolygonGeometry } from './visibility'
@@ -34,6 +34,12 @@ export type ForestOverlayProps = {
   /** Ground with the timber off it — the proposal, and anything already cut. */
   clearings: PolygonGeometry[]
   standHeightMeters: number
+  /**
+   * Stands the province has surveyed. Where one covers a stem it supplies the
+   * species and height, so the drawn stand is the recorded one rather than a
+   * regional guess.
+   */
+  inventory?: ReadonlyArray<InventoryStand>
   /**
    * How a stem is drawn. Billboards are two triangles carrying a drawn tree;
    * solid cones carry real geometry at roughly fifteen times the cost.
@@ -129,6 +135,7 @@ export function ForestOverlay({
   stands,
   clearings,
   standHeightMeters,
+  inventory,
   style = 'billboard',
   radiusMeters = 500,
   farRadiusMeters = 3000,
@@ -150,6 +157,7 @@ export function ForestOverlay({
     stands,
     clearings,
     standHeightMeters,
+    inventory,
     radiusMeters,
     farRadiusMeters,
     exaggeration,
@@ -161,6 +169,7 @@ export function ForestOverlay({
       stands,
       clearings,
       standHeightMeters,
+      inventory,
       radiusMeters,
       farRadiusMeters,
       exaggeration,
@@ -208,6 +217,7 @@ export function ForestOverlay({
           clearings: inputs.clearings,
           centre,
           heightMeters: inputs.standHeightMeters,
+          inventory: inputs.inventory,
           ...options,
         })
         // Each shell samples the terrain over its own extent, so the near stand
@@ -276,7 +286,7 @@ export function ForestOverlay({
   // on the spot: the gap has moved, and the old trees are standing in it.
   useEffect(() => {
     regrowRef.current?.(true)
-  }, [stands, clearings, standHeightMeters, radiusMeters, farRadiusMeters, exaggeration])
+  }, [stands, clearings, standHeightMeters, inventory, radiusMeters, farRadiusMeters, exaggeration])
 
   return null
 }
