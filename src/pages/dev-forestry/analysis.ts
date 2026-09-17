@@ -14,6 +14,7 @@ import {
   lineLengthMeters,
   polygonAreaMeters,
   polygonBounds,
+  pointInPolygon,
   polygonGridSamples,
   sampleAlongLine,
   spacingForSampleBudget,
@@ -280,6 +281,12 @@ export function computeAnalysis(
     ? { ...assessmentStation, eyeHeightMeters: input.settings.observerHeightMeters }
     : null
 
+  // Percent alteration is written against an identifiable landform rather than
+  // the whole visible landscape, so the planimetric figure below needs one to
+  // divide by — and only counts the parts of blocks that fall inside it.
+  const landform = prepared.find((target) => target.role === 'landscape') ?? null
+  const landformGeometry = landform?.geometry ?? null
+
   const targets: TargetVisibility[] = passes.map((pass) => {
     const sampleCount = pass.samples.length
     const positions = new Float64Array(sampleCount * 2)
@@ -290,6 +297,9 @@ export function computeAnalysis(
     let apparentVisible = 0
     let nearestVisible: number | null = null
     let farthestVisible: number | null = null
+    let slopeTotal = 0
+    let slopeSamples = 0
+    let samplesInsideLandform = 0
     const visibleAreaByZone = emptyZoneTotals()
     const assessmentRow = assessmentStationIndex * sampleCount
 
@@ -306,11 +316,22 @@ export function computeAnalysis(
       positions[index * 2 + 1] = sample.lat
       elevations[index] = sample.groundElevationMeters
 
+      if (pass.target.role === 'block' && landformGeometry) {
+        if (pointInPolygon(landformGeometry, sample.lng, sample.lat)) samplesInsideLandform += 1
+      }
+
       if (assessmentObserver && !Number.isNaN(sample.groundElevationMeters)) {
         const normal = terrainNormal(source, sample.lng, sample.lat, pass.target.spacingMeters)
         const solidAngle = apparentSolidAngle(assessmentObserver, sample, pass.sampleAreaMeters, normal)
         apparentTotal += solidAngle
         if (pass.visibleByStation[assessmentRow + index] === 1) apparentVisible += solidAngle
+
+        // The normal already carries the gradient: its horizontal length over
+        // its vertical one is the tangent of the slope, which is slope percent.
+        if (normal[2] > 0) {
+          slopeTotal += (Math.hypot(normal[0], normal[1]) / normal[2]) * 100
+          slopeSamples += 1
+        }
       }
 
       if (pass.anyVisible[index] !== 1) continue
@@ -349,20 +370,35 @@ export function computeAnalysis(
       visibleAreaByZone,
       nearestVisibleDistanceMeters: nearestVisible,
       farthestVisibleDistanceMeters: farthestVisible,
+      meanSlopePercent: slopeSamples > 0 ? slopeTotal / slopeSamples : null,
+      areaInsideLandformMeters:
+        landformGeometry && sampleCount > 0 ? (samplesInsideLandform / sampleCount) * pass.target.areaMeters : null,
       outOfRange: !pass.target.inRange,
       stations: stationResults,
     }
   })
 
-  // A visual quality objective is written against the altered share of the
-  // visible landscape, so it needs a landscape unit to divide by. Without one
-  // the page reports visible block area and says the denominator is missing.
+  // A visual quality objective is written against the altered share of an
+  // identifiable landform, so both figures need one to divide by. Without a
+  // landform the page reports per-block visibility and says so.
   const blockSolidAngle = targets.reduce(
     (total, target) => (target.role === 'block' ? total + target.visibleApparentSolidAngle : total),
     0,
   )
-  const landscapeSolidAngle = targets.reduce(
+  const landformSolidAngle = targets.reduce(
     (total, target) => (target.role === 'landscape' ? total + target.visibleApparentSolidAngle : total),
+    0,
+  )
+
+  // The planimetric figure is flat map area, visible or not: that is what the
+  // timber-supply scale is applied to. Forest cover is not modelled, so the
+  // denominator is the landform's whole area rather than its "green" area.
+  const alteredInsideLandform = targets.reduce(
+    (total, target) => (target.role === 'block' ? total + (target.areaInsideLandformMeters ?? 0) : total),
+    0,
+  )
+  const landformArea = targets.reduce(
+    (total, target) => (target.role === 'landscape' ? total + target.areaMeters : total),
     0,
   )
 
@@ -377,7 +413,9 @@ export function computeAnalysis(
     corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
     assessmentStationIndex,
     targets,
-    perspectiveDenudationPercent: landscapeSolidAngle > 0 ? (blockSolidAngle / landscapeSolidAngle) * 100 : null,
+    perspectiveAlterationPercent: landformSolidAngle > 0 ? (blockSolidAngle / landformSolidAngle) * 100 : null,
+    planimetricAlterationPercent: landformArea > 0 ? (alteredInsideLandform / landformArea) * 100 : null,
+    landformAreaMeters: landformArea > 0 ? landformArea : null,
     demTileCount: terrain.tileCount,
     demResolutionMeters: terrain.resolutionMeters,
     missingTileCount: terrain.missingTileCount,

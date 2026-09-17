@@ -103,7 +103,7 @@ test.describe('forestry visual quality', () => {
 
     await expect(page.getByText('Block A — west face')).toBeVisible()
     await expect(page.getByText('Block B — over the height of land')).toBeVisible()
-    await expect(page.getByText('Tabor visual landscape unit')).toBeVisible()
+    await expect(page.getByText('Tabor Mountain landform')).toBeVisible()
     // The sample viewpoint is a driven length of road, not a single spot.
     await expect(page.getByText(/5 points · 9\.\d+ km/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Run visibility' })).toBeEnabled()
@@ -120,7 +120,7 @@ test.describe('forestry visual quality', () => {
     await setNumberField(page, 'Max view distance', '40')
 
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Altered share of the visible landscape')).toBeVisible({
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({
       timeout: 120_000,
     })
 
@@ -128,6 +128,11 @@ test.describe('forestry visual quality', () => {
     // so assert on the rows that only a fully visible block can produce.
     await expect(page.getByText('131.2 ha of 131.2 ha')).toHaveCount(2)
     await expect(page.getByText('100.0%')).toHaveCount(2)
+
+    // Both scales are reported, each against its own thresholds. Collapsing
+    // them into one number is the mistake this page previously made.
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible()
+    await expect(page.getByText('Planimetric denudation')).toBeVisible()
     await expect(page.getByText('Bare-earth terrain only', { exact: false })).toBeVisible()
   })
 
@@ -138,7 +143,7 @@ test.describe('forestry visual quality', () => {
 
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText(/terrain tiles loaded/)).toBeVisible({ timeout: 120_000 })
-    await expect(page.getByText('Altered share of the visible landscape')).toHaveCount(0)
+    await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
   })
 
   test('drives the corridor from eye level and reports what that point sees', async ({ page }) => {
@@ -149,7 +154,7 @@ test.describe('forestry visual quality', () => {
     await setNumberField(page, 'Eye height above the road', '500')
     await setNumberField(page, 'Max view distance', '40')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Altered share of the visible landscape')).toBeVisible({
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({
       timeout: 120_000,
     })
 

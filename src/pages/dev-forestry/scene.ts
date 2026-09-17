@@ -18,7 +18,10 @@ import {
 import {
   DEFAULT_VISUAL_QUALITY_CLASS_ID,
   DEFAULT_VISUAL_QUALITY_THRESHOLDS,
+  VAC_RATINGS,
   VISUAL_QUALITY_CLASSES,
+  type AlterationBasis,
+  type VacRating,
   type VisualQualityClassId,
   type VisualQualityThresholds,
 } from './vqo'
@@ -90,6 +93,7 @@ export function createSampleScene(): ForestryScene {
         name: 'Block A — west face',
         role: 'block',
         objectiveId: 'partial-retention',
+        vac: null,
         geometry: box(-122.5085, 53.883, 0.009, 0.005),
         source: 'Sample scenario',
       },
@@ -98,14 +102,16 @@ export function createSampleScene(): ForestryScene {
         name: 'Block B — over the height of land',
         role: 'block',
         objectiveId: 'partial-retention',
+        vac: null,
         geometry: box(-122.434, 53.873, 0.009, 0.005),
         source: 'Sample scenario',
       },
       {
         id: createId('landscape'),
-        name: 'Tabor visual landscape unit',
+        name: 'Tabor Mountain landform',
         role: 'landscape',
         objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+        vac: 'medium',
         geometry: box(-122.52, 53.888, 0.055, 0.028),
         source: 'Sample scenario',
       },
@@ -291,6 +297,35 @@ function isClassId(value: unknown): value is VisualQualityClassId {
   return VISUAL_QUALITY_CLASSES.some((entry) => entry.id === value)
 }
 
+function isVacRating(value: unknown): value is VacRating {
+  return VAC_RATINGS.includes(value as VacRating)
+}
+
+/**
+ * Thresholds used to be one flat set of class percentages, before the
+ * perspective and planimetric scales were separated. A scene saved then holds
+ * the planimetric numbers under the old shape, so it is read back as those.
+ */
+function parseThresholds(raw: unknown): VisualQualityThresholds {
+  const numeric = (value: unknown, fallback: number) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+  const node = (raw ?? {}) as Record<string, unknown>
+  const legacyFlat = VISUAL_QUALITY_CLASSES.some((entry) => typeof node[entry.id] === 'number')
+
+  const readBasis = (basis: AlterationBasis) => {
+    const source = (legacyFlat && basis === 'planimetric' ? node : node[basis]) as Record<string, unknown> | undefined
+    return Object.fromEntries(
+      VISUAL_QUALITY_CLASSES.map((entry) => [
+        entry.id,
+        numeric(source?.[entry.id], DEFAULT_VISUAL_QUALITY_THRESHOLDS[basis][entry.id]),
+      ]),
+    ) as VisualQualityThresholds[AlterationBasis]
+  }
+
+  return { perspective: readBasis('perspective'), planimetric: readBasis('planimetric') }
+}
+
 /**
  * Rebuilds a scene from stored or imported JSON, dropping anything malformed.
  * A saved scene outliving a change to the settings shape should cost the user
@@ -317,6 +352,7 @@ export function parseScene(input: unknown): ForestryScene | null {
             name: typeof target.name === 'string' ? target.name : 'Polygon',
             role: target.role === 'landscape' ? 'landscape' : 'block',
             objectiveId: isClassId(target.objectiveId) ? target.objectiveId : DEFAULT_VISUAL_QUALITY_CLASS_ID,
+            vac: isVacRating(target.vac) ? target.vac : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -343,12 +379,7 @@ export function parseScene(input: unknown): ForestryScene | null {
       maxViewDistanceMeters: numeric(raw.settings?.maxViewDistanceMeters, base.settings.maxViewDistanceMeters),
       sampleBudget: numeric(raw.settings?.sampleBudget, base.settings.sampleBudget),
     },
-    thresholds: Object.fromEntries(
-      VISUAL_QUALITY_CLASSES.map((entry) => [
-        entry.id,
-        numeric(raw.thresholds?.[entry.id], entry.maxAlterationPercent),
-      ]),
-    ) as VisualQualityThresholds,
+    thresholds: parseThresholds(raw.thresholds),
   }
 }
 

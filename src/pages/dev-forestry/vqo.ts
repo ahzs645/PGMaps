@@ -1,15 +1,21 @@
 /**
- * Visual quality classes and objectives.
+ * Visual quality classes, and the two different percentage scales British
+ * Columbia holds them to.
  *
- * British Columbia manages scenery by assigning a visual quality objective to
- * a scenic area and then holding proposed harvesting to the share of the
- * visible landscape that objective allows to be altered. The class definitions
- * in the Forest Planning and Practices Regulation are written as degrees of
- * visual dominance; the percentage bands below are the ones the Visual Impact
- * Assessment Guidebook pairs with them for perspective-view denudation.
+ * This distinction is the whole reason this file is long. A visual quality
+ * objective is *defined* by how much alteration is visible in **perspective
+ * view** — what a person standing at a viewpoint actually sees. Timber supply
+ * analyses cannot model that, so they use a second, much looser set of
+ * **planimetric** percentages applied to map area. The two are not
+ * interchangeable, and comparing a perspective number against a planimetric
+ * threshold passes alterations that would fail.
  *
- * They are defaults, not law: an assessment can be held to a district's own
- * numbers, so every threshold on this page is editable.
+ * Sources, both Ministry of Forests:
+ * - *A Guide to Visual Quality Objectives* (QP371691, Mar 2013) — the
+ *   perspective-view ranges and the partial-cut guide.
+ * - *Procedures for Factoring Visual Resources into Timber Supply Analyses*
+ *   (Mar 17 1998) — Table 3 planimetric denudation, Table 4 denudation by VAC,
+ *   Table 6 visually effective green-up height by slope.
  */
 
 export type VisualQualityClassId =
@@ -19,15 +25,44 @@ export type VisualQualityClassId =
   | 'modification'
   | 'maximum-modification'
 
+/**
+ * Which scale a percentage is measured on.
+ *
+ * `perspective` is the objective's own definition: the share of an identifiable
+ * landform's visible face that reads as altered from a viewpoint.
+ * `planimetric` is the timber-supply proxy: altered share of the landform's
+ * forested area, measured flat on the map.
+ */
+export type AlterationBasis = 'perspective' | 'planimetric'
+
+/** Visual absorption capability — a landform's capacity to hide alteration. */
+export type VacRating = 'low' | 'medium' | 'high'
+
+export const VAC_RATINGS: readonly VacRating[] = ['low', 'medium', 'high'] as const
+
+export const VAC_LABELS: Record<VacRating, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+}
+
 export type VisualQualityClass = {
   id: VisualQualityClassId
   /** Short form used on maps and in tables (P, R, PR, M, MM). */
   code: string
   label: string
-  /** Upper bound on altered share of the visible landscape, in percent. */
-  maxAlterationPercent: number
   description: string
   color: string
+  /** Upper bound of the perspective-view range, in percent (2013 guide). */
+  perspectiveMaxPercent: number
+  /** Upper bound of the planimetric denudation range, in percent (1998 Table 3). */
+  planimetricMaxPercent: number
+  /**
+   * Planimetric denudation by visual absorption capability (1998 Table 4). A
+   * low-VAC landform supports less denudation than a high-VAC one for the same
+   * class, so this refines the class range down to a single figure.
+   */
+  vacDenudationPercent: Record<VacRating, number>
 }
 
 export const VISUAL_QUALITY_CLASSES: readonly VisualQualityClass[] = [
@@ -35,52 +70,87 @@ export const VISUAL_QUALITY_CLASSES: readonly VisualQualityClass[] = [
     id: 'preservation',
     code: 'P',
     label: 'Preservation',
-    maxAlterationPercent: 1,
-    description: 'Alteration is very small and not easy to distinguish from the natural landscape.',
+    description: 'Alteration is very small in scale, and not easily distinguishable from the pre-harvest landscape.',
     color: '#15803d',
+    perspectiveMaxPercent: 0,
+    planimetricMaxPercent: 1,
+    vacDenudationPercent: { low: 0, medium: 0.5, high: 1 },
   },
   {
     id: 'retention',
     code: 'R',
     label: 'Retention',
-    maxAlterationPercent: 5,
-    description: 'Alteration is difficult to see and stays natural in form, line, colour, and texture.',
+    description: 'Alteration is difficult to see, small in scale, and natural in appearance.',
     color: '#65a30d',
+    perspectiveMaxPercent: 1.5,
+    planimetricMaxPercent: 5,
+    vacDenudationPercent: { low: 1.1, medium: 3.0, high: 5 },
   },
   {
     id: 'partial-retention',
     code: 'PR',
     label: 'Partial retention',
-    maxAlterationPercent: 15,
-    description: 'Alteration is easy to see but remains subordinate to the landscape as a whole.',
+    description:
+      'Alteration is easy to see, small to medium in scale, and natural and not rectilinear or geometric in shape.',
     color: '#ca8a04',
+    perspectiveMaxPercent: 7,
+    planimetricMaxPercent: 15,
+    vacDenudationPercent: { low: 5.1, medium: 10.0, high: 15 },
   },
   {
     id: 'modification',
     code: 'M',
     label: 'Modification',
-    maxAlterationPercent: 25,
-    description: 'Alteration dominates parts of the view while still borrowing natural shapes.',
+    description:
+      'Alteration is very easy to see, and is large in scale and natural in appearance, or small to medium in scale with some angular characteristics.',
     color: '#ea580c',
+    perspectiveMaxPercent: 18,
+    planimetricMaxPercent: 25,
+    vacDenudationPercent: { low: 15.1, medium: 20.0, high: 25 },
   },
   {
     id: 'maximum-modification',
     code: 'MM',
     label: 'Maximum modification',
-    maxAlterationPercent: 40,
-    description: 'Alteration is very dominant, out of scale, and reads as a designed opening.',
+    description:
+      'Alteration is very easy to see, and is very large in scale, rectilinear and geometric in shape, or both.',
     color: '#b91c1c',
+    perspectiveMaxPercent: 30,
+    planimetricMaxPercent: 40,
+    vacDenudationPercent: { low: 25.1, medium: 32.5, high: 40 },
   },
 ] as const
 
 export const DEFAULT_VISUAL_QUALITY_CLASS_ID: VisualQualityClassId = 'partial-retention'
 
-/** Editable thresholds keyed by class, seeded from the guidebook defaults. */
-export type VisualQualityThresholds = Record<VisualQualityClassId, number>
+export const ALTERATION_BASIS_LABELS: Record<AlterationBasis, string> = {
+  perspective: 'Perspective view',
+  planimetric: 'Planimetric (timber supply)',
+}
 
-export const DEFAULT_VISUAL_QUALITY_THRESHOLDS: VisualQualityThresholds = Object.fromEntries(
-  VISUAL_QUALITY_CLASSES.map((entry) => [entry.id, entry.maxAlterationPercent]),
-) as VisualQualityThresholds
+export const ALTERATION_BASIS_NOTES: Record<AlterationBasis, string> = {
+  perspective:
+    'How much of the landform’s visible face reads as altered from the viewpoint. This is what the objective is defined by.',
+  planimetric:
+    'Altered share of the landform’s forested area measured flat on the map. The looser scale timber supply analyses model against.',
+}
+
+/** Editable thresholds, one set per basis, keyed by class. */
+export type VisualQualityThresholds = Record<AlterationBasis, Record<VisualQualityClassId, number>>
+
+function thresholdsFor(basis: AlterationBasis): Record<VisualQualityClassId, number> {
+  return Object.fromEntries(
+    VISUAL_QUALITY_CLASSES.map((entry) => [
+      entry.id,
+      basis === 'perspective' ? entry.perspectiveMaxPercent : entry.planimetricMaxPercent,
+    ]),
+  ) as Record<VisualQualityClassId, number>
+}
+
+export const DEFAULT_VISUAL_QUALITY_THRESHOLDS: VisualQualityThresholds = {
+  perspective: thresholdsFor('perspective'),
+  planimetric: thresholdsFor('planimetric'),
+}
 
 export function visualQualityClass(id: VisualQualityClassId): VisualQualityClass {
   const found = VISUAL_QUALITY_CLASSES.find((entry) => entry.id === id)
@@ -88,28 +158,57 @@ export function visualQualityClass(id: VisualQualityClassId): VisualQualityClass
   return found
 }
 
-export function thresholdFor(id: VisualQualityClassId, thresholds: VisualQualityThresholds): number {
-  const value = thresholds[id]
-  return Number.isFinite(value) ? value : visualQualityClass(id).maxAlterationPercent
+export function thresholdFor(
+  id: VisualQualityClassId,
+  basis: AlterationBasis,
+  thresholds: VisualQualityThresholds = DEFAULT_VISUAL_QUALITY_THRESHOLDS,
+): number {
+  const value = thresholds[basis]?.[id]
+  if (Number.isFinite(value)) return value
+  const entry = visualQualityClass(id)
+  return basis === 'perspective' ? entry.perspectiveMaxPercent : entry.planimetricMaxPercent
 }
 
 /**
- * The most restrictive class an alteration percentage still satisfies, or
- * `null` when it exceeds even maximum modification.
+ * The lower bound of a class's range on a basis — the point where the class
+ * below it stops. Preservation starts at zero.
+ */
+export function rangeFloorFor(
+  id: VisualQualityClassId,
+  basis: AlterationBasis,
+  thresholds: VisualQualityThresholds = DEFAULT_VISUAL_QUALITY_THRESHOLDS,
+): number {
+  const ordered = orderedClasses(basis, thresholds)
+  const index = ordered.findIndex((entry) => entry.id === id)
+  if (index <= 0) return 0
+  return thresholdFor(ordered[index - 1].id, basis, thresholds)
+}
+
+function orderedClasses(basis: AlterationBasis, thresholds: VisualQualityThresholds): VisualQualityClass[] {
+  return [...VISUAL_QUALITY_CLASSES].sort(
+    (a, b) => thresholdFor(a.id, basis, thresholds) - thresholdFor(b.id, basis, thresholds),
+  )
+}
+
+/**
+ * The most restrictive class an alteration percentage still satisfies on a
+ * basis, or `null` when it exceeds even maximum modification.
  */
 export function classifyAlteration(
   alterationPercent: number,
+  basis: AlterationBasis,
   thresholds: VisualQualityThresholds = DEFAULT_VISUAL_QUALITY_THRESHOLDS,
 ): VisualQualityClass | null {
   if (!Number.isFinite(alterationPercent)) return null
-  const ordered = [...VISUAL_QUALITY_CLASSES].sort(
-    (a, b) => thresholdFor(a.id, thresholds) - thresholdFor(b.id, thresholds),
+  return (
+    orderedClasses(basis, thresholds).find((entry) => alterationPercent <= thresholdFor(entry.id, basis, thresholds)) ??
+    null
   )
-  return ordered.find((entry) => alterationPercent <= thresholdFor(entry.id, thresholds)) ?? null
 }
 
 export type ObjectiveVerdict = {
   objective: VisualQualityClass
+  basis: AlterationBasis
   /** Percentage the verdict was formed from. */
   alterationPercent: number
   thresholdPercent: number
@@ -123,18 +222,103 @@ export type ObjectiveVerdict = {
 export function assessObjective(
   alterationPercent: number,
   objectiveId: VisualQualityClassId,
+  basis: AlterationBasis,
   thresholds: VisualQualityThresholds = DEFAULT_VISUAL_QUALITY_THRESHOLDS,
 ): ObjectiveVerdict {
   const objective = visualQualityClass(objectiveId)
-  const thresholdPercent = thresholdFor(objectiveId, thresholds)
+  const thresholdPercent = thresholdFor(objectiveId, basis, thresholds)
   return {
     objective,
+    basis,
     alterationPercent,
     thresholdPercent,
     met: Number.isFinite(alterationPercent) && alterationPercent <= thresholdPercent,
     headroomPercent: thresholdPercent - alterationPercent,
-    achieved: classifyAlteration(alterationPercent, thresholds),
+    achieved: classifyAlteration(alterationPercent, basis, thresholds),
   }
+}
+
+/**
+ * The single planimetric denudation figure a class and VAC rating allow
+ * (1998 Table 4), rather than the class's whole range. Falls back to the
+ * class maximum when the landform carries no VAC rating — the inventory
+ * leaves it unpopulated across much of the province.
+ */
+export function vacDenudationPercent(id: VisualQualityClassId, vac: VacRating | null): number {
+  const entry = visualQualityClass(id)
+  return vac ? entry.vacDenudationPercent[vac] : entry.planimetricMaxPercent
+}
+
+/**
+ * Visually effective green-up: the tree height at which regeneration reads as
+ * forest again rather than as disturbance (1998 Table 6). Steeper ground shows
+ * more of the block's surface, so it needs taller trees to recover.
+ *
+ * Assumes a well stocked stand, little site disturbance, a middleground
+ * viewing situation, and a vertical viewing angle under 20%.
+ */
+const VEG_HEIGHT_BY_SLOPE: ReadonlyArray<{ maxSlopePercent: number; heightMeters: number }> = [
+  { maxSlopePercent: 5, heightMeters: 3.0 },
+  { maxSlopePercent: 10, heightMeters: 3.5 },
+  { maxSlopePercent: 15, heightMeters: 4.0 },
+  { maxSlopePercent: 20, heightMeters: 4.5 },
+  { maxSlopePercent: 25, heightMeters: 5.0 },
+  { maxSlopePercent: 30, heightMeters: 5.5 },
+  { maxSlopePercent: 35, heightMeters: 6.0 },
+  { maxSlopePercent: 45, heightMeters: 6.5 },
+  { maxSlopePercent: 50, heightMeters: 7.0 },
+  { maxSlopePercent: 55, heightMeters: 7.5 },
+  { maxSlopePercent: 60, heightMeters: 8.0 },
+  { maxSlopePercent: Number.POSITIVE_INFINITY, heightMeters: 8.5 },
+]
+
+export function vegHeightForSlope(slopePercent: number): number {
+  if (!Number.isFinite(slopePercent)) return VEG_HEIGHT_BY_SLOPE[0].heightMeters
+  const band = VEG_HEIGHT_BY_SLOPE.find((entry) => slopePercent <= entry.maxSlopePercent)
+  return (band ?? VEG_HEIGHT_BY_SLOPE[VEG_HEIGHT_BY_SLOPE.length - 1]).heightMeters
+}
+
+/**
+ * Partial cutting is judged on what is left standing, not on denudation, so it
+ * has its own guide: the class most likely achieved for a share of volume or
+ * stems removed against the height of the residual trees (2013 guide).
+ *
+ * Rows are volume/stems removed in 10% steps from 10% to 90%; columns are
+ * residual tree height in 5 m steps from 5 m to 50 m.
+ */
+const PARTIAL_CUT_GUIDE: ReadonlyArray<ReadonlyArray<'R' | 'PR' | 'M'>> = [
+  ['R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'PR', 'PR'],
+  ['R', 'R', 'R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR'],
+  ['R', 'R', 'R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR'],
+  ['R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'M'],
+  ['PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'M', 'M', 'M'],
+  ['PR', 'PR', 'PR', 'PR', 'PR', 'M', 'M', 'M', 'M', 'M'],
+  ['PR', 'PR', 'PR', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
+  ['PR', 'PR', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
+  ['M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
+]
+
+const PARTIAL_CUT_CLASS_BY_CODE: Record<string, VisualQualityClassId> = {
+  R: 'retention',
+  PR: 'partial-retention',
+  M: 'modification',
+}
+
+/**
+ * The class a partial cut most likely achieves. Returns null below 10% removed,
+ * where the guide does not start — that little is not a visible alteration.
+ */
+export function partialCutClass(
+  volumeRemovedPercent: number,
+  residualTreeHeightMeters: number,
+): VisualQualityClass | null {
+  if (!Number.isFinite(volumeRemovedPercent) || !Number.isFinite(residualTreeHeightMeters)) return null
+  if (volumeRemovedPercent < 10) return null
+
+  const row = Math.min(PARTIAL_CUT_GUIDE.length - 1, Math.max(0, Math.round(volumeRemovedPercent / 10) - 1))
+  const columns = PARTIAL_CUT_GUIDE[row].length
+  const column = Math.min(columns - 1, Math.max(0, Math.round(residualTreeHeightMeters / 5) - 1))
+  return visualQualityClass(PARTIAL_CUT_CLASS_BY_CODE[PARTIAL_CUT_GUIDE[row][column]])
 }
 
 /**

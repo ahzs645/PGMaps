@@ -19,7 +19,7 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react'
-import { useRef, type ChangeEvent, type ReactNode } from 'react'
+import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { InlineAlert, MapSidebarShell, SidebarSection, ToggleChip } from '@/components/ui/map-panels'
@@ -33,8 +33,14 @@ import type { AnalysisSettings, TargetPolygon, TargetRole, Viewpoint } from './t
 import type { AnalysisState } from './useVisibilityAnalysis'
 import { lineLengthMeters } from './visibility'
 import {
+  ALTERATION_BASIS_LABELS,
+  ALTERATION_BASIS_NOTES,
   DEFAULT_VISUAL_QUALITY_THRESHOLDS,
+  VAC_LABELS,
+  VAC_RATINGS,
   VISUAL_QUALITY_CLASSES,
+  type AlterationBasis,
+  type VacRating,
   type VisualQualityClassId,
   type VisualQualityThresholds,
 } from './vqo'
@@ -165,6 +171,9 @@ export function Sidebar({
   onExport,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Which scale the threshold editor is showing. Purely a view concern — both
+  // sets are always in the scene and both are always reported.
+  const [thresholdBasis, setThresholdBasis] = useState<AlterationBasis>('perspective')
   const { viewpoint, targets, settings, thresholds } = scene
 
   const blocks = targets.filter((target) => target.role === 'block')
@@ -362,7 +371,7 @@ export function Sidebar({
             onClick={() => onDrawModeChange(drawMode === 'landscape' ? 'none' : 'landscape')}
           >
             <span className="inline-flex items-center gap-1">
-              <Mountain className="h-3 w-3" /> Landscape unit
+              <Mountain className="h-3 w-3" /> Landform
             </span>
           </ToggleChip>
         </div>
@@ -456,7 +465,7 @@ export function Sidebar({
                     aria-label={`Role for ${target.name}`}
                   >
                     <option value="block">Block</option>
-                    <option value="landscape">Landscape unit</option>
+                    <option value="landscape">Landform</option>
                   </select>
                   <select
                     className={SELECT_CLASS}
@@ -470,10 +479,29 @@ export function Sidebar({
                   >
                     {VISUAL_QUALITY_CLASSES.map((entry) => (
                       <option key={entry.id} value={entry.id}>
-                        {entry.label} ≤ {thresholds[entry.id]}%
+                        {entry.label} ≤ {thresholds.perspective[entry.id]}%
                       </option>
                     ))}
                   </select>
+                  {/* Visual absorption capability rates a landform's capacity
+                      to hide alteration, so it only means anything on one. */}
+                  {target.role === 'landscape' && (
+                    <select
+                      className={SELECT_CLASS}
+                      value={target.vac ?? ''}
+                      onChange={(event) =>
+                        onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })
+                      }
+                      aria-label={`Visual absorption capability for ${target.name}`}
+                    >
+                      <option value="">VAC not rated</option>
+                      {VAC_RATINGS.map((rating) => (
+                        <option key={rating} value={rating}>
+                          VAC {VAC_LABELS[rating]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </li>
             ))}
@@ -482,9 +510,24 @@ export function Sidebar({
       </SidebarSection>
 
       <SidebarSection title="Objectives" icon={Gauge}>
+        <div className="mb-2 flex gap-1.5">
+          {(['perspective', 'planimetric'] as AlterationBasis[]).map((basis) => (
+            <ToggleChip
+              key={basis}
+              active={thresholdBasis === basis}
+              tone={basis === 'perspective' ? 'sky' : 'amber'}
+              onClick={() => setThresholdBasis(basis)}
+            >
+              {ALTERATION_BASIS_LABELS[basis]}
+            </ToggleChip>
+          ))}
+        </div>
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          Percentage of the visible landscape each class allows to be altered. Guidebook defaults — edit them to match a
-          district&apos;s own numbers.
+          {ALTERATION_BASIS_NOTES[thresholdBasis]} Defaults come from{' '}
+          {thresholdBasis === 'perspective'
+            ? 'A Guide to Visual Quality Objectives (2013)'
+            : 'Procedures for Factoring Visual Resources into Timber Supply Analyses (1998), Table 3'}
+          — edit them to match a district&apos;s own numbers.
         </p>
         <div className="space-y-1">
           {VISUAL_QUALITY_CLASSES.map((entry) => (
@@ -496,21 +539,33 @@ export function Sidebar({
               <input
                 type="number"
                 className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-right text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={thresholds[entry.id]}
+                value={thresholds[thresholdBasis][entry.id]}
                 min={0}
                 max={100}
                 step={0.5}
-                aria-label={`${entry.label} threshold`}
+                aria-label={`${entry.label} ${thresholdBasis} threshold`}
                 onChange={(event) => {
                   const next = Number(event.target.value)
                   if (!Number.isFinite(next)) return
-                  onThresholdsChange({ ...thresholds, [entry.id]: Math.max(0, Math.min(100, next)) })
+                  onThresholdsChange({
+                    ...thresholds,
+                    [thresholdBasis]: {
+                      ...thresholds[thresholdBasis],
+                      [entry.id]: Math.max(0, Math.min(100, next)),
+                    },
+                  })
                 }}
               />
               <span className="w-3 shrink-0 text-[11px] text-muted-foreground">%</span>
             </div>
           ))}
         </div>
+        {thresholdBasis === 'planimetric' && (
+          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+            Table 4 narrows these to one figure per visual absorption capability. Rate a landform&apos;s VAC in the
+            polygon list above and the results use that figure instead of the class maximum.
+          </p>
+        )}
         <Button
           type="button"
           variant="ghost"

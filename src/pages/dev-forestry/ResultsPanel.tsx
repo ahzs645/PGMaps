@@ -5,7 +5,26 @@ import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
 import type { AnalysisResult, TargetPolygon, TargetVisibility } from './types'
-import { VIEWING_ZONES, assessObjective, visualQualityClass, type VisualQualityThresholds } from './vqo'
+import {
+  VIEWING_ZONES,
+  assessObjective,
+  rangeFloorFor,
+  vacDenudationPercent,
+  vegHeightForSlope,
+  visualQualityClass,
+  type AlterationBasis,
+  type ObjectiveVerdict,
+  type VisualQualityThresholds,
+} from './vqo'
+
+/** One reported percentage, the scale it is on, and how it fares there. */
+type AlterationScale = {
+  basis: AlterationBasis
+  title: string
+  percent: number
+  verdict: ObjectiveVerdict
+  note: string
+}
 
 function hectares(squareMeters: number): string {
   return `${(squareMeters / 10000).toLocaleString('en-CA', { maximumFractionDigits: 1 })} ha`
@@ -90,12 +109,49 @@ export function ResultsPanel({
   const targetsById = new Map(targets.map((target) => [target.id, target]))
   const blocks = result.targets.filter((target) => target.role === 'block')
   const landscape = result.targets.find((target) => target.role === 'landscape')
-  const landscapeTarget = landscape ? targetsById.get(landscape.targetId) : undefined
+  const landformTarget = landscape ? targetsById.get(landscape.targetId) : undefined
   const isCorridor = result.stations.length > 1
 
-  const denudation = result.perspectiveDenudationPercent
-  const verdict =
-    denudation !== null && landscapeTarget ? assessObjective(denudation, landscapeTarget.objectiveId, thresholds) : null
+  // The two scales answer different questions and have different thresholds, so
+  // each is judged against its own. Reporting only one of them is how a
+  // perspective number ends up measured against a planimetric allowance.
+  const scales: AlterationScale[] =
+    landformTarget && result.perspectiveAlterationPercent !== null
+      ? [
+          {
+            basis: 'perspective',
+            title: 'Alteration in perspective view',
+            percent: result.perspectiveAlterationPercent,
+            verdict: assessObjective(
+              result.perspectiveAlterationPercent,
+              landformTarget.objectiveId,
+              'perspective',
+              thresholds,
+            ),
+            note: 'The scale the objective is defined on: the share of the landform’s visible face that reads as altered from the assessment viewpoint.',
+          },
+          ...(result.planimetricAlterationPercent !== null
+            ? [
+                {
+                  basis: 'planimetric' as const,
+                  title: 'Planimetric denudation',
+                  percent: result.planimetricAlterationPercent,
+                  verdict: assessObjective(
+                    result.planimetricAlterationPercent,
+                    landformTarget.objectiveId,
+                    'planimetric',
+                    thresholds,
+                  ),
+                  note: `Flat map area, visible or not — the scale timber supply analyses model against.${
+                    landformTarget.vac
+                      ? ` Visual absorption capability is ${landformTarget.vac}, so Table 4 puts the figure for this class at ${vacDenudationPercent(landformTarget.objectiveId, landformTarget.vac)}%.`
+                      : ' No visual absorption capability rating, so the class maximum is used.'
+                  }`,
+                },
+              ]
+            : []),
+        ]
+      : []
 
   return (
     <div className="space-y-4">
@@ -106,34 +162,45 @@ export function ResultsPanel({
         </InlineAlert>
       )}
 
-      {verdict ? (
-        <div className="rounded-lg border border-border bg-muted/20 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Altered share of the visible landscape</p>
-              <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">
-                {denudation!.toFixed(1)}
-                <span className="text-lg font-semibold">%</span>
+      {scales.length > 0 ? (
+        <div className="space-y-2">
+          {scales.map((scale) => (
+            <div key={scale.basis} className="rounded-lg border border-border bg-muted/20 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">{scale.title}</p>
+                  <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">
+                    {scale.percent.toFixed(1)}
+                    <span className="text-lg font-semibold">%</span>
+                  </p>
+                </div>
+                <VerdictBadge met={scale.verdict.met} label={scale.verdict.met ? 'Within range' : 'Over range'} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
+                {scale.verdict.objective.label.toLowerCase()} range is{' '}
+                {rangeFloorFor(landformTarget!.objectiveId, scale.basis, thresholds)}–{scale.verdict.thresholdPercent}%.
+                This reads as{' '}
+                <span
+                  className="font-medium"
+                  style={{ color: scale.verdict.achieved?.color ?? scale.verdict.objective.color }}
+                >
+                  {scale.verdict.achieved?.label ?? 'beyond maximum modification'}
+                </span>
+                . {scale.note}
               </p>
             </div>
-            <VerdictBadge met={verdict.met} label={verdict.met ? 'Meets objective' : 'Exceeds objective'} />
-          </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Measured from the assessment viewpoint against{' '}
-            <span className="font-medium text-foreground">{landscapeTarget!.name}</span>. The{' '}
-            {verdict.objective.label.toLowerCase()} objective allows {verdict.thresholdPercent}%; this alteration reads
-            as{' '}
-            <span className="font-medium" style={{ color: verdict.achieved?.color ?? verdict.objective.color }}>
-              {verdict.achieved?.label ?? 'beyond maximum modification'}
-            </span>
-            .
+          ))}
+          <p className="text-[11px] leading-4 text-muted-foreground">
+            Numeric range only. The regulation also weighs scale, whether the alteration looks natural, and whether it
+            is rectilinear or geometric — a visual design review still decides whether the objective is achieved.
           </p>
         </div>
       ) : (
         <InlineAlert>
-          Percentages below are the share of each block that can be seen. A visual quality objective is written against
-          the altered share of the <em>visible landscape</em>, so add a polygon as a visual landscape unit to get that
-          number.
+          Percentages below are the share of each block that can be seen. Percent alteration is written against a
+          readily identifiable <em>landform</em> — a hill or mountain bounded by ridges, valleys, shorelines, and
+          skylines — rather than against a whole visible landscape, so mark a polygon as a landform to get that number.
         </InlineAlert>
       )}
 
@@ -194,6 +261,19 @@ export function ResultsPanel({
                         block.farthestVisibleDistanceMeters,
                       )}`,
                     },
+                    ...(block.meanSlopePercent !== null
+                      ? [
+                          {
+                            // Steeper ground shows more of the cut surface, so
+                            // regeneration has to be taller before the opening
+                            // reads as forest again.
+                            label: 'Mean slope · green-up height',
+                            value: `${block.meanSlopePercent.toFixed(0)}% · ${vegHeightForSlope(
+                              block.meanSlopePercent,
+                            ).toFixed(1)} m`,
+                          },
+                        ]
+                      : []),
                   ]}
                 />
                 <ZoneBar target={block} />
@@ -219,17 +299,21 @@ export function ResultsPanel({
         <div className="rounded-lg border border-border p-3">
           <div className="flex items-center gap-2">
             <Mountain className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-            <span className="truncate text-sm font-semibold text-foreground">
-              {landscapeTarget?.name ?? 'Visual landscape unit'}
-            </span>
+            <span className="truncate text-sm font-semibold text-foreground">{landformTarget?.name ?? 'Landform'}</span>
           </div>
           <KeyValueRows
             className="mt-2"
             rows={[
-              { label: 'Unit area', value: hectares(landscape.areaMeters) },
+              { label: 'Landform area', value: hectares(landscape.areaMeters) },
               {
                 label: 'Visible from the road',
                 value: `${hectares(landscape.visibleAreaMeters)} (${landscape.visiblePercent.toFixed(0)}%)`,
+              },
+              {
+                label: 'Visual absorption capability',
+                value: landformTarget?.vac
+                  ? `${landformTarget.vac[0].toUpperCase()}${landformTarget.vac.slice(1)}`
+                  : 'Not rated',
               },
             ]}
           />

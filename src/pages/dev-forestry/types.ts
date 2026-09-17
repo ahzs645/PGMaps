@@ -1,7 +1,7 @@
 /** Shared shapes for the forestry visual-quality utility. */
 
 import { DEFAULT_DEM_ZOOM } from './terrain'
-import type { VisualQualityClassId } from './vqo'
+import type { VacRating, VisualQualityClassId } from './vqo'
 
 /** A spot beside the road, or a length of road driven end to end. */
 export type ViewpointMode = 'spot' | 'corridor'
@@ -14,7 +14,12 @@ export type Viewpoint = {
   coordinates: Array<[number, number]>
 }
 
-/** Blocks are what gets assessed; a landscape unit is the denominator it is assessed against. */
+/**
+ * Blocks are what gets assessed; a landform is what they are assessed against.
+ * Percent alteration is written against a readily identifiable landform — a hill
+ * or mountain bounded by ridges, valleys, shorelines, and skylines — rather than
+ * against an entire visible landscape.
+ */
 export type TargetRole = 'block' | 'landscape'
 
 export type TargetPolygon = {
@@ -22,6 +27,12 @@ export type TargetPolygon = {
   name: string
   role: TargetRole
   objectiveId: VisualQualityClassId
+  /**
+   * Visual absorption capability, on a landform. Narrows the planimetric
+   * allowance from the class range to a single figure; null where the
+   * inventory has no rating, which is much of the province.
+   */
+  vac: VacRating | null
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   /** Where it came from, shown in the sidebar so imports stay traceable. */
   source: string
@@ -95,6 +106,10 @@ export type TargetVisibility = {
   visibleAreaByZone: Record<string, number>
   nearestVisibleDistanceMeters: number | null
   farthestVisibleDistanceMeters: number | null
+  /** Mean ground slope over the polygon, in percent — drives green-up height. */
+  meanSlopePercent: number | null
+  /** Polygon area falling inside the landform, or null when there is no landform. */
+  areaInsideLandformMeters: number | null
   /** True when every station sits beyond the maximum view distance. */
   outOfRange: boolean
   stations: StationResult[]
@@ -109,11 +124,17 @@ export type AnalysisResult = {
   assessmentStationIndex: number
   targets: TargetVisibility[]
   /**
-   * Altered share of the visible landscape at the assessment station, in
-   * percent — the number a visual quality objective is written against. Null
-   * until a visual landscape unit is supplied to divide by.
+   * Altered share of the landform's visible face at the assessment station —
+   * the scale a visual quality objective is defined on. Null until a landform
+   * is supplied to divide by.
    */
-  perspectiveDenudationPercent: number | null
+  perspectiveAlterationPercent: number | null
+  /**
+   * Altered share of the landform's map area, visible or not — the looser
+   * scale timber supply analyses model against.
+   */
+  planimetricAlterationPercent: number | null
+  landformAreaMeters: number | null
   demTileCount: number
   demResolutionMeters: number
   /** Tiles the DEM source did not return; their ground is treated as unknown. */

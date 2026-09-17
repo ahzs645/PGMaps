@@ -192,9 +192,10 @@ function DevForestryVisuals() {
       if (geometry) {
         addTarget({
           id: createId(drawMode),
-          name: drawMode === 'block' ? 'Traced block' : 'Traced landscape unit',
+          name: drawMode === 'block' ? 'Traced block' : 'Traced landform',
           role: drawMode,
           objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+          vac: null,
           geometry,
           source: 'Drawn here',
         })
@@ -224,6 +225,7 @@ function DevForestryVisuals() {
           name: polygon.name,
           role: 'block' as const,
           objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+          vac: null,
           geometry: polygon.geometry,
           source: file.name,
         }))
