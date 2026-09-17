@@ -82,6 +82,52 @@ async function stubTerrain(page: Page, status: 'ok' | 'fail' = 'ok') {
   )
 }
 
+/** One rated unit and one unrated one, matching the shape DataBC returns. */
+function inventoryFeature(properties: Record<string, unknown>, offsetLng: number) {
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-122.6 + offsetLng, 53.86],
+          [-122.45 + offsetLng, 53.86],
+          [-122.45 + offsetLng, 53.93],
+          [-122.6 + offsetLng, 53.93],
+          [-122.6 + offsetLng, 53.86],
+        ],
+      ],
+    },
+    properties,
+  }
+}
+
+async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') {
+  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/6/query**', (route) =>
+    route.fulfill({
+      json: {
+        type: 'FeatureCollection',
+        features:
+          mode === 'empty'
+            ? []
+            : [
+                inventoryFeature(
+                  {
+                    VLI_POLYGON_NO: 1668,
+                    REC_EVQO_CODE: 'R',
+                    REC_VAC_FINAL_VALUE_CODE: 'L',
+                    REC_VSC_FINAL_VALUE_CODE: '2',
+                    SCENIC_AREA_IND: 'Y',
+                  },
+                  0,
+                ),
+                inventoryFeature({ VLI_POLYGON_NO: 1672, REC_VSC_FINAL_VALUE_CODE: 'W' }, 0.3),
+              ],
+      },
+    }),
+  )
+}
+
 async function openPage(page: Page) {
   // The page restores its last scene from storage; tests want the sample.
   await page.addInitScript(() => window.localStorage.clear())
@@ -144,6 +190,38 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText(/terrain tiles loaded/)).toBeVisible({ timeout: 120_000 })
     await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
+  })
+
+  test('adopts a BC inventory unit as the landform with its own rating', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubInventory(page)
+    await openPage(page)
+
+    await page.getByRole('button', { name: 'Look up this view' }).click()
+    await expect(page.getByText('2 units · 1 with an established objective · 1 with a VAC rating')).toBeVisible()
+
+    // Only the rated unit is listed; the unrated one stays on the map.
+    await expect(page.getByText('1 unrated units are on the map but not listed.')).toBeVisible()
+    await page.getByRole('button', { name: /VLI 1668/ }).click()
+
+    // The province's own objective and absorption rating come across, rather
+    // than the page's defaults.
+    await expect(page.getByText('VLI 1668 · R (established)')).toBeVisible()
+    await expect(page.getByText('BC visual landscape inventory', { exact: false })).toBeVisible()
+    const adopted = page.locator('li').filter({ hasText: 'VLI 1668 · R (established)' })
+    await expect(adopted.locator('select[aria-label*="objective"]')).toHaveValue('retention')
+    await expect(adopted.locator('select[aria-label*="absorption"]')).toHaveValue('low')
+  })
+
+  test('says so plainly where the inventory has no coverage', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubInventory(page, 'empty')
+    await openPage(page)
+
+    await page.getByRole('button', { name: 'Look up this view' }).click()
+    await expect(page.getByText('No sensitivity units cover this view', { exact: false })).toBeVisible()
   })
 
   test('drives the corridor from eye level and reports what that point sees', async ({ page }) => {

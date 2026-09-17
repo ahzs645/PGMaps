@@ -4,6 +4,7 @@ import {
   Eye,
   FileUp,
   Gauge,
+  Landmark,
   Loader2,
   MapPin,
   Mountain,
@@ -26,6 +27,7 @@ import { InlineAlert, MapSidebarShell, SidebarSection, ToggleChip } from '@/comp
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
+import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from './terrain'
@@ -39,6 +41,7 @@ import {
   VAC_LABELS,
   VAC_RATINGS,
   VISUAL_QUALITY_CLASSES,
+  visualQualityClass,
   type AlterationBasis,
   type VacRating,
   type VisualQualityClassId,
@@ -46,6 +49,13 @@ import {
 } from './vqo'
 
 export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape'
+
+export type InventoryState = {
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  units: BcSensitivityUnit[]
+  error: string | null
+  truncated: boolean
+}
 
 export type DriveState = {
   active: boolean
@@ -140,6 +150,12 @@ type SidebarProps = {
   onImportFile: (file: File) => void
   importMessage: string | null
 
+  inventory: InventoryState
+  showInventory: boolean
+  onToggleInventory: () => void
+  onLookupInventory: () => void
+  onAdoptUnit: (polygonNumber: string) => void
+
   onLoadSample: () => void
   onClearScene: () => void
   onExport: () => void
@@ -166,6 +182,11 @@ export function Sidebar({
   onDriveChange,
   onImportFile,
   importMessage,
+  inventory,
+  showInventory,
+  onToggleInventory,
+  onLookupInventory,
+  onAdoptUnit,
   onLoadSample,
   onClearScene,
   onExport,
@@ -206,6 +227,10 @@ export function Sidebar({
     if (file) onImportFile(file)
     event.target.value = ''
   }
+
+  const inventorySummary = summariseUnits(inventory.units)
+  // Unrated units stay on the map for context but would swamp a list.
+  const ratedUnits = inventory.units.filter((unit) => unit.objectiveId !== null)
 
   const progressPercent =
     analysis.progress && analysis.progress.total > 0
@@ -507,6 +532,99 @@ export function Sidebar({
             ))}
           </ul>
         )}
+      </SidebarSection>
+
+      <SidebarSection
+        title="BC inventory"
+        icon={Landmark}
+        actions={
+          inventory.units.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px]"
+              onClick={onToggleInventory}
+            >
+              {showInventory ? 'Hide' : 'Show'}
+            </Button>
+          ) : undefined
+        }
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={inventory.status === 'loading'}
+          onClick={onLookupInventory}
+        >
+          {inventory.status === 'loading' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Landmark className="h-4 w-4" />
+          )}
+          {inventory.status === 'loading' ? 'Asking DataBC…' : 'Look up this view'}
+        </Button>
+        <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+          Visual sensitivity units from the province&apos;s visual landscape inventory, with whatever objective and
+          absorption capability they carry. Click one on the map or below to use it as the landform.
+        </p>
+
+        {inventory.status === 'error' && (
+          <InlineAlert className="mt-2" tone="error">
+            {inventory.error}
+          </InlineAlert>
+        )}
+
+        {inventory.status === 'ready' &&
+          (inventory.units.length === 0 ? (
+            <InlineAlert className="mt-2">
+              No sensitivity units cover this view. Inventory coverage is patchy — pan to a mapped scenic area, or keep
+              using a drawn or imported landform.
+            </InlineAlert>
+          ) : (
+            <div className="mt-2">
+              <p className="text-[11px] text-muted-foreground">
+                {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective ·{' '}
+                {inventorySummary.withVac} with a VAC rating
+                {inventory.truncated ? ' · more exist than were returned' : ''}
+              </p>
+              <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                {ratedUnits.map((unit) => (
+                  <li key={unit.polygonNumber}>
+                    <button
+                      type="button"
+                      onClick={() => onAdoptUnit(unit.polygonNumber)}
+                      className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                        style={{
+                          backgroundColor: unit.objectiveId
+                            ? visualQualityClass(unit.objectiveId).color
+                            : 'transparent',
+                        }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-medium text-foreground">{unit.name}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {unit.objectiveId ? visualQualityClass(unit.objectiveId).label : 'No established objective'}
+                          {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
+                          {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {ratedUnits.length < inventory.units.length && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
+                </p>
+              )}
+            </div>
+          ))}
       </SidebarSection>
 
       <SidebarSection title="Objectives" icon={Gauge}>

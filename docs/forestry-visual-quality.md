@@ -181,6 +181,7 @@ Two MapLibre details this depends on:
 | `src/pages/dev-forestry/vqo.ts` | Visual quality classes, both threshold scales, VAC, green-up, partial cutting |
 | `src/pages/dev-forestry/scene.ts` | The page's document: persistence, export, map features |
 | `src/pages/dev-forestry/shapeImport.ts` | Zipped shapefile and GeoJSON import |
+| `src/pages/dev-forestry/bcVisualInventory.ts` | Live DataBC lookup for sensitivity units, objectives, and VAC |
 | `src/pages/dev-forestry/DriveCamera.tsx` | Eye-level camera and playback |
 | `src/pages/dev-forestry/TerrainSupport.tsx` | Hillshade, 3D terrain, and sky |
 
@@ -194,19 +195,42 @@ End-to-end coverage is `tests/e2e/forestry-visual-quality.spec.ts`, which stubs
 the DEM with a synthetic flat-terrain tile so the expected answer is geometry
 rather than whatever the real world does today.
 
-## BC inventory data
+## BC inventory lookup
 
-None of the provincial layers are wired in yet. They exist and are queryable —
-the DataBC ArcGIS service publishes established VQOs, visual sensitivity units
-carrying `REC_EVQO_CODE`, `REC_VAC_FINAL_VALUE_CODE`, and
-`REC_VSC_FINAL_VALUE_CODE`, VLI viewing points with elevations, and scenic
-areas. Province-wide, VAC is populated on about 6,400 sensitivity units and an
-established VQO on about 5,000, so coverage is real but partial and has to be
-handled as missing rather than assumed.
+"Look up this view" asks DataBC's **Visual Landscape Inventory — Visual
+Sensitivity Units** layer what the province says about the area on screen, and
+clicking a unit adopts it as the landform carrying its own established objective
+and VAC rating. That replaces the two inputs most worth not guessing at.
 
-Wiring them in is a separate decision, because PGMaps' convention is that
-provincial data is snapshotted through the `bcdatamapper` submodule rather than
-queried live from the browser (see `AGENTS.md`).
+This is a **live query**, deliberately outside the `bcdatamapper` snapshot
+pipeline (`AGENTS.md`). It is a lookup of a handful of polygons for one place
+rather than a dataset the app ships, and it needs no key: the service answers
+cross-origin, verified from a browser.
+
+Three things make it practical:
+
+- **Generalised server-side.** Full-resolution units run about 110 KB *each* —
+  a Prince George-sized query is ~7 MB. `maxAllowableOffset` cuts the same query
+  to about 30 KB, which is all a screening map needs.
+- **Bounded.** The query bbox is clamped to 1.5° so a province-wide view cannot
+  ask for a thousand polygons to answer a question about one place.
+- **Honest about gaps.** Coverage is patchy and the page says so rather than
+  filling in.
+
+### What the inventory actually contains
+
+Province-wide, about 5,000 sensitivity units carry an established objective and
+about 6,400 a VAC rating. Locally it is thinner: of 36 units returned around
+Prince George, 22 had an established objective and **none** had a VAC rating.
+Unrated units are drawn on the map for context but kept out of the list, and a
+landform with no VAC falls back to the class maximum.
+
+Codes map as `P`/`R`/`PR`/`M`/`MM` for the objective and `L`/`M`/`H` for VAC —
+note that `M` means modification in one field and medium in the other, which is
+why they are never read through the same table.
+
+The **VLI Viewing Points** layer in this service is empty (0 features
+province-wide), so official viewpoints have to be placed by hand.
 
 ## Scenes
 

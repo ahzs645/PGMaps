@@ -7,6 +7,12 @@ import { MapOverlay } from '@/components/ui/map-panels'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
 
+import {
+  clampQueryBounds,
+  fetchSensitivityUnits,
+  unitsToGeoJson,
+  type BcSensitivityUnit,
+} from './dev-forestry/bcVisualInventory'
 import { DriveCamera } from './dev-forestry/DriveCamera'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
 import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
@@ -31,7 +37,7 @@ import {
 } from './dev-forestry/scene'
 import type { AnalysisInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
-import { DEFAULT_VISUAL_QUALITY_CLASS_ID } from './dev-forestry/vqo'
+import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
 const VISIBLE_COLOR = '#ef4444'
@@ -47,6 +53,13 @@ const DEFAULT_DRIVE: DriveState = {
 }
 
 const FIT_PADDING = { top: 72, bottom: 72, left: 48, right: 48 }
+
+type InventoryState = {
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  units: BcSensitivityUnit[]
+  error: string | null
+  truncated: boolean
+}
 
 /** Closes a traced ring and rejects anything too small to be a polygon. */
 function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | null {
@@ -89,6 +102,13 @@ function DevForestryVisuals() {
   )
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
+  const [inventory, setInventory] = useState<InventoryState>({
+    status: 'idle',
+    units: [],
+    error: null,
+    truncated: false,
+  })
+  const [showInventory, setShowInventory] = useState(true)
   const [driveStationIndex, setDriveStationIndex] = useState(0)
   const [seekVersion, setSeekVersion] = useState(0)
   const preDriveViewport = useRef<{
@@ -273,6 +293,53 @@ function DevForestryVisuals() {
     [fitBounds],
   )
 
+  /**
+   * Asks DataBC what the inventory says about the area on screen. Coverage is
+   * patchy, so "nothing here" is a real and common answer rather than a fault.
+   */
+  const handleLookupInventory = useCallback(async () => {
+    const map = mapRef.current
+    if (!map) return
+    const view = map.getBounds()
+    const bounds = clampQueryBounds([view.getWest(), view.getSouth(), view.getEast(), view.getNorth()])
+
+    setInventory({ status: 'loading', units: [], error: null, truncated: false })
+    setShowInventory(true)
+    try {
+      const { units, truncated } = await fetchSensitivityUnits(bounds)
+      setInventory({ status: 'ready', units, error: null, truncated })
+    } catch (error) {
+      setInventory({
+        status: 'error',
+        units: [],
+        error: error instanceof Error ? error.message : String(error),
+        truncated: false,
+      })
+    }
+  }, [])
+
+  /** Adopts an inventory polygon as the landform, carrying its rating across. */
+  const handleAdoptUnit = useCallback(
+    (polygonNumber: string) => {
+      const unit = inventory.units.find((entry) => entry.polygonNumber === polygonNumber)
+      if (!unit) return
+
+      const objectiveId = unit.objectiveId ?? unit.recommendedId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID
+      const label = unit.objectiveId ? 'established' : unit.recommendedId ? 'recommended' : 'unrated'
+      addTarget({
+        id: createId('landform'),
+        name: `${unit.name} · ${visualQualityClass(objectiveId).code} (${label})`,
+        role: 'landscape',
+        objectiveId,
+        vac: unit.vac,
+        geometry: unit.geometry,
+        source: 'BC visual landscape inventory',
+      })
+      setSelectedTargetId(polygonNumber)
+    },
+    [addTarget, inventory.units],
+  )
+
   const handleRun = useCallback(() => {
     const input: AnalysisInput = {
       viewpoint: { mode: scene.viewpoint.mode, coordinates: scene.viewpoint.coordinates },
@@ -339,6 +406,7 @@ function DevForestryVisuals() {
   const draftLine = useMemo(() => draftLineToGeoJson(draftCoordinates), [draftCoordinates])
   const draftVertices = useMemo(() => pointsToGeoJson(draftCoordinates), [draftCoordinates])
   const stationCollection = useMemo(() => stationsToGeoJson(result), [result])
+  const inventoryCollection = useMemo(() => unitsToGeoJson(inventory.units), [inventory.units])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -383,6 +451,20 @@ function DevForestryVisuals() {
     })
   }, [result])
 
+  const inventoryHoverHtml = useCallback((properties: Record<string, unknown>) => {
+    const name = escapeHtml(String(properties.name ?? 'Sensitivity unit'))
+    const objective = String(properties.objectiveId ?? '')
+    const vac = String(properties.vac ?? '')
+    const vsc = String(properties.vsc ?? '')
+    const rows = [
+      objective ? `Objective: ${escapeHtml(visualQualityClass(objective as never).label)}` : 'No established objective',
+      vac ? `VAC: ${escapeHtml(vac)}` : 'VAC not rated',
+      vsc ? `Sensitivity class ${escapeHtml(vsc)}` : null,
+      Number(properties.scenicArea) === 1 ? 'Scenic area' : null,
+    ].filter(Boolean)
+    return `<strong>${name}</strong><br/>${rows.join('<br/>')}<br/><em>Click to use as the landform</em>`
+  }, [])
+
   const targetHoverHtml = useCallback((properties: Record<string, unknown>) => {
     const name = escapeHtml(String(properties.name ?? 'Polygon'))
     const area = Number(properties.areaHectares ?? 0).toFixed(1)
@@ -426,6 +508,11 @@ function DevForestryVisuals() {
       onDriveChange={updateDrive}
       onImportFile={(file) => void handleImportFile(file)}
       importMessage={importMessage}
+      inventory={inventory}
+      showInventory={showInventory}
+      onToggleInventory={() => setShowInventory((current) => !current)}
+      onLookupInventory={() => void handleLookupInventory()}
+      onAdoptUnit={handleAdoptUnit}
       onLoadSample={handleLoadSample}
       onClearScene={handleClearScene}
       onExport={handleExport}
@@ -463,6 +550,20 @@ function DevForestryVisuals() {
           onFinish={drawMode === 'spot' ? undefined : finishDraft}
         />
 
+        {/* Inventory polygons sit under the scene's own, and units with nothing
+            established are drawn back so the ones that constrain harvesting read first. */}
+        <MapFillLayer
+          data={inventoryCollection}
+          fillColor="#0ea5e9"
+          fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.1, 0.03]}
+          lineColor={['case', ['==', ['get', 'rated'], 1], '#0284c7', '#94a3b8']}
+          lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
+          lineOpacity={0.9}
+          idProperty="id"
+          visible={showInventory && inventory.units.length > 0}
+          onFeatureClick={(id) => handleAdoptUnit(id)}
+          hoverHtml={inventoryHoverHtml}
+        />
         <MapFillLayer
           data={landscapeCollection}
           fillColor={ROLE_COLORS.landscape}
