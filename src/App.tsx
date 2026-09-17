@@ -28,6 +28,7 @@ const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
 const DevWait = lazy(() => import('@/pages/DevWait'))
 const DevWaitSpecialist = lazy(() => import('@/pages/DevWaitSpecialist'))
 const DevFallout = lazy(() => import('@/pages/DevFallout'))
+const DevForestryVisuals = lazy(() => import('@/pages/DevForestryVisuals'))
 const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
@@ -95,6 +96,7 @@ function App() {
             <Route path="/dev/health/wait" element={<DevWait />} />
             <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
             <Route path="/dev/fallout" element={<DevFallout />} />
+            <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
             <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />

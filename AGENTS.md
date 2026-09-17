@@ -22,6 +22,12 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - Read its **Changing the renderer** section before editing `src/maps/project-story/`. It lists the files a new story option has to touch together, and the renderer invariants that break silently — scene cameras are re-fitted to the map pane rather than used verbatim, chrome in the `scrolly`/`slides` layouts sits in a `pointer-events-none` overlay, and the slides pane sizes itself by rendering every slide stacked.
 - Story packages live in `public/data/projects/*.json` and are listed in `index.json`; regenerate that index with `npm run projects:index` after adding or renaming one.
 
+## Forestry visual quality
+
+- `docs/forestry-visual-quality.md` is the contract for `/dev/forestry/visual-quality`: what each reported percentage means, what the sightline model does and does not include, and the run's cost limits.
+- Read its **Drive the view** section before touching `src/pages/dev-forestry/DriveCamera.tsx`. The eye-level camera depends on MapLibre behaviour that fails silently — an omitted `roll` argument reaches `jumpTo` as `undefined` and leaves the transform's projection matrices null from then on.
+- Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, and `shapeImport.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser.
+
 ## Project packages
 
 - For project-package creation, renderer changes, capability additions, or package audits, read `.agents/skills/pgmaps-project-builder/SKILL.md` and only the references it routes to for the active project mode.

@@ -1,0 +1,386 @@
+/**
+ * The visibility run itself: stations along the road, a sample grid over every
+ * polygon, and a sightline between each pair.
+ *
+ * Split from the worker so it can be exercised directly against real DEM tiles
+ * or synthetic terrain — the worker adds tile fetching and message passing and
+ * nothing else.
+ */
+
+import { demResolutionMeters, type Bounds, type ElevationSource } from './terrain'
+import {
+  DEFAULT_SIGHTLINE_OPTIONS,
+  haversineMeters,
+  lineLengthMeters,
+  polygonAreaMeters,
+  polygonBounds,
+  polygonGridSamples,
+  sampleAlongLine,
+  spacingForSampleBudget,
+  terrainNormal,
+  testSightline,
+  apparentSolidAngle,
+  type CorridorStation,
+  type GroundPoint,
+  type PolygonGeometry,
+  type SightlineOptions,
+} from './visibility'
+import { VIEWING_ZONES, viewingZoneFor } from './vqo'
+import type { AnalysisInput, AnalysisProgress, AnalysisResult, StationResult, TargetVisibility } from './types'
+
+/**
+ * Ceiling on sightlines per run, chosen to keep a worst case around ten
+ * seconds: a sightline walks the terrain profile a DEM cell at a time, so this
+ * is tens of millions of elevation samples. The grid is coarsened to stay under
+ * it rather than the stations being thinned — losing a viewpoint loses a whole
+ * answer, whereas a coarser grid only blurs one.
+ */
+const MAX_TOTAL_SIGHTLINES = 250_000
+
+/** Sampling the DEM finer than it resolves adds cost and no information. */
+const MIN_SAMPLE_SPACING_FACTOR = 0.75
+
+export type TerrainInfo = {
+  tileCount: number
+  missingTileCount: number
+  resolutionMeters: number
+}
+
+export type PreparedTarget = {
+  id: string
+  name: string
+  role: 'block' | 'landscape'
+  geometry: PolygonGeometry
+  spacingMeters: number
+  areaMeters: number
+  inRange: boolean
+}
+
+/** Shortest distance from a point to a bounding box, in metres. */
+function distanceToBounds(point: { lng: number; lat: number }, bounds: Bounds): number {
+  const [minLng, minLat, maxLng, maxLat] = bounds
+  const clampedLng = Math.min(maxLng, Math.max(minLng, point.lng))
+  const clampedLat = Math.min(maxLat, Math.max(minLat, point.lat))
+  return haversineMeters(point, { lng: clampedLng, lat: clampedLat })
+}
+
+/** Viewing stations for a viewpoint: one for a spot, evenly spaced for a corridor. */
+export function buildStations(input: AnalysisInput): CorridorStation[] {
+  const { coordinates, mode } = input.viewpoint
+  if (coordinates.length === 0) return []
+  if (mode === 'spot' || coordinates.length === 1) {
+    return [{ lng: coordinates[0][0], lat: coordinates[0][1], distanceAlongMeters: 0 }]
+  }
+  return sampleAlongLine(coordinates, Math.max(10, input.settings.stationSpacingMeters))
+}
+
+/**
+ * Grid spacing and range check per target, and the work budget applied across
+ * all of them together.
+ */
+export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]): PreparedTarget[] {
+  const midLat = stations.length > 0 ? stations[0].lat : 0
+  const demResolution = demResolutionMeters(midLat, input.settings.demZoom)
+  const minSpacing = Math.max(5, demResolution * MIN_SAMPLE_SPACING_FACTOR)
+
+  const prepared = input.targets.map((target) => {
+    const bounds = polygonBounds(target.geometry)
+    const nearest = stations.reduce(
+      (closest, station) => Math.min(closest, distanceToBounds(station, bounds)),
+      Number.POSITIVE_INFINITY,
+    )
+    return {
+      id: target.id,
+      name: target.name,
+      role: target.role,
+      geometry: target.geometry,
+      spacingMeters: spacingForSampleBudget(target.geometry, input.settings.sampleBudget, minSpacing),
+      areaMeters: polygonAreaMeters(target.geometry),
+      inRange: nearest <= input.settings.maxViewDistanceMeters,
+    }
+  })
+
+  // Estimated sightlines, using each polygon's area over its cell area rather
+  // than building the grids twice.
+  const estimate = prepared.reduce((total, target) => {
+    if (!target.inRange) return total
+    const cells = Math.max(1, target.areaMeters / target.spacingMeters ** 2)
+    return total + cells * stations.length
+  }, 0)
+
+  if (estimate <= MAX_TOTAL_SIGHTLINES) return prepared
+
+  const coarsen = Math.sqrt(estimate / MAX_TOTAL_SIGHTLINES)
+  return prepared.map((target) => ({ ...target, spacingMeters: target.spacingMeters * coarsen }))
+}
+
+/** Bounding box the DEM has to cover: the stations plus every in-range target. */
+export function analysisBounds(input: AnalysisInput, stations: CorridorStation[]): Bounds | null {
+  const boxes: Bounds[] = []
+  if (stations.length > 0) {
+    boxes.push([
+      Math.min(...stations.map((station) => station.lng)),
+      Math.min(...stations.map((station) => station.lat)),
+      Math.max(...stations.map((station) => station.lng)),
+      Math.max(...stations.map((station) => station.lat)),
+    ])
+  }
+  for (const target of prepareTargets(input, stations)) {
+    if (target.inRange) boxes.push(polygonBounds(target.geometry))
+  }
+  if (boxes.length === 0) return null
+
+  return [
+    Math.min(...boxes.map((box) => box[0])),
+    Math.min(...boxes.map((box) => box[1])),
+    Math.max(...boxes.map((box) => box[2])),
+    Math.max(...boxes.map((box) => box[3])),
+  ]
+}
+
+function sightlineOptions(input: AnalysisInput, demResolution: number): SightlineOptions {
+  return {
+    ...DEFAULT_SIGHTLINE_OPTIONS,
+    observerHeightMeters: input.settings.observerHeightMeters,
+    targetOffsetMeters: input.settings.targetOffsetMeters,
+    maxDistanceMeters: input.settings.maxViewDistanceMeters,
+    // Stepping at roughly the DEM's own resolution samples every cell the ray
+    // crosses without re-reading the same one.
+    stepMeters: Math.max(5, demResolution * 0.9),
+  }
+}
+
+function emptyZoneTotals(): Record<string, number> {
+  return Object.fromEntries(VIEWING_ZONES.map((zone) => [zone.id, 0]))
+}
+
+/**
+ * Run every sightline and reduce the result to the numbers the page reports.
+ *
+ * Visibility is kept per station rather than collapsed as it goes: the same
+ * matrix answers "can this block be seen anywhere along the road", "where is it
+ * most exposed", and "what does the driver see right now" without a second pass
+ * over the terrain.
+ */
+export function computeAnalysis(
+  source: ElevationSource,
+  input: AnalysisInput,
+  terrain: TerrainInfo,
+  onProgress?: (progress: AnalysisProgress) => void,
+): AnalysisResult {
+  const startedAt = Date.now()
+  const stations = buildStations(input)
+  const prepared = prepareTargets(input, stations)
+  const options = sightlineOptions(input, terrain.resolutionMeters)
+
+  const stationPoints: GroundPoint[] = stations.map((station) => ({
+    lng: station.lng,
+    lat: station.lat,
+    groundElevationMeters: source.elevationAt(station.lng, station.lat),
+  }))
+
+  const totalSightlines = prepared.reduce((total, target) => {
+    if (!target.inRange) return total
+    return total + Math.max(1, target.areaMeters / target.spacingMeters ** 2) * stations.length
+  }, 0)
+  let completedSightlines = 0
+  let lastProgressAt = 0
+
+  const reportProgress = (force = false) => {
+    if (!onProgress) return
+    const now = Date.now()
+    if (!force && now - lastProgressAt < 80) return
+    lastProgressAt = now
+    onProgress({
+      phase: 'sightlines',
+      completed: Math.round(completedSightlines),
+      total: Math.max(1, Math.round(totalSightlines)),
+    })
+  }
+
+  type Pass = {
+    target: PreparedTarget
+    samples: GroundPoint[]
+    sampleAreaMeters: number
+    anyVisible: Uint8Array
+    visibleByStation: Uint8Array
+    visibleDistances: Float64Array
+    visibleAreaPerStation: Float64Array
+  }
+
+  const passes: Pass[] = prepared.map((target) => {
+    const grid = target.inRange ? polygonGridSamples(target.geometry, target.spacingMeters) : []
+    const samples: GroundPoint[] = grid.map((sample) => ({
+      lng: sample.lng,
+      lat: sample.lat,
+      groundElevationMeters: source.elevationAt(sample.lng, sample.lat),
+    }))
+    const sampleCount = samples.length
+    // Every cell covers the same ground, except the degenerate single-sample
+    // fallback for a polygon smaller than one cell.
+    const sampleAreaMeters = sampleCount > 0 ? grid[0].areaMeters : 0
+
+    const pass: Pass = {
+      target,
+      samples,
+      sampleAreaMeters,
+      anyVisible: new Uint8Array(sampleCount),
+      visibleByStation: new Uint8Array(sampleCount * stations.length),
+      visibleDistances: new Float64Array(sampleCount).fill(-1),
+      visibleAreaPerStation: new Float64Array(stations.length),
+    }
+
+    for (let stationIndex = 0; stationIndex < stationPoints.length; stationIndex += 1) {
+      const station = stationPoints[stationIndex]
+      const rowOffset = stationIndex * sampleCount
+      let visibleCount = 0
+
+      for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+        const sample = samples[sampleIndex]
+        if (Number.isNaN(sample.groundElevationMeters)) continue
+
+        const result = testSightline(source, station, sample, options)
+        if (!result.visible) continue
+
+        visibleCount += 1
+        pass.visibleByStation[rowOffset + sampleIndex] = 1
+        pass.anyVisible[sampleIndex] = 1
+        const previous = pass.visibleDistances[sampleIndex]
+        if (previous < 0 || result.distanceMeters < previous) {
+          pass.visibleDistances[sampleIndex] = result.distanceMeters
+        }
+      }
+
+      pass.visibleAreaPerStation[stationIndex] = visibleCount * sampleAreaMeters
+      completedSightlines += sampleCount
+      reportProgress()
+    }
+
+    return pass
+  })
+  reportProgress(true)
+
+  // The assessment station is where the blocks together show the most ground —
+  // the critical viewpoint a visual impact assessment would be written from.
+  let assessmentStationIndex = 0
+  let worstVisibleArea = -1
+  for (let stationIndex = 0; stationIndex < stations.length; stationIndex += 1) {
+    const visibleArea = passes.reduce(
+      (total, pass) => (pass.target.role === 'block' ? total + pass.visibleAreaPerStation[stationIndex] : total),
+      0,
+    )
+    if (visibleArea > worstVisibleArea) {
+      worstVisibleArea = visibleArea
+      assessmentStationIndex = stationIndex
+    }
+  }
+
+  const assessmentStation = stationPoints[assessmentStationIndex]
+  const assessmentObserver = assessmentStation
+    ? { ...assessmentStation, eyeHeightMeters: input.settings.observerHeightMeters }
+    : null
+
+  const targets: TargetVisibility[] = passes.map((pass) => {
+    const sampleCount = pass.samples.length
+    const positions = new Float64Array(sampleCount * 2)
+    const elevations = new Float64Array(sampleCount)
+
+    let visibleSamples = 0
+    let apparentTotal = 0
+    let apparentVisible = 0
+    let nearestVisible: number | null = null
+    let farthestVisible: number | null = null
+    const visibleAreaByZone = emptyZoneTotals()
+    const assessmentRow = assessmentStationIndex * sampleCount
+
+    // The grid estimates the visible *fraction*; the polygon's own area is
+    // known exactly. Reporting hectares against the grid's total instead would
+    // show a fully visible block as slightly less than its own size.
+    const griddedArea = sampleCount * pass.sampleAreaMeters
+    const areaScale = griddedArea > 0 ? pass.target.areaMeters / griddedArea : 0
+    const sampleGroundArea = pass.sampleAreaMeters * areaScale
+
+    for (let index = 0; index < sampleCount; index += 1) {
+      const sample = pass.samples[index]
+      positions[index * 2] = sample.lng
+      positions[index * 2 + 1] = sample.lat
+      elevations[index] = sample.groundElevationMeters
+
+      if (assessmentObserver && !Number.isNaN(sample.groundElevationMeters)) {
+        const normal = terrainNormal(source, sample.lng, sample.lat, pass.target.spacingMeters)
+        const solidAngle = apparentSolidAngle(assessmentObserver, sample, pass.sampleAreaMeters, normal)
+        apparentTotal += solidAngle
+        if (pass.visibleByStation[assessmentRow + index] === 1) apparentVisible += solidAngle
+      }
+
+      if (pass.anyVisible[index] !== 1) continue
+      visibleSamples += 1
+      const distance = pass.visibleDistances[index]
+      visibleAreaByZone[viewingZoneFor(distance).id] += sampleGroundArea
+      if (nearestVisible === null || distance < nearestVisible) nearestVisible = distance
+      if (farthestVisible === null || distance > farthestVisible) farthestVisible = distance
+    }
+
+    const visibleAreaMeters = visibleSamples * sampleGroundArea
+    const stationResults: StationResult[] = stations.map((station, stationIndex) => ({
+      lng: station.lng,
+      lat: station.lat,
+      groundElevationMeters: stationPoints[stationIndex].groundElevationMeters,
+      distanceAlongMeters: station.distanceAlongMeters,
+      visiblePercent: griddedArea > 0 ? (pass.visibleAreaPerStation[stationIndex] / griddedArea) * 100 : 0,
+    }))
+
+    return {
+      targetId: pass.target.id,
+      role: pass.target.role,
+      positions,
+      elevations,
+      anyVisible: pass.anyVisible,
+      visibleByStation: pass.visibleByStation,
+      visibleDistances: pass.visibleDistances,
+      sampleCount,
+      sampleAreaMeters: pass.sampleAreaMeters,
+      areaMeters: pass.target.areaMeters,
+      visibleAreaMeters,
+      visiblePercent: sampleCount > 0 ? (visibleSamples / sampleCount) * 100 : 0,
+      apparentSolidAngle: apparentTotal,
+      visibleApparentSolidAngle: apparentVisible,
+      apparentVisiblePercent: apparentTotal > 0 ? (apparentVisible / apparentTotal) * 100 : 0,
+      visibleAreaByZone,
+      nearestVisibleDistanceMeters: nearestVisible,
+      farthestVisibleDistanceMeters: farthestVisible,
+      outOfRange: !pass.target.inRange,
+      stations: stationResults,
+    }
+  })
+
+  // A visual quality objective is written against the altered share of the
+  // visible landscape, so it needs a landscape unit to divide by. Without one
+  // the page reports visible block area and says the denominator is missing.
+  const blockSolidAngle = targets.reduce(
+    (total, target) => (target.role === 'block' ? total + target.visibleApparentSolidAngle : total),
+    0,
+  )
+  const landscapeSolidAngle = targets.reduce(
+    (total, target) => (target.role === 'landscape' ? total + target.visibleApparentSolidAngle : total),
+    0,
+  )
+
+  return {
+    settings: input.settings,
+    stations: stations.map((station, index) => ({
+      lng: station.lng,
+      lat: station.lat,
+      groundElevationMeters: stationPoints[index].groundElevationMeters,
+      distanceAlongMeters: station.distanceAlongMeters,
+    })),
+    corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
+    assessmentStationIndex,
+    targets,
+    perspectiveDenudationPercent: landscapeSolidAngle > 0 ? (blockSolidAngle / landscapeSolidAngle) * 100 : null,
+    demTileCount: terrain.tileCount,
+    demResolutionMeters: terrain.resolutionMeters,
+    missingTileCount: terrain.missingTileCount,
+    elapsedMs: Date.now() - startedAt,
+  }
+}
