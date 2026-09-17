@@ -114,6 +114,42 @@ cutblocks and the results report existing + proposed = cumulative.
   counts is not charged for that ground again; ground under a *recovered*
   opening is free for the proposal to claim.
 
+## The green area, and where it comes from
+
+The 1998 document is explicit: visual landscape management "applies a percent
+denudation figure to the **total green (forested) portion** of the visual
+landscape, whether the area is available for harvest or not." So the planimetric
+denominator is the landform's treed area, not all of it.
+
+That comes from **VRI rank-1** (`WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY`),
+queried live from DataBC's WFS. `BCLCS_LEVEL_2` is exactly the distinction the
+procedure turns on: `T` for treed ground, anything else for water, rock, or
+clearing. It is not in the ArcGIS map service the rest of this page uses — that
+service publishes only the VRI *Dead* layer — which is why there are two service
+clients here.
+
+It matters more than it sounds. Tabor Mountain's landform is **78.6% treed**:
+3,527 ha green of 4,489 ha. Dividing by all 4,489 makes every planimetric figure
+read **27% low**, and that crosses classes — an opening between about 176 and
+225 ha is within Retention's 5% planimetric maximum on the whole-area
+denominator and over it on the right one.
+
+One query answers three questions, so it is made once per run:
+
+| | From |
+| --- | --- |
+| The green area | `BCLCS_LEVEL_2 = 'T'` |
+| Screening canopy | `PROJ_HEIGHT_1`, `CROWN_CLOSURE` |
+| The drawn 3D stand | `SPECIES_CD_1` |
+
+Two costs. GeoServer will not generalise geometry server-side, so the answer is
+about 1 MB over a 4,500 ha landform against the tens of kilobytes the generalised
+ArcGIS queries return — hence a tighter bounds clamp and a feature cap, and the
+result reports truncation. And the bounding box goes in the `CQL_FILTER` rather
+than the WFS `bbox` parameter: WFS 2.0 with a plain `EPSG:4326` bbox is
+latitude-first while CQL's `BBOX` is longitude-first, and mixing the two returns
+the wrong part of the province without erroring.
+
 ## Screening timber
 
 Terrain is only half of what hides a block: a stand between the road and the
@@ -122,15 +158,10 @@ a grid in the same Mercator space the sightline walks, so screening costs one
 array lookup per profile step, and clears that canopy inside the proposal and
 inside any opening that has not grown back.
 
-The engine is complete and tested. **The BC data behind it is not.** There is no
-province-wide live canopy layer in the DataBC forest-vegetation service — its
-only VRI layer is the *Dead* layer (standing dead timber), which is not what
-screens a view. What is wired is RESULTS forest cover, which carries a real
-species height and crown closure but covers **managed openings only**. That is
-enough to stop a fifteen-year-old block reading as bare ground and not enough to
-model a mature stand screening a view across a valley, so screening is **off by
-default**. Full-landscape canopy means VRI rank-1 (`VEG_COMP_LYR_R1_POLY`)
-through the bcdatamapper pipeline.
+Height and crown closure come from the same VRI rank-1 query as the green area,
+so coverage is the whole landscape rather than managed openings. Screening stays
+**off by default** — the query is multi-megabyte and the run is honest without
+it — but switching it on is now a real answer rather than a partial one.
 
 Stands more open than a crown-closure threshold do not screen at all. The
 inventory carries no transmission model, so that cut-off is a stated assumption
@@ -143,18 +174,10 @@ retained patches inside a block, and roadside cut-and-fill are not in the DEM,
 so a block screened in reality by a strip of leave trees will read as visible
 here.
 
-**The planimetric denominator is not yet the one the procedure asks for.** The
-1998 document is explicit: visual landscape management "applies a percent
-denudation figure to the total green (forested) portion of the visual landscape,
-whether the area is available for harvest or not." This page divides by the
-landform's whole area, forested or not, so on a landform carrying rock, water,
-or alpine the planimetric figure reads **low** — the denominator is too big.
-Fixing it needs a forested-area mask, which means VRI rank-1
-(`VEG_COMP_LYR_R1_POLY`) through the bcdatamapper pipeline; the live DataBC
-forest-vegetation service publishes only its *Dead* layer, and RESULTS forest
-cover covers managed openings rather than the landscape. Until then the
-perspective figure is the more trustworthy of the two, and it is the one the
-objective is defined on anyway.
+Where no vegetation inventory answers, the planimetric denominator is the
+landform's whole area rather than its green area, and the figure reads low by
+however much of the landform was never forest. The results panel says which
+denominator was used.
 
 The percentages are also only the numeric half of the test. The Forest Planning
 and Practices Regulation defines the classes by visual dominance as well: how

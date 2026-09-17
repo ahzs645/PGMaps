@@ -68,7 +68,12 @@ export type AnalysisSettings = {
    * planning assumption rather than a published figure.
    */
   greenUpAgeYears: number
-  /** Whether standing timber is added to the sightline as screening. */
+  /**
+   * Whether standing timber is added to the sightline as screening. Off by
+   * default: the inventory now covers the whole landscape, so this is a real
+   * answer rather than a partial one, but it is a multi-megabyte query and the
+   * run is honest without it.
+   */
   screeningEnabled: boolean
   /** Stands more open than this do not screen. */
   minCrownClosurePercent: number
@@ -143,6 +148,12 @@ export type TargetVisibility = {
    * the mean slope gives a different — and, on mixed ground, wrong — answer.
    */
   vegHeightMeters: number | null
+  /**
+   * Treed area inside this landform, from the vegetation inventory — the
+   * procedure's "green (forested) portion". Null on a block, and on a landform
+   * when no inventory was supplied.
+   */
+  forestedAreaMeters: number | null
   /** Polygon area falling inside the landform, or null when there is no landform. */
   areaInsideLandformMeters: number | null
   /** The same, minus ground an existing opening already holds. */
@@ -178,6 +189,12 @@ export type AnalysisResult = {
    */
   planimetricAlteration: AlterationBreakdown | null
   landformAreaMeters: number | null
+  /**
+   * The landform's treed area, which is what the planimetric figure divides by
+   * when the inventory supplied one. Null means the whole area was used, and
+   * the figure reads low by however much of the landform was never forest.
+   */
+  landformForestedAreaMeters: number | null
   /** Existing openings excluded because they have passed green-up. */
   recoveredOpeningCount: number
   /** Share of the analysis area carrying screening timber, or null when off. */

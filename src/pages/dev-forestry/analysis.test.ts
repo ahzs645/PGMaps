@@ -233,3 +233,61 @@ describe('visually effective green-up height', () => {
     expect(height).not.toBeCloseTo(vegHeightForSlope(slope!), 5)
   })
 })
+
+describe('the planimetric denominator', () => {
+  const BLOCK = box(-0.004, -0.004, 0.004, 0.004)
+
+  function planimetric(forested: GeoJSON.Polygon[]) {
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+      targets: [
+        {
+          id: 'landform',
+          name: 'landform',
+          role: 'landscape',
+          geometry: LANDFORM,
+          harvestYear: null,
+          clearcutPercent: null,
+        },
+        { id: 'block', name: 'block', role: 'block', geometry: BLOCK, harvestYear: null, clearcutPercent: null },
+      ],
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 6000,
+        maxViewDistanceMeters: 40000,
+        sampleBudget: 900,
+      },
+      assessmentYear: 2026,
+    }
+    return computeAnalysis(FLAT, input, TERRAIN, undefined, [], forested)
+  }
+
+  it('divides by the whole landform when no inventory answered', () => {
+    const result = planimetric([])
+    const landform = result.targets.find((target) => target.role === 'landscape')!
+
+    expect(landform.forestedAreaMeters).toBeNull()
+    expect(result.landformForestedAreaMeters).toBeNull()
+    expect(result.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(BLOCK), 0)
+  })
+
+  it('divides by the treed part when the inventory did', () => {
+    // Half the landform is treed; the other half is water, rock, or clearing.
+    const treedHalf = box(-0.02, -0.01, 0, 0.01)
+    const result = planimetric([treedHalf])
+    const landform = result.targets.find((target) => target.role === 'landscape')!
+
+    expect(landform.forestedAreaMeters).toBeCloseTo(landform.areaMeters / 2, -4)
+    // The block is unchanged, so halving the denominator doubles the figure.
+    // Dividing by the whole landform is what read it low.
+    expect(result.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(BLOCK) * 2, 0)
+  })
+
+  it('leaves the perspective figure alone — it divides by the visible face', () => {
+    const treedHalf = box(-0.02, -0.01, 0, 0.01)
+    expect(planimetric([treedHalf]).perspectiveAlteration!.cumulativePercent).toBeCloseTo(
+      planimetric([]).perspectiveAlteration!.cumulativePercent,
+      6,
+    )
+  })
+})

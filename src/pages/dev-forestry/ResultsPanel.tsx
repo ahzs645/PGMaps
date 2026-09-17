@@ -138,6 +138,10 @@ export function ResultsPanel({
       'Planimetric denudation',
       result.planimetricAlteration,
       `Flat map area, visible or not — the scale timber supply analyses model against.${
+        landscape?.forestedAreaMeters !== null && landscape?.forestedAreaMeters !== undefined
+          ? ' Divided by the landform\u2019s treed area, which is what the procedure asks for.'
+          : ' Divided by the whole landform: no vegetation inventory, so the figure reads low by however much of it was never forest.'
+      }${
         landformTarget.vac
           ? ` Visual absorption capability is ${landformTarget.vac}, so Table 4 puts the figure for this class at ${vacDenudationPercent(landformTarget.objectiveId, landformTarget.vac)}%.`
           : ' No visual absorption capability rating, so the class maximum is used.'
@@ -305,6 +309,19 @@ export function ResultsPanel({
             className="mt-2"
             rows={[
               { label: 'Landform area', value: hectares(landscape.areaMeters) },
+              {
+                // The denudation denominator. Where the inventory answered, it
+                // is the treed part; otherwise the whole landform, which reads
+                // the planimetric figure low.
+                label: 'Forested area (denudation base)',
+                value:
+                  landscape.forestedAreaMeters !== null
+                    ? `${hectares(landscape.forestedAreaMeters)} (${(
+                        (landscape.forestedAreaMeters / Math.max(1, landscape.areaMeters)) *
+                        100
+                      ).toFixed(0)}% treed)`
+                    : 'Whole landform — no inventory',
+              },
               {
                 label: 'Visible from the road',
                 value: `${hectares(landscape.visibleAreaMeters)} (${landscape.visiblePercent.toFixed(0)}%)`,

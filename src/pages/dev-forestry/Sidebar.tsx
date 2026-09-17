@@ -813,9 +813,10 @@ export function Sidebar({
             onChange={(event) => onSettingsChange({ ...settings, screeningEnabled: event.target.checked })}
           />
           <span className="text-[11px] leading-4 text-muted-foreground">
-            <span className="font-medium text-foreground">Screen with standing timber.</span> Adds the vegetation
-            inventory&apos;s projected stand height to the ground along each sightline, so a block behind mature timber
-            reads as hidden. Openings and the proposal itself are treated as cleared.
+            <span className="font-medium text-foreground">Screen with standing timber.</span> Adds VRI rank-1&apos;s
+            projected stand height to the ground along each sightline, so a block behind mature timber reads as hidden.
+            Openings and the proposal itself are treated as cleared. Full-landscape coverage, and a slow query — it
+            fetches every inventory polygon over the run&apos;s extent.
           </span>
         </label>
         <div className="mt-3">

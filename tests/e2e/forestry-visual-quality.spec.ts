@@ -142,6 +142,17 @@ async function stubForestCover(page: Page, features: unknown[] = []) {
   )
 }
 
+/**
+ * VRI rank-1, which the run asks for whenever the scene carries a landform: it
+ * supplies the treed area the planimetric figure divides by. Un-stubbed, the
+ * worker waits on a multi-megabyte live query.
+ */
+async function stubVegetation(page: Page, features: unknown[] = []) {
+  await page.route('**/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows**', (route) =>
+    route.fulfill({ json: { type: 'FeatureCollection', features, numberMatched: features.length } }),
+  )
+}
+
 async function openPage(page: Page) {
   // The page restores its last scene from storage; tests want the sample.
   await page.addInitScript(() => window.localStorage.clear())
@@ -159,6 +170,7 @@ test.describe('forestry visual quality', () => {
   test('opens on the sample scenario with a viewpoint and blocks', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     await expect(page.getByText('Block A — west face')).toBeVisible()
@@ -172,6 +184,7 @@ test.describe('forestry visual quality', () => {
   test('reports every block as visible when nothing can block the view', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     // Flat ground plus an eye well above it leaves no terrain to hide behind,
@@ -199,6 +212,7 @@ test.describe('forestry visual quality', () => {
   test('refuses to report numbers when the terrain cannot be fetched', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page, 'fail')
+    await stubVegetation(page)
     await openPage(page)
 
     await page.getByRole('button', { name: 'Run visibility' }).click()
@@ -209,6 +223,7 @@ test.describe('forestry visual quality', () => {
   test('adopts a BC inventory unit as the landform with its own rating', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await stubInventory(page)
     await stubHarvest(page)
     await stubForestCover(page)
@@ -233,6 +248,7 @@ test.describe('forestry visual quality', () => {
   test('says so plainly where the inventory has no coverage', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await stubInventory(page, 'empty')
     await stubHarvest(page)
     await stubForestCover(page)
@@ -245,6 +261,7 @@ test.describe('forestry visual quality', () => {
   test('drives the corridor from eye level and reports what that point sees', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     await setNumberField(page, 'Eye height above the road', '500')
@@ -270,6 +287,7 @@ test.describe('forestry visual quality', () => {
   test('offers the 3D stand and says what bare ground means', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     await setNumberField(page, 'Eye height above the road', '500')
@@ -289,6 +307,7 @@ test.describe('forestry visual quality', () => {
   test('says which roads see the block, or that none on screen do', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     // The stubbed basemap draws no roads, which is the same answer a real one
@@ -302,6 +321,7 @@ test.describe('forestry visual quality', () => {
   test('leaves a drawn corridor alone when no road is near it', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
+    await stubVegetation(page)
     await openPage(page)
 
     await page.getByRole('button', { name: 'Snap to the nearest road' }).click()

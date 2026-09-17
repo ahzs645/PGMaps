@@ -205,6 +205,14 @@ export function computeAnalysis(
    * and clearcut logic the alteration figures use — lives in one place.
    */
   canopyStands: CanopyStand[] = [],
+  /**
+   * Treed ground from the vegetation inventory. The 1998 procedure divides
+   * denudation by "the total green (forested) portion of the visual landscape",
+   * so where this is supplied the planimetric denominator is the landform's
+   * forested area rather than all of it. Empty falls back to the whole area and
+   * the result says which was used.
+   */
+  forestedGround: PolygonGeometry[] = [],
 ): AnalysisResult {
   const startedAt = Date.now()
   const stations = buildStations(input)
@@ -366,6 +374,7 @@ export function computeAnalysis(
     // mean, because Table 6 is a step function.
     let vegHeightTotal = 0
     let samplesInsideLandform = 0
+    let samplesOnForestedGround = 0
     let samplesAlreadyAltered = 0
     const alreadyAltered = new Uint8Array(sampleCount)
     const visibleAreaByZone = emptyZoneTotals()
@@ -383,6 +392,14 @@ export function computeAnalysis(
       positions[index * 2] = sample.lng
       positions[index * 2 + 1] = sample.lat
       elevations[index] = sample.groundElevationMeters
+
+      // Only a landform needs its green share; a block's denudation counts
+      // whether or not the inventory calls that particular polygon treed.
+      if (pass.target.role === 'landscape' && forestedGround.length > 0) {
+        if (forestedGround.some((ground) => pointInPolygon(ground, sample.lng, sample.lat))) {
+          samplesOnForestedGround += 1
+        }
+      }
 
       if (pass.target.role !== 'landscape' && landformGeometry) {
         if (pointInPolygon(landformGeometry, sample.lng, sample.lat)) samplesInsideLandform += 1
@@ -452,6 +469,10 @@ export function computeAnalysis(
       visibleAreaByZone,
       nearestVisibleDistanceMeters: nearestVisible,
       farthestVisibleDistanceMeters: farthestVisible,
+      forestedAreaMeters:
+        pass.target.role === 'landscape' && forestedGround.length > 0 && sampleCount > 0
+          ? (samplesOnForestedGround / sampleCount) * pass.target.areaMeters
+          : null,
       meanSlopePercent: slopeSamples > 0 ? slopeTotal / slopeSamples : null,
       vegHeightMeters: slopeSamples > 0 ? vegHeightTotal / slopeSamples : null,
       areaInsideLandformMeters:
@@ -477,6 +498,11 @@ export function computeAnalysis(
   )
   const landformArea = targets.reduce(
     (total, target) => (target.role === 'landscape' ? total + target.areaMeters : total),
+    0,
+  )
+  const landformForestedArea = targets.reduce(
+    (total, target) =>
+      target.role === 'landscape' && target.forestedAreaMeters !== null ? total + target.forestedAreaMeters : total,
     0,
   )
 
@@ -508,10 +534,12 @@ export function computeAnalysis(
   )
 
   // The planimetric figure is flat map area, visible or not: that is what the
-  // timber-supply scale is applied to. Forest cover is not modelled, so the
-  // denominator is the landform's whole area rather than its "green" area.
+  // timber-supply scale is applied to. The procedure divides by the landform's
+  // green area, so the inventory's treed ground is the denominator where it was
+  // supplied — dividing by rock and water as well reads the figure low.
+  const planimetricDenominator = landformForestedArea > 0 ? landformForestedArea : landformArea
   const planimetricAlteration = breakdown(
-    landformArea,
+    planimetricDenominator,
     (target) => target.areaInsideLandformMeters ?? 0,
     (target) => target.newAreaInsideLandformMeters ?? 0,
   )
@@ -530,6 +558,7 @@ export function computeAnalysis(
     perspectiveAlteration,
     planimetricAlteration,
     landformAreaMeters: landformArea > 0 ? landformArea : null,
+    landformForestedAreaMeters: landformForestedArea > 0 ? landformForestedArea : null,
     recoveredOpeningCount: prepared.filter((target) => target.role === 'harvested' && target.recovered).length,
     demTileCount: terrain.tileCount,
     demResolutionMeters: terrain.resolutionMeters,
