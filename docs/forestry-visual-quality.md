@@ -405,6 +405,14 @@ End-to-end coverage is `tests/e2e/forestry-visual-quality.spec.ts`, which stubs
 the DEM with a synthetic flat-terrain tile so the expected answer is geometry
 rather than whatever the real world does today.
 
+Its basemap stub must not carry `glyphs: ''`. MapLibre never resolves an empty
+glyph URL template, so the style never finishes loading, the map context's
+`isLoaded` stays false, and everything gated on it — 3D terrain, hillshade, the
+3D stand — silently does nothing while tests that only read sidebar text carry on
+passing. The drive and stand tests now assert `map.getTerrain()` and the tree
+layer's own stem count rather than the copy beside them, and both fail if either
+component is reduced to a no-op.
+
 ## BC inventory lookup
 
 "Look up this view" asks DataBC's **Visual Landscape Inventory — Visual

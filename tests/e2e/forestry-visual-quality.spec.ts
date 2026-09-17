@@ -66,11 +66,19 @@ function flatTerrariumTile(elevationMeters: number): Buffer {
 
 const FLAT_TILE = flatTerrariumTile(800)
 
+/**
+ * An empty basemap style that actually finishes loading.
+ *
+ * `glyphs: ''` does not: MapLibre never resolves an empty glyph URL template, so
+ * the style stays unloaded, `map.loaded()` never returns true, and the map
+ * context's `isLoaded` stays false for the whole run. Everything guarded on it —
+ * 3D terrain, hillshade, the 3D stand — then silently does nothing, and a test
+ * that only reads sidebar text passes anyway. (`sprite: ''` is harmless; it was
+ * the glyphs.)
+ */
 async function stubBasemap(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
-    route.fulfill({
-      json: { version: 8, sources: {}, layers: [], glyphs: '', sprite: '' },
-    }),
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
 }
 
@@ -158,6 +166,42 @@ async function openPage(page: Page) {
   await page.addInitScript(() => window.localStorage.clear())
   await page.goto(PAGE_PATH)
   await expect(page.getByRole('heading', { name: 'Visual quality' })).toBeVisible()
+}
+
+/** What the map is actually doing, rather than what the sidebar says about it. */
+async function readMapState(page: Page) {
+  return page.evaluate(() => {
+    const container = document.querySelector('.maplibregl-map')
+    if (!container) return null
+    const fiberKey = Object.keys(container).find((key) => key.startsWith('__reactFiber$'))
+    if (!fiberKey) return null
+
+    let node = (container as unknown as Record<string, { memoizedState?: unknown; return?: unknown }>)[fiberKey]
+    for (let depth = 0; node && depth < 200; depth += 1) {
+      let hook = (node as { memoizedState?: { memoizedState?: unknown; next?: unknown } }).memoizedState
+      for (let index = 0; hook && index < 40; index += 1) {
+        const value = (hook as { memoizedState?: unknown }).memoizedState as { current?: Record<string, never> }
+        const map = value?.current as unknown as {
+          queryTerrainElevation?: unknown
+          getTerrain?: () => unknown
+          loaded?: () => boolean
+          getLayer?: (id: string) => unknown
+          getSource?: (id: string) => unknown
+        }
+        if (map?.queryTerrainElevation) {
+          return {
+            loaded: Boolean(map.loaded?.()),
+            terrain: Boolean(map.getTerrain?.()),
+            hillshade: Boolean(map.getLayer?.('forestry-hillshade')),
+            treeLayer: Boolean(map.getLayer?.('forestry-trees')),
+          }
+        }
+        hook = (hook as { next?: unknown }).next as typeof hook
+      }
+      node = (node as { return?: unknown }).return as typeof node
+    }
+    return null
+  })
 }
 
 async function setNumberField(page: Page, label: string, value: string) {
@@ -259,6 +303,9 @@ test.describe('forestry visual quality', () => {
   })
 
   test('drives the corridor from eye level and reports what that point sees', async ({ page }) => {
+    // Now that the stubbed style loads, this really does switch on 3D terrain
+    // and render it on SwiftShader, which the 30 s default does not cover.
+    test.setTimeout(180_000)
     await stubBasemap(page)
     await stubTerrain(page)
     await stubVegetation(page)
@@ -275,16 +322,21 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText('Standing on the road')).toBeVisible()
     await expect(page.getByText('Visible from here, right now')).toBeVisible()
 
+    // Assert the map, not the copy: an eye-level view of flat sidebar text would
+    // pass just as well with terrain switched off entirely.
+    await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 60_000 }).toBe(true)
+    expect((await readMapState(page))?.hillshade).toBe(true)
+
     await expect(page.getByRole('button', { name: 'Drive', exact: true })).toBeEnabled()
     await page.getByRole('button', { name: 'Back to the map' }).click()
     await expect(page.getByText('Standing on the road')).toHaveCount(0)
+    // Leaving the drive puts the map back to a flat basemap.
+    await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 30_000 }).toBe(false)
   })
 
-  // The 3D stand itself is not covered here: the stubbed style never reports
-  // itself loaded, so nothing that waits on the map being ready runs. What is
-  // covered is the control and its copy; the geometry and placement carry unit
-  // tests, and the drawing was checked against live terrain in a real browser.
-  test('offers the 3D stand and says what bare ground means', async ({ page }) => {
+  test('stands the timber up around the viewpoint', async ({ page }) => {
+    // Placing forty thousand stems and rendering them in software is slow here.
+    test.setTimeout(240_000)
     await stubBasemap(page)
     await stubTerrain(page)
     await stubVegetation(page)
@@ -299,9 +351,17 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByLabel(/Stand height/)).toHaveValue('28')
     await expect(page.getByLabel(/Cleared width along the road/)).toBeVisible()
 
+    // The layer reports what it drew, so a shader, buffer or atlas failure shows
+    // up here as a count of zero or an error rather than a silently empty view.
+    await expect(page.getByText(/stems standing around the camera/)).toBeVisible({ timeout: 90_000 })
+    const stems = Number((await page.getByText(/stems standing around the camera/).innerText()).replace(/\D/g, ''))
+    expect(stems).toBeGreaterThan(1000)
+    expect((await readMapState(page))?.treeLayer).toBe(true)
+
     await page.getByRole('button', { name: 'Stand the timber up' }).click()
     await expect(page.getByText(/Bare ground/)).toBeVisible()
     await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
+    await expect.poll(async () => (await readMapState(page))?.treeLayer, { timeout: 30_000 }).toBe(false)
   })
 
   test('says which roads see the block, or that none on screen do', async ({ page }) => {
