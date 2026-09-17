@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { bufferLine, coniferMesh, crownColor, placeTrees } from './forest'
+import {
+  SPECIES_CROWN_RATIO,
+  TREE_SPECIES_IDS,
+  VARIANTS_PER_SPECIES,
+  bufferLine,
+  coniferMesh,
+  crownColor,
+  placeTrees,
+  speciesFromMix,
+} from './forest'
 import { pointInPolygon, polygonAreaMeters } from './visibility'
 
 function box(minLng: number, minLat: number, maxLng: number, maxLat: number): GeoJSON.Polygon {
@@ -227,6 +236,61 @@ describe('bufferLine', () => {
     expect(bufferLine([], 20)).toBeNull()
     expect(bufferLine([[0, 0]], 20)).toBeNull()
     expect(bufferLine(road, 0)).toBeNull()
+  })
+})
+
+describe('speciesFromMix', () => {
+  it('picks across the mix in proportion', () => {
+    const counts = new Map<string, number>()
+    for (let index = 0; index < 10_000; index += 1) {
+      const species = speciesFromMix(index / 10_000)
+      counts.set(species, (counts.get(species) ?? 0) + 1)
+    }
+    // Pine-leading, aspen a minor component — the default interior mix.
+    expect(counts.get('pine')! / 10_000).toBeCloseTo(0.42, 2)
+    expect(counts.get('aspen')! / 10_000).toBeCloseTo(0.12, 2)
+    expect(new Set(counts.keys()).size).toBe(4)
+  })
+
+  it('handles the ends and a mix that adds to nothing', () => {
+    expect(speciesFromMix(0)).toBe('pine')
+    expect(speciesFromMix(1)).toBe('aspen')
+    expect(speciesFromMix(0.5, [])).toBe('pine')
+    expect(speciesFromMix(0.5, [{ species: 'fir', share: 1 }])).toBe('fir')
+  })
+})
+
+describe('placeTrees species', () => {
+  it('gives every stem a species and a drawn variant', () => {
+    const trees = placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: 200, spacingMeters: 5 })
+
+    expect(trees.length).toBeGreaterThan(500)
+    expect(trees.every((tree) => TREE_SPECIES_IDS.includes(tree.species))).toBe(true)
+    expect(trees.every((tree) => tree.variant >= 0 && tree.variant < VARIANTS_PER_SPECIES)).toBe(true)
+    // A stand is mixed, not one species repeated.
+    expect(new Set(trees.map((tree) => tree.species)).size).toBe(4)
+  })
+
+  it('crowns each species around its own width', () => {
+    const trees = placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: 200, spacingMeters: 5 })
+    const firs = trees.filter((tree) => tree.species === 'fir')
+    const aspens = trees.filter((tree) => tree.species === 'aspen')
+    const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length
+
+    expect(mean(firs.map((tree) => tree.slenderness))).toBeLessThan(mean(aspens.map((tree) => tree.slenderness)))
+    expect(mean(firs.map((tree) => tree.slenderness))).toBeCloseTo(SPECIES_CROWN_RATIO.fir, 1)
+  })
+
+  it('follows the mix it is handed', () => {
+    const trees = placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: 150,
+      spacingMeters: 5,
+      speciesMix: [{ species: 'spruce', share: 1 }],
+    })
+    expect(trees.every((tree) => tree.species === 'spruce')).toBe(true)
   })
 })
 

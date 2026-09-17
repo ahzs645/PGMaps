@@ -16,7 +16,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useMap } from '@/components/ui/map'
 
 import { coniferMesh, placeTrees, type TreeInstance } from './forest'
-import { createTreeLayer } from './treeLayer'
+import { buildImpostorAtlas } from './impostor'
+import { createTreeLayer, type TreeStyle } from './treeLayer'
 import { haversineMeters, type PolygonGeometry } from './visibility'
 
 export type ForestOverlayProps = {
@@ -34,6 +35,11 @@ export type ForestOverlayProps = {
   clearings: PolygonGeometry[]
   standHeightMeters: number
   /**
+   * How a stem is drawn. Billboards are two triangles carrying a drawn tree;
+   * solid cones carry real geometry at roughly fifteen times the cost.
+   */
+  style?: TreeStyle
+  /**
    * How far the near, fully stocked patch reaches, in metres. Beyond it a
    * coarser shell carries out to `farRadiusMeters`.
    */
@@ -46,8 +52,8 @@ export type ForestOverlayProps = {
   farRadiusMeters?: number
   /** Matches the map's terrain exaggeration so stems sit on the rendered ground. */
   exaggeration?: number
-  /** Reports the stem count and any failure, for the panel to show. */
-  onStatus?: (status: { treeCount: number; error: string | null }) => void
+  /** Reports what was drawn and any failure, for the panel to show. */
+  onStatus?: (status: { treeCount: number; trianglesPerTree: number; error: string | null }) => void
 }
 
 const LAYER_ID = 'forestry-trees'
@@ -123,13 +129,17 @@ export function ForestOverlay({
   stands,
   clearings,
   standHeightMeters,
+  style = 'billboard',
   radiusMeters = 500,
   farRadiusMeters = 3000,
   exaggeration = 1,
   onStatus,
 }: ForestOverlayProps) {
   const { map, isLoaded } = useMap()
-  const mesh = useMemo(() => coniferMesh(), [])
+  const mesh = useMemo(() => (style === 'solid' ? coniferMesh() : undefined), [style])
+  // Drawn once and kept: the atlas is the same whatever the stand does, and
+  // rebuilding it on a regrow would redraw sixteen trees every station.
+  const atlas = useMemo(() => (style === 'billboard' ? buildImpostorAtlas() : undefined), [style])
 
   // The layer owns GPU buffers, so it is created once per drive and fed new
   // stems — rebuilding it whenever the eye moved would re-upload the mesh at
@@ -162,7 +172,7 @@ export function ForestOverlay({
   useEffect(() => {
     if (!map || !isLoaded || !active) return
 
-    const layer = createTreeLayer(LAYER_ID, mesh)
+    const layer = createTreeLayer(LAYER_ID, { style, mesh, atlas })
     try {
       // A style reload between renders can leave the old layer behind; removing
       // first keeps adding idempotent.
@@ -173,11 +183,12 @@ export function ForestOverlay({
       // the view bare with no explanation.
       onStatusRef.current?.({
         treeCount: 0,
+        trianglesPerTree: layer.trianglesPerTree,
         error: `Could not add the 3D stand: ${error instanceof Error ? error.message : String(error)}`,
       })
       return
     }
-    onStatusRef.current?.({ treeCount: 0, error: layer.error })
+    onStatusRef.current?.({ treeCount: 0, trianglesPerTree: layer.trianglesPerTree, error: layer.error })
 
     let disposed = false
 
@@ -226,7 +237,11 @@ export function ForestOverlay({
       layer.setTrees(trees)
       patchCentreRef.current = { lng: inputs.centre.lng, lat: inputs.centre.lat }
       map.triggerRepaint()
-      onStatusRef.current?.({ treeCount: trees.length, error: layer.error })
+      onStatusRef.current?.({
+        treeCount: trees.length,
+        trianglesPerTree: layer.trianglesPerTree,
+        error: layer.error,
+      })
     }
 
     regrowRef.current = regrow
@@ -249,7 +264,7 @@ export function ForestOverlay({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [active, isLoaded, map, mesh])
+  }, [active, atlas, isLoaded, map, mesh, style])
 
   // Driving past the far edge of the patch is the common case: the eye moves on,
   // the trees behind it are wasted, and the ground ahead has none.

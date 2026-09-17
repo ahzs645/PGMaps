@@ -35,6 +35,7 @@ import { ResultsPanel } from './ResultsPanel'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from './terrain'
 import type { AnalysisSettings, TargetPolygon, TargetRole, Viewpoint } from './types'
+import type { TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { lineLengthMeters } from './visibility'
 import {
@@ -76,6 +77,8 @@ export type DriveState = {
   treeHeightMeters: number
   /** Width of the timber-free strip along the road, in metres. */
   roadClearWidthMeters: number
+  /** How a stem is drawn: a camera-facing card, or real cone geometry. */
+  treeStyle: TreeStyle
 }
 
 const INPUT_CLASS =
@@ -162,7 +165,7 @@ type SidebarProps = {
   onUseRoad: (roadId: string) => void
 
   /** What the 3D stand is drawing, or why it is not. */
-  forestStatus: { treeCount: number; error: string | null } | null
+  forestStatus: { treeCount: number; trianglesPerTree: number; error: string | null } | null
 
   selectedTargetId: string | null
   onSelectTarget: (targetId: string) => void
@@ -1092,14 +1095,44 @@ export function Sidebar({
                         onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
                       />
                     </div>
+
+                    {/* Both are here to be compared: a card carrying a drawn
+                        tree against real cone geometry, at the same stem count. */}
+                    <div className="mt-3">
+                      <Field
+                        label="How a stem is drawn"
+                        hint={
+                          drive.treeStyle === 'billboard'
+                            ? 'A drawn tree on two triangles, turned to face you. Cheap enough to reach the block, and it reads as a tree at any distance.'
+                            : 'Real geometry with real normals. Lights correctly from any angle and is honest from above, at about fifteen times the triangles.'
+                        }
+                      >
+                        <div className="flex gap-1.5">
+                          <ToggleChip
+                            active={drive.treeStyle === 'billboard'}
+                            onClick={() => onDriveChange({ treeStyle: 'billboard' })}
+                          >
+                            Billboards
+                          </ToggleChip>
+                          <ToggleChip
+                            active={drive.treeStyle === 'solid'}
+                            onClick={() => onDriveChange({ treeStyle: 'solid' })}
+                          >
+                            Solid cones
+                          </ToggleChip>
+                        </div>
+                      </Field>
+                    </div>
                     {forestStatus?.error ? (
                       <InlineAlert className="mt-2" tone="error">
                         {forestStatus.error}
                       </InlineAlert>
                     ) : (
                       forestStatus !== null && (
-                        <p className="mt-1.5 text-[10px] text-muted-foreground">
-                          {forestStatus.treeCount.toLocaleString()} stems standing around the camera.
+                        <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+                          {forestStatus.treeCount.toLocaleString()} stems standing around the camera ·{' '}
+                          {forestStatus.trianglesPerTree} triangles each ·{' '}
+                          {((forestStatus.treeCount * forestStatus.trianglesPerTree) / 1e6).toFixed(2)}M a frame.
                         </p>
                       )
                     )}

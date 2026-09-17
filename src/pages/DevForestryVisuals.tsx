@@ -60,6 +60,7 @@ const DEFAULT_DRIVE: DriveState = {
   // Wider than a road, deliberately: at a true right-of-way width the near
   // timber fills the frame and nothing beyond it can be judged.
   roadClearWidthMeters: 90,
+  treeStyle: 'billboard',
 }
 
 const FIT_PADDING = { top: 72, bottom: 72, left: 48, right: 48 }
@@ -127,7 +128,11 @@ function DevForestryVisuals() {
   const [driveStationIndex, setDriveStationIndex] = useState(0)
   const [seekVersion, setSeekVersion] = useState(0)
   const [snapMessage, setSnapMessage] = useState<string | null>(null)
-  const [forestStatus, setForestStatus] = useState<{ treeCount: number; error: string | null } | null>(null)
+  const [forestStatus, setForestStatus] = useState<{
+    treeCount: number
+    trianglesPerTree: number
+    error: string | null
+  } | null>(null)
   // The roads the last reverse run was scored against, so a result can be
   // turned back into a corridor without re-querying a map that has since moved.
   const reverseRoadsRef = useRef<RoadCandidate[]>([])
@@ -749,6 +754,7 @@ function DevForestryVisuals() {
           stands={forestStands}
           clearings={forestClearings}
           standHeightMeters={drive.treeHeightMeters}
+          style={drive.treeStyle}
           exaggeration={drive.exaggeration}
           onStatus={setForestStatus}
         />

@@ -14,16 +14,63 @@
 
 import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
 
+/** The species a BC interior stand is actually made of. */
+export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'aspen'
+
+export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'aspen']
+
+/** Drawn silhouettes per species, so a stand is not one tree repeated. */
+export const VARIANTS_PER_SPECIES = 4
+
+/**
+ * Roughly a managed SBS/ESSF landscape west of Prince George: pine-leading,
+ * spruce and subalpine fir through it, a little aspen on the better sites.
+ * A drawn mix, not a cruise — it changes how the stand reads, not any number.
+ */
+export const DEFAULT_SPECIES_MIX: ReadonlyArray<{ species: TreeSpeciesId; share: number }> = [
+  { species: 'pine', share: 0.42 },
+  { species: 'spruce', share: 0.28 },
+  { species: 'fir', share: 0.18 },
+  { species: 'aspen', share: 0.12 },
+]
+
+/** Crown width over tree height, by species. Drives the solid-cone geometry. */
+export const SPECIES_CROWN_RATIO: Record<TreeSpeciesId, number> = {
+  pine: 0.3,
+  spruce: 0.34,
+  fir: 0.25,
+  aspen: 0.44,
+}
+
 export type TreeInstance = {
   lng: number
   lat: number
   /** Ground elevation at the stem, in metres. Filled by the caller from the terrain. */
   elevationMeters: number
   heightMeters: number
-  /** Crown width relative to height — a spruce is narrow, a hemlock broad. */
+  /** Crown width relative to height — a fir is narrow, an aspen broad. */
   slenderness: number
   /** 0–1, varies the crown colour so a stand does not read as one flat green. */
   tone: number
+  species: TreeSpeciesId
+  /** Which drawn silhouette of that species this stem uses. */
+  variant: number
+}
+
+/** Picks a species from a mix, given a value in [0, 1). */
+export function speciesFromMix(
+  value: number,
+  mix: ReadonlyArray<{ species: TreeSpeciesId; share: number }> = DEFAULT_SPECIES_MIX,
+): TreeSpeciesId {
+  const total = mix.reduce((sum, entry) => sum + Math.max(0, entry.share), 0)
+  if (total <= 0) return 'pine'
+  let running = 0
+  const target = Math.max(0, Math.min(0.999999, value)) * total
+  for (const entry of mix) {
+    running += Math.max(0, entry.share)
+    if (target < running) return entry.species
+  }
+  return mix[mix.length - 1].species
 }
 
 /** Deck.gl's plain-object mesh form, which carries indices through. */
@@ -157,6 +204,8 @@ export type TreePlacementOptions = {
   heightMeters?: number
   /** Hard ceiling, so a wide patch cannot stall the frame. */
   maxTrees?: number
+  /** Species composition of the stand. Defaults to a BC interior mix. */
+  speciesMix?: ReadonlyArray<{ species: TreeSpeciesId; share: number }>
   seed?: number
 }
 
@@ -180,6 +229,7 @@ export function placeTrees({
   spacingMeters = 3.2,
   heightMeters = 28,
   maxTrees = 60_000,
+  speciesMix = DEFAULT_SPECIES_MIX,
   seed = 1,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
@@ -250,13 +300,18 @@ export function placeTrees({
       // A gap in a real stand is a blowdown or a wet spot, not a lawn.
       if (random() < 0.06) continue
 
+      const species = speciesFromMix(random(), speciesMix)
       trees.push({
         lng,
         lat,
         elevationMeters: 0,
         heightMeters: heightMeters * (0.55 + random() * 0.75),
-        slenderness: 0.32 + random() * 0.24,
+        // Species sets the crown, with a little spread inside it — no two trees
+        // in a stand are the same shape.
+        slenderness: SPECIES_CROWN_RATIO[species] * (0.85 + random() * 0.3),
         tone: random(),
+        species,
+        variant: Math.floor(random() * VARIANTS_PER_SPECIES) % VARIANTS_PER_SPECIES,
       })
       if (trees.length >= maxTrees) return trees
     }

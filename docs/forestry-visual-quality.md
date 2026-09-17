@@ -258,6 +258,46 @@ is what a visual quality objective is actually written about — a coloured
 polygon on a bare hillside tells you where a block is, not whether you can see
 it.
 
+### How a stem is drawn
+
+Two ways, and the panel switches between them so they can be compared at the
+same camera and the same stem count.
+
+**Billboards** (the default) put the tree in a texture and stand each stem up as
+two triangles, turned to face the camera. It is what forest visualisers do,
+because a stand you can see a cutblock across is tens of thousands of stems and
+modelled geometry at that count buys detail nobody can resolve past a hundred
+metres. At 41,000 stems that is **0.08M triangles a frame against 1.44M** for
+cones — eighteen times less — and it looks far better, because a drawn
+silhouette with a bole and drooping whorls reads as a tree and a cone never does.
+
+**Solid cones** carry real geometry and real normals, so they light correctly
+from any angle and are honest from directly above. They are kept for that, and
+for comparison.
+
+The silhouettes are generated in `impostor.ts` rather than shipped as assets:
+four BC interior species (lodgepole pine's long clean bole and short crown,
+interior spruce's spire to near the ground, subalpine fir narrower still,
+trembling aspen's rounded crown over a pale stem), four drawn variants each,
+into one 16-cell atlas. Nothing to license, nothing to download, and the stand
+can be redrawn for a different species mix without an art pipeline. The default
+mix is pine-leading with spruce and fir through it and a little aspen — a drawn
+mix, not a cruise.
+
+Two details the billboard path turns on:
+
+- **Cut out, do not blend.** Blended foliage needs back-to-front sorting and a
+  stand has no back to front. A hard alpha edge costs some aliasing and keeps
+  the depth buffer honest, so trees behind a ridge stay behind it.
+- **The view direction comes out of the matrix.** MapLibre publishes no camera
+  position, and the one place it keeps internally is the value that misleads
+  deck.gl. The row of the projection matrix that produces clip `w` measures
+  distance from the camera along the view axis, so its gradient
+  `(m[3], m[7], m[11])` is the view direction — enough to turn a cylindrical
+  billboard, and it cannot disagree with the matrix that drew the ground.
+
+### Growing the patch
+
 Three things this needs to get right, all learned the hard way:
 
 - **The patch follows the eye, not the map centre.** With the camera at ground
@@ -302,7 +342,8 @@ matrix that projected the ground under them.
 | `src/pages/dev-forestry/TerrainSupport.tsx` | Hillshade, 3D terrain, and sky |
 | `src/pages/dev-forestry/reverseViewshed.ts` | Working backwards: which roads can see a block |
 | `src/pages/dev-forestry/roadSnap.ts` | Roads from the basemap; locking a drawn line onto one |
-| `src/pages/dev-forestry/forest.ts` | Tree geometry, stem placement, and the road buffer |
+| `src/pages/dev-forestry/forest.ts` | Cone geometry, stem placement, species mix, and the road buffer |
+| `src/pages/dev-forestry/impostor.ts` | Drawn tree silhouettes and the atlas they are packed into |
 | `src/pages/dev-forestry/treeLayer.ts` | The MapLibre custom layer that draws the stand |
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 

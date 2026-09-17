@@ -1,5 +1,15 @@
 /**
- * A MapLibre custom layer that draws the stand as instanced 3D trees.
+ * A MapLibre custom layer that draws the stand, instanced.
+ *
+ * Two ways to draw a tree, both here:
+ *
+ * - **Billboards** (the default) put the tree in a texture and stand each stem
+ *   up as two triangles turned to face the camera. It is what forest visualisers
+ *   do, because a stand you can see a cutblock across is tens of thousands of
+ *   stems and modelled geometry at that count buys detail nobody can resolve.
+ * - **Solid** cones carry real geometry and real normals. They light correctly
+ *   from any angle and read honestly from above, at about fifteen times the
+ *   triangle count and without ever quite looking like a tree.
  *
  * This deliberately takes MapLibre's own projection matrix rather than going
  * through a deck.gl overlay. With 3D terrain and a camera at eye level, the
@@ -10,13 +20,14 @@
  * whole camera-sync question: the trees are projected by exactly the matrix that
  * projected the ground under them.
  *
- * MIT throughout: MapLibre for the map, our own geometry and shaders.
+ * MIT throughout: MapLibre for the map, our own geometry, silhouettes and shaders.
  */
 
 import { MercatorCoordinate } from 'maplibre-gl'
 
 import type { ForestMesh, TreeInstance } from './forest'
 import { crownColor } from './forest'
+import { BILLBOARD_ASPECT, atlasCell, type ImpostorAtlas } from './impostor'
 
 /** What MapLibre v5 hands a custom layer's render method. */
 type RenderArgs = {
@@ -24,7 +35,9 @@ type RenderArgs = {
   defaultProjectionData?: { mainMatrix?: Float32Array | number[] }
 }
 
-const VERTEX_SHADER = `#version 300 es
+export type TreeStyle = 'billboard' | 'solid'
+
+const SOLID_VERTEX_SHADER = `#version 300 es
 precision highp float;
 
 in vec3 a_position;
@@ -53,7 +66,7 @@ void main() {
   v_normal = normalize(vec3(a_normal.x / a_scale.x, -a_normal.y / a_scale.x, a_normal.z / a_scale.y));
 }`
 
-const FRAGMENT_SHADER = `#version 300 es
+const SOLID_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
 in vec3 v_color;
@@ -71,6 +84,66 @@ void main() {
   fragColor = vec4(v_color * (0.30 + 0.24 * sky + 0.62 * lambert), 1.0);
 }`
 
+const BILLBOARD_VERTEX_SHADER = `#version 300 es
+precision highp float;
+
+/** Card corner: x across in [-0.5, 0.5], y up in [0, 1]. */
+in vec2 a_corner;
+/** Mercator position of the stem base. */
+in vec3 a_offset;
+/** Card width and height, in metres. */
+in vec2 a_scale;
+/** Top-left of this tree's cell in the atlas. */
+in vec2 a_cell;
+/** Per-stem tint, so a stand is not one drawing repeated in one colour. */
+in vec3 a_tint;
+
+uniform mat4 u_matrix;
+uniform float u_meterScale;
+uniform vec2 u_cellSize;
+
+out vec2 v_uv;
+out vec3 v_tint;
+
+void main() {
+  // Which way the camera looks, read off the matrix it handed us. The row that
+  // produces clip w measures distance from the camera along the view axis, so
+  // its gradient is the view direction — no camera position needed, which is
+  // just as well, because MapLibre does not publish one.
+  vec3 view = vec3(u_matrix[0][3], u_matrix[1][3], u_matrix[2][3]);
+
+  // Cylindrical billboard: the card turns about the stem but never tips, so a
+  // tree seen from above reads as standing rather than fallen. Screen-aligned
+  // rather than aimed at a point, which keeps a stand from fanning out.
+  vec3 right = cross(view, vec3(0.0, 0.0, 1.0));
+  float span = length(right);
+  vec2 across = span > 1e-12 ? right.xy / span : vec2(1.0, 0.0);
+
+  vec3 metres = vec3(across * (a_corner.x * a_scale.x), a_corner.y * a_scale.y);
+  gl_Position = u_matrix * vec4(a_offset + metres * u_meterScale, 1.0);
+
+  // The atlas is drawn y-down from the top of the cell.
+  v_uv = a_cell + vec2(a_corner.x + 0.5, 1.0 - a_corner.y) * u_cellSize;
+  v_tint = a_tint;
+}`
+
+const BILLBOARD_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+
+in vec2 v_uv;
+in vec3 v_tint;
+uniform sampler2D u_atlas;
+out vec4 fragColor;
+
+void main() {
+  vec4 texel = texture(u_atlas, v_uv);
+  // Cut out rather than blend: blended foliage needs back-to-front sorting, and
+  // a stand has no back to front. A hard edge costs some aliasing and keeps the
+  // depth buffer honest, so trees behind a ridge stay behind it.
+  if (texel.a < 0.45) discard;
+  fragColor = vec4(texel.rgb * v_tint, 1.0);
+}`
+
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
   const shader = gl.createShader(type)!
   gl.shaderSource(shader, source)
@@ -81,6 +154,29 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
     throw new Error(`Tree shader failed to compile: ${log}`)
   }
   return shader
+}
+
+function link(gl: WebGL2RenderingContext, vertexSource: string, fragmentSource: string): WebGLProgram {
+  const program = gl.createProgram()!
+  const vertex = compile(gl, gl.VERTEX_SHADER, vertexSource)
+  const fragment = compile(gl, gl.FRAGMENT_SHADER, fragmentSource)
+  gl.attachShader(program, vertex)
+  gl.attachShader(program, fragment)
+  gl.linkProgram(program)
+  gl.deleteShader(vertex)
+  gl.deleteShader(fragment)
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(program) ?? 'link failed')
+  }
+  return program
+}
+
+export type TreeLayerOptions = {
+  style: TreeStyle
+  /** Required for `solid`. */
+  mesh?: ForestMesh
+  /** Required for `billboard`. */
+  atlas?: ImpostorAtlas
 }
 
 export type TreeLayer = {
@@ -94,38 +190,52 @@ export type TreeLayer = {
   setTrees: (trees: TreeInstance[]) => void
   /** How many stems the layer last drew — for tests and diagnostics. */
   readonly treeCount: number
+  /** Triangles per stem, which is the whole point of the billboard path. */
+  readonly trianglesPerTree: number
   /** Set when the layer could not start, so a caller can say why. */
   readonly error: string | null
 }
 
 /**
- * Builds the layer. The mesh is uploaded once; each regrow only rewrites the
- * per-instance buffers, which is a few megabytes rather than a rebuild.
+ * Builds the layer. The card or mesh is uploaded once; each regrow only
+ * rewrites the per-instance buffers.
  */
-export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
+export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLayer {
+  const billboard = options.style === 'billboard'
+
   let gl: WebGL2RenderingContext | null = null
   let program: WebGLProgram | null = null
   let vao: WebGLVertexArrayObject | null = null
+  let texture: WebGLTexture | null = null
+
   let matrixLocation: WebGLUniformLocation | null = null
   let meterScaleLocation: WebGLUniformLocation | null = null
+  let cellSizeLocation: WebGLUniformLocation | null = null
+  let atlasLocation: WebGLUniformLocation | null = null
 
+  const instanceBuffers: WebGLBuffer[] = []
   let offsetBuffer: WebGLBuffer | null = null
   let scaleBuffer: WebGLBuffer | null = null
-  let colorBuffer: WebGLBuffer | null = null
+  let thirdBuffer: WebGLBuffer | null = null
+  let tintBuffer: WebGLBuffer | null = null
 
   let pending: TreeInstance[] | null = null
   let instanceCount = 0
   let meterScale = 1
   let error: string | null = null
 
-  const indexCount = mesh.indices.value.length
+  const atlas = options.atlas
+  const mesh = options.mesh
+  const indexCount = billboard ? 6 : (mesh?.indices.value.length ?? 0)
 
   const upload = (trees: TreeInstance[]) => {
-    if (!gl || !offsetBuffer) return
+    if (!gl || !offsetBuffer || !scaleBuffer || !thirdBuffer) return
 
     const offsets = new Float32Array(trees.length * 3)
     const scales = new Float32Array(trees.length * 2)
-    const colors = new Float32Array(trees.length * 3)
+    // Billboards carry the atlas cell here; solid trees carry a crown colour.
+    const third = new Float32Array(trees.length * (billboard ? 2 : 3))
+    const tints = billboard ? new Float32Array(trees.length * 3) : null
 
     if (trees.length > 0) {
       // One metre is worth the same in mercator units across a patch this size,
@@ -140,21 +250,39 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
       offsets[index * 3 + 1] = mercator.y
       offsets[index * 3 + 2] = mercator.z ?? 0
 
-      scales[index * 2] = tree.heightMeters * tree.slenderness
+      // A card is drawn at one aspect and the species fills as much of it as its
+      // crown needs, so every card is the same shape in the world.
+      scales[index * 2] = tree.heightMeters * (billboard ? BILLBOARD_ASPECT : tree.slenderness)
       scales[index * 2 + 1] = tree.heightMeters
 
-      const [red, green, blue] = crownColor(tree.tone)
-      colors[index * 3] = red / 255
-      colors[index * 3 + 1] = green / 255
-      colors[index * 3 + 2] = blue / 255
+      if (billboard && atlas && tints) {
+        const [u, v] = atlasCell(atlas, tree.species, tree.variant)
+        third[index * 2] = u
+        third[index * 2 + 1] = v
+        // The drawing already carries its colour; this only shifts it a little,
+        // warmer or cooler, so a stand is not one tree stamped out.
+        const warmth = 0.86 + tree.tone * 0.26
+        tints[index * 3] = warmth
+        tints[index * 3 + 1] = 0.9 + (1 - tree.tone) * 0.18
+        tints[index * 3 + 2] = 0.84 + tree.tone * 0.2
+      } else {
+        const [red, green, blue] = crownColor(tree.tone)
+        third[index * 3] = red / 255
+        third[index * 3 + 1] = green / 255
+        third[index * 3 + 2] = blue / 255
+      }
     })
 
     gl.bindBuffer(gl.ARRAY_BUFFER, offsetBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, offsets, gl.DYNAMIC_DRAW)
     gl.bindBuffer(gl.ARRAY_BUFFER, scaleBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, scales, gl.DYNAMIC_DRAW)
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
-    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW)
+    gl.bindBuffer(gl.ARRAY_BUFFER, thirdBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, third, gl.DYNAMIC_DRAW)
+    if (tints && tintBuffer) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, tintBuffer)
+      gl.bufferData(gl.ARRAY_BUFFER, tints, gl.DYNAMIC_DRAW)
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, null)
 
     instanceCount = trees.length
@@ -165,25 +293,25 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
     type: 'custom',
     renderingMode: '3d',
 
-    onAdd(_map, context) {
+    onAdd(_host, context) {
       if (typeof WebGL2RenderingContext === 'undefined' || !(context instanceof WebGL2RenderingContext)) {
         error = 'The 3D stand needs WebGL 2, which this browser did not give the map.'
+        return
+      }
+      if (billboard && !atlas) {
+        error = 'The 3D stand has no tree atlas to draw from.'
+        return
+      }
+      if (!billboard && !mesh) {
+        error = 'The 3D stand has no tree mesh to draw from.'
         return
       }
       gl = context
 
       try {
-        program = gl.createProgram()!
-        const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER)
-        const fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER)
-        gl.attachShader(program, vertex)
-        gl.attachShader(program, fragment)
-        gl.linkProgram(program)
-        gl.deleteShader(vertex)
-        gl.deleteShader(fragment)
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          throw new Error(gl.getProgramInfoLog(program) ?? 'link failed')
-        }
+        program = billboard
+          ? link(gl, BILLBOARD_VERTEX_SHADER, BILLBOARD_FRAGMENT_SHADER)
+          : link(gl, SOLID_VERTEX_SHADER, SOLID_FRAGMENT_SHADER)
       } catch (linkError) {
         error = linkError instanceof Error ? linkError.message : String(linkError)
         program = null
@@ -192,6 +320,8 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
 
       matrixLocation = gl.getUniformLocation(program, 'u_matrix')
       meterScaleLocation = gl.getUniformLocation(program, 'u_meterScale')
+      cellSizeLocation = gl.getUniformLocation(program, 'u_cellSize')
+      atlasLocation = gl.getUniformLocation(program, 'u_atlas')
 
       vao = gl.createVertexArray()
       gl.bindVertexArray(vao)
@@ -205,27 +335,58 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
         gl!.vertexAttribPointer(location, size, gl!.FLOAT, false, 0, 0)
         return buffer
       }
-      const instanceBuffer = (location: number, size: number) => {
+      const perInstance = (location: number, size: number) => {
         const buffer = gl!.createBuffer()
         gl!.bindBuffer(gl!.ARRAY_BUFFER, buffer)
         gl!.enableVertexAttribArray(location)
         gl!.vertexAttribPointer(location, size, gl!.FLOAT, false, 0, 0)
         gl!.vertexAttribDivisor(location, 1)
+        instanceBuffers.push(buffer!)
         return buffer
       }
 
-      staticBuffer(mesh.attributes.positions.value, attribute('a_position'), 3)
-      staticBuffer(mesh.attributes.normals.value, attribute('a_normal'), 3)
-      offsetBuffer = instanceBuffer(attribute('a_offset'), 3)
-      scaleBuffer = instanceBuffer(attribute('a_scale'), 2)
-      colorBuffer = instanceBuffer(attribute('a_color'), 3)
+      if (billboard) {
+        // One quad, standing on the ground, centred on the stem.
+        const corners = new Float32Array([-0.5, 0, 0.5, 0, 0.5, 1, -0.5, 1])
+        staticBuffer(corners, attribute('a_corner'), 2)
+        offsetBuffer = perInstance(attribute('a_offset'), 3)
+        scaleBuffer = perInstance(attribute('a_scale'), 2)
+        thirdBuffer = perInstance(attribute('a_cell'), 2)
+        tintBuffer = perInstance(attribute('a_tint'), 3)
 
-      const indexBuffer = gl.createBuffer()
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices.value, gl.STATIC_DRAW)
+        const indexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW)
+      } else {
+        staticBuffer(mesh!.attributes.positions.value, attribute('a_position'), 3)
+        staticBuffer(mesh!.attributes.normals.value, attribute('a_normal'), 3)
+        offsetBuffer = perInstance(attribute('a_offset'), 3)
+        scaleBuffer = perInstance(attribute('a_scale'), 2)
+        thirdBuffer = perInstance(attribute('a_color'), 3)
+
+        const indexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh!.indices.value, gl.STATIC_DRAW)
+      }
 
       gl.bindVertexArray(null)
       gl.bindBuffer(gl.ARRAY_BUFFER, null)
+
+      if (billboard && atlas) {
+        texture = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas.canvas)
+        // Mipmaps are what stop the far shell from crawling as the camera moves.
+        gl.generateMipmap(gl.TEXTURE_2D)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        // Clamp, or a crown wraps into the cell on the far side of the atlas.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+        gl.bindTexture(gl.TEXTURE_2D, null)
+      }
 
       if (pending) {
         upload(pending)
@@ -237,15 +398,17 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
       if (!gl) return
       if (vao) gl.deleteVertexArray(vao)
       if (program) gl.deleteProgram(program)
-      for (const buffer of [offsetBuffer, scaleBuffer, colorBuffer]) {
-        if (buffer) gl.deleteBuffer(buffer)
-      }
+      if (texture) gl.deleteTexture(texture)
+      for (const buffer of instanceBuffers) gl.deleteBuffer(buffer)
+      instanceBuffers.length = 0
       gl = null
       program = null
       vao = null
+      texture = null
       offsetBuffer = null
       scaleBuffer = null
-      colorBuffer = null
+      thirdBuffer = null
+      tintBuffer = null
       instanceCount = 0
     },
 
@@ -261,11 +424,19 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
       gl.uniformMatrix4fv(matrixLocation, false, matrix as Float32Array)
       gl.uniform1f(meterScaleLocation, meterScale)
 
+      if (billboard && atlas) {
+        gl.uniform2f(cellSizeLocation, 1 / atlas.columns, 1 / atlas.rows)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+        gl.uniform1i(atlasLocation, 0)
+      }
+
       gl.enable(gl.DEPTH_TEST)
       gl.depthFunc(gl.LEQUAL)
       gl.depthMask(true)
       gl.disable(gl.BLEND)
-      // Cone sides are single triangles whose winding varies, so both faces draw.
+      // Cards are seen from both sides, and cone sides are single triangles whose
+      // winding varies, so nothing is culled either way.
       gl.disable(gl.CULL_FACE)
 
       gl.bindVertexArray(vao)
@@ -280,6 +451,10 @@ export function createTreeLayer(id: string, mesh: ForestMesh): TreeLayer {
 
     get treeCount() {
       return instanceCount
+    },
+
+    get trianglesPerTree() {
+      return indexCount / 3
     },
 
     get error() {
