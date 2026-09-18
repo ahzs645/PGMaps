@@ -1,235 +1,87 @@
-import { useEffect, useRef } from 'react'
-
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMap } from '@/components/ui/map'
-
-import { bearingDegrees, haversineMeters } from './visibility'
-
-/**
- * MapLibre treats pitch as the angle from straight down, so 90° is the horizon.
- * Past 85° the renderer is documented as experimental, so views that would look
- * further up a hillside are clamped here instead.
- */
-const MAX_PITCH = 85
-const MIN_PITCH = 30
-
-export type DriveStation = {
-  lng: number
-  lat: number
-  groundElevationMeters: number
-  distanceAlongMeters: number
+import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
+import { roadPath, type DriveLookAt, type DriveStation } from './driveMath'
+export type { DriveLookAt, DriveStation } from './driveMath'
+type Props = {
+  active: boolean; playing: boolean; stations: DriveStation[]
+  roadCoordinates?: Array<[number, number]>
+  seekMeters: number; seekVersion: number; speedMetersPerSecond: number; eyeHeightMeters: number
+  lookAt: DriveLookAt | null; spotBearing: number
+  onPosition: (position: DrivePose) => void; onReachEnd?: () => void; onPause?: () => void; onExit?: () => void
 }
-
-export type DriveLookAt = {
-  lng: number
-  lat: number
-  elevationMeters: number
-}
-
-type DriveCameraProps = {
-  active: boolean
-  playing: boolean
-  stations: DriveStation[]
-  /** Metres from the start of the corridor to start at, or resume from after a seek. */
-  seekMeters: number
-  /** Bumped by the caller to force a jump to `seekMeters`. */
-  seekVersion: number
-  speedMetersPerSecond: number
-  eyeHeightMeters: number
-  /** Where to face. Null looks along the direction of travel. */
-  lookAt: DriveLookAt | null
-  /** Compass bearing used when `lookAt` is null and the corridor is a single spot. */
-  spotBearing: number
-  onPosition: (position: { distanceMeters: number; stationIndex: number }) => void
-  onReachEnd?: () => void
-}
-
-type Placement = {
-  lng: number
-  lat: number
-  groundElevationMeters: number
-  travelBearing: number
-  stationIndex: number
-}
-
-/** Position, ground height, and direction of travel at a distance along the corridor. */
-function placementAt(stations: DriveStation[], distanceMeters: number): Placement | null {
-  if (stations.length === 0) return null
-  if (stations.length === 1) {
-    const only = stations[0]
-    return { ...only, travelBearing: 0, stationIndex: 0 }
-  }
-
-  const total = stations[stations.length - 1].distanceAlongMeters
-  const clamped = Math.max(0, Math.min(total, distanceMeters))
-
-  let index = 1
-  while (index < stations.length - 1 && stations[index].distanceAlongMeters < clamped) index += 1
-  const previous = stations[index - 1]
-  const next = stations[index]
-  const span = next.distanceAlongMeters - previous.distanceAlongMeters
-  const fraction = span > 0 ? (clamped - previous.distanceAlongMeters) / span : 0
-
-  return {
-    lng: previous.lng + (next.lng - previous.lng) * fraction,
-    lat: previous.lat + (next.lat - previous.lat) * fraction,
-    groundElevationMeters:
-      previous.groundElevationMeters + (next.groundElevationMeters - previous.groundElevationMeters) * fraction,
-    travelBearing: bearingDegrees(previous, next),
-    // The station whose precomputed visibility applies here.
-    stationIndex: fraction < 0.5 ? index - 1 : index,
-  }
-}
-
-/**
- * Drives the map camera along the corridor at eye height.
- *
- * The camera is placed from an explicit position, altitude, and rotation rather
- * than by framing a point at some zoom: standing on a road needs a real eye
- * height above the terrain, not a distance derived from zoom. Bearing and pitch
- * are worked out here and clamped before they are handed over, so a view that
- * wants to look further up a hillside than MapLibre allows still keeps the
- * camera exactly on the road.
- *
- * Playback runs from `requestAnimationFrame` and keeps its own position in a
- * ref, reporting back only a few times a second, so a frame of camera work
- * never costs a React render of the whole page.
- */
-export function DriveCamera({
-  active,
-  playing,
-  stations,
-  seekMeters,
-  seekVersion,
-  speedMetersPerSecond,
-  eyeHeightMeters,
-  lookAt,
-  spotBearing,
-  onPosition,
-  onReachEnd,
-}: DriveCameraProps) {
+/** Look-around owns pointer gestures only while driving; the ordinary map is fully restored on exit. */
+export function DriveCamera(props: Props) {
   const { map, isLoaded } = useMap()
-  const distanceRef = useRef(seekMeters)
-  const propsRef = useRef({
-    playing,
-    stations,
-    speedMetersPerSecond,
-    eyeHeightMeters,
-    lookAt,
-    spotBearing,
-    onPosition,
-    onReachEnd,
-  })
-  // The animation frame reads the latest props without being torn down and
-  // rebuilt on every render, which would restart playback each time.
+  const controllerRef = useRef<DriveController | null>(null)
+  const [status, setStatus] = useState<DriveStatus>('waiting-for-terrain')
+  const [view, setView] = useState({ yaw: 0, tilt: 0 })
+  // The animation frame reads the latest look and props without the effect
+  // below being torn down and rebuilt, which would restart playback per render.
+  const viewRef = useRef(view)
+  const propsRef = useRef(props)
+  useEffect(() => { viewRef.current = view; propsRef.current = props })
+  const coordinates = useMemo(() => props.roadCoordinates ?? props.stations.map((p): [number, number] => [p.lng, p.lat]), [props.roadCoordinates, props.stations])
+  const path = useMemo(() => roadPath(coordinates), [coordinates])
+  useEffect(() => { controllerRef.current?.seek(propsRef.current.seekMeters) }, [props.seekVersion]) // reports do not trigger seeks
   useEffect(() => {
-    propsRef.current = {
-      playing,
-      stations,
-      speedMetersPerSecond,
-      eyeHeightMeters,
-      lookAt,
-      spotBearing,
-      onPosition,
-      onReachEnd,
-    }
-  })
-
-  useEffect(() => {
-    distanceRef.current = seekMeters
-  }, [seekMeters, seekVersion])
-
-  useEffect(() => {
-    if (!active || !isLoaded || !map) return
-
-    // Looking across a valley needs more pitch than the default 60° allows, and
-    // the camera has to be free of the ground to sit at eye height above it.
-    const previousMaxPitch = map.getMaxPitch()
-    const previousClamped = map.getCenterClampedToGround()
-    map.setMaxPitch(MAX_PITCH)
-    map.setCenterClampedToGround(false)
-
-    let frame = 0
-    let lastFrameAt = performance.now()
-    let lastReportAt = 0
-
-    const render = (now: number) => {
-      frame = requestAnimationFrame(render)
-      const elapsedSeconds = Math.min(0.25, (now - lastFrameAt) / 1000)
-      lastFrameAt = now
-
+    if (!props.active || !map || !isLoaded || !path.length) return
+    const controller = new DriveController(map as unknown as DriveMap, path, props.stations)
+    controllerRef.current = controller
+    controller.start(propsRef.current.seekMeters)
+    let frame = 0, disposed = false
+    const render = (time: number) => {
+      if (disposed) return
       const current = propsRef.current
-      const total = current.stations.length > 0 ? current.stations[current.stations.length - 1].distanceAlongMeters : 0
-
-      if (current.playing && total > 0) {
-        distanceRef.current += current.speedMetersPerSecond * elapsedSeconds
-        if (distanceRef.current >= total) {
-          distanceRef.current = total
-          current.onReachEnd?.()
-        }
-      }
-
-      const placement = placementAt(current.stations, distanceRef.current)
-      if (!placement) return
-
-      // Prefer the elevation MapLibre is actually rendering, so the camera sits
-      // on the terrain the viewer sees rather than slightly through it. It
-      // answers NaN as well as null while terrain tiles are still arriving, and
-      // a NaN altitude reaches MapLibre's matrix maths as a broken camera.
-      const renderedElevation = map.queryTerrainElevation([placement.lng, placement.lat])
-      const groundElevation = Number.isFinite(renderedElevation)
-        ? (renderedElevation as number)
-        : Number.isFinite(placement.groundElevationMeters)
-          ? placement.groundElevationMeters
-          : 0
-      const eyeElevation = groundElevation + current.eyeHeightMeters
-
-      let bearing = current.lookAt
-        ? bearingDegrees(placement, current.lookAt)
-        : current.stations.length > 1
-          ? placement.travelBearing
-          : current.spotBearing
-      let pitch = MAX_PITCH
-
-      if (current.lookAt) {
-        const groundDistance = haversineMeters(placement, current.lookAt)
-        if (groundDistance > 1) {
-          const riseAngle = (Math.atan2(current.lookAt.elevationMeters - eyeElevation, groundDistance) * 180) / Math.PI
-          pitch = Math.max(MIN_PITCH, Math.min(MAX_PITCH, 90 + riseAngle))
-        }
-      }
-      if (!Number.isFinite(bearing)) bearing = 0
-
-      // Roll has to be passed: MapLibre copies the argument through as
-      // `roll: undefined`, and `jumpTo` treats the key as present and
-      // normalises it to NaN, which leaves the transform's projection matrices
-      // null for every later frame.
-      const camera = map.calculateCameraOptionsFromCameraLngLatAltRotation(
-        { lng: placement.lng, lat: placement.lat },
-        eyeElevation,
-        bearing,
-        pitch,
-        0,
-      )
-      // A non-finite zoom or elevation would corrupt the transform the same way.
-      if (!Number.isFinite(camera.zoom) || !Number.isFinite(camera.elevation ?? 0)) return
-      map.jumpTo(camera)
-
-      if (now - lastReportAt > 120) {
-        lastReportAt = now
-        current.onPosition({
-          distanceMeters: distanceRef.current,
-          stationIndex: placement.stationIndex,
-        })
+      const options: DriveOptions = { ...current, ...viewRef.current, onStatus: setStatus }
+      controller.tick(time, options)
+      frame = requestAnimationFrame(render)
+    }
+    const canvas = map.getCanvas()
+    const oldTouchAction = canvas.style.touchAction
+    canvas.style.touchAction = 'none'
+    let dragging: { id: number; x: number; y: number } | null = null
+    const down = (event: PointerEvent) => {
+      if (event.button !== 0) return
+      event.preventDefault(); dragging = { id: event.pointerId, x: event.clientX, y: event.clientY }
+      canvas.setPointerCapture(event.pointerId); canvas.focus()
+    }
+    const move = (event: PointerEvent) => {
+      if (!dragging || event.pointerId !== dragging.id) return
+      const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y
+      dragging.x = event.clientX; dragging.y = event.clientY
+      setView((v) => ({ yaw: v.yaw - dx * 0.15, tilt: Math.max(-45, Math.min(20, v.tilt + dy * 0.12)) }))
+    }
+    const up = (event: PointerEvent) => { if (dragging?.id === event.pointerId) { if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId); dragging = null } }
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); propsRef.current.onExit?.() }
+      else if (event.key === ' ') { event.preventDefault(); propsRef.current.onPause?.() }
+      else if (event.key.toLowerCase() === 'r') setView({ yaw: 0, tilt: 0 })
+      else if (event.key.startsWith('Arrow')) {
+        event.preventDefault()
+        setView((v) => ({ yaw: v.yaw + (event.key === 'ArrowRight' ? 3 : event.key === 'ArrowLeft' ? -3 : 0), tilt: Math.max(-45, Math.min(20, v.tilt + (event.key === 'ArrowUp' ? 2 : event.key === 'ArrowDown' ? -2 : 0))) }))
       }
     }
-
+    const hidden = () => { if (document.hidden) propsRef.current.onPause?.() }
+    canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('keydown', key)
+    document.addEventListener('visibilitychange', hidden)
     frame = requestAnimationFrame(render)
     return () => {
-      cancelAnimationFrame(frame)
-      map.setMaxPitch(previousMaxPitch)
-      map.setCenterClampedToGround(previousClamped)
+      disposed = true; cancelAnimationFrame(frame)
+      canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('keydown', key)
+      document.removeEventListener('visibilitychange', hidden); canvas.style.touchAction = oldTouchAction
+      controller.stop(); controllerRef.current = null
     }
-  }, [active, isLoaded, map])
-
-  return null
+  }, [props.active, map, isLoaded, path, props.stations])
+  if (!props.active) return null
+  return <div className="absolute bottom-3 left-3 z-30 max-w-xs rounded-lg border bg-background/95 p-3 shadow-lg" role="region" aria-label="Road view controls">
+    <p className="text-xs font-semibold">Road-level preview · 1× terrain</p>
+    <p className="mt-1 text-xs" role="status">{status === 'waiting-for-terrain' ? 'Waiting for terrain at the camera. Playback is held.' : status === 'invalid-camera' ? 'This camera pose is invalid. Reset the view or return to the map.' : 'Drag to look around. Arrow keys turn; R resets; Escape exits.'}</p>
+    <p className="mt-1 text-[11px] text-muted-foreground">Visibility colours use the nearest calculated station. Views above the horizon use MapLibre’s experimental high-pitch rendering.</p>
+    <div className="mt-2 flex gap-3 text-xs">
+      <button className="rounded border px-2 py-1" onClick={() => setView({ yaw: 0, tilt: 0 })}>Reset look</button>
+      <button className="rounded border px-2 py-1" onClick={props.onPause}>Pause</button>
+      <button className="rounded border px-2 py-1" onClick={props.onExit}>Return to map</button>
+    </div>
+  </div>
 }

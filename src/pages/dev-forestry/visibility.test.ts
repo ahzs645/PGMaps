@@ -113,10 +113,29 @@ describe('testSightline', () => {
     expect(clipped.blockedAtMeters).toBeNull()
   })
 
-  it('skips terrain the DEM does not cover instead of reading it as sea level', () => {
+  it('reports terrain the DEM does not cover as unknown, neither clear nor sea level', () => {
     const gappy = profileTerrain((lng) => (lng > 0.01 && lng < 0.03 ? Number.NaN : 0))
     const result = testSightline(gappy, ground(0, 0, 0), ground(0.045, 0, 0), DEFAULT_SIGHTLINE_OPTIONS)
-    expect(result.visible).toBe(true)
+    // Missing ground is not an unobstructed sightline: it is a gap in the evidence.
+    expect(result.status).toBe('unknown')
+    expect(result.visible).toBe(false)
+    expect(result.blockedAtMeters).toBeNull()
+  })
+
+  it('still reports occlusion when a known ridge sits beyond a gap in the DEM', () => {
+    const gappyRidge = profileTerrain((lng) => (lng > 0.005 && lng < 0.015 ? Number.NaN : lng > 0.02 && lng < 0.025 ? 300 : 0))
+    const result = testSightline(gappyRidge, ground(0, 0, 0), ground(0.045, 0, 0), DEFAULT_SIGHTLINE_OPTIONS)
+    expect(result.status).toBe('occluded')
+    expect(result.visible).toBe(false)
+    expect(result.blockedAtMeters).toBeGreaterThan(2000)
+  })
+
+  it('distinguishes out-of-range from occluded', () => {
+    const clipped = testSightline(FLAT, ground(0, 0, 0), ground(0.01, 0, 0), {
+      ...DEFAULT_SIGHTLINE_OPTIONS,
+      maxDistanceMeters: 500,
+    })
+    expect(clipped.status).toBe('out-of-range')
   })
 
   it('raises a blocked sightline into view once the observer stands tall enough', () => {

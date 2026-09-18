@@ -17,6 +17,9 @@ import {
 } from './dev-forestry/bcVisualInventory'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { DriveCamera } from './dev-forestry/DriveCamera'
+import { AssessmentPanel } from './dev-forestry/AssessmentPanel'
+import { buildSceneInput, sceneFingerprint, findSceneLandform } from './dev-forestry/sceneInput'
+import { alterationWeight, resultMatchesInput } from './dev-forestry/integrity'
 import { ForestOverlay } from './dev-forestry/ForestOverlay'
 import { bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
@@ -44,7 +47,7 @@ import {
   targetsToGeoJson,
   type ForestryScene,
 } from './dev-forestry/scene'
-import type { AnalysisInput, ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
+import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
@@ -80,11 +83,10 @@ const DEFAULT_DRIVE: DriveState = {
   positionMeters: 0,
   lookAtTargetId: null,
   exaggeration: 1,
-  forest: true,
+  forest: false,
   treeHeightMeters: 28,
-  // Wider than a road, deliberately: at a true right-of-way width the near
-  // timber fills the frame and nothing beyond it can be judged.
-  roadClearWidthMeters: 90,
+  // Illustrative clearing only; this control never changes sightline screening.
+  roadClearWidthMeters: 20,
   treeStyle: 'billboard',
 }
 
@@ -151,6 +153,10 @@ function DevForestryVisuals() {
   )
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
+  const driveRef = useRef(drive)
+  driveRef.current = drive
+  const [cameraEye, setCameraEye] = useState<{ lng: number; lat: number } | null>(null)
+  const runSnapshotRef = useRef<{ scene: ForestryScene; inventoryUnits: BcSensitivityUnit[]; key: string } | null>(null)
   const [inventory, setInventory] = useState<InventoryState>({
     status: 'idle',
     units: [],
@@ -171,19 +177,18 @@ function DevForestryVisuals() {
   // The roads the last reverse run was scored against, so a result can be
   // turned back into a corridor without re-querying a map that has since moved.
   const reverseRoadsRef = useRef<RoadCandidate[]>([])
-  const preDriveViewport = useRef<{
-    center: [number, number]
-    zoom: number
-    bearing: number
-    pitch: number
-  } | null>(null)
+
 
   const analysis = useVisibilityAnalysis()
-  const result = analysis.state.result
+  const rawResult = analysis.state.result
+  const key = sceneFingerprint(scene)
+  const isStale = !!rawResult && (!key || runSnapshotRef.current?.key !== key || !resultMatchesInput(rawResult, buildSceneInput(scene)))
+  const result = isStale ? null : rawResult
+  useEffect(() => { if (isStale) setDrive((current) => ({ ...current, active: false, playing: false })) }, [isStale])
 
   const fitBounds = useCallback((bounds: [number, number, number, number] | null, maxZoom = 13) => {
     const map = mapRef.current
-    if (!map || !bounds) return
+    if (!map || !bounds || driveRef.current.active) return
     map.fitBounds(bounds, { padding: FIT_PADDING, duration: 700, maxZoom })
   }, [])
 
@@ -204,34 +209,20 @@ function DevForestryVisuals() {
   }, [fitBounds])
 
   const updateDrive = useCallback((patch: Partial<DriveState>) => {
+    if (patch.active && !result) return
+    if (patch.active) { setDrawMode('none'); setDraftCoordinates([]) }
     setDrive((current) => {
-      const next = { ...current, ...patch }
-      return next
-    })
-    if (patch.positionMeters !== undefined) setSeekVersion((version) => version + 1)
-  }, [])
-
-  // Entering drive mode hands the camera to DriveCamera; leaving puts the map
-  // back where the user left it rather than stranding them at ground level.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    if (drive.active) {
-      if (!preDriveViewport.current) {
-        const center = map.getCenter()
-        preDriveViewport.current = {
-          center: [center.lng, center.lat],
-          zoom: map.getZoom(),
-          bearing: map.getBearing(),
-          pitch: map.getPitch(),
-        }
+      const entering = patch.active === true && !current.active
+      return { ...current, ...patch, exaggeration: 1,
+        ...(entering && result ? {
+          positionMeters: result.stations[result.assessmentStationIndex]?.distanceAlongMeters ?? 0,
+          lookAtTargetId: result.targets.find((t) => t.targetId === selectedTargetId && t.role === 'block')?.targetId ?? result.targets.find((t) => t.role === 'block')?.targetId ?? null,
+          forest: result.settings.screeningEnabled && result.canopyStandCount > 0,
+        } : {}),
       }
-      return
-    }
-    const previous = preDriveViewport.current
-    preDriveViewport.current = null
-    if (previous) map.easeTo({ ...previous, duration: 600 })
-  }, [drive.active])
+    })
+    if (patch.positionMeters !== undefined || patch.active) setSeekVersion((version) => version + 1)
+  }, [result, selectedTargetId])
 
   const setViewpoint = useCallback((viewpoint: Viewpoint) => {
     setScene((current) => ({ ...current, viewpoint }))
@@ -239,8 +230,8 @@ function DevForestryVisuals() {
   }, [])
 
   const addTarget = useCallback((target: TargetPolygon) => {
-    setScene((current) => ({ ...current, targets: [...current.targets, target] }))
-    if (target.role === 'block') setSelectedTargetId(target.id)
+    setScene((current) => ({ ...current, targets: [...current.targets, target], activeLandformId: target.role === 'landscape' ? target.id : current.activeLandformId }))
+    setSelectedTargetId(target.id)
   }, [])
 
   const handleMapPoint = useCallback(
@@ -288,6 +279,7 @@ function DevForestryVisuals() {
   }, [addTarget, draftCoordinates, drawMode])
 
   const handleDrawModeChange = useCallback((mode: DrawMode) => {
+    setDrive((current) => ({ ...current, active: false, playing: false }))
     setDraftCoordinates([])
     setDrawMode(mode)
   }, [])
@@ -361,74 +353,45 @@ function DevForestryVisuals() {
    * Asks DataBC what the inventory says about the area on screen. Coverage is
    * patchy, so "nothing here" is a real and common answer rather than a fault.
    */
+  const lookupEpoch = useRef(0)
   const handleLookupInventory = useCallback(async () => {
     const map = mapRef.current
     if (!map) return
+    if (driveRef.current.active) { setImportMessage('Return to the plan map before looking up inventory.'); return }
+    const epoch = ++lookupEpoch.current
+    const sceneAtStart = sceneRef.current
     const view = map.getBounds()
     const bounds = clampQueryBounds([view.getWest(), view.getSouth(), view.getEast(), view.getNorth()])
-
-    setInventory({ status: 'loading', units: [], error: null, truncated: false, harvestCount: 0, stands: [] })
+    setInventory((current) => ({ ...current, status: 'loading', error: null }))
     setShowInventory(true)
-    try {
-      // Existing openings come back in the same pass: the objective is met or
-      // missed by what is on the ground plus what is proposed, not by the
-      // proposal alone. They settle independently — losing the openings should
-      // cost the cumulative figure, not the objective lookup as well.
-      // Forest cover comes back in the same pass. It is what lets the 3D stand
-      // draw the species and height the province recorded rather than a
-      // regional mix, and like the openings it settles on its own — losing it
-      // should cost the drawing, not the objective lookup.
-      const [inventorySettled, harvestSettled, standsSettled] = await Promise.allSettled([
-        fetchSensitivityUnits(bounds),
-        fetchHarvestedAreas(bounds),
-        fetchCanopyStands(bounds),
-      ])
-      if (inventorySettled.status === 'rejected') throw inventorySettled.reason
-      const inventoryResult = inventorySettled.value
-      const harvestResult = harvestSettled.status === 'fulfilled' ? harvestSettled.value : { areas: [] }
-      const standsResult = standsSettled.status === 'fulfilled' ? standsSettled.value : { stands: [] }
-
-      setScene((current) => {
-        const kept = current.targets.filter(
-          (target) => !(target.role === 'harvested' && target.source === HARVEST_SOURCE),
-        )
-        return {
-          ...current,
-          targets: [
-            ...kept,
-            ...harvestResult.areas.map((area) => ({
-              id: createId('harvested'),
-              name: area.name,
-              role: 'harvested' as const,
-              objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
-              vac: null,
-              harvestYear: area.harvestYear,
-              clearcutPercent: area.clearcutPercent,
-              geometry: area.geometry,
-              source: HARVEST_SOURCE,
-            })),
-          ],
-        }
-      })
-
-      setInventory({
-        status: 'ready',
-        units: inventoryResult.units,
-        error: null,
-        truncated: inventoryResult.truncated,
-        harvestCount: harvestResult.areas.length,
-        stands: standsResult.stands,
-      })
-    } catch (error) {
-      setInventory({
-        status: 'error',
-        units: [],
-        error: error instanceof Error ? error.message : String(error),
-        truncated: false,
-        harvestCount: 0,
-        stands: [],
-      })
-    }
+    const abort = new AbortController()
+    const timer = window.setTimeout(() => abort.abort(), 30000)
+    const results = await Promise.allSettled([
+      fetchSensitivityUnits(bounds, { signal: abort.signal }),
+      fetchHarvestedAreas(bounds, { signal: abort.signal }),
+      fetchCanopyStands(bounds, { signal: abort.signal }),
+    ])
+    window.clearTimeout(timer)
+    if (epoch !== lookupEpoch.current) return
+    if (sceneRef.current !== sceneAtStart) { setInventory((current) => ({ ...current, status: 'error', error: 'Scene changed during lookup. Previous data retained; look up again.' })); return }
+    const [units, harvest, stands] = results
+    const errors = results.flatMap((r, i) => r.status === 'rejected' ? [`${['Visual inventory', 'Existing harvest', 'Forest cover'][i]} unavailable: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`] : [])
+    setScene((current) => {
+      if (current !== sceneAtStart) return current
+      if (harvest.status !== 'fulfilled') return { ...current, harvestInventory: { status: 'unavailable', bounds, source: HARVEST_SOURCE, retrievedAt: new Date().toISOString() } }
+      const kept = current.targets.filter((t) => !(t.role === 'harvested' && t.source === HARVEST_SOURCE))
+      return { ...current,
+        harvestInventory: { status: harvest.value.truncated ? 'partial' : 'complete', bounds, source: HARVEST_SOURCE, retrievedAt: new Date().toISOString() },
+        targets: [...kept, ...harvest.value.areas.map((area) => ({ id: createId('harvested'), name: area.name, role: 'harvested' as const, objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID, vac: null, harvestYear: area.harvestYear, clearcutPercent: area.clearcutPercent, geometry: area.geometry, source: HARVEST_SOURCE }))],
+      }
+    })
+    setInventory((current) => ({ ...current,
+      status: errors.length ? 'error' : 'ready', error: errors.length ? errors.join(' · ') + '. Existing data are retained for failed sources.' : null,
+      units: units.status === 'fulfilled' ? units.value.units : current.units,
+      truncated: results.some((r) => r.status === 'fulfilled' && r.value.truncated),
+      harvestCount: harvest.status === 'fulfilled' ? harvest.value.areas.length : current.harvestCount,
+      stands: stands.status === 'fulfilled' ? stands.value.stands : current.stands,
+    }))
   }, [])
 
   /** Adopts an inventory polygon as the landform, carrying its rating across. */
@@ -439,8 +402,9 @@ function DevForestryVisuals() {
 
       const objectiveId = unit.objectiveId ?? unit.recommendedId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID
       const label = unit.objectiveId ? 'established' : unit.recommendedId ? 'recommended' : 'unrated'
+      const adoptedId = createId('landform')
       addTarget({
-        id: createId('landform'),
+        id: adoptedId,
         name: `${unit.name} · ${visualQualityClass(objectiveId).code} (${label})`,
         role: 'landscape',
         objectiveId,
@@ -451,29 +415,24 @@ function DevForestryVisuals() {
         source: 'BC visual landscape inventory',
         inventoryUnitId: unit.id,
       })
-      setSelectedTargetId(unitId)
+      setSelectedTargetId(adoptedId)
     },
     [addTarget, inventory.units],
   )
 
   const handleRun = useCallback(() => {
-    const input: AnalysisInput = {
-      viewpoint: { mode: scene.viewpoint.mode, coordinates: scene.viewpoint.coordinates },
-      targets: scene.targets.map((target) => ({
-        id: target.id,
-        name: target.name,
-        role: target.role,
-        geometry: target.geometry,
-        harvestYear: target.harvestYear,
-        clearcutPercent: target.clearcutPercent,
-        siteDisturbance: target.siteDisturbance,
-      })),
-      settings: scene.settings,
-      assessmentYear: new Date().getFullYear(),
+    try {
+      const input = buildSceneInput(scene)
+      const key = sceneFingerprint(scene)
+      if (!key) throw new Error('The scenario contains invalid numeric inputs.')
+      runSnapshotRef.current = { scene: structuredClone(scene), inventoryUnits: structuredClone(inventory.units), key }
+      setCameraEye(null)
+      setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
+      analysis.run(input)
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : String(error))
     }
-    setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
-    analysis.run(input)
-  }, [analysis, scene])
+  }, [analysis, scene, inventory.units])
 
   /**
    * Replaces the drawn viewpoint with the road it was tracing.
@@ -485,7 +444,7 @@ function DevForestryVisuals() {
    */
   const handleSnapToRoad = useCallback(() => {
     const map = mapRef.current
-    if (!map || scene.viewpoint.coordinates.length === 0) return
+    if (!map || scene.viewpoint.coordinates.length === 0 || driveRef.current.active) return
 
     const roads = collectRoadsFromMap(map)
     if (roads.length === 0) {
@@ -518,7 +477,7 @@ function DevForestryVisuals() {
   /** Scores every road on screen by how much of the selected block it can see. */
   const handleRunReverse = useCallback(() => {
     const map = mapRef.current
-    if (!map) return
+    if (!map || driveRef.current.active) return
 
     const selected = scene.targets.find((target) => target.id === selectedTargetId && target.role === 'block')
     const blocks = selected ? [selected] : scene.targets.filter((target) => target.role === 'block')
@@ -571,7 +530,10 @@ function DevForestryVisuals() {
   const handleZoomToTarget = useCallback(
     (targetId: string) => {
       const target = scene.targets.find((entry) => entry.id === targetId)
-      if (target) fitBounds(targetBounds(target), 14)
+      if (target) {
+        setDrive((current) => ({ ...current, active: false, playing: false }))
+        window.setTimeout(() => fitBounds(targetBounds(target), 14), 50)
+      }
     },
     [fitBounds, scene.targets],
   )
@@ -588,8 +550,8 @@ function DevForestryVisuals() {
    */
   const handleAddRoadDisturbance = useCallback(() => {
     const map = mapRef.current
-    const landform = scene.targets.find((target) => target.role === 'landscape')
-    if (!map || !landform) {
+    const landform = findSceneLandform(scene)
+    if (!map || !landform || driveRef.current.active) {
       setSnapMessage('Add a landform first — site disturbance is measured against it.')
       return
     }
@@ -620,7 +582,7 @@ function DevForestryVisuals() {
           id: createId('disturbance'),
           name: `${road.name || road.roadClass || 'Road'} — ${ROAD_DISTURBANCE_WIDTH_METERS} m right-of-way`,
           role: 'harvested' as const,
-          objectiveId: scene.targets[0]?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
+          objectiveId: landform.objectiveId,
           vac: null,
           harvestYear: null,
           clearcutPercent: 100,
@@ -639,32 +601,21 @@ function DevForestryVisuals() {
     setSnapMessage(
       `Added ${added.length} road${added.length === 1 ? '' : 's'} as site disturbance at ${ROAD_DISTURBANCE_WIDTH_METERS} m wide. Run again to count them on line (b).`,
     )
-  }, [scene.targets])
+  }, [scene])
 
   /** The run written up on FS1252, for somebody to check every figure in. */
   const handleExportReport = useCallback(() => {
-    if (!result) return
-    // The inventory record behind the landform, when it was adopted from one:
-    // it carries the VSC and scenic-area flag the form asks for, which the
-    // landform polygon itself does not.
-    const landform = scene.targets.find((target) => target.role === 'landscape')
-    const unit = landform?.inventoryUnitId
-      ? (inventory.units.find((entry) => entry.id === landform.inventoryUnitId) ?? null)
-      : null
-    downloadFile(
-      `visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`,
-      buildReport({
-        result,
-        targets: scene.targets,
-        thresholds: scene.thresholds,
-        viewpointName: scene.viewpoint.name || 'Unnamed viewpoint',
-        generatedAt: new Date(),
-        inventorySource: unit ? 'BC visual landscape inventory (DataBC)' : null,
-        inventoryUnit: unit ? { polygonNumber: unit.polygonNumber, vsc: unit.vsc, scenicArea: unit.scenicArea } : null,
-      }),
-      'text/markdown',
-    )
-  }, [inventory.units, result, scene])
+    const saved = runSnapshotRef.current
+    if (!result || !saved || saved.key !== sceneFingerprint(scene)) return
+    const landform = findSceneLandform(saved.scene)
+    const unit = landform?.inventoryUnitId ? saved.inventoryUnits.find((entry) => entry.id === landform.inventoryUnitId) : null
+    downloadFile(`visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`, buildReport({
+      result, targets: saved.scene.targets, thresholds: saved.scene.thresholds,
+      viewpointName: saved.scene.viewpoint.name || 'Unnamed viewpoint', generatedAt: new Date(),
+      inventorySource: unit ? 'BC visual landscape inventory (DataBC)' : null,
+      inventoryUnit: unit ? { polygonNumber: unit.polygonNumber, vsc: unit.vsc, scenicArea: unit.scenicArea } : null,
+    }), 'text/markdown')
+  }, [result, scene])
 
   const handleLoadSample = useCallback(() => {
     const sample = createSampleScene()
@@ -720,9 +671,10 @@ function DevForestryVisuals() {
   // Where the eye is on the road. The map's centre is no use for this: pitched
   // at the horizon from ground level, it sits kilometres out at the skyline.
   const driveEye = useMemo(() => {
+    if (drive.active && cameraEye) return cameraEye
     const station = result?.stations[driveStationIndex]
     return station ? { lng: station.lng, lat: station.lat } : null
-  }, [driveStationIndex, result])
+  }, [cameraEye, drive.active, driveStationIndex, result])
 
   // Timber fills the view and the openings take it off. Not the landform: that
   // is an assessment unit drawn around a hill, not a stand boundary, and the
@@ -733,17 +685,17 @@ function DevForestryVisuals() {
   // to the regional mix — which is why the panel reports how much did not.
   const forestInventory = useMemo<InventoryStand[]>(
     () =>
-      inventory.stands.map((stand) => ({
+      (result?.renderStands ?? inventory.stands).map((stand) => ({
         geometry: stand.geometry,
         species: speciesFromCode(stand.speciesCode),
         heightMeters: stand.heightMeters > 0 ? stand.heightMeters : null,
       })),
-    [inventory.stands],
+    [inventory.stands, result?.renderStands],
   )
 
   const forestClearings = useMemo(() => {
     const openings: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon> = scene.targets
-      .filter((target) => target.role === 'block' || target.role === 'harvested')
+      .filter((target) => target.role === 'block' || (target.role === 'harvested' && alterationWeight(target, result?.inputSnapshot?.assessmentYear ?? scene.assessmentYear ?? new Date().getFullYear(), scene.settings.greenUpAgeYears) >= 1))
       .map((target) => target.geometry)
 
     // The road is a clearing too. Without it the camera stands inside the timber
@@ -753,7 +705,7 @@ function DevForestryVisuals() {
         ? bufferLine(scene.viewpoint.coordinates, drive.roadClearWidthMeters / 2)
         : null
     return corridor ? [...openings, corridor] : openings
-  }, [drive.roadClearWidthMeters, scene.targets, scene.viewpoint])
+  }, [drive.roadClearWidthMeters, scene.targets, scene.viewpoint, scene.assessmentYear, scene.settings.greenUpAgeYears, result])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -780,6 +732,7 @@ function DevForestryVisuals() {
         counted += 1
       }
     }
+    if (counted === 0) return null
     return {
       lng: lngTotal / target.sampleCount,
       lat: latTotal / target.sampleCount,
@@ -822,6 +775,8 @@ function DevForestryVisuals() {
     setScene((current) => ({
       ...current,
       targets: current.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target)),
+      // A target re-roled to a landform becomes the active one; the active landform re-roled to anything else is dropped.
+      activeLandformId: patch.role === 'landscape' ? targetId : current.activeLandformId === targetId && patch.role ? null : current.activeLandformId,
     }))
   }, [])
 
@@ -829,11 +784,14 @@ function DevForestryVisuals() {
     setScene((current) => ({
       ...current,
       targets: current.targets.filter((target) => target.id !== targetId),
+      activeLandformId: current.activeLandformId === targetId ? null : current.activeLandformId,
     }))
     setSelectedTargetId((current) => (current === targetId ? null : current))
   }, [])
 
   const sidebar = (
+    <>
+    <AssessmentPanel scene={scene} onChange={setScene} result={result} stale={isStale} snapshot={result ? runSnapshotRef.current?.scene ?? null : null} currentStation={driveStationIndex} />
     <Sidebar
       scene={scene}
       onViewpointChange={setViewpoint}
@@ -848,7 +806,7 @@ function DevForestryVisuals() {
       onFinishDraft={finishDraft}
       onSnapToRoad={handleSnapToRoad}
       snapMessage={snapMessage}
-      analysis={analysis.state}
+      analysis={{ ...analysis.state, result }}
       onRun={handleRun}
       onCancel={analysis.cancel}
       reverse={analysis.reverseState}
@@ -872,6 +830,7 @@ function DevForestryVisuals() {
       onExportReport={result ? handleExportReport : null}
       onAddRoadDisturbance={handleAddRoadDisturbance}
     />
+    </>
   )
 
   return (
@@ -895,7 +854,7 @@ function DevForestryVisuals() {
       >
         <TerrainSupport
           terrain={drive.active}
-          exaggeration={drive.exaggeration}
+          exaggeration={1}
           hillshade
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
         />
@@ -907,7 +866,7 @@ function DevForestryVisuals() {
           standHeightMeters={drive.treeHeightMeters}
           inventory={forestInventory}
           style={drive.treeStyle}
-          exaggeration={drive.exaggeration}
+          exaggeration={1}
           onStatus={setForestStatus}
         />
         <MapDrawCapture
@@ -973,7 +932,7 @@ function DevForestryVisuals() {
         {/* Sample points carry the answer: red is ground the road can see. */}
         <MapCircleLayer
           data={sampleCollection}
-          color={['case', ['==', ['get', 'visible'], 1], VISIBLE_COLOR, SCREENED_COLOR]}
+          color={['case', ['==', ['get', 'visible'], 2], '#71717a', ['==', ['get', 'visible'], 1], VISIBLE_COLOR, SCREENED_COLOR]}
           radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}
           opacity={['case', ['==', ['get', 'visible'], 1], 0.95, 0.35]}
           strokeWidth={0}
@@ -984,7 +943,7 @@ function DevForestryVisuals() {
             Drawn as the road rather than as the points it was sampled at. */}
         <MapLineLayer
           data={reverseRoadCollection}
-          color={EXPOSURE_RAMP as never}
+          color={['case', ['==', ['get', 'unknown'], 1], '#71717a', EXPOSURE_RAMP] as never}
           width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
           opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
           visible={!drive.active}
@@ -997,7 +956,7 @@ function DevForestryVisuals() {
             the block each stretch of road sees, graded along it. */}
         <MapLineLayer
           data={corridorExposureCollection}
-          color={EXPOSURE_RAMP as never}
+          color={['case', ['==', ['get', 'unknown'], 1], '#71717a', EXPOSURE_RAMP] as never}
           width={5}
           opacity={0.95}
           visible={!drive.active}
@@ -1029,16 +988,20 @@ function DevForestryVisuals() {
             active={drive.active}
             playing={drive.playing}
             stations={result.stations}
+            roadCoordinates={result.inputSnapshot?.viewpoint.coordinates}
             seekMeters={drive.positionMeters}
             seekVersion={seekVersion}
             speedMetersPerSecond={(drive.speedKmh * 1000) / 3600}
-            eyeHeightMeters={scene.settings.observerHeightMeters}
+            eyeHeightMeters={result.settings.observerHeightMeters}
             lookAt={lookAtTarget}
             spotBearing={spotBearing}
-            onPosition={({ distanceMeters, stationIndex }) => {
+            onPosition={({ distanceMeters, stationIndex, lng, lat }) => {
               setDriveStationIndex(stationIndex)
-              setDrive((current) => (current.playing ? { ...current, positionMeters: distanceMeters } : current))
+              setCameraEye((current) => current?.lng === lng && current?.lat === lat ? current : { lng, lat })
+              setDrive((current) => Math.abs(current.positionMeters - distanceMeters) < 0.0001 ? current : { ...current, positionMeters: distanceMeters })
             }}
+            onPause={() => setDrive((current) => ({ ...current, playing: false }))}
+            onExit={() => setDrive((current) => ({ ...current, active: false, playing: false }))}
             onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
           />
         )}
@@ -1054,7 +1017,11 @@ function DevForestryVisuals() {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full opacity-50" style={{ backgroundColor: SCREENED_COLOR }} />
-              Screened by terrain
+              Occluded / outside analysis range
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-500" />
+              Unknown (missing data)
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
@@ -1077,7 +1044,7 @@ function DevForestryVisuals() {
         <MapOverlay position="top-left" className="max-w-[16rem]">
           <p className="text-xs font-semibold text-foreground">Standing on the road</p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-            Red ground is what this point can see. Anything the terrain hides drops out as you move.
+            Red ground is visible from the nearest calculated station, not a new calculation at every animation frame. Grey samples are unknown. Rendered trees are illustrative; numerical screening is controlled by the analysis settings.
           </p>
         </MapOverlay>
       )}

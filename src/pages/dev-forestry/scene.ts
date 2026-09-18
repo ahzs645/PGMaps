@@ -5,6 +5,8 @@
  */
 
 import { geometryBounds, type BBox } from '@/lib/geo'
+import type { InventoryEvidence } from './types'
+import type { FormMetadata } from './pdf/fs1252'
 
 import { polygonAreaMeters, polygonBounds } from './visibility'
 import {
@@ -29,6 +31,10 @@ import {
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
 export type ForestryScene = {
+  activeLandformId?: string | null
+  assessmentYear?: number
+  harvestInventory?: InventoryEvidence
+  reportMetadata?: FormMetadata
   viewpoint: Viewpoint
   targets: TargetPolygon[]
   settings: AnalysisSettings
@@ -44,6 +50,8 @@ export function createId(prefix: string): string {
 
 export function createEmptyScene(): ForestryScene {
   return {
+    activeLandformId: null,
+    assessmentYear: new Date().getFullYear(),
     viewpoint: { id: createId('viewpoint'), name: 'Viewpoint', mode: 'spot', coordinates: [] },
     targets: [],
     settings: { ...DEFAULT_ANALYSIS_SETTINGS },
@@ -242,7 +250,7 @@ export function samplesToGeoJson(
 
     for (let index = 0; index < target.sampleCount; index += 1) {
       const visible =
-        stationRow === null ? target.anyVisible[index] === 1 : target.visibleByStation[stationRow + index] === 1
+        stationRow === null ? target.anyVisible[index] : target.visibleByStation[stationRow + index]
       features.push({
         type: 'Feature',
         id: `${target.targetId}-${index}`,
@@ -253,7 +261,7 @@ export function samplesToGeoJson(
         properties: {
           id: `${target.targetId}-${index}`,
           targetId: target.targetId,
-          visible: visible ? 1 : 0,
+          visible,
           distanceMeters: target.visibleDistances[index],
         },
       })
@@ -307,6 +315,7 @@ export function corridorExposureToGeoJson(
       properties: {
         id: `corridor-${index}`,
         visiblePercent: (exposureAt(index - 1) + exposureAt(index)) / 2,
+        unknown: sources.some((target) => (target.stations[index - 1]?.unknownPercent ?? 0) > 0 || (target.stations[index]?.unknownPercent ?? 0) > 0) ? 1 : 0,
         distanceAlongMeters: from.distanceAlongMeters,
       },
     })
@@ -333,6 +342,10 @@ export function stationsToGeoJson(result: AnalysisResult | null): GeoJSON.Featur
 }
 
 type SerializedScene = {
+  activeLandformId?: string | null
+  assessmentYear?: number
+  harvestInventory?: InventoryEvidence
+  reportMetadata?: FormMetadata
   version: 1
   viewpoint: Viewpoint
   targets: TargetPolygon[]
@@ -413,6 +426,8 @@ export function parseScene(input: unknown): ForestryScene | null {
             harvestYear: typeof target.harvestYear === 'number' ? target.harvestYear : null,
             clearcutPercent: typeof target.clearcutPercent === 'number' ? target.clearcutPercent : null,
             siteDisturbance: target.siteDisturbance === true,
+            recoveryPercent: typeof target.recoveryPercent === 'number' && Number.isFinite(target.recoveryPercent) ? Math.max(0, Math.min(100, target.recoveryPercent)) : null,
+            inventoryUnitId: typeof target.inventoryUnitId === 'string' ? target.inventoryUnitId : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -431,6 +446,10 @@ export function parseScene(input: unknown): ForestryScene | null {
       coordinates,
     },
     targets,
+    activeLandformId: typeof raw.activeLandformId === 'string' ? raw.activeLandformId : null,
+    assessmentYear: numeric(raw.assessmentYear, base.assessmentYear ?? new Date().getFullYear()),
+    harvestInventory: raw.harvestInventory && ['complete', 'partial', 'unavailable', 'not-requested', 'scenario-only'].includes(raw.harvestInventory.status) ? raw.harvestInventory : undefined,
+    reportMetadata: raw.reportMetadata && typeof raw.reportMetadata === 'object' ? Object.fromEntries(Object.entries(raw.reportMetadata).filter(([, value]) => typeof value === 'string')) : {},
     settings: {
       demZoom: numeric(raw.settings?.demZoom, base.settings.demZoom),
       observerHeightMeters: numeric(raw.settings?.observerHeightMeters, base.settings.observerHeightMeters),
@@ -444,6 +463,8 @@ export function parseScene(input: unknown): ForestryScene | null {
           ? raw.settings.screeningEnabled
           : base.settings.screeningEnabled,
       minCrownClosurePercent: numeric(raw.settings?.minCrownClosurePercent, base.settings.minCrownClosurePercent),
+      greenAreaConfirmed: raw.settings?.greenAreaConfirmed === true,
+      existingDisturbanceConfirmed: raw.settings?.existingDisturbanceConfirmed === true,
     },
     thresholds: parseThresholds(raw.thresholds),
   }

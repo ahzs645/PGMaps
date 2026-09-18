@@ -6,7 +6,7 @@
  */
 
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
-import { fetchVegetationStands, forestedGeometries } from './bcVegetationInventory'
+import { fetchVegetationStands, forestedGeometries, clampVegetationBounds } from './bcVegetationInventory'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
 import { DEFAULT_REVERSE_SETTINGS, computeReverseViewshed } from './reverseViewshed'
@@ -72,29 +72,24 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // costs accuracy, not the whole run — so each degrades on its own.
   let canopyStands: CanopyStand[] = []
   let forestedGround: PolygonGeometry[] = []
+  let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
   const wantsGreenArea = input.targets.some((target) => target.role === 'landscape')
   if (input.settings.screeningEnabled || wantsGreenArea) {
+    const queryBounds = clampVegetationBounds(bounds)
+    const abort = new AbortController()
+    const timeout = setTimeout(() => abort.abort(), 30000)
     try {
-      const { stands } = await fetchVegetationStands(bounds)
+      const response = await fetchVegetationStands(bounds, { signal: abort.signal })
+      const { stands } = response
+      const limited = response.truncated || queryBounds.some((coordinate, i) => Math.abs(coordinate - bounds[i]) > 1e-8)
+      const missingHeights = input.settings.screeningEnabled && stands.some((stand) => stand.treed && (stand.heightMeters === null || stand.heightMeters <= 0))
+      vegetation = { status: !stands.length ? 'unavailable' : limited || missingHeights ? 'partial' : 'complete', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
       if (wantsGreenArea) forestedGround = forestedGeometries(stands)
-      if (input.settings.screeningEnabled) {
-        canopyStands = stands.flatMap((stand) =>
-          stand.treed && stand.heightMeters !== null && stand.heightMeters > 0
-            ? [
-                {
-                  heightMeters: stand.heightMeters,
-                  crownClosurePercent: stand.crownClosurePercent,
-                  speciesCode: stand.speciesCode,
-                  geometry: stand.geometry,
-                },
-              ]
-            : [],
-        )
-      }
+      // Keep the same stand records for rendering even when numerical screening is off.
+      canopyStands = stands.flatMap((stand) => stand.treed && stand.heightMeters !== null && stand.heightMeters > 0 ? [{ heightMeters: stand.heightMeters, crownClosurePercent: stand.crownClosurePercent, speciesCode: stand.speciesCode, geometry: stand.geometry }] : [])
     } catch {
-      canopyStands = []
-      forestedGround = []
-    }
+      vegetation = { status: 'unavailable', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
+    } finally { clearTimeout(timeout) }
   }
 
   const result = computeAnalysis(
@@ -108,6 +103,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     (progress) => post({ type: 'progress', requestId, progress }),
     canopyStands,
     forestedGround,
+    { vegetation },
   )
 
   // Sample buffers are the bulk of the payload; handing over their memory
@@ -156,12 +152,14 @@ async function runReverse(request: Extract<AnalysisWorkerRequest, { type: 'rever
   }
 
   post({ type: 'progress', requestId, progress: { phase: 'terrain', completed: 0, total: range.tileCount } })
-  const { grid } = await loadElevationGrid({
+  const { grid, missingTileCount } = await loadElevationGrid({
     range,
     onProgress: (completed, total) => {
       post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
     },
   })
+
+  if (missingTileCount > 0) throw new Error('Reverse road search has missing terrain. Retry before treating any road as visible or screened.')
 
   post({ type: 'progress', requestId, progress: { phase: 'sightlines', completed: 0, total: 1 } })
   const result = computeReverseViewshed(

@@ -9,6 +9,13 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    // Plain-ESM test files run under vitest on Node 20+, where these are globals.
+    files: ['src/**/*.mjs'],
+    languageOptions: {
+      globals: { structuredClone: 'readonly', URL: 'readonly', TextDecoder: 'readonly', TextEncoder: 'readonly' },
+    },
+  },
+  {
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,

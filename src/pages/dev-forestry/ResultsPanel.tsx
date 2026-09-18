@@ -4,12 +4,12 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
+import { resolvedThresholds, resolveThreshold } from './integrity'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import {
   VIEWING_ZONES,
   assessObjective,
   rangeFloorFor,
-  vacDenudationPercent,
   visualQualityClass,
   type AlterationBasis,
   type ObjectiveVerdict,
@@ -122,18 +122,18 @@ export function ResultsPanel({
         basis,
         title,
         breakdown,
-        verdict: assessObjective(breakdown.cumulativePercent, landformTarget.objectiveId, basis, thresholds),
+        verdict: assessObjective(breakdown.cumulativePercent, landformTarget.objectiveId, basis, resolvedThresholds(landformTarget.objectiveId, basis, thresholds, landformTarget.vac)),
         note,
       })
     }
 
-    add(
+    if (result.quality?.numericalReady) add(
       'perspective',
       'Alteration in perspective view',
       result.perspectiveAlteration,
-      'The scale the objective is defined on: the share of the landform’s visible face that reads as altered from the assessment viewpoint.',
+      'Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement.',
     )
-    add(
+    if (result.quality?.numericalReady) add(
       'planimetric',
       'Planimetric denudation',
       result.planimetricAlteration,
@@ -142,9 +142,7 @@ export function ResultsPanel({
           ? ' Divided by the landform\u2019s treed area, which is what the procedure asks for.'
           : ' Divided by the whole landform: no vegetation inventory, so the figure reads low by however much of it was never forest.'
       }${
-        landformTarget.vac
-          ? ` Visual absorption capability is ${landformTarget.vac}, so Table 4 puts the figure for this class at ${vacDenudationPercent(landformTarget.objectiveId, landformTarget.vac)}%.`
-          : ' No visual absorption capability rating, so the class maximum is used.'
+        ' ' + resolveThreshold(landformTarget.objectiveId, 'planimetric', thresholds, landformTarget.vac).note
       }`,
     )
   }
@@ -154,7 +152,7 @@ export function ResultsPanel({
       {result.missingTileCount > 0 && (
         <InlineAlert tone="warning">
           {result.missingTileCount} of {result.demTileCount} terrain tiles did not load. Sightlines crossing them are
-          reported as clear, so these numbers read high.
+          unknown unless a known obstruction establishes occlusion. Numerical form fields may be withheld.
         </InlineAlert>
       )}
 
@@ -183,7 +181,7 @@ export function ResultsPanel({
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 Against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
                 {scale.verdict.objective.label.toLowerCase()} range is{' '}
-                {rangeFloorFor(landformTarget!.objectiveId, scale.basis, thresholds)}–{scale.verdict.thresholdPercent}%.
+                {rangeFloorFor(landformTarget!.objectiveId, scale.basis, resolvedThresholds(landformTarget!.objectiveId, scale.basis, thresholds, landformTarget!.vac))}–{scale.verdict.thresholdPercent}%.
                 This reads as{' '}
                 <span
                   className="font-medium"
@@ -202,9 +200,7 @@ export function ResultsPanel({
         </div>
       ) : (
         <InlineAlert>
-          Percentages below are the share of each block that can be seen. Percent alteration is written against a
-          readily identifiable <em>landform</em> — a hill or mountain bounded by ridges, valleys, shorelines, and
-          skylines — rather than against a whole visible landscape, so mark a polygon as a landform to get that number.
+          {landformTarget ? 'An active landform is present, but the numerical assessment is provisional. Review the evidence and resolution warnings in Assessment & report before exporting numerical fields.' : 'Per-block percentages describe visibility, not landform alteration. Select an active, delineated landform to compute an alteration ratio.'}
         </InlineAlert>
       )}
 
