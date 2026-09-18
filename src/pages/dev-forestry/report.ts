@@ -337,14 +337,25 @@ export function buildReport({
         ? 'reached green-up. No existing openings were supplied, so (c) is zero because none were found, not because none exist.'
         : `reached green-up, ${result.recoveredOpeningCount} of ${openings.length} having been excluded as recovered.`,
       '',
-      ...(landform && landform.sampleAreaMeters > 0
-        ? [
-            '',
-            '**How the areas were measured.** The protocol calls for a planimeter or a GIS area computation and warns',
-            `off dot-grid estimates. This is a grid, but a dense one: the landform carries ${landform.sampleCount.toLocaleString('en-CA')} samples at`,
-            `${hectares(landform.sampleAreaMeters)} of ground each, and a block is counted the same way. A figure is only ever as`,
-            'fine as that spacing.',
-          ]
+      ...(landform && landform.sampleAreaMeters > 0 && landform.areaMeters > 0
+        ? (() => {
+            // One sample is the finest distinction the grid can draw, so it is
+            // also the finest the percentages above mean anything at.
+            const perSample = (landform.sampleAreaMeters / landform.areaMeters) * 100
+            return [
+              '',
+              '**How the areas were measured, and how far to trust them.** The protocol calls for a planimeter or a',
+              'GIS area computation and warns off dot-grid estimates. This is a grid: the landform carries',
+              `${landform.sampleCount.toLocaleString('en-CA')} samples at ${hectares(landform.sampleAreaMeters)} of ground each, and a block is counted the same way.`,
+              '',
+              `> ⚠ **One sample is ${percent(perSample, 2)} of the landform, so the figures above cannot resolve finer than**`,
+              `> **that.** Read X as ${x.cumulativePercent.toFixed(Math.max(0, 1 - Math.floor(Math.log10(Math.max(perSample, 1e-6)))))}%, not as ${percent(x.cumulativePercent, 2)}. Two decimals are printed so the arithmetic can be`,
+              '> checked, not because the measurement earns them — a verdict that turns on less than one sample is a',
+              perSample >= 0.5
+                ? '> coin toss. Raise the sample budget, or cut the number of polygons competing for it, to sharpen this.'
+                : '> coin toss.',
+            ]
+          })()
         : []),
       '',
       '**(b) is a real gap, not a rounding one.** Roads, landings and side cast outside the openings are not in',
@@ -547,26 +558,52 @@ export function buildReport({
   )
 
   if (openings.length > 0) {
+    // A DataBC lookup routinely returns hundreds of openings, nearly all of them
+    // long recovered and out of sight. Listing every one buries the worksheet:
+    // a real run put 754 rows between the reader and the closing notes. Only the
+    // ones that count towards line (c) are worth a row; the rest are a tally.
+    const counted = openings
+      .filter((opening) => !opening.recovered && opening.visiblePercent > 0)
+      .sort((a, b) => b.visiblePercent * b.alterationWeight - a.visiblePercent * a.alterationWeight)
+    const listed = counted.slice(0, 25)
+
     lines.push('', '## Existing openings counted', '')
     lines.push(
-      ...table(
-        ['Opening', 'Harvested', 'Counts as', 'Visible'],
-        openings.map((opening) => {
-          const source = byId.get(opening.targetId)
-          return [
-            named(opening),
-            source?.harvestYear ? String(source.harvestYear) : 'unknown',
-            opening.recovered
-              ? `recovered (past ${result.settings.greenUpAgeYears} yr green-up)`
-              : `${percent(opening.alterationWeight * 100, 0)} of its area`,
-            opening.visiblePercent > 0 ? percent(opening.visiblePercent, 0) : 'not visible',
-          ]
-        }),
-      ),
+      ...fields([
+        ['Openings found', String(openings.length)],
+        ['Recovered, past green-up', String(result.recoveredOpeningCount)],
+        ['Not recovered but not visible', String(openings.length - result.recoveredOpeningCount - counted.length)],
+        ['**Counting towards (c)**', `**${counted.length}**`],
+      ]),
       '',
+    )
+    if (counted.length === 0) {
+      lines.push('None of the openings found are both unrecovered and in view, so line (c) is zero.', '')
+    } else {
+      lines.push(
+        listed.length < counted.length
+          ? `The ${listed.length} largest contributors, of ${counted.length}:`
+          : 'Each one that counts:',
+        '',
+        ...table(
+          ['Opening', 'Harvested', 'Counts as', 'Visible'],
+          listed.map((opening) => {
+            const source = byId.get(opening.targetId)
+            return [
+              named(opening),
+              source?.harvestYear ? String(source.harvestYear) : 'unknown',
+              `${percent(opening.alterationWeight * 100, 0)} of its area`,
+              percent(opening.visiblePercent, 0),
+            ]
+          }),
+        ),
+        '',
+      )
+    }
+    lines.push(
       `Green-up age is **${result.settings.greenUpAgeYears} years**, a stated planning assumption — the references`,
-      'give the green-up *height* a slope needs, not how long a site takes to reach it. ' +
-        `${result.recoveredOpeningCount} of ${openings.length} openings were excluded as recovered.`,
+      'give the green-up *height* a slope needs, not how long a site takes to reach it, so this cut-off is the',
+      'page’s, not the Ministry’s. It decides which openings above are recovered, and moving it moves line (c).',
     )
   }
 

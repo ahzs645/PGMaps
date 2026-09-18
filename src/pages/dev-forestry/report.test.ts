@@ -340,9 +340,52 @@ describe('buildReport', () => {
         polygon('recent', { role: 'harvested', name: 'Opening 2019', harvestYear: 2019 }),
       ],
     })
-    expect(text).toContain('recovered (past 20 yr green-up)')
-    expect(text).toContain('40% of its area')
-    expect(text).toContain('1 of 2 openings were excluded as recovered')
+    // Only the one that counts towards (c) gets a row; the recovered one is a
+    // tally, because a DataBC lookup routinely returns hundreds of them.
+    expect(text).toContain('| Openings found | 2 |')
+    expect(text).toContain('| Recovered, past green-up | 1 |')
+    expect(text).toContain('| **Counting towards (c)** | **1** |')
+    expect(text).toContain('| Opening 2019 | 2019 | 40% of its area | 12% |')
+    expect(text).not.toContain('Opening 1998')
+  })
+
+  it('does not bury the worksheet under a DataBC lookup', () => {
+    // A real run over Prince George returned 754 openings, nearly all of them
+    // recovered and out of sight, and put 760 table rows between the reader and
+    // the closing notes. Only contributors get rows, and only the worst of those.
+    const many = Array.from({ length: 300 }, (_, index) =>
+      visibility(`o${index}`, {
+        role: 'harvested',
+        recovered: index % 3 !== 0,
+        visiblePercent: index % 3 === 0 ? 1 + (index % 40) : 0,
+        alterationWeight: 1,
+      }),
+    )
+    const text = report({
+      result: analysis({ targets: [visibility('a'), ...many], recoveredOpeningCount: 200 }),
+      targets: [polygon('a'), ...many.map((_, index) => polygon(`o${index}`, { role: 'harvested' }))],
+    })
+
+    expect(text).toContain('| Openings found | 300 |')
+    expect(text).toContain('| Recovered, past green-up | 200 |')
+    const rows = text.split('\n').filter((line) => line.startsWith('| Polygon o'))
+    expect(rows.length).toBeLessThanOrEqual(25)
+    expect(text).toMatch(/The 25 largest contributors, of \d+:/)
+    // Sorted worst-first, so the row that matters is the one you read: o39 is
+    // the most exposed at 1 + (39 % 40) = 40%.
+    expect(rows[0]).toContain('| Polygon o39 |')
+    expect(rows[0]).toContain('40%')
+  })
+
+  it('says so when nothing on the ground still counts', () => {
+    const text = report({
+      result: analysis({
+        targets: [visibility('a'), visibility('old', { role: 'harvested', recovered: true, visiblePercent: 0 })],
+        recoveredOpeningCount: 1,
+      }),
+      targets: [polygon('a'), polygon('old', { role: 'harvested' })],
+    })
+    expect(text).toContain('line (c) is zero')
   })
 
   it('says a block is out of range rather than reporting it as unseen', () => {
