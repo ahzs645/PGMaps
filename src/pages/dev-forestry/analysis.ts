@@ -50,6 +50,47 @@ const MAX_TOTAL_SIGHTLINES = 250_000
 /** Sampling the DEM finer than it resolves adds cost and no information. */
 const MIN_SAMPLE_SPACING_FACTOR = 0.75
 
+/**
+ * Not every polygon is worth the same resolution.
+ *
+ * The landform is the denominator of every percentage and the blocks are the
+ * numerator, so their grids decide how precise the answer can be. An existing
+ * opening only shifts the cumulative figure by its own contribution, and one
+ * that has passed green-up carries `alterationWeight` zero — it moves nothing
+ * at all, and is sampled purely so the worksheet can say whether it is in view.
+ *
+ * A real DataBC lookup over Prince George returns hundreds of openings, nearly
+ * all of them long recovered. Coarsening every polygon by the same factor let
+ * those spend the budget that the landform needed: the landform came back with
+ * 99 samples over 4,489 ha, which cannot resolve an alteration to better than
+ * about a percent, while the worksheet quoted two decimals. So the budget is
+ * spent in priority order instead, and the figures keep their resolution until
+ * there is nothing coarser left to give up.
+ */
+const BUDGET_TIERS = ['figures', 'counting', 'spent'] as const
+type BudgetTier = (typeof BUDGET_TIERS)[number]
+
+function budgetTier(target: { role: TargetRole; recovered: boolean }): BudgetTier {
+  if (target.role === 'landscape' || target.role === 'block') return 'figures'
+  return target.recovered ? 'spent' : 'counting'
+}
+
+/** Sightlines a set of targets costs at its current spacing. */
+function sightlineCost(targets: PreparedTarget[], stationCount: number): number {
+  return targets.reduce((total, target) => {
+    if (!target.inRange) return total
+    return total + Math.max(1, target.areaMeters / target.spacingMeters ** 2) * stationCount
+  }, 0)
+}
+
+/** Coarsens a set just enough to cost no more than `allowance`. */
+function fitToAllowance(targets: PreparedTarget[], stationCount: number, allowance: number): PreparedTarget[] {
+  const cost = sightlineCost(targets, stationCount)
+  if (cost <= 0 || cost <= allowance) return targets
+  const coarsen = Math.sqrt(cost / Math.max(1, allowance))
+  return targets.map((target) => ({ ...target, spacingMeters: target.spacingMeters * coarsen }))
+}
+
 export type TerrainInfo = {
   tileCount: number
   missingTileCount: number
@@ -134,16 +175,40 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
 
   // Estimated sightlines, using each polygon's area over its cell area rather
   // than building the grids twice.
-  const estimate = prepared.reduce((total, target) => {
-    if (!target.inRange) return total
-    const cells = Math.max(1, target.areaMeters / target.spacingMeters ** 2)
-    return total + cells * stations.length
-  }, 0)
+  if (sightlineCost(prepared, stations.length) <= MAX_TOTAL_SIGHTLINES) return prepared
 
-  if (estimate <= MAX_TOTAL_SIGHTLINES) return prepared
+  // Spend the budget in priority order: whatever the figures need, then the
+  // openings that still count, then the recovered ones with what is left. Each
+  // tier is only coarsened once the tiers below it have given up everything.
+  const byTier = new Map<BudgetTier, PreparedTarget[]>(BUDGET_TIERS.map((tier) => [tier, []]))
+  for (const target of prepared) byTier.get(budgetTier(target))!.push(target)
 
-  const coarsen = Math.sqrt(estimate / MAX_TOTAL_SIGHTLINES)
-  return prepared.map((target) => ({ ...target, spacingMeters: target.spacingMeters * coarsen }))
+  const fitted = new Map<string, PreparedTarget>()
+  let remaining = MAX_TOTAL_SIGHTLINES
+  for (const tier of BUDGET_TIERS) {
+    const targets = byTier.get(tier)!
+    // What the tiers below this one would cost even squeezed to nothing: each
+    // in-range polygon keeps at least one sample, so that floor is not free.
+    const floorBelow = BUDGET_TIERS.slice(BUDGET_TIERS.indexOf(tier) + 1).reduce(
+      (total, lower) => total + byTier.get(lower)!.filter((target) => target.inRange).length * stations.length,
+      0,
+    )
+    for (const target of fitToAllowance(targets, stations.length, Math.max(1, remaining - floorBelow))) {
+      fitted.set(target.id, target)
+    }
+    remaining = Math.max(
+      0,
+      remaining -
+        sightlineCost(
+          targets.map((t) => fitted.get(t.id)!),
+          stations.length,
+        ),
+    )
+  }
+
+  // Input order is what the results are reported in, so rebuild rather than
+  // returning the tiers concatenated.
+  return prepared.map((target) => fitted.get(target.id) ?? target)
 }
 
 /** Bounding box the DEM has to cover: the stations plus every in-range target. */

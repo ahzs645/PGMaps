@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeAnalysis } from './analysis'
+import { computeAnalysis, prepareTargets } from './analysis'
 import type { ElevationSource } from './terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
 import { polygonAreaMeters } from './visibility'
@@ -289,5 +289,91 @@ describe('the planimetric denominator', () => {
       planimetric([]).perspectiveAlteration!.cumulativePercent,
       6,
     )
+  })
+})
+
+describe('the sample budget under a real inventory lookup', () => {
+  /** A corridor's worth of stations, which is what multiplies the sightline cost. */
+  const STATIONS = Array.from({ length: 64 }, (_, index) => ({
+    lng: -0.06,
+    lat: -0.01 + index * 0.0003,
+    distanceAlongMeters: index * 150,
+  }))
+
+  function input(targets: TargetSpec[]): AnalysisInput {
+    return {
+      viewpoint: { mode: 'corridor', coordinates: STATIONS.map((s) => [s.lng, s.lat]) },
+      targets: targets.map((target) => ({
+        id: target.id,
+        name: target.id,
+        role: target.role,
+        geometry: target.geometry,
+        harvestYear: target.harvestYear ?? null,
+        clearcutPercent: target.clearcutPercent ?? null,
+      })),
+      settings: { ...DEFAULT_ANALYSIS_SETTINGS, maxViewDistanceMeters: 40000, sampleBudget: 900 },
+      assessmentYear: 2026,
+    }
+  }
+
+  const samplesFor = (targets: TargetSpec[], id: string) => {
+    const target = prepareTargets(input(targets), STATIONS).find((entry) => entry.id === id)!
+    return target.areaMeters / target.spacingMeters ** 2
+  }
+
+  /** Openings scattered east of the landform, as a DataBC lookup returns them. */
+  function openings(count: number, harvestYear: number): TargetSpec[] {
+    return Array.from({ length: count }, (_, index) => ({
+      id: `opening-${index}`,
+      role: 'harvested' as const,
+      harvestYear,
+      clearcutPercent: 100,
+      geometry: box(
+        0.03 + (index % 30) * 0.004,
+        -0.02 + Math.floor(index / 30) * 0.004,
+        0.032 + (index % 30) * 0.004,
+        -0.018 + Math.floor(index / 30) * 0.004,
+      ),
+    }))
+  }
+
+  const LAND: TargetSpec = { id: 'land', role: 'landscape', geometry: LANDFORM }
+
+  it('does not let hundreds of recovered openings coarsen the landform', () => {
+    // Every percentage divides by the landform, so its grid sets how precise
+    // any answer can be. Coarsening every polygon by one factor let openings
+    // that contribute nothing spend the budget the landform needed.
+    const alone = samplesFor([LAND], 'land')
+    const crowded = samplesFor([LAND, ...openings(400, 1990)], 'land')
+    expect(alone).toBeGreaterThan(500)
+    expect(crowded).toBeCloseTo(alone, 6)
+  })
+
+  it('protects the blocks too — they are the numerator', () => {
+    const block: TargetSpec = { id: 'block', role: 'block', geometry: box(-0.01, -0.005, 0, 0.005) }
+    const alone = samplesFor([LAND, block], 'block')
+    const crowded = samplesFor([LAND, block, ...openings(400, 1990)], 'block')
+    expect(crowded).toBeCloseTo(alone, 6)
+  })
+
+  it('gives up the openings that still count last', () => {
+    // Same run, same size, differing only in whether green-up has caught up: a
+    // recovered opening carries no alteration weight, so its resolution buys
+    // nothing and it is the first thing coarsened.
+    const mixed = openings(400, 1990).map((opening, index) =>
+      index % 2 === 0 ? opening : { ...opening, harvestYear: 2024 },
+    )
+    const recovered = samplesFor([LAND, ...mixed], 'opening-0')
+    const counting = samplesFor([LAND, ...mixed], 'opening-1')
+    expect(counting).toBeGreaterThan(recovered)
+  })
+
+  it('still keeps the whole run inside its ceiling', () => {
+    const prepared = prepareTargets(input([LAND, ...openings(400, 2024)]), STATIONS)
+    const sightlines = prepared.reduce(
+      (total, target) => total + Math.max(1, target.areaMeters / target.spacingMeters ** 2) * STATIONS.length,
+      0,
+    )
+    expect(sightlines).toBeLessThanOrEqual(260_000)
   })
 })
