@@ -23,7 +23,7 @@
  * be unit-tested line by line.
  */
 
-import type { AnalysisResult, TargetPolygon, TargetVisibility } from './types'
+import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import { bearingDegrees, haversineMeters } from './visibility'
 import {
   adjustedAlterationPercent,
@@ -209,6 +209,65 @@ export function buildReport({
       'distance are to the centre of the *visible* parts of the proposal — on a partly screened block that is not',
       'its centroid, and pointing at the centroid would aim at ground nobody can see.',
     )
+
+    // FS1252: "Repeat the above calculation for each of the viewpoints selected
+    // for evaluation." A corridor run has already paid for every station, so
+    // the others are reported rather than thrown away.
+    // Guarded: a result restored from storage predates this field.
+    const rated = (result.perspectiveByStation ?? [])
+      .map((entry, index) => ({ entry, index }))
+      .filter((row): row is { entry: AlterationBreakdown; index: number } => row.entry !== null)
+    if (rated.length > 1 && landformTarget) {
+      const worst = [...rated].sort((a, b) => b.entry.cumulativePercent - a.entry.cumulativePercent).slice(0, 8)
+      lines.push(
+        '',
+        '### Other viewpoints on this corridor',
+        '',
+        ...table(
+          ['Station', 'At', 'Cumulative alteration', 'Reads as'],
+          worst.map(({ entry, index }) => {
+            const reads = classifyAlteration(entry.cumulativePercent, 'perspective', thresholds)
+            const verdict = assessObjective(
+              entry.cumulativePercent,
+              landformTarget.objectiveId,
+              'perspective',
+              thresholds,
+            )
+            return [
+              index === result.assessmentStationIndex ? `**${index + 1}** (assessment)` : String(index + 1),
+              km(result.stations[index]?.distanceAlongMeters ?? 0),
+              `${verdict.met ? '' : '**'}${percent(entry.cumulativePercent, 2)}${verdict.met ? '' : '**'}`,
+              reads ? reads.label : 'beyond maximum modification',
+            ]
+          }),
+        ),
+        '',
+        `The worst ${worst.length} of ${rated.length} stations that see any of the landform. FS1252 says to repeat the`,
+        'calculation for each viewpoint selected for evaluation; a corridor run has one per station already paid',
+        'for, so they are reported rather than thrown away. **Which of them is a viewpoint an assessment has to',
+        'answer for is a judgement about public viewing opportunity, not a number** — a station in a road cut with',
+        'nobody on it is not one, and the form is silent on how to choose.',
+      )
+
+      // The assessment station is picked for block exposure, which is not the
+      // same thing as the worst alteration ratio: a station seeing a lot of
+      // block and a lot of landform divides down to less than one seeing a
+      // little of both. Saying so beats quietly leading with the smaller number.
+      const headline = result.perspectiveAlteration?.cumulativePercent ?? null
+      const worstEntry = worst[0]
+      if (headline !== null && worstEntry && worstEntry.entry.cumulativePercent > headline + 0.05) {
+        const above = rated.filter((row) => row.entry.cumulativePercent > headline + 0.05).length
+        lines.push(
+          '',
+          `> ⚠ **${above} station${above === 1 ? '' : 's'} read${above === 1 ? 's' : ''} higher than the assessment viewpoint.** The headline figure is`,
+          `> ${percent(headline, 2)}; station ${worstEntry.index + 1}, at ${km(result.stations[worstEntry.index]?.distanceAlongMeters ?? 0)}, reads ${percent(worstEntry.entry.cumulativePercent, 2)}. The assessment station is`,
+          '> chosen for how much of the *proposal* it sees, which is not the same as the worst ratio of altered',
+          '> to visible landform — a station that sees a lot of both divides down to less than one that sees a',
+          '> little of each. If the higher station is somewhere the public actually views from, it is the one',
+          '> the objective has to answer for, and the headline understates the case.',
+        )
+      }
+    }
   }
 
   const importance = viewpointImportance(result)

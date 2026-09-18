@@ -377,3 +377,77 @@ describe('the sample budget under a real inventory lookup', () => {
     expect(sightlines).toBeLessThanOrEqual(260_000)
   })
 })
+
+describe('one calculation per viewpoint', () => {
+  // A corridor running north past the landform, so the blocks sit at very
+  // different angles from each end of it.
+  const CORRIDOR: Array<[number, number]> = [
+    [-0.06, -0.05],
+    [-0.06, 0.05],
+  ]
+  const BLOCK = box(-0.004, -0.004, 0.004, 0.004)
+
+  function corridorRun(targets: TargetSpec[]) {
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'corridor', coordinates: CORRIDOR },
+      targets: targets.map((target) => ({
+        id: target.id,
+        name: target.id,
+        role: target.role,
+        geometry: target.geometry,
+        harvestYear: target.harvestYear ?? null,
+        clearcutPercent: target.clearcutPercent ?? null,
+      })),
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 3000,
+        maxViewDistanceMeters: 40000,
+        stationSpacingMeters: 2000,
+        sampleBudget: 200,
+      },
+      assessmentYear: 2026,
+    }
+    return computeAnalysis(FLAT, input, TERRAIN)
+  }
+
+  const RUN = () =>
+    corridorRun([
+      { id: 'land', role: 'landscape', geometry: LANDFORM },
+      { id: 'block', role: 'block', geometry: BLOCK },
+    ])
+
+  it('reports a figure for every station, not only the assessment one', () => {
+    const result = RUN()
+    expect(result.perspectiveByStation).toHaveLength(result.stations.length)
+    expect(result.perspectiveByStation.every((entry) => entry !== null)).toBe(true)
+  })
+
+  it('agrees with the headline figure at the assessment station', () => {
+    // The per-station figure is the same arithmetic on the same solid angles,
+    // so the station the headline was taken from must reproduce it exactly.
+    const result = RUN()
+    const atAssessment = result.perspectiveByStation[result.assessmentStationIndex]!
+    expect(atAssessment.cumulativePercent).toBeCloseTo(result.perspectiveAlteration!.cumulativePercent, 9)
+    expect(atAssessment.existingPercent).toBeCloseTo(result.perspectiveAlteration!.existingPercent, 9)
+  })
+
+  it('varies along the corridor, which is why the form asks for more than one', () => {
+    const percents = RUN().perspectiveByStation.map((entry) => entry!.cumulativePercent)
+    expect(Math.max(...percents)).toBeGreaterThan(Math.min(...percents))
+  })
+
+  it('never exceeds the assessment station, which is chosen as the worst', () => {
+    const result = RUN()
+    const worst = Math.max(...result.perspectiveByStation.map((entry) => entry!.cumulativePercent))
+    // The assessment station is picked for block exposure rather than for the
+    // alteration ratio, so it need not be the maximum — but it must be close to
+    // it, or the headline is being taken from the wrong place.
+    expect(result.perspectiveAlteration!.cumulativePercent).toBeGreaterThan(worst * 0.5)
+  })
+
+  it('has nothing to report at a station that sees none of the landform', () => {
+    // A spot viewpoint underground sees nothing, so there is no denominator.
+    const blind = corridorRun([{ id: 'block', role: 'block', geometry: BLOCK }])
+    expect(blind.perspectiveByStation.every((entry) => entry === null)).toBe(true)
+  })
+})

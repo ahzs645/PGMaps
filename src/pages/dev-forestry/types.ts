@@ -167,6 +167,13 @@ export type TargetVisibility = {
   newAreaInsideLandformMeters: number | null
   /** Solid angle of visible ground not already held by an existing opening. */
   visibleApparentSolidAngleNew: number
+  /**
+   * The two solid-angle sums above, per station rather than only for the
+   * assessment one, so any viewpoint on the corridor can be worked as its own
+   * assessment. FS1252 asks for the calculation to be repeated per viewpoint.
+   */
+  visibleApparentSolidAngleByStation: Float64Array
+  visibleApparentSolidAngleNewByStation: Float64Array
   /** How much of this polygon reads as denudation, 0–1. */
   alterationWeight: number
   /** True for an existing opening that has passed green-up. */
@@ -190,6 +197,13 @@ export type AnalysisResult = {
    * is supplied to divide by.
    */
   perspectiveAlteration: AlterationBreakdown | null
+  /**
+   * The perspective figure worked from every station, not just the assessment
+   * one. FS1252 says to repeat the calculation for each viewpoint selected for
+   * evaluation; a corridor run has one per station already paid for, so this
+   * carries them all. Null at a station that sees none of the landform.
+   */
+  perspectiveByStation: Array<AlterationBreakdown | null>
   /**
    * Alteration on the looser scale timber supply analyses model against: the
    * landform's map area, visible or not.

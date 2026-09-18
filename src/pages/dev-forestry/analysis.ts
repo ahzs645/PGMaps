@@ -406,6 +406,13 @@ export function computeAnalysis(
     ? { ...assessmentStation, eyeHeightMeters: input.settings.observerHeightMeters }
     : null
 
+  /** Every station as an observer, so each can be its own assessment viewpoint. */
+  const stationObservers = stationPoints.map((station) =>
+    station && !Number.isNaN(station.groundElevationMeters)
+      ? { ...station, eyeHeightMeters: input.settings.observerHeightMeters }
+      : null,
+  )
+
   // Percent alteration is written against an identifiable landform rather than
   // the whole visible landscape, so the planimetric figure below needs one to
   // divide by — and only counts the parts of blocks that fall inside it.
@@ -427,6 +434,13 @@ export function computeAnalysis(
     let apparentTotal = 0
     let apparentVisible = 0
     let apparentVisibleNew = 0
+    // The same two solid-angle sums, kept per station rather than only for the
+    // assessment one. FS1252 says to repeat the calculation for each viewpoint
+    // selected, and one station is one viewpoint. The costly part of a sample —
+    // its terrain normal, four DEM lookups — is already computed once here, so
+    // the extra stations are arithmetic over work the run has done anyway.
+    const apparentVisibleByStation = new Float64Array(stationPoints.length)
+    const apparentVisibleNewByStation = new Float64Array(stationPoints.length)
     let nearestVisible: number | null = null
     let farthestVisible: number | null = null
     let slopeTotal = 0
@@ -488,6 +502,18 @@ export function computeAnalysis(
           if (alreadyAltered[index] !== 1) apparentVisibleNew += solidAngle
         }
 
+        // The same sums for every other viewpoint on the corridor. A sample
+        // subtends a different angle from each one, so the normal is reused but
+        // the solid angle is not.
+        for (let stationIndex = 0; stationIndex < stationPoints.length; stationIndex += 1) {
+          if (pass.visibleByStation[stationIndex * sampleCount + index] !== 1) continue
+          const observer = stationObservers[stationIndex]
+          if (!observer) continue
+          const stationAngle = apparentSolidAngle(observer, sample, pass.sampleAreaMeters, normal)
+          apparentVisibleByStation[stationIndex] += stationAngle
+          if (alreadyAltered[index] !== 1) apparentVisibleNewByStation[stationIndex] += stationAngle
+        }
+
         // The normal already carries the gradient: its horizontal length over
         // its vertical one is the tangent of the slope, which is slope percent.
         if (normal[2] > 0) {
@@ -547,6 +573,8 @@ export function computeAnalysis(
           ? ((samplesInsideLandform - samplesAlreadyAltered) / sampleCount) * pass.target.areaMeters
           : null,
       visibleApparentSolidAngleNew: apparentVisibleNew,
+      visibleApparentSolidAngleByStation: apparentVisibleByStation,
+      visibleApparentSolidAngleNewByStation: apparentVisibleNewByStation,
       alterationWeight: pass.target.alterationWeight,
       recovered: pass.target.recovered,
       outOfRange: !pass.target.inRange,
@@ -598,6 +626,23 @@ export function computeAnalysis(
     (target) => target.visibleApparentSolidAngleNew,
   )
 
+  // The same figure worked from every station. A corridor is not one viewpoint,
+  // and the worst one is not the only one an assessment has to answer for — a
+  // block can be hidden from the station that sees most of the landform and
+  // wide open from one a kilometre on.
+  const perspectiveByStation = stations.map((_, stationIndex) => {
+    const denominator = targets.reduce(
+      (total, target) =>
+        target.role === 'landscape' ? total + target.visibleApparentSolidAngleByStation[stationIndex] : total,
+      0,
+    )
+    return breakdown(
+      denominator,
+      (target) => target.visibleApparentSolidAngleByStation[stationIndex],
+      (target) => target.visibleApparentSolidAngleNewByStation[stationIndex],
+    )
+  })
+
   // The planimetric figure is flat map area, visible or not: that is what the
   // timber-supply scale is applied to. The procedure divides by the landform's
   // green area, so the inventory's treed ground is the denominator where it was
@@ -621,6 +666,7 @@ export function computeAnalysis(
     assessmentStationIndex,
     targets,
     perspectiveAlteration,
+    perspectiveByStation,
     planimetricAlteration,
     landformAreaMeters: landformArea > 0 ? landformArea : null,
     landformForestedAreaMeters: landformForestedArea > 0 ? landformForestedArea : null,

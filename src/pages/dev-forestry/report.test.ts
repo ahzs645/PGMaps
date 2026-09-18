@@ -63,6 +63,10 @@ function analysis(patch: Partial<AnalysisResult> = {}): AnalysisResult {
     assessmentStationIndex: 1,
     targets: [visibility('a')],
     perspectiveAlteration: { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+    perspectiveByStation: [
+      { existingPercent: 0, proposedPercent: 2.4, cumulativePercent: 2.4 },
+      { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+    ],
     planimetricAlteration: { existingPercent: 0, proposedPercent: 3.77, cumulativePercent: 3.77 },
     landformAreaMeters: null,
     landformForestedAreaMeters: null,
@@ -165,6 +169,38 @@ describe('buildReport', () => {
       }),
     )
     expect(screened).toContain('nothing proposed is in view')
+  })
+
+  it('reports every viewpoint on the corridor, as the form asks', () => {
+    const text = report(withLandform())
+    expect(text).toContain('### Other viewpoints on this corridor')
+    // The assessment station is marked, and the one that is within its
+    // objective is not bolded as over.
+    expect(text).toContain('| **2** (assessment) | 2.40 km | **7.10%** | Modification |')
+    expect(text).toContain('| 1 | 0.00 km | 2.40% | Partial retention |')
+    expect(text).toContain('repeat the')
+    // Choosing which stations are real viewpoints is not a number.
+    expect(text).toContain('public viewing opportunity, not a number')
+  })
+
+  it('says when a station reads worse than the viewpoint it led with', () => {
+    // The assessment station is chosen for block exposure, not for the worst
+    // ratio, so it can quietly understate the case. A live Tabor run had the
+    // headline at 7.10% while eight stations read higher, one at 10.50%.
+    const text = report(
+      withLandform({
+        perspectiveByStation: [
+          { existingPercent: 0, proposedPercent: 10.5, cumulativePercent: 10.5 },
+          { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+        ],
+      }),
+    )
+    expect(text).toContain('1 station reads higher than the assessment viewpoint')
+    expect(text).toContain('the headline understates the case')
+  })
+
+  it('stays quiet when the assessment viewpoint is the worst', () => {
+    expect(report(withLandform())).not.toContain('read higher than the assessment viewpoint')
   })
 
   it('derives viewpoint importance, and says it is only a floor', () => {
