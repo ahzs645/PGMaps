@@ -337,6 +337,16 @@ export function buildReport({
         ? 'reached green-up. No existing openings were supplied, so (c) is zero because none were found, not because none exist.'
         : `reached green-up, ${result.recoveredOpeningCount} of ${openings.length} having been excluded as recovered.`,
       '',
+      ...(landform && landform.sampleAreaMeters > 0
+        ? [
+            '',
+            '**How the areas were measured.** The protocol calls for a planimeter or a GIS area computation and warns',
+            `off dot-grid estimates. This is a grid, but a dense one: the landform carries ${landform.sampleCount.toLocaleString('en-CA')} samples at`,
+            `${hectares(landform.sampleAreaMeters)} of ground each, and a block is counted the same way. A figure is only ever as`,
+            'fine as that spacing.',
+          ]
+        : []),
+      '',
       '**(b) is a real gap, not a rounding one.** Roads, landings and side cast outside the openings are not in',
       'this model, and on steep ground a road can read as heavily as the block it serves. X below is therefore a',
       'floor. Page 4 of the form also excludes non-green ground — rock, snow, ice — from the denominator, which',
