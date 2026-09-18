@@ -412,6 +412,7 @@ export function parseScene(input: unknown): ForestryScene | null {
             vac: isVacRating(target.vac) ? target.vac : null,
             harvestYear: typeof target.harvestYear === 'number' ? target.harvestYear : null,
             clearcutPercent: typeof target.clearcutPercent === 'number' ? target.clearcutPercent : null,
+            siteDisturbance: target.siteDisturbance === true,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },

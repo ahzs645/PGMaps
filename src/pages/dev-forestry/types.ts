@@ -43,6 +43,13 @@ export type TargetPolygon = {
    * Only the clearcut part reads as denudation.
    */
   clearcutPercent: number | null
+  /**
+   * Roads, landings, side cast — FS1252 line 2.3.2 (b), site disturbance
+   * outside the openings. It sums into X exactly as an opening does, so this
+   * only decides which line it is reported on, and that it never greens up:
+   * a road stays a road.
+   */
+  siteDisturbance?: boolean
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   /** Where it came from, shown in the sidebar so imports stay traceable. */
   source: string
@@ -102,7 +109,9 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
 
 export type AnalysisInput = {
   viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'>
-  targets: Array<Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry' | 'harvestYear' | 'clearcutPercent'>>
+  targets: Array<
+    Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry' | 'harvestYear' | 'clearcutPercent' | 'siteDisturbance'>
+  >
   settings: AnalysisSettings
   /** Year the run is assessed in, so green-up is reproducible. */
   assessmentYear: number
@@ -178,6 +187,8 @@ export type TargetVisibility = {
   alterationWeight: number
   /** True for an existing opening that has passed green-up. */
   recovered: boolean
+  /** True where this polygon is site disturbance rather than an opening. */
+  siteDisturbance: boolean
   /** True when every station sits beyond the maximum view distance. */
   outOfRange: boolean
   stations: StationResult[]
@@ -235,8 +246,13 @@ export type AnalysisResult = {
  * over an old opening is not charged twice.
  */
 export type AlterationBreakdown = {
+  /** FS1252 line 2.3.2 (c): existing openings that have not greened up. */
   existingPercent: number
+  /** FS1252 line 2.3.2 (b): roads, landings and side cast outside the openings. */
+  disturbancePercent: number
+  /** FS1252 line 2.3.2 (a): the openings under consideration. */
   proposedPercent: number
+  /** X, the sum of the three. */
   cumulativePercent: number
 }
 

@@ -4,6 +4,7 @@ import {
   Eye,
   FileText,
   FileUp,
+  Waypoints,
   Gauge,
   Landmark,
   Loader2,
@@ -190,6 +191,8 @@ type SidebarProps = {
   onExport: () => void
   /** Downloads the run as a worksheet; null until there is a run to write up. */
   onExportReport: (() => void) | null
+  /** Adds the on-screen roads inside the landform as FS1252 line (b) disturbance. */
+  onAddRoadDisturbance: () => void
 }
 
 export function Sidebar({
@@ -228,6 +231,7 @@ export function Sidebar({
   onClearScene,
   onExport,
   onExportReport,
+  onAddRoadDisturbance,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Which scale the threshold editor is showing. Purely a view concern — both
@@ -880,6 +884,14 @@ export function Sidebar({
             {analysis.error}
           </InlineAlert>
         )}
+
+        {/* FS1252 line 2.3.2 (b): roads, landings and side cast outside the
+            openings. Without these the alteration figure is a floor, and on
+            steep ground a road can read as heavily as the block it serves. */}
+        <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onAddRoadDisturbance}>
+          <Waypoints className="h-4 w-4" />
+          Add on-screen roads as site disturbance
+        </Button>
 
         {onExportReport && (
           <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onExportReport}>

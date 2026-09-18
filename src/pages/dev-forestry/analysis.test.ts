@@ -43,6 +43,7 @@ function analyse(targets: TargetSpec[], settings: Partial<typeof DEFAULT_ANALYSI
       geometry: target.geometry,
       harvestYear: target.harvestYear ?? null,
       clearcutPercent: target.clearcutPercent ?? null,
+      siteDisturbance: target.siteDisturbance,
     })),
     settings: {
       ...DEFAULT_ANALYSIS_SETTINGS,
@@ -449,5 +450,49 @@ describe('one calculation per viewpoint', () => {
     // A spot viewpoint underground sees nothing, so there is no denominator.
     const blind = corridorRun([{ id: 'block', role: 'block', geometry: BLOCK }])
     expect(blind.perspectiveByStation.every((entry) => entry === null)).toBe(true)
+  })
+})
+
+describe('site disturbance on line (b)', () => {
+  const BLOCK = box(-0.004, -0.004, 0.004, 0.004)
+  const ROAD = box(0.006, -0.008, 0.008, 0.008)
+
+  function run(extra: TargetSpec[]) {
+    return analyse([
+      { id: 'land', role: 'landscape', geometry: LANDFORM },
+      { id: 'block', role: 'block', geometry: BLOCK },
+      ...extra,
+    ])
+  }
+
+  it('counts on its own line, not with the openings', () => {
+    const result = run([{ id: 'road', role: 'harvested', siteDisturbance: true, clearcutPercent: 100, geometry: ROAD }])
+    const planimetric = result.planimetricAlteration!
+    expect(planimetric.disturbancePercent).toBeCloseTo(shareOfLandform(ROAD), 0)
+    expect(planimetric.existingPercent).toBe(0)
+  })
+
+  it('sums into X exactly as an opening does', () => {
+    const asDisturbance = run([
+      { id: 'road', role: 'harvested', siteDisturbance: true, clearcutPercent: 100, geometry: ROAD },
+    ]).planimetricAlteration!
+    const asOpening = run([
+      { id: 'road', role: 'harvested', harvestYear: 2025, clearcutPercent: 100, geometry: ROAD },
+    ]).planimetricAlteration!
+    expect(asDisturbance.cumulativePercent).toBeCloseTo(asOpening.cumulativePercent, 6)
+  })
+
+  it('never greens up — a road stays a road', () => {
+    // Harvested in 1950, far past any green-up age. An opening would drop out.
+    const old: TargetSpec = { id: 'road', role: 'harvested', harvestYear: 1950, clearcutPercent: 100, geometry: ROAD }
+    expect(run([old]).planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(BLOCK), 0)
+    expect(run([{ ...old, siteDisturbance: true }]).planimetricAlteration!.cumulativePercent).toBeCloseTo(
+      shareOfLandform(BLOCK) + shareOfLandform(ROAD),
+      0,
+    )
+  })
+
+  it('is zero when none was supplied', () => {
+    expect(run([]).planimetricAlteration!.disturbancePercent).toBe(0)
   })
 })

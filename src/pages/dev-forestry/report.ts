@@ -116,7 +116,8 @@ export function buildReport({
   const named = (target: TargetVisibility) => byId.get(target.targetId)?.name ?? target.targetId
 
   const blocks = result.targets.filter((target) => target.role === 'block')
-  const openings = result.targets.filter((target) => target.role === 'harvested')
+  const openings = result.targets.filter((target) => target.role === 'harvested' && !target.siteDisturbance)
+  const disturbance = result.targets.filter((target) => target.role === 'harvested' && target.siteDisturbance)
   const landform = result.targets.find((target) => target.role === 'landscape') ?? null
   const landformTarget = landform ? byId.get(landform.targetId) : null
   const station = result.stations[result.assessmentStationIndex] ?? null
@@ -383,7 +384,12 @@ export function buildReport({
     lines.push(
       ...fields([
         ['a) % of landform altered by recent openings', `**${percent(x.proposedPercent, 2)}**`],
-        ['b) % of landform with site disturbance outside openings', `${OFFICE} — not modelled, see below`],
+        [
+          'b) % of landform with site disturbance outside openings',
+          disturbance.length > 0
+            ? `**${percent(x.disturbancePercent, 2)}** — ${disturbance.length} polygon(s), see below`
+            : `${OFFICE} — none supplied, see below`,
+        ],
         ['c) % non-veg contribution of old openings', `**${percent(x.existingPercent, 2)}**`],
         ['**X = (a + b + c)**', `**${percent(x.cumulativePercent, 2)}**`],
         ['**Initial VQC**', initial ? `**${initial.code} — ${initial.label}**` : '**beyond maximum modification**'],
@@ -417,9 +423,13 @@ export function buildReport({
           })()
         : []),
       '',
-      '**(b) is a real gap, not a rounding one.** Roads, landings and side cast outside the openings are not in',
-      'this model, and on steep ground a road can read as heavily as the block it serves. X below is therefore a',
-      'floor. Page 4 of the form also excludes non-green ground — rock, snow, ice — from the denominator, which',
+      disturbance.length > 0
+        ? '**(b) is modelled here**, from the polygons listed under site disturbance below. It is only as complete as' +
+            ' what was supplied: any road, landing or side cast not drawn is still missing, and X is a floor by that much.'
+        : '**(b) is a real gap, not a rounding one.** Roads, landings and side cast outside the openings are not in' +
+            ' this run, and on steep ground a road can read as heavily as the block it serves. X is therefore a floor.' +
+            ' Add them as site disturbance to close it.',
+      'Page 4 of the form also excludes non-green ground — rock, snow, ice — from the denominator, which',
       landform?.forestedAreaMeters !== null && landform?.forestedAreaMeters !== undefined
         ? 'this run does, from the vegetation inventory.'
         : 'this run does **not**, for want of an inventory, so the figure reads low on a partly bare landform.',
@@ -427,6 +437,25 @@ export function buildReport({
 
     const verdict = assessObjective(x.cumulativePercent, landformTarget.objectiveId, 'perspective', thresholds)
     lines.push('', `**Against the established objective:** ${verdictLine(verdict)}`)
+  }
+
+  if (disturbance.length > 0) {
+    lines.push('', '### Site disturbance counted on line (b)', '')
+    lines.push(
+      ...table(
+        ['Polygon', 'Area', 'Visible'],
+        disturbance.map((entry) => [
+          named(entry),
+          hectares(entry.areaMeters),
+          entry.visiblePercent > 0
+            ? `${hectares(entry.visibleAreaMeters)} (${percent(entry.visiblePercent, 0)})`
+            : 'not visible',
+        ]),
+      ),
+      '',
+      'Roads, landings and side cast are treated as permanent: ground under a road does not green up while the',
+      'road is there, so unlike an opening these never drop out of the sum however old they are.',
+    )
   }
 
   lines.push('', '## 2.3.3 Assess adjusted VQC (office)', '')

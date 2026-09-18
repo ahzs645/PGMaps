@@ -112,6 +112,8 @@ export type PreparedTarget = {
   alterationWeight: number
   /** True for an existing opening excluded because regeneration has caught up. */
   recovered: boolean
+  /** Site disturbance — a road or landing, which never greens up. */
+  siteDisturbance: boolean
 }
 
 /** Shortest distance from a point to a bounding box, in metres. */
@@ -154,7 +156,10 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
       target.role === 'harvested' && typeof target.harvestYear === 'number'
         ? input.assessmentYear - target.harvestYear
         : null
-    const recovered = age !== null && age >= input.settings.greenUpAgeYears
+    // Ground under a road does not grow back while the road is there, so site
+    // disturbance never reaches green-up however old it is.
+    const siteDisturbance = target.role === 'harvested' && target.siteDisturbance === true
+    const recovered = !siteDisturbance && age !== null && age >= input.settings.greenUpAgeYears
     const clearcutFraction =
       target.role === 'harvested' && typeof target.clearcutPercent === 'number'
         ? Math.max(0, Math.min(1, target.clearcutPercent / 100))
@@ -170,6 +175,7 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
       inRange: nearest <= input.settings.maxViewDistanceMeters,
       alterationWeight: recovered ? 0 : clearcutFraction,
       recovered,
+      siteDisturbance,
     }
   })
 
@@ -573,6 +579,7 @@ export function computeAnalysis(
           ? ((samplesInsideLandform - samplesAlreadyAltered) / sampleCount) * pass.target.areaMeters
           : null,
       visibleApparentSolidAngleNew: apparentVisibleNew,
+      siteDisturbance: pass.target.siteDisturbance,
       visibleApparentSolidAngleByStation: apparentVisibleByStation,
       visibleApparentSolidAngleNewByStation: apparentVisibleNewByStation,
       alterationWeight: pass.target.alterationWeight,
@@ -606,17 +613,30 @@ export function computeAnalysis(
     proposed: (target: TargetVisibility) => number,
   ): AlterationBreakdown | null => {
     if (denominator <= 0) return null
-    const existingTotal = targets.reduce(
-      (total, target) => (target.role === 'harvested' ? total + existing(target) * target.alterationWeight : total),
-      0,
-    )
+    const share = (include: (target: TargetVisibility) => boolean, measure: (target: TargetVisibility) => number) =>
+      (targets.reduce(
+        (total, target) => (include(target) ? total + measure(target) * target.alterationWeight : total),
+        0,
+      ) /
+        denominator) *
+      100
+
+    // FS1252 splits what is already on the ground into openings (line c) and
+    // the site disturbance outside them (line b). Both sum into X the same way,
+    // so the split is about reporting on the right line, not about the total.
+    const existingPercent = share((target) => target.role === 'harvested' && !target.siteDisturbance, existing)
+    const disturbancePercent = share((target) => target.role === 'harvested' && target.siteDisturbance, existing)
     const proposedTotal = targets.reduce(
       (total, target) => (target.role === 'block' ? total + proposed(target) : total),
       0,
     )
-    const existingPercent = (existingTotal / denominator) * 100
     const proposedPercent = (proposedTotal / denominator) * 100
-    return { existingPercent, proposedPercent, cumulativePercent: existingPercent + proposedPercent }
+    return {
+      existingPercent,
+      disturbancePercent,
+      proposedPercent,
+      cumulativePercent: existingPercent + disturbancePercent + proposedPercent,
+    }
   }
 
   const perspectiveAlteration = breakdown(

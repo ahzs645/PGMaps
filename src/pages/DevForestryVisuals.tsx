@@ -90,6 +90,13 @@ const DEFAULT_DRIVE: DriveState = {
 
 const FIT_PADDING = { top: 72, bottom: 72, left: 48, right: 48 }
 
+/**
+ * Cleared width assumed for a road added as site disturbance. A forest service
+ * road's running surface plus its cut-and-fill slopes is wider than the
+ * driving surface, and it is the cleared ground that reads as alteration.
+ */
+const ROAD_DISTURBANCE_WIDTH_METERS = 20
+
 type InventoryState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
   units: BcSensitivityUnit[]
@@ -459,6 +466,7 @@ function DevForestryVisuals() {
         geometry: target.geometry,
         harvestYear: target.harvestYear,
         clearcutPercent: target.clearcutPercent,
+        siteDisturbance: target.siteDisturbance,
       })),
       settings: scene.settings,
       assessmentYear: new Date().getFullYear(),
@@ -571,6 +579,67 @@ function DevForestryVisuals() {
   const handleExport = useCallback(() => {
     downloadFile('forestry-visual-quality-scene.json', serializeScene(scene), 'application/json')
   }, [scene])
+
+  /**
+   * Adds the roads the basemap is drawing inside the landform as site
+   * disturbance — FS1252 line 2.3.2 (b), which the worksheet otherwise leaves
+   * blank. A road is a line, so it is buffered to a right-of-way width; that
+   * width is an assumption and is named in the polygon so it travels with it.
+   */
+  const handleAddRoadDisturbance = useCallback(() => {
+    const map = mapRef.current
+    const landform = scene.targets.find((target) => target.role === 'landscape')
+    if (!map || !landform) {
+      setSnapMessage('Add a landform first — site disturbance is measured against it.')
+      return
+    }
+
+    const roads = collectRoadsFromMap(map)
+    if (roads.length === 0) {
+      setSnapMessage('No roads drawn at this zoom. Zoom in until they show, then try again.')
+      return
+    }
+
+    // Only the parts inside the landform matter: the figure divides by it.
+    const bounds = polygonBounds(landform.geometry)
+    const inside = roads.filter((road) =>
+      road.coordinates.some(
+        ([lng, lat]) => lng >= bounds[0] && lng <= bounds[2] && lat >= bounds[1] && lat <= bounds[3],
+      ),
+    )
+    if (inside.length === 0) {
+      setSnapMessage('No roads on screen fall inside the landform.')
+      return
+    }
+
+    const added = inside.flatMap((road) => {
+      const polygon = bufferLine(road.coordinates, ROAD_DISTURBANCE_WIDTH_METERS / 2)
+      if (!polygon) return []
+      return [
+        {
+          id: createId('disturbance'),
+          name: `${road.name || road.roadClass || 'Road'} — ${ROAD_DISTURBANCE_WIDTH_METERS} m right-of-way`,
+          role: 'harvested' as const,
+          objectiveId: scene.targets[0]?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
+          vac: null,
+          harvestYear: null,
+          clearcutPercent: 100,
+          siteDisturbance: true,
+          geometry: polygon,
+          source: 'Basemap roads',
+        },
+      ]
+    })
+    if (added.length === 0) {
+      setSnapMessage('Those roads were too short to buffer into polygons.')
+      return
+    }
+
+    setScene((current) => ({ ...current, targets: [...current.targets, ...added] }))
+    setSnapMessage(
+      `Added ${added.length} road${added.length === 1 ? '' : 's'} as site disturbance at ${ROAD_DISTURBANCE_WIDTH_METERS} m wide. Run again to count them on line (b).`,
+    )
+  }, [scene.targets])
 
   /** The run written up on FS1252, for somebody to check every figure in. */
   const handleExportReport = useCallback(() => {
@@ -801,6 +870,7 @@ function DevForestryVisuals() {
       onClearScene={handleClearScene}
       onExport={handleExport}
       onExportReport={result ? handleExportReport : null}
+      onAddRoadDisturbance={handleAddRoadDisturbance}
     />
   )
 

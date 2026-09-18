@@ -62,12 +62,17 @@ function analysis(patch: Partial<AnalysisResult> = {}): AnalysisResult {
     corridorLengthMeters: 9510,
     assessmentStationIndex: 1,
     targets: [visibility('a')],
-    perspectiveAlteration: { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+    perspectiveAlteration: { disturbancePercent: 0, existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
     perspectiveByStation: [
-      { existingPercent: 0, proposedPercent: 2.4, cumulativePercent: 2.4 },
-      { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+      { disturbancePercent: 0, existingPercent: 0, proposedPercent: 2.4, cumulativePercent: 2.4 },
+      { disturbancePercent: 0, existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
     ],
-    planimetricAlteration: { existingPercent: 0, proposedPercent: 3.77, cumulativePercent: 3.77 },
+    planimetricAlteration: {
+      disturbancePercent: 0,
+      existingPercent: 0,
+      proposedPercent: 3.77,
+      cumulativePercent: 3.77,
+    },
     landformAreaMeters: null,
     landformForestedAreaMeters: null,
     recoveredOpeningCount: 0,
@@ -190,8 +195,8 @@ describe('buildReport', () => {
     const text = report(
       withLandform({
         perspectiveByStation: [
-          { existingPercent: 0, proposedPercent: 10.5, cumulativePercent: 10.5 },
-          { existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
+          { disturbancePercent: 0, existingPercent: 0, proposedPercent: 10.5, cumulativePercent: 10.5 },
+          { disturbancePercent: 0, existingPercent: 0, proposedPercent: 7.1, cumulativePercent: 7.1 },
         ],
       }),
     )
@@ -222,7 +227,12 @@ describe('buildReport', () => {
   it('splits the alteration into the form’s a, b and c', () => {
     const text = report(
       withLandform({
-        perspectiveAlteration: { existingPercent: 1.1, proposedPercent: 6.0, cumulativePercent: 7.1 },
+        perspectiveAlteration: {
+          disturbancePercent: 0,
+          existingPercent: 1.1,
+          proposedPercent: 6.0,
+          cumulativePercent: 7.1,
+        },
       }),
     )
     expect(text).toContain('| a) % of landform altered by recent openings | **6.00%** |')
@@ -230,8 +240,36 @@ describe('buildReport', () => {
     expect(text).toContain('| **X = (a + b + c)** | **7.10%** |')
     expect(text).toContain('| **Initial VQC** | **M — Modification** |')
     // b is a gap, and the worksheet says so rather than implying zero.
-    expect(text).toContain('b) % of landform with site disturbance outside openings | ______ *(office)* — not modelled')
+    expect(text).toContain(
+      'b) % of landform with site disturbance outside openings | ______ *(office)* — none supplied',
+    )
     expect(text).toContain('**(b) is a real gap, not a rounding one.**')
+    expect(text).toContain('Add them as site disturbance to close it.')
+  })
+
+  it('fills line (b) when site disturbance was supplied', () => {
+    const text = report(
+      withLandform({
+        targets: [
+          visibility('a'),
+          visibility('land', { role: 'landscape', areaMeters: 44_889_000, forestedAreaMeters: 34_819_000 }),
+          visibility('road', { role: 'harvested', siteDisturbance: true, areaMeters: 180_000, visiblePercent: 61 }),
+        ],
+        perspectiveAlteration: {
+          existingPercent: 0.4,
+          disturbancePercent: 1.2,
+          proposedPercent: 6.0,
+          cumulativePercent: 7.6,
+        },
+      }),
+    )
+    expect(text).toContain(
+      '| b) % of landform with site disturbance outside openings | **1.20%** — 1 polygon(s), see below |',
+    )
+    expect(text).toContain('**(b) is modelled here**')
+    expect(text).toContain('### Site disturbance counted on line (b)')
+    // A road does not green up while it is there.
+    expect(text).toContain('treated as permanent')
   })
 
   it('explains that the form’s a and c mean something else before harvest', () => {
@@ -264,7 +302,14 @@ describe('buildReport', () => {
 
   it('still reports a break-even Y for an alteration far over the objective', () => {
     const text = report(
-      withLandform({ perspectiveAlteration: { existingPercent: 0, proposedPercent: 60, cumulativePercent: 60 } }),
+      withLandform({
+        perspectiveAlteration: {
+          disturbancePercent: 0,
+          existingPercent: 0,
+          proposedPercent: 60,
+          cumulativePercent: 60,
+        },
+      }),
     )
     expect(text).toMatch(/Y would have to reach −6\.\d/)
   })
@@ -327,7 +372,9 @@ describe('buildReport', () => {
   it('flags the two scales disagreeing, because only one of them governs', () => {
     expect(report(withLandform())).toContain('The two scales disagree')
     const agreeing = report(
-      withLandform({ perspectiveAlteration: { existingPercent: 0, proposedPercent: 2, cumulativePercent: 2 } }),
+      withLandform({
+        perspectiveAlteration: { disturbancePercent: 0, existingPercent: 0, proposedPercent: 2, cumulativePercent: 2 },
+      }),
     )
     expect(agreeing).not.toContain('The two scales disagree')
   })
