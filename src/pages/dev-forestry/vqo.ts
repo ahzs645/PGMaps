@@ -280,45 +280,65 @@ export function vegHeightForSlope(slopePercent: number): number {
 
 /**
  * Partial cutting is judged on what is left standing, not on denudation, so it
- * has its own guide: the class most likely achieved for a share of volume or
- * stems removed against the height of the residual trees (2013 guide).
+ * converts: FS1252 Table 4, *Visual Equivalent to Clearcut Percent Alteration
+ * Factors for Partial Cut Alterations*. A partial cut of this intensity among
+ * residuals of this height reads like a clearcut of this percentage.
  *
- * Rows are volume/stems removed in 10% steps from 10% to 90%; columns are
+ * Rows are volume removed in 10% steps from 10% to 90%; columns are mean
  * residual tree height in 5 m steps from 5 m to 50 m.
+ *
+ * Held as the form's own numbers rather than as the class letters its shading
+ * implies, because the form wants the number: "Clearcut equivalent __ %
+ * alteration as read from Table 4. Record this value on line 2.3.2 a." A class
+ * letter cannot be added into a sum; a percentage can. The class is then
+ * derived from it through Table 3, so the two can never disagree.
  */
-const PARTIAL_CUT_GUIDE: ReadonlyArray<ReadonlyArray<'R' | 'PR' | 'M'>> = [
-  ['R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'PR', 'PR'],
-  ['R', 'R', 'R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR'],
-  ['R', 'R', 'R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR'],
-  ['R', 'R', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'M'],
-  ['PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'PR', 'M', 'M', 'M'],
-  ['PR', 'PR', 'PR', 'PR', 'PR', 'M', 'M', 'M', 'M', 'M'],
-  ['PR', 'PR', 'PR', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
-  ['PR', 'PR', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
-  ['M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M'],
+const PARTIAL_CUT_EQUIVALENT: ReadonlyArray<ReadonlyArray<number>> = [
+  [0.1, 0.2, 0.4, 0.6, 0.7, 0.8, 1.0, 1.2, 1.8, 2.2],
+  [0.3, 0.4, 0.7, 1.0, 1.2, 1.4, 1.8, 2.2, 3.3, 4.4],
+  [0.7, 0.9, 1.2, 1.4, 2.0, 2.4, 3.3, 4.2, 5.0, 6.5],
+  [1.2, 1.4, 2.0, 2.4, 3.4, 4.3, 5.2, 6.1, 6.7, 7.8],
+  [1.8, 2.3, 3.4, 4.3, 5.2, 6.2, 6.8, 7.7, 8.4, 9.0],
+  [3.5, 4.3, 5.0, 6.2, 6.7, 7.7, 8.4, 9.2, 10.0, 11.5],
+  [4.9, 5.5, 6.5, 7.7, 8.4, 9.2, 10.0, 11.4, 12.7, 14.0],
+  [6.0, 6.6, 8.3, 9.2, 10.0, 11.0, 12.0, 13.2, 14.4, 15.5],
+  [8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0],
 ]
 
-const PARTIAL_CUT_CLASS_BY_CODE: Record<string, VisualQualityClassId> = {
-  R: 'retention',
-  PR: 'partial-retention',
-  M: 'modification',
+/**
+ * The clearcut-equivalent percent alteration a partial cut reads as, for adding
+ * into the alteration sum. Null below 10% removed, where the table does not
+ * start — that little does not read as an alteration at all.
+ *
+ * Read from the nearest cell rather than interpolated, because the form says
+ * "as read from Table 4" and a reader with the paper form does exactly that.
+ */
+export function partialCutEquivalentPercent(
+  volumeRemovedPercent: number,
+  residualTreeHeightMeters: number,
+): number | null {
+  if (!Number.isFinite(volumeRemovedPercent) || !Number.isFinite(residualTreeHeightMeters)) return null
+  if (volumeRemovedPercent < 10) return null
+
+  const row = Math.min(PARTIAL_CUT_EQUIVALENT.length - 1, Math.max(0, Math.round(volumeRemovedPercent / 10) - 1))
+  const columns = PARTIAL_CUT_EQUIVALENT[row].length
+  const column = Math.min(columns - 1, Math.max(0, Math.round(residualTreeHeightMeters / 5) - 1))
+  return PARTIAL_CUT_EQUIVALENT[row][column]
 }
 
 /**
- * The class a partial cut most likely achieves. Returns null below 10% removed,
- * where the guide does not start — that little is not a visible alteration.
+ * The class a partial cut most likely achieves — its clearcut equivalent read
+ * against the perspective ranges, which is what the shading on the form's own
+ * copy of Table 4 shows.
  */
 export function partialCutClass(
   volumeRemovedPercent: number,
   residualTreeHeightMeters: number,
+  thresholds: VisualQualityThresholds = DEFAULT_VISUAL_QUALITY_THRESHOLDS,
 ): VisualQualityClass | null {
-  if (!Number.isFinite(volumeRemovedPercent) || !Number.isFinite(residualTreeHeightMeters)) return null
-  if (volumeRemovedPercent < 10) return null
-
-  const row = Math.min(PARTIAL_CUT_GUIDE.length - 1, Math.max(0, Math.round(volumeRemovedPercent / 10) - 1))
-  const columns = PARTIAL_CUT_GUIDE[row].length
-  const column = Math.min(columns - 1, Math.max(0, Math.round(residualTreeHeightMeters / 5) - 1))
-  return visualQualityClass(PARTIAL_CUT_CLASS_BY_CODE[PARTIAL_CUT_GUIDE[row][column]])
+  const equivalent = partialCutEquivalentPercent(volumeRemovedPercent, residualTreeHeightMeters)
+  if (equivalent === null) return null
+  return classifyAlteration(equivalent, 'perspective', thresholds)
 }
 
 /**

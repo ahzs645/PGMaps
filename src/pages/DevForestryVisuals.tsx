@@ -442,6 +442,7 @@ function DevForestryVisuals() {
         clearcutPercent: null,
         geometry: unit.geometry,
         source: 'BC visual landscape inventory',
+        inventoryUnitId: unit.id,
       })
       setSelectedTargetId(unitId)
     },
@@ -571,10 +572,16 @@ function DevForestryVisuals() {
     downloadFile('forestry-visual-quality-scene.json', serializeScene(scene), 'application/json')
   }, [scene])
 
-  /** The run written up, for somebody to check every figure in. */
+  /** The run written up on FS1252, for somebody to check every figure in. */
   const handleExportReport = useCallback(() => {
     if (!result) return
-    const source = inventory.units.length > 0 ? 'BC visual landscape inventory (DataBC)' : null
+    // The inventory record behind the landform, when it was adopted from one:
+    // it carries the VSC and scenic-area flag the form asks for, which the
+    // landform polygon itself does not.
+    const landform = scene.targets.find((target) => target.role === 'landscape')
+    const unit = landform?.inventoryUnitId
+      ? (inventory.units.find((entry) => entry.id === landform.inventoryUnitId) ?? null)
+      : null
     downloadFile(
       `visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`,
       buildReport({
@@ -583,11 +590,12 @@ function DevForestryVisuals() {
         thresholds: scene.thresholds,
         viewpointName: scene.viewpoint.name || 'Unnamed viewpoint',
         generatedAt: new Date(),
-        inventorySource: source,
+        inventorySource: unit ? 'BC visual landscape inventory (DataBC)' : null,
+        inventoryUnit: unit ? { polygonNumber: unit.polygonNumber, vsc: unit.vsc, scenicArea: unit.scenicArea } : null,
       }),
       'text/markdown',
     )
-  }, [inventory.units.length, result, scene])
+  }, [inventory.units, result, scene])
 
   const handleLoadSample = useCallback(() => {
     const sample = createSampleScene()

@@ -46,6 +46,13 @@ export type TargetPolygon = {
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   /** Where it came from, shown in the sidebar so imports stay traceable. */
   source: string
+  /**
+   * The visual landscape inventory polygon this was adopted from, when it was.
+   * Keeps the link to the inventory record so the worksheet can fill FS1252's
+   * VLI section — polygon number, VSC, scenic area — from the source rather
+   * than from the name it was labelled with.
+   */
+  inventoryUnitId?: string | null
 }
 
 export type AnalysisSettings = {

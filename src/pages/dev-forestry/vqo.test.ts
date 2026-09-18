@@ -6,6 +6,7 @@ import {
   assessObjective,
   classifyAlteration,
   partialCutClass,
+  partialCutEquivalentPercent,
   rangeFloorFor,
   thresholdFor,
   vacDenudationPercent,
@@ -148,28 +149,71 @@ describe('vegHeightForSlope', () => {
   })
 })
 
+describe('partialCutEquivalentPercent', () => {
+  it('reads FS1252 Table 4 at its corners', () => {
+    expect(partialCutEquivalentPercent(10, 5)).toBe(0.1)
+    expect(partialCutEquivalentPercent(10, 50)).toBe(2.2)
+    expect(partialCutEquivalentPercent(90, 5)).toBe(8.0)
+    expect(partialCutEquivalentPercent(90, 50)).toBe(17.0)
+  })
+
+  it('rises with volume removed and with residual height alike', () => {
+    // Taller residuals read as a heavier alteration for the same removal,
+    // because what is taken out leaves a bigger hole in a taller canopy.
+    expect(partialCutEquivalentPercent(50, 5)).toBe(1.8)
+    expect(partialCutEquivalentPercent(50, 30)).toBe(6.2)
+    expect(partialCutEquivalentPercent(20, 30)).toBe(1.4)
+    expect(partialCutEquivalentPercent(80, 30)).toBe(11.0)
+  })
+
+  it('reads the nearest cell rather than interpolating, as the form does', () => {
+    expect(partialCutEquivalentPercent(52, 26)).toBe(partialCutEquivalentPercent(50, 25))
+  })
+
+  it('has nothing to say below the table', () => {
+    expect(partialCutEquivalentPercent(5, 20)).toBeNull()
+    expect(partialCutEquivalentPercent(Number.NaN, 20)).toBeNull()
+  })
+
+  it('clamps rather than falling off the ends', () => {
+    expect(partialCutEquivalentPercent(200, 200)).toBe(17.0)
+    expect(partialCutEquivalentPercent(10, 1)).toBe(0.1)
+  })
+})
+
 describe('partialCutClass', () => {
-  it('reads the 2013 guide grid', () => {
-    // Light removal among short residuals stays in retention.
+  it('derives the class from the equivalent, matching the form’s shading', () => {
     expect(partialCutClass(10, 5)?.id).toBe('retention')
     expect(partialCutClass(10, 45)?.id).toBe('partial-retention')
     expect(partialCutClass(50, 5)?.id).toBe('partial-retention')
     expect(partialCutClass(90, 50)?.id).toBe('modification')
   })
 
+  it('keeps a light cut among mid-height residuals in retention', () => {
+    // 20% removed at 25 m is 1.2% equivalent, inside retention's 0–1.5 range.
+    // The hand-transcribed class grid this replaced had it as partial
+    // retention, which the form's own numbers contradict.
+    expect(partialCutEquivalentPercent(20, 25)).toBe(1.2)
+    expect(partialCutClass(20, 25)?.id).toBe('retention')
+  })
+
   it('degrades the class as more volume comes out of the same stand', () => {
-    expect(partialCutClass(20, 25)?.id).toBe('partial-retention')
+    expect(partialCutClass(30, 30)?.id).toBe('partial-retention')
     expect(partialCutClass(60, 30)?.id).toBe('modification')
   })
 
-  it('has nothing to say below the grid', () => {
-    expect(partialCutClass(5, 20)).toBeNull()
-    expect(partialCutClass(Number.NaN, 20)).toBeNull()
+  it('cannot disagree with the equivalent it came from', () => {
+    for (const volume of [10, 20, 30, 40, 50, 60, 70, 80, 90]) {
+      for (const height of [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]) {
+        const equivalent = partialCutEquivalentPercent(volume, height)
+        expect(partialCutClass(volume, height)).toEqual(classifyAlteration(equivalent!, 'perspective'))
+      }
+    }
   })
 
-  it('clamps rather than falling off the ends of the grid', () => {
-    expect(partialCutClass(200, 200)?.id).toBe('modification')
-    expect(partialCutClass(10, 1)?.id).toBe('retention')
+  it('has nothing to say below the table', () => {
+    expect(partialCutClass(5, 20)).toBeNull()
+    expect(partialCutClass(Number.NaN, 20)).toBeNull()
   })
 })
 
