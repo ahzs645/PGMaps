@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Compass, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Compass, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, TreePine, Wind } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -120,6 +120,15 @@ const devEntries: DevEntry[] = [
     icon: Compass,
     color: 'bg-green-700',
     label: '/dev/outdoors',
+  },
+  {
+    title: 'Visual Quality',
+    description:
+      'Forestry viewshed utility — set a visual quality objective, drop in cutblock shapefiles, and get the share of each block a road can actually see over the terrain, then drive the road in 3D.',
+    href: '/dev/forestry/visual-quality',
+    icon: TreePine,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/visual-quality',
   },
   {
     title: 'Fallout Sites',

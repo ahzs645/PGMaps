@@ -1,0 +1,701 @@
+/**
+ * The visibility run itself: stations along the road, a sample grid over every
+ * polygon, and a sightline between each pair.
+ *
+ * Split from the worker so it can be exercised directly against real DEM tiles
+ * or synthetic terrain — the worker adds tile fetching and message passing and
+ * nothing else.
+ */
+
+import { buildCanopyGrid, type CanopyStand } from './canopy'
+import { demResolutionMeters, type Bounds, type ElevationSource } from './terrain'
+import {
+  DEFAULT_SIGHTLINE_OPTIONS,
+  haversineMeters,
+  lineLengthMeters,
+  polygonAreaMeters,
+  polygonBounds,
+  pointInPolygon,
+  polygonGridSamples,
+  sampleAlongLine,
+  spacingForSampleBudget,
+  terrainNormal,
+  testSightline,
+  apparentSolidAngle,
+  type CorridorStation,
+  type GroundPoint,
+  type PolygonGeometry,
+  type SightlineOptions,
+} from './visibility'
+import { VIEWING_ZONES, vegHeightForSlope, viewingZoneFor } from './vqo'
+import type {
+  AlterationBreakdown,
+  AnalysisInput,
+  AnalysisProgress,
+  AnalysisResult,
+  StationResult,
+  TargetRole,
+  TargetVisibility,
+} from './types'
+
+/**
+ * Ceiling on sightlines per run, chosen to keep a worst case around ten
+ * seconds: a sightline walks the terrain profile a DEM cell at a time, so this
+ * is tens of millions of elevation samples. The grid is coarsened to stay under
+ * it rather than the stations being thinned — losing a viewpoint loses a whole
+ * answer, whereas a coarser grid only blurs one.
+ */
+const MAX_TOTAL_SIGHTLINES = 250_000
+
+/** Sampling the DEM finer than it resolves adds cost and no information. */
+const MIN_SAMPLE_SPACING_FACTOR = 0.75
+
+/**
+ * Not every polygon is worth the same resolution.
+ *
+ * The landform is the denominator of every percentage and the blocks are the
+ * numerator, so their grids decide how precise the answer can be. An existing
+ * opening only shifts the cumulative figure by its own contribution, and one
+ * that has passed green-up carries `alterationWeight` zero — it moves nothing
+ * at all, and is sampled purely so the worksheet can say whether it is in view.
+ *
+ * A real DataBC lookup over Prince George returns hundreds of openings, nearly
+ * all of them long recovered. Coarsening every polygon by the same factor let
+ * those spend the budget that the landform needed: the landform came back with
+ * 99 samples over 4,489 ha, which cannot resolve an alteration to better than
+ * about a percent, while the worksheet quoted two decimals. So the budget is
+ * spent in priority order instead, and the figures keep their resolution until
+ * there is nothing coarser left to give up.
+ */
+const BUDGET_TIERS = ['figures', 'counting', 'spent'] as const
+type BudgetTier = (typeof BUDGET_TIERS)[number]
+
+function budgetTier(target: { role: TargetRole; recovered: boolean }): BudgetTier {
+  if (target.role === 'landscape' || target.role === 'block') return 'figures'
+  return target.recovered ? 'spent' : 'counting'
+}
+
+/** Sightlines a set of targets costs at its current spacing. */
+function sightlineCost(targets: PreparedTarget[], stationCount: number): number {
+  return targets.reduce((total, target) => {
+    if (!target.inRange) return total
+    return total + Math.max(1, target.areaMeters / target.spacingMeters ** 2) * stationCount
+  }, 0)
+}
+
+/** Coarsens a set just enough to cost no more than `allowance`. */
+function fitToAllowance(targets: PreparedTarget[], stationCount: number, allowance: number): PreparedTarget[] {
+  const cost = sightlineCost(targets, stationCount)
+  if (cost <= 0 || cost <= allowance) return targets
+  const coarsen = Math.sqrt(cost / Math.max(1, allowance))
+  return targets.map((target) => ({ ...target, spacingMeters: target.spacingMeters * coarsen }))
+}
+
+export type TerrainInfo = {
+  tileCount: number
+  missingTileCount: number
+  resolutionMeters: number
+}
+
+export type PreparedTarget = {
+  id: string
+  name: string
+  role: TargetRole
+  geometry: PolygonGeometry
+  spacingMeters: number
+  areaMeters: number
+  inRange: boolean
+  /**
+   * How much of this polygon reads as denudation, 0–1. Existing openings count
+   * only their clearcut share, and nothing at all once they pass green-up.
+   */
+  alterationWeight: number
+  /** True for an existing opening excluded because regeneration has caught up. */
+  recovered: boolean
+  /** Site disturbance — a road or landing, which never greens up. */
+  siteDisturbance: boolean
+}
+
+/** Shortest distance from a point to a bounding box, in metres. */
+function distanceToBounds(point: { lng: number; lat: number }, bounds: Bounds): number {
+  const [minLng, minLat, maxLng, maxLat] = bounds
+  const clampedLng = Math.min(maxLng, Math.max(minLng, point.lng))
+  const clampedLat = Math.min(maxLat, Math.max(minLat, point.lat))
+  return haversineMeters(point, { lng: clampedLng, lat: clampedLat })
+}
+
+/** Viewing stations for a viewpoint: one for a spot, evenly spaced for a corridor. */
+export function buildStations(input: AnalysisInput): CorridorStation[] {
+  const { coordinates, mode } = input.viewpoint
+  if (coordinates.length === 0) return []
+  if (mode === 'spot' || coordinates.length === 1) {
+    return [{ lng: coordinates[0][0], lat: coordinates[0][1], distanceAlongMeters: 0 }]
+  }
+  return sampleAlongLine(coordinates, Math.max(10, input.settings.stationSpacingMeters))
+}
+
+/**
+ * Grid spacing and range check per target, and the work budget applied across
+ * all of them together.
+ */
+export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]): PreparedTarget[] {
+  const midLat = stations.length > 0 ? stations[0].lat : 0
+  const demResolution = demResolutionMeters(midLat, input.settings.demZoom)
+  const minSpacing = Math.max(5, demResolution * MIN_SAMPLE_SPACING_FACTOR)
+
+  const prepared = input.targets.map((target): PreparedTarget => {
+    const bounds = polygonBounds(target.geometry)
+    const nearest = stations.reduce(
+      (closest, station) => Math.min(closest, distanceToBounds(station, bounds)),
+      Number.POSITIVE_INFINITY,
+    )
+
+    // An opening older than green-up has grown back into forest cover and stops
+    // counting; a partial cut only ever counted for its clearcut share.
+    const age =
+      target.role === 'harvested' && typeof target.harvestYear === 'number'
+        ? input.assessmentYear - target.harvestYear
+        : null
+    // Ground under a road does not grow back while the road is there, so site
+    // disturbance never reaches green-up however old it is.
+    const siteDisturbance = target.role === 'harvested' && target.siteDisturbance === true
+    const recovered = !siteDisturbance && age !== null && age >= input.settings.greenUpAgeYears
+    const clearcutFraction =
+      target.role === 'harvested' && typeof target.clearcutPercent === 'number'
+        ? Math.max(0, Math.min(1, target.clearcutPercent / 100))
+        : 1
+
+    return {
+      id: target.id,
+      name: target.name,
+      role: target.role,
+      geometry: target.geometry,
+      spacingMeters: spacingForSampleBudget(target.geometry, input.settings.sampleBudget, minSpacing),
+      areaMeters: polygonAreaMeters(target.geometry),
+      inRange: nearest <= input.settings.maxViewDistanceMeters,
+      alterationWeight: recovered ? 0 : clearcutFraction,
+      recovered,
+      siteDisturbance,
+    }
+  })
+
+  // Estimated sightlines, using each polygon's area over its cell area rather
+  // than building the grids twice.
+  if (sightlineCost(prepared, stations.length) <= MAX_TOTAL_SIGHTLINES) return prepared
+
+  // Spend the budget in priority order: whatever the figures need, then the
+  // openings that still count, then the recovered ones with what is left. Each
+  // tier is only coarsened once the tiers below it have given up everything.
+  const byTier = new Map<BudgetTier, PreparedTarget[]>(BUDGET_TIERS.map((tier) => [tier, []]))
+  for (const target of prepared) byTier.get(budgetTier(target))!.push(target)
+
+  const fitted = new Map<string, PreparedTarget>()
+  let remaining = MAX_TOTAL_SIGHTLINES
+  for (const tier of BUDGET_TIERS) {
+    const targets = byTier.get(tier)!
+    // What the tiers below this one would cost even squeezed to nothing: each
+    // in-range polygon keeps at least one sample, so that floor is not free.
+    const floorBelow = BUDGET_TIERS.slice(BUDGET_TIERS.indexOf(tier) + 1).reduce(
+      (total, lower) => total + byTier.get(lower)!.filter((target) => target.inRange).length * stations.length,
+      0,
+    )
+    for (const target of fitToAllowance(targets, stations.length, Math.max(1, remaining - floorBelow))) {
+      fitted.set(target.id, target)
+    }
+    remaining = Math.max(
+      0,
+      remaining -
+        sightlineCost(
+          targets.map((t) => fitted.get(t.id)!),
+          stations.length,
+        ),
+    )
+  }
+
+  // Input order is what the results are reported in, so rebuild rather than
+  // returning the tiers concatenated.
+  return prepared.map((target) => fitted.get(target.id) ?? target)
+}
+
+/** Bounding box the DEM has to cover: the stations plus every in-range target. */
+export function analysisBounds(input: AnalysisInput, stations: CorridorStation[]): Bounds | null {
+  const boxes: Bounds[] = []
+  if (stations.length > 0) {
+    boxes.push([
+      Math.min(...stations.map((station) => station.lng)),
+      Math.min(...stations.map((station) => station.lat)),
+      Math.max(...stations.map((station) => station.lng)),
+      Math.max(...stations.map((station) => station.lat)),
+    ])
+  }
+  for (const target of prepareTargets(input, stations)) {
+    if (target.inRange) boxes.push(polygonBounds(target.geometry))
+  }
+  if (boxes.length === 0) return null
+
+  return [
+    Math.min(...boxes.map((box) => box[0])),
+    Math.min(...boxes.map((box) => box[1])),
+    Math.max(...boxes.map((box) => box[2])),
+    Math.max(...boxes.map((box) => box[3])),
+  ]
+}
+
+function sightlineOptions(input: AnalysisInput, demResolution: number): SightlineOptions {
+  return {
+    ...DEFAULT_SIGHTLINE_OPTIONS,
+    observerHeightMeters: input.settings.observerHeightMeters,
+    targetOffsetMeters: input.settings.targetOffsetMeters,
+    maxDistanceMeters: input.settings.maxViewDistanceMeters,
+    // Stepping at roughly the DEM's own resolution samples every cell the ray
+    // crosses without re-reading the same one.
+    stepMeters: Math.max(5, demResolution * 0.9),
+  }
+}
+
+function emptyZoneTotals(): Record<string, number> {
+  return Object.fromEntries(VIEWING_ZONES.map((zone) => [zone.id, 0]))
+}
+
+/**
+ * Run every sightline and reduce the result to the numbers the page reports.
+ *
+ * Visibility is kept per station rather than collapsed as it goes: the same
+ * matrix answers "can this block be seen anywhere along the road", "where is it
+ * most exposed", and "what does the driver see right now" without a second pass
+ * over the terrain.
+ */
+export function computeAnalysis(
+  source: ElevationSource,
+  input: AnalysisInput,
+  terrain: TerrainInfo,
+  onProgress?: (progress: AnalysisProgress) => void,
+  /**
+   * Inventory stands to screen with. Built into a grid here rather than by the
+   * caller so the rule for what ground is currently open — the same green-up
+   * and clearcut logic the alteration figures use — lives in one place.
+   */
+  canopyStands: CanopyStand[] = [],
+  /**
+   * Treed ground from the vegetation inventory. The 1998 procedure divides
+   * denudation by "the total green (forested) portion of the visual landscape",
+   * so where this is supplied the planimetric denominator is the landform's
+   * forested area rather than all of it. Empty falls back to the whole area and
+   * the result says which was used.
+   */
+  forestedGround: PolygonGeometry[] = [],
+): AnalysisResult {
+  const startedAt = Date.now()
+  const stations = buildStations(input)
+  const prepared = prepareTargets(input, stations)
+  const options = sightlineOptions(input, terrain.resolutionMeters)
+
+  // Screening is built before any sightline runs: the proposal and every
+  // opening that has not grown back are standing on cleared ground.
+  const canopyBounds = analysisBounds(input, stations)
+  const canopy =
+    input.settings.screeningEnabled && canopyStands.length > 0 && canopyBounds
+      ? buildCanopyGrid(
+          canopyStands,
+          canopyBounds,
+          prepared
+            .filter((target) => target.role === 'block' || (target.role === 'harvested' && !target.recovered))
+            .map((target) => target.geometry),
+          { minCrownClosurePercent: input.settings.minCrownClosurePercent },
+        )
+      : null
+
+  const stationPoints: GroundPoint[] = stations.map((station) => ({
+    lng: station.lng,
+    lat: station.lat,
+    groundElevationMeters: source.elevationAt(station.lng, station.lat),
+  }))
+
+  const totalSightlines = prepared.reduce((total, target) => {
+    if (!target.inRange) return total
+    return total + Math.max(1, target.areaMeters / target.spacingMeters ** 2) * stations.length
+  }, 0)
+  let completedSightlines = 0
+  let lastProgressAt = 0
+
+  const reportProgress = (force = false) => {
+    if (!onProgress) return
+    const now = Date.now()
+    if (!force && now - lastProgressAt < 80) return
+    lastProgressAt = now
+    onProgress({
+      phase: 'sightlines',
+      completed: Math.round(completedSightlines),
+      total: Math.max(1, Math.round(totalSightlines)),
+    })
+  }
+
+  type Pass = {
+    target: PreparedTarget
+    samples: GroundPoint[]
+    sampleAreaMeters: number
+    anyVisible: Uint8Array
+    visibleByStation: Uint8Array
+    visibleDistances: Float64Array
+    visibleAreaPerStation: Float64Array
+  }
+
+  const passes: Pass[] = prepared.map((target) => {
+    const grid = target.inRange ? polygonGridSamples(target.geometry, target.spacingMeters) : []
+    const samples: GroundPoint[] = grid.map((sample) => ({
+      lng: sample.lng,
+      lat: sample.lat,
+      groundElevationMeters: source.elevationAt(sample.lng, sample.lat),
+    }))
+    const sampleCount = samples.length
+    // Every cell covers the same ground, except the degenerate single-sample
+    // fallback for a polygon smaller than one cell.
+    const sampleAreaMeters = sampleCount > 0 ? grid[0].areaMeters : 0
+
+    const pass: Pass = {
+      target,
+      samples,
+      sampleAreaMeters,
+      anyVisible: new Uint8Array(sampleCount),
+      visibleByStation: new Uint8Array(sampleCount * stations.length),
+      visibleDistances: new Float64Array(sampleCount).fill(-1),
+      visibleAreaPerStation: new Float64Array(stations.length),
+    }
+
+    for (let stationIndex = 0; stationIndex < stationPoints.length; stationIndex += 1) {
+      const station = stationPoints[stationIndex]
+      const rowOffset = stationIndex * sampleCount
+      let visibleCount = 0
+
+      for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+        const sample = samples[sampleIndex]
+        if (Number.isNaN(sample.groundElevationMeters)) continue
+
+        const result = testSightline(source, station, sample, options, canopy ?? undefined)
+        if (!result.visible) continue
+
+        visibleCount += 1
+        pass.visibleByStation[rowOffset + sampleIndex] = 1
+        pass.anyVisible[sampleIndex] = 1
+        const previous = pass.visibleDistances[sampleIndex]
+        if (previous < 0 || result.distanceMeters < previous) {
+          pass.visibleDistances[sampleIndex] = result.distanceMeters
+        }
+      }
+
+      pass.visibleAreaPerStation[stationIndex] = visibleCount * sampleAreaMeters
+      completedSightlines += sampleCount
+      reportProgress()
+    }
+
+    return pass
+  })
+  reportProgress(true)
+
+  // The assessment station is where the blocks together show the most ground —
+  // the critical viewpoint a visual impact assessment would be written from.
+  let assessmentStationIndex = 0
+  let worstVisibleArea = -1
+  for (let stationIndex = 0; stationIndex < stations.length; stationIndex += 1) {
+    const visibleArea = passes.reduce(
+      (total, pass) => (pass.target.role === 'block' ? total + pass.visibleAreaPerStation[stationIndex] : total),
+      0,
+    )
+    if (visibleArea > worstVisibleArea) {
+      worstVisibleArea = visibleArea
+      assessmentStationIndex = stationIndex
+    }
+  }
+
+  const assessmentStation = stationPoints[assessmentStationIndex]
+  const assessmentObserver = assessmentStation
+    ? { ...assessmentStation, eyeHeightMeters: input.settings.observerHeightMeters }
+    : null
+
+  /** Every station as an observer, so each can be its own assessment viewpoint. */
+  const stationObservers = stationPoints.map((station) =>
+    station && !Number.isNaN(station.groundElevationMeters)
+      ? { ...station, eyeHeightMeters: input.settings.observerHeightMeters }
+      : null,
+  )
+
+  // Percent alteration is written against an identifiable landform rather than
+  // the whole visible landscape, so the planimetric figure below needs one to
+  // divide by — and only counts the parts of blocks that fall inside it.
+  const landform = prepared.find((target) => target.role === 'landscape') ?? null
+  const landformGeometry = landform?.geometry ?? null
+
+  // Openings that still read as disturbance. Recovered ones are out entirely,
+  // so ground under them is available to a proposed block again.
+  const countedOpenings = prepared
+    .filter((target) => target.role === 'harvested' && target.alterationWeight > 0)
+    .map((target) => target.geometry)
+
+  const targets: TargetVisibility[] = passes.map((pass) => {
+    const sampleCount = pass.samples.length
+    const positions = new Float64Array(sampleCount * 2)
+    const elevations = new Float64Array(sampleCount)
+
+    let visibleSamples = 0
+    let apparentTotal = 0
+    let apparentVisible = 0
+    let apparentVisibleNew = 0
+    // The same two solid-angle sums, kept per station rather than only for the
+    // assessment one. FS1252 says to repeat the calculation for each viewpoint
+    // selected, and one station is one viewpoint. The costly part of a sample —
+    // its terrain normal, four DEM lookups — is already computed once here, so
+    // the extra stations are arithmetic over work the run has done anyway.
+    const apparentVisibleByStation = new Float64Array(stationPoints.length)
+    const apparentVisibleNewByStation = new Float64Array(stationPoints.length)
+    let nearestVisible: number | null = null
+    let farthestVisible: number | null = null
+    let slopeTotal = 0
+    let slopeSamples = 0
+    // Green-up height is area-weighted over slope classes, not read off the
+    // mean slope. The 1998 procedures are explicit: work out the hectares in
+    // each slope class and weight each class's height by its area. Every grid
+    // sample stands for the same ground, so weighting by area is averaging the
+    // per-sample heights — and it is not the same answer as one lookup on the
+    // mean, because Table 6 is a step function.
+    let vegHeightTotal = 0
+    let samplesInsideLandform = 0
+    let samplesOnForestedGround = 0
+    let samplesAlreadyAltered = 0
+    const alreadyAltered = new Uint8Array(sampleCount)
+    const visibleAreaByZone = emptyZoneTotals()
+    const assessmentRow = assessmentStationIndex * sampleCount
+
+    // The grid estimates the visible *fraction*; the polygon's own area is
+    // known exactly. Reporting hectares against the grid's total instead would
+    // show a fully visible block as slightly less than its own size.
+    const griddedArea = sampleCount * pass.sampleAreaMeters
+    const areaScale = griddedArea > 0 ? pass.target.areaMeters / griddedArea : 0
+    const sampleGroundArea = pass.sampleAreaMeters * areaScale
+
+    for (let index = 0; index < sampleCount; index += 1) {
+      const sample = pass.samples[index]
+      positions[index * 2] = sample.lng
+      positions[index * 2 + 1] = sample.lat
+      elevations[index] = sample.groundElevationMeters
+
+      // Only a landform needs its green share; a block's denudation counts
+      // whether or not the inventory calls that particular polygon treed.
+      if (pass.target.role === 'landscape' && forestedGround.length > 0) {
+        if (forestedGround.some((ground) => pointInPolygon(ground, sample.lng, sample.lat))) {
+          samplesOnForestedGround += 1
+        }
+      }
+
+      if (pass.target.role !== 'landscape' && landformGeometry) {
+        if (pointInPolygon(landformGeometry, sample.lng, sample.lat)) samplesInsideLandform += 1
+      }
+
+      // Ground a still-counting opening already covers is existing alteration,
+      // so a proposed block laid over it must not be charged for it again.
+      if (pass.target.role === 'block' && countedOpenings.length > 0) {
+        if (countedOpenings.some((opening) => pointInPolygon(opening, sample.lng, sample.lat))) {
+          alreadyAltered[index] = 1
+          samplesAlreadyAltered += 1
+        }
+      }
+
+      if (assessmentObserver && !Number.isNaN(sample.groundElevationMeters)) {
+        const normal = terrainNormal(source, sample.lng, sample.lat, pass.target.spacingMeters)
+        const solidAngle = apparentSolidAngle(assessmentObserver, sample, pass.sampleAreaMeters, normal)
+        apparentTotal += solidAngle
+        if (pass.visibleByStation[assessmentRow + index] === 1) {
+          apparentVisible += solidAngle
+          if (alreadyAltered[index] !== 1) apparentVisibleNew += solidAngle
+        }
+
+        // The same sums for every other viewpoint on the corridor. A sample
+        // subtends a different angle from each one, so the normal is reused but
+        // the solid angle is not.
+        for (let stationIndex = 0; stationIndex < stationPoints.length; stationIndex += 1) {
+          if (pass.visibleByStation[stationIndex * sampleCount + index] !== 1) continue
+          const observer = stationObservers[stationIndex]
+          if (!observer) continue
+          const stationAngle = apparentSolidAngle(observer, sample, pass.sampleAreaMeters, normal)
+          apparentVisibleByStation[stationIndex] += stationAngle
+          if (alreadyAltered[index] !== 1) apparentVisibleNewByStation[stationIndex] += stationAngle
+        }
+
+        // The normal already carries the gradient: its horizontal length over
+        // its vertical one is the tangent of the slope, which is slope percent.
+        if (normal[2] > 0) {
+          const slopePercent = (Math.hypot(normal[0], normal[1]) / normal[2]) * 100
+          slopeTotal += slopePercent
+          vegHeightTotal += vegHeightForSlope(slopePercent)
+          slopeSamples += 1
+        }
+      }
+
+      if (pass.anyVisible[index] !== 1) continue
+      visibleSamples += 1
+      const distance = pass.visibleDistances[index]
+      visibleAreaByZone[viewingZoneFor(distance).id] += sampleGroundArea
+      if (nearestVisible === null || distance < nearestVisible) nearestVisible = distance
+      if (farthestVisible === null || distance > farthestVisible) farthestVisible = distance
+    }
+
+    const visibleAreaMeters = visibleSamples * sampleGroundArea
+    const stationResults: StationResult[] = stations.map((station, stationIndex) => ({
+      lng: station.lng,
+      lat: station.lat,
+      groundElevationMeters: stationPoints[stationIndex].groundElevationMeters,
+      distanceAlongMeters: station.distanceAlongMeters,
+      visiblePercent: griddedArea > 0 ? (pass.visibleAreaPerStation[stationIndex] / griddedArea) * 100 : 0,
+    }))
+
+    return {
+      targetId: pass.target.id,
+      role: pass.target.role,
+      positions,
+      elevations,
+      anyVisible: pass.anyVisible,
+      visibleByStation: pass.visibleByStation,
+      visibleDistances: pass.visibleDistances,
+      sampleCount,
+      sampleAreaMeters: pass.sampleAreaMeters,
+      areaMeters: pass.target.areaMeters,
+      visibleAreaMeters,
+      visiblePercent: sampleCount > 0 ? (visibleSamples / sampleCount) * 100 : 0,
+      apparentSolidAngle: apparentTotal,
+      visibleApparentSolidAngle: apparentVisible,
+      apparentVisiblePercent: apparentTotal > 0 ? (apparentVisible / apparentTotal) * 100 : 0,
+      visibleAreaByZone,
+      nearestVisibleDistanceMeters: nearestVisible,
+      farthestVisibleDistanceMeters: farthestVisible,
+      forestedAreaMeters:
+        pass.target.role === 'landscape' && forestedGround.length > 0 && sampleCount > 0
+          ? (samplesOnForestedGround / sampleCount) * pass.target.areaMeters
+          : null,
+      meanSlopePercent: slopeSamples > 0 ? slopeTotal / slopeSamples : null,
+      vegHeightMeters: slopeSamples > 0 ? vegHeightTotal / slopeSamples : null,
+      areaInsideLandformMeters:
+        landformGeometry && sampleCount > 0 ? (samplesInsideLandform / sampleCount) * pass.target.areaMeters : null,
+      newAreaInsideLandformMeters:
+        landformGeometry && sampleCount > 0
+          ? ((samplesInsideLandform - samplesAlreadyAltered) / sampleCount) * pass.target.areaMeters
+          : null,
+      visibleApparentSolidAngleNew: apparentVisibleNew,
+      siteDisturbance: pass.target.siteDisturbance,
+      visibleApparentSolidAngleByStation: apparentVisibleByStation,
+      visibleApparentSolidAngleNewByStation: apparentVisibleNewByStation,
+      alterationWeight: pass.target.alterationWeight,
+      recovered: pass.target.recovered,
+      outOfRange: !pass.target.inRange,
+      stations: stationResults,
+    }
+  })
+
+  // A visual quality objective is written against the altered share of an
+  // identifiable landform, so both figures need one to divide by. Without a
+  // landform the page reports per-block visibility and says so.
+  const landformSolidAngle = targets.reduce(
+    (total, target) => (target.role === 'landscape' ? total + target.visibleApparentSolidAngle : total),
+    0,
+  )
+  const landformArea = targets.reduce(
+    (total, target) => (target.role === 'landscape' ? total + target.areaMeters : total),
+    0,
+  )
+  const landformForestedArea = targets.reduce(
+    (total, target) =>
+      target.role === 'landscape' && target.forestedAreaMeters !== null ? total + target.forestedAreaMeters : total,
+    0,
+  )
+
+  /** Existing and proposed shares of a denominator, and their sum. */
+  const breakdown = (
+    denominator: number,
+    existing: (target: TargetVisibility) => number,
+    proposed: (target: TargetVisibility) => number,
+  ): AlterationBreakdown | null => {
+    if (denominator <= 0) return null
+    const share = (include: (target: TargetVisibility) => boolean, measure: (target: TargetVisibility) => number) =>
+      (targets.reduce(
+        (total, target) => (include(target) ? total + measure(target) * target.alterationWeight : total),
+        0,
+      ) /
+        denominator) *
+      100
+
+    // FS1252 splits what is already on the ground into openings (line c) and
+    // the site disturbance outside them (line b). Both sum into X the same way,
+    // so the split is about reporting on the right line, not about the total.
+    const existingPercent = share((target) => target.role === 'harvested' && !target.siteDisturbance, existing)
+    const disturbancePercent = share((target) => target.role === 'harvested' && target.siteDisturbance, existing)
+    const proposedTotal = targets.reduce(
+      (total, target) => (target.role === 'block' ? total + proposed(target) : total),
+      0,
+    )
+    const proposedPercent = (proposedTotal / denominator) * 100
+    return {
+      existingPercent,
+      disturbancePercent,
+      proposedPercent,
+      cumulativePercent: existingPercent + disturbancePercent + proposedPercent,
+    }
+  }
+
+  const perspectiveAlteration = breakdown(
+    landformSolidAngle,
+    (target) => target.visibleApparentSolidAngle,
+    // Proposed counts only ground an opening is not already holding.
+    (target) => target.visibleApparentSolidAngleNew,
+  )
+
+  // The same figure worked from every station. A corridor is not one viewpoint,
+  // and the worst one is not the only one an assessment has to answer for — a
+  // block can be hidden from the station that sees most of the landform and
+  // wide open from one a kilometre on.
+  const perspectiveByStation = stations.map((_, stationIndex) => {
+    const denominator = targets.reduce(
+      (total, target) =>
+        target.role === 'landscape' ? total + target.visibleApparentSolidAngleByStation[stationIndex] : total,
+      0,
+    )
+    return breakdown(
+      denominator,
+      (target) => target.visibleApparentSolidAngleByStation[stationIndex],
+      (target) => target.visibleApparentSolidAngleNewByStation[stationIndex],
+    )
+  })
+
+  // The planimetric figure is flat map area, visible or not: that is what the
+  // timber-supply scale is applied to. The procedure divides by the landform's
+  // green area, so the inventory's treed ground is the denominator where it was
+  // supplied — dividing by rock and water as well reads the figure low.
+  const planimetricDenominator = landformForestedArea > 0 ? landformForestedArea : landformArea
+  const planimetricAlteration = breakdown(
+    planimetricDenominator,
+    (target) => target.areaInsideLandformMeters ?? 0,
+    (target) => target.newAreaInsideLandformMeters ?? 0,
+  )
+
+  return {
+    settings: input.settings,
+    stations: stations.map((station, index) => ({
+      lng: station.lng,
+      lat: station.lat,
+      groundElevationMeters: stationPoints[index].groundElevationMeters,
+      distanceAlongMeters: station.distanceAlongMeters,
+    })),
+    corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
+    assessmentStationIndex,
+    targets,
+    perspectiveAlteration,
+    perspectiveByStation,
+    planimetricAlteration,
+    landformAreaMeters: landformArea > 0 ? landformArea : null,
+    landformForestedAreaMeters: landformForestedArea > 0 ? landformForestedArea : null,
+    recoveredOpeningCount: prepared.filter((target) => target.role === 'harvested' && target.recovered).length,
+    demTileCount: terrain.tileCount,
+    demResolutionMeters: terrain.resolutionMeters,
+    missingTileCount: terrain.missingTileCount,
+    canopyCoverageFraction: canopy ? canopy.coverageFraction() : null,
+    canopyStandCount: canopy ? canopyStands.length : 0,
+    elapsedMs: Date.now() - startedAt,
+  }
+}
