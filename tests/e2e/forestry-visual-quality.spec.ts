@@ -280,11 +280,15 @@ test.describe('forestry visual quality', () => {
     expect(download.suggestedFilename()).toMatch(/^visual-quality-worksheet-\d{4}-\d{2}-\d{2}\.md$/)
 
     const text = await readFile(await download.path(), 'utf8')
-    expect(text.split('\n')[0]).toBe('# Visual quality screening worksheet')
-    expect(text).toContain('Not a visual impact assessment')
+    expect(text.split('\n')[0]).toBe('# Visual Quality Effectiveness Evaluation — desk screening')
+    expect(text).toContain('FS1252 (2008/04)')
+    // Laid out as the form, in the form's order.
+    expect(text).toContain('## 2.1.3 VLI information (office)')
+    expect(text).toContain('## 2.3.2 Assess initial VQC (office)')
+    expect(text).toContain('## 2.3.6 EE rating')
     // The figures are this run's, not a canned page: the eye height set above,
     // the flat stub terrain, and the fact that nothing screened the view.
-    expect(text).toContain('90 m above the road')
+    expect(text).toContain('eye at +90 m')
     expect(text).toContain('Standing timber is **not** modelled')
     expect(text).toContain('## What this run does not model')
   })
