@@ -232,11 +232,8 @@ export class ElevationGrid implements ElevationSource {
     const h01 = this.texel(x0, y0 + 1)
     const h11 = this.texel(x0 + 1, y0 + 1)
     if (Number.isNaN(h00) || Number.isNaN(h10) || Number.isNaN(h01) || Number.isNaN(h11)) {
-      // Edge of the loaded mosaic: fall back to whichever corner exists so a
-      // sightline grazing the boundary degrades instead of reporting a hole.
-      const present = [h00, h10, h01, h11].filter((value) => !Number.isNaN(value))
-      if (present.length === 0) return Number.NaN
-      return present.reduce((total, value) => total + value, 0) / present.length
+      // Missing texels remain unknown; averaging the other corners invents terrain.
+      return Number.NaN
     }
 
     const top = h00 + (h10 - h00) * fx

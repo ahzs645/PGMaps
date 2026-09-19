@@ -1,3 +1,5 @@
+> **Implementation update:** See [the integrity, road-camera and PDF export contract](forestry-visual-quality-integrity.md). It supersedes the older descriptions below of pooled landforms, maximum-ground-area viewpoint selection, missing terrain being clear, VAC defaults and the original drive controller.
+
 # Forestry visual quality (`/dev/forestry/visual-quality`)
 
 A screening tool for the question a visual landscape assessment starts from:

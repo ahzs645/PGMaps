@@ -256,40 +256,55 @@ describe('the planimetric denominator', () => {
         ...DEFAULT_ANALYSIS_SETTINGS,
         observerHeightMeters: 6000,
         maxViewDistanceMeters: 40000,
-        sampleBudget: 900,
+        // Every figure now comes off the landform's own ledger, so it needs the
+        // resolution the block used to bring on its own grid.
+        sampleBudget: 10000,
       },
       assessmentYear: 2026,
     }
     return computeAnalysis(FLAT, input, TERRAIN, undefined, [], forested)
   }
 
-  it('divides by the whole landform when no inventory answered', () => {
+  it('divides by the whole landform when no inventory answered, and says the base is unverified', () => {
     const result = planimetric([])
     const landform = result.targets.find((target) => target.role === 'landscape')!
 
     expect(landform.forestedAreaMeters).toBeNull()
     expect(result.landformForestedAreaMeters).toBeNull()
     expect(result.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(BLOCK), 0)
+    // A missing inventory is not a verified denominator: the figure is provisional.
+    expect(result.quality!.greenBasis).toBe('unverified-whole-landform')
+    expect(result.quality!.numericalReady).toBe(false)
   })
 
-  it('divides by the treed part when the inventory did', () => {
+  it('divides by the treed part plus supplied alteration footprints when the inventory answered', () => {
     // Half the landform is treed; the other half is water, rock, or clearing.
     const treedHalf = box(-0.02, -0.01, 0, 0.01)
     const result = planimetric([treedHalf])
     const landform = result.targets.find((target) => target.role === 'landscape')!
 
-    expect(landform.forestedAreaMeters).toBeCloseTo(landform.areaMeters / 2, -4)
-    // The block is unchanged, so halving the denominator doubles the figure.
-    // Dividing by the whole landform is what read it low.
-    expect(result.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(BLOCK) * 2, 0)
+    // A supplied cut is forest land base after clearing, so the block's eastern
+    // half stays in the green base even though the inventory does not call it
+    // treed. The operator excludes natural non-forest ground, not the model.
+    const blockEastHalf = box(0, -0.004, 0.004, 0.004)
+    const expectedGreen = polygonAreaMeters(treedHalf) + polygonAreaMeters(blockEastHalf)
+    expect(landform.forestedAreaMeters).toBeCloseTo(expectedGreen, -5)
+    expect(result.landformForestedAreaMeters).toBe(landform.forestedAreaMeters)
+    expect(result.quality!.greenBasis).toBe('inventory-and-openings')
+    // Shrinking the denominator is what lifts the figure above the whole-landform reading.
+    const expectedPercent = (polygonAreaMeters(BLOCK) / expectedGreen) * 100
+    expect(Math.abs(result.planimetricAlteration!.cumulativePercent - expectedPercent)).toBeLessThan(1)
+    expect(result.planimetricAlteration!.cumulativePercent).toBeGreaterThan(shareOfLandform(BLOCK))
   })
 
-  it('leaves the perspective figure alone — it divides by the visible face', () => {
+  it('applies the same green base to the perspective figure', () => {
+    // The perspective ratio divides by the visible green face, on the same
+    // ledger as the planimetric figure, so ground the inventory does not call
+    // green leaves both denominators together.
     const treedHalf = box(-0.02, -0.01, 0, 0.01)
-    expect(planimetric([treedHalf]).perspectiveAlteration!.cumulativePercent).toBeCloseTo(
-      planimetric([]).perspectiveAlteration!.cumulativePercent,
-      6,
-    )
+    const whole = planimetric([]).perspectiveAlteration!.cumulativePercent
+    const green = planimetric([treedHalf]).perspectiveAlteration!.cumulativePercent
+    expect(green).toBeGreaterThan(whole)
   })
 })
 
@@ -458,11 +473,16 @@ describe('site disturbance on line (b)', () => {
   const ROAD = box(0.006, -0.008, 0.008, 0.008)
 
   function run(extra: TargetSpec[]) {
-    return analyse([
-      { id: 'land', role: 'landscape', geometry: LANDFORM },
-      { id: 'block', role: 'block', geometry: BLOCK },
-      ...extra,
-    ])
+    return analyse(
+      [
+        { id: 'land', role: 'landscape', geometry: LANDFORM },
+        { id: 'block', role: 'block', geometry: BLOCK },
+        ...extra,
+      ],
+      // The road is 220 m wide. Every contribution is now read off the one
+      // landform ledger, so the ledger has to be fine enough to resolve it.
+      { sampleBudget: 10000 },
+    )
   }
 
   it('counts on its own line, not with the openings', () => {
@@ -494,5 +514,58 @@ describe('site disturbance on line (b)', () => {
 
   it('is zero when none was supplied', () => {
     expect(run([]).planimetricAlteration!.disturbancePercent).toBe(0)
+  })
+
+  it('does not count a road a second time where it runs through a counted opening', () => {
+    // The road lies wholly inside a recent opening: the ground is already
+    // existing alteration on line (c), so line (b) must not add it again.
+    const opening = box(0.004, -0.009, 0.01, 0.009)
+    const result = run([
+      { id: 'opening', role: 'harvested', harvestYear: 2024, clearcutPercent: 100, geometry: opening },
+      { id: 'road', role: 'harvested', siteDisturbance: true, clearcutPercent: 100, geometry: ROAD },
+    ]).planimetricAlteration!
+    expect(result.disturbancePercent).toBe(0)
+    expect(result.existingPercent).toBeCloseTo(shareOfLandform(opening), 0)
+  })
+})
+
+describe('one active landform', () => {
+  const proposed = box(0.005, -0.005, 0.015, 0.005)
+  const elsewhere = box(0.2, 0.2, 0.24, 0.22)
+
+  it('never pools a second landform into the denominator', () => {
+    const alone = analyse([
+      { id: 'land', role: 'landscape', geometry: LANDFORM },
+      { id: 'proposed', role: 'block', geometry: proposed },
+    ])
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+      targets: [
+        { id: 'land', name: 'land', role: 'landscape', geometry: LANDFORM, harvestYear: null, clearcutPercent: null },
+        { id: 'other', name: 'other', role: 'landscape', geometry: elsewhere, harvestYear: null, clearcutPercent: null },
+        { id: 'proposed', name: 'proposed', role: 'block', geometry: proposed, harvestYear: null, clearcutPercent: null },
+      ],
+      settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters: 3000, maxViewDistanceMeters: 40000, sampleBudget: 400 },
+      assessmentYear: 2026,
+      activeLandformId: 'land',
+    }
+    const withOther = computeAnalysis(FLAT, input, TERRAIN)
+    expect(withOther.activeLandformId).toBe('land')
+    expect(withOther.planimetricAlteration!.cumulativePercent).toBeCloseTo(alone.planimetricAlteration!.cumulativePercent, 10)
+    // The inactive landform is not assessed at all.
+    expect(withOther.targets.some((target) => target.targetId === 'other')).toBe(false)
+  })
+
+  it('refuses to guess between two landforms', () => {
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+      targets: [
+        { id: 'land', name: 'land', role: 'landscape', geometry: LANDFORM, harvestYear: null, clearcutPercent: null },
+        { id: 'other', name: 'other', role: 'landscape', geometry: elsewhere, harvestYear: null, clearcutPercent: null },
+      ],
+      settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters: 3000, maxViewDistanceMeters: 40000 },
+      assessmentYear: 2026,
+    }
+    expect(() => computeAnalysis(FLAT, input, TERRAIN)).toThrow(/Select one active landform/)
   })
 })

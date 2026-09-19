@@ -211,6 +211,21 @@ async function setNumberField(page: Page, label: string, value: string) {
   await field.blur()
 }
 
+/**
+ * The verdict scales are only shown once the numerical evidence is complete.
+ * The stubbed vegetation query answers nothing, so the green base is unverified
+ * and no existing-disturbance inventory was requested; both have to be stated
+ * as scenario assumptions before a run reports percentages rather than a
+ * provisional result with its numerical fields withheld.
+ */
+async function confirmScenarioAssumptions(page: Page) {
+  await page.locator('label', { hasText: 'Treat the entire active landform' }).locator('input[type="checkbox"]').check()
+  await page
+    .locator('label', { hasText: 'The included features represent the existing disturbance' })
+    .locator('input[type="checkbox"]')
+    .check()
+}
+
 test.describe('forestry visual quality', () => {
   test('opens on the sample scenario with a viewpoint and blocks', async ({ page }) => {
     await stubBasemap(page)
@@ -220,7 +235,11 @@ test.describe('forestry visual quality', () => {
 
     await expect(page.getByText('Block A — west face')).toBeVisible()
     await expect(page.getByText('Block B — over the height of land')).toBeVisible()
-    await expect(page.getByText('Tabor Mountain landform')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Tabor Mountain landform/ })).toBeVisible()
+    // The scene's one landform is the active assessment unit without being asked.
+    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
+      'Tabor Mountain landform',
+    )
     // The sample viewpoint is a driven length of road, not a single spot.
     await expect(page.getByText(/5 points · 9\.\d+ km/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Run visibility' })).toBeEnabled()
@@ -238,10 +257,22 @@ test.describe('forestry visual quality', () => {
     await setNumberField(page, 'Eye height above the road', '500')
     await setNumberField(page, 'Max view distance', '40')
 
+    // Without the assumptions stated the run is provisional and shows no scales.
+    await page.getByRole('button', { name: 'Run visibility' }).click()
+    await expect(page.getByText('Provisional result — PDF numerical fields withheld')).toBeVisible({
+      timeout: 120_000,
+    })
+    await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
+
+    // Stating them also changes the scene, so the earlier result is withdrawn
+    // until a run matches it.
+    await confirmScenarioAssumptions(page)
+    await expect(page.getByText(/Scene changed — rerun the analysis/)).toBeVisible()
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Alteration in perspective view')).toBeVisible({
       timeout: 120_000,
     })
+    await expect(page.getByText('Scenario numerical fields available')).toBeVisible()
 
     // Both blocks, whole: a bare "100" would also match the chart's axis label,
     // so assert on the rows that only a fully visible block can produce. The
@@ -268,9 +299,9 @@ test.describe('forestry visual quality', () => {
     // Nothing to download before there is a run to write up.
     await expect(page.getByRole('button', { name: 'Download the worksheet' })).toHaveCount(0)
 
-    // Well above the default 1.6 m, and inside the field's own 100 m ceiling so
-    // the figure the worksheet quotes back is the one that was typed.
+    // Well above the default 1.6 m, and inside the field's own 100 m ceiling.
     await setNumberField(page, 'Eye height above the road', '90')
+    await confirmScenarioAssumptions(page)
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
 
@@ -280,17 +311,17 @@ test.describe('forestry visual quality', () => {
     expect(download.suggestedFilename()).toMatch(/^visual-quality-worksheet-\d{4}-\d{2}-\d{2}\.md$/)
 
     const text = await readFile(await download.path(), 'utf8')
-    expect(text.split('\n')[0]).toBe('# Visual Quality Effectiveness Evaluation — desk screening')
-    expect(text).toContain('FS1252 (2008/04)')
-    // Laid out as the form, in the form's order.
-    expect(text).toContain('## 2.1.3 VLI information (office)')
-    expect(text).toContain('## 2.3.2 Assess initial VQC (office)')
-    expect(text).toContain('## 2.3.6 EE rating')
-    // The figures are this run's, not a canned page: the eye height set above,
-    // the flat stub terrain, and the fact that nothing screened the view.
-    expect(text).toContain('eye at +90 m')
-    expect(text).toContain('Standing timber is **not** modelled')
-    expect(text).toContain('## What this run does not model')
+    expect(text.split('\n')[0]).toBe('# Visual Quality Effectiveness Evaluation — simulation draft')
+    expect(text).toContain('FS1252 2008/04. Not a field evaluation')
+    // Bound to the run: the active landform, the stated assumptions, and a
+    // station row from the flat stub terrain at the corridor's first vertex.
+    expect(text).toContain('Active landform: Tabor Mountain landform.')
+    expect(text).toContain('Green denominator: confirmed-landform. Existing disturbance: scenario-only.')
+    expect(text).toContain('Numerical form fields: available as modelled scenario estimates.')
+    expect(text).toMatch(/\| 1 \| -122\.700000 \| 53\.915000 \| 800\.0 \| \d+\.\d\d \| \d+\.\d\d \| \d+\.\d\d \| \d+\.\d\d \| \S+ \|/)
+    // The field half stays blank rather than being inferred.
+    expect(text).toContain('2.2.3 Basic VQC (ocular): ______. Not inferred from the numerical class.')
+    expect(text).toContain('Signature: ______.')
   })
 
   test('refuses to report numbers when the terrain cannot be fetched', async ({ page }) => {
@@ -322,11 +353,15 @@ test.describe('forestry visual quality', () => {
 
     // The province's own objective and absorption rating come across, rather
     // than the page's defaults.
-    await expect(page.getByText('VLI 1668 · R (established)')).toBeVisible()
-    await expect(page.getByText('BC visual landscape inventory', { exact: false })).toBeVisible()
     const adopted = page.locator('li').filter({ hasText: 'VLI 1668 · R (established)' })
+    await expect(adopted).toBeVisible()
+    await expect(page.getByText('BC visual landscape inventory', { exact: false })).toBeVisible()
     await expect(adopted.locator('select[aria-label*="objective"]')).toHaveValue('retention')
     await expect(adopted.locator('select[aria-label*="absorption"]')).toHaveValue('low')
+    // Adopting it makes it the active assessment landform, displacing the sample's.
+    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
+      'VLI 1668 · R (established)',
+    )
   })
 
   test('says so plainly where the inventory has no coverage', async ({ page }) => {
@@ -353,6 +388,7 @@ test.describe('forestry visual quality', () => {
 
     await setNumberField(page, 'Eye height above the road', '500')
     await setNumberField(page, 'Max view distance', '40')
+    await confirmScenarioAssumptions(page)
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Alteration in perspective view')).toBeVisible({
       timeout: 120_000,
@@ -361,6 +397,7 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Look from the road' }).click()
     await expect(page.getByText('Standing on the road')).toBeVisible()
     await expect(page.getByText('Visible from here, right now')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible()
 
     // Assert the map, not the copy: an eye-level view of flat sidebar text would
     // pass just as well with terrain switched off entirely.
@@ -384,10 +421,17 @@ test.describe('forestry visual quality', () => {
 
     await setNumberField(page, 'Eye height above the road', '500')
     await setNumberField(page, 'Max view distance', '40')
+    await confirmScenarioAssumptions(page)
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
 
+    // Timber is illustrative and off until asked for: the run had no screening
+    // stands, so the preview opens on bare terrain rather than a regional mix.
     await page.getByRole('button', { name: 'Look from the road' }).click()
+    await expect(page.getByText(/Bare ground/)).toBeVisible()
+    await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Stand the timber up' }).click()
     await expect(page.getByLabel(/Stand height/)).toHaveValue('28')
     await expect(page.getByLabel(/Cleared width along the road/)).toBeVisible()
 
