@@ -993,7 +993,9 @@ export function MapSectionLayout({
             )}
           </div>
 
-          {/* Sidebar content */}
+          {/* Sidebar content. A fixed-height slot that does not scroll: a
+              sidebar owns its own scroll container, so anything a section
+              stacks beside its shell here is clipped rather than scrolled. */}
           <div
             ref={contentRef}
             className={cn(

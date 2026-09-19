@@ -411,6 +411,52 @@ test.describe('forestry visual quality', () => {
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 30_000 }).toBe(false)
   })
 
+  /**
+   * On a phone the sheet covers the map, so opening the road view with it up
+   * reads as nothing happening, and the drive's own controls used to float
+   * over the sidebar instead of sitting in the map layer.
+   */
+  test('clears the phone sheet out of the road view and drives from the map', async ({ page }) => {
+    test.setTimeout(180_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    await openPage(page)
+
+    const handle = page.locator('[data-map-mobile-sheet-handle]')
+    await handle.press('End')
+    await confirmScenarioAssumptions(page)
+    await page.getByRole('button', { name: 'Run visibility' }).click()
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+
+    await page.getByRole('button', { name: 'Look from the road' }).click()
+    // 0 is the collapsed peek: the sheet gets out of the way by itself.
+    await expect(handle).toHaveAttribute('aria-valuenow', '0')
+
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls).toBeInViewport()
+    // In the map layer, so the sheet is what covers it — not the other way round.
+    const overlapWithSheet = () =>
+      page.evaluate(() => {
+        const panel = document.querySelector('[role="region"][aria-label="Road view controls"]')!
+        const sheet = document.querySelector('[data-map-mobile-sheet="true"]')!
+        return Math.round(Math.max(0, panel.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top))
+      })
+    await expect.poll(overlapWithSheet).toBeLessThanOrEqual(1)
+
+    // Playback is reachable while the view is: the sidebar's own control is
+    // behind the peek.
+    await controls.getByRole('button', { name: 'Play', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+    await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+
+    await controls.getByRole('button', { name: 'Return to map' }).click()
+    await expect(page.getByText('Standing on the road')).toHaveCount(0)
+    // And the sidebar comes back rather than leaving the phone on a bare map.
+    await expect(handle).toHaveAttribute('aria-valuenow', '1')
+  })
+
   test('stands the timber up around the viewpoint', async ({ page }) => {
     // Placing forty thousand stems and rendering them in software is slow here.
     test.setTimeout(240_000)
@@ -461,6 +507,55 @@ test.describe('forestry visual quality', () => {
       timeout: 120_000,
     })
   })
+
+  /**
+   * The layout hands a section one fixed-height sidebar slot that does not
+   * scroll, so everything the sidebar renders has to sit inside the shell's own
+   * scroll container. Stacked beside it, the assessment panel pushed the shell
+   * — and the bottom of its scroll port — off the screen, and no amount of
+   * scrolling brought the last sections back.
+   */
+  for (const [device, viewport] of [
+    ['desktop', { width: 1440, height: 900 }],
+    ['phone', { width: 390, height: 844 }],
+  ] as const) {
+    test(`keeps every sidebar section reachable and inside the panel width on ${device}`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await stubBasemap(page)
+      await stubTerrain(page)
+      await stubVegetation(page)
+      await openPage(page)
+
+      if (device === 'phone') await page.locator('[data-map-mobile-sheet-handle]').press('End')
+
+      // One scroll container: the assessment panel is inside it, not above it.
+      const scroll = page.locator('[data-map-sidebar-scroll]')
+      await expect(scroll.locator('section[aria-label="Assessment integrity and PDF export"]')).toHaveCount(1)
+
+      const measure = () =>
+        page.evaluate(() => {
+          const slot = document.querySelector('[data-map-mobile-sheet-content]')!
+          const port = document.querySelector('[data-map-sidebar-scroll]')!
+          return {
+            pastTheSlot: slot.scrollHeight - slot.clientHeight,
+            pastTheWidth: port.scrollWidth - port.clientWidth,
+            portBelowTheScreen: Math.round(port.getBoundingClientRect().bottom - window.innerHeight),
+          }
+        })
+
+      // The phone sheet springs into place, so let it land before measuring.
+      await expect.poll(async () => (await measure()).portBelowTheScreen).toBeLessThanOrEqual(1)
+      const fit = await measure()
+      expect(fit.pastTheSlot).toBeLessThanOrEqual(1)
+      expect(fit.pastTheWidth).toBeLessThanOrEqual(1)
+
+      // The last section is reachable by scrolling, not merely present.
+      await scroll.evaluate((element) => {
+        element.scrollTop = element.scrollHeight
+      })
+      await expect(page.getByRole('button', { name: 'Find them on screen' })).toBeInViewport()
+    })
+  }
 
   test('leaves a drawn corridor alone when no road is near it', async ({ page }) => {
     await stubBasemap(page)
