@@ -462,6 +462,55 @@ test.describe('forestry visual quality', () => {
     })
   })
 
+  /**
+   * The layout hands a section one fixed-height sidebar slot that does not
+   * scroll, so everything the sidebar renders has to sit inside the shell's own
+   * scroll container. Stacked beside it, the assessment panel pushed the shell
+   * — and the bottom of its scroll port — off the screen, and no amount of
+   * scrolling brought the last sections back.
+   */
+  for (const [device, viewport] of [
+    ['desktop', { width: 1440, height: 900 }],
+    ['phone', { width: 390, height: 844 }],
+  ] as const) {
+    test(`keeps every sidebar section reachable and inside the panel width on ${device}`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await stubBasemap(page)
+      await stubTerrain(page)
+      await stubVegetation(page)
+      await openPage(page)
+
+      if (device === 'phone') await page.locator('[data-map-mobile-sheet-handle]').press('End')
+
+      // One scroll container: the assessment panel is inside it, not above it.
+      const scroll = page.locator('[data-map-sidebar-scroll]')
+      await expect(scroll.locator('section[aria-label="Assessment integrity and PDF export"]')).toHaveCount(1)
+
+      const measure = () =>
+        page.evaluate(() => {
+          const slot = document.querySelector('[data-map-mobile-sheet-content]')!
+          const port = document.querySelector('[data-map-sidebar-scroll]')!
+          return {
+            pastTheSlot: slot.scrollHeight - slot.clientHeight,
+            pastTheWidth: port.scrollWidth - port.clientWidth,
+            portBelowTheScreen: Math.round(port.getBoundingClientRect().bottom - window.innerHeight),
+          }
+        })
+
+      // The phone sheet springs into place, so let it land before measuring.
+      await expect.poll(async () => (await measure()).portBelowTheScreen).toBeLessThanOrEqual(1)
+      const fit = await measure()
+      expect(fit.pastTheSlot).toBeLessThanOrEqual(1)
+      expect(fit.pastTheWidth).toBeLessThanOrEqual(1)
+
+      // The last section is reachable by scrolling, not merely present.
+      await scroll.evaluate((element) => {
+        element.scrollTop = element.scrollHeight
+      })
+      await expect(page.getByRole('button', { name: 'Find them on screen' })).toBeInViewport()
+    })
+  }
+
   test('leaves a drawn corridor alone when no road is near it', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)

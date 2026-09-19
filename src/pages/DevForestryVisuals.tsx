@@ -790,9 +790,20 @@ function DevForestryVisuals() {
   }, [])
 
   const sidebar = (
-    <>
-    <AssessmentPanel scene={scene} onChange={setScene} result={result} stale={isStale} snapshot={result ? runSnapshotRef.current?.scene ?? null : null} currentStation={driveStationIndex} />
     <Sidebar
+      // Inside the shell, not beside it: the layout's sidebar slot does not
+      // scroll, so a panel stacked above the shell clips the shell's own
+      // scroll port instead of lengthening it.
+      assessment={
+        <AssessmentPanel
+          scene={scene}
+          onChange={setScene}
+          result={result}
+          stale={isStale}
+          snapshot={result ? runSnapshotRef.current?.scene ?? null : null}
+          currentStation={driveStationIndex}
+        />
+      }
       scene={scene}
       onViewpointChange={setViewpoint}
       onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
@@ -830,7 +841,6 @@ function DevForestryVisuals() {
       onExportReport={result ? handleExportReport : null}
       onAddRoadDisturbance={handleAddRoadDisturbance}
     />
-    </>
   )
 
   return (

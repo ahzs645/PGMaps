@@ -89,7 +89,7 @@ const INPUT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const SELECT_CLASS =
-  'h-7 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
@@ -193,6 +193,15 @@ type SidebarProps = {
   onExportReport: (() => void) | null
   /** Adds the on-screen roads inside the landform as FS1252 line (b) disturbance. */
   onAddRoadDisturbance: () => void
+
+  /**
+   * Rendered as the first section inside the shell's scroll container. The
+   * assessment panel has to live in here rather than beside this component:
+   * the layout gives the sidebar one fixed-height slot with `overflow-hidden`,
+   * so a sibling above a `h-full` shell pushes the shell's lower half — and
+   * the bottom of its scroll port — off the screen for good.
+   */
+  assessment?: ReactNode
 }
 
 export function Sidebar({
@@ -232,6 +241,7 @@ export function Sidebar({
   onExport,
   onExportReport,
   onAddRoadDisturbance,
+  assessment,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Which scale the threshold editor is showing. Purely a view concern — both
@@ -296,6 +306,8 @@ export function Sidebar({
         </>
       }
     >
+      {assessment}
+
       <SidebarSection title="Viewpoint" icon={Eye}>
         <div className="mb-3 flex gap-1.5">
           <ToggleChip
@@ -535,7 +547,7 @@ export function Sidebar({
                   </button>
                 </div>
 
-                <div className="mt-1.5 flex items-center gap-1.5 pl-[18px]">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
                   <select
                     className={SELECT_CLASS}
                     value={target.role}
