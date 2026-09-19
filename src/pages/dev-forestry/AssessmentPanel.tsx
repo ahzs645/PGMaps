@@ -21,7 +21,7 @@ export function AssessmentPanel({scene,onChange,result,stale,snapshot,currentSta
     try{await downloadFs1252({result,targets:snapshot.targets,viewpointName:snapshot.viewpoint.name,stationIndices:selected,metadata:meta,reviews,generatedAt:new Date().toISOString()})}
     catch(e){setError(e instanceof Error?e.message:String(e))}finally{setBusy(false)}
   }
-  return <section className="space-y-3 border-b p-4 text-xs" aria-label="Assessment integrity and PDF export">
+  return <section className="space-y-3 border-b border-border bg-background/95 p-4 text-xs" aria-label="Assessment integrity and PDF export">
     <h2 className="text-sm font-semibold">Assessment &amp; report</h2>
     {stale&&<p role="alert" className="rounded border border-amber-500 p-2">Scene changed — rerun the analysis. Previous results, road preview and assessed exports are unavailable until the run matches this scene.</p>}
     <label className="block">Active landform
