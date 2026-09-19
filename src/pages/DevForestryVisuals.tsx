@@ -848,6 +848,11 @@ function DevForestryVisuals() {
       sidebar={sidebar}
       desktopSidebarWidth={400}
       mobileInitialSheetState="half"
+      // On a phone the sheet covers the map, so entering the road view with it
+      // up looks like nothing happened. Drop it to the peek for the drive and
+      // hand the sidebar back on the way out.
+      mobileSnapTo={drive.active ? 'collapsed' : 'half'}
+      mobileSnapKey={drive.active ? 'road-view' : 'map-view'}
       selectedFeatureMobilePeek={{
         title: 'Visual quality',
         subtitle: result
@@ -1011,6 +1016,7 @@ function DevForestryVisuals() {
               setDrive((current) => Math.abs(current.positionMeters - distanceMeters) < 0.0001 ? current : { ...current, positionMeters: distanceMeters })
             }}
             onPause={() => setDrive((current) => ({ ...current, playing: false }))}
+            onPlay={() => setDrive((current) => ({ ...current, playing: true }))}
             onExit={() => setDrive((current) => ({ ...current, active: false, playing: false }))}
             onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
           />
@@ -1018,7 +1024,10 @@ function DevForestryVisuals() {
       </Map>
 
       {result && !drive.active && (
-        <MapOverlay position="bottom-left" className="max-w-[15rem]">
+        <MapOverlay
+          position="bottom-left"
+          className="bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] max-w-[15rem] md:bottom-3"
+        >
           <p className="mb-1.5 text-xs font-semibold text-foreground">Seen from the road</p>
           <div className="space-y-1 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -1051,7 +1060,10 @@ function DevForestryVisuals() {
       )}
 
       {drive.active && (
-        <MapOverlay position="top-left" className="max-w-[16rem]">
+        <MapOverlay
+          position="top-left"
+          className="top-[calc(env(safe-area-inset-top)+3.75rem)] max-w-[16rem] md:top-3"
+        >
           <p className="text-xs font-semibold text-foreground">Standing on the road</p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
             Red ground is visible from the nearest calculated station, not a new calculation at every animation frame. Grey samples are unknown. Rendered trees are illustrative; numerical screening is controlled by the analysis settings.

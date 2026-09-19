@@ -411,6 +411,52 @@ test.describe('forestry visual quality', () => {
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 30_000 }).toBe(false)
   })
 
+  /**
+   * On a phone the sheet covers the map, so opening the road view with it up
+   * reads as nothing happening, and the drive's own controls used to float
+   * over the sidebar instead of sitting in the map layer.
+   */
+  test('clears the phone sheet out of the road view and drives from the map', async ({ page }) => {
+    test.setTimeout(180_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    await openPage(page)
+
+    const handle = page.locator('[data-map-mobile-sheet-handle]')
+    await handle.press('End')
+    await confirmScenarioAssumptions(page)
+    await page.getByRole('button', { name: 'Run visibility' }).click()
+    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+
+    await page.getByRole('button', { name: 'Look from the road' }).click()
+    // 0 is the collapsed peek: the sheet gets out of the way by itself.
+    await expect(handle).toHaveAttribute('aria-valuenow', '0')
+
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls).toBeInViewport()
+    // In the map layer, so the sheet is what covers it — not the other way round.
+    const overlapWithSheet = () =>
+      page.evaluate(() => {
+        const panel = document.querySelector('[role="region"][aria-label="Road view controls"]')!
+        const sheet = document.querySelector('[data-map-mobile-sheet="true"]')!
+        return Math.round(Math.max(0, panel.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top))
+      })
+    await expect.poll(overlapWithSheet).toBeLessThanOrEqual(1)
+
+    // Playback is reachable while the view is: the sidebar's own control is
+    // behind the peek.
+    await controls.getByRole('button', { name: 'Play', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+    await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+
+    await controls.getByRole('button', { name: 'Return to map' }).click()
+    await expect(page.getByText('Standing on the road')).toHaveCount(0)
+    // And the sidebar comes back rather than leaving the phone on a bare map.
+    await expect(handle).toHaveAttribute('aria-valuenow', '1')
+  })
+
   test('stands the timber up around the viewpoint', async ({ page }) => {
     // Placing forty thousand stems and rendering them in software is slow here.
     test.setTimeout(240_000)
