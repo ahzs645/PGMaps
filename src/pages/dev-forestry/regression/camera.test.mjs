@@ -27,3 +27,12 @@ test('pending or missing preview terrain holds playback even if the map returns 
 test('road grade lifts the view while preserving eye clearance',()=>{const m=map();const c=new DriveController(m,path(),stations(),{elevationAt:(lng)=>500+(lng-ll(0,0)[0])*10000});c.start(30);c.tick(0,options());assert.ok(m.state.calls[0].pitch>90);assert.ok(m.state.calls[0].pitch<110)})
 
 test('short camera target keeps foreground inside the clip range',()=>{const m=map();let used=false;m.calculateCameraOptionsFromTo=(from,alt,to,targetAlt)=>{used=true;assert.ok(Math.hypot(to.lng-from.lng,to.lat-from.lat)<.002);assert.ok(Math.abs(targetAlt-alt)<20);return{center:to,zoom:20,bearing:90,pitch:90,elevation:targetAlt}};const c=new DriveController(m,path(),stations(),{elevationAt:()=>678});c.start(0);c.tick(0,options());assert.ok(used);assert.equal(m.state.jumps[0].roll,0);assert.equal(m.state.calls.length,0)})
+
+test('selected travel speed is preserved at 5 fps without accumulating suspended time',()=>{
+ const m=map(),c=new DriveController(m,path(),stations()); let pose;
+ const o={...options(),playing:true,speedMetersPerSecond:10,onPosition:p=>pose=p};
+ c.start(0); for(let i=0;i<=5;i++) c.tick(i*200,o);
+ assert.ok(Math.abs(pose.distanceMeters-10)<1e-9);
+ c.tick(10000,o); assert.equal(pose.distanceMeters,10);
+ c.tick(10200,o); assert.equal(pose.distanceMeters,12);
+})

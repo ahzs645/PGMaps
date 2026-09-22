@@ -1,15 +1,10 @@
 /**
- * British Columbia's visual landscape inventory, queried live from DataBC.
- *
- * The province publishes what a scenic area is actually held to — the
- * established visual quality objective, and the visual absorption capability
- * that narrows its planimetric allowance — so those do not have to be guessed
- * at or typed in. The polygons themselves are the landform this page divides by.
- *
- * Fetched rather than snapshotted: the service answers cross-origin, and one
- * generalised bbox query is a few tens of kilobytes. Anything that needs the
- * full-resolution inventory offline belongs in the bcdatamapper pipeline
- * instead (see AGENTS.md).
+ * DataBC field parsing and live harvest/forest-cover queries. Visual sensitivity
+ * units now come from visualInventorySnapshot.ts in the page workflow; the
+ * live sensitivity query remains available for source checks and its tests.
+ * A sensitivity unit is a candidate boundary, not an automatically verified
+ * viewpoint-specific assessment landform. Province-wide snapshots are owned
+ * by vendor/bcdatamapper (see AGENTS.md).
  */
 
 import type { CanopyStand } from './canopy'

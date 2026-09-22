@@ -4,6 +4,7 @@
  * Per-block visibility grids are descriptive; their areas must not be added to
  * reconstruct the cumulative result (overlapping blocks are not additive).
  */
+import { reviewLandformDesign } from './landformDesign'
 import { buildCanopyGrid, type CanopyStand } from './canopy'
 import { demResolutionMeters, lngLatToMercator, type Bounds, type ElevationSource } from './terrain'
 import { activeLandform, alterationWeight, canonicalInput, unionContributions } from './integrity'
@@ -217,7 +218,7 @@ export function computeAnalysis(source: ElevationSource, input: AnalysisInput, t
   if (land && !(greenArea > 0)) warnings.push('No assessable green landform area is available as a denominator.')
   if (land && !perspectiveByStation.some((value) => value !== null)) warnings.push('No selected station has a complete visible landform denominator.')
   const numericalReady = input.settings.targetOffsetMeters === 0 && !!land && greenArea > 0 && perspectiveByStation.some((value) => value !== null) && verifiedGreen && !!existingReady && unknownStationCount === 0 && underResolvedTargetIds.length === 0 && (!input.settings.screeningEnabled || !!canopy && vegetation === 'complete' && !partialScreening)
-  return { settings: { ...input.settings }, stations: stationPoints, corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
+  return { landformDesign: reviewLandformDesign(source, land, passes.filter(p => p.target.role === 'block'), stationPoints, input.settings.observerHeightMeters), settings: { ...input.settings }, stations: stationPoints, corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
     assessmentStationIndex, largestVisibleAreaStationIndex, targets, perspectiveAlteration: perspectiveByStation[assessmentStationIndex], perspectiveByStation,
     planimetricAlteration: land ? asPercent(greenArea, plan) : null, landformAreaMeters: land?.target.areaMeters ?? null, landformForestedAreaMeters: land && verifiedGreen ? greenArea : null,
     recoveredOpeningCount: prepared.filter((t) => t.recovered).length, canopyCoverageFraction: canopy?.coverageFraction() ?? null, canopyStandCount: canopy ? canopyStands.length : 0,

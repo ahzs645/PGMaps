@@ -77,3 +77,6 @@ export function smoothAngle(previous: number, next: number, amount: number): num
   const delta = ((next - previous + 540) % 360) - 180
   return (previous + delta * amount + 360) % 360
 }
+
+/** Preview travel speeds, not inferred posted road limits. */
+export const DRIVE_SPEEDS_KMH = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]

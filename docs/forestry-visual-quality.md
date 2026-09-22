@@ -397,7 +397,7 @@ matrix that projected the ground under them.
 | `src/pages/dev-forestry/vqo.ts` | Visual quality classes, both threshold scales, VAC, green-up, partial cutting |
 | `src/pages/dev-forestry/scene.ts` | The page's document: persistence, export, map features |
 | `src/pages/dev-forestry/shapeImport.ts` | Zipped shapefile and GeoJSON import |
-| `src/pages/dev-forestry/bcVisualInventory.ts` | Live DataBC lookup for sensitivity units, objectives, and VAC |
+| `src/pages/dev-forestry/bcVisualInventory.ts` | DataBC parsers and live harvest/forest-cover queries; VLI uses visualInventorySnapshot.ts |
 | `src/pages/dev-forestry/DriveCamera.tsx` | Eye-level camera and playback |
 | `src/pages/dev-forestry/TerrainSupport.tsx` | Hillshade, 3D terrain, and sky |
 | `src/pages/dev-forestry/reverseViewshed.ts` | Working backwards: which roads can see a block |
@@ -427,33 +427,18 @@ component is reduced to a no-op.
 
 ## BC inventory lookup
 
-"Look up this view" asks DataBC's **Visual Landscape Inventory — Visual
-Sensitivity Units** layer what the province says about the area on screen, and
-clicking a unit adopts it as the landform carrying its own established objective
-and VAC rating. That replaces the two inputs most worth not guessing at.
+The page uses a downloaded **Visual Landscape Inventory — Visual Sensitivity Units — View** snapshot for boundaries and their recorded objective/VAC fields. It is owned by `vendor/bcdatamapper`, synced to `public/data/forest/visual-inventory`, and served as an index plus full-resolution spatial shards. No Cloudflare Worker, R2 bucket or live visual-inventory service request is needed. Existing harvest, RESULTS forest cover and VRI remain live queries.
 
-This is a **live query**, deliberately outside the `bcdatamapper` snapshot
-pipeline (`AGENTS.md`). It is a lookup of a handful of polygons for one place
-rather than a dataset the app ships, and it needs no key: the service answers
-cross-origin, verified from a browser.
+`Find a landform` automatically ranks up to five candidate units within 25 km of the entire road polyline, including unrated units. A selector switches to the proposed block centre when desired. Proximity does not establish visibility. `Show boundary` previews a candidate; `Use candidate` adopts it explicitly. A VSU is not automatically the viewpoint-specific assessment landform. If no candidate is appropriate, draw or import the visible hillside. A nearby polygon does not establish coverage of the proposed block.
 
-Three things make it practical:
-
-- **Generalised server-side.** Full-resolution units run about 110 KB *each* —
-  a Prince George-sized query is ~7 MB. `maxAllowableOffset` cuts the same query
-  to about 30 KB, which is all a screening map needs.
-- **Bounded.** The query bbox is clamped to 1.5° so a province-wide view cannot
-  ask for a thousand polygons to answer a question about one place.
-- **Honest about gaps.** Coverage is patchy and the page says so rather than
-  filling in.
+`Look up this view` still loads existing harvest/forest-cover context and displays snapshot units whose bounding boxes intersect the map extent. The nearby GeoJSON download and snapshot manifest are available in the main workflow. See the integrity contract's **Appendix 5 landform review and downloaded visual inventory** section for methods, limits and tests.
 
 ### What the inventory actually contains
 
 Province-wide, about 5,000 sensitivity units carry an established objective and
 about 6,400 a VAC rating. Locally it is thinner: of 36 units returned around
 Prince George, 22 had an established objective and **none** had a VAC rating.
-Unrated units are drawn on the map for context but kept out of the list, and a
-landform with no VAC falls back to the class maximum.
+Unrated units remain selectable and are explicitly labelled. Missing VAC uses the planning assumption described in the integrity contract; it is not a verified site rating.
 
 Codes map as `P`/`R`/`PR`/`M`/`MM` for the objective and `L`/`M`/`H` for VAC —
 note that `M` means modification in one field and medium in the other, which is

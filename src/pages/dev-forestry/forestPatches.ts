@@ -3,6 +3,9 @@ import { placeTrees, type TreeInstance, type TreePlacementOptions } from './fore
 import type { ElevationSource } from './terrain'
 import { haversineMeters } from './visibility'
 
+// Load beyond visibility before the anchor advances by 75 m.
+export const FOREST_PATCH_GUARD_METERS = 200
+
 export type ForestBand = { size: number; spacing: number; near: number; far: number }
 export type ForestPatch = {
   key: string
@@ -30,13 +33,13 @@ export function forestPatches(
       dy = band.size / 111320
     const cx = eye.lng / dx,
       cy = eye.lat / dy,
-      cells = Math.ceil(band.far / band.size) + 1
+      cells = Math.ceil((band.far + FOREST_PATCH_GUARD_METERS) / band.size) + 1
     for (let y = Math.floor(cy) - cells; y <= Math.floor(cy) + cells; y++) {
       for (let x = Math.floor(cx) - cells; x <= Math.floor(cx) + cells; x++) {
         const centre = { lng: (x + 0.5) * dx, lat: (y + 0.5) * dy }
         const distance = haversineMeters(eye, centre),
           diagonal = (band.size * Math.SQRT2) / 2
-        if (distance - diagonal > band.far || distance + diagonal < band.near) continue
+        if (distance - diagonal > band.far + FOREST_PATCH_GUARD_METERS || distance + diagonal < band.near - FOREST_PATCH_GUARD_METERS) continue
         result.push({
           key: `${index}/${x}/${y}`,
           band: index,
@@ -72,4 +75,11 @@ export function growForestPatch(
       const height = elevation.elevationAt(tree.lng, tree.lat)
       return Number.isFinite(height) ? [{ ...tree, elevationMeters: height }] : []
     })
+}
+
+/** Keep the same foreground representation all the way to the eye. */
+export function canopyRange(bands: ForestBand[], index: number): [number, number, number, number] {
+  const band = bands[index]
+  return [index === 0 ? -2 : band.near, index === 0 ? -1 : bands[index - 1].far,
+    index + 1 < bands.length ? bands[index + 1].near : band.far - 300, band.far]
 }

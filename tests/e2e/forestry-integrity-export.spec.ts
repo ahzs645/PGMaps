@@ -69,6 +69,11 @@ test('a scenario edit withholds stale PDF export until a new run', async ({ page
 test('PDF button downloads the historical template with embedded scenario record', async ({ page }) => {
   test.setTimeout(180_000)
   await openScenario(page)
+  await page.getByText('Advanced assessment & settings', { exact: true }).click()
+  await page.getByRole('button', { name: 'Fill / export FS1252 PDF', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Assessment integrity and PDF export' })).toBeVisible()
+  await page.getByText('FS1252 office information', { exact: true }).click()
+  await page.getByLabel('Forest district', { exact: true }).fill('Interface PDF test district')
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export filled FS1252 PDF', exact: true }).click()
   const downloaded = await pending
@@ -78,4 +83,5 @@ test('PDF button downloads the historical template with embedded scenario record
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.toString('latin1')).toContain('pgmaps-scenario.json')
   expect(bytes.toString('latin1')).toContain('SIMULATION DRAFT')
+  expect(bytes.toString('latin1')).toContain('Interface PDF test district')
 })

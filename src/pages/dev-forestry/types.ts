@@ -58,6 +58,7 @@ export type AnalysisQuality = {
   largestGroundCellPercent: number | null; numericalReady: boolean; warnings: string[]
 }
 export type AnalysisResult = {
+  landformDesign?: import('./landformDesign').LandformDesignReview | null
   settings: AnalysisSettings
   stations: Array<{ lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number }>
   corridorLengthMeters: number; assessmentStationIndex: number; targets: TargetVisibility[]

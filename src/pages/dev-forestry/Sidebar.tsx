@@ -1,3 +1,4 @@
+import { DRIVE_SPEEDS_KMH } from './driveMath'
 import {
   Crosshair,
   Download,
@@ -296,8 +297,10 @@ export function Sidebar({
 
   const inventorySummary = summariseUnits(inventory.units)
   // Unrated units stay on the map for context but would swamp a list.
-  const ratedUnits = inventory.units.filter((unit) => unit.objectiveId !== null)
+  const ratedUnits = inventory.units
 
+  const advancedRef = useRef<HTMLDetailsElement>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
   const progressPercent =
     analysis.progress && analysis.progress.total > 0
       ? Math.min(100, (analysis.progress.completed / analysis.progress.total) * 100)
@@ -320,9 +323,10 @@ export function Sidebar({
       }
     >
       {workflow}
-      <details className="border-t" data-forestry-advanced>
+      <div className="px-4 py-2"><Button variant="outline" size="sm" className="w-full" onClick={() => { if (advancedRef.current) advancedRef.current.open = true; reportRef.current?.scrollIntoView({ block: 'start' }) }}>Fill / export FS1252 PDF</Button></div>
+      <details ref={advancedRef} className="border-t" data-forestry-advanced>
         <summary className="cursor-pointer p-4 text-sm font-semibold">Advanced assessment & settings</summary>
-      {assessment}
+      <div ref={reportRef}>{assessment}</div>
 
       <SidebarSection title="Viewpoint" icon={Eye}>
         <div className="mb-3 flex gap-1.5">
@@ -645,11 +649,10 @@ export function Sidebar({
           ) : (
             <Landmark className="h-4 w-4" />
           )}
-          {inventory.status === 'loading' ? 'Asking DataBC…' : 'Look up this view'}
+          {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
         </Button>
         <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-          Visual sensitivity units from the province&apos;s visual landscape inventory, with whatever objective and
-          absorption capability they carry. Click one on the map or below to use it as the landform.
+          Downloaded provincial sensitivity units, plus live harvest and forest-cover context. Boundaries are candidates: review the visible landform before adopting one.
         </p>
 
         {inventory.status === 'error' && (
@@ -661,8 +664,7 @@ export function Sidebar({
         {inventory.status === 'ready' &&
           (inventory.units.length === 0 ? (
             <InlineAlert className="mt-2">
-              No sensitivity units cover this view. Inventory coverage is patchy — pan to a mapped scenic area, or keep
-              using a drawn or imported landform.
+              No inventory boundaries intersect this map extent. Use Find a landform above to search nearby units, or draw or import the visible hillside.
             </InlineAlert>
           ) : (
             <div className="mt-2">
@@ -1071,7 +1073,7 @@ export function Sidebar({
                   onChange={(event) => onDriveChange({ speedKmh: Number(event.target.value) })}
                   aria-label="Travel speed"
                 >
-                  {[20, 40, 60, 80, 100].map((speed) => (
+                  {DRIVE_SPEEDS_KMH.map((speed) => (
                     <option key={speed} value={speed}>
                       {speed} km/h
                     </option>
@@ -1163,14 +1165,14 @@ export function Sidebar({
                         label="How a stem is drawn"
                         hint={
                           drive.treeStyle === 'hybrid'
-                            ? 'Generated trunks and branches nearby, silhouettes farther away, and canopy groups across the hillside.'
+                            ? 'Three fixed silhouette planes per foreground tree, unchanged as you approach. Distant instances represent canopy groups.'
                             : drive.treeStyle === 'billboard'
-                            ? 'A drawn tree on two triangles, turned to face you. Cheap enough to reach the block, and it reads as a tree at any distance.'
+                            ? 'Two fixed silhouette planes per foreground tree, with camera-facing canopy groups farther away.'
                             : 'Real geometry with real normals. Lights correctly from any angle and is honest from above, at about fifteen times the triangles.'
                         }
                       >
                         <div className="flex flex-wrap gap-1.5">
-                          <ToggleChip active={drive.treeStyle === 'hybrid'} onClick={() => onDriveChange({ treeStyle: 'hybrid' })}>Detailed nearby</ToggleChip>
+                          <ToggleChip active={drive.treeStyle === 'hybrid'} onClick={() => onDriveChange({ treeStyle: 'hybrid' })}>Stable silhouettes</ToggleChip>
                           <ToggleChip
                             active={drive.treeStyle === 'billboard'}
                             onClick={() => onDriveChange({ treeStyle: 'billboard' })}

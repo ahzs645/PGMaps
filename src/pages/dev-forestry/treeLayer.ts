@@ -105,7 +105,8 @@ const BILLBOARD_VERTEX_SHADER = `#version 300 es
 precision highp float;
 
 /** Card corner: x across in [-0.5, 0.5], y up in [0, 1]. */
-in vec2 a_corner;
+in vec3 a_corner;
+uniform float u_cardPlanes;
 /** Mercator position of the stem base. */
 in vec3 a_offset;
 /** Card width and height, in metres. */
@@ -142,6 +143,12 @@ void main() {
   vec3 right = cross(view, vec3(0.0, 0.0, 1.0));
   float span = length(right);
   vec2 across = span > 1e-12 ? right.xy / span : vec2(1.0, 0.0);
+  // Foreground cards stand in fixed planes through the SAME stem. Their
+  // orientation depends only on the stem's stable tint, never the camera.
+  if (u_cardPlanes > 1.0) {
+    float angle = a_tint.r * 47.0 + a_corner.z * 3.14159265359 / u_cardPlanes;
+    across = vec2(cos(angle), sin(angle));
+  }
 
   vec3 metres = vec3(across * (a_corner.x * a_scale.x), a_corner.y * a_scale.y);
   v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
@@ -205,6 +212,7 @@ function link(gl: WebGL2RenderingContext, vertexSource: string, fragmentSource: 
 }
 
 export type TreeLayerOptions = {
+  crossedCards?: 2 | 3
   style: TreeStyle
   /** Required for `solid`. */
   mesh?: ForestMesh
@@ -247,6 +255,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
   let matrixLocation: WebGLUniformLocation | null = null
   let meterScaleLocation: WebGLUniformLocation | null = null
   let cellSizeLocation: WebGLUniformLocation | null = null
+  let crossedLocation: WebGLUniformLocation | null = null
   let atlasLocation: WebGLUniformLocation | null = null
 
   const instanceBuffers: WebGLBuffer[] = []
@@ -267,7 +276,8 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
 
   const atlas = options.atlas
   const mesh = options.mesh
-  const indexCount = billboard ? 6 : (mesh?.indices.value.length ?? 0)
+  const cardPlanes = options.crossedCards ?? 1
+  const indexCount = billboard ? cardPlanes * 6 : (mesh?.indices.value.length ?? 0)
 
   const upload = (trees: TreeInstance[]) => {
     if (!gl || !offsetBuffer || !scaleBuffer || !thirdBuffer) return
@@ -367,6 +377,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       meterScaleLocation = gl.getUniformLocation(program, 'u_meterScale')
       cellSizeLocation = gl.getUniformLocation(program, 'u_cellSize')
       atlasLocation = gl.getUniformLocation(program, 'u_atlas')
+      crossedLocation = gl.getUniformLocation(program, 'u_cardPlanes')
 
       vao = gl.createVertexArray()
       gl.bindVertexArray(vao)
@@ -392,9 +403,10 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       }
 
       if (billboard) {
-        // One quad, standing on the ground, centred on the stem.
-        const corners = new Float32Array([-0.5, 0, 0.5, 0, 0.5, 1, -0.5, 1])
-        staticBuffer(corners, attribute('a_corner'), 2)
+        // One distant camera-facing card, or fixed foreground planes through the stem.
+        const plane = [-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0]
+        const corners = new Float32Array(Array.from({ length: cardPlanes }, (_, p) => plane.map((v, i) => i % 3 === 2 ? p : v)).flat())
+        staticBuffer(corners, attribute('a_corner'), 3)
         offsetBuffer = perInstance(attribute('a_offset'), 3)
         scaleBuffer = perInstance(attribute('a_scale'), 2)
         thirdBuffer = perInstance(attribute('a_cell'), 2)
@@ -403,7 +415,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         const indexBuffer = gl.createBuffer()
         instanceBuffers.push(indexBuffer!)
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(Array.from({ length: cardPlanes }, (_, p) => [0, 1, 2, 0, 2, 3].map(i => i + p * 4)).flat()), gl.STATIC_DRAW)
       } else {
         staticBuffer(mesh!.attributes.positions.value, attribute('a_position'), 3)
         staticBuffer(mesh!.attributes.normals.value, attribute('a_normal'), 3)
@@ -487,6 +499,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.uniform1f(meterScaleLocation, meterScale)
 
       if (billboard && atlas) {
+        gl.uniform1f(crossedLocation, cardPlanes)
         gl.uniform2f(cellSizeLocation, 1 / atlas.columns, 1 / atlas.rows)
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, texture)

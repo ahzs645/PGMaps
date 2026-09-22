@@ -1,11 +1,10 @@
 /** Stable geographic forest tiles, grown progressively against a fixed DEM. */
 import { useEffect, useRef } from 'react'
 import { useMap } from '@/components/ui/map'
-import { coniferMesh, TREE_SPECIES_IDS, type InventoryStand, type TreeInstance } from './forest'
+import { coniferMesh, type InventoryStand, type TreeInstance } from './forest'
 import { buildImpostorAtlas } from './impostor'
 import { createTreeLayer, type TreeStyle } from './treeLayer'
-import { roadsideTreeMesh } from './treeGeometry'
-import { forestBands, forestPatches, growForestPatch } from './forestPatches'
+import { canopyRange, forestBands, forestPatches, growForestPatch } from './forestPatches'
 import { haversineMeters, type PolygonGeometry } from './visibility'
 import type { ElevationSource } from './terrain'
 
@@ -64,32 +63,20 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const anchorLatitude = sceneLatitude ?? initialEye.lat
     const bands = forestBands(farRadiusMeters)
     const atlas = style !== 'solid' ? buildImpostorAtlas() : undefined
-    const distantLayers = bands.map((band, i) =>
+    const distantLayers = bands.map((_, i) =>
       createTreeLayer(`${LAYER_ID}-${i}`, {
         style: style === 'solid' ? 'solid' : 'billboard',
         atlas,
         mesh: style === 'solid' ? coniferMesh() : undefined,
         // Far cards represent groups of crowns, not individually inventoried stems.
         widthScale: i === 2 ? 3.5 : i === 1 ? 1.7 : 1,
-        range: [
-          i === 0 ? (style === 'hybrid' ? 60 : -2) : band.near,
-          i === 0 ? (style === 'hybrid' ? 100 : -1) : bands[i - 1].far,
-          i < 2 ? bands[i + 1].near : band.far - 300,
-          band.far,
-        ],
+        crossedCards: i === 0 ? (style === 'hybrid' ? 3 : 2) : undefined,
+        range: canopyRange(bands, i),
       }),
     )
-    const nearLayers =
-      style === 'hybrid'
-        ? TREE_SPECIES_IDS.map((species) =>
-            createTreeLayer(`${LAYER_ID}-${species}`, {
-              style: 'solid',
-              mesh: roadsideTreeMesh(species),
-              range: [-2, -1, 60, 100],
-            }),
-          )
-        : []
-    const layers = [...nearLayers, ...distantLayers]
+    // One representation for every foreground stem, from the horizon band to
+    // the road edge. Adding a second mesh only near the eye changed its shape.
+    const layers = distantLayers
     let nearCount = 0,
       patchCount = 0,
       count = 0
@@ -110,6 +97,13 @@ export function ForestOverlay(props: ForestOverlayProps) {
             layer.setEye(eye)
             layer.render(gl, args)
           }
+      },
+      // Read-only diagnostics also let browser checks catch accidental close LODs.
+      get distanceRanges() {
+        return bands.map((_, i) => canopyRange(bands, i))
+      },
+      get renderLayerCount() {
+        return layers.length
       },
       get treeCount() {
         return count
@@ -153,7 +147,6 @@ export function ForestOverlay(props: ForestOverlayProps) {
       })
       const close = grouped[0].filter((tree) => haversineMeters(lastEye, tree) < 180)
       nearCount = style === 'hybrid' ? close.length : 0
-      nearLayers.forEach((layer, i) => layer.setTrees(close.filter((tree) => tree.species === TREE_SPECIES_IDS[i])))
       patchCount = cache.size
       const triangles = layers.reduce((sum, layer) => sum + layer.treeCount * layer.trianglesPerTree, 0)
       statusRef.current?.({
@@ -171,8 +164,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const tick = (time: number) => {
       if (disposed) return
       const eye = eyeRef.current
-      // Shader LOD follows every reported eye. Membership updates have a 75 m
-      // guard band so detailed trees exist before they enter the 100 m view.
+      // Keep a preloaded guard outside the visible bands before moving the
+      // membership anchor. Existing foreground stems never change representation.
       if (eye && haversineMeters(lastEye, eye) > 75) {
         lastEye = eye
         wanted = forestPatches(eye, bands, anchorLatitude)

@@ -170,7 +170,10 @@ export class DriveController {
   }
   tick(now: number, options: DriveOptions): void {
     if (!this.started || !Number.isFinite(now)) return
-    const elapsed = this.lastTime === null ? 0 : Math.max(0, Math.min(0.1, (now - this.lastTime) / 1000))
+    const gap = this.lastTime === null ? 0 : Math.max(0, (now - this.lastTime) / 1000)
+    // Preserve real travel speed at low frame rates. A long browser stall or
+    // unavailable terrain holds position rather than accumulating a leap.
+    const elapsed = this.status === 'ready' && gap <= 0.5 ? gap : 0
     this.lastTime = now
     const total = this.path[this.path.length - 1]?.distanceAlongMeters ?? 0
     const next = Math.max(

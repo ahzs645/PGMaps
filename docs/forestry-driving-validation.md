@@ -20,7 +20,7 @@ Live Chromium inspection confirmed the opening appearing on the right during for
 4. Open **Viewpoints, save & display** to choose up to three separated candidate viewpoints. They rank apparent visible ground area from the existing analysis, not tree-screened image pixels. A ground sightline can still be screened by timber.
 5. **Save viewpoint** preserves route position, target or forward direction, look offset, tree height, road clearance, and harvest phase. Up to 12 views are retained for the current scenario. The previous saved preview remains reopenable when switching sites, until another preview is saved. **Download preview** and **Open saved preview** move the geometry and views between browsers. Live terrain and inventory are reloaded; this is not an offline snapshot.
 6. **Download image** exports the map frame with route position, harvest phase, an illustrative-use caption, and attribution. Save paired before/after frames at the same viewpoint for a visual comparison.
-7. **Display quality** offers automatic, detailed, or fast trees. Automatic starts detailed and drops to billboards after three 90-frame windows with median frame times above 38 ms during visible playback, following a five-second warmup. Isolated stalls and hidden tabs do not trigger it. The analysis is unchanged.
+7. **Display quality** offers default, detailed, or faster trees. Default monitors frame times and suggests pausing or choosing Faster after sustained slow playback; it never swaps geometry mid-drive. Detailed uses three fixed silhouette planes per foreground stem; Faster uses two. The analysis is unchanged.
 
 Assessment inputs, worksheets, and provenance remain under **Advanced assessment & settings**. **Data & assumptions** in the drive explains the rendered scene. The simple preview does not promote an illustrative run into a validated assessment.
 
@@ -38,10 +38,10 @@ Primary source schemas: [harvested areas](https://delivery.maps.gov.bc.ca/arcgis
 
 1. Open `/dev/forestry/visual-quality` with the default Tabor Mountain sample (9.51 km road).
 2. Review the scenario assumptions and run visibility.
-3. Select **Look from the road**. Leave eye height at **1.6 m**, **Look along the road**, and **Detailed nearby** enabled.
-4. Play, pause, and scrub along the road. Near trunks and branches should remain visible; the eye should follow the terrain, and turns should blend without moving the eye off the supplied road line.
+3. Select **Look from the road**. Leave eye height at **1.6 m**, **Look along the road**, and **Stable silhouettes** enabled.
+4. Play, pause, and scrub along the road. Nearby silhouettes should keep the same representation as you approach and pass them; the eye should follow the terrain, and turns should blend without moving the eye off the supplied road line.
 5. At about **3 km**, play through **4.44 km**, then pause and look around. Roadside trees should retain their positions as forest tiles change.
-6. Compare **Detailed nearby** with **Billboards**, change the cleared road width, and select **Face Block A — west face**. A target can still be obscured by foreground terrain or trees; facing it does not guarantee visibility.
+6. Compare **Stable silhouettes** with **Billboards**, change the cleared road width, and select **Face Block A — west face**. A target can still be obscured by foreground terrain or trees; facing it does not guarantee visibility.
 7. Return to the map. Normal camera controls should return and the preview forest should be removed. On a phone-sized viewport, playback controls must remain above the collapsed sidebar sheet.
 
 ## Verification completed

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { roadLookAhead, roadPath, roadPlacement, smoothAngle } from './driveMath'
-import { forestBands, forestPatches, growForestPatch } from './forestPatches'
+import { canopyRange, FOREST_PATCH_GUARD_METERS, forestBands, forestPatches, growForestPatch } from './forestPatches'
 import { roadsideTreeMesh } from './treeGeometry'
 import { TREE_SPECIES_IDS, bufferLine } from './forest'
 import { pointInPolygon } from './visibility'
@@ -9,6 +9,26 @@ const eye = { lng: -122.65, lat: 53.9 }
 const bands = forestBands(10000)
 const inputs = { stands: [], clearings: [], heightMeters: 28 }
 describe('driving through a forest', () => {
+  it('keeps the foreground canopy fully covered throughout the close-detail transition', () => {
+    const [fadeInStart, fadeInEnd, fadeOutStart] = canopyRange(bands, 0)
+    for (const distance of [0, 5, 30, 60, 80, 100, 180, 400]) {
+      expect(distance).toBeGreaterThan(fadeInStart)
+      expect(distance).toBeGreaterThan(fadeInEnd)
+      expect(distance).toBeLessThan(fadeOutStart)
+    }
+  })
+  it('preloads every foreground tile before it can enter view between membership updates', () => {
+    expect(FOREST_PATCH_GUARD_METERS).toBeGreaterThan(75)
+    const loaded = new Set(forestPatches(eye, bands, eye.lat).filter(p => p.band === 0).map(p => p.key))
+    const lngMeters = 111320 * Math.cos(eye.lat * Math.PI / 180)
+    for (const dx of [-75, 0, 75]) for (const dy of [-75, 0, 75]) {
+      if (Math.hypot(dx, dy) > 75) continue
+      const moved = { lng: eye.lng + dx / lngMeters, lat: eye.lat + dy / 111320 }
+      const needed = forestPatches(moved, bands, eye.lat).filter(p => p.band === 0 &&
+        Math.hypot((p.centre.lng - moved.lng) * lngMeters, (p.centre.lat - moved.lat) * 111320) - p.radius <= bands[0].far)
+      for (const patch of needed) expect(loaded.has(patch.key), patch.key).toBe(true)
+    }
+  })
   it('turns continuously through a bend while the eye remains on the road', () => {
     const path = roadPath([
       [-122.65, 53.9],
@@ -62,7 +82,8 @@ describe('driving through a forest', () => {
       .filter((p) => p.band === 0)
       .flatMap((p) => growForestPatch(p, bands[0], inputs, { elevationAt: () => 800 }, eye.lat))
     expect(new Set(trees.map((t) => `${t.lng}/${t.lat}`)).size).toBe(trees.length)
-    expect(trees.length).toBeLessThan(60000)
+    // The 200 m preload guard includes invisible tiles; keep that cache bounded.
+    expect(trees.length).toBeLessThan(90000)
   })
   it('builds bounded 3D branches and separate bark for every supported species', () => {
     for (const species of TREE_SPECIES_IDS) {

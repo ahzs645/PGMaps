@@ -5,7 +5,7 @@ import { useMap } from '@/components/ui/map'
 import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
 import { PreviewFrameBudget } from './previewState'
-import { roadPath, type DriveLookAt, type DriveStation } from './driveMath'
+import { DRIVE_SPEEDS_KMH, roadPath, type DriveLookAt, type DriveStation } from './driveMath'
 export type { DriveLookAt, DriveStation } from './driveMath'
 type Props = {
   restoredLook?: { yaw: number; tilt: number }
@@ -187,11 +187,16 @@ export function DriveCamera(props: Props) {
         >
           {props.playing ? 'Pause' : 'Play'}
         </button>
-        {props.onSpeedChange && <select aria-label="Driving speed" className="rounded border bg-background py-1" value={props.speedKmh} onChange={e => props.onSpeedChange?.(Number(e.target.value))}>{[20, 40, 60, 80, 100].map(speed => <option key={speed} value={speed}>{speed} km/h</option>)}</select>}
+        {props.onSpeedChange && <select aria-label="Driving speed" className="rounded border bg-background py-1" value={props.speedKmh} onChange={e => props.onSpeedChange?.(Number(e.target.value))}>{DRIVE_SPEEDS_KMH.map(speed => <option key={speed} value={speed}>{speed} km/h</option>)}</select>}
         <button className="rounded border px-2 py-1" onClick={props.onExit}>
           Return to map
         </button>
       </div>
+      {props.onSeek && <div className="mt-2 flex items-center gap-2 text-xs">
+        <button className="rounded border px-2 py-1" disabled={props.seekMeters <= 0} onClick={() => { props.onPause?.(); props.onSeek?.(Math.max(0, props.seekMeters - 10)) }}>Back 10 m</button>
+        <button className="rounded border px-2 py-1" disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)} onClick={() => { props.onPause?.(); props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10)) }}>Forward 10 m</button>
+      </div>}
+      <p className="mt-1 text-[10px] text-muted-foreground">Preview speed; posted limits are not loaded. {props.speedKmh && props.routeLengthMeters ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.` : ''}</p>
       <div className="mt-2" hidden={!optionsExpanded}>{props.comparison}</div>
     </div>
   )

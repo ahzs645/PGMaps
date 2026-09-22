@@ -24,6 +24,7 @@ const contentMappings = [
 ]
 
 const pathMappings = [
+  ['datascrapers/bc/forest-map-sources/output/visual-inventory', 'forest/visual-inventory'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],
   ['datascrapers/manual/output/indicators', 'indicators'],
   ['data-sources/healthdata/bc_wait_times/output/bc-wait-specialists.json', 'bc-wait-specialists.json'],

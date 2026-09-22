@@ -11,10 +11,12 @@ import {
   clampQueryBounds,
   fetchCanopyStands,
   fetchHarvestedAreas,
-  fetchSensitivityUnits,
   unitsToGeoJson,
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
+import { queryVisualInventorySnapshot } from './dev-forestry/visualInventorySnapshot'
+import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
+import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
 import { PreviewWorkflow } from './dev-forestry/PreviewWorkflow'
@@ -173,7 +175,7 @@ function DevForestryVisuals() {
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [previewMessage, setPreviewMessage] = useState<string | null>(null)
   const [cameraStatus, setCameraStatus] = useState<DriveStatus>('waiting-for-terrain')
-  const [reducedDetail, setReducedDetail] = useState(false)
+  const [lowFrameRate, setLowFrameRate] = useState(false)
   const [restoreLook, setRestoreLook] = useState({ yaw: 0, tilt: 0 })
   const cameraLook = useRef({ yaw: 0, tilt: 0 })
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
@@ -394,7 +396,7 @@ function DevForestryVisuals() {
     const abort = new AbortController()
     const timer = window.setTimeout(() => abort.abort(), 30000)
     const results = await Promise.allSettled([
-      fetchSensitivityUnits(bounds, { signal: abort.signal }),
+      queryVisualInventorySnapshot(bounds, abort.signal),
       fetchHarvestedAreas(bounds, { signal: abort.signal }),
       fetchCanopyStands(bounds, { signal: abort.signal }),
     ])
@@ -422,11 +424,15 @@ function DevForestryVisuals() {
   }, [])
 
   /** Adopts an inventory polygon as the landform, carrying its rating across. */
-  const handleAdoptUnit = useCallback(
-    (unitId: string) => {
-      const unit = inventory.units.find((entry) => entry.id === unitId)
-      if (!unit) return
-
+  const adoptCandidate = useCallback(
+    (unit: BcSensitivityUnit) => {
+      setInventory(current => ({ ...current, units: [...current.units.filter(u => u.id !== unit.id), unit] }))
+      const existing = sceneRef.current.targets.find(t => t.role === 'landscape' && t.inventoryUnitId === unit.id)
+      if (existing) {
+        setScene(current => ({ ...current, activeLandformId: existing.id }))
+        setSelectedTargetId(existing.id)
+        return
+      }
       const objectiveId = unit.objectiveId ?? unit.recommendedId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID
       const label = unit.objectiveId ? 'established' : unit.recommendedId ? 'recommended' : 'unrated'
       const adoptedId = createId('landform')
@@ -444,8 +450,17 @@ function DevForestryVisuals() {
       })
       setSelectedTargetId(adoptedId)
     },
-    [addTarget, inventory.units],
+    [addTarget],
   )
+  const handleAdoptUnit = useCallback((id: string) => {
+    const unit = inventory.units.find(entry => entry.id === id)
+    if (unit) adoptCandidate(unit)
+  }, [inventory.units, adoptCandidate])
+  const showCandidate = useCallback((unit: BcSensitivityUnit) => {
+    setInventory(current => ({ ...current, units: [...current.units.filter(u => u.id !== unit.id), unit] }))
+    setShowInventory(true)
+    fitBounds(polygonBounds(unit.geometry))
+  }, [fitBounds])
 
   const runForScene = useCallback((nextScene: ForestryScene) => {
     try {
@@ -743,6 +758,7 @@ function DevForestryVisuals() {
   const draftLine = useMemo(() => draftLineToGeoJson(draftCoordinates), [draftCoordinates])
   const draftVertices = useMemo(() => pointsToGeoJson(draftCoordinates), [draftCoordinates])
   const stationCollection = useMemo(() => stationsToGeoJson(result), [result])
+  const landformClues = useMemo<GeoJSON.FeatureCollection>(() => ({ type: 'FeatureCollection', features: (result?.landformDesign?.markers ?? []).map(p => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { position: p.position } })) }), [result])
   const inventoryCollection = useMemo(() => unitsToGeoJson(inventory.units), [inventory.units])
   const reverseRoadCollection = useMemo(
     () => reverseRoadsToGeoJson(analysis.reverseState.result),
@@ -933,12 +949,15 @@ function DevForestryVisuals() {
 
   const sidebar = (
     <Sidebar
-      workflow={<PreviewWorkflow scene={scene} analysis={analysis.state} active={drive.active} preparing={!!pendingPreview}
+      workflow={<><PreviewWorkflow scene={scene} analysis={analysis.state} active={drive.active} preparing={!!pendingPreview}
         onPreview={() => openPreview()} onCancel={cancelPreview} onSample={() => handleLoadSample(true, true)} onNew={handleClearScene}
         onImport={importPreviewGeometry} onDraw={handleDrawModeChange} drawMode={drawMode} pointCount={draftCoordinates.length} onFinish={finishDraft}
         onReopenPrevious={saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined}
         message={previewMessage ?? importMessage} views={savedViews} onRestore={openPreview} onExport={exportPreview} storageWarning={storageWarning}
-        onRemoveView={id => setSaved({ key, views: savedViews.filter(v => v.id !== id) })} />}
+        onRemoveView={id => setSaved({ key, views: savedViews.filter(v => v.id !== id) })} />
+        {!drive.active && <LandformSuggestions scene={scene} onShow={showCandidate} onAdopt={adoptCandidate} />}
+        <LandformDesignPanel result={result} onView={(station, blockId) => updateDrive({ active: true, playing: false, lookAtTargetId: blockId, positionMeters: result?.stations[station].distanceAlongMeters ?? 0 })} />
+      </>}
       // Inside the shell, not beside it: the layout's sidebar slot does not
       // scroll, so a panel stacked above the shell clips the shell's own
       // scroll port instead of lengthening it.
@@ -1030,7 +1049,7 @@ function DevForestryVisuals() {
           clearings={forestClearings}
           standHeightMeters={drive.treeHeightMeters}
           inventory={forestInventory}
-          style={drive.quality === 'fast' || (drive.quality === 'auto' && reducedDetail) ? 'billboard' : drive.quality === 'detailed' ? 'hybrid' : drive.treeStyle}
+          style={drive.quality === 'fast' ? 'billboard' : drive.quality === 'detailed' ? 'hybrid' : drive.treeStyle}
           elevation={previewTerrain.source}
           terrainMessage={previewTerrain.message}
           farRadiusMeters={previewTerrain.radius}
@@ -1057,6 +1076,7 @@ function DevForestryVisuals() {
           onFeatureClick={(id) => handleAdoptUnit(id)}
           hoverHtml={inventoryHoverHtml}
         />
+        <MapCircleLayer data={landformClues} visible={!drive.active} radius={3} color={['match', ['get', 'position'], 'ridge', '#ea580c', 'hollow', '#0284c7', '#9333ea']} />
         <MapFillLayer
           data={landscapeCollection}
           visible={!drive.active || drive.showAnalysis}
@@ -1167,7 +1187,7 @@ function DevForestryVisuals() {
             restoredLook={restoreLook}
             onLookChange={look => { cameraLook.current = look }}
             onStatusChange={setCameraStatus}
-            onSlowFrames={drive.quality === 'auto' ? () => setReducedDetail(true) : undefined}
+            onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
             forestReady={!drive.forest || (!liveForest.loading && !!forestStatus?.ready)}
             routeLengthMeters={result.corridorLengthMeters}
             onSeek={distance => updateDrive({ positionMeters: distance, playing: false })}
@@ -1201,8 +1221,8 @@ function DevForestryVisuals() {
                     <div className="flex gap-2"><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={!canSaveView} onClick={saveView}>Save viewpoint</button><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={!canSaveView} onClick={saveImage}>Download image</button></div>
                     {savedViews.length > 0 && <select aria-label="Saved viewpoint" className="w-full rounded border bg-background p-1" value="" onChange={e => { const view = savedViews.find(v => v.id === e.target.value); if (view) openPreview(view) }}><option value="">Reopen saved comparison…</option>{savedViews.map(v => <option key={v.id} value={v.id}>{v.name} · {(v.positionMeters / 1000).toFixed(2)} km</option>)}</select>}
                     <RegrowthControls drive={drive} update={updateDrive} year={visualYear} loading={liveForest.loading} data={liveForest.data} stands={regrowth.stands} unknown={regrowth.unknown} retry={liveForest.retry} />
-                    <label className="flex items-center justify-between">Display quality <select aria-label="Display quality" className="rounded border bg-background p-1" value={drive.quality} onChange={e => updateDrive({ quality: e.target.value as DriveState['quality'] })}><option value="auto">Automatic</option><option value="detailed">Detailed</option><option value="fast">Faster</option></select></label>
-                    {reducedDetail && drive.quality === 'auto' && <p className="text-[11px]">Using simpler trees to keep this device responsive.</p>}
+                    <label className="flex items-center justify-between">Display quality <select aria-label="Display quality" className="rounded border bg-background p-1" value={drive.quality} onChange={e => updateDrive({ quality: e.target.value as DriveState['quality'] })}><option value="auto">Default</option><option value="detailed">Detailed</option><option value="fast">Faster</option></select></label>
+                    {lowFrameRate && drive.quality === 'auto' && <p className="text-[11px]">Frame rate is low. Pause to inspect, or choose Faster before replaying.</p>}
                   </div>
                 </details>
                 {(previewTerrain.loading || previewTerrain.message || !forestStatus?.ready) && <div className="text-[11px]" role="status">{previewTerrain.loading ? `Loading terrain · ${previewTerrain.progress}%` : previewTerrain.message ?? forestStatus?.error ?? 'Drawing forest…'}{!previewTerrain.loading && previewTerrain.message && <button className="ml-2 underline" onClick={previewTerrain.retry}>Retry terrain</button>}</div>}

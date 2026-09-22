@@ -44,6 +44,14 @@ export function buildReport({result,targets,thresholds,viewpointName,generatedAt
   '## Planimetric timber-supply context — not FS1252 numerical fields','')
  if(landform&&result.planimetricAlteration){const allowance=resolveThreshold(landform.objectiveId,'planimetric',thresholds,landform.vac);lines.push(`Scenario map-area alteration: ${n(result.planimetricAlteration.cumulativePercent)}%. Planning allowance: ${allowance.value}%. ${allowance.note}`,quality?.numericalReady?'These are planning comparisons only, not a final compliance verdict.':'The map-area figure is provisional; no within-range verdict is assigned.')}
  else lines.push('No active-landform planimetric result.')
+ if(result.landformDesign){
+  lines.push('', '## Landform design screening — Appendix 5 review aids','',
+   'Proposed blocks assume full harvest within their boundaries; historical openings retain their harvest/recovery assumptions. No harvest-area or timber-volume optimization is performed.',
+   'Ridge/hollow cues use opposite neighbours 150 m away and a 3 m relief threshold. Upper elevation means the top third of sampled landform elevations. These are engineering heuristics, not official BC design scores.',
+   '| Block | Context samples | Ridge / hollow / upper | Visible stations | Silhouette-proximity stations |','| --- | --- | --- | --- | --- |')
+  for(const b of result.landformDesign.blocks) lines.push(`| ${escape(b.name)} | ${b.sampleCount} (${b.unknownContextCount} unknown) | ${b.ridgeSamples} / ${b.hollowSamples} / ${b.upperSlopeSamples} | ${b.visibleStations}/${b.stationCount} | ${b.silhouetteStations.map(s=>s+1).join(', ')||'None detected'} |`)
+  lines.push('Counts are samples, not area percentages or driving duration. A 2-degree bearing bin / 0.5-degree vertical proximity to the sampled landform silhouette is not proof of an actual canopy skyline break; background terrain and canopy require review. No detection does not establish absence.', 'Reference: [BC VIA Handbook (2022), Appendix 5 pp.55–56](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/visual-resource-mgmt/visual_impact_assessment_handbook.pdf#page=61).')
+ }
  lines.push('', '## Reproduction and references','',
   'Use the scene JSON export for inputs and the PDF’s embedded pgmaps-scenario.json for the exact form export record. Existing and proposed overlaps are reduced on a shared landform ledger; per-block visible hectares are not additive.',
   'Source template: FS1252 2008/04, pages 1–4. Supporting context: Visual Impact Assessment Handbook (May 2022), numerical assessment and simulation guidance. The 2022 summary has six design elements; this historical FS1252 has five.',

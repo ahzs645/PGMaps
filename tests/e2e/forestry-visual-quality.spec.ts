@@ -112,29 +112,13 @@ function inventoryFeature(properties: Record<string, unknown>, offsetLng: number
 }
 
 async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') {
-  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/6/query**', (route) =>
-    route.fulfill({
-      json: {
-        type: 'FeatureCollection',
-        features:
-          mode === 'empty'
-            ? []
-            : [
-                inventoryFeature(
-                  {
-                    VLI_POLYGON_NO: 1668,
-                    REC_EVQO_CODE: 'R',
-                    REC_VAC_FINAL_VALUE_CODE: 'L',
-                    REC_VSC_FINAL_VALUE_CODE: '2',
-                    SCENIC_AREA_IND: 'Y',
-                  },
-                  0,
-                ),
-                inventoryFeature({ VLI_POLYGON_NO: 1672, REC_VSC_FINAL_VALUE_CODE: 'W' }, 0.3),
-              ],
-      },
-    }),
-  )
+  const features = mode === 'empty'
+    ? [inventoryFeature({ OBJECTID: 99, VLI_POLYGON_NO: 999 }, 10)]
+    : [inventoryFeature({ OBJECTID: 1, VLI_POLYGON_NO: 1668, REC_EVQO_CODE: 'R', REC_VAC_FINAL_VALUE_CODE: 'L', REC_VSC_FINAL_VALUE_CODE: '2', SCENIC_AREA_IND: 'Y' }, 0),
+       inventoryFeature({ OBJECTID: 2, VLI_POLYGON_NO: 1672, REC_VSC_FINAL_VALUE_CODE: 'W' }, 0.08)]
+  await page.route('**/data/forest/visual-inventory/manifest.json', route => route.fulfill({ json: { schemaVersion: 2, retrievedAt: '2026-09-22T00:00:00Z', featureCount: features.length, simplification: { toleranceMetres: 0 }, shards: [{ file: 'units-000.geojson.gz', featureCount: features.length }] } }))
+  await page.route('**/data/forest/visual-inventory/index.json.gz', route => route.fulfill({ json: features.map(f => ({ id: String(f.properties.OBJECTID), bbox: [f.geometry.coordinates[0][0][0],53.86,f.geometry.coordinates[0][1][0],53.93], shard: 'units-000.geojson.gz' })) }))
+  await page.route('**/data/forest/visual-inventory/units-000.geojson.gz', route => route.fulfill({ contentType: 'application/gzip', body: zlib.gzipSync(JSON.stringify({ type: 'FeatureCollection', features })) }))
 }
 
 /** The lookup also asks for existing openings; keep the test off the network. */
@@ -195,7 +179,7 @@ async function readMapState(page: Page) {
           getPitch?: () => number
         }
         if (map?.queryTerrainElevation) {
-          const tree = map.getLayer?.('forestry-trees') as { implementation?: { treeCount: number; nearTreeCount: number; coverageMeters: number; error: string | null } } | undefined
+          const tree = map.getLayer?.('forestry-trees') as { implementation?: { distanceRanges: number[][]; renderLayerCount: number; treeCount: number; nearTreeCount: number; coverageMeters: number; error: string | null } } | undefined
           return {
             loaded: Boolean(map.loaded?.()),
             terrain: Boolean(map.getTerrain?.()),
@@ -204,6 +188,8 @@ async function readMapState(page: Page) {
             treeCount: tree?.implementation?.treeCount ?? 0,
             nearTreeCount: tree?.implementation?.nearTreeCount ?? 0,
             forestError: tree?.implementation?.error ?? null,
+            forestDistanceRanges: tree?.implementation?.distanceRanges,
+            forestRenderLayerCount: tree?.implementation?.renderLayerCount,
             forestReach: tree?.implementation?.coverageMeters ?? 0,
             zoom: map.getZoom?.() ?? 0,
             camera: { center: map.getCenter?.(), bearing: map.getBearing?.(), pitch: map.getPitch?.(), zoom: map.getZoom?.() },
@@ -240,6 +226,7 @@ async function confirmScenarioAssumptions(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   if (process.env.PGMAPS_FORESTRY_LIVE === '1') return
+  await stubInventory(page)
   await stubHarvest(page)
   await stubForestCover(page)
   await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [] } }))
@@ -252,8 +239,8 @@ test.describe('forestry visual quality', () => {
     await stubVegetation(page)
     await openPage(page)
 
-    await expect(page.getByText('Block A — west face', { exact: true })).toBeVisible()
-    await expect(page.getByText('Block B — over the height of land', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Block A — west face/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Block B — over the height of land/ })).toBeVisible()
     await expect(page.getByRole('button', { name: /Tabor Mountain landform/ })).toBeVisible()
     // The scene's one landform is the active assessment unit without being asked.
     await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
@@ -366,8 +353,8 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Look up this view' }).click()
     await expect(page.getByText('2 units · 1 with an established objective · 1 with a VAC rating')).toBeVisible()
 
-    // Only the rated unit is listed; the unrated one stays on the map.
-    await expect(page.getByText('1 unrated units are on the map but not listed.')).toBeVisible()
+    // Unrated units are selectable too; missing objectives stay explicit.
+    await expect(page.getByRole('button', { name: /VLI 1672/ })).toBeVisible()
     await page.getByRole('button', { name: /VLI 1668/ }).click()
 
     // The province's own objective and absorption rating come across, rather
@@ -383,6 +370,33 @@ test.describe('forestry visual quality', () => {
     )
   })
 
+  test('automatically suggests and downloads nearby full-resolution boundaries without a live VLI query', async ({ page }) => {
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    let liveVliCalls = 0
+    page.on('request', request => { if (request.url().includes('/MapServer/6/query')) liveVliCalls++ })
+    await openPage(page)
+    const suggestions = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Find a landform$/ }) })
+    await expect(suggestions.getByText('VLI 1668 · intersects road')).toBeVisible()
+    await suggestions.getByLabel('Landform search area').selectOption('block')
+    await expect(suggestions.getByText('VLI 1668 · contains search point')).toBeVisible()
+    await suggestions.getByLabel('Landform search area').selectOption('road')
+    await suggestions.getByRole('button', { name: 'Show boundary' }).first().click()
+    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText('Tabor Mountain landform')
+    const pending = page.waitForEvent('download')
+    await suggestions.getByRole('button', { name: 'Download nearby inventory (GeoJSON)' }).click()
+    const download = await pending
+    const contents = JSON.parse(await readFile((await download.path())!, 'utf8'))
+    expect(contents.features).toHaveLength(2)
+    expect(contents.features[0].geometry.coordinates[0][0]).toEqual([-122.6,53.86])
+    await suggestions.getByRole('button', { name: 'Use candidate' }).first().click()
+    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText('VLI 1668 · R (established)')
+    await suggestions.getByRole('button', { name: 'Use candidate' }).first().click()
+    await expect(page.getByLabel('Active assessment landform').locator('option', { hasText: 'VLI 1668 · R (established)' })).toHaveCount(1)
+    expect(liveVliCalls).toBe(0)
+  })
+
   test('says so plainly where the inventory has no coverage', async ({ page }) => {
     await stubBasemap(page)
     await stubTerrain(page)
@@ -393,7 +407,7 @@ test.describe('forestry visual quality', () => {
     await openPage(page)
 
     await page.getByRole('button', { name: 'Look up this view' }).click()
-    await expect(page.getByText('No sensitivity units cover this view', { exact: false })).toBeVisible()
+    await expect(page.getByText('No inventory boundaries intersect this map extent', { exact: false })).toBeVisible()
   })
 
   test('drives the corridor from eye level and reports what that point sees', async ({ page }) => {
@@ -493,7 +507,7 @@ test.describe('forestry visual quality', () => {
     // Preview defaults to forward-facing driving and illustrative timber.
     await page.getByRole('button', { name: 'Look from the road' }).click()
     await expect(page.getByLabel('Where to look')).toHaveValue('')
-    await expect(page.getByRole('button', { name: 'Detailed nearby' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Stable silhouettes' })).toBeVisible()
     await expect(page.getByLabel(/Stand height/)).toHaveValue('28')
     await expect(page.getByLabel(/Cleared width along the road/)).toBeVisible()
 
@@ -506,6 +520,11 @@ test.describe('forestry visual quality', () => {
     await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(50)
     expect((await readMapState(page))?.forestError).toBeNull()
     expect((await readMapState(page))?.forestReach).toBeGreaterThan(10000)
+    // No separate close mesh may appear inside the persistent foreground.
+    const forest = await readMapState(page)
+    expect(forest?.forestRenderLayerCount).toBe(3)
+    expect(forest?.forestDistanceRanges?.[0]).toEqual([-2, -1, 550, 600])
+    expect(forest?.forestDistanceRanges?.slice(1).every(range => range[0] >= 550)).toBe(true)
     // The same test exercises the default hybrid, billboard fallback and cleanup.
     await page.screenshot({ path: test.info().outputPath('forest-hybrid.png') })
     await page.getByRole('button', { name: 'Billboards', exact: true }).click()
@@ -569,6 +588,13 @@ test.describe('forestry visual quality', () => {
     const controls = page.getByRole('region', { name: 'Road view controls' })
     await expect(controls).toBeVisible({ timeout: 60000 })
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByLabel('Driving speed').selectOption('5')
+    await expect(controls.getByLabel('Driving speed')).toHaveValue('5')
+    const previousPosition = Number(await controls.getByLabel('Route position').inputValue())
+    await controls.getByRole('button', { name: 'Forward 10 m', exact: true }).click()
+    await expect(controls.getByLabel('Route position')).toHaveValue(String(previousPosition + 10))
+    await controls.getByRole('button', { name: 'Back 10 m', exact: true }).click()
+    await expect(controls.getByLabel('Route position')).toHaveValue(String(previousPosition))
     await controls.getByRole('button', { name: 'View opening', exact: true }).click()
     await controls.getByText('Viewpoints, save & display', { exact: true }).click()
     await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
