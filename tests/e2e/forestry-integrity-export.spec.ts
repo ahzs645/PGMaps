@@ -11,10 +11,12 @@ async function openScenario(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', route => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }))
   await page.route('**/elevation-tiles-prod/terrarium/**', route => route.fulfill({ contentType: 'image/png', body: tile }))
   await page.route('**/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }))
+  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/*/query**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [] } }))
   const input = demoInput()
   const scene = { ...input, version: 1, viewpoint: { ...input.viewpoint, id: 'test-road', name: 'Integration test road' }, thresholds: DEFAULT_VISUAL_QUALITY_THRESHOLDS }
   await page.addInitScript(scene => localStorage.setItem('pgmaps.forestry-visual-quality.v1', JSON.stringify(scene)), scene)
   await page.goto(routePath)
+  await page.getByText('Advanced assessment & settings', { exact: true }).click()
   await page.getByRole('button', { name: 'Run visibility', exact: true }).click()
   await expect(page.getByText('Scenario numerical fields available', { exact: true })).toBeVisible({ timeout: 120_000 })
 }

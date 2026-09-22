@@ -68,6 +68,11 @@ export type InventoryState = {
 }
 
 export type DriveState = {
+  existingForest: boolean
+  projectRecordedHeights: boolean
+  growthMetersPerYear: number
+  regenerationLagYears: number
+  quality: 'auto' | 'detailed' | 'fast'
   active: boolean
   playing: boolean
   speedKmh: number
@@ -82,6 +87,8 @@ export type DriveState = {
   /** Width of the timber-free strip along the road, in metres. */
   roadClearWidthMeters: number
   /** How a stem is drawn: a camera-facing card, or real cone geometry. */
+  harvestPhase: 'before' | 'after'
+  showAnalysis: boolean
   treeStyle: TreeStyle
 }
 
@@ -91,13 +98,14 @@ const INPUT_CLASS =
 const SELECT_CLASS =
   'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+function Field({ label, hint, children, group = false }: { label: string; hint?: ReactNode; children: ReactNode; group?: boolean }) {
+  const Tag = group ? 'div' : 'label'
   return (
-    <label className="block">
+    <Tag className="block">
       <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{hint}</span>}
-    </label>
+    </Tag>
   )
 }
 
@@ -142,6 +150,7 @@ function NumberField({
 }
 
 type SidebarProps = {
+  workflow?: ReactNode
   scene: ForestryScene
   onViewpointChange: (viewpoint: Viewpoint) => void
   onSettingsChange: (settings: AnalysisSettings) => void
@@ -169,7 +178,7 @@ type SidebarProps = {
   onUseRoad: (roadId: string) => void
 
   /** What the 3D stand is drawing, or why it is not. */
-  forestStatus: { treeCount: number; trianglesPerTree: number; error: string | null } | null
+  forestStatus: import('./ForestOverlay').ForestStatus | null
 
   selectedTargetId: string | null
   onSelectTarget: (targetId: string) => void
@@ -187,6 +196,7 @@ type SidebarProps = {
   onAdoptUnit: (unitId: string) => void
 
   onLoadSample: () => void
+  onLoadDriveSample: () => void
   onClearScene: () => void
   onExport: () => void
   /** Downloads the run as a worksheet; null until there is a run to write up. */
@@ -205,6 +215,7 @@ type SidebarProps = {
 }
 
 export function Sidebar({
+  workflow,
   scene,
   onViewpointChange,
   onSettingsChange,
@@ -237,6 +248,7 @@ export function Sidebar({
   onLookupInventory,
   onAdoptUnit,
   onLoadSample,
+  onLoadDriveSample,
   onClearScene,
   onExport,
   onExportReport,
@@ -269,9 +281,10 @@ export function Sidebar({
         )
       : null
 
+  const driveTarget = blocks.find(block => block.id === (drive.lookAtTargetId ?? selectedTargetId)) ?? blocks[0]
   const driveVisiblePercent =
     result && driveStation !== null
-      ? (result.targets.find((target) => target.targetId === selectedTargetId)?.stations[driveStation]
+      ? (result.targets.find((target) => target.targetId === driveTarget?.id)?.stations[driveStation]
           ?.visiblePercent ?? null)
       : null
 
@@ -306,6 +319,9 @@ export function Sidebar({
         </>
       }
     >
+      {workflow}
+      <details className="border-t" data-forestry-advanced>
+        <summary className="cursor-pointer p-4 text-sm font-semibold">Advanced assessment & settings</summary>
       {assessment}
 
       <SidebarSection title="Viewpoint" icon={Eye}>
@@ -921,6 +937,10 @@ export function Sidebar({
         >
           Load the Tabor Mountain sample
         </Button>
+        <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onLoadDriveSample}>
+          Load roadside cutblock demo
+        </Button>
+        <p className="mt-1 text-[11px] text-muted-foreground">A hypothetical opening beside a 1.2 km route on real terrain. Run visibility, then drive past it and compare before and after harvest.</p>
       </SidebarSection>
 
       {/* The same question the other way round: rather than picking a road and
@@ -1090,13 +1110,13 @@ export function Sidebar({
 
               {driveVisiblePercent !== null && (
                 <div className="rounded-md border border-border bg-muted/20 p-2">
-                  <p className="text-[11px] text-muted-foreground">Visible from here, right now</p>
+                  <p className="text-[11px] text-muted-foreground">Ground visible at nearest station</p>
                   <p className="text-2xl font-bold tabular-nums text-foreground">
                     {driveVisiblePercent.toFixed(0)}
                     <span className="text-sm">%</span>
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Red ground on the hillside is what this point on the road can see.
+                    {driveTarget?.name}: share of cutblock ground visible in the analysis. This is not the share of your screen, and illustrated trees do not change this number.
                   </p>
                 </div>
               )}
@@ -1139,14 +1159,18 @@ export function Sidebar({
                         tree against real cone geometry, at the same stem count. */}
                     <div className="mt-3">
                       <Field
+                        group
                         label="How a stem is drawn"
                         hint={
-                          drive.treeStyle === 'billboard'
+                          drive.treeStyle === 'hybrid'
+                            ? 'Generated trunks and branches nearby, silhouettes farther away, and canopy groups across the hillside.'
+                            : drive.treeStyle === 'billboard'
                             ? 'A drawn tree on two triangles, turned to face you. Cheap enough to reach the block, and it reads as a tree at any distance.'
                             : 'Real geometry with real normals. Lights correctly from any angle and is honest from above, at about fifteen times the triangles.'
                         }
                       >
-                        <div className="flex gap-1.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          <ToggleChip active={drive.treeStyle === 'hybrid'} onClick={() => onDriveChange({ treeStyle: 'hybrid' })}>Detailed nearby</ToggleChip>
                           <ToggleChip
                             active={drive.treeStyle === 'billboard'}
                             onClick={() => onDriveChange({ treeStyle: 'billboard' })}
@@ -1170,10 +1194,9 @@ export function Sidebar({
                       forestStatus !== null && (
                         <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
                           {forestStatus.treeCount.toLocaleString()} stems standing around the camera ·{' '}
-                          {forestStatus.trianglesPerTree} triangles each ·{' '}
-                          {((forestStatus.treeCount * forestStatus.trianglesPerTree) / 1e6).toFixed(2)}M a frame.
-                          {inventory.stands.length > 0
-                            ? ` Species and height come from ${inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
+                          Distant instances represent canopy groups. Detail reduces with distance.
+                          {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
+                            ? ` Species and height come from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
                             : ' Species and height are a regional mix — run the BC inventory lookup to draw what the province recorded here.'}
                         </p>
                       )
@@ -1186,20 +1209,12 @@ export function Sidebar({
                 )}
               </div>
 
-              <NumberField
-                label="Terrain exaggeration"
-                value={drive.exaggeration}
-                min={0.5}
-                max={3}
-                step={0.1}
-                suffix="×"
-                hint="1× is true scale. Raise it to read subtle relief, but the percentages stay true-scale."
-                onChange={(value) => onDriveChange({ exaggeration: value })}
-              />
+              <p className="mt-3 text-[10px] text-muted-foreground">Terrain is shown at true scale (1×). The road surface and forest are illustrative; changing them does not change the assessment.</p>
             </div>
           )}
         </SidebarSection>
       )}
+      </details>
     </MapSidebarShell>
   )
 }

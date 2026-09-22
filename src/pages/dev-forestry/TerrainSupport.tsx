@@ -82,6 +82,22 @@ export function TerrainSupport({
   }, [isLoaded, map])
 
   useEffect(() => {
+    if (!terrain || !isLoaded || !map) return
+    // The pale plan-map background reads as snow at eye level. Change only
+    // the base ground; water and mapped land-cover layers retain their meaning.
+    const backgrounds = map.getStyle().layers.filter((layer) => layer.type === 'background')
+    const original = backgrounds.map((layer) => ({
+      id: layer.id,
+      color: map.getPaintProperty(layer.id, 'background-color'),
+    }))
+    for (const layer of backgrounds) map.setPaintProperty(layer.id, 'background-color', '#798564')
+    return () => {
+      for (const layer of original)
+        if (map.getLayer(layer.id)) map.setPaintProperty(layer.id, 'background-color', layer.color)
+    }
+  }, [terrain, isLoaded, map])
+
+  useEffect(() => {
     if (!isLoaded || !map || !map.getSource(TERRAIN_SOURCE_ID)) return
     map.setTerrain(terrain ? { source: TERRAIN_SOURCE_ID, exaggeration } : null)
 

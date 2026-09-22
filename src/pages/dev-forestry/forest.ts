@@ -136,6 +136,7 @@ export type ForestMesh = {
   attributes: {
     positions: { size: 3; value: Float32Array }
     normals: { size: 3; value: Float32Array }
+    bark?: { size: 1; value: Float32Array }
   }
   indices: { size: 1; value: Uint16Array }
 }
@@ -272,6 +273,8 @@ export type TreePlacementOptions = {
    */
   inventory?: ReadonlyArray<InventoryStand>
   seed?: number
+  /** Fixed for a preview, including when it crosses a latitude band. */
+  anchorLatitude?: number
 }
 
 /** A surveyed stand, reduced to what the drawing needs. */
@@ -279,6 +282,8 @@ export type InventoryStand = {
   geometry: PolygonGeometry
   species: TreeSpeciesId | null
   heightMeters: number | null
+  /** Fraction regenerated in a partial harvest; remaining stems use the regional mature height. */
+  regenerationFraction?: number
 }
 
 const METERS_PER_DEGREE_LAT = 111_320
@@ -304,6 +309,7 @@ export function placeTrees({
   speciesMix = DEFAULT_SPECIES_MIX,
   inventory = [],
   seed = 1,
+  anchorLatitude,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
 
@@ -312,7 +318,7 @@ export function placeTrees({
   // whole grid every time the camera moved north, and the forest would crawl.
   // Quantising to a quarter degree pins it: about 28 km of driving on one grid,
   // for a spacing error under half a percent.
-  const anchorLat = Math.round(centre.lat * 4) / 4
+  const anchorLat = anchorLatitude ?? Math.round(centre.lat * 4) / 4
   const latScale = Math.max(0.05, Math.cos((anchorLat * Math.PI) / 180))
   const metersPerDegreeLng = METERS_PER_DEGREE_LAT * latScale
 
@@ -385,7 +391,10 @@ export function placeTrees({
       // Where the province has surveyed this ground, draw what it recorded.
       const surveyed = inventory.length > 0 ? surveyedAt(lng, lat) : null
       const species = surveyed?.species ?? speciesFromMix(random(), speciesMix)
-      const standHeight = surveyed?.heightMeters ?? heightMeters
+      const fraction = surveyed?.regenerationFraction ?? 1
+      const retained = fraction < 1 && random() >= fraction
+      const standHeight = retained ? heightMeters : surveyed?.heightMeters ?? heightMeters
+      if (standHeight <= 0) continue
       trees.push({
         lng,
         lat,

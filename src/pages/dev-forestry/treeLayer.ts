@@ -35,13 +35,14 @@ type RenderArgs = {
   defaultProjectionData?: { mainMatrix?: Float32Array | number[] }
 }
 
-export type TreeStyle = 'billboard' | 'solid'
+export type TreeStyle = 'billboard' | 'solid' | 'hybrid'
 
 const SOLID_VERTEX_SHADER = `#version 300 es
 precision highp float;
 
 in vec3 a_position;
 in vec3 a_normal;
+in float a_bark;
 /** Mercator position of the stem base. */
 in vec3 a_offset;
 /** Crown width and tree height, in metres. */
@@ -49,6 +50,13 @@ in vec2 a_scale;
 in vec3 a_color;
 
 uniform mat4 u_matrix;
+uniform vec3 u_eye;
+uniform vec4 u_range;
+out float v_coverage;
+out float v_distance;
+float coverage(float d) {
+  return smoothstep(u_range.x, u_range.y, d) * (1.0 - smoothstep(u_range.z, u_range.w, d));
+}
 /** One metre, in mercator units at this latitude. */
 uniform float u_meterScale;
 
@@ -58,9 +66,11 @@ out vec3 v_normal;
 void main() {
   // Mercator y runs south, so north-facing geometry flips.
   vec3 metres = vec3(a_position.x * a_scale.x, -a_position.y * a_scale.x, a_position.z * a_scale.y);
-  gl_Position = u_matrix * vec4(a_offset + metres * u_meterScale, 1.0);
+  v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
+  v_coverage = coverage(v_distance);
+  gl_Position = v_coverage > 0.0 ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
 
-  v_color = a_color;
+  v_color = mix(a_color, vec3(0.29, 0.23, 0.17), a_bark);
   // Non-uniform scaling skews a normal, so divide by the scale rather than
   // carrying the mesh normal through unchanged.
   v_normal = normalize(vec3(a_normal.x / a_scale.x, -a_normal.y / a_scale.x, a_normal.z / a_scale.y));
@@ -71,12 +81,19 @@ precision highp float;
 
 in vec3 v_color;
 in vec3 v_normal;
+in float v_coverage;
+in float v_distance;
 out vec4 fragColor;
+void clipCoverage() {
+  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (noise >= v_coverage) discard;
+}
 
 /** A late-morning sun from the south-east, which is how BC hillshades are lit. */
 const vec3 SUN = vec3(0.4767, -0.3575, 0.8027);
 
 void main() {
+  clipCoverage();
   vec3 normal = normalize(v_normal);
   float lambert = max(dot(normal, SUN), 0.0);
   // A little sky fill from above, so north faces are shaded rather than black.
@@ -99,6 +116,13 @@ in vec2 a_cell;
 in vec3 a_tint;
 
 uniform mat4 u_matrix;
+uniform vec3 u_eye;
+uniform vec4 u_range;
+out float v_coverage;
+out float v_distance;
+float coverage(float d) {
+  return smoothstep(u_range.x, u_range.y, d) * (1.0 - smoothstep(u_range.z, u_range.w, d));
+}
 uniform float u_meterScale;
 uniform vec2 u_cellSize;
 
@@ -120,7 +144,9 @@ void main() {
   vec2 across = span > 1e-12 ? right.xy / span : vec2(1.0, 0.0);
 
   vec3 metres = vec3(across * (a_corner.x * a_scale.x), a_corner.y * a_scale.y);
-  gl_Position = u_matrix * vec4(a_offset + metres * u_meterScale, 1.0);
+  v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
+  v_coverage = coverage(v_distance);
+  gl_Position = v_coverage > 0.0 ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
 
   // The atlas is drawn y-down from the top of the cell.
   v_uv = a_cell + vec2(a_corner.x + 0.5, 1.0 - a_corner.y) * u_cellSize;
@@ -133,15 +159,22 @@ precision highp float;
 in vec2 v_uv;
 in vec3 v_tint;
 uniform sampler2D u_atlas;
+in float v_coverage;
+in float v_distance;
 out vec4 fragColor;
+void clipCoverage() {
+  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (noise >= v_coverage) discard;
+}
 
 void main() {
+  clipCoverage();
   vec4 texel = texture(u_atlas, v_uv);
   // Cut out rather than blend: blended foliage needs back-to-front sorting, and
   // a stand has no back to front. A hard edge costs some aliasing and keeps the
   // depth buffer honest, so trees behind a ridge stay behind it.
   if (texel.a < 0.45) discard;
-  fragColor = vec4(texel.rgb * v_tint, 1.0);
+  fragColor = vec4(mix(texel.rgb * v_tint, vec3(0.68, 0.76, 0.79), min(0.65, v_distance / 22000.0)), 1.0);
 }`
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
@@ -177,6 +210,8 @@ export type TreeLayerOptions = {
   mesh?: ForestMesh
   /** Required for `billboard`. */
   atlas?: ImpostorAtlas
+  range?: [number, number, number, number]
+  widthScale?: number
 }
 
 export type TreeLayer = {
@@ -188,6 +223,7 @@ export type TreeLayer = {
   render: (gl: WebGL2RenderingContext | WebGLRenderingContext, args: RenderArgs) => void
   /** Replaces the stand. Safe to call before the layer is added to the map. */
   setTrees: (trees: TreeInstance[]) => void
+  setEye: (eye: { lng: number; lat: number }) => void
   /** How many stems the layer last drew — for tests and diagnostics. */
   readonly treeCount: number
   /** Triangles per stem, which is the whole point of the billboard path. */
@@ -223,6 +259,11 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
   let instanceCount = 0
   let meterScale = 1
   let error: string | null = null
+  let origin = [0, 0, 0]
+  let eye = { lng: 0, lat: 0 }
+  let eyeLocation: WebGLUniformLocation | null = null
+  let rangeLocation: WebGLUniformLocation | null = null
+  const translated = new Float32Array(16)
 
   const atlas = options.atlas
   const mesh = options.mesh
@@ -242,17 +283,19 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       // so the conversion is taken once at its centre rather than per stem.
       const sample = MercatorCoordinate.fromLngLat({ lng: trees[0].lng, lat: trees[0].lat }, 0)
       meterScale = sample.meterInMercatorCoordinateUnits()
+      origin = [sample.x, sample.y, 0]
     }
 
     trees.forEach((tree, index) => {
       const mercator = MercatorCoordinate.fromLngLat({ lng: tree.lng, lat: tree.lat }, tree.elevationMeters)
-      offsets[index * 3] = mercator.x
-      offsets[index * 3 + 1] = mercator.y
+      offsets[index * 3] = mercator.x - origin[0]
+      offsets[index * 3 + 1] = mercator.y - origin[1]
       offsets[index * 3 + 2] = mercator.z ?? 0
 
       // A card is drawn at one aspect and the species fills as much of it as its
       // crown needs, so every card is the same shape in the world.
-      scales[index * 2] = tree.heightMeters * (billboard ? BILLBOARD_ASPECT : tree.slenderness)
+      scales[index * 2] =
+        tree.heightMeters * (billboard ? BILLBOARD_ASPECT * (options.widthScale ?? 1) : tree.slenderness)
       scales[index * 2 + 1] = tree.heightMeters
 
       if (billboard && atlas && tints) {
@@ -319,6 +362,8 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       }
 
       matrixLocation = gl.getUniformLocation(program, 'u_matrix')
+      eyeLocation = gl.getUniformLocation(program, 'u_eye')
+      rangeLocation = gl.getUniformLocation(program, 'u_range')
       meterScaleLocation = gl.getUniformLocation(program, 'u_meterScale')
       cellSizeLocation = gl.getUniformLocation(program, 'u_cellSize')
       atlasLocation = gl.getUniformLocation(program, 'u_atlas')
@@ -333,6 +378,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         gl!.bufferData(gl!.ARRAY_BUFFER, data, gl!.STATIC_DRAW)
         gl!.enableVertexAttribArray(location)
         gl!.vertexAttribPointer(location, size, gl!.FLOAT, false, 0, 0)
+        instanceBuffers.push(buffer!)
         return buffer
       }
       const perInstance = (location: number, size: number) => {
@@ -355,16 +401,23 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         tintBuffer = perInstance(attribute('a_tint'), 3)
 
         const indexBuffer = gl.createBuffer()
+        instanceBuffers.push(indexBuffer!)
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW)
       } else {
         staticBuffer(mesh!.attributes.positions.value, attribute('a_position'), 3)
         staticBuffer(mesh!.attributes.normals.value, attribute('a_normal'), 3)
+        staticBuffer(
+          mesh!.attributes.bark?.value ?? new Float32Array(mesh!.attributes.positions.value.length / 3),
+          attribute('a_bark'),
+          1,
+        )
         offsetBuffer = perInstance(attribute('a_offset'), 3)
         scaleBuffer = perInstance(attribute('a_scale'), 2)
         thirdBuffer = perInstance(attribute('a_color'), 3)
 
         const indexBuffer = gl.createBuffer()
+        instanceBuffers.push(indexBuffer!)
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh!.indices.value, gl.STATIC_DRAW)
       }
@@ -421,7 +474,16 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       if (!matrix) return
 
       gl.useProgram(program)
-      gl.uniformMatrix4fv(matrixLocation, false, matrix as Float32Array)
+      // Translate in JS double precision before uploading to the GPU. Absolute
+      // float Mercator coordinates otherwise make nearby trunks jitter by metres.
+      for (let i = 0; i < 16; i++) translated[i] = matrix[i]
+      for (let row = 0; row < 4; row++)
+        translated[12 + row] =
+          matrix[row] * origin[0] + matrix[4 + row] * origin[1] + matrix[8 + row] * origin[2] + matrix[12 + row]
+      gl.uniformMatrix4fv(matrixLocation, false, translated)
+      const eyeMercator = MercatorCoordinate.fromLngLat(eye)
+      gl.uniform3f(eyeLocation, eyeMercator.x - origin[0], eyeMercator.y - origin[1], 0)
+      gl.uniform4fv(rangeLocation, options.range ?? [-2, -1, 99000, 100000])
       gl.uniform1f(meterScaleLocation, meterScale)
 
       if (billboard && atlas) {
@@ -442,6 +504,10 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.bindVertexArray(vao)
       gl.drawElementsInstanced(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, 0, instanceCount)
       gl.bindVertexArray(null)
+    },
+
+    setEye(value) {
+      eye = value
     },
 
     setTrees(trees) {

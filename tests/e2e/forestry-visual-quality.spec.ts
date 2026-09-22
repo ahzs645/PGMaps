@@ -167,6 +167,7 @@ async function openPage(page: Page) {
   await page.addInitScript(() => window.localStorage.clear())
   await page.goto(PAGE_PATH)
   await expect(page.getByRole('heading', { name: 'Visual quality' })).toBeVisible()
+  await page.getByText('Advanced assessment & settings', { exact: true }).click()
 }
 
 /** What the map is actually doing, rather than what the sidebar says about it. */
@@ -188,13 +189,24 @@ async function readMapState(page: Page) {
           loaded?: () => boolean
           getLayer?: (id: string) => unknown
           getSource?: (id: string) => unknown
+          getZoom?: () => number
+          getCenter?: () => { lng: number; lat: number }
+          getBearing?: () => number
+          getPitch?: () => number
         }
         if (map?.queryTerrainElevation) {
+          const tree = map.getLayer?.('forestry-trees') as { implementation?: { treeCount: number; nearTreeCount: number; coverageMeters: number; error: string | null } } | undefined
           return {
             loaded: Boolean(map.loaded?.()),
             terrain: Boolean(map.getTerrain?.()),
             hillshade: Boolean(map.getLayer?.('forestry-hillshade')),
             treeLayer: Boolean(map.getLayer?.('forestry-trees')),
+            treeCount: tree?.implementation?.treeCount ?? 0,
+            nearTreeCount: tree?.implementation?.nearTreeCount ?? 0,
+            forestError: tree?.implementation?.error ?? null,
+            forestReach: tree?.implementation?.coverageMeters ?? 0,
+            zoom: map.getZoom?.() ?? 0,
+            camera: { center: map.getCenter?.(), bearing: map.getBearing?.(), pitch: map.getPitch?.(), zoom: map.getZoom?.() },
           }
         }
         hook = (hook as { next?: unknown }).next as typeof hook
@@ -226,6 +238,13 @@ async function confirmScenarioAssumptions(page: Page) {
     .check()
 }
 
+test.beforeEach(async ({ page }) => {
+  if (process.env.PGMAPS_FORESTRY_LIVE === '1') return
+  await stubHarvest(page)
+  await stubForestCover(page)
+  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [] } }))
+})
+
 test.describe('forestry visual quality', () => {
   test('opens on the sample scenario with a viewpoint and blocks', async ({ page }) => {
     await stubBasemap(page)
@@ -233,8 +252,8 @@ test.describe('forestry visual quality', () => {
     await stubVegetation(page)
     await openPage(page)
 
-    await expect(page.getByText('Block A — west face')).toBeVisible()
-    await expect(page.getByText('Block B — over the height of land')).toBeVisible()
+    await expect(page.getByText('Block A — west face', { exact: true })).toBeVisible()
+    await expect(page.getByText('Block B — over the height of land', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Tabor Mountain landform/ })).toBeVisible()
     // The scene's one landform is the active assessment unit without being asked.
     await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
@@ -331,7 +350,7 @@ test.describe('forestry visual quality', () => {
     await openPage(page)
 
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText(/terrain tiles loaded/)).toBeVisible({ timeout: 120_000 })
+    await expect(page.locator('[data-forestry-advanced]').getByText(/terrain tiles loaded/)).toBeVisible({ timeout: 120_000 })
     await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
   })
 
@@ -395,18 +414,20 @@ test.describe('forestry visual quality', () => {
     })
 
     await page.getByRole('button', { name: 'Look from the road' }).click()
-    await expect(page.getByText('Standing on the road')).toBeVisible()
-    await expect(page.getByText('Visible from here, right now')).toBeVisible()
+    await expect(page.getByText(/Standing on the road ·/)).toBeVisible()
+    await expect(page.getByText('Ground visible at nearest station')).toBeVisible()
     await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible()
 
     // Assert the map, not the copy: an eye-level view of flat sidebar text would
     // pass just as well with terrain switched off entirely.
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 60_000 }).toBe(true)
     expect((await readMapState(page))?.hillshade).toBe(true)
+    // A horizon target kilometres away clips nearby trees even at the right altitude.
+    await expect.poll(async () => (await readMapState(page))?.zoom, { timeout: 60000 }).toBeGreaterThan(18)
 
     await expect(page.getByRole('button', { name: 'Drive', exact: true })).toBeEnabled()
     await page.getByRole('button', { name: 'Back to the map' }).click()
-    await expect(page.getByText('Standing on the road')).toHaveCount(0)
+    await expect(page.getByText(/Standing on the road ·/)).toHaveCount(0)
     // Leaving the drive puts the map back to a flat basemap.
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 30_000 }).toBe(false)
   })
@@ -452,9 +473,9 @@ test.describe('forestry visual quality', () => {
     await controls.getByRole('button', { name: 'Pause', exact: true }).click()
 
     await controls.getByRole('button', { name: 'Return to map' }).click()
-    await expect(page.getByText('Standing on the road')).toHaveCount(0)
+    await expect(page.getByText(/Standing on the road ·/)).toHaveCount(0)
     // And the sidebar comes back rather than leaving the phone on a bare map.
-    await expect(handle).toHaveAttribute('aria-valuenow', '1')
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
   })
 
   test('stands the timber up around the viewpoint', async ({ page }) => {
@@ -465,19 +486,14 @@ test.describe('forestry visual quality', () => {
     await stubVegetation(page)
     await openPage(page)
 
-    await setNumberField(page, 'Eye height above the road', '500')
-    await setNumberField(page, 'Max view distance', '40')
     await confirmScenarioAssumptions(page)
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
 
-    // Timber is illustrative and off until asked for: the run had no screening
-    // stands, so the preview opens on bare terrain rather than a regional mix.
+    // Preview defaults to forward-facing driving and illustrative timber.
     await page.getByRole('button', { name: 'Look from the road' }).click()
-    await expect(page.getByText(/Bare ground/)).toBeVisible()
-    await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Stand the timber up' }).click()
+    await expect(page.getByLabel('Where to look')).toHaveValue('')
+    await expect(page.getByRole('button', { name: 'Detailed nearby' })).toBeVisible()
     await expect(page.getByLabel(/Stand height/)).toHaveValue('28')
     await expect(page.getByLabel(/Cleared width along the road/)).toBeVisible()
 
@@ -486,12 +502,237 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText(/stems standing around the camera/)).toBeVisible({ timeout: 90_000 })
     const stems = Number((await page.getByText(/stems standing around the camera/).innerText()).replace(/\D/g, ''))
     expect(stems).toBeGreaterThan(1000)
+    await expect.poll(async () => (await readMapState(page))?.treeCount, { timeout: 60000 }).toBeGreaterThan(1000)
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(50)
+    expect((await readMapState(page))?.forestError).toBeNull()
+    expect((await readMapState(page))?.forestReach).toBeGreaterThan(10000)
+    // The same test exercises the default hybrid, billboard fallback and cleanup.
+    await page.screenshot({ path: test.info().outputPath('forest-hybrid.png') })
+    await page.getByRole('button', { name: 'Billboards', exact: true }).click()
+    await expect.poll(async () => (await readMapState(page))?.treeCount, { timeout: 60000 }).toBeGreaterThan(1000)
+    expect((await readMapState(page))?.nearTreeCount).toBe(0)
     expect((await readMapState(page))?.treeLayer).toBe(true)
 
     await page.getByRole('button', { name: 'Stand the timber up' }).click()
     await expect(page.getByText(/Bare ground/)).toBeVisible()
     await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
     await expect.poll(async () => (await readMapState(page))?.treeLayer, { timeout: 30_000 }).toBe(false)
+  })
+
+  test('compares a roadside opening before and after harvest from the same eye', async ({ page }) => {
+    test.setTimeout(180_000)
+    // Opt in for an additional screenshot/acceptance run against live terrain.
+    if (process.env.PGMAPS_FORESTRY_LIVE !== '1') {
+      await stubBasemap(page)
+      await stubTerrain(page)
+      await stubVegetation(page)
+    }
+    await openPage(page)
+    await page.getByRole('button', { name: 'Load roadside cutblock demo', exact: true }).click()
+    await confirmScenarioAssumptions(page)
+    await page.getByRole('button', { name: 'Run visibility', exact: true }).click()
+    await page.getByRole('button', { name: 'Look from the road', exact: true }).click({ timeout: 60000 })
+    await expect(page.getByText(/Opening on your right in 150 m/)).toBeVisible()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await controls.getByRole('button', { name: 'View opening', exact: true }).click()
+    await expect(page.getByText(/Position — 0.60 km/)).toBeVisible()
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(100)
+    await expect.poll(async () => Math.abs((await readMapState(page))?.camera.bearing ?? 0)).toBeGreaterThan(150)
+    const after = await readMapState(page)
+    const ratio = await page.getByText('Ground visible at nearest station', { exact: true }).locator('..').innerText()
+    await page.screenshot({ path: test.info().outputPath('cutblock-after.png') })
+    await controls.getByRole('button', { name: 'Before harvest', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Before harvest', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(after!.nearTreeCount + 100)
+    expect((await readMapState(page))?.camera).toEqual(after?.camera)
+    expect(await page.getByText('Ground visible at nearest station', { exact: true }).locator('..').innerText()).toBe(ratio)
+    await page.screenshot({ path: test.info().outputPath('cutblock-before.png') })
+    const before = await readMapState(page)
+    await controls.getByRole('button', { name: 'After harvest', exact: true }).click()
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(100)
+    expect((await readMapState(page))?.nearTreeCount).toBeLessThan(before!.nearTreeCount)
+    expect((await readMapState(page))?.camera).toEqual(after?.camera)
+    expect((await readMapState(page))?.forestError).toBeNull()
+    await controls.getByRole('button', { name: 'Replay approach', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Where to look')).toHaveValue('')
+    await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+    await expect(page.getByText(/Opening on your right in/)).toBeVisible()
+  })
+
+  test('previews and saves a comparison without opening advanced settings', async ({ page }) => {
+    test.setTimeout(180_000)
+    await stubBasemap(page); await stubTerrain(page); await stubVegetation(page)
+    await page.goto(PAGE_PATH)
+    await expect(page.locator('[data-forestry-advanced]')).not.toHaveAttribute('open')
+    await page.getByRole('button', { name: 'Try sample drive', exact: true }).click()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls).toBeVisible({ timeout: 60000 })
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByRole('button', { name: 'View opening', exact: true }).click()
+    await controls.getByText('Viewpoints, save & display', { exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
+    await page.locator('canvas.maplibregl-canvas').press('ArrowRight')
+    await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
+    await expect(controls.getByText(/Saved View 1/)).toBeVisible()
+    const savedCamera = (await readMapState(page))?.camera
+    await controls.getByLabel('Route position', { exact: true }).press('End')
+    await controls.getByLabel('Saved viewpoint').selectOption({ label: 'View 1 · 0.60 km' })
+    await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')
+    await expect.poll(async () => (await readMapState(page))?.camera.bearing).toBeCloseTo(savedCamera!.bearing!, 4)
+    await expect(controls.getByRole('button', { name: 'Download image', exact: true })).toBeEnabled({ timeout: 60000 })
+    const imageDownload = page.waitForEvent('download')
+    await controls.getByRole('button', { name: 'Download image', exact: true }).click()
+    const downloadedImage = await imageDownload
+    await downloadedImage.saveAs(test.info().outputPath('saved-view.png'))
+    const imageBytes = await readFile((await downloadedImage.path())!)
+    expect(imageBytes.subarray(1, 4).toString()).toBe('PNG')
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download preview', exact: true }).click()
+    const preview = await download
+    const json = JSON.parse(await readFile((await preview.path())!, 'utf8'))
+    expect(json.views).toHaveLength(1)
+    expect(json.scene.settings.greenAreaConfirmed).toBe(false)
+    await page.reload()
+    await page.getByRole('button', { name: 'View 1 · 0.60 km', exact: true }).click()
+    await expect(controls).toBeVisible({ timeout: 60000 })
+    await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')
+    await expect.poll(async () => (await readMapState(page))?.camera.bearing).toBeCloseTo(savedCamera!.bearing!, 4)
+    await expect(page.locator('[data-forestry-advanced]')).not.toHaveAttribute('open')
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await page.screenshot({ path: test.info().outputPath('preview-workflow.png') })
+    await controls.getByRole('button', { name: 'Return to map' }).click()
+    await page.getByRole('button', { name: 'Start with my site', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Reopen previous saved preview' })).toBeVisible()
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Open saved preview', exact: true }).click()
+    await (await chooser).setFiles({ name: 'preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
+    await page.getByRole('button', { name: 'View 1 · 0.60 km', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')
+    await expect.poll(async () => (await readMapState(page))?.camera.bearing).toBeCloseTo(savedCamera!.bearing!, 4)
+  })
+
+  test('keeps the simple setup, drawing and drive controls reachable on a phone', async ({ page }) => {
+    test.setTimeout(180_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await stubBasemap(page); await stubTerrain(page); await stubVegetation(page)
+    await page.goto(PAGE_PATH)
+    const handle = page.locator('[data-map-mobile-sheet-handle]')
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+    await page.getByRole('button', { name: 'Start with my site', exact: true }).click()
+    await page.getByRole('button', { name: 'Draw road', exact: true }).click()
+    await expect(handle).toHaveAttribute('aria-valuenow', '0')
+    const drawing = page.getByRole('region', { name: 'Map drawing controls' })
+    await expect(drawing).toBeInViewport()
+    await drawing.getByRole('button', { name: 'Cancel drawing' }).click()
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+    await page.getByRole('button', { name: 'Try sample drive', exact: true }).click()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await expect(handle).toHaveAttribute('aria-valuenow', '0')
+    await controls.getByRole('button', { name: 'View opening', exact: true }).click()
+    await controls.getByRole('button', { name: 'Before harvest', exact: true }).click()
+    await controls.getByRole('button', { name: 'After harvest', exact: true }).click()
+    await controls.getByRole('button', { name: 'Play', exact: true }).click()
+    await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+    await controls.getByText('Viewpoints, save & display', { exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
+    await controls.getByText('Viewpoints, save & display', { exact: true }).click()
+    await controls.getByRole('button', { name: 'Hide options', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Before harvest', exact: true })).toBeHidden()
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeInViewport()
+    await page.screenshot({ path: test.info().outputPath('phone-preview.png') })
+    await controls.getByRole('button', { name: 'Show options', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Before harvest', exact: true })).toBeVisible()
+    await controls.getByRole('button', { name: 'Return to map', exact: true }).click()
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+    await expect(page.locator('[data-forestry-advanced]')).not.toHaveAttribute('open')
+  })
+
+  test('loads existing forest automatically and recovers a missing planting source', async ({ page }) => {
+    test.setTimeout(180_000)
+    await stubBasemap(page); await stubTerrain(page); await stubVegetation(page)
+    const requests: string[] = []
+    page.on('request', request => { if (/MapServer\/(4|20|27)\/query/.test(request.url())) requests.push(request.url()) })
+    await stubHarvest(page, [inventoryFeature({ OBJECTID: 1, HARVEST_MID_YEAR_CALENDAR: 2020, PERCENT_CLEARCUT: 100 }, 0)])
+    await stubForestCover(page, [inventoryFeature({ OBJECTID: 2, I_SPECIES_HEIGHT_1: 8, I_SPECIES_CODE_1: 'PL', REFERENCE_YEAR: 2015 }, 0)])
+    await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**', route => route.fulfill({ status: 503, body: 'Unavailable' }))
+    await page.goto(PAGE_PATH)
+    await page.getByRole('button', { name: 'Try sample drive', exact: true }).click()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByText('Viewpoints, save & display', { exact: true }).click()
+    await expect(controls.getByText('0 recorded heights · 1 projected heights · 0 planting estimates · 1 harvest-age estimates', { exact: true })).toBeVisible()
+    await expect(controls.getByRole('button', { name: 'Retry forest data' })).toBeVisible()
+    await page.unroute('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**')
+    await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [inventoryFeature({ OBJECTID: 3, ACTIVITY_TREATMENT_UNIT_ID: 3, ATU_COMPLETION_DATE: Date.UTC(2021, 5, 1), SILV_TREE_SPECIES_CODE: 'SX', NUMBER_PLANTED: 10000 }, 0)] } }))
+    await controls.getByRole('button', { name: 'Retry forest data' }).click()
+    await expect(controls.getByText('0 recorded heights · 1 projected heights · 1 planting estimates · 1 harvest-age estimates', { exact: true })).toBeVisible({ timeout: 60000 })
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    expect(requests.filter(url => url.includes('/20/'))).toHaveLength(2)
+    await controls.getByLabel('Project older heights to visual year', { exact: true }).uncheck()
+    await expect(controls.getByText('1 recorded heights · 0 projected heights · 1 planting estimates · 1 harvest-age estimates', { exact: true })).toBeVisible()
+    await controls.getByLabel('Project older heights to visual year', { exact: true }).check()
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount).toBeGreaterThan(0)
+    await controls.getByLabel('Assumed height growth', { exact: true }).fill('0.5')
+    await controls.getByText('Height sources and dates', { exact: true }).click()
+    const expectedHeight = (0.3 + (new Date().getFullYear() - 2021) * 0.5).toFixed(1)
+    await expect(controls.getByText(`planting estimate · ${expectedHeight} m · 2021 · planting-3`, { exact: true })).toBeVisible()
+    await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download preview', exact: true }).click()
+    const data = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
+    expect(data.views[0].growthMetersPerYear).toBe(0.5)
+    expect(data.scene.targets.filter((t: { role: string }) => t.role === 'harvested')).toHaveLength(0)
+    expect(data.scene.settings.greenAreaConfirmed).toBe(false)
+    await page.screenshot({ path: test.info().outputPath('dynamic-forest.png') })
+  })
+
+  test('cancels preparation and can start again', async ({ page }) => {
+    test.setTimeout(120_000)
+    await stubBasemap(page); await stubVegetation(page)
+    let release: () => void = () => {}
+    const held = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/elevation-tiles-prod/terrarium/**', async route => {
+      await held
+      await route.fulfill({ status: 200, contentType: 'image/png', body: FLAT_TILE }).catch(() => {})
+    })
+    await page.goto(PAGE_PATH)
+    await page.getByRole('button', { name: 'Try sample drive', exact: true }).click()
+    await page.getByRole('button', { name: 'Cancel preparation', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Preview drive', exact: true })).toBeEnabled()
+    release()
+    await expect(page.getByRole('region', { name: 'Road view controls' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Preview drive', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible({ timeout: 60000 })
+  })
+
+  test('imports a road and cutblock and recovers from failed preparation', async ({ page }) => {
+    test.setTimeout(180_000)
+    await stubBasemap(page); await stubVegetation(page)
+    await page.route('**/elevation-tiles-prod/terrarium/**', route => route.fulfill({ status: 503, body: 'Unavailable' }))
+    await page.goto(PAGE_PATH)
+    await page.getByRole('button', { name: 'Start with my site', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Preview drive', exact: true })).toBeDisabled()
+    const importGeometry = async (button: string, name: string, geometry: unknown) => {
+      const chooser = page.waitForEvent('filechooser')
+      await page.getByRole('button', { name: button, exact: true }).click()
+      await (await chooser).setFiles({ name, mimeType: 'application/geo+json', buffer: Buffer.from(JSON.stringify({ type: 'Feature', properties: { name }, geometry })) })
+    }
+    await importGeometry('Import road', 'my-road.geojson', { type: 'LineString', coordinates: [[-122.64, 53.91], [-122.62, 53.91]] })
+    await importGeometry('Import cutblocks', 'my-block.geojson', { type: 'Polygon', coordinates: [[[-122.635,53.9098],[-122.625,53.9098],[-122.625,53.907],[-122.635,53.907],[-122.635,53.9098]]] })
+    await page.getByRole('button', { name: 'Preview drive', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Retry preview', exact: true })).toBeVisible({ timeout: 60000 })
+    await expect(page.getByRole('region', { name: 'Road view controls' })).toHaveCount(0)
+    await page.unroute('**/elevation-tiles-prod/terrarium/**')
+    await stubTerrain(page)
+    await page.getByRole('button', { name: 'Retry preview', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible({ timeout: 60000 })
+    await expect.poll(async () => (await readMapState(page))?.terrain).toBe(true)
+    await expect(page.locator('[data-forestry-advanced]')).not.toHaveAttribute('open')
   })
 
   test('says which roads see the block, or that none on screen do', async ({ page }) => {
