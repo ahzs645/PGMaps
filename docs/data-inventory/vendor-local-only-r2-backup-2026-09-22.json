@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "sourceInventory": "docs/data-inventory/vendor-local-only-sha256-2026-09-22.csv",
+  "chunkSize": 104857600,
+  "groups": {
+    "edi": {
+      "files": 1125,
+      "sourceBytes": 669722792,
+      "archiveBytes": 670935040,
+      "archiveSha256": "81e97f8ca723efdfde705f453e2260dd96b6987d8b08babf45ea7b20602fd55f",
+      "parts": [
+        {
+          "file": "9e363d1b3d1c55e358e8cd2ccb602abb40eadcca1b2eb388f783fbd2cf28a687.tar.part",
+          "bytes": 104857600,
+          "sha256": "9e363d1b3d1c55e358e8cd2ccb602abb40eadcca1b2eb388f783fbd2cf28a687",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/9e363d1b3d1c55e358e8cd2ccb602abb40eadcca1b2eb388f783fbd2cf28a687.tar.part",
+          "r2ETag": "416f69cbaeafe5b136cdebed0aab5914"
+        },
+        {
+          "file": "307fc39cc09af1beed56392905f2e4c9ff4dd3fd85542ca5e6734ac7b75c1361.tar.part",
+          "bytes": 104857600,
+          "sha256": "307fc39cc09af1beed56392905f2e4c9ff4dd3fd85542ca5e6734ac7b75c1361",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/307fc39cc09af1beed56392905f2e4c9ff4dd3fd85542ca5e6734ac7b75c1361.tar.part",
+          "r2ETag": "8e6a6975048903d9b567959e4c62ce22"
+        },
+        {
+          "file": "daef77e047585181799c6e4b382b37acad541dc707f49705b85474043f3b8b1e.tar.part",
+          "bytes": 104857600,
+          "sha256": "daef77e047585181799c6e4b382b37acad541dc707f49705b85474043f3b8b1e",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/daef77e047585181799c6e4b382b37acad541dc707f49705b85474043f3b8b1e.tar.part",
+          "r2ETag": "397077a25a9997a2abc8a791deaa280c"
+        },
+        {
+          "file": "aabc47e811f003dba716e2ba4dc5d48166ada18d4011c0be3ea7c6827464c4d1.tar.part",
+          "bytes": 104857600,
+          "sha256": "aabc47e811f003dba716e2ba4dc5d48166ada18d4011c0be3ea7c6827464c4d1",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/aabc47e811f003dba716e2ba4dc5d48166ada18d4011c0be3ea7c6827464c4d1.tar.part",
+          "r2ETag": "6c598d86667f60ace32d950eeffb3492"
+        },
+        {
+          "file": "7248b3d67a058b15860e409ca31154c3880a29fb9a60780b50818d26174fab70.tar.part",
+          "bytes": 104857600,
+          "sha256": "7248b3d67a058b15860e409ca31154c3880a29fb9a60780b50818d26174fab70",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/7248b3d67a058b15860e409ca31154c3880a29fb9a60780b50818d26174fab70.tar.part",
+          "r2ETag": "9af85e5e6e49d865e10d95de0a35ecd5"
+        },
+        {
+          "file": "b0a6b53d31cae56f066ccbb0af0b51b7c58d0601e0eb0c1d844486c2a508149c.tar.part",
+          "bytes": 104857600,
+          "sha256": "b0a6b53d31cae56f066ccbb0af0b51b7c58d0601e0eb0c1d844486c2a508149c",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/b0a6b53d31cae56f066ccbb0af0b51b7c58d0601e0eb0c1d844486c2a508149c.tar.part",
+          "r2ETag": "eb40975119177005fc35b1301f2db041"
+        },
+        {
+          "file": "f88bf2e170728d0880d464630c9287e417156942f56a8513757bbca9c2647d8f.tar.part",
+          "bytes": 41789440,
+          "sha256": "f88bf2e170728d0880d464630c9287e417156942f56a8513757bbca9c2647d8f",
+          "r2Key": "local-only-vendor/2026-09-22/edi/parts/f88bf2e170728d0880d464630c9287e417156942f56a8513757bbca9c2647d8f.tar.part",
+          "r2ETag": "626efa28d5f208de60274c8239aa74bb"
+        }
+      ]
+    },
+    "parcelmap": {
+      "files": 60,
+      "sourceBytes": 1119080427,
+      "archiveBytes": 1119180800,
+      "archiveSha256": "12080d3ea01630183e5da126e3e810f2d1058679ca5236ac3881e209a2f249c2",
+      "parts": [
+        {
+          "file": "e285f891c328b323ed63b8a8b537c1bc98dfb7bc081139e612eee539f7021d5c.tar.part",
+          "bytes": 104857600,
+          "sha256": "e285f891c328b323ed63b8a8b537c1bc98dfb7bc081139e612eee539f7021d5c",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/e285f891c328b323ed63b8a8b537c1bc98dfb7bc081139e612eee539f7021d5c.tar.part",
+          "r2ETag": "d7178132ea6992fc440a703dbe5416d8"
+        },
+        {
+          "file": "7e6cc10cf8d16041b2b6fa17b05049fcb281dff47ba389d60f9f61932a8dbd40.tar.part",
+          "bytes": 104857600,
+          "sha256": "7e6cc10cf8d16041b2b6fa17b05049fcb281dff47ba389d60f9f61932a8dbd40",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/7e6cc10cf8d16041b2b6fa17b05049fcb281dff47ba389d60f9f61932a8dbd40.tar.part",
+          "r2ETag": "4fb809b6d46c23d7c01cc40498c6591f"
+        },
+        {
+          "file": "31170458809ccd5581cb7e49b27515a2e43e1b74fa9214941a501cf92825bd6a.tar.part",
+          "bytes": 104857600,
+          "sha256": "31170458809ccd5581cb7e49b27515a2e43e1b74fa9214941a501cf92825bd6a",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/31170458809ccd5581cb7e49b27515a2e43e1b74fa9214941a501cf92825bd6a.tar.part",
+          "r2ETag": "6fb638d00e29a88e5561b0a4249edf45"
+        },
+        {
+          "file": "c3028c6842fa05f8eaeec6efb66714e236a353efa290c81f60ec3be19c10f7e5.tar.part",
+          "bytes": 104857600,
+          "sha256": "c3028c6842fa05f8eaeec6efb66714e236a353efa290c81f60ec3be19c10f7e5",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/c3028c6842fa05f8eaeec6efb66714e236a353efa290c81f60ec3be19c10f7e5.tar.part",
+          "r2ETag": "74112481530922e42ab9debac9fdd552"
+        },
+        {
+          "file": "7c96312e0f123638254d90d1fea923f621e76dc9256b8b95c92deb357e3a72d9.tar.part",
+          "bytes": 104857600,
+          "sha256": "7c96312e0f123638254d90d1fea923f621e76dc9256b8b95c92deb357e3a72d9",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/7c96312e0f123638254d90d1fea923f621e76dc9256b8b95c92deb357e3a72d9.tar.part",
+          "r2ETag": "9bc5067f4dff413fabdef78518f3bdff"
+        },
+        {
+          "file": "52b0cbb57884de6859ec00c6bbb6264394d1f728e4982a90474c223efaffb470.tar.part",
+          "bytes": 104857600,
+          "sha256": "52b0cbb57884de6859ec00c6bbb6264394d1f728e4982a90474c223efaffb470",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/52b0cbb57884de6859ec00c6bbb6264394d1f728e4982a90474c223efaffb470.tar.part",
+          "r2ETag": "23e757c5c4f63624ff12389200f74d1f"
+        },
+        {
+          "file": "a4d0cef25c2799a2200c2a85445289d4d3a598e413c26e917b353a7e18277c32.tar.part",
+          "bytes": 104857600,
+          "sha256": "a4d0cef25c2799a2200c2a85445289d4d3a598e413c26e917b353a7e18277c32",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/a4d0cef25c2799a2200c2a85445289d4d3a598e413c26e917b353a7e18277c32.tar.part",
+          "r2ETag": "d2dbc229494f4452ed44debe6cf0afde"
+        },
+        {
+          "file": "7f4992e22c3203645dd8e318afd3702ca0cd4dd3ff91d361864b292c10842e72.tar.part",
+          "bytes": 104857600,
+          "sha256": "7f4992e22c3203645dd8e318afd3702ca0cd4dd3ff91d361864b292c10842e72",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/7f4992e22c3203645dd8e318afd3702ca0cd4dd3ff91d361864b292c10842e72.tar.part",
+          "r2ETag": "5e280a5dcd52b7112dae089579ca4700"
+        },
+        {
+          "file": "74e8340bbd8db709ee92a0500cfb3a4e5bd1a2283fd28a981f70a2deb31c6254.tar.part",
+          "bytes": 104857600,
+          "sha256": "74e8340bbd8db709ee92a0500cfb3a4e5bd1a2283fd28a981f70a2deb31c6254",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/74e8340bbd8db709ee92a0500cfb3a4e5bd1a2283fd28a981f70a2deb31c6254.tar.part",
+          "r2ETag": "aa629b02e826dcf2836dd06f6de37419"
+        },
+        {
+          "file": "904723f3b7720a48059fa96d0a5de60d11e8b124a6562314389ecdbc61006e84.tar.part",
+          "bytes": 104857600,
+          "sha256": "904723f3b7720a48059fa96d0a5de60d11e8b124a6562314389ecdbc61006e84",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/904723f3b7720a48059fa96d0a5de60d11e8b124a6562314389ecdbc61006e84.tar.part",
+          "r2ETag": "d7e9eb940abcffbe25cb69c324482baf"
+        },
+        {
+          "file": "6cb748e3c3e3f334aba35f6fa5ec04ff8a31bb8dd785f2d3a3f08ec00aa091de.tar.part",
+          "bytes": 70604800,
+          "sha256": "6cb748e3c3e3f334aba35f6fa5ec04ff8a31bb8dd785f2d3a3f08ec00aa091de",
+          "r2Key": "local-only-vendor/2026-09-22/parcelmap/parts/6cb748e3c3e3f334aba35f6fa5ec04ff8a31bb8dd785f2d3a3f08ec00aa091de.tar.part",
+          "r2ETag": "ad46f248b25adb36a1c7b2c133584585"
+        }
+      ]
+    },
+    "remediation": {
+      "files": 7,
+      "sourceBytes": 22378822,
+      "archiveBytes": 22394880,
+      "archiveSha256": "62fa5fd29848ea250f8014bcc8af27431a4903ed9c0ce01093f1077efb7419ef",
+      "parts": [
+        {
+          "file": "62fa5fd29848ea250f8014bcc8af27431a4903ed9c0ce01093f1077efb7419ef.tar.part",
+          "bytes": 22394880,
+          "sha256": "62fa5fd29848ea250f8014bcc8af27431a4903ed9c0ce01093f1077efb7419ef",
+          "r2Key": "local-only-vendor/2026-09-22/remediation/parts/62fa5fd29848ea250f8014bcc8af27431a4903ed9c0ce01093f1077efb7419ef.tar.part",
+          "r2ETag": "0a53950529ea3f2562699a3009f5bca8"
+        }
+      ]
+    }
+  },
+  "bucket": "pgmaps-private-data",
+  "r2Prefix": "local-only-vendor/2026-09-22/",
+  "verification": "Remote object sizes and single-part MD5 ETags checked against local archive parts; each tar member checked against the source SHA-256 inventory.",
+  "licenceState": {
+    "edi": "UBC/HELP redistribution unresolved; MCFD Access Only; private backup only",
+    "parcelmap": "ParcelMap base archive open licensed; some research masks Access Only; private backup only",
+    "remediation": "Access Only; private backup only"
+  }
+}
