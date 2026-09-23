@@ -1,4 +1,4 @@
-import { Database, Droplets, Flame, Footprints, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
+import { Database, Droplets, Flame, Footprints, LandPlot, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
 import type { SectionTab } from '@/components/layout/SectionTabsBar'
 
 export type MiscDataTab =
@@ -14,6 +14,8 @@ export type MiscDataTab =
   | 'flood'
   | 'drought'
   | 'bcer'
+  | 'remediation'
+  | 'parcelmap'
 
 export const MISC_TABS: Array<SectionTab<MiscDataTab>> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees, shortLabel: 'Shade' },
@@ -28,6 +30,8 @@ export const MISC_TABS: Array<SectionTab<MiscDataTab>> = [
   { id: 'flood', label: 'Flood', icon: Waves },
   { id: 'drought', label: 'Drought', icon: Droplets },
   { id: 'bcer', label: 'BCER', icon: Flame },
+  { id: 'remediation', label: 'Remediation', icon: ShieldAlert },
+  { id: 'parcelmap', label: 'ParcelMap', icon: LandPlot },
 ]
 
 export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
@@ -43,6 +47,8 @@ export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
   flood: 'Flood Layer',
   drought: 'Drought Layer',
   bcer: 'BCER Wells',
+  remediation: 'Remediation sites',
+  parcelmap: 'ParcelMap candidates',
 }
 
 export function parseMiscDataTab(tab: string | null): MiscDataTab {
