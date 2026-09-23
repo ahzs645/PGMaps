@@ -116,6 +116,8 @@ import {
 } from './bcer'
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
+import { RemediationSection } from '@/maps/remediation/RemediationSection'
+import { ParcelMapSection } from '@/maps/parcelmap/ParcelMapSection'
 import { CANUE_V2_ENABLED } from './canueV2'
 
 interface HeatShadeManifestSource {
@@ -1132,12 +1134,12 @@ export default function MiscDataSection() {
 
   const tabsBar = <SectionTabsBar tabs={MISC_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
-  if (activeTab === 'drought') {
+  if (activeTab === 'drought' || activeTab === 'remediation' || activeTab === 'parcelmap') {
     return (
       <div className="flex h-full min-h-0 flex-col bg-background">
         {tabsBar}
         <div className="min-h-0 flex-1">
-          <DroughtSection yearParam="droughtYear" />
+          {activeTab === 'remediation' ? <RemediationSection /> : activeTab === 'parcelmap' ? <ParcelMapSection /> : <DroughtSection yearParam="droughtYear" />}
         </div>
       </div>
     )

@@ -85,3 +85,19 @@ be committed and pushed in the submodule before updating the PGMaps pointer.
 **Status of this review:** the checksum inventory, backup manifest, and this
 audit were written to PGMaps; source payloads were backed up privately in R2.
 No source payload was committed to Git or published to the app.
+
+## Personal test-site releases (23 September 2026)
+
+The private archive above remains unchanged. Two derived products were also
+published to the existing public `maps` R2 bucket for PGMaps' test site:
+
+| Product | Public path | Browser use |
+| --- | --- | --- |
+| Remediation map snapshot | `https://data.map.ahmad.sh/bc/environmental-remediation/v1/` | `/misc?tab=remediation` fetches the manifest and 1.36 MB compressed point map. |
+| ParcelMap initial candidate screen | `https://data.map.ahmad.sh/bc/parcelmap/v1/` | `/misc?tab=parcelmap` fetches the manifest and ranges from a 103 MB PMTiles archive. |
+
+The remediation source remains labelled Access Only, as does a national-park
+mask used in the ParcelMap screen. The app labels the results as research
+snapshots and does not present remediation points as contamination extents or
+candidate parcels as verified available land. The original archives, masks,
+GeoPackage and audit files remain in the private backup.

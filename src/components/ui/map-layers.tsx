@@ -1831,6 +1831,8 @@ type MapPmtilesFillLayerProps = {
   lineWidth?: number | StyleExpression
   lineOpacity?: number
   idProperty?: string
+  /** Read the vector tile feature ID instead of an attribute for selection. */
+  idSource?: 'property' | 'feature'
   selectedId?: string | number | null
   selectedIds?: Array<string | number>
   selectionColor?: string
@@ -1857,6 +1859,7 @@ function MapPmtilesFillLayer({
   lineWidth = 0.4,
   lineOpacity = 0.35,
   idProperty = 'id',
+  idSource = 'property',
   selectedId = null,
   selectedIds = [],
   selectionColor = SELECTION_COLOR,
@@ -1875,6 +1878,7 @@ function MapPmtilesFillLayer({
   const onClickRef = useRef(onFeatureClick)
   const hoverHtmlRef = useRef(hoverHtml)
   const idPropRef = useRef(idProperty)
+  const idSourceRef = useRef(idSource)
   const filterRef = useRef(filter)
   const boxZoomWasEnabledRef = useRef(false)
   const doubleClickZoomWasEnabledRef = useRef(false)
@@ -1890,6 +1894,10 @@ function MapPmtilesFillLayer({
   useEffect(() => {
     idPropRef.current = idProperty
   }, [idProperty])
+
+  useEffect(() => {
+    idSourceRef.current = idSource
+  }, [idSource])
 
   useEffect(() => {
     filterRef.current = filter
@@ -1986,7 +1994,7 @@ function MapPmtilesFillLayer({
 
     const handleClick = (event: unknown) => {
       const e = event as {
-        features?: Array<{ properties?: Record<string, unknown> }>
+        features?: Array<{ id?: string | number; properties?: Record<string, unknown> }>
         lngLat?: { lng: number; lat: number }
         originalEvent?: Event & {
           shiftKey?: boolean
@@ -1996,8 +2004,9 @@ function MapPmtilesFillLayer({
         }
         preventDefault?: () => void
       }
-      const properties = e.features?.[0]?.properties
-      const id = properties?.[idPropRef.current]
+      const feature = e.features?.[0]
+      const properties = feature?.properties
+      const id = idSourceRef.current === 'feature' ? feature?.id : properties?.[idPropRef.current]
       if (id != null && properties) {
         e.preventDefault?.()
         e.originalEvent?.preventDefault()
@@ -2144,10 +2153,10 @@ function MapPmtilesFillLayer({
     map.setFilter(
       selectedLayerId,
       selectedValues.length > 0
-        ? (['in', ['get', idProperty], ['literal', selectedValues]] as never)
-        : (['==', ['get', idProperty], ''] as never),
+        ? (['in', idSource === 'feature' ? ['id'] : ['get', idProperty], ['literal', selectedValues]] as never)
+        : (['==', idSource === 'feature' ? ['id'] : ['get', idProperty], ''] as never),
     )
-  }, [idProperty, isLoaded, map, selectedId, selectedIds, selectedLayerId])
+  }, [idProperty, idSource, isLoaded, map, selectedId, selectedIds, selectedLayerId])
 
   return null
 }
