@@ -3,13 +3,15 @@ import { useTimelineState } from '@/hooks/useTimelineState'
 import { LoaderCircle, PawPrint } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
-import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
+import { parseWarsHeatmapSettings, WarsHeatmapControls, WarsHeatmapGradient } from './WarsHeatmapControls'
+import { WarsHeatmapLayer } from './WarsHeatmapLayer'
 import {
   formatWinterRangeHectares,
   getWinterRangeBounds,
@@ -77,6 +79,9 @@ type WarsFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, WarsCrashP
 const ALL_SPECIES = 'all'
 const ALL_YEARS = 'all'
 const RECENT_YEARS = 'recent'
+
+// Temporarily hide recurrent sites, including when requested by an older URL.
+const WARS_HOTSPOTS_ENABLED = false
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
@@ -232,12 +237,15 @@ export function useWarsData(
   initialShowHotspots: string | null = null,
   initialShowWinterRange: string | null = null,
   initialWinterRangeMode: string | null = null,
+  initialHeatmapSettings: string | null = null,
 ) {
   const [selectedSpecies, setSelectedSpeciesState] = useState<string>(initialSpecies || ALL_SPECIES)
   const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
-  const [showHotspots, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
+  const [heatmapSettings, setHeatmapSettings] = useState(() => parseWarsHeatmapSettings(initialHeatmapSettings))
+  const [hotspotsRequested, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
+  const showHotspots = WARS_HOTSPOTS_ENABLED && hotspotsRequested
   const [showWinterRange, setShowWinterRangeState] = useState<boolean>(initialShowWinterRange === '1')
   const [focusTarget, setFocusTarget] = useState<{ longitude: number; latitude: number; key: string } | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<number[]>([])
@@ -618,6 +626,8 @@ export function useWarsData(
     setShowPoints,
     showHeatmap,
     setShowHeatmap,
+    heatmapSettings,
+    setHeatmapSettings,
     showHotspots,
     setShowHotspots,
     selectedMonths,
@@ -659,7 +669,7 @@ export function WarsLayerControls({ wars }: { wars: WarsState }) {
         active={wars.showPoints}
         onClick={() => wars.setShowPoints(!wars.showPoints)}
       >
-        {wars.showPoints ? 'Hide points' : 'Show points'}
+        Points
       </ToggleChip>
       <ToggleChip
         active={wars.showHeatmap}
@@ -668,13 +678,15 @@ export function WarsLayerControls({ wars }: { wars: WarsState }) {
       >
         Heatmap
       </ToggleChip>
-      <ToggleChip
-        active={wars.showHotspots}
-        onClick={() => wars.setShowHotspots(!wars.showHotspots)}
-        tone="rose"
-      >
-        Hotspots
-      </ToggleChip>
+      {WARS_HOTSPOTS_ENABLED && (
+        <ToggleChip
+          active={wars.showHotspots}
+          onClick={() => wars.setShowHotspots(!wars.showHotspots)}
+          tone="rose"
+        >
+          Hotspots
+        </ToggleChip>
+      )}
       <ToggleChip
         active={wars.showWinterRange}
         onClick={() => wars.setShowWinterRange(!wars.showWinterRange)}
@@ -907,6 +919,7 @@ export function WarsSidebar({
         )}
       >
         <div className="space-y-3">
+          {wars.showHeatmap && <WarsHeatmapControls settings={wars.heatmapSettings} onChange={wars.setHeatmapSettings} />}
           <label className="block text-xs font-medium text-foreground">
             Species
             <AppSelect
@@ -1161,25 +1174,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
       )}
 
       {wars.showHeatmap && (
-        <MapHeatmapLayer
-          data={wars.heatmapData}
-          weight={['interpolate', ['linear'], ['coalesce', ['get', 'weight'], 1], 1, 0.25, 4, 1]}
-          intensityStops={[
-            [8, 0.7],
-            [11, 1.25],
-            [14, 1.9],
-          ]}
-          radiusStops={[
-            [8, 16],
-            [11, 30],
-            [14, 46],
-          ]}
-          opacity={[
-            [8, 0.58],
-            [14, 0.76],
-          ]}
-          colorRamp="crime"
-        />
+        <WarsHeatmapLayer data={wars.heatmapData} settings={wars.heatmapSettings} />
       )}
 
       {wars.showPoints && (
@@ -1281,8 +1276,15 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
       )}
       {wars.showHeatmap && (
         <div className={cn(wars.showPoints && 'border-t border-border pt-2')}>
-          <MapGradientLegendItem colors={['#67e8f9', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
-          <div className="mt-2 text-xs">Heatmap aggregates all selected species.</div>
+          <WarsHeatmapGradient palette={wars.heatmapSettings.palette} />
+          <div className="mt-2 font-medium text-foreground">
+            {wars.heatmapSettings.scale === 'relative' ? 'Density relative to this view' : 'Fixed density scale'}
+          </div>
+          <div className="mt-2 text-xs">
+            {wars.heatmapSettings.weighting === 'animals' ? 'Animals involved' : 'Accident records'} across selected species.
+            {wars.heatmapSettings.scale === 'relative' ? ' Colors rescale after moving or filtering.' : ' Compare colors at the same zoom and settings.'}
+            {' '}Density does not measure collision risk.
+          </div>
         </div>
       )}
       {wars.showHotspots && (

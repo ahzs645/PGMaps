@@ -7,7 +7,7 @@ import {
   useSetUrlParams,
   useUrlState,
 } from '@/hooks/useUrlState'
-import type { HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMode } from '../types'
+import type { FoodSortOrder, HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMode } from '../types'
 
 export const HAZARD_RATING_OPTIONS: readonly HazardRating[] = ['Low', 'Moderate', 'Unknown']
 
@@ -45,6 +45,11 @@ export const MARKER_STYLE_OPTIONS: readonly { value: MarkerStyle; label: string 
   { value: 'cluster', label: 'Cluster reveal' },
 ]
 const VIOLATION_TIMELINE_MODES: readonly ViolationTimelineMode[] = ['period', 'cumulative']
+export const SORT_OPTIONS: readonly { value: FoodSortOrder; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'violations', label: 'Most violations' },
+  { value: 'recent', label: 'Recently inspected' },
+]
 
 // Codecs must stay module-level so useUrlState's decoded values are stable.
 const hazardCodec = stringArrayCodec(HAZARD_RATING_OPTIONS, HAZARD_RATING_OPTIONS)
@@ -57,6 +62,10 @@ const markerStyleCodec = stringUnionCodec(
 )
 const monthsCodec = numberCodec(12)
 const timelineModeCodec = stringUnionCodec(VIOLATION_TIMELINE_MODES, 'period')
+const sortCodec = stringUnionCodec(
+  SORT_OPTIONS.map((opt) => opt.value),
+  'name',
+)
 
 export interface FoodMapFilters {
   hazardRatings: HazardRating[]
@@ -66,6 +75,7 @@ export interface FoodMapFilters {
   markerStyle: MarkerStyle
   timelineMonths: number
   violationTimelineMode: ViolationTimelineMode
+  sortOrder: FoodSortOrder
 }
 
 export interface FoodMapFilterActions {
@@ -76,6 +86,7 @@ export interface FoodMapFilterActions {
   setMarkerStyle: (style: MarkerStyle) => void
   setTimelineMonths: (months: number) => void
   setViolationTimelineMode: (mode: ViolationTimelineMode) => void
+  setSortOrder: (order: FoodSortOrder) => void
   applyFilters: (filters: Partial<FoodMapFilters>) => void
 }
 
@@ -93,6 +104,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
   const [markerStyle, setMarkerStyle] = useUrlState('dots', markerStyleCodec)
   const [timelineMonths, setTimelineMonths] = useUrlState('months', monthsCodec)
   const [violationTimelineMode, setViolationTimelineMode] = useUrlState('violationTimeline', timelineModeCodec)
+  const [sortOrder, setSortOrder] = useUrlState('sort', sortCodec)
 
   const filters = useMemo<FoodMapFilters>(
     () => ({
@@ -103,8 +115,9 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       markerStyle,
       timelineMonths,
       violationTimelineMode,
+      sortOrder,
     }),
-    [hazardRatings, facilityTypes, searchQuery, visualizationMode, markerStyle, timelineMonths, violationTimelineMode],
+    [hazardRatings, facilityTypes, searchQuery, visualizationMode, markerStyle, timelineMonths, violationTimelineMode, sortOrder],
   )
 
   const actions = useMemo<FoodMapFilterActions>(() => {
@@ -119,6 +132,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       if (patch.violationTimelineMode !== undefined) {
         updates.violationTimeline = timelineModeCodec.encode(patch.violationTimelineMode)
       }
+      if (patch.sortOrder !== undefined) updates.sort = sortCodec.encode(patch.sortOrder)
       setUrlParams(updates)
     }
 
@@ -130,6 +144,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       setMarkerStyle,
       setTimelineMonths,
       setViolationTimelineMode,
+      setSortOrder,
       applyFilters,
     }
   }, [
@@ -141,6 +156,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
     setUrlParams,
     setViolationTimelineMode,
     setVisualizationMode,
+    setSortOrder,
   ])
 
   return { filters, actions }

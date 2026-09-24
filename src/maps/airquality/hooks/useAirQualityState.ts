@@ -110,6 +110,7 @@ const BOUNDARY_SOURCES = [
   'regionalDistrict',
   'bcMunicipality',
   'census',
+  'postal',
   'cityCommunity',
   'cityPG',
   'watershed',

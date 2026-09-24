@@ -24,7 +24,9 @@ or app-accessible datasets.
 
 ## EDI boundary and aggregate status
 
-The current EDI release references **55 compressed blobs (67.13 MiB)**. Its
+*Update, 23 September:* the local release is now schema 2. It references **39 compressed blobs (50.55 MiB)**, of which 13.7 MiB is browser-ready without the official reference polygons. Dashboard wave maps share one polygon library per family, a crosswalk compares them with current official boundaries by area, and workbook values are drawn on dashboard polygons as a labelled inference. See the [EDI inventory](edi-dashboard-data-inventory.md#boundary-crosswalk-and-workbook-mapping-23-september-2026). The figures below describe the 22 September release that was backed up.
+
+The 22 September EDI release referenced **55 compressed blobs (67.13 MiB)**. Its
 227.12 MiB of raw dashboard captures, 107.00 MiB of current official boundary
 downloads, and 78.10 MiB of older boundary/workbook cache are separate
 reproducibility inputs. The release records 67 wave-specific publisher

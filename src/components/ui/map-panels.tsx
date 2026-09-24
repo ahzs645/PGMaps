@@ -1,7 +1,10 @@
 import {
+  forwardRef,
   useEffect,
+  useId,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type ComponentPropsWithoutRef,
   type ElementType,
   type HTMLAttributes,
@@ -9,10 +12,12 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, Loader2, Search, X } from 'lucide-react'
 import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_Z } from './map-overlay'
+import { StatGroup, StatTileBody } from './stat-group'
+import { isMobileViewport } from '@/hooks/useIsMobile'
 
 const overlayPositions = {
   'top-left': 'top-3 left-3',
@@ -361,6 +366,15 @@ type MapSidebarShellProps = HTMLAttributes<HTMLDivElement> & {
   headerClassName?: string
   titleClassName?: string
   contentProps?: HTMLAttributes<HTMLDivElement>
+  /**
+   * On phones the floating top bar already names the section, so the sheet
+   * can drop its own title (kept for screen readers) and give the space to
+   * the controls. Leave off when the sheet title says more than the top bar.
+   */
+  hideTitleOnMobile?: boolean
+  /** Icon tile beside the title, for sections that brand their sidebar. */
+  icon?: ElementType
+  iconClassName?: string
 }
 
 export function MapSidebarShell({
@@ -374,6 +388,9 @@ export function MapSidebarShell({
   headerClassName,
   titleClassName,
   contentProps,
+  hideTitleOnMobile = false,
+  icon,
+  iconClassName,
   ...props
 }: MapSidebarShellProps) {
   const { className: contentClassName, ...restContentProps } = contentProps ?? {}
@@ -390,8 +407,10 @@ export function MapSidebarShell({
         title={title}
         subtitle={subtitle}
         actions={actions}
-        className={headerClassName}
-        titleClassName={titleClassName}
+        className={cn(hideTitleOnMobile && 'max-md:px-3 max-md:py-2', headerClassName)}
+        titleClassName={cn(hideTitleOnMobile && 'max-md:sr-only', titleClassName)}
+        icon={icon}
+        iconClassName={iconClassName}
       />
       {dataset && <DatasetInfo dataset={dataset} />}
       <div data-map-sidebar-scroll="true" className={cn('min-h-0 flex-1 overflow-y-auto', scrollClassName, contentClassName)} {...restContentProps}>
@@ -407,15 +426,38 @@ type MapSidebarHeaderProps = {
   actions?: ReactNode
   className?: string
   titleClassName?: string
+  icon?: ElementType
+  iconClassName?: string
 }
 
-export function MapSidebarHeader({ title, subtitle, actions, className, titleClassName }: MapSidebarHeaderProps) {
+export function MapSidebarHeader({
+  title,
+  subtitle,
+  actions,
+  className,
+  titleClassName,
+  icon: Icon,
+  iconClassName,
+}: MapSidebarHeaderProps) {
   return (
     <div className={cn('border-b border-border bg-background/95 p-4', className)}>
       <div className={cn(actions && 'flex items-start justify-between gap-3')}>
-        <div className="min-w-0">
-          <h1 className={cn('truncate text-xl font-bold text-foreground', titleClassName)}>{title}</h1>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        <div className="flex min-w-0 items-start gap-3">
+          {Icon && (
+            <div
+              className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary',
+                iconClassName,
+              )}
+              aria-hidden="true"
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h1 className={cn('truncate text-xl font-bold text-foreground', titleClassName)}>{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </div>
@@ -423,8 +465,10 @@ export function MapSidebarHeader({ title, subtitle, actions, className, titleCla
   )
 }
 
-type SidebarSectionProps = HTMLAttributes<HTMLDivElement> & {
+type SidebarSectionProps = Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
   title?: ReactNode
+  /** A line under the title, e.g. what the numbers below cover. */
+  subtitle?: ReactNode
   icon?: ElementType
   iconClassName?: string
   actions?: ReactNode
@@ -433,6 +477,7 @@ type SidebarSectionProps = HTMLAttributes<HTMLDivElement> & {
 
 export function SidebarSection({
   title,
+  subtitle,
   icon: Icon,
   iconClassName,
   actions,
@@ -445,9 +490,12 @@ export function SidebarSection({
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">
           {title && (
-            <div className="flex min-w-0 items-center gap-2">
-              {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', iconClassName)} />}
-              <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', iconClassName)} />}
+                <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+              </div>
+              {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
             </div>
           )}
           {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
@@ -467,13 +515,12 @@ type StatTileProps = {
   valueClassName?: string
 }
 
-export function StatTile({ label, value, icon, loading = false, className, valueClassName }: StatTileProps) {
+/** A single small tile. Prefer `StatGroup` for new code; this wraps it for existing call sites. */
+export function StatTile({ className, ...item }: StatTileProps) {
   return (
-    <div className={cn('rounded border border-border bg-background p-2 text-center', className)}>
-      {icon ? <div className="mb-0.5 flex items-center justify-center text-primary">{icon}</div> : null}
-      <div className={cn('text-sm font-bold text-foreground', valueClassName)}>{loading ? '...' : value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
+    <dl className="contents">
+      <StatTileBody item={{ ...item, className }} size="sm" />
+    </dl>
   )
 }
 
@@ -483,21 +530,16 @@ type StatGridProps = {
   className?: string
 }
 
+/** Small centred tiles in a fixed grid. Prefer `StatGroup variant="tiles" size="sm"` for new code. */
 export function StatGrid({ stats, columns = 3, className }: StatGridProps) {
   return (
-    <div
-      className={cn(
-        'grid gap-2',
-        columns === 2 && 'grid-cols-2',
-        columns === 3 && 'grid-cols-3',
-        columns === 4 && 'grid-cols-2 sm:grid-cols-4',
-        className,
-      )}
-    >
-      {stats.map((stat, index) => (
-        <StatTile key={index} {...stat} />
-      ))}
-    </div>
+    <StatGroup
+      variant="tiles"
+      size="sm"
+      columns={columns}
+      className={className}
+      items={stats.map((stat, index) => ({ ...stat, key: String(index) }))}
+    />
   )
 }
 
@@ -521,15 +563,18 @@ type ToggleChipProps = {
   tone?: ToggleChipTone
   className?: string
   disabled?: boolean
+  /** Tooltip explaining the chip, e.g. what a rule does. */
+  title?: string
 }
 
-export function ToggleChip({ active, onClick, children, tone = 'sky', className, disabled }: ToggleChipProps) {
+export function ToggleChip({ active, onClick, children, tone = 'sky', className, disabled, title }: ToggleChipProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       disabled={disabled}
+      title={title}
       className={cn(
         'rounded border px-2 py-1 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
         active ? toggleChipToneClasses[tone] : 'border-input text-muted-foreground hover:text-foreground',
@@ -541,19 +586,62 @@ export function ToggleChip({ active, onClick, children, tone = 'sky', className,
   )
 }
 
-export function SearchInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
+type SearchInputProps = InputHTMLAttributes<HTMLInputElement> & {
+  /** Show a magnifier inside the field. */
+  icon?: boolean
+  /** Show a clear button while the field has a value. */
+  onClear?: () => void
+  /** Classes for the wrapper when `icon` or `onClear` adds one. */
+  wrapperClassName?: string
+}
+
+/**
+ * The sidebar search field. 16px text on phones stops iOS Safari zooming the
+ * page when the field takes focus; it drops to 14px from md up.
+ */
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
+  { className, icon = false, onClear, wrapperClassName, ...props },
+  ref,
+) {
+  const input = (
     <input
+      ref={ref}
       type="text"
       data-map-search-input="true"
       className={cn(
-        'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring',
+        'w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring md:text-sm',
+        icon && 'pl-9',
+        onClear && 'pr-9',
         className,
       )}
       {...props}
     />
   )
-}
+  if (!icon && !onClear) return input
+
+  const hasValue = props.value != null && String(props.value) !== ''
+  return (
+    <div className={cn('relative', wrapperClassName)}>
+      {icon && (
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+      )}
+      {input}
+      {onClear && hasValue && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Clear search"
+          className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground touch:h-9 touch:w-9"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  )
+})
 
 type FilterChipGroupItem<TValue extends string> = {
   value: TValue
@@ -561,6 +649,8 @@ type FilterChipGroupItem<TValue extends string> = {
   count?: ReactNode
   color?: string
   disabled?: boolean
+  /** Tooltip explaining the option. */
+  title?: string
 }
 
 type FilterChipGroupProps<TValue extends string> = {
@@ -573,6 +663,12 @@ type FilterChipGroupProps<TValue extends string> = {
   chipClassName?: string
   selectedClassName?: string
   showDot?: boolean
+  /**
+   * 'outline' (default) marks a selected chip by its coloured border alone.
+   * 'filled' tints and ticks selected chips and dashes the rest, for groups
+   * large enough that a border change is hard to scan.
+   */
+  variant?: 'outline' | 'filled'
 }
 
 export function FilterChipGroup<TValue extends string>({
@@ -585,7 +681,9 @@ export function FilterChipGroup<TValue extends string>({
   chipClassName,
   selectedClassName,
   showDot = true,
+  variant = 'outline',
 }: FilterChipGroupProps<TValue>) {
+  const filled = variant === 'filled'
   const selectedSet = new Set(selectedValues)
 
   return (
@@ -607,18 +705,33 @@ export function FilterChipGroup<TValue extends string>({
             type="button"
             onClick={() => onToggle(item.value)}
             disabled={item.disabled}
+            title={item.title}
             aria-pressed={selected}
             className={cn(
-              'flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
+              'flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50 touch:min-h-9',
               layout === 'scroll' && 'shrink-0',
-              selected ? 'bg-background' : 'border-input text-muted-foreground hover:bg-accent',
+              selected
+                ? filled
+                  ? 'font-medium text-foreground'
+                  : 'bg-background'
+                : cn('border-input text-muted-foreground hover:bg-accent', filled && 'border-dashed'),
               selected && selectedClassName,
               chipClassName,
             )}
-            style={selected && item.color ? { borderColor: item.color, color: item.color } : undefined}
+            style={
+              selected && item.color
+                ? filled
+                  ? { borderColor: item.color, backgroundColor: `${item.color}1f` }
+                  : { borderColor: item.color, color: item.color }
+                : undefined
+            }
           >
+            {filled && selected && <Check className="h-3 w-3 shrink-0" style={{ color: item.color }} aria-hidden="true" />}
             {showDot && item.color && (
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+              <span
+                className={cn('h-2 w-2 shrink-0 rounded-full', filled && !selected && 'opacity-40')}
+                style={{ backgroundColor: item.color }}
+              />
             )}
             <span className="truncate">{item.label}</span>
             {item.count !== undefined && <span className="shrink-0 tabular-nums opacity-70">{item.count}</span>}
@@ -630,16 +743,28 @@ export function FilterChipGroup<TValue extends string>({
 }
 
 type InlineAlertProps = {
-  children: ReactNode
-  tone?: 'info' | 'warning' | 'error'
+  children?: ReactNode
+  tone?: 'info' | 'warning' | 'error' | 'success'
+  /** Bold first line, e.g. "Could not load stations". */
+  title?: ReactNode
+  /** Leading spinner, for "Loading ..." notes. */
+  loading?: boolean
   className?: string
 }
 
-export function InlineAlert({ children, tone = 'info', className }: InlineAlertProps) {
+/**
+ * The one box for notes, warnings, errors and loading messages in sidebars
+ * and dialogs. Errors are announced to screen readers.
+ */
+export function InlineAlert({ children, tone = 'info', title, loading = false, className }: InlineAlertProps) {
   return (
     <div
+      role={tone === 'error' ? 'alert' : loading ? 'status' : undefined}
       className={cn(
         'rounded-md border p-2 text-xs leading-5',
+        (loading || title) && 'flex items-start gap-2',
+        tone === 'success' &&
+          'border-green-300 bg-green-50 text-green-900 dark:border-green-900/60 dark:bg-green-950/35 dark:text-green-100',
         tone === 'info' && 'border-border bg-muted/20 text-muted-foreground',
         tone === 'warning' &&
           'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100',
@@ -647,26 +772,83 @@ export function InlineAlert({ children, tone = 'info', className }: InlineAlertP
         className,
       )}
     >
-      {children}
+      {loading && <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />}
+      {title ? (
+        <div className="min-w-0">
+          <div className="font-semibold">{title}</div>
+          {children}
+        </div>
+      ) : loading ? (
+        <div className="min-w-0">{children}</div>
+      ) : (
+        children
+      )}
     </div>
   )
 }
 
+export type KeyValueRow = { label: ReactNode; value: ReactNode; key?: string }
+
 type KeyValueRowsProps = {
-  rows: Array<{ label: ReactNode; value: ReactNode }>
+  rows: ReadonlyArray<KeyValueRow | null | false | undefined>
+  /**
+   * `stack` (default): label left, value right, no rules.
+   * `divided`: the same with a hairline between rows, for detail cards.
+   * `grid`: a two-column label/value grid, for dense popups.
+   */
+  variant?: 'stack' | 'divided' | 'grid'
+  size?: 'xs' | 'sm'
+  /** Cap on the value column in `stack`/`divided`; pass `null` to let values use the full width. */
+  valueMaxWidth?: string | null
   className?: string
+  labelClassName?: string
+  valueClassName?: string
 }
 
-export function KeyValueRows({ rows, className }: KeyValueRowsProps) {
+/**
+ * Label/value rows for detail cards, popups and sidebars. Falsy rows are
+ * skipped, so optional fields can be listed inline:
+ * `rows={[{ label: 'Area', value }, hasDate && { label: 'Date', value: date }]}`.
+ */
+export function KeyValueRows({
+  rows,
+  variant = 'stack',
+  size = 'xs',
+  valueMaxWidth = 'max-w-[12rem]',
+  className,
+  labelClassName,
+  valueClassName,
+}: KeyValueRowsProps) {
+  const visible = rows.filter((row): row is KeyValueRow => Boolean(row))
+  const text = size === 'sm' ? 'text-sm' : 'text-xs'
+
+  if (variant === 'grid') {
+    return (
+      <dl className={cn('grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-x-3 gap-y-1.5', text, className)}>
+        {visible.map((row, index) => (
+          <div key={row.key ?? index} className="contents">
+            <dt className={cn('text-muted-foreground', labelClassName)}>{row.label}</dt>
+            <dd className={cn('min-w-0 break-words font-medium text-foreground', valueClassName)}>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    )
+  }
+
   return (
-    <div className={cn('space-y-1 text-xs', className)}>
-      {rows.map((row, index) => (
-        <div key={index} className="flex items-start justify-between gap-3">
-          <span className="text-muted-foreground">{row.label}</span>
-          <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>
+    <dl className={cn(variant === 'divided' ? 'divide-y divide-border/70' : 'space-y-1', text, className)}>
+      {visible.map((row, index) => (
+        <div
+          key={row.key ?? index}
+          className={cn('flex items-start justify-between gap-3', variant === 'divided' && 'py-1.5 first:pt-0 last:pb-0')}
+        >
+          <dt className={cn('shrink-0 text-muted-foreground', labelClassName)}>{row.label}</dt>
+          <dd className={cn('min-w-0 break-words text-right font-medium text-foreground', valueMaxWidth, valueClassName)}>
+            {row.value}
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   )
 }
 
@@ -693,6 +875,17 @@ const selectedItemSubtleTextClasses: Record<SelectedItemTone, string> = {
   amber: 'text-amber-700 dark:text-amber-300',
   orange: 'text-orange-700 dark:text-orange-300',
   blue: 'text-blue-700 dark:text-blue-300',
+}
+
+// Hover follows the card's tone; it used to be green whatever the tone.
+const selectedItemHoverClasses: Record<SelectedItemTone, string> = {
+  default: 'hover:bg-accent',
+  sky: 'hover:bg-sky-100/80 dark:hover:bg-sky-950/50',
+  cyan: 'hover:bg-cyan-100/80 dark:hover:bg-cyan-950/50',
+  green: 'hover:bg-green-100/80 dark:hover:bg-green-950/50',
+  amber: 'hover:bg-amber-100/80 dark:hover:bg-amber-950/50',
+  orange: 'hover:bg-orange-100/80 dark:hover:bg-orange-950/50',
+  blue: 'hover:bg-blue-100/80 dark:hover:bg-blue-950/50',
 }
 
 type SelectedItemCardProps = {
@@ -742,9 +935,8 @@ export function SelectedItemCard({
     <div
       className={cn(
         'rounded-md border p-3 text-xs',
-        onClick &&
-          'cursor-pointer transition-colors hover:bg-green-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:hover:bg-green-950/50',
         selectedItemToneClasses[tone],
+        onClick && cn('cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', selectedItemHoverClasses[tone]),
         className,
       )}
       {...interactiveProps}
@@ -789,7 +981,8 @@ type MapLegendPanelProps = {
   icon?: ReactNode
   actions?: ReactNode
   collapsible?: boolean
-  defaultCollapsed?: boolean
+  /** `'mobile'` starts collapsed on phones only, where the panel covers the map. */
+  defaultCollapsed?: boolean | 'mobile'
   collapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
   contentClassName?: string
@@ -815,7 +1008,9 @@ export function MapLegendPanel({
   elevated = false,
   width = 'md',
 }: MapLegendPanelProps) {
-  const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
+  const [internalCollapsed, setInternalCollapsed] = useState(() =>
+    defaultCollapsed === 'mobile' ? isMobileViewport() : defaultCollapsed,
+  )
   const panelRef = useRef<HTMLDivElement>(null)
   const isCollapsed = collapsed ?? internalCollapsed
   const toggleCollapsed = () => {
@@ -1224,4 +1419,105 @@ export function MapLegendNote({ tone = 'muted', className, ...props }: MapLegend
       {...props}
     />
   )
+}
+
+type CollapsibleSectionProps = {
+  /** Heading on the toggle row, e.g. "Map options" or "Factor weights". */
+  label: ReactNode
+  /** One line naming the current settings, shown beside the label while collapsed. */
+  summary?: ReactNode
+  /**
+   * `mobile`: always open on desktop, folds on phones (sheet space is scarce).
+   * `always`: a disclosure at every width.
+   */
+  collapseOn?: 'mobile' | 'always'
+  defaultOpen?: boolean
+  /** Controlled open state; pair with `onOpenChange`. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Controls on the toggle row that should not toggle it (e.g. a Reset link). */
+  actions?: ReactNode
+  /** Show `summary` only while collapsed (it usually repeats what the open section shows). */
+  summaryWhenCollapsedOnly?: boolean
+  /** Extra attributes for the toggle button, e.g. `data-*` hooks tests click. */
+  toggleProps?: ButtonHTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string | undefined>
+  children: ReactNode
+  className?: string
+  contentClassName?: string
+}
+
+/**
+ * A section that folds to one line. One chevron style app-wide (a single
+ * ChevronDown that rotates), with aria-expanded and a finger-sized row.
+ */
+export function CollapsibleSection({
+  label,
+  summary,
+  collapseOn = 'always',
+  defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+  actions,
+  summaryWhenCollapsedOnly = false,
+  toggleProps,
+  children,
+  className,
+  contentClassName,
+}: CollapsibleSectionProps) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const open = controlledOpen ?? internalOpen
+  const contentId = useId()
+  const mobileOnly = collapseOn === 'mobile'
+  const toggle = () => {
+    const next = !open
+    if (controlledOpen === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
+
+  return (
+    <section className={cn('border-b border-border bg-background/95', className)}>
+      <div className={cn('flex items-center gap-2 pr-3', mobileOnly && 'md:hidden')}>
+        <button
+          {...toggleProps}
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={contentId}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left touch:min-h-11"
+        >
+          <span className="shrink-0 text-xs font-medium text-foreground">{label}</span>
+          {summary && !(summaryWhenCollapsedOnly && open) && (
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{summary}</span>
+          )}
+          <ChevronDown
+            className={cn('ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </button>
+        {actions}
+      </div>
+      <div id={contentId} className={cn(!open && (mobileOnly ? 'max-md:hidden' : 'hidden'), contentClassName)}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+type MobileCollapsibleSectionProps = {
+  /** One line naming the current settings, shown on the collapsed phone row. */
+  summary: ReactNode
+  /** Label for the phone toggle, e.g. "Map options". */
+  label: string
+  defaultOpen?: boolean
+  children: ReactNode
+  className?: string
+}
+
+/**
+ * Settings that are always visible on desktop but fold into a one-line
+ * summary on phones, so the half-open sheet reaches the list instead of
+ * filling up with controls people set once.
+ */
+export function MobileCollapsibleSection(props: MobileCollapsibleSectionProps) {
+  return <CollapsibleSection {...props} collapseOn="mobile" />
 }

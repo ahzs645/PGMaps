@@ -5,6 +5,7 @@ import type {
   BcRfcBoundaryLevel,
   BcerBoundaryLevel,
   CensusBoundaryLevel,
+  PostalBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
@@ -66,9 +67,15 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     group: 'Administrative',
   },
   {
+    value: 'postal',
+    label: 'Postal boundaries',
+    description: 'BC region → two-character prefixes → FSAs (2021)',
+    group: 'Administrative',
+  },
+  {
     value: 'census',
     label: 'Census boundaries',
-    description: 'Census hierarchy plus national North/South CSDs',
+    description: 'Census hierarchy and national North/South CSDs',
     group: 'Administrative',
   },
   {
@@ -119,6 +126,9 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   cd: 'Census Division',
   csd: 'Census Subdivision',
   northSouthCsd: 'North / South CSDs',
+  postalRegion: 'BC postal region (V)',
+  postalPrefix2: 'Postal prefix (2 characters, derived)',
+  fsa: 'FSA (3 characters, 2021)',
   ct: 'Census Tract',
   da: 'Dissemination Area',
   bcDaSimplified: 'BC-wide DA chunks',
@@ -179,6 +189,10 @@ export const REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<Regio
 
 export const MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<MunicipalityBoundaryLevel>[] = [
   ...createStudyAreaLevelOptions(['municipality'] as const),
+]
+
+export const POSTAL_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<PostalBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['postalRegion', 'postalPrefix2', 'fsa'] as const),
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
@@ -264,6 +278,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS
     case 'bcMunicipality':
       return MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS
+    case 'postal':
+      return POSTAL_BOUNDARY_LEVEL_OPTIONS
     case 'census':
       return CENSUS_BOUNDARY_LEVEL_OPTIONS
     case 'cityCommunity':

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
@@ -16,65 +17,69 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingCenter, AqRingShape, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingCenter, AqRingShape, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode, OverlayRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 import { CANADA_CENTER, DEFAULT_ZOOM } from '../lib/urlState'
 import type { FireDangerLegendVariant } from './AqMapLegends'
 
-export function ToggleButton({
-  active,
-  onClick,
-  children,
+/** Raster / vector (/ deck.gl) switch for one WMS overlay. */
+export function OverlayModeControl({
+  layerKey,
+  value,
+  onChange,
+  includeDeck = false,
+  locale,
 }: {
-  active: boolean
-  onClick: () => void
-  children: ReactNode
+  layerKey: WmsLayerKey
+  value: OverlayRenderMode
+  onChange: (mode: OverlayRenderMode) => void
+  includeDeck?: boolean
+  locale: AqmapLocale
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-        active
-          ? 'border-primary/50 bg-primary/10 text-foreground'
-          : 'border-border bg-background text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
+    <SegmentedControl
+      label={`${localizeWmsLabel(layerKey, locale)}: ${translate('overlay.renderMode', locale)}`}
+      size="sm"
+      variant="solid"
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: 'raster', label: translate('overlay.raster', locale) },
+        { value: 'vector', label: translate('overlay.vector', locale) },
+        ...(includeDeck ? [{ value: 'deckgl' as const, label: translate('overlay.deckgl', locale) }] : []),
+      ]}
+    />
   )
 }
 
-export function SegmentedControl<T extends string>({
+/** Picks how the fire-danger legend labels its strip. */
+export function FireDangerLegendVariantControl({
   value,
-  options,
   onChange,
+  locale,
+  className,
 }: {
-  value: T
-  options: Array<{ value: T; label: string }>
-  onChange: (value: T) => void
+  value: FireDangerLegendVariant
+  onChange: (variant: FireDangerLegendVariant) => void
+  locale: AqmapLocale
+  className?: string
 }) {
   return (
-    <div
-      className="grid overflow-hidden rounded-md border border-border bg-background"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'px-2 py-1.5 text-xs font-medium transition-colors',
-            value === option.value
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className={cn('space-y-1', className)}>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Legend</div>
+      <SegmentedControl
+        label={`${localizeWmsLabel('fireDanger', locale)}: ${translate('map.legend', locale)}`}
+        size="sm"
+        variant="solid"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: 'compact', label: '3 labels' },
+          { value: 'full', label: 'All' },
+          { value: 'tilted', label: 'Tilt' },
+          { value: 'rows', label: 'Rows' },
+        ]}
+      />
     </div>
   )
 }
@@ -100,7 +105,7 @@ export function RangeField({
     <label className="block space-y-1">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{label}</span>
-        <span className="font-medium text-foreground">{value}{unit ? `� ${unit}` : ''}</span>
+        <span className="font-medium text-foreground">{value}{unit ? ` ${unit}` : ''}</span>
       </div>
       <input
         type="range"
@@ -149,7 +154,7 @@ export function RevealClusterControls({
             onClusterMaxZoomChange(REVEAL_CLUSTER_DEFAULTS.maxZoom)
           }}
           disabled={isDefault}
-          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40 disabled:no-underline"
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40 disabled:no-underline touch:min-h-9 touch:px-1.5"
         >
           {translate('reveal.reset', locale)}
         </button>
@@ -157,6 +162,9 @@ export function RevealClusterControls({
       <div className="space-y-1">
         <span className="text-xs text-muted-foreground">{translate('reveal.clusterColors', locale)}</span>
         <SegmentedControl
+          label={translate('reveal.clusterColors', locale)}
+          size="sm"
+          variant="solid"
           value={clusterColorScheme}
           onChange={onClusterColorSchemeChange}
           options={[
@@ -215,6 +223,9 @@ export function RingStyleControls({
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">{translate('ring.shape', locale)}</div>
         <SegmentedControl
+          label={translate('ring.shape', locale)}
+          size="sm"
+          variant="solid"
           value={ringStyle.shape}
           onChange={(shape: AqRingShape) => onRingStyleChange({ ...ringStyle, shape })}
           options={[
@@ -226,6 +237,9 @@ export function RingStyleControls({
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">{translate('ring.number', locale)}</div>
         <SegmentedControl
+          label={translate('ring.number', locale)}
+          size="sm"
+          variant="solid"
           value={ringStyle.showNumber ? 'on' : 'off'}
           onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showNumber: value === 'on' })}
           options={[
@@ -237,6 +251,9 @@ export function RingStyleControls({
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">{translate('ring.shadow', locale)}</div>
         <SegmentedControl
+          label={translate('ring.shadow', locale)}
+          size="sm"
+          variant="solid"
           value={ringStyle.showShadow ? 'on' : 'off'}
           onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showShadow: value === 'on' })}
           options={[
@@ -249,6 +266,9 @@ export function RingStyleControls({
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">{translate('ring.center', locale)}</div>
           <SegmentedControl
+            label={translate('ring.center', locale)}
+            size="sm"
+            variant="solid"
             value={ringStyle.center}
             onChange={(center: AqRingCenter) => onRingStyleChange({ ...ringStyle, center })}
             options={[
@@ -358,6 +378,9 @@ export function FloatingLayerControl({
         <div className="space-y-1">
           <div className="font-medium text-foreground">{translate('sidebar.iconMode', locale)}</div>
           <SegmentedControl
+            label={translate('sidebar.iconMode', locale)}
+            size="sm"
+            variant="solid"
             value={iconMode}
             onChange={onIconModeChange}
             options={[
@@ -404,73 +427,26 @@ export function FloatingLayerControl({
             </label>
             {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
               <div className="space-y-1">
-                <SegmentedControl
-                  value={fireDangerMode}
-                  onChange={onFireDangerModeChange}
-                  options={[
-                    { value: 'raster', label: translate('overlay.raster', locale) },
-                    { value: 'vector', label: translate('overlay.vector', locale) },
-                    { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                  ]}
-                />
-                <div className="pt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Legend
-                </div>
-                <SegmentedControl
+                <OverlayModeControl layerKey="fireDanger" value={fireDangerMode} onChange={onFireDangerModeChange} includeDeck locale={locale} />
+                <FireDangerLegendVariantControl
                   value={fireDangerLegendVariant}
                   onChange={onFireDangerLegendVariantChange}
-                  options={[
-                    { value: 'compact', label: '3 labels' },
-                    { value: 'full', label: 'All' },
-                    { value: 'tilted', label: 'Tilt' },
-                    { value: 'rows', label: 'Rows' },
-                  ]}
+                  locale={locale}
+                  className="pt-1"
                 />
               </div>
             )}
             {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
-              <SegmentedControl
-                value={activeFiresMode}
-                onChange={onActiveFiresModeChange}
-                options={[
-                  { value: 'raster', label: translate('overlay.raster', locale) },
-                  { value: 'vector', label: translate('overlay.vector', locale) },
-                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                ]}
-              />
+              <OverlayModeControl layerKey="activeFires" value={activeFiresMode} onChange={onActiveFiresModeChange} includeDeck locale={locale} />
             )}
             {layer.key === 'firePerimeters' && visibleWmsLayers.has('firePerimeters') && (
-              <SegmentedControl
-                value={firePerimetersMode}
-                onChange={onFirePerimetersModeChange}
-                options={[
-                  { value: 'raster', label: translate('overlay.raster', locale) },
-                  { value: 'vector', label: translate('overlay.vector', locale) },
-                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                ]}
-              />
+              <OverlayModeControl layerKey="firePerimeters" value={firePerimetersMode} onChange={onFirePerimetersModeChange} includeDeck locale={locale} />
             )}
             {layer.key === 'forecastZones' && visibleWmsLayers.has('forecastZones') && (
-              <SegmentedControl
-                value={forecastZonesMode}
-                onChange={onForecastZonesModeChange}
-                options={[
-                  { value: 'raster', label: translate('overlay.raster', locale) },
-                  { value: 'vector', label: translate('overlay.vector', locale) },
-                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                ]}
-              />
+              <OverlayModeControl layerKey="forecastZones" value={forecastZonesMode} onChange={onForecastZonesModeChange} includeDeck locale={locale} />
             )}
             {layer.key === 'modelledPm25' && visibleWmsLayers.has('modelledPm25') && (
-              <SegmentedControl
-                value={modelledSmokeMode}
-                onChange={onModelledSmokeModeChange}
-                options={[
-                  { value: 'raster', label: translate('overlay.raster', locale) },
-                  { value: 'vector', label: translate('overlay.vector', locale) },
-                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                ]}
-              />
+              <OverlayModeControl layerKey="modelledPm25" value={modelledSmokeMode} onChange={onModelledSmokeModeChange} includeDeck locale={locale} />
             )}
           </div>
         ))}
@@ -831,19 +807,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           <Info className="size-4" />
         </summary>
         <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 px-2 py-1.5 text-xs leading-snug text-foreground shadow-md">
-          <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
-          <div className="mt-1 text-muted-foreground">
-            ©{' '}
-            <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-              CARTO
-            </a>
-            , ©{' '}
-            <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-              OpenStreetMap
-            </a>
-            {' '}
-            contributors
-          </div>
+          <MapInfoText latestDate={latestDate} locale={locale} attributionClassName="mt-1" />
         </div>
       </details>
       <details
@@ -858,19 +822,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           <Info className="size-3.5 shrink-0" aria-hidden="true" />
         </summary>
         <div className="max-w-[calc(100vw-18rem)] border-t border-border/70 px-2 py-1 leading-snug">
-          <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
-          <div className="mt-0.5 text-muted-foreground">
-            ©{' '}
-            <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-              CARTO
-            </a>
-            , ©{' '}
-            <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-              OpenStreetMap
-            </a>
-            {' '}
-            contributors
-          </div>
+          <MapInfoText latestDate={latestDate} locale={locale} attributionClassName="mt-0.5" />
         </div>
       </details>
       <div data-aqmap-scale-bar="true" className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-xs leading-none text-foreground shadow-md">
@@ -878,5 +830,35 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
         <div className="mt-1 text-center">{scale.label}</div>
       </div>
     </MapFloatingPanel>
+  )
+}
+
+/** "Last updated" line and the basemap attribution, shown in both status popovers. */
+function MapInfoText({
+  latestDate,
+  locale,
+  attributionClassName,
+}: {
+  latestDate: string | null | undefined
+  locale: AqmapLocale
+  attributionClassName: string
+}) {
+  const linkClassName = 'underline-offset-2 hover:text-foreground hover:underline'
+  return (
+    <>
+      <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
+      <div className={cn('text-muted-foreground', attributionClassName)}>
+        ©{' '}
+        <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className={linkClassName}>
+          CARTO
+        </a>
+        , ©{' '}
+        <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className={linkClassName}>
+          OpenStreetMap
+        </a>
+        {' '}
+        contributors
+      </div>
+    </>
   )
 }

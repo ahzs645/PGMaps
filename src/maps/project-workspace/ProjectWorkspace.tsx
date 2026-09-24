@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   ChevronRight,
@@ -22,11 +21,15 @@ import {
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
+import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
+import { ProjectHeader } from '@/components/projects/ProjectHeader'
 import { Button } from '@/components/ui/button'
 import { MapMarker, MarkerContent, MarkerTooltip, Map as PgMap } from '@/components/ui/map'
 import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { Slider } from '@/components/ui/slider'
+import { StatGroup } from '@/components/ui/stat-group'
+import { TabBar, type TabOption } from '@/components/ui/tab-bar'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { fetchJson } from '@/lib/fetchJson'
 import {
@@ -52,10 +55,10 @@ const ProjectScoreMapPreview = lazy(() =>
 
 import { KIND_LABELS, iconClass } from './projectPresentation'
 type ControllerTab = 'layers' | 'project'
-const TAB_LABELS: Record<ControllerTab, string> = {
-  layers: 'Layers',
-  project: 'Project',
-}
+const CONTROLLER_TABS: readonly TabOption<ControllerTab>[] = [
+  { value: 'layers', label: 'Layers' },
+  { value: 'project', label: 'Project' },
+]
 
 const HEALTH_AUTHORITY_BOUNDARIES_URL = '/data/boundaries/BCMoH/simplified/health_authorities.json'
 const NORTHERN_HEALTH_FILTER = ['==', ['get', 'HLTH_AUTHORITY_NAME'], 'Northern']
@@ -242,7 +245,6 @@ function ProjectPortalMapLegend({
   visibleLayerIds: Set<string>
   activeRasterLayer: ProjectPortalRasterLayerDef | null
 }) {
-  const isMobile = useIsMobile()
   const activeRasterLabel = activeRasterLayer
     ? (project.layers.find((layer) => layer.id === activeRasterLayer.id)?.label ?? activeRasterLayer.layerName)
     : null
@@ -254,7 +256,7 @@ function ProjectPortalMapLegend({
       title="Legend"
       width="sm"
       collapsible
-      defaultCollapsed={isMobile}
+      defaultCollapsed="mobile"
       className="max-h-[min(28rem,calc(100%-2rem))] overflow-auto"
     >
       <div className="space-y-3">
@@ -378,6 +380,64 @@ function LayerToggle({ layer, visible, onToggle }: { layer: ProjectLayerDef; vis
   )
 }
 
+/** The layer toggles and raster opacity, shared by the desktop controller and the phone sheet. */
+function LayerStackControls({
+  project,
+  visibleLayerIds,
+  onLayerToggle,
+  rasterOpacity,
+  onRasterOpacityChange,
+}: {
+  project: ProjectPackage
+  visibleLayerIds: Set<string>
+  onLayerToggle: (layerId: string) => void
+  rasterOpacity: number
+  onRasterOpacityChange: (value: number) => void
+}) {
+  return (
+    <>
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Layers className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            Map Stack
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {visibleLayerIds.size}/{project.layers.length}
+          </span>
+        </div>
+        <div className="space-y-2">
+          {project.layers.map((layer) => (
+            <LayerToggle
+              key={layer.id}
+              layer={layer}
+              visible={visibleLayerIds.has(layer.id)}
+              onToggle={() => onLayerToggle(layer.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {project.portalMap && (
+        <div className="rounded-lg border bg-background p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
+            <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
+          </div>
+          <Slider
+            value={[rasterOpacity]}
+            min={20}
+            max={100}
+            step={5}
+            onValueChange={(value) => onRasterOpacityChange(value[0] ?? rasterOpacity)}
+            aria-label="Raster opacity"
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
 function ProjectController({
   project,
   activeTab,
@@ -402,63 +462,31 @@ function ProjectController({
   return (
     <aside className={cn('flex min-h-0 flex-col rounded-lg border bg-card shadow-sm', className)}>
       <div className="border-b p-3">
-        <div className="grid grid-cols-2 rounded-md bg-muted p-1">
-          {(Object.keys(TAB_LABELS) as ControllerTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => onTabChange(tab)}
-              className={cn(
-                'h-8 rounded text-xs font-semibold transition-colors',
-                activeTab === tab
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
+        <TabBar
+          label="Project controls"
+          idPrefix="project-controller"
+          value={activeTab}
+          options={CONTROLLER_TABS}
+          onChange={onTabChange}
+          className="[&>[role=tab]]:flex-1 [&>[role=tab]]:justify-center"
+        />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div
+        role="tabpanel"
+        id={`project-controller-panel-${activeTab}`}
+        aria-labelledby={`project-controller-tab-${activeTab}`}
+        className="min-h-0 flex-1 overflow-auto p-4"
+      >
         {activeTab === 'layers' && (
           <div className="space-y-4">
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-foreground">Map Stack</div>
-                <span className="text-xs text-muted-foreground">
-                  {visibleLayerIds.size}/{project.layers.length}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {project.layers.map((layer) => (
-                  <LayerToggle
-                    key={layer.id}
-                    layer={layer}
-                    visible={visibleLayerIds.has(layer.id)}
-                    onToggle={() => onLayerToggle(layer.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {project.portalMap && (
-              <div className="rounded-lg border bg-background p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
-                  <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
-                </div>
-                <Slider
-                  value={[rasterOpacity]}
-                  min={20}
-                  max={100}
-                  step={5}
-                  onValueChange={(value) => onRasterOpacityChange(value[0] ?? rasterOpacity)}
-                  aria-label="Raster opacity"
-                />
-              </div>
-            )}
+            <LayerStackControls
+              project={project}
+              visibleLayerIds={visibleLayerIds}
+              onLayerToggle={onLayerToggle}
+              rasterOpacity={rasterOpacity}
+              onRasterOpacityChange={onRasterOpacityChange}
+            />
           </div>
         )}
 
@@ -565,47 +593,36 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   const leftSidebar = (
     <aside className="flex h-full min-h-0 flex-col border-r bg-background">
       <div className="border-b p-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 inline-flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All projects
-        </button>
+        <ProjectBackButton onBack={onBack} className="mb-3" />
 
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white',
-              iconClass(project),
-            )}
-          >
-            <FolderKanban className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-bold leading-tight text-foreground">{project.title}</h1>
-            <div className="mt-1 text-xs text-muted-foreground">{project.region}</div>
-          </div>
-        </div>
+        <ProjectHeader
+          title={project.title}
+          subtitle={project.region}
+          icon={FolderKanban}
+          iconClassName={iconClass(project)}
+        />
 
         <p className="mt-3 text-xs leading-5 text-muted-foreground">{project.summary}</p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          {[
-            ['Owner', project.owner],
-            [project.created ? 'Created' : 'Updated', project.created ?? project.updated],
-            ['Type', KIND_LABELS[project.kind]],
-            ['Status', project.status],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-md border bg-muted/20 px-2.5 py-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-              <div className="mt-0.5 truncate text-xs font-semibold text-foreground">{value}</div>
-            </div>
-          ))}
-        </div>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          align="start"
+          columns={2}
+          className="mb-4"
+          items={[
+            { label: 'Owner', value: project.owner, compact: true },
+            {
+              label: project.created ? 'Created' : 'Updated',
+              value: project.created ?? project.updated,
+              compact: true,
+            },
+            { label: 'Type', value: KIND_LABELS[project.kind], compact: true },
+            { label: 'Status', value: project.status, compact: true },
+          ]}
+        />
 
         <div className="mb-4">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -702,44 +719,13 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
           )}
         </div>
 
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Layers className="h-3.5 w-3.5" />
-              Map Stack
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {visibleLayerIds.size}/{project.layers.length}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {project.layers.map((layer) => (
-              <LayerToggle
-                key={layer.id}
-                layer={layer}
-                visible={visibleLayerIds.has(layer.id)}
-                onToggle={() => toggleLayer(layer.id)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {project.portalMap && (
-          <div className="rounded-lg border bg-background p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
-              <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
-            </div>
-            <Slider
-              value={[rasterOpacity]}
-              min={20}
-              max={100}
-              step={5}
-              onValueChange={(value) => setRasterOpacity(value[0] ?? rasterOpacity)}
-              aria-label="Raster opacity"
-            />
-          </div>
-        )}
+        <LayerStackControls
+          project={project}
+          visibleLayerIds={visibleLayerIds}
+          onLayerToggle={toggleLayer}
+          rasterOpacity={rasterOpacity}
+          onRasterOpacityChange={setRasterOpacity}
+        />
       </div>
     </div>
   )

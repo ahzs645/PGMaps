@@ -1,13 +1,32 @@
-import { useState } from 'react'
+import { useRef, type ReactNode } from 'react'
+import { Dices, History, X } from 'lucide-react'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
-import { FilterChipGroup, MapSidebarShell, SearchInput, SelectedItemCard } from '@/components/ui/map-panels'
+import { FilterChipGroup, MapSidebarShell, MobileCollapsibleSection, SearchInput } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StatGroup } from '@/components/ui/stat-group'
+import { SelectAllActions } from '@/components/ui/text-button'
+import { ListState } from '@/components/ui/result-list'
+import {
+  FilterToggleButton,
+  ResetFiltersButton,
+  StickyListToolbar,
+  useRevealBelowSticky,
+  useStickyListToolbar,
+} from '@/components/ui/sticky-list-toolbar'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useToggleArray } from '@/hooks/useToggleArray'
-import { MARKER_STYLE_OPTIONS, type FoodMapFilters, type FoodMapFilterActions } from '../hooks/useFoodMapFilters'
-import type { MarkerStyle } from '../types'
+import {
+  FACILITY_TYPE_OPTIONS,
+  HAZARD_RATING_OPTIONS,
+  MARKER_STYLE_OPTIONS,
+  SORT_OPTIONS,
+  type FoodMapFilters,
+  type FoodMapFilterActions,
+} from '../hooks/useFoodMapFilters'
+import type { FoodSortOrder, MarkerStyle } from '../types'
 import type {
   RestaurantWithStats,
   RestaurantStats,
@@ -17,6 +36,7 @@ import type {
 } from '../types'
 
 export interface SidebarData {
+  /** Filtered and sorted for the list. */
   restaurants: RestaurantWithStats[]
   geocodedRestaurants: RestaurantWithStats[]
   loading: boolean
@@ -25,6 +45,9 @@ export interface SidebarData {
   timelineStats: TimelineStats
   hazardStatsAtDate: HazardStatsAtDate
   violationTimelineLabel: string
+  /** Month the hazard ratings are read at, e.g. "Sep 2026". */
+  hazardDateLabel: string
+  activeFilterCount: number
 }
 
 interface SidebarProps {
@@ -39,10 +62,9 @@ interface SidebarProps {
   onOpenInspectionPanel: () => void
   onToggleTimeline: () => void
   onOpenRoulette: () => void
+  onResetFilters: () => void
 }
 
-const hazardOptions: HazardRating[] = ['Low', 'Moderate', 'Unknown']
-const facilityOptions = ['Restaurant', 'Institutional Kitchen', 'Store', 'Unknown', 'Other']
 const timelineOptions = [
   { value: 3, label: '3 months' },
   { value: 6, label: '6 months' },
@@ -62,6 +84,33 @@ const hazardChipColors: Record<HazardRating, string> = {
 // expose the other marker styles again in the future.
 const SHOW_DOT_STYLE_SELECTOR = false
 
+function FilterGroup({
+  title,
+  caption,
+  onAll,
+  onNone,
+  children,
+}: {
+  title: string
+  caption?: string
+  onAll: () => void
+  onNone: () => void
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-medium text-foreground">
+          {title}
+          {caption && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{caption}</span>}
+        </h3>
+        <SelectAllActions onAll={onAll} onNone={onNone} />
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export function Sidebar({
   className,
   data,
@@ -74,6 +123,7 @@ export function Sidebar({
   onOpenInspectionPanel,
   onToggleTimeline,
   onOpenRoulette,
+  onResetFilters,
 }: SidebarProps) {
   const {
     restaurants,
@@ -84,6 +134,8 @@ export function Sidebar({
     timelineStats,
     hazardStatsAtDate,
     violationTimelineLabel,
+    hazardDateLabel,
+    activeFilterCount,
   } = data
   const {
     hazardRatings: selectedHazardRatings,
@@ -92,82 +144,110 @@ export function Sidebar({
     visualizationMode,
     timelineMonths,
     violationTimelineMode,
+    sortOrder,
   } = filters
 
-  const [showFilters, setShowFilters] = useState(false)
+  const { toolbarRef, filtersPanelId, filtersOpen: showFilters, toggleFilters } = useStickyListToolbar()
+  const selectedCardRef = useRef<HTMLDivElement>(null)
 
   const toggleHazard = useToggleArray(selectedHazardRatings, filterActions.setHazardRatings)
   const toggleFacility = useToggleArray(selectedFacilityTypes, filterActions.setFacilityTypes)
+
+  const unmappedCount = restaurants.length - geocodedRestaurants.length
+  const hasActiveFilters = activeFilterCount > 0 || searchQuery !== ''
+  // Hazard chips filter on the rating the active mode uses, so count that one.
+  const hazardCounts: Partial<Record<HazardRating, number>> =
+    visualizationMode === 'hazard' ? hazardStatsAtDate : stats?.byHazard ?? {}
+
+  // A pick from the list or the map inserts the detail card above the list,
+  // out of view if the list was scrolled. Scroll it in (desktop only: the
+  // card is hidden on phones, where the map shows its own feature card).
+  useRevealBelowSticky(toolbarRef, selectedCardRef, selectedRestaurant?.details_url)
 
   return (
     <MapSidebarShell
       className={className}
       title="Food Safety"
-      subtitle="Restaurant Inspections"
+      subtitle="Food Establishment Inspections"
       dataset={DATASETS.foodSafety}
+      hideTitleOnMobile
       actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenRoulette}
-            className="p-2 rounded-lg bg-purple-500 hover:bg-purple-600 transition-colors"
-            title="Restaurant Roulette"
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" strokeWidth="2" />
-              <path strokeWidth="2" d="M12 2v10l7 7" />
-            </svg>
-          </button>
-          <button
-            onClick={onToggleTimeline}
-            className={`p-2 rounded-lg transition-colors ${
-              showTimeline ? 'bg-sky-500 hover:bg-sky-600' : 'bg-secondary hover:bg-accent'
-            }`}
-            title={showTimeline ? 'Hide Timeline' : 'Show Timeline'}
-          >
-            <svg
-              className={`w-5 h-5 ${showTimeline ? 'text-white' : 'text-muted-foreground'}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onOpenRoulette}
+          className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          title="Restaurant roulette"
+          aria-label="Restaurant roulette"
+        >
+          <Dices className="h-4 w-4" aria-hidden="true" />
+        </button>
       }
     >
-      {/* Visualization Mode Toggle */}
-      <div className="border-b border-border bg-background/95 p-3">
-        <div className="flex rounded-lg bg-secondary p-1">
-          <button
-            onClick={() => filterActions.setVisualizationMode('violations')}
-            className={cn(
-              'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
-              visualizationMode === 'violations'
-                ? 'bg-background text-foreground shadow'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Violations
-          </button>
-          <button
-            onClick={() => filterActions.setVisualizationMode('hazard')}
-            className={cn(
-              'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
-              visualizationMode === 'hazard'
-                ? 'bg-background text-foreground shadow'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Hazard Rating
-          </button>
+      {/* What the map shows, and for when. Folds to one line on phones. */}
+      <MobileCollapsibleSection
+        label="Map options"
+        summary={
+          visualizationMode === 'violations'
+            ? `Violations · ${timelineOptions.find((opt) => opt.value === timelineMonths)?.label ?? `${timelineMonths} months`} · ${violationTimelineMode === 'period' ? 'Period' : 'Cumulative'}`
+            : `Hazard rating · as of ${hazardDateLabel}`
+        }
+      >
+        <div className="space-y-2 p-3 max-md:pt-0">
+          <SegmentedControl
+            label="Map colours"
+            value={visualizationMode}
+            onChange={filterActions.setVisualizationMode}
+            options={[
+              { value: 'violations', label: 'Violations' },
+              { value: 'hazard', label: 'Hazard rating' },
+            ]}
+          />
+
+          {visualizationMode === 'violations' && (
+            <div className="flex items-center gap-2">
+              <SegmentedControl
+                label="Count violations"
+                size="sm"
+                className="flex-1"
+                value={violationTimelineMode}
+                onChange={filterActions.setViolationTimelineMode}
+                options={[
+                  { value: 'period', label: 'Period' },
+                  { value: 'cumulative', label: 'Cumulative' },
+                ]}
+              />
+              <AppSelect
+                value={String(timelineMonths)}
+                onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
+                options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+                className="w-28"
+                triggerAriaLabel="Period length"
+                triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
+              />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate">
+              {visualizationMode === 'violations' ? violationTimelineLabel : `Ratings as of ${hazardDateLabel}`}
+            </span>
+            <button
+              type="button"
+              onClick={onToggleTimeline}
+              aria-pressed={showTimeline}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition-colors touch:min-h-9',
+                showTimeline
+                  ? 'bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:hover:bg-sky-900'
+                  : 'text-sky-700 hover:bg-accent dark:text-sky-400',
+              )}
+            >
+              <History className="h-3.5 w-3.5" aria-hidden="true" />
+              {showTimeline ? 'Hide timeline' : 'Timeline'}
+            </button>
+          </div>
         </div>
-      </div>
+      </MobileCollapsibleSection>
 
       {/* Experimental dot style selector (hidden for now, kept for future use) */}
       {SHOW_DOT_STYLE_SELECTOR && (
@@ -183,214 +263,173 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Map count */}
-      <div className="flex items-center justify-between border-b border-border bg-background/95 px-4 py-2">
-        <span className="text-xs text-muted-foreground">
-          {geocodedRestaurants?.length || 0} of {restaurants?.length || 0} on map
-        </span>
-      </div>
-
-      {/* Time window: Period/Cumulative toggle + range selector combined */}
-      {visualizationMode === 'violations' && (
-        <div className="border-b border-border bg-background/95 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 rounded-md bg-secondary p-0.5">
-              <button
-                onClick={() => filterActions.setViolationTimelineMode('period')}
-                className={cn(
-                  'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                  violationTimelineMode === 'period'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                Period
-              </button>
-              <button
-                onClick={() => filterActions.setViolationTimelineMode('cumulative')}
-                className={cn(
-                  'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                  violationTimelineMode === 'cumulative'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                Cumulative
-              </button>
-            </div>
-            <AppSelect
-              value={String(timelineMonths)}
-              onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
-              options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-              className="w-28"
-              triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
-            />
-          </div>
-          <div className="mt-2 truncate text-xs text-muted-foreground">{violationTimelineLabel}</div>
-        </div>
-      )}
-
-      {/* Timeline Stats (violations mode) */}
-      {visualizationMode === 'violations' ? (
-        <div className="border-b border-border bg-background/95 px-4 py-2">
-          <div className="flex items-center justify-around text-center">
-            <div>
-              <div className="text-lg font-bold text-red-600">{timelineStats?.totalViolations || 0}</div>
-              <div className="text-xs text-muted-foreground">violations</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-orange-600">{timelineStats?.criticalViolations || 0}</div>
-              <div className="text-xs text-muted-foreground">critical</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-sky-600 dark:text-sky-400">
-                {timelineStats?.totalInspections || 0}
-              </div>
-              <div className="text-xs text-muted-foreground">inspections</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-foreground">{timelineStats?.restaurantsWithViolations || 0}</div>
-              <div className="text-xs text-muted-foreground">with violations</div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="border-b border-border bg-background/95 px-4 py-2">
-          <div className="flex items-center justify-around text-center">
-            <div>
-              <div className="text-lg font-bold text-green-600">{hazardStatsAtDate?.Low || 0}</div>
-              <div className="text-xs text-muted-foreground">low</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-amber-600">{hazardStatsAtDate?.Moderate || 0}</div>
-              <div className="text-xs text-muted-foreground">moderate</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-muted-foreground">{hazardStatsAtDate?.Unknown || 0}</div>
-              <div className="text-xs text-muted-foreground">unknown</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="border-b border-border p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={(e) => filterActions.setSearchQuery(e.target.value)}
-          placeholder="Search restaurants..."
-          className="focus:ring-sky-500"
+      {/* Totals for the active mode */}
+      <div className="border-b border-border bg-background/95 px-4 py-2">
+        <StatGroup
+          items={
+            visualizationMode === 'violations'
+              ? [
+                  { label: 'violations', value: timelineStats?.totalViolations || 0 },
+                  { label: 'critical', value: timelineStats?.criticalViolations || 0, tone: 'danger' },
+                  { label: 'inspections', value: timelineStats?.totalInspections || 0 },
+                  { label: 'with violations', value: timelineStats?.restaurantsWithViolations || 0 },
+                ]
+              : [
+                  { label: 'low', value: hazardStatsAtDate?.Low || 0, tone: 'success' },
+                  { label: 'moderate', value: hazardStatsAtDate?.Moderate || 0, tone: 'warning' },
+                  { label: 'unknown', value: hazardStatsAtDate?.Unknown || 0, tone: 'muted' },
+                ]
+          }
         />
       </div>
 
-      {/* Filters toggle */}
-      <button
-        onClick={() => setShowFilters(!showFilters)}
-        className="flex items-center justify-between border-b border-border px-4 py-2 text-left text-sm font-medium text-foreground hover:bg-accent"
-      >
-        <span>Filters</span>
-        <svg
-          className={cn('w-4 h-4 transform transition-transform', showFilters && 'rotate-180')}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      {/* Search, filters and sort stay reachable while the list scrolls. */}
+      <StickyListToolbar
+        ref={toolbarRef}
+        search={
+          <SearchInput
+            value={searchQuery}
+            onChange={(e) => filterActions.setSearchQuery(e.target.value)}
+            onClear={() => filterActions.setSearchQuery('')}
+            icon
+            placeholder="Search establishments..."
+            aria-label="Search establishments"
+            className="focus:ring-sky-500"
+          />
+        }
+        controls={
+          <>
+            <FilterToggleButton
+              open={showFilters}
+              onToggle={toggleFilters}
+              panelId={filtersPanelId}
+              activeCount={activeFilterCount}
+            />
+            {hasActiveFilters && <ResetFiltersButton onClick={onResetFilters} />}
+          </>
+        }
+        sort={
+          <AppSelect
+            value={sortOrder}
+            onValueChange={(value) => filterActions.setSortOrder(value as FoodSortOrder)}
+            options={SORT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            className="w-40"
+            triggerAriaLabel="Sort establishments"
+            triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500 touch:h-10"
+          />
+        }
+        count={
+          !loading && !error ? (
+            <>
+              {restaurants.length.toLocaleString('en-CA')} {restaurants.length === 1 ? 'establishment' : 'establishments'}
+              {unmappedCount > 0 && ` · ${unmappedCount.toLocaleString('en-CA')} not on map`}
+            </>
+          ) : undefined
+        }
+      />
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="space-y-4 border-b border-border bg-background/95 p-4">
-          {/* Hazard Rating Filter */}
-          <div>
-            <h3 className="mb-2 text-sm font-medium text-foreground">Hazard Rating</h3>
+        <div id={filtersPanelId} className="space-y-4 border-b border-border bg-muted/30 p-4">
+          <FilterGroup
+            title="Hazard rating"
+            caption={visualizationMode === 'hazard' ? `as of ${hazardDateLabel}` : 'current'}
+            onAll={() => filterActions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
+            onNone={() => filterActions.setHazardRatings([])}
+          >
             <FilterChipGroup
-              items={hazardOptions.map((hazard) => ({
+              variant="filled"
+              items={HAZARD_RATING_OPTIONS.map((hazard) => ({
                 value: hazard,
                 label: hazard,
-                count: stats?.byHazard?.[hazard] || 0,
+                count: hazardCounts[hazard] || 0,
                 color: hazardChipColors[hazard],
               }))}
               selectedValues={selectedHazardRatings}
               onToggle={toggleHazard}
               chipClassName="px-3 py-1"
             />
-          </div>
+          </FilterGroup>
 
-          {/* Facility Type Filter */}
-          <div>
-            <h3 className="mb-2 text-sm font-medium text-foreground">Facility Type</h3>
+          <FilterGroup
+            title="Facility type"
+            onAll={() => filterActions.setFacilityTypes([...FACILITY_TYPE_OPTIONS])}
+            onNone={() => filterActions.setFacilityTypes([])}
+          >
             <FilterChipGroup
-              items={facilityOptions.map((facility) => ({
-                value: facility,
-                label: facility,
-                count: stats?.byFacilityType?.[facility] || 0,
-                color: '#0ea5e9',
-              }))}
+              variant="filled"
+              items={FACILITY_TYPE_OPTIONS.filter((facility) => (stats?.byFacilityType?.[facility] || 0) > 0).map(
+                (facility) => ({
+                  value: facility,
+                  label: facility,
+                  count: stats?.byFacilityType?.[facility] || 0,
+                  color: '#0ea5e9',
+                }),
+              )}
               selectedValues={selectedFacilityTypes}
               onToggle={toggleFacility}
               chipClassName="px-3 py-1"
               showDot={false}
             />
-          </div>
+          </FilterGroup>
         </div>
       )}
 
-      {/* Selected restaurant detail */}
+      {/* Selected establishment */}
       {selectedRestaurant && (
-        <div className="hidden max-h-[40vh] shrink-0 flex-col border-b border-sky-300/60 bg-sky-50 dark:border-sky-800/60 dark:bg-sky-950/30 md:flex">
-          <SelectedItemCard
-            tone="sky"
-            title="Selected"
-            onClear={onClearSelection}
-            actions={
-              <button
-                onClick={onOpenInspectionPanel}
-                className="rounded-lg bg-sky-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-sky-700"
-              >
-                View Inspections
-              </button>
-            }
-            className="m-3 shrink-0"
-          />
-          <div className="overflow-y-auto px-3 min-h-0 flex-1">
-            <RestaurantCard restaurant={selectedRestaurant} expanded visualizationMode={visualizationMode} />
+        <div
+          ref={selectedCardRef}
+          className="hidden border-b border-sky-300/60 bg-sky-50 p-3 dark:border-sky-800/60 dark:bg-sky-950/30 md:block"
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">Selected</span>
+            <button
+              type="button"
+              onClick={onClearSelection}
+              aria-label="Clear selection"
+              className="rounded p-0.5 text-sky-700 transition-colors hover:bg-sky-100 hover:text-foreground dark:text-sky-300 dark:hover:bg-sky-900/50"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
+          <RestaurantCard
+            restaurant={selectedRestaurant}
+            expanded
+            visualizationMode={visualizationMode}
+            className="p-0"
+          />
+          <button
+            type="button"
+            onClick={onOpenInspectionPanel}
+            className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+          >
+            Inspection history
+          </button>
         </div>
       )}
 
-      {/* Loading state */}
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-muted-foreground">Loading restaurants...</div>
-        </div>
-      ) : error ? (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-red-500 text-center">
-            <p className="font-medium">Error loading data</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-            <span>{restaurants.length} restaurants</span>
-            <span className="text-muted-foreground">Click for details</span>
-          </div>
-          <VirtualResultList items={restaurants} getKey={(restaurant) => restaurant.details_url} estimateSize={108} label="Restaurants">
-            {(restaurant) => (
-              <RestaurantCard
-                key={restaurant.details_url}
-                restaurant={restaurant}
-                isSelected={selectedRestaurant?.details_url === restaurant.details_url}
-                visualizationMode={visualizationMode}
-                onClick={() => onRestaurantClick(restaurant)}
-              />
-            )}
-          </VirtualResultList>
-        </div>
-      )}
+      {/* Results */}
+      <ListState
+        loading={loading}
+        loadingLabel="Loading establishments..."
+        error={error}
+        errorTitle="Could not load inspections"
+        empty={restaurants.length === 0}
+        emptyLabel="No establishments match these filters."
+        onReset={hasActiveFilters ? onResetFilters : undefined}
+      >
+        <VirtualResultList items={restaurants} getKey={(restaurant) => restaurant.details_url} estimateSize={96} label="Establishments">
+          {(restaurant) => (
+            <RestaurantCard
+              key={restaurant.details_url}
+              restaurant={restaurant}
+              isSelected={selectedRestaurant?.details_url === restaurant.details_url}
+              visualizationMode={visualizationMode}
+              onClick={() => onRestaurantClick(restaurant)}
+            />
+          )}
+        </VirtualResultList>
+      </ListState>
     </MapSidebarShell>
   )
 }

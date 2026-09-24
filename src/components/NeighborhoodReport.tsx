@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { X, MapPin, UtensilsCrossed, Trees, Wind, Loader2 } from 'lucide-react'
+import { MapPin, UtensilsCrossed, Trees, Wind, Loader2 } from 'lucide-react'
+import { MapFloatingPanel } from '@/components/ui/map-overlays'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { cn } from '@/lib/utils'
 import { haversineKm } from '@/lib/geo'
 
@@ -132,58 +134,60 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
     return () => { cancelled = true }
   }, [lat, lng])
 
+  // z-30 keeps the report above the explorer's z-20 map overlays.
   return (
-    <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] left-4 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur md:bottom-6 md:left-auto md:right-72 md:w-80">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Neighborhood Report</h3>
-        </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <MapFloatingPanel
+      position="bottom-left"
+      className="left-4 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background/95 px-4 py-3 shadow-2xl backdrop-blur md:bottom-6 md:left-auto md:right-72 md:w-80"
+    >
+      <MapPopupCard
+        title={(
+          <span className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            Neighborhood Report
+          </span>
+        )}
+        subtitle={`${lat.toFixed(4)}, ${lng.toFixed(4)}`}
+        onClose={onClose}
+        closeLabel="Close neighborhood report"
+      >
+        {data.loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="-mr-2 max-h-72 space-y-3 overflow-y-auto pr-2 pt-1">
+            {/* Restaurants */}
+            <ReportSection
+              icon={UtensilsCrossed}
+              iconColor="text-orange-500"
+              title="Food Safety"
+              stat={`${data.restaurants.total} within 2 km`}
+              detail={`${data.restaurants.lowCount} Low / ${data.restaurants.moderateCount} Moderate`}
+              items={data.restaurants.nearest}
+            />
 
-      <div className="px-4 py-1 text-xs text-muted-foreground">
-        {lat.toFixed(4)}, {lng.toFixed(4)}
-      </div>
+            {/* Parks */}
+            <ReportSection
+              icon={Trees}
+              iconColor="text-green-500"
+              title="Parks"
+              stat={`${data.parks.total} within 3 km`}
+              items={data.parks.nearest}
+            />
 
-      {data.loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <div className="max-h-72 space-y-3 overflow-y-auto p-4 pt-2">
-          {/* Restaurants */}
-          <ReportSection
-            icon={UtensilsCrossed}
-            iconColor="text-orange-500"
-            title="Food Safety"
-            stat={`${data.restaurants.total} within 2 km`}
-            detail={`${data.restaurants.lowCount} Low / ${data.restaurants.moderateCount} Moderate`}
-            items={data.restaurants.nearest}
-          />
-
-          {/* Parks */}
-          <ReportSection
-            icon={Trees}
-            iconColor="text-green-500"
-            title="Parks"
-            stat={`${data.parks.total} within 3 km`}
-            items={data.parks.nearest}
-          />
-
-          {/* Air Quality */}
-          <ReportSection
-            icon={Wind}
-            iconColor="text-sky-500"
-            title="Air Monitors"
-            stat={`${data.airMonitors.total} within 10 km`}
-            items={data.airMonitors.nearest}
-          />
-        </div>
-      )}
-    </div>
+            {/* Air Quality */}
+            <ReportSection
+              icon={Wind}
+              iconColor="text-sky-500"
+              title="Air Monitors"
+              stat={`${data.airMonitors.total} within 10 km`}
+              items={data.airMonitors.nearest}
+            />
+          </div>
+        )}
+      </MapPopupCard>
+    </MapFloatingPanel>
   )
 }
 

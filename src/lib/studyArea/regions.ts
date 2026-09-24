@@ -447,7 +447,14 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
     return sortedRegions
   }
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
+  return loadFileRegions('census', level, CENSUS_FILE_BY_LEVEL[level], signal)
+}
+
+async function loadFileRegions(source: BoundarySource, level: RegionLevel, path: string, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+  const cacheKey = `${source}:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+  const geometry = await fetchJson<BoundaryFeatureCollection>(path, signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -463,10 +470,10 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
       const bounds = bbox(feature) as [number, number, number, number]
 
       return {
-        id: `census:${level}:${code}`,
+        id: `${source}:${level}:${code}`,
         code,
         name: displayName,
-        source: 'census',
+        source,
         level,
         feature,
         bounds,
@@ -949,6 +956,12 @@ export async function loadStudyAreaRegions(
   level: RegionLevel,
   signal?: AbortSignal,
 ): Promise<StudyAreaRegion[]> {
+  if (source === 'postal') {
+    if (level !== 'fsa' && level !== 'postalRegion' && level !== 'postalPrefix2') throw new Error(`Invalid postal boundary level: ${level}`)
+    const file = level === 'fsa' ? 'bc_fsa_2021' : level === 'postalPrefix2' ? 'bc_postal_prefix2_2021' : 'bc_postal_region_2021'
+    return loadFileRegions(source, level, `/data/boundaries/StatCan/${file}.geojson.gz`, signal)
+  }
+
   if (source === 'bcHealth') {
     if (!isHealthBoundaryLevel(level)) {
       throw new Error(`Invalid health boundary level: ${level}`)

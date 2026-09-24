@@ -1,9 +1,15 @@
 import bbox from '@turf/bbox'
-import { Filter, MapPin, RadioTower, Search, ShieldAlert, X } from 'lucide-react'
+import { Filter, MapPin, RadioTower, Search, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Map, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { InlineAlert, KeyValueRows, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ToggleRow } from '@/components/ui/toggle-row'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 type FalloutProperties = {
@@ -146,137 +152,121 @@ function DevFallout() {
   }, [lineData])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <ShieldAlert className="size-4" />
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title="Fallout posts & shelters"
+      subtitle="Imported from the Google My Maps KML export for Canadian fallout reporting posts and nuclear shelter references."
+      icon={ShieldAlert}
+    >
+      {error && (
+        <div className="border-b border-border p-4">
+          <InlineAlert tone="error" className="text-sm">{error}</InlineAlert>
+        </div>
+      )}
+
+      <SidebarSection>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={3}
+          items={[
+            { label: 'Total', value: formatNumber(totalFeatures), loading },
+            { label: 'Points', value: formatNumber(pointData.features.length) },
+            { label: 'Lines', value: formatNumber(lineData.features.length) },
+          ]}
+        />
+      </SidebarSection>
+
+      <SidebarSection title="Search" icon={Search}>
+        <SearchInput
+          icon
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
+          placeholder="Name, notes, province..."
+          aria-label="Search fallout features"
+        />
+      </SidebarSection>
+
+      <SidebarSection title="Filters" icon={Filter}>
+        <div className="space-y-3">
+          <div>
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Province or region</span>
+            <AppSelect
+              value={province}
+              onValueChange={setProvince}
+              options={provinces.map((item) => ({ value: item, label: item }))}
+              triggerAriaLabel="Province or region"
+              className="w-full"
+              triggerClassName="h-9 rounded-md text-sm"
+            />
           </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-tight">Fallout posts &amp; shelters</h1>
-            <p className="mt-1 text-xs leading-4 text-muted-foreground">
-              Imported from the Google My Maps KML export for Canadian fallout reporting posts and nuclear shelter references.
-            </p>
+
+          <div>
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Feature type</span>
+            <AppSelect
+              value={featureType}
+              onValueChange={setFeatureType}
+              options={featureTypes.map((item) => ({ value: item, label: item }))}
+              triggerAriaLabel="Feature type"
+              className="w-full"
+              triggerClassName="h-9 rounded-md text-sm"
+            />
           </div>
         </div>
-      </div>
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        <section className="grid grid-cols-3 gap-2">
-          <Stat label="Total" value={loading ? '...' : totalFeatures.toLocaleString()} />
-          <Stat label="Points" value={pointData.features.length.toLocaleString()} />
-          <Stat label="Lines" value={lineData.features.length.toLocaleString()} />
-        </section>
-
-        <section>
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <Search className="size-3" />
-            Search
-          </div>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Name, notes, province..."
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+      <SidebarSection title="Layers">
+        <div className="space-y-2">
+          <ToggleRow
+            active={showPoints}
+            label={<LayerLabel color="bg-red-500" active={showPoints}>Point placemarks</LayerLabel>}
+            trailing={<span className="text-muted-foreground">{formatNumber(pointData.features.length)}</span>}
+            onClick={() => setShowPoints((current) => !current)}
           />
-        </section>
+          <ToggleRow
+            active={showLines}
+            label={<LayerLabel color="bg-amber-400" active={showLines}>Communication lines</LayerLabel>}
+            trailing={<span className="text-muted-foreground">{formatNumber(lineData.features.length)}</span>}
+            onClick={() => setShowLines((current) => !current)}
+          />
+        </div>
+      </SidebarSection>
 
-        <section className="space-y-3 border-t border-border pt-4">
-          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <Filter className="size-3" />
-            Filters
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Province or region</span>
-            <select
-              value={province}
-              onChange={(event) => setProvince(event.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+      <SidebarSection title="Visible results">
+        <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
+          {filteredFeatures.slice(0, 80).map((feature) => (
+            <button
+              key={feature.properties.id}
+              type="button"
+              onClick={() => setSelected(feature as FalloutFeature)}
+              className={cn(
+                'w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-muted',
+                selected?.properties.id === feature.properties.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
+              )}
             >
-              {provinces.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Feature type</span>
-            <select
-              value={featureType}
-              onChange={(event) => setFeatureType(event.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
-            >
-              {featureTypes.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-        </section>
-
-        <section className="space-y-2 border-t border-border pt-4">
-          <LayerToggle
-            checked={showPoints}
-            label="Point placemarks"
-            count={pointData.features.length}
-            colorClass="bg-red-500"
-            onChange={() => setShowPoints((current) => !current)}
-          />
-          <LayerToggle
-            checked={showLines}
-            label="Communication lines"
-            count={lineData.features.length}
-            colorClass="bg-amber-400"
-            onChange={() => setShowLines((current) => !current)}
-          />
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <h2 className="mb-2 text-sm font-semibold">Visible results</h2>
-          <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
-            {filteredFeatures.slice(0, 80).map((feature) => (
-              <button
-                key={feature.properties.id}
-                type="button"
-                onClick={() => setSelected(feature as FalloutFeature)}
-                className={cn(
-                  'w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-muted',
-                  selected?.properties.id === feature.properties.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
-                )}
-              >
-                <div className="truncate text-xs font-semibold">{feature.properties.name}</div>
-                <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {feature.properties.province} · {feature.properties.featureType}
-                </div>
-              </button>
-            ))}
-            {filteredFeatures.length > 80 && (
-              <div className="px-1 pt-1 text-xs text-muted-foreground">
-                Showing first 80 of {filteredFeatures.length.toLocaleString()} filtered features.
+              <div className="truncate text-xs font-semibold">{feature.properties.name}</div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                {feature.properties.province} · {feature.properties.featureType}
               </div>
-            )}
-          </div>
-        </section>
-      </div>
-    </aside>
+            </button>
+          ))}
+          {filteredFeatures.length > 80 && (
+            <div className="px-1 pt-1 text-xs text-muted-foreground">
+              Showing first 80 of {formatNumber(filteredFeatures.length)} filtered features.
+            </div>
+          )}
+        </div>
+      </SidebarSection>
+    </MapSidebarShell>
   )
 
   return (
     <MapSectionLayout
       desktopSidebarWidth={360}
       mobileInitialSheetState="collapsed"
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">{filteredFeatures.length.toLocaleString()} fallout features</div>
-          <div className="truncate text-xs text-muted-foreground">{province === 'All' ? 'Canada' : province}</div>
-        </div>
-      )}
+      mobilePeekTitle={`${formatNumber(filteredFeatures.length)} fallout features`}
+      mobilePeekSubtitle={province === 'All' ? 'Canada' : province}
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -342,74 +332,38 @@ function DevFallout() {
   )
 }
 
-function LayerToggle({
-  checked,
-  label,
-  count,
-  colorClass,
-  onChange,
-}: {
-  checked: boolean
-  label: string
-  count: number
-  colorClass: string
-  onChange: () => void
-}) {
+function LayerLabel({ color, active, children }: { color: string; active: boolean; children: string }) {
   return (
-    <button
-      type="button"
-      onClick={onChange}
-      aria-pressed={checked}
-      className={cn(
-        'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
-        checked ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background text-muted-foreground',
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <span className={cn('size-2.5 rounded-full', checked ? colorClass : 'bg-muted-foreground/40')} />
-        <span className="truncate font-medium">{label}</span>
-      </span>
-      <span className="text-xs text-muted-foreground">{count.toLocaleString()}</span>
-    </button>
+    <span className="flex min-w-0 items-center gap-2">
+      <span className={cn('size-2.5 shrink-0 rounded-full', active ? color : 'bg-muted-foreground/40')} aria-hidden="true" />
+      <span className="truncate">{children}</span>
+    </span>
   )
 }
 
 function FeaturePopup({ feature, onClose }: { feature: FalloutFeature; onClose: () => void }) {
   const description = feature.properties.description
   return (
-    <div className="w-72 overflow-hidden rounded-md bg-popover text-popover-foreground">
-      <div className="flex items-start justify-between gap-3 border-b border-border px-3 py-2">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase text-muted-foreground">{feature.properties.featureType}</div>
-          <div className="mt-0.5 line-clamp-2 text-sm font-semibold">{feature.properties.name}</div>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close popup">
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="space-y-2 px-3 py-2 text-sm">
-        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-          <span className="text-muted-foreground">Province</span>
-          <span className="font-medium">{feature.properties.province}</span>
-          <span className="text-muted-foreground">Geometry</span>
-          <span className="font-medium">{feature.geometry.type}</span>
-        </div>
-        {description && (
-          <p className="max-h-40 overflow-y-auto whitespace-pre-line border-t border-border pt-2 text-xs leading-5 text-muted-foreground">
-            {description}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold">{value}</div>
-    </div>
+    <MapPopupCard
+      className="w-64"
+      eyebrow={feature.properties.featureType}
+      title={<span className="line-clamp-2">{feature.properties.name}</span>}
+      onClose={onClose}
+      closeLabel="Close popup"
+    >
+      <KeyValueRows
+        variant="grid"
+        rows={[
+          { label: 'Province', value: feature.properties.province },
+          { label: 'Geometry', value: feature.geometry.type },
+        ]}
+      />
+      {description && (
+        <p className="max-h-40 overflow-y-auto whitespace-pre-line border-t border-border pt-2 text-xs leading-5 text-muted-foreground">
+          {description}
+        </p>
+      )}
+    </MapPopupCard>
   )
 }
 

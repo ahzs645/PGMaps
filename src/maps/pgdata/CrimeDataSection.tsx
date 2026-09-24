@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
+import { formatNumber } from '@/lib/format'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
@@ -162,7 +163,7 @@ export default function CrimeDataSection() {
 
   return (
     <MapSectionLayout
-      mobilePeekTitle={<>PG Data | {filteredIncidents.length.toLocaleString()} incidents</>}
+      mobilePeekTitle={<>PG Data · {formatNumber(filteredIncidents.length)} incidents</>}
       mobilePeekSubtitle={<>{visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}</>}
       sidebar={
         <CrimeSidebar

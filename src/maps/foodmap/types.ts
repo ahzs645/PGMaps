@@ -59,6 +59,7 @@ export type EstablishmentType =
 export type VisualizationMode = 'violations' | 'hazard'
 export type MarkerStyle = 'classic' | 'rings' | 'glow' | 'badges' | 'heat' | 'cluster'
 export type ViolationTimelineMode = 'period' | 'cumulative'
+export type FoodSortOrder = 'name' | 'violations' | 'recent'
 
 export interface Restaurant {
   name: string

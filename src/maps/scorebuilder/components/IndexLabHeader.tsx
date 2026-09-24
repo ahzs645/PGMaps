@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   Undo2,
 } from 'lucide-react'
+import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 
@@ -135,6 +136,25 @@ export function IndexLabHeader({
   )
 }
 
+const CYAN_ACTIVE = 'bg-cyan-500 text-white'
+
+const LAB_VIEW_OPTIONS = [
+  {
+    value: 'build',
+    label: 'Build',
+    icon: Hammer,
+    title: 'Build view — compose the index full-width',
+    activeClassName: CYAN_ACTIVE,
+  },
+  {
+    value: 'explore',
+    label: 'Explore',
+    icon: MapIcon,
+    title: 'Explore view — map-first with regions, density, and correlate',
+    activeClassName: CYAN_ACTIVE,
+  },
+] as const satisfies readonly SegmentedOption<'build' | 'explore'>[]
+
 /** Segmented Build / Explore switch shared by both modes' headers. */
 export function ViewModeToggle({
   mode,
@@ -148,40 +168,45 @@ export function ViewModeToggle({
   className?: string
 }) {
   return (
-    <div
-      role="group"
-      aria-label="Lab view"
-      className={cn('inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background', className)}
-    >
-      <button
-        type="button"
-        aria-pressed={mode === 'build'}
-        title="Build view — compose the index full-width"
-        onClick={mode === 'build' ? undefined : onSwitchToBuild}
-        className={cn(
-          'inline-flex items-center gap-1 px-2.5 text-xs font-medium transition-colors',
-          mode === 'build' ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <Hammer className="h-3.5 w-3.5" />
-        Build
-      </button>
-      <button
-        type="button"
-        aria-pressed={mode === 'explore'}
-        title="Explore view — map-first with regions, density, and correlate"
-        onClick={mode === 'explore' ? undefined : onSwitchToExplore}
-        className={cn(
-          'inline-flex items-center gap-1 border-l border-input px-2.5 text-xs font-medium transition-colors',
-          mode === 'explore' ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <MapIcon className="h-3.5 w-3.5" />
-        Explore
-      </button>
-    </div>
+    <SegmentedControl
+      value={mode}
+      options={LAB_VIEW_OPTIONS}
+      onChange={(next) => {
+        if (next === mode) return
+        if (next === 'build') onSwitchToBuild?.()
+        else onSwitchToExplore?.()
+      }}
+      label="Lab view"
+      size="sm"
+      variant="solid"
+      fullWidth={false}
+      className={className}
+    />
   )
 }
+
+const MAP_LENS_OPTIONS = [
+  {
+    value: 'score',
+    label: 'Score',
+    title: 'Score lens — map colored by the composite index',
+    activeClassName: CYAN_ACTIVE,
+  },
+  {
+    value: 'density',
+    label: 'Density',
+    icon: Flame,
+    title: 'Density lens — map painted by a single metric',
+    activeClassName: 'bg-amber-500 text-white',
+  },
+  {
+    value: 'correlate',
+    label: 'Correlate',
+    icon: Activity,
+    title: 'Correlate lens — map shows the relationship between two metrics',
+    activeClassName: CYAN_ACTIVE,
+  },
+] as const satisfies readonly SegmentedOption<MapLens>[]
 
 /** Score / Density / Correlate map-lens segment. Shared by the desktop header and the phone strip. */
 export function MapLensToggle({
@@ -195,59 +220,18 @@ export function MapLensToggle({
   size?: 'sm' | 'lg'
   className?: string
 }) {
-  const buttonClass = size === 'lg' ? 'min-h-10 px-3 text-xs font-medium' : 'px-2.5 text-xs font-medium'
   return (
-    <div
-      role="group"
-      aria-label="Map lens"
-      className={cn(
-        'inline-flex items-stretch overflow-hidden rounded-md border border-input bg-background',
-        size === 'lg' ? 'shadow-sm backdrop-blur' : 'h-8',
-        className,
-      )}
-    >
-      <button
-        type="button"
-        aria-pressed={lens === 'score'}
-        title="Score lens — map colored by the composite index"
-        onClick={() => onLensChange('score')}
-        className={cn(
-          'inline-flex items-center transition-colors',
-          buttonClass,
-          lens === 'score' ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        Score
-      </button>
-      <button
-        type="button"
-        aria-pressed={lens === 'density'}
-        title="Density lens — map painted by a single metric"
-        onClick={() => onLensChange('density')}
-        className={cn(
-          'inline-flex items-center gap-1 border-l border-input transition-colors',
-          buttonClass,
-          lens === 'density' ? 'bg-amber-500 text-white' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <Flame className="h-3.5 w-3.5" />
-        Density
-      </button>
-      <button
-        type="button"
-        aria-pressed={lens === 'correlate'}
-        title="Correlate lens — map shows the relationship between two metrics"
-        onClick={() => onLensChange('correlate')}
-        className={cn(
-          'inline-flex items-center gap-1 border-l border-input transition-colors',
-          buttonClass,
-          lens === 'correlate' ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <Activity className="h-3.5 w-3.5" />
-        Correlate
-      </button>
-    </div>
+    <SegmentedControl
+      value={lens}
+      options={MAP_LENS_OPTIONS}
+      onChange={onLensChange}
+      label="Map lens"
+      // The phone strip floats over the map, so it gets the larger hit area and a lift.
+      size={size === 'lg' ? 'md' : 'sm'}
+      variant="solid"
+      fullWidth={false}
+      className={cn(size === 'lg' && 'shadow-sm backdrop-blur', className)}
+    />
   )
 }
 
@@ -285,7 +269,10 @@ function ExportMenu({ onExport }: { onExport: (format: ScoreBuilderExportFormat)
         <Download className="h-4 w-4" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-9 z-30 w-44 rounded-md border border-border bg-background p-1 shadow-lg">
+        <div
+          role="menu"
+          className="absolute right-0 top-9 z-30 w-44 rounded-md border border-border bg-background p-1 shadow-lg"
+        >
           {EXPORT_FORMATS.map(([format, label]) => (
             <button
               key={format}

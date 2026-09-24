@@ -61,6 +61,7 @@ export type BoundarySource =
   | 'regionalDistrict'
   | 'bcMunicipality'
   | 'census'
+  | 'postal'
   | 'cityCommunity'
   | 'cityPG'
   | 'watershed'
@@ -78,6 +79,7 @@ export type BoundarySource =
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
 export type MunicipalityBoundaryLevel = 'municipality'
+export type PostalBoundaryLevel = 'postalRegion' | 'postalPrefix2' | 'fsa'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'northSouthCsd' | 'ct' | 'da' | 'db' | 'bcDaSimplified'
 export type CommunityBoundaryLevel = 'communityPolygon'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
@@ -111,6 +113,7 @@ export type RegionLevel =
   | RegionalDistrictBoundaryLevel
   | MunicipalityBoundaryLevel
   | CensusBoundaryLevel
+  | PostalBoundaryLevel
   | CommunityBoundaryLevel
   | CityBoundaryLevel
   | WatershedBoundaryLevel

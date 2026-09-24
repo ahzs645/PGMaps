@@ -1,16 +1,24 @@
-import { useMemo } from 'react'
-import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { useMemo, useRef } from 'react'
 import { Download } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
 import {
   FilterChipGroup,
+  InlineAlert,
   MapSidebarShell,
   SearchInput,
   SelectedItemCard,
   SidebarSection,
+  ToggleChip,
 } from '@/components/ui/map-panels'
+import { ListState, ResultRow } from '@/components/ui/result-list'
+import { StatGroup } from '@/components/ui/stat-group'
+import { StickyListToolbar, useRevealBelowSticky } from '@/components/ui/sticky-list-toolbar'
+import { SelectAllActions, TextButton } from '@/components/ui/text-button'
+import { ToggleRow } from '@/components/ui/toggle-row'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { DATASETS } from '@/lib/dataCatalog'
+import { formatNumber } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { GEOMETRY_TYPE_LABEL, RELEVANCE_DESCRIPTION } from '../constants'
 import type {
   ExplorerDatasetId,
@@ -19,6 +27,7 @@ import type {
   ExplorerItem,
   SpatialFilter,
 } from '../types'
+import { ExplorerItemDetails, formatRelevance, formatRelevanceBreakdown } from './ExplorerItemDetails'
 
 interface ExplorerSidebarProps {
   className?: string
@@ -46,11 +55,6 @@ interface ExplorerSidebarProps {
   onExport: (format: 'csv' | 'geojson') => void
   showHeatmap: boolean
   onToggleHeatmap: () => void
-}
-
-
-export function formatRelevance(value: number): string {
-  return `${Math.round(value)}`
 }
 
 export function ExplorerSidebar({
@@ -81,6 +85,8 @@ export function ExplorerSidebar({
   onToggleHeatmap,
 }: ExplorerSidebarProps) {
   const datasetSet = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const selectedCardRef = useRef<HTMLDivElement>(null)
 
   const geometryCounts = useMemo(
     () => ({
@@ -91,6 +97,12 @@ export function ExplorerSidebar({
     [items],
   )
 
+  // Picking an item on the map inserts its card above the list, out of view
+  // if the list was scrolled. Bring it in under the toolbar.
+  useRevealBelowSticky(toolbarRef, selectedCardRef, selectedItem?.id)
+
+  const exportButtonClass =
+    'inline-flex items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground touch:min-h-10 touch:min-w-10'
 
   return (
     <MapSidebarShell
@@ -99,19 +111,9 @@ export function ExplorerSidebar({
       subtitle="Showcase all point, line, and polygon datasets in one map."
       dataset={DATASETS.explorer}
       actions={
-        <button
-          type="button"
-          onClick={onToggleHeatmap}
-          aria-pressed={showHeatmap}
-          className={cn(
-            'inline-flex min-h-10 items-center justify-center rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8',
-            showHeatmap
-              ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
-              : 'border-input text-muted-foreground hover:bg-muted hover:text-foreground',
-          )}
-        >
+        <ToggleChip active={showHeatmap} onClick={onToggleHeatmap} tone="orange" className="font-medium touch:min-h-10">
           {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
-        </button>
+        </ToggleChip>
       }
     >
       {/* Geometry filters */}
@@ -128,70 +130,125 @@ export function ExplorerSidebar({
           selectedClassName="border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100"
           chipClassName="justify-center rounded border px-2 py-1.5 font-medium"
         />
-        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
-          <div>{geometryCounts.point.toLocaleString()} points</div>
-          <div>{geometryCounts.line.toLocaleString()} lines</div>
-          <div>{geometryCounts.polygon.toLocaleString()} polygons</div>
-        </div>
+        <StatGroup
+          className="mt-2"
+          items={[
+            { label: 'points', value: formatNumber(geometryCounts.point), valueClassName: 'text-sm md:text-sm' },
+            { label: 'lines', value: formatNumber(geometryCounts.line), valueClassName: 'text-sm md:text-sm' },
+            { label: 'polygons', value: formatNumber(geometryCounts.polygon), valueClassName: 'text-sm md:text-sm' },
+          ]}
+        />
       </SidebarSection>
 
       {/* Datasets */}
-      <SidebarSection
-        title="Datasets"
-        actions={
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              onClick={onSelectAllDatasets}
-              className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
-            >
-              All
-            </button>
-            <button onClick={onClearDatasets} className="text-muted-foreground hover:text-foreground">
-              None
-            </button>
-          </div>
-        }
-      >
+      <SidebarSection title="Datasets" actions={<SelectAllActions onAll={onSelectAllDatasets} onNone={onClearDatasets} />}>
         <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
           {datasetStats.map((stat) => {
             const active = datasetSet.has(stat.dataset.id)
             return (
-              <button
+              <ToggleRow
                 key={stat.dataset.id}
+                active={active}
+                tone="cyan"
                 onClick={() => onToggleDataset(stat.dataset.id)}
-                className={cn(
-                  'w-full rounded-md border px-2 py-2 text-left text-xs transition-colors',
-                  active
-                    ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stat.dataset.color }} />
-                    <span className="font-medium">{stat.dataset.label}</span>
-                  </div>
-                  <span>{active ? stat.count.toLocaleString() : 'Off'}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span>{GEOMETRY_TYPE_LABEL[stat.dataset.geometryType]}</span>
-                  <span>{active ? `avg relevance ${formatRelevance(stat.averageRelevance)}` : 'click to load'}</span>
-                </div>
-              </button>
+                leading={
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: stat.dataset.color }}
+                    aria-hidden="true"
+                  />
+                }
+                label={stat.dataset.label}
+                description={`${GEOMETRY_TYPE_LABEL[stat.dataset.geometryType]} · ${
+                  active ? `avg relevance ${formatRelevance(stat.averageRelevance)}` : 'click to load'
+                }`}
+                trailing={<span className="tabular-nums">{active ? formatNumber(stat.count) : 'Off'}</span>}
+              />
             )
           })}
         </div>
       </SidebarSection>
 
-      {/* Search, sort, temporal, spatial, export */}
+      {/* Temporal, spatial, export */}
       <SidebarSection className="space-y-2">
-        <div className="flex items-center gap-2">
+        {/* Temporal filter */}
+        <div className="flex items-center gap-2 text-xs">
+          <label className="text-muted-foreground whitespace-nowrap">Date range:</label>
+          <input
+            type="date"
+            value={dateRange.from}
+            onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value })}
+            aria-label="From date"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500 touch:h-10"
+          />
+          <span className="text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={dateRange.to}
+            onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value })}
+            aria-label="To date"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500 touch:h-10"
+          />
+          {(dateRange.from || dateRange.to) && (
+            <TextButton tone="muted" onClick={() => onDateRangeChange({ from: '', to: '' })}>
+              Clear
+            </TextButton>
+          )}
+        </div>
+
+        {/* Spatial filter indicator */}
+        {spatialFilter && (
+          <div className="flex items-center justify-between rounded-md border border-cyan-300/50 bg-cyan-50 px-2 py-1.5 text-xs dark:border-cyan-900/60 dark:bg-cyan-950/25">
+            <span className="text-cyan-800 dark:text-cyan-200">Spatial filter active (draw on map)</span>
+            <TextButton onClick={onClearSpatialFilter} className="text-cyan-600 hover:text-cyan-800 dark:text-cyan-400">
+              Clear
+            </TextButton>
+          </div>
+        )}
+
+        {/* Export + relevance info */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="line-clamp-2 min-w-0 text-xs text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
+            {RELEVANCE_DESCRIPTION}
+          </div>
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              onClick={() => onExport('csv')}
+              title="Export CSV"
+              aria-label="Export CSV"
+              className={cn(exportButtonClass, 'p-1.5')}
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onExport('geojson')}
+              title="Export GeoJSON"
+              aria-label="Export GeoJSON"
+              className={cn(exportButtonClass, 'px-1.5 py-1 text-xs font-medium')}
+            >
+              .geo
+            </button>
+          </div>
+        </div>
+      </SidebarSection>
+
+      {/* Search and sort stay reachable while the list scrolls. */}
+      <StickyListToolbar
+        ref={toolbarRef}
+        search={
           <SearchInput
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
+            onClear={() => onSearchQueryChange('')}
+            icon
             placeholder="Search names, IDs, subtitles..."
-            className="flex-1 text-xs focus:ring-cyan-500"
+            aria-label="Search explorer items"
+            className="focus:ring-cyan-500"
           />
+        }
+        sort={
           <AppSelect
             value={sortMode}
             onValueChange={(value) => onSortModeChange(value as 'relevance' | 'name')}
@@ -200,162 +257,69 @@ export function ExplorerSidebar({
               { value: 'name', label: 'Name' },
             ]}
             className="w-32"
-            triggerClassName="h-9 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500"
+            triggerAriaLabel="Sort explorer items"
+            triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-cyan-500 touch:h-10"
           />
-        </div>
-
-        {/* Temporal filter */}
-        <div className="flex items-center gap-2 text-xs">
-          <label className="text-muted-foreground whitespace-nowrap">Date range:</label>
-          <input
-            type="date"
-            value={dateRange.from}
-            onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value })}
-            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
-          <span className="text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={dateRange.to}
-            onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value })}
-            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
-          {(dateRange.from || dateRange.to) && (
-            <button
-              onClick={() => onDateRangeChange({ from: '', to: '' })}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Spatial filter indicator */}
-        {spatialFilter && (
-          <div className="flex items-center justify-between rounded-md border border-cyan-300/50 bg-cyan-50 px-2 py-1.5 text-xs dark:border-cyan-900/60 dark:bg-cyan-950/25">
-            <span className="text-cyan-800 dark:text-cyan-200">Spatial filter active (draw on map)</span>
-            <button onClick={onClearSpatialFilter} className="text-cyan-600 hover:text-cyan-800 dark:text-cyan-400">
-              Clear
-            </button>
-          </div>
-        )}
-
-        {/* Export + relevance info */}
-        <div className="flex items-center justify-between">
-          <div className="line-clamp-2 min-w-0 text-xs text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
-            {RELEVANCE_DESCRIPTION}
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => onExport('csv')}
-              title="Export CSV"
-              className="rounded border border-input p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => onExport('geojson')}
-              title="Export GeoJSON"
-              className="rounded border border-input px-1.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              .geo
-            </button>
-          </div>
-        </div>
-      </SidebarSection>
+        }
+        count={
+          !loading ? (
+            <>
+              {formatNumber(items.length)} {items.length === 1 ? 'item' : 'items'} visible
+            </>
+          ) : undefined
+        }
+      />
 
       {/* Selected item panel */}
       {selectedItem && (
-        <SidebarSection>
-          <SelectedItemCard
-            tone="cyan"
-            title={selectedItem.name}
-            subtitle={selectedItem.subtitle}
-            onClear={onClearSelection}
-          >
-            {/* Relevance with tooltip breakdown */}
-            <div className="group relative mb-2">
-              <div className="text-xs text-cyan-800 dark:text-cyan-200 cursor-help">
-                Relevance {formatRelevance(selectedItem.relevance)} / 100
-              </div>
-              <div className="absolute left-0 top-full z-30 mt-1 hidden w-56 rounded-lg border border-border bg-background p-2 shadow-lg group-hover:block">
-                <div className="text-xs font-semibold text-foreground mb-1">Score Breakdown</div>
-                {selectedItem.relevanceBreakdown.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{entry.label}</span>
-                    <span className="font-medium text-foreground">+{entry.points}</span>
-                  </div>
-                ))}
-                <div className="mt-1 border-t border-border pt-1 flex items-center justify-between text-xs font-semibold">
-                  <span>Total</span>
-                  <span>{formatRelevance(selectedItem.relevance)}</span>
-                </div>
-              </div>
-            </div>
+        <div ref={selectedCardRef}>
+          <SidebarSection>
+            <SelectedItemCard
+              tone="cyan"
+              title={selectedItem.name}
+              subtitle={selectedItem.subtitle}
+              onClear={onClearSelection}
+            >
+              <ExplorerItemDetails item={selectedItem} className="mt-2" />
+            </SelectedItemCard>
+          </SidebarSection>
+        </div>
+      )}
 
-            <div className="mb-2 text-xs text-cyan-800 dark:text-cyan-200">{selectedItem.summary}</div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs text-cyan-800 dark:text-cyan-300">
-              {selectedItem.details.slice(0, 8).map((detail) => (
-                <div key={`${selectedItem.id}-${detail.label}`}>
-                  <span className="font-medium">{detail.label}:</span> {detail.value}
-                </div>
-              ))}
-            </div>
-          </SelectedItemCard>
-        </SidebarSection>
+      {errors.length > 0 && (
+        <InlineAlert tone="warning" className="m-3">
+          {errors.map((error, index) => (
+            <div key={`${error}-${index}`}>{error}</div>
+          ))}
+        </InlineAlert>
       )}
 
       {/* Item list */}
-      {loading ? (
-        <div className="p-4 text-sm text-muted-foreground">Loading explorer datasets...</div>
-      ) : (
-        <div>
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-            <span>{items.length.toLocaleString()} items visible</span>
-          </div>
-
-          {errors.length > 0 && (
-            <div className="border-b border-border bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/25 dark:text-amber-200">
-              {errors.map((error, index) => (
-                <div key={`${error}-${index}`}>{error}</div>
-              ))}
-            </div>
+      <ListState
+        loading={loading}
+        loadingLabel="Loading explorer datasets..."
+        empty={items.length === 0}
+        emptyLabel="No items match these filters."
+        onReset={searchQuery ? () => onSearchQueryChange('') : undefined}
+        resetLabel="Clear search"
+      >
+        <VirtualResultList items={items} getKey={(item) => item.id} estimateSize={68} label="Explorer results">
+          {(item) => (
+            <ResultRow
+              accent="cyan"
+              selected={selectedItem?.id === item.id}
+              onClick={() => onSelectItem(item.id)}
+              title={item.name}
+              subtitle={item.subtitle}
+              trailing={
+                <span className="cursor-help text-xs text-cyan-700 dark:text-cyan-300" title={formatRelevanceBreakdown(item)}>
+                  {formatRelevance(item.relevance)}
+                </span>
+              }
+            />
           )}
-
-          <VirtualResultList items={items} getKey={(item) => item.id} estimateSize={68} label="Explorer results">
-            {(item) => {
-              const isSelected = selectedItem?.id === item.id
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onSelectItem(item.id)}
-                  className={cn(
-                    'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                    isSelected && 'bg-cyan-50 dark:bg-cyan-950/35',
-                  )}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="line-clamp-1 text-sm font-medium text-foreground">{item.name}</span>
-                    <span className="group/rel relative cursor-help text-xs font-semibold text-cyan-700 dark:text-cyan-300">
-                      {formatRelevance(item.relevance)}
-                      <span className="absolute right-0 top-full z-30 mt-1 hidden w-48 rounded border border-border bg-background p-2 shadow-lg group-hover/rel:block">
-                        {item.relevanceBreakdown.map((e, i) => (
-                          <span key={i} className="flex justify-between text-xs text-muted-foreground">
-                            <span>{e.label}</span>
-                            <span className="font-medium text-foreground">+{e.points}</span>
-                          </span>
-                        ))}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{item.subtitle}</div>
-                </button>
-              )
-            }}
-          </VirtualResultList>
-        </div>
-      )}
+        </VirtualResultList>
+      </ListState>
     </MapSidebarShell>
   )
 }

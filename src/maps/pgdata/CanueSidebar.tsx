@@ -1,7 +1,10 @@
 import { BarChart3, CalendarDays, Database } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { InlineAlert, SelectedItemCard, SidebarSection, ToggleChip } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { AppSelect } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { StatGroup } from '@/components/ui/stat-group'
+import { formatNumber } from '@/lib/format'
 import { formatNullableNumber, useJsonManifest } from './shared'
 import { CANUE_V2_ENABLED, listCanueV2Selections, type CanueV2Catalog, type CanueVariableSelection } from './canueV2'
 import {
@@ -30,6 +33,9 @@ import {
   type CanueV2MetadataLookup,
   type CanueYearMode,
 } from './canueCore'
+
+// The header chips carry an icon, so they need a row layout and a finger-sized height on touch screens.
+const CANUE_HEADER_CHIP_CLASS = 'inline-flex h-8 items-center gap-1.5 font-medium touch:h-9'
 
 type SelectOption = { value: string; label: React.ReactNode }
 type BoundaryDataStatus = {
@@ -211,41 +217,36 @@ export function CanueSidebar({
         levelSelectId="canue-study-area-level"
       />
 
-      <div className="border-b border-border p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Database className="h-4 w-4 shrink-0 text-cyan-600" />
-            <h2 className="truncate text-sm font-semibold text-foreground">CANUE Boundary Map</h2>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+      <SidebarSection
+        title="CANUE Boundary Map"
+        icon={Database}
+        iconClassName="shrink-0 text-cyan-600"
+        actions={
+          <>
             {canueTimelineAvailable && (
-              <button
-                type="button"
+              <ToggleChip
+                active={canueTimelineActive}
                 onClick={() => setCanueTimelineEnabled((current) => !current)}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors',
-                  canueTimelineActive
-                    ? 'border-cyan-600 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/30 dark:text-cyan-100'
-                    : 'border-input text-muted-foreground hover:text-foreground',
-                )}
-                aria-pressed={canueTimelineActive}
+                tone="cyan"
+                className={CANUE_HEADER_CHIP_CLASS}
               >
-                <CalendarDays className="h-3.5 w-3.5" />
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                 Timeline
-              </button>
+              </ToggleChip>
             )}
-            <button
-              type="button"
+            <ToggleChip
+              active={showCanueGraphs}
               onClick={() => setShowCanueGraphs((current) => !current)}
               disabled={!canueGraphsAvailable}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              aria-pressed={showCanueGraphs}
+              tone="cyan"
+              className={CANUE_HEADER_CHIP_CLASS}
             >
-              <BarChart3 className="h-3.5 w-3.5" />
+              <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
               Graphs
-            </button>
-          </div>
-        </div>
+            </ToggleChip>
+          </>
+        }
+      >
         {CANUE_V2_ENABLED && selectedCanueV2FamilyEntry && selectedCanueV2Layer && selectedCanueV2Selection && (
           <div className="mb-4 space-y-3 rounded-md border border-border bg-muted/15 p-3">
             <div>
@@ -314,38 +315,29 @@ export function CanueSidebar({
             {canueV2CadenceOptions.length > 1 && (
               <div className="block text-xs font-medium text-foreground">
                 Time scale
-                <div className="mt-1 grid grid-cols-2 rounded-md border border-input bg-background p-0.5">
-                  {canueV2CadenceOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        const nextSelections = selectedCanueV2GridVariableSelections.filter(
-                          (selection) => getCanueV2Cadence(selection) === option.value,
-                        )
-                        const nextSelection = getPreferredCanueV2Selection(nextSelections)
-                        setSelectedCanueV2Cadence(option.value)
-                        setSelectedCanueV2Measure(nextSelection ? getCanueV2MeasureKey(nextSelection) : null)
-                        setSelectedCanueV2Year(nextSelection?.year ?? null)
-                        setSelectedCanueV2Month(
-                          option.value === 'monthly' && nextSelection
-                            ? getCanueV2MonthKey(nextSelection.variable)
-                            : null,
-                        )
-                        setSelectedCanueV2Property(nextSelection?.property ?? null)
-                      }}
-                      className={cn(
-                        'h-7 rounded px-2 text-xs font-medium transition-colors',
-                        selectedCanueV2ResolvedCadence === option.value
-                          ? 'bg-cyan-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      aria-pressed={selectedCanueV2ResolvedCadence === option.value}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  label="Time scale"
+                  size="sm"
+                  className="mt-1"
+                  value={selectedCanueV2ResolvedCadence}
+                  options={canueV2CadenceOptions.map((option) => ({
+                    ...option,
+                    activeClassName: 'bg-cyan-600 text-white dark:bg-cyan-600',
+                  }))}
+                  onChange={(cadence) => {
+                    const nextSelections = selectedCanueV2GridVariableSelections.filter(
+                      (selection) => getCanueV2Cadence(selection) === cadence,
+                    )
+                    const nextSelection = getPreferredCanueV2Selection(nextSelections)
+                    setSelectedCanueV2Cadence(cadence)
+                    setSelectedCanueV2Measure(nextSelection ? getCanueV2MeasureKey(nextSelection) : null)
+                    setSelectedCanueV2Year(nextSelection?.year ?? null)
+                    setSelectedCanueV2Month(
+                      cadence === 'monthly' && nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null,
+                    )
+                    setSelectedCanueV2Property(nextSelection?.property ?? null)
+                  }}
+                />
               </div>
             )}
             {canueV2MeasureOptions.length > 1 && (
@@ -406,75 +398,51 @@ export function CanueSidebar({
                 />
               </label>
             )}
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {selectedCanueV2Layer.features.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground">grid cells</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {formatNullableNumber(selectedCanueV2Selection.min)}-
-                  {formatNullableNumber(selectedCanueV2Selection.max)}
-                </div>
-                <div className="text-xs text-muted-foreground">tile range</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {activeCanueBoundaryData.validBoundaryCount.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground">areas with values</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {canueV2AggregateData.validBoundaryCount > 0
-                    ? 'R2'
-                    : canuePmtilesBoundaryData.zoom == null
-                      ? '-'
-                      : `z${canuePmtilesBoundaryData.zoom}`}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {canueV2AggregateData.validBoundaryCount > 0
-                    ? 'aggregate'
-                    : `${canuePmtilesBoundaryData.tileCount.toLocaleString()} tiles${canuePmtilesBoundaryData.capped ? ' capped' : ''}`}
-                </div>
-              </div>
-            </div>
-            {activeCanueBoundaryData.loading && (
-              <div className="text-xs text-muted-foreground">Loading CANUE boundary averages...</div>
-            )}
-            {activeCanueBoundaryData.error && (
-              <div className="text-xs text-red-500">{activeCanueBoundaryData.error}</div>
-            )}
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={2}
+              items={[
+                { label: 'grid cells', value: formatNumber(selectedCanueV2Layer.features) },
+                {
+                  label: 'tile range',
+                  value: `${formatNullableNumber(selectedCanueV2Selection.min)}-${formatNullableNumber(selectedCanueV2Selection.max)}`,
+                },
+                { label: 'areas with values', value: formatNumber(activeCanueBoundaryData.validBoundaryCount) },
+                canueV2AggregateData.validBoundaryCount > 0
+                  ? { key: 'source', label: 'aggregate', value: 'R2' }
+                  : {
+                      key: 'source',
+                      label: `${formatNumber(canuePmtilesBoundaryData.tileCount)} tiles${canuePmtilesBoundaryData.capped ? ' capped' : ''}`,
+                      value: canuePmtilesBoundaryData.zoom == null ? '-' : `z${canuePmtilesBoundaryData.zoom}`,
+                    },
+              ]}
+            />
+            {activeCanueBoundaryData.loading && <InlineAlert loading>Loading CANUE boundary averages...</InlineAlert>}
+            {activeCanueBoundaryData.error && <InlineAlert tone="error">{activeCanueBoundaryData.error}</InlineAlert>}
             {!activeCanueBoundaryData.loading && activeCanueBoundaryData.validBoundaryCount > 0 && (
-              <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+              <InlineAlert>
                 {canueV2AggregateData.validBoundaryCount > 0
-                  ? `Using precomputed R2 aggregate values for ${canueBoundaryConfig.label}; ${canueV2AggregateData.matchedFeatureCount.toLocaleString()} grid-cell values are represented.`
-                  : `Experimental client-side score input from ${canuePmtilesBoundaryData.decodedFeatureCount.toLocaleString()} decoded tile features; ${canuePmtilesBoundaryData.matchedFeatureCount.toLocaleString()} matched to ${canueBoundaryConfig.label} boundaries by grid-cell centroid.`}
-              </div>
+                  ? `Using precomputed R2 aggregate values for ${canueBoundaryConfig.label}; ${formatNumber(canueV2AggregateData.matchedFeatureCount)} grid-cell values are represented.`
+                  : `Experimental client-side score input from ${formatNumber(canuePmtilesBoundaryData.decodedFeatureCount)} decoded tile features; ${formatNumber(canuePmtilesBoundaryData.matchedFeatureCount)} matched to ${canueBoundaryConfig.label} boundaries by grid-cell centroid.`}
+              </InlineAlert>
             )}
             {selectedCanueBoundary && (
-              <div className="rounded-md border border-border bg-background p-3 text-xs">
-                <div className="font-semibold text-foreground">
-                  {String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">
-                    {renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection))}
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {formatNullableNumber(
+              <SelectedItemCard
+                title={String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
+                rows={[
+                  {
+                    label: renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)),
+                    value: formatNullableNumber(
                       Number(selectedCanueBoundary.properties?.[selectedCanueV2Selection.property]),
-                    )}
-                  </span>
-                </div>
+                    ),
+                  },
+                ]}
+              >
                 <div className="mt-1 text-muted-foreground">
-                  {Number(selectedCanueBoundary.properties?.rowCount ?? 0).toLocaleString()} decoded grid features
+                  {formatNumber(Number(selectedCanueBoundary.properties?.rowCount ?? 0))} decoded grid features
                 </div>
-              </div>
+              </SelectedItemCard>
             )}
           </div>
         )}
@@ -612,55 +580,45 @@ export function CanueSidebar({
                 triggerClassName="h-8 rounded-md text-xs"
               />
             </label>
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {activeCanueBoundaryData.validBoundaryCount.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground">with values</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">
-                  {formatNullableNumber(activeCanueBoundaryData.minValue)}-
-                  {formatNullableNumber(activeCanueBoundaryData.maxValue)}
-                </div>
-                <div className="text-xs text-muted-foreground">sample range</div>
-              </div>
-            </div>
-            {activeCanueBoundaryData.loading && (
-              <div className="text-xs text-muted-foreground">Aggregating CANUE records...</div>
-            )}
-            {activeCanueBoundaryData.error && (
-              <div className="text-xs text-red-500">{activeCanueBoundaryData.error}</div>
-            )}
-            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={2}
+              items={[
+                { label: 'with values', value: formatNumber(activeCanueBoundaryData.validBoundaryCount) },
+                {
+                  label: 'sample range',
+                  value: `${formatNullableNumber(activeCanueBoundaryData.minValue)}-${formatNullableNumber(activeCanueBoundaryData.maxValue)}`,
+                },
+              ]}
+            />
+            {activeCanueBoundaryData.loading && <InlineAlert loading>Aggregating CANUE records...</InlineAlert>}
+            {activeCanueBoundaryData.error && <InlineAlert tone="error">{activeCanueBoundaryData.error}</InlineAlert>}
+            <InlineAlert>
               {renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? ''))} is
               aggregated in the browser from raw boundary-clipped CANUE records for {canuePeriodLabel}.
-            </div>
+            </InlineAlert>
             {selectedCanueBoundary && selectedCanueVariable && (
-              <div className="rounded-md border border-border bg-background p-3 text-xs">
-                <div className="font-semibold text-foreground">
-                  {String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">
-                    {renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable))}
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty]))}
-                  </span>
-                </div>
+              <SelectedItemCard
+                title={String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
+                rows={[
+                  {
+                    label: renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
+                    value: formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty])),
+                  },
+                ]}
+              >
                 <div className="mt-1 text-muted-foreground">
-                  {Number(selectedCanueBoundary.properties?.rowCount ?? 0).toLocaleString()} source records
+                  {formatNumber(Number(selectedCanueBoundary.properties?.rowCount ?? 0))} source records
                 </div>
-              </div>
+              </SelectedItemCard>
             )}
           </div>
         )}
-        {canueManifest.error && <div className="mb-2 text-xs text-red-500">{canueManifest.error}</div>}
-        {canueMembership.error && <div className="mb-2 text-xs text-red-500">{canueMembership.error}</div>}
-        {canueBoundaries.error && <div className="mb-2 text-xs text-red-500">{canueBoundaries.error}</div>}
-      </div>
+        {canueManifest.error && <InlineAlert tone="error" className="mt-2">{canueManifest.error}</InlineAlert>}
+        {canueMembership.error && <InlineAlert tone="error" className="mt-2">{canueMembership.error}</InlineAlert>}
+        {canueBoundaries.error && <InlineAlert tone="error" className="mt-2">{canueBoundaries.error}</InlineAlert>}
+      </SidebarSection>
     </>
   )
 }

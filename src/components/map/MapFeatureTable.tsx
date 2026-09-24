@@ -3,7 +3,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { SearchInput } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
 /** Row height in px. Fixed so the virtualizer can measure without a layout pass. */
@@ -531,6 +533,11 @@ function TableBody<TRow, TLayerId extends string>({
   )
 }
 
+const VIEW_MODE_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'visible', label: 'Visible' },
+] as const satisfies ReadonlyArray<{ value: MapFeatureTableViewMode; label: string }>
+
 /** Felt-style All/Visible segmented control. Maps onto the showOnlyInView flag. */
 function ViewModeToggle({
   showOnlyInView,
@@ -539,30 +546,16 @@ function ViewModeToggle({
   showOnlyInView: boolean
   onShowOnlyInViewChange?: (enabled: boolean) => void
 }) {
-  const options: Array<{ value: MapFeatureTableViewMode; label: string }> = [
-    { value: 'all', label: 'All' },
-    { value: 'visible', label: 'Visible' },
-  ]
-  const active: MapFeatureTableViewMode = showOnlyInView ? 'visible' : 'all'
-
   return (
-    <div role="radiogroup" aria-label="View mode" aria-orientation="horizontal" className="flex shrink-0 items-center gap-0.5 rounded-md bg-muted/60 p-0.5">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={active === option.value}
-          className={cn(
-            'rounded-[5px] px-2.5 py-1 text-xs font-medium transition-colors',
-            active === option.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => onShowOnlyInViewChange?.(option.value === 'visible')}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      label="View mode"
+      size="sm"
+      fullWidth={false}
+      className="shrink-0"
+      value={showOnlyInView ? 'visible' : 'all'}
+      options={VIEW_MODE_OPTIONS}
+      onChange={(mode) => onShowOnlyInViewChange?.(mode === 'visible')}
+    />
   )
 }
 
@@ -577,11 +570,13 @@ function TableSearch({
   onQueryChange: (query: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  // SearchInput does not forward a ref, so reach the field through its wrapper.
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const expanded = !collapsible || open || query.length > 0
+  const focusInput = () => wrapperRef.current?.querySelector('input')?.focus()
 
   useEffect(() => {
-    if (open) inputRef.current?.focus()
+    if (open) wrapperRef.current?.querySelector('input')?.focus()
   }, [open])
 
   if (!expanded) {
@@ -593,10 +588,13 @@ function TableSearch({
   }
 
   return (
-    <div className="relative w-[min(15rem,42vw)] max-w-52 shrink-0">
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        ref={inputRef}
+    <div ref={wrapperRef} className="w-[min(15rem,42vw)] max-w-52 shrink-0">
+      <SearchInput
+        icon
+        onClear={() => {
+          onQueryChange('')
+          focusInput()
+        }}
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         onBlur={() => { if (collapsible && !query) setOpen(false) }}
@@ -607,13 +605,8 @@ function TableSearch({
         }}
         placeholder="Type to search…"
         aria-label="Search table"
-        className="h-9 w-full rounded-md border border-border bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+        className="h-9 rounded-md border-border py-0 focus:ring-1"
       />
-      {query ? (
-        <button type="button" className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => onQueryChange('')} aria-label="Clear search">
-          <X className="size-3.5" />
-        </button>
-      ) : null}
     </div>
   )
 }

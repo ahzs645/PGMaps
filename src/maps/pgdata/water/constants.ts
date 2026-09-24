@@ -46,13 +46,6 @@ export const WATER_BOUNDARY_METRIC_OPTIONS: Array<{ value: WaterBoundaryMetric; 
   { value: 'activeNotices', label: 'Active notices' },
 ]
 
-export const WATER_HAZARD_COLORS: Record<string, string> = {
-  Low: 'bg-green-500',
-  Moderate: 'bg-amber-500',
-  High: 'bg-red-600',
-  Unknown: 'bg-gray-500',
-}
-
 export const WATER_DATE_MIN_YEAR = 1900
 export const WATER_DATE_MAX_YEAR = new Date().getFullYear() + 1
 export const WATER_MONTH_INDEX: Record<string, number> = {

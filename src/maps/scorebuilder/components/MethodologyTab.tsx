@@ -1,11 +1,9 @@
 import { BookOpen } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
 import { SCORE_INDEX_MODULE_LABELS, SCORE_METRICS, SCORE_PRESETS, getScorePresetMethodology } from '../constants'
-import type {
-  ScoreComponentSummary,
-  ScoreMetricDefinition,
-  ScoreMetricWeightMap,
-  ScoreMethodSettings,
-} from '../types'
+import type { ScoreComponentSummary, ScoreMetricDefinition, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import { formatScore } from '../lib/metrics'
 import { formatAggregationMethod, formatNormalizationMethod } from './scoreBuilderPanelUtils'
 
@@ -70,9 +68,9 @@ export function MethodologyTab({
               {presetMethodology.normalization}
             </div>
             {presetMethodology.proxy && (
-              <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+              <InlineAlert tone="warning">
                 Proxy recipe. Use it for screening and conversation, not as a validated health, exposure, or EJ index.
-              </div>
+              </InlineAlert>
             )}
             <div>
               <div className="font-semibold text-foreground">Known limits</div>
@@ -122,9 +120,7 @@ export function MethodologyTab({
             <div key={metric.key} className="rounded border border-border bg-muted/15 p-2 text-xs">
               <div className="flex items-start justify-between gap-2">
                 <div className="font-semibold text-foreground">{metric.label}</div>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                  {metric.uncertainty} uncertainty
-                </span>
+                <Badge>{metric.uncertainty} uncertainty</Badge>
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {metric.directionLabel} · weight {weights[metric.key]} · {metric.dataSourceLabel} ·{' '}
@@ -142,15 +138,11 @@ export function MethodologyTab({
                 }{' '}
                 · domain {metric.indexDomain || 'local context'} · {metric.proxyLevel || 'proxy'} metric
               </div>
-              {metric.caveat && (
-                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{metric.caveat}</div>
-              )}
+              {metric.caveat && <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{metric.caveat}</div>}
             </div>
           ))}
           {activeMetrics.length === 0 && (
-            <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-              Add metrics or apply a preset to see indicator metadata.
-            </div>
+            <EmptyHint className="p-3">Add metrics or apply a preset to see indicator metadata.</EmptyHint>
           )}
         </div>
       </div>

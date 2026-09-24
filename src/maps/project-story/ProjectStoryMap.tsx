@@ -1,27 +1,21 @@
-import {
-  ArrowDown,
-  ArrowLeft,
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Hand,
-  Layers,
-  MapPin,
-  RotateCcw,
-  X,
-} from 'lucide-react'
+import { ArrowDown, BookOpen, ChevronLeft, ChevronRight, Hand, Layers, RotateCcw } from 'lucide-react'
 import type MapLibreGL from 'maplibre-gl'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ClimateStatus } from './StoryClimateLayers'
 import { storySourceKey } from './storySources'
 import { useStorySources } from './useStorySources'
 import { StorySourceInfo } from './StorySourceInfo'
+import { SceneCard } from './SceneCard'
+import { SceneStepButton, SceneStepper } from './SceneStepper'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
+import { ProjectHeader } from '@/components/projects/ProjectHeader'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -116,67 +110,28 @@ function StoryNarrative({
   onSelectScene: (index: number) => void
   onStepScene: (direction: number) => void
 }) {
-  const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
-
   return (
     <aside className="flex h-full min-h-0 flex-col border-r bg-background">
       <div className="shrink-0 border-b p-3">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            All projects
-          </button>
-        </div>
+        <ProjectBackButton onBack={onBack} />
 
-        <div className="mt-3 flex items-start gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white"
-            style={{ backgroundColor: accent }}
-          >
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-bold leading-tight text-foreground">{project.title}</h1>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {project.region} · {scenes.length} scenes
-            </div>
-          </div>
-        </div>
+        <ProjectHeader
+          className="mt-3"
+          title={project.title}
+          subtitle={`${project.region} · ${scenes.length} scenes`}
+          icon={BookOpen}
+          iconStyle={{ backgroundColor: accent }}
+        />
 
         {/* Scene stepper — keyboard/pointer alternative to scrolling. */}
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onStepScene(-1)}
-            disabled={activeSceneIndex === 0}
-            aria-label="Previous scene"
-            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full transition-[width] duration-300"
-              style={{ width: `${progress}%`, backgroundColor: accent }}
-            />
-          </div>
-          <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-            {activeSceneIndex + 1}/{scenes.length}
-          </span>
-          <button
-            type="button"
-            onClick={() => onStepScene(1)}
-            disabled={activeSceneIndex >= scenes.length - 1}
-            aria-label="Next scene"
-            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        <SceneStepper
+          className="mt-3"
+          variant="progress"
+          activeIndex={activeSceneIndex}
+          count={scenes.length}
+          accent={accent}
+          onStep={onStepScene}
+        />
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
@@ -192,61 +147,25 @@ function StoryNarrative({
         </header>
 
         <div className="space-y-3 p-3 pb-[40vh]">
-          {scenes.map((scene, index) => {
-            const active = index === activeSceneIndex
-            return (
-              <article
-                key={`${scene.label}-${index}`}
-                ref={(node) => {
-                  cardRefs.current[index] = node
-                }}
-                data-scene-index={index}
-                className="scroll-m-4"
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelectScene(index)}
-                  aria-current={active ? 'step' : undefined}
-                  className={cn(
-                    'w-full rounded-lg border bg-background p-4 text-left shadow-sm transition-colors',
-                    active ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/50',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="truncate text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: active ? accent : undefined }}
-                    >
-                      <span className={cn(!active && 'text-muted-foreground')}>{scene.kicker ?? scene.label}</span>
-                    </span>
-                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                  </div>
-
-                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground md:text-base">{scene.title}</h2>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground md:text-sm md:leading-6">{scene.text}</p>
-
-                  {scene.callout && (
-                    <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {scene.callout.label}
-                      </div>
-                      <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
-                      {scene.callout.detail && (
-                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5 text-xs font-medium text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-                    <span className="truncate">{scene.focus}</span>
-                  </div>
-                </button>
-              </article>
-            )
-          })}
+          {scenes.map((scene, index) => (
+            <article
+              key={`${scene.label}-${index}`}
+              ref={(node) => {
+                cardRefs.current[index] = node
+              }}
+              data-scene-index={index}
+              className="scroll-m-4"
+            >
+              <SceneCard
+                variant="panel"
+                scene={scene}
+                index={index}
+                active={index === activeSceneIndex}
+                accent={accent}
+                onSelect={() => onSelectScene(index)}
+              />
+            </article>
+          ))}
         </div>
       </div>
     </aside>
@@ -362,41 +281,14 @@ function ScrollyStory({
                   active ? 'opacity-100' : 'opacity-45',
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectScene(index)}
-                  aria-current={active ? 'step' : undefined}
-                  className="w-full rounded-lg border bg-background/90 p-4 text-left shadow-lg backdrop-blur md:p-5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="truncate text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: active ? accent : undefined }}
-                    >
-                      <span className={cn(!active && 'text-muted-foreground')}>{scene.kicker ?? scene.label}</span>
-                    </span>
-                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground md:text-lg">{scene.title}</h2>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground md:text-sm md:leading-7">{scene.text}</p>
-                  {scene.callout && (
-                    <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {scene.callout.label}
-                      </div>
-                      <div className="mt-0.5 text-sm font-bold text-foreground md:text-base">{scene.callout.value}</div>
-                      {scene.callout.detail && (
-                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
-                      )}
-                    </div>
-                  )}
-                  <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5 text-xs font-medium text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-                    <span className="truncate">{scene.focus}</span>
-                  </div>
-                </button>
+                <SceneCard
+                  variant="overlay"
+                  scene={scene}
+                  index={index}
+                  active={active}
+                  accent={accent}
+                  onSelect={() => onSelectScene(index)}
+                />
               </article>
             </section>
           )
@@ -415,14 +307,10 @@ function ScrollyStory({
           style={{ width: `${progress}%`, backgroundColor: accent }}
         />
       </div>
-      <button
-        type="button"
-        onClick={onBack}
-        className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        All projects
-      </button>
+      <ProjectBackButton
+        onBack={onBack}
+        className="absolute left-3 top-3 z-20 hidden bg-background/90 backdrop-blur md:inline-flex"
+      />
       <Button
         variant="outline"
         className="absolute bottom-4 left-3 z-30 h-11 shadow-md md:hidden"
@@ -433,29 +321,13 @@ function ScrollyStory({
       </Button>
       {/* Long stories are a lot of wheel on a desktop screen; the stepper jumps
           a scene at a time without giving up the scroll-driven reading. */}
-      <div className="absolute left-3 top-14 z-20 hidden items-center gap-1 rounded-md border bg-background/90 px-1 py-1 shadow-sm backdrop-blur md:flex">
-        <button
-          type="button"
-          onClick={() => onStepScene(-1)}
-          disabled={activeSceneIndex === 0}
-          aria-label="Previous scene"
-          className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="px-1 text-xs font-medium tabular-nums text-muted-foreground">
-          {activeSceneIndex + 1}/{scenes.length}
-        </span>
-        <button
-          type="button"
-          onClick={() => onStepScene(1)}
-          disabled={activeSceneIndex >= scenes.length - 1}
-          aria-label="Next scene"
-          className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+      <SceneStepper
+        variant="compact"
+        activeIndex={activeSceneIndex}
+        count={scenes.length}
+        onStep={onStepScene}
+        className="absolute left-3 top-14 z-20 hidden rounded-md border bg-background/90 px-1 py-1 shadow-sm backdrop-blur md:flex"
+      />
       {/* The legend belongs on phones too — a choropleth story is unreadable
           without it. It sits in the corner the centered card lane leaves free
           and starts collapsed there, so it costs a pill-sized bite of map. */}
@@ -581,14 +453,10 @@ function SlidesStory({
     <div className="relative flex h-full min-h-0 flex-col">
       <div className="relative min-h-0 flex-1">
         {children}
-        <button
-          type="button"
-          onClick={onBack}
-          className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All projects
-        </button>
+        <ProjectBackButton
+          onBack={onBack}
+          className="absolute left-3 top-3 z-20 hidden bg-background/90 backdrop-blur md:inline-flex"
+        />
         <div className="pointer-events-none absolute inset-x-0 top-3 z-10 hidden justify-center md:flex">
           <div className="max-w-md truncate rounded-md border bg-background/90 px-3 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
             {project.title}
@@ -634,38 +502,14 @@ function SlidesStory({
                 the longest slide, so stepping never resizes the pane. */}
             <div className="mx-auto grid max-w-2xl">
               {scenes.map((slide, index) => (
-                <div
+                <SceneCard
                   key={`${slide.label}-${index}`}
-                  aria-hidden={index !== activeSceneIndex}
-                  className={cn('col-start-1 row-start-1 text-center', index !== activeSceneIndex && 'invisible')}
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
-                    {slide.kicker ?? slide.label}
-                  </div>
-                  <h2 className="mt-1 text-lg font-bold leading-snug text-foreground md:text-2xl">{slide.title}</h2>
-                  {/* Left-aligned body: centred copy in a phone-width column
-                      breaks into ragged two- and three-word lines. */}
-                  <p className="mt-2 text-left text-sm leading-6 text-muted-foreground md:text-base md:leading-7">
-                    {slide.text}
-                  </p>
-                  {slide.callout && (
-                    <div className="mx-auto mt-3 max-w-md rounded-md border bg-muted/30 p-2.5 text-left">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {slide.callout.label}
-                      </div>
-                      <div className="mt-0.5 text-sm font-bold text-foreground md:text-base">{slide.callout.value}</div>
-                      {slide.callout.detail && (
-                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{slide.callout.detail}</div>
-                      )}
-                    </div>
-                  )}
-                  {slide.focus && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-                      <span>{slide.focus}</span>
-                    </div>
-                  )}
-                </div>
+                  variant="slide"
+                  scene={slide}
+                  index={index}
+                  active={index === activeSceneIndex}
+                  accent={accent}
+                />
               ))}
             </div>
           </div>
@@ -1248,7 +1092,7 @@ export function ProjectStoryMap({
           {climateStatus.status === 'error' && (
             <Button
               variant="outline"
-              className="mt-2 h-11 md:h-8"
+              className="mt-2 h-8 touch:h-11"
               onClick={() => setClimateRetry((value) => value + 1)}
             >
               Retry climate layers
@@ -1264,7 +1108,7 @@ export function ProjectStoryMap({
           {failedLayers.length > 0 && (
             <div role="alert">
               <p>Could not load {failedLayers.map((layer) => layerLabels[layer.id] ?? layer.id).join(', ')}.</p>
-              <Button variant="outline" className="mt-2 h-11 md:h-8" onClick={retrySources}>
+              <Button variant="outline" className="mt-2 h-8 touch:h-11" onClick={retrySources}>
                 Retry layers
               </Button>
             </div>
@@ -1273,25 +1117,19 @@ export function ProjectStoryMap({
       )}
       {selectedFeature && (
         <div className="pointer-events-none absolute inset-x-3 top-16 z-20 md:top-3 flex justify-center">
-          <div className="pointer-events-auto flex max-h-[min(60vh,32rem)] w-full max-w-md items-start gap-3 rounded-lg border bg-background/95 px-3 py-2.5 text-sm shadow-lg backdrop-blur">
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold leading-5 text-foreground">{selectedFeature.title}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{selectedFeature.layerLabel}</div>
-              {selectedFeature.detail && (
-                <div className="mt-2 max-h-[min(42vh,22rem)] overflow-y-auto whitespace-pre-line border-t pt-2 text-xs leading-5 text-muted-foreground">
-                  {selectedFeature.detail}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedFeature(null)}
-              aria-label="Close selected feature"
-              className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
+          <MapPopupCard
+            className="pointer-events-auto max-h-[min(60vh,32rem)] w-full max-w-md rounded-lg border bg-background/95 px-3 py-2.5 shadow-lg backdrop-blur"
+            title={selectedFeature.title}
+            subtitle={selectedFeature.layerLabel}
+            onClose={() => setSelectedFeature(null)}
+            closeLabel="Close selected feature"
+          >
+            {selectedFeature.detail && (
+              <div className="max-h-[min(42vh,22rem)] overflow-y-auto whitespace-pre-line border-t pt-2 text-xs leading-5 text-muted-foreground">
+                {selectedFeature.detail}
+              </div>
+            )}
+          </MapPopupCard>
         </div>
       )}
 
@@ -1316,7 +1154,7 @@ export function ProjectStoryMap({
         width="fit"
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
-        defaultCollapsed={options.legendCollapsed === 'auto' ? isMobile : options.legendCollapsed === 'always'}
+        defaultCollapsed={options.legendCollapsed === 'auto' ? 'mobile' : options.legendCollapsed === 'always'}
         contentClassName={cn('space-y-3', options.layout === 'slides' && 'min-h-0 overflow-y-auto')}
         actions={
           sceneOverridden ? (
@@ -1342,8 +1180,7 @@ export function ProjectStoryMap({
             .map((resolved) => {
               const entries = legendEntries.filter((entry) => entry.layerId === resolved.layer.id)
               const active =
-                visibleLayerIds.has(resolved.layer.id) ||
-                (retainingClimate && resolved.layer.format === 'climate-grid')
+                visibleLayerIds.has(resolved.layer.id) || (retainingClimate && resolved.layer.format === 'climate-grid')
               const locked = retainingClimate && resolved.layer.format === 'climate-grid'
               // A plain layer's only legend entry is its own name; render it as
               // one toggleable row (swatch plus name) instead of the name twice.
@@ -1358,7 +1195,7 @@ export function ProjectStoryMap({
                     active={active}
                     disabled={locked}
                     onClick={() => toggleLayer(resolved.layer.id)}
-                    className="min-h-11 font-semibold text-foreground md:min-h-7"
+                    className="min-h-7 font-semibold text-foreground touch:min-h-11"
                   />
                 )
               }
@@ -1369,7 +1206,7 @@ export function ProjectStoryMap({
                     aria-pressed={active}
                     disabled={locked}
                     onClick={() => toggleLayer(resolved.layer.id)}
-                    className="flex min-h-11 w-full items-center rounded px-2 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 md:min-h-7 md:px-1"
+                    className="flex min-h-7 w-full items-center rounded px-1 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 touch:min-h-11 touch:px-2"
                   >
                     <span>{resolved.label}</span>
                   </button>
@@ -1477,32 +1314,26 @@ export function ProjectStoryMap({
               </div>
             </div>
             {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
-            <button
-              type="button"
+            <SceneStepButton
+              direction={-1}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation()
                 stepScene(-1)
               }}
               disabled={activeSceneIndex === 0}
-              aria-label="Previous scene"
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
+              className="size-8 rounded-full border border-border"
+            />
+            <SceneStepButton
+              direction={1}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation()
                 stepScene(1)
               }}
               disabled={activeSceneIndex >= scenes.length - 1}
-              aria-label="Next scene"
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+              className="size-8 rounded-full border border-border"
+            />
           </div>
           {options.mobilePeekSceneText && activeScene?.text && (
             <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>

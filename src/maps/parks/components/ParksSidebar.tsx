@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Layers, MapPin, Route, TreePine } from 'lucide-react'
+import { useMemo, useRef } from 'react'
+import { Layers, MapPin, Route, TreePine } from 'lucide-react'
 import {
   FilterChipGroup,
   MapSidebarShell,
@@ -8,8 +8,18 @@ import {
   SidebarSection,
   StatGrid,
 } from '@/components/ui/map-panels'
-import { cn } from '@/lib/utils'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import {
+  FilterToggleButton,
+  ResetFiltersButton,
+  StickyListToolbar,
+  useRevealBelowSticky,
+  useStickyListToolbar,
+} from '@/components/ui/sticky-list-toolbar'
+import { ToggleRow, type ToggleRowTone } from '@/components/ui/toggle-row'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { DATASETS } from '@/lib/dataCatalog'
+import { formatArea, formatLength, formatNumber } from '@/lib/format'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type {
   Park,
@@ -20,7 +30,6 @@ import type {
   ActiveLayer,
   CityPgOverlaySummary,
 } from '../types'
-import { formatArea, formatLength } from '@/lib/format'
 
 interface ParksSidebarProps {
   className?: string
@@ -45,6 +54,7 @@ interface ParksSidebarProps {
   onParkClick: (park: Park) => void
   onTrailClick: (trail: Trail) => void
   onClearSelection: () => void
+  onResetFilters: () => void
 }
 
 const ALL_CLASSIFICATIONS: ParkClassification[] = [
@@ -61,34 +71,56 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
-function OverlayToggle({
-  label,
-  count,
-  active,
-  colorClass,
-  onClick,
-}: {
+/** Rows rendered for the second list while the first one is virtualised. */
+const SECONDARY_LIST_CAP = 200
+
+type OverlayLayer = Exclude<ActiveLayer, 'parks' | 'trails' | 'amenities'>
+
+const OVERLAY_TOGGLES: Array<{
+  layer: OverlayLayer
   label: string
-  count: number
-  active: boolean
-  colorClass: string
-  onClick: () => void
-}) {
+  count: (summary: CityPgOverlaySummary) => number
+  tone: ToggleRowTone
+}> = [
+  {
+    layer: 'parkAssets',
+    label: 'Park assets',
+    count: (summary) => summary.parkAssets + summary.parkLines + summary.parkAreas,
+    tone: 'emerald',
+  },
+  { layer: 'mobility', label: 'Mobility', count: (summary) => summary.mobility, tone: 'cyan' },
+  { layer: 'ecology', label: 'Ecology', count: (summary) => summary.ecology, tone: 'lime' },
+  { layer: 'community', label: 'Community', count: (summary) => summary.community, tone: 'indigo' },
+  { layer: 'services', label: 'Services', count: (summary) => summary.services, tone: 'sky' },
+  { layer: 'planning', label: 'OCP 2025', count: (summary) => summary.planning, tone: 'orange' },
+]
+
+function ParkRow({ park, selected, onClick }: { park: Park; selected: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
+    <ResultRow
+      accent="green"
+      selected={selected}
       onClick={onClick}
-      className={cn(
-        'flex min-w-0 items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors',
-        active ? colorClass : 'border-input text-muted-foreground hover:bg-accent',
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-1.5">
-        <Layers className="h-3 w-3 shrink-0" />
-        <span className="truncate">{label}</span>
-      </span>
-      <span className="shrink-0 tabular-nums opacity-70">{count.toLocaleString()}</span>
-    </button>
+      dotColor={getClassificationColor(park.classification)}
+      title={park.name}
+      subtitle={[park.classification || 'Unknown', park.area ? formatArea(park.area) : null].filter(Boolean).join(' · ')}
+    />
+  )
+}
+
+function TrailRow({ trail, selected, onClick }: { trail: Trail; selected: boolean; onClick: () => void }) {
+  return (
+    <ResultRow
+      accent="green"
+      selected={selected}
+      onClick={onClick}
+      dotColor={getTrailColor(trail.userClass)}
+      title={trail.name}
+      subtitle={[trail.userClass || 'Trail', trail.surfaceMaterial, trail.length ? formatLength(trail.length) : null]
+        .filter(Boolean)
+        .join(' · ')}
+      meta={trail.parkName || undefined}
+    />
   )
 }
 
@@ -115,18 +147,15 @@ export function ParksSidebar({
   onParkClick,
   onTrailClick,
   onClearSelection,
+  onResetFilters,
 }: ParksSidebarProps) {
-  const [showExpandedParkTypes, setShowExpandedParkTypes] = useState(false)
+  const { toolbarRef, filtersPanelId, filtersOpen, toggleFilters } = useStickyListToolbar()
+  const selectedCardRef = useRef<HTMLDivElement>(null)
 
   const showParks = activeLayers.includes('parks')
   const showTrails = activeLayers.includes('trails')
   const showAmenities = activeLayers.includes('amenities')
-  const showParkAssets = activeLayers.includes('parkAssets')
-  const showMobility = activeLayers.includes('mobility')
-  const showEcology = activeLayers.includes('ecology')
-  const showCommunity = activeLayers.includes('community')
-  const showServices = activeLayers.includes('services')
-  const showPlanning = activeLayers.includes('planning')
+  const hasFilterPanel = showParks || showTrails
 
   const classificationCounts = useMemo(() => {
     const counts = new globalThis.Map<ParkClassification, number>()
@@ -165,6 +194,23 @@ export function ParksSidebar({
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [filteredTrails])
 
+  // A filter group counts as active when it hides a type that has features.
+  const parkTypesNarrowed =
+    showParks && ALL_CLASSIFICATIONS.some((type) => (classificationCounts.get(type) || 0) > 0 && !selectedClassifications.includes(type))
+  const trailTypesNarrowed =
+    showTrails && ALL_TRAIL_TYPES.some((type) => (trailTypeCounts.get(type) || 0) > 0 && !selectedTrailTypes.includes(type))
+  const activeFilterCount = Number(parkTypesNarrowed) + Number(trailTypesNarrowed)
+  const hasActiveFilters = activeFilterCount > 0 || searchQuery !== ''
+
+  const selectedKey = selectedPark ? `park-${selectedPark.id}` : selectedTrail ? `trail-${selectedTrail.id}` : null
+  useRevealBelowSticky(toolbarRef, selectedCardRef, selectedKey)
+
+  // One virtual list per scroll port: parks when shown, otherwise trails. The
+  // other list renders a capped number of rows and says so in its header.
+  const trailsVirtual = !showParks
+  const visibleTrails = trailsVirtual ? uniqueTrails : uniqueTrails.slice(0, SECONDARY_LIST_CAP)
+  const listEmpty = (showParks ? filteredParks.length : 0) + (showTrails ? uniqueTrails.length : 0) === 0
+
   return (
     <MapSidebarShell
       className={className}
@@ -172,294 +218,234 @@ export function ParksSidebar({
       subtitle="Prince George Open Data"
       dataset={DATASETS.parks}
     >
-      {/* Stats & Search */}
+      {/* Stats */}
       <SidebarSection>
         <StatGrid
-          className="mb-3"
           stats={[
-            { label: 'Parks', value: filteredParks.length, valueClassName: 'text-xl' },
-            { label: 'Trails', value: uniqueTrails.length, valueClassName: 'text-xl' },
+            { label: 'Parks', value: formatNumber(filteredParks.length), valueClassName: 'text-xl' },
+            { label: 'Trails', value: formatNumber(uniqueTrails.length), valueClassName: 'text-xl' },
             {
               label: 'City layers',
-              value: (
+              value: formatNumber(
                 overlaySummary.parkAssets +
-                overlaySummary.parkLines +
-                overlaySummary.parkAreas +
-                overlaySummary.mobility +
-                overlaySummary.ecology +
-                overlaySummary.community +
-                overlaySummary.services +
-                overlaySummary.planning
-              ).toLocaleString(),
+                  overlaySummary.parkLines +
+                  overlaySummary.parkAreas +
+                  overlaySummary.mobility +
+                  overlaySummary.ecology +
+                  overlaySummary.community +
+                  overlaySummary.services +
+                  overlaySummary.planning,
+              ),
             },
           ]}
-        />
-        <SearchInput
-          value={searchQuery}
-          onChange={(e) => onSearchQueryChange(e.target.value)}
-          placeholder="Search parks, trails..."
-          className="focus:ring-green-500"
         />
       </SidebarSection>
 
       {/* Layer Toggles */}
       <SidebarSection title="Layers">
         <div className="grid grid-cols-3 gap-2">
-          <button
+          <ToggleRow
+            layout="tile"
+            tone="green"
+            icon={TreePine}
+            label="Parks"
+            active={showParks}
             onClick={() => onToggleLayer('parks')}
-            className={cn(
-              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
-              showParks
-                ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
-                : 'border-input text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <TreePine className="h-3 w-3" />
-            Parks
-          </button>
-          <button
+          />
+          <ToggleRow
+            layout="tile"
+            tone="green"
+            icon={Route}
+            label="Trails"
+            active={showTrails}
             onClick={() => onToggleLayer('trails')}
-            className={cn(
-              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
-              showTrails
-                ? 'border-red-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
-                : 'border-input text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <Route className="h-3 w-3" />
-            Trails
-          </button>
-          <button
+          />
+          <ToggleRow
+            layout="tile"
+            tone="amber"
+            icon={MapPin}
+            label="Amenities"
+            active={showAmenities}
             onClick={() => onToggleLayer('amenities')}
-            className={cn(
-              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
-              showAmenities
-                ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
-                : 'border-input text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <MapPin className="h-3 w-3" />
-            Amenities
-          </button>
+          />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <OverlayToggle
-            label="Park assets"
-            count={overlaySummary.parkAssets + overlaySummary.parkLines + overlaySummary.parkAreas}
-            active={showParkAssets}
-            colorClass="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-            onClick={() => onToggleLayer('parkAssets')}
-          />
-          <OverlayToggle
-            label="Mobility"
-            count={overlaySummary.mobility}
-            active={showMobility}
-            colorClass="border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300"
-            onClick={() => onToggleLayer('mobility')}
-          />
-          <OverlayToggle
-            label="Ecology"
-            count={overlaySummary.ecology}
-            active={showEcology}
-            colorClass="border-lime-500 bg-lime-50 text-lime-700 dark:bg-lime-950/30 dark:text-lime-300"
-            onClick={() => onToggleLayer('ecology')}
-          />
-          <OverlayToggle
-            label="Community"
-            count={overlaySummary.community}
-            active={showCommunity}
-            colorClass="border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"
-            onClick={() => onToggleLayer('community')}
-          />
-          <OverlayToggle
-            label="Services"
-            count={overlaySummary.services}
-            active={showServices}
-            colorClass="border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
-            onClick={() => onToggleLayer('services')}
-          />
-          <OverlayToggle
-            label="OCP 2025"
-            count={overlaySummary.planning}
-            active={showPlanning}
-            colorClass="border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
-            onClick={() => onToggleLayer('planning')}
-          />
+          {OVERLAY_TOGGLES.map((overlay) => {
+            const active = activeLayers.includes(overlay.layer)
+            return (
+              <ToggleRow
+                key={overlay.layer}
+                icon={Layers}
+                label={overlay.label}
+                tone={overlay.tone}
+                active={active}
+                trailing={<span className="tabular-nums opacity-70">{formatNumber(overlay.count(overlaySummary))}</span>}
+                onClick={() => onToggleLayer(overlay.layer)}
+              />
+            )
+          })}
         </div>
       </SidebarSection>
 
-      {/* Classification Filters */}
-      {showParks && (
-        <SidebarSection
-          title="Park Type"
-          actions={
-            <button
-              type="button"
-              onClick={() => setShowExpandedParkTypes((prev) => !prev)}
-              className="rounded border border-input p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label={showExpandedParkTypes ? 'Show compact park types' : 'Expand park types'}
-            >
-              {showExpandedParkTypes ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          }
-        >
-          <FilterChipGroup
-            items={ALL_CLASSIFICATIONS.map((classification) => ({
-              value: classification,
-              label: classification,
-              count: classificationCounts.get(classification) || 0,
-              color: getClassificationColor(classification),
-              disabled: (classificationCounts.get(classification) || 0) === 0,
-            })).filter((item) => item.count !== 0)}
-            selectedValues={selectedClassifications}
-            onToggle={onToggleClassification}
-            layout={showExpandedParkTypes ? 'wrap' : 'scroll'}
-            className={showExpandedParkTypes ? 'max-h-24 overflow-y-auto' : undefined}
+      {/* Search and type filters stay reachable while the lists scroll. */}
+      <StickyListToolbar
+        ref={toolbarRef}
+        search={
+          <SearchInput
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            onClear={() => onSearchQueryChange('')}
+            icon
+            placeholder="Search parks, trails..."
+            aria-label="Search parks and trails"
+            className="focus:ring-green-500"
           />
-        </SidebarSection>
-      )}
+        }
+        controls={
+          hasFilterPanel || hasActiveFilters ? (
+            <>
+              {hasFilterPanel && (
+                <FilterToggleButton
+                  open={filtersOpen}
+                  onToggle={toggleFilters}
+                  panelId={filtersPanelId}
+                  activeCount={activeFilterCount}
+                />
+              )}
+              {hasActiveFilters && <ResetFiltersButton onClick={onResetFilters} />}
+            </>
+          ) : undefined
+        }
+      />
 
-      {/* Trail Type Filters */}
-      {showTrails && (
-        <SidebarSection title="Trail Type">
-          <FilterChipGroup
-            items={ALL_TRAIL_TYPES.map((type) => ({
-              value: type,
-              label: type,
-              count: trailTypeCounts.get(type) || 0,
-              color: getTrailColor(type),
-              disabled: (trailTypeCounts.get(type) || 0) === 0,
-            })).filter((item) => item.count !== 0)}
-            selectedValues={selectedTrailTypes}
-            onToggle={onToggleTrailType}
-          />
-        </SidebarSection>
+      {/* Park and trail type filters */}
+      {filtersOpen && hasFilterPanel && (
+        <div id={filtersPanelId} className="space-y-4 border-b border-border bg-muted/30 p-4">
+          {showParks && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-foreground">Park Type</h3>
+              <FilterChipGroup
+                items={ALL_CLASSIFICATIONS.map((classification) => ({
+                  value: classification,
+                  label: classification,
+                  count: classificationCounts.get(classification) || 0,
+                  color: getClassificationColor(classification),
+                  disabled: (classificationCounts.get(classification) || 0) === 0,
+                })).filter((item) => item.count !== 0)}
+                selectedValues={selectedClassifications}
+                onToggle={onToggleClassification}
+              />
+            </div>
+          )}
+          {showTrails && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-foreground">Trail Type</h3>
+              <FilterChipGroup
+                items={ALL_TRAIL_TYPES.map((type) => ({
+                  value: type,
+                  label: type,
+                  count: trailTypeCounts.get(type) || 0,
+                  color: getTrailColor(type),
+                  disabled: (trailTypeCounts.get(type) || 0) === 0,
+                })).filter((item) => item.count !== 0)}
+                selectedValues={selectedTrailTypes}
+                onToggle={onToggleTrailType}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Selected Detail */}
       {(selectedPark || selectedTrail) && (
-        <SidebarSection className="hidden md:block">
-          <SelectedItemCard
-            tone="green"
-            title={selectedPark?.name || selectedTrail?.name}
-            onClick={() => {
-              if (selectedPark) onParkClick(selectedPark)
-              if (selectedTrail) onTrailClick(selectedTrail)
-            }}
-            subtitle={
-              <>
-                {selectedPark && (
-                  <>
-                    {selectedPark.classification || 'Unknown'} {selectedPark.subType || 'Park'}
-                    {selectedPark.area && ` · ${formatArea(selectedPark.area)}`}
-                  </>
+        <div ref={selectedCardRef} className="hidden md:block">
+          <SidebarSection>
+            <SelectedItemCard
+              tone="green"
+              title={selectedPark?.name || selectedTrail?.name}
+              onClick={() => {
+                if (selectedPark) onParkClick(selectedPark)
+                if (selectedTrail) onTrailClick(selectedTrail)
+              }}
+              subtitle={
+                <>
+                  {selectedPark && (
+                    <>
+                      {selectedPark.classification || 'Unknown'} {selectedPark.subType || 'Park'}
+                      {selectedPark.area && ` · ${formatArea(selectedPark.area)}`}
+                    </>
+                  )}
+                  {selectedTrail && (
+                    <>
+                      {selectedTrail.userClass || 'Trail'}
+                      {selectedTrail.surfaceMaterial && ` · ${selectedTrail.surfaceMaterial}`}
+                      {selectedTrail.length && ` · ${formatLength(selectedTrail.length)}`}
+                    </>
+                  )}
+                </>
+              }
+              onClear={onClearSelection}
+            >
+              {selectedTrail?.parkName && (
+                <div className="mt-2 text-xs text-green-600 dark:text-green-400">Located in {selectedTrail.parkName}</div>
+              )}
+            </SelectedItemCard>
+          </SidebarSection>
+        </div>
+      )}
+
+      {/* Lists */}
+      <ListState
+        loading={loading}
+        loadingLabel="Loading park data..."
+        error={error}
+        errorTitle="Error loading data"
+        empty={(showParks || showTrails) && listEmpty}
+        emptyLabel="No parks or trails match these filters."
+        onReset={hasActiveFilters ? onResetFilters : undefined}
+      >
+        {showParks && (
+          <>
+            <ListHeader
+              sticky={false}
+              count={filteredParks.length}
+              noun={['park', 'parks']}
+              aside={<span>{formatNumber(amenities.length)} amenities loaded</span>}
+            />
+            <VirtualResultList items={filteredParks} getKey={(park) => String(park.id)} estimateSize={64} label="Parks">
+              {(park) => (
+                <ParkRow park={park} selected={selectedPark?.id === park.id} onClick={() => onParkClick(park)} />
+              )}
+            </VirtualResultList>
+          </>
+        )}
+
+        {showTrails && (
+          <>
+            <ListHeader
+              sticky={false}
+              count={uniqueTrails.length}
+              noun={['trail', 'trails']}
+              shown={trailsVirtual ? undefined : visibleTrails.length}
+            />
+            {trailsVirtual ? (
+              <VirtualResultList items={uniqueTrails} getKey={(trail) => String(trail.id)} estimateSize={80} label="Trails">
+                {(trail) => (
+                  <TrailRow trail={trail} selected={selectedTrail?.id === trail.id} onClick={() => onTrailClick(trail)} />
                 )}
-                {selectedTrail && (
-                  <>
-                    {selectedTrail.userClass || 'Trail'}
-                    {selectedTrail.surfaceMaterial && ` · ${selectedTrail.surfaceMaterial}`}
-                    {selectedTrail.length && ` · ${formatLength(selectedTrail.length)}`}
-                  </>
-                )}
-              </>
-            }
-            onClear={onClearSelection}
-          >
-            {selectedTrail?.parkName && (
-              <div className="mt-2 text-xs text-green-600 dark:text-green-400">Located in {selectedTrail.parkName}</div>
+              </VirtualResultList>
+            ) : (
+              <div role="list" aria-label="Trails" className="divide-y divide-border">
+                {visibleTrails.map((trail) => (
+                  <div key={trail.id} role="listitem">
+                    <TrailRow trail={trail} selected={selectedTrail?.id === trail.id} onClick={() => onTrailClick(trail)} />
+                  </div>
+                ))}
+              </div>
             )}
-          </SelectedItemCard>
-        </SidebarSection>
-      )}
-
-      {/* List */}
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading park data...
-        </div>
-      ) : error ? (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <div className="text-center text-sm text-red-500">
-            <p className="font-medium">Error loading data</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div>
-          {showParks && (
-            <>
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
-                <span>Parks ({filteredParks.length})</span>
-                <span>{amenities.length.toLocaleString()} amenities loaded</span>
-              </div>
-              <div className="divide-y divide-border">
-                {filteredParks.slice(0, 200).map((park) => {
-                  const isSelected = selectedPark?.id === park.id
-                  return (
-                    <button
-                      key={park.id}
-                      onClick={() => onParkClick(park)}
-                      className={cn(
-                        'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                        isSelected && 'bg-green-50 dark:bg-green-950/30',
-                      )}
-                    >
-                      <div className="mb-1 flex items-start justify-between gap-2">
-                        <span className="line-clamp-1 text-sm font-medium text-foreground">{park.name}</span>
-                        <span
-                          className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: getClassificationColor(park.classification) }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{park.classification || 'Unknown'}</span>
-                        {park.area && <span>· {formatArea(park.area)}</span>}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {showTrails && (
-            <>
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
-                <span>Trails ({uniqueTrails.length})</span>
-              </div>
-              <div className="divide-y divide-border">
-                {uniqueTrails.slice(0, 200).map((trail) => {
-                  const isSelected = selectedTrail?.id === trail.id
-                  return (
-                    <button
-                      key={trail.id}
-                      onClick={() => onTrailClick(trail)}
-                      className={cn(
-                        'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                        isSelected && 'bg-green-50 dark:bg-green-950/30',
-                      )}
-                    >
-                      <div className="mb-1 flex items-start justify-between gap-2">
-                        <span className="line-clamp-1 text-sm font-medium text-foreground">{trail.name}</span>
-                        <span
-                          className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: getTrailColor(trail.userClass) }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{trail.userClass || 'Trail'}</span>
-                        {trail.surfaceMaterial && <span>· {trail.surfaceMaterial}</span>}
-                        {trail.length && <span>· {formatLength(trail.length)}</span>}
-                      </div>
-                      {trail.parkName && <div className="mt-0.5 text-xs text-muted-foreground">{trail.parkName}</div>}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </ListState>
     </MapSidebarShell>
   )
 }

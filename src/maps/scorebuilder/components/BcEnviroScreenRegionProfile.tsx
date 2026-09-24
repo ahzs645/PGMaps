@@ -1,3 +1,4 @@
+import { StatGroup } from '@/components/ui/stat-group'
 import { BC_ENVIRO_SCREEN_METRICS, type BcEnviroScreenComponent } from '../constants'
 import { formatMetricValue } from '../lib/metrics'
 import type { ScoredBoundaryRegion } from '../types'
@@ -16,6 +17,8 @@ const COMPONENTS: Array<{ key: BcEnviroScreenComponent; label: string }> = [
 function formatNullable(value: number | null, digits: number, maximum: number): string {
   return value == null ? 'Missing' : `${value.toFixed(digits)}/${maximum}`
 }
+
+const PROFILE_TILE_CLASS = 'border-violet-200 dark:border-violet-900/70'
 
 function percentileColor(percentile: number): string {
   if (percentile <= 0.25) return '#008837'
@@ -36,25 +39,34 @@ export function BcEnviroScreenRegionProfile({ region }: BcEnviroScreenRegionProf
         vintages or proxies differ.
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-        <ProfileValue label="Overall Score" value={`${region.score.toFixed(1)}/100`} />
-        <ProfileValue
-          label="Landscape Burden"
-          value={formatNullable(profile.landscapeBurdenScore, 1, 10)}
-        />
-        <ProfileValue
-          label="Population Characteristics"
-          value={formatNullable(profile.populationCharacteristicsScore, 1, 10)}
-        />
-      </div>
+      <StatGroup
+        variant="tiles"
+        size="sm"
+        align="start"
+        className="mt-3"
+        items={[
+          { label: 'Overall Score', shortLabel: 'Overall', value: `${region.score.toFixed(1)}/100` },
+          {
+            label: 'Landscape Burden',
+            shortLabel: 'Landscape',
+            value: formatNullable(profile.landscapeBurdenScore, 1, 10),
+          },
+          {
+            label: 'Population Characteristics',
+            shortLabel: 'Population',
+            value: formatNullable(profile.populationCharacteristicsScore, 1, 10),
+          },
+        ].map((item) => ({ ...item, className: PROFILE_TILE_CLASS }))}
+      />
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {COMPONENTS.map((component) => {
-          const metrics = BC_ENVIRO_SCREEN_METRICS.filter(
-            (metric) => metric.bcEnviroScreenComponent === component.key,
-          )
+          const metrics = BC_ENVIRO_SCREEN_METRICS.filter((metric) => metric.bcEnviroScreenComponent === component.key)
           return (
-            <div key={component.key} className="rounded-md border border-violet-200 bg-background p-2 dark:border-violet-900/70">
+            <div
+              key={component.key}
+              className="rounded-md border border-violet-200 bg-background p-2 dark:border-violet-900/70"
+            >
               <div className="mb-2 flex items-baseline justify-between gap-2">
                 <h5 className="text-xs font-semibold text-foreground">{component.label}</h5>
                 <span className="text-xs font-semibold text-violet-800 dark:text-violet-200">
@@ -125,14 +137,5 @@ export function BcEnviroScreenRegionProfile({ region }: BcEnviroScreenRegionProf
         )}
       </div>
     </section>
-  )
-}
-
-function ProfileValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-900/70">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-semibold text-foreground">{value}</div>
-    </div>
   )
 }

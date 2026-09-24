@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, EyeOff, Play, RotateCcw } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Play, RotateCcw } from 'lucide-react'
 
+import { DevPageHeader } from '@/components/DevPageHeader'
 import { Button } from '@/components/ui/button'
 import {
   DEFAULT_MAP_LOADER,
@@ -62,15 +63,13 @@ export default function DevLoad() {
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-10 pt-24 sm:px-6 sm:pt-28 md:py-12">
-        <div className="mb-8 flex flex-col gap-3">
-          <div className="text-sm font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-            Dev playground
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Map loading screen</h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-            Preview the production map loader without waiting for a map or dataset to load.
-          </p>
-        </div>
+        <DevPageHeader
+          className="mb-8"
+          eyebrow="Dev playground"
+          icon={Loader2}
+          title="Map loading screen"
+          description="Preview the production map loader without waiting for a map or dataset to load."
+        />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <section className="overflow-hidden rounded-xl border bg-card shadow-sm">

@@ -16,9 +16,9 @@ import type {
   VisualizationMode,
 } from './types'
 import type { CrimeIncident } from '@/maps/pgdata/types'
+import { FOOD_VIOLATION_BUCKETS, type FoodViolationBucket } from './violationBuckets'
 
-export const FOOD_VIOLATION_BUCKETS = ['zero', 'low', 'medium', 'high'] as const
-export type FoodViolationBucket = (typeof FOOD_VIOLATION_BUCKETS)[number]
+export { FOOD_VIOLATION_BUCKETS, type FoodViolationBucket }
 
 const TIMELINE_MONTH_OPTIONS = [0, 3, 6, 12, 24] as const
 const CRIME_RADIUS_OPTIONS = [250, 500, 1000, 2000] as const
@@ -332,6 +332,8 @@ export function useFoodMapWebMCP(data: FoodMapWebMCPData) {
             violationBuckets: {
               type: 'array',
               uniqueItems: true,
+              description:
+                "'zero' means inspected in the active period with no violations; 'uninspected' holds establishments with no inspection in that period.",
               items: { type: 'string', enum: FOOD_VIOLATION_BUCKETS },
             },
             timelineMonths: { type: 'integer', enum: TIMELINE_MONTH_OPTIONS },

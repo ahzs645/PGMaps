@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Search } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
 import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { SearchInput } from '@/components/ui/map-panels'
 
 /**
  * Shared "unified boundaries selector" used by every study-area surface
@@ -26,16 +27,14 @@ export function StudyAreaPickerSearch({
   placeholder?: string
 }) {
   return (
-    <div className={cn('relative', className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-      />
-    </div>
+    <SearchInput
+      icon
+      wrapperClassName={className}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className="h-10 py-0"
+    />
   )
 }
 

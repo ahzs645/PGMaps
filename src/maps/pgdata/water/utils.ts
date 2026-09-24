@@ -3,7 +3,6 @@ import {
   WATER_BOUNDARY_METRIC_OPTIONS,
   WATER_DATE_MAX_YEAR,
   WATER_DATE_MIN_YEAR,
-  WATER_HAZARD_COLORS,
   WATER_MONTH_INDEX,
 } from './constants'
 import type {
@@ -247,10 +246,6 @@ export function getBoundaryMetricLabel(metric: WaterBoundaryMetric): string {
   return WATER_BOUNDARY_METRIC_OPTIONS.find((option) => option.value === metric)?.label ?? 'Boundary metric'
 }
 
-export function getHazardColorClass(rating: string): string {
-  return WATER_HAZARD_COLORS[rating] ?? 'bg-gray-500'
-}
-
 export function orderHazardRatings(ratings: string[]): string[] {
   const preferred = ['Low', 'Moderate', 'High', 'Unknown']
   return ratings.sort((left, right) => {
@@ -276,7 +271,7 @@ export function getBoundaryMetricValue(properties: WaterBoundaryAggregatePropert
 
 export function formatMetricValue(value: number, metric: WaterBoundaryMetric): string {
   if (metric === 'avgSamplesPerFacility') return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
-  return Math.round(value).toLocaleString()
+  return Math.round(value).toLocaleString(DEFAULT_LOCALE)
 }
 
 export function formatUnknown(value: unknown): string {

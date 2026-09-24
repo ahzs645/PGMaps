@@ -1,3 +1,6 @@
+import { Badge } from '@/components/ui/badge'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
 import { cn } from '@/lib/utils'
 import type { RobustnessResult, ScenarioComparison } from '../types'
 import { formatScore, getMetricLabel } from '../lib/metrics'
@@ -20,13 +23,12 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
       </div>
 
       {scenarioComparison && (
-        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
-          <div className="font-semibold">Top-rank stability</div>
+        <InlineAlert tone="warning" title="Top-rank stability" className="rounded-lg p-3">
           <div className="mt-1">
             Top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of perturbation trials; average
             rank shift was {scenarioComparison.averageRankShift.toFixed(1)}.
           </div>
-        </div>
+        </InlineAlert>
       )}
 
       <div className="space-y-2">
@@ -42,18 +44,15 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
                   {result.rankInterval[1]}
                 </div>
               </div>
-              <span
-                className={cn(
-                  'rounded px-2 py-0.5 text-xs font-semibold',
-                  result.stability === 'stable'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
-                    : result.stability === 'moderate'
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
-                      : 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200',
-                )}
+              <Badge
+                size="sm"
+                tone={
+                  result.stability === 'stable' ? 'success' : result.stability === 'moderate' ? 'warning' : 'danger'
+                }
+                className="font-semibold"
               >
                 {result.stability}
-              </span>
+              </Badge>
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
               Score interval {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
@@ -64,9 +63,9 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
           </div>
         ))}
         {robustnessResults.length === 0 && (
-          <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+          <EmptyHint className="p-3">
             Turn on sensitivity testing in the Model tab to generate robustness results.
-          </div>
+          </EmptyHint>
         )}
       </div>
     </div>

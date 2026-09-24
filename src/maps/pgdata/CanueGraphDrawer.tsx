@@ -1,5 +1,8 @@
 import { BarChart3, X } from 'lucide-react'
+import { InlineAlert, KeyValueRows, ToggleChip } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { EmptyHint } from '@/components/ui/result-list'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { formatNullableNumber } from './shared'
 import type { CanueAggregateRow } from './canueV2Aggregates'
@@ -126,14 +129,14 @@ export function CanueGraphDrawer({
             <h3 className="truncate text-sm font-semibold text-foreground">CANUE graphs</h3>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {rows.length.toLocaleString()} {boundaryLevelLabel} areas
+            {formatNumber(rows.length)} {boundaryLevelLabel} areas
             {selectedBoundaryName ? ` | selected: ${selectedBoundaryName}` : ''}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-foreground"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-foreground touch:h-9 touch:w-9"
           aria-label="Close CANUE graphs"
         >
           <X className="h-3.5 w-3.5" />
@@ -143,33 +146,24 @@ export function CanueGraphDrawer({
         <div className="border-b border-border p-3 md:border-b-0 md:border-r md:p-4">
           <div className="mb-2 text-xs font-medium text-foreground">Variables</div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 md:max-h-56 md:flex-col md:overflow-y-auto md:pb-0">
-            {options.slice(0, 60).map((option) => {
-              const active = selectedKeys.includes(option.key)
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => onToggleVariable(option.key)}
-                  className={cn(
-                    'shrink-0 rounded-md border px-2.5 py-1.5 text-left text-xs leading-4 transition-colors md:shrink',
-                    active
-                      ? 'border-cyan-600 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/30 dark:text-cyan-100'
-                      : 'border-input text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <span className="line-clamp-2">{option.label}</span>
-                </button>
-              )
-            })}
+            {options.slice(0, 60).map((option) => (
+              <ToggleChip
+                key={option.key}
+                active={selectedKeys.includes(option.key)}
+                onClick={() => onToggleVariable(option.key)}
+                tone="cyan"
+                className="shrink-0 rounded-md px-2.5 py-1.5 text-left leading-4 md:shrink touch:min-h-9"
+              >
+                <span className="line-clamp-2">{option.label}</span>
+              </ToggleChip>
+            ))}
           </div>
           <div className="mt-2 text-xs text-muted-foreground">Pick up to four variables.</div>
         </div>
         <div className="min-h-0 p-3 md:overflow-y-auto md:p-4">
-          {loading && <div className="text-xs text-muted-foreground">Loading graph values...</div>}
+          {loading && <InlineAlert loading>Loading graph values...</InlineAlert>}
           {!loading && !series.length && (
-            <div className="text-xs text-muted-foreground">
-              No graphable values are available for the selected variables.
-            </div>
+            <EmptyHint>No graphable values are available for the selected variables.</EmptyHint>
           )}
           <div className="grid gap-3 md:grid-cols-2">
             {series.map((item) => {
@@ -259,14 +253,13 @@ export function MobileCanueBoundaryFeatureCard({
 }) {
   return (
     <MobileFeatureCard title={card.title} subtitle="CANUE boundary" onClose={onClose}>
-      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">{card.metricLabel}</span>
-          <span className="font-semibold text-foreground">{card.metricValue}</span>
-        </div>
-      </div>
+      <KeyValueRows
+        className="rounded-md border border-border bg-muted/30 px-3 py-2"
+        valueClassName="font-semibold"
+        rows={[{ label: card.metricLabel, value: card.metricValue }]}
+      />
       <div className="mt-3 text-xs text-muted-foreground">
-        {card.recordCount.toLocaleString()} {card.recordLabel}
+        {formatNumber(card.recordCount)} {card.recordLabel}
       </div>
     </MobileFeatureCard>
   )

@@ -1,8 +1,10 @@
 import { ArrowDown, ArrowUp, GripVertical, X } from 'lucide-react'
+import { EmptyHint } from '@/components/ui/result-list'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
 import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { getCategoryTone } from './scoreBuilderPanelUtils'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function WeightDistribution({
   weights,
@@ -37,7 +39,7 @@ export function WeightDistribution({
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{activeMetrics.length} active metrics</span>
-        <span>Total influence {totalAbsoluteWeight.toLocaleString()}</span>
+        <span>Total influence {totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE)}</span>
       </div>
     </div>
   )
@@ -60,9 +62,7 @@ export function PriorityMode({
 }) {
   if (order.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-        Add metrics, then rank them from most to least important.
-      </div>
+      <EmptyHint className="rounded-md px-3 py-4">Add metrics, then rank them from most to least important.</EmptyHint>
     )
   }
 

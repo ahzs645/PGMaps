@@ -143,9 +143,17 @@ export function calculateCorrectedPm25(
   }
 }
 
+/** The one PM2.5 unit string for the air quality section. */
+export const PM25_UNIT = 'µg/m³'
+
 export function formatPm25(value: number | null): string {
-  if (value === null) return 'No data'
-  return `${value.toFixed(1)} ug/m3`
+  if (value === null || !Number.isFinite(value)) return 'No data'
+  return `${value.toFixed(1)} ${PM25_UNIT}`
+}
+
+export function formatPm25Uncertainty(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return 'No data'
+  return `+/- ${value.toFixed(1)} ${PM25_UNIT}`
 }
 
 export function formatMeasurement(value: number | null, unit = ''): string {

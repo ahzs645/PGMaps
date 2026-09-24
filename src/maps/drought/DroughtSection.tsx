@@ -5,7 +5,8 @@ import { useSearchParams } from 'react-router-dom'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatNumber } from '@/lib/format'
+import { DroughtBasinDetails } from './components/DroughtBasinDetails'
 import { DroughtMap } from './components/DroughtMap'
 import { DroughtSidebar } from './components/DroughtSidebar'
 import { useDroughtData } from './hooks/useDroughtData'
@@ -178,20 +179,10 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     setSelectedId(null)
   }, [setTimelineDate])
 
-  const mobilePeek = (
-    <div className="min-w-0 text-left">
-      <div className="truncate text-xs font-semibold text-foreground">
-        Drought Levels | {selectedYear}
-      </div>
-      <div className="truncate text-xs text-muted-foreground">
-        {filledBasinCount.toLocaleString()} filled basins
-      </div>
-    </div>
-  )
-
   return (
     <MapSectionLayout
-      mobilePeek={mobilePeek}
+      mobilePeekTitle={`Drought Levels · ${selectedYear}`}
+      mobilePeekSubtitle={`${formatNumber(filledBasinCount)} filled basins`}
       sidebar={(
         <DroughtSidebar
           className={MAP_SIDEBAR_CLASS}
@@ -241,7 +232,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
             onDateChange={setTimelineDate}
             onClose={() => setTimelineEnabled(false)}
             bucketCounts={bucketCounts}
-            statsLabel={`${filledBasinCount.toLocaleString()} filled basins`}
+            statsLabel={`${formatNumber(filledBasinCount)} filled basins`}
             granularity="week"
             windowMode={{
               size: timelineWindowSize,
@@ -269,19 +260,8 @@ function MobileDroughtFeatureCard({
       cardKey={String(feature.id)}
       onClose={onClose}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          {[
-            { label: 'Level', value: feature.properties.droughtLevelRaw ?? 'Not updated' },
-            { label: 'Start', value: feature.properties.startDate ?? 'Unknown' },
-            { label: 'End', value: feature.properties.endDate ?? 'Unknown' },
-          ].map((row) => (
-            <div key={row.label} className="flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>
-            </div>
-          ))}
-        </div>
+      <div className="rounded-md border border-border bg-background p-3">
+        <DroughtBasinDetails feature={feature} />
       </div>
     </MobileFeatureCard>
   )

@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import type { ExplorerItem } from '../types'
-import { downloadBlob } from '../utils'
+import { downloadText } from '@/lib/download'
 
 export type ExplorerExportFormat = 'csv' | 'geojson'
 
@@ -22,7 +22,7 @@ export function useExplorerExport(filteredItems: ExplorerItem[]) {
           header.join(','),
           ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')),
         ].join('\n')
-        downloadBlob(csv, 'explorer-items.csv', 'text/csv')
+        downloadText(csv, 'explorer-items.csv', 'text/csv')
       } else {
         const fc: GeoJSON.FeatureCollection = {
           type: 'FeatureCollection',
@@ -39,7 +39,7 @@ export function useExplorerExport(filteredItems: ExplorerItem[]) {
             },
           })),
         }
-        downloadBlob(JSON.stringify(fc, null, 2), 'explorer-items.geojson', 'application/geo+json')
+        downloadText(JSON.stringify(fc, null, 2), 'explorer-items.geojson', 'application/geo+json')
       }
     },
     [filteredItems],

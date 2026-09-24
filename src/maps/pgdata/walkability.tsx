@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import {
+  FilterChipGroup,
   InlineAlert,
   KeyValueRows,
   MapGradientLegendItem,
@@ -13,6 +14,8 @@ import {
   StatGrid,
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { formatNumber } from '@/lib/format'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 import { resolveWalkabilityMiBands, toWalkabilityMiLegendBands } from './walkabilityMiBands'
 import {
@@ -611,7 +614,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
           <button
             type="button"
             onClick={() => applyPreset(WALKABILITY_MODEL_PRESETS[0])}
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-xs text-muted-foreground transition-colors hover:text-foreground touch:h-9"
             title="Reset to report fidelity model"
           >
             <RotateCcw className="h-3 w-3" />
@@ -649,9 +652,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
               MI(cell) = SUM(weight_ref x term_ref)
             </div>
           </div>
-          <span className="shrink-0 rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-            {activeFactors.length} active terms
-          </span>
+          <Badge size="sm">{activeFactors.length} active terms</Badge>
         </div>
         <div className="mt-2 text-xs leading-4 text-muted-foreground">
           Proximity terms use cumulative 400m / 250m / 100m buffers. Area and line terms use report points inside
@@ -683,36 +684,27 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
         </button>
         {sourceRulesOpen && (
           <div className="space-y-3 border-t border-border px-3 py-3">
-            <div className="flex flex-wrap gap-1.5">
-              {HEATMAP_OPTIONS.map((option) => {
-                const active = walkability.heatmapOptionState[option.key]
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => walkability.setHeatmapOption(option.key, !active)}
-                    aria-pressed={active}
-                    className={cn(
-                      'rounded-full border px-2 py-1 text-xs font-medium transition-colors',
-                      active
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100'
-                        : 'border-input text-muted-foreground hover:text-foreground',
-                    )}
-                    title={option.description}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
-              <div className="font-medium text-foreground">Active rule logic</div>
-              <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
+            <FilterChipGroup
+              variant="filled"
+              showDot={false}
+              items={HEATMAP_OPTIONS.map((option) => ({
+                value: option.key,
+                label: option.label,
+                color: '#10b981',
+                title: option.description,
+              }))}
+              selectedValues={HEATMAP_OPTIONS.filter((option) => walkability.heatmapOptionState[option.key]).map(
+                (option) => option.key,
+              )}
+              onToggle={(key) => walkability.setHeatmapOption(key, !walkability.heatmapOptionState[key])}
+            />
+            <InlineAlert title={<span className="text-foreground">Active rule logic</span>}>
+              <ul className="mt-1.5 space-y-1 leading-4">
                 {heatmapLogic.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
-            </div>
+            </InlineAlert>
           </div>
         )}
       </div>
@@ -748,7 +740,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
               <button
                 type="button"
                 onClick={() => setShowDisabledTerms((current) => !current)}
-                className="shrink-0 rounded-full border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="shrink-0 rounded-full border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground touch:min-h-9"
               >
                 {showDisabledTerms ? 'Hide off' : 'Show off'}
               </button>
@@ -841,9 +833,9 @@ export function WalkabilitySidebar({
               stats={[
                 {
                   label: 'cells',
-                  value: Object.values(walkability.selectedHeatmapBandCounts ?? {})
-                    .reduce((sum, count) => sum + count, 0)
-                    .toLocaleString(),
+                  value: formatNumber(
+                    Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0),
+                  ),
                 },
                 { label: 'bins', value: '5' },
                 {
@@ -857,7 +849,7 @@ export function WalkabilitySidebar({
           ) : (
             <StatGrid
               stats={[
-                { label: 'communities', value: walkability.features.length.toLocaleString() },
+                { label: 'communities', value: formatNumber(walkability.features.length) },
                 { label: 'low score', value: formatNullableNumber(walkability.minScore) },
                 { label: 'high score', value: formatNullableNumber(walkability.maxScore) },
               ]}
@@ -871,9 +863,7 @@ export function WalkabilitySidebar({
             </InlineAlert>
           )}
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'loading' && (
-            <div className="text-xs text-muted-foreground">
-              {walkability.liveHeatmap.progress || 'Live heat map recalculating'}
-            </div>
+            <InlineAlert loading>{walkability.liveHeatmap.progress || 'Live heat map recalculating'}</InlineAlert>
           )}
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'error' && (
             <InlineAlert tone="error">{walkability.liveHeatmap.error}</InlineAlert>
@@ -927,21 +917,21 @@ export function WalkabilitySidebar({
               rows={[
                 { label: 'Sidewalk km', value: formatNullableNumber(selectedCommunity.properties.sidewalkKm) },
                 { label: 'Walkway km', value: formatNullableNumber(selectedCommunity.properties.walkwayKm) },
-                { label: 'Intersections', value: selectedCommunity.properties.intersectionCount.toLocaleString() },
-                { label: 'Transit stops', value: selectedCommunity.properties.transitStopCount.toLocaleString() },
-                { label: 'Park amenities', value: selectedCommunity.properties.parkAmenityCount.toLocaleString() },
+                { label: 'Intersections', value: formatNumber(selectedCommunity.properties.intersectionCount) },
+                { label: 'Transit stops', value: formatNumber(selectedCommunity.properties.transitStopCount) },
+                { label: 'Park amenities', value: formatNumber(selectedCommunity.properties.parkAmenityCount) },
                 {
                   label: 'Pedestrian crashes',
-                  value: selectedCommunity.properties.pedestrianCrashCount.toLocaleString(),
+                  value: formatNumber(selectedCommunity.properties.pedestrianCrashCount),
                 },
                 {
                   label: 'Supplemental POIs',
-                  value: selectedCommunity.properties.supplementalPoiCount.toLocaleString(),
+                  value: formatNumber(selectedCommunity.properties.supplementalPoiCount),
                 },
-                { label: 'Crossings', value: selectedCommunity.properties.crossingCount.toLocaleString() },
+                { label: 'Crossings', value: formatNumber(selectedCommunity.properties.crossingCount) },
                 {
                   label: 'Class-3 crosswalks',
-                  value: selectedCommunity.properties.class3CrosswalkCount.toLocaleString(),
+                  value: formatNumber(selectedCommunity.properties.class3CrosswalkCount),
                 },
               ]}
             />
@@ -972,11 +962,11 @@ export function MobileWalkabilityFeatureCard({ walkability }: { walkability: Wal
             { label: scoreLabel, value: scoreValue },
             { label: 'Sidewalk km', value: formatNullableNumber(selectedCommunity.properties.sidewalkKm) },
             { label: 'Walkway km', value: formatNullableNumber(selectedCommunity.properties.walkwayKm) },
-            { label: 'Intersections', value: selectedCommunity.properties.intersectionCount.toLocaleString() },
-            { label: 'Transit stops', value: selectedCommunity.properties.transitStopCount.toLocaleString() },
-            { label: 'Park amenities', value: selectedCommunity.properties.parkAmenityCount.toLocaleString() },
-            { label: 'Pedestrian crashes', value: selectedCommunity.properties.pedestrianCrashCount.toLocaleString() },
-            { label: 'Crossings', value: selectedCommunity.properties.crossingCount.toLocaleString() },
+            { label: 'Intersections', value: formatNumber(selectedCommunity.properties.intersectionCount) },
+            { label: 'Transit stops', value: formatNumber(selectedCommunity.properties.transitStopCount) },
+            { label: 'Park amenities', value: formatNumber(selectedCommunity.properties.parkAmenityCount) },
+            { label: 'Pedestrian crashes', value: formatNumber(selectedCommunity.properties.pedestrianCrashCount) },
+            { label: 'Crossings', value: formatNumber(selectedCommunity.properties.crossingCount) },
           ]}
         />
       </div>
@@ -998,10 +988,10 @@ export function WalkabilitySourceNotes({ walkability }: { walkability: Walkabili
         </p>
       )}
       {walkability.displayMode === 'heatmap' && (
-        <div className="rounded-md border p-2 text-xs leading-5 border-border bg-muted/20 text-muted-foreground">
+        <InlineAlert>
           Citywide binned Mobility Index grid recalculated in a browser Web Worker from projected JSTS source layers.
           The prebuilt grid remains visible while live scoring runs.
-        </div>
+        </InlineAlert>
       )}
       <p>{walkability.manifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
       {walkability.displayMode === 'heatmap' &&

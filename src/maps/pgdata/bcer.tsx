@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Flame } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, LegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows, LegendItem, SelectedItemCard, SidebarSection, ToggleChip } from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { AppSelect } from '@/components/ui/select'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { StatGroup } from '@/components/ui/stat-group'
 import { fetchJson } from '@/lib/fetchJson'
-import { DEFAULT_LOCALE } from '@/lib/format'
+import { DEFAULT_LOCALE, MONTH_SHORT_NAMES, formatNumber } from '@/lib/format'
 
 // BCER (British Columbia Energy Regulator) oil and gas well data, served as
 // statically exported gzipped JSON from the BCER Data Viewer deploy. The files
@@ -80,15 +82,13 @@ interface BcerWellProperties {
 type BcerWellFeature = GeoJSON.Feature<GeoJSON.Point, BcerWellProperties>
 type BcerWellCollection = GeoJSON.FeatureCollection<GeoJSON.Point, BcerWellProperties>
 
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 function formatYearMonth(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return 'Unknown'
   const year = Math.floor(value / 100)
   const month = value % 100
   if (year < 1800) return 'Unknown'
   if (month < 1 || month > 12) return String(year)
-  return `${MONTH_LABELS[month - 1]} ${year}`
+  return `${MONTH_SHORT_NAMES[month - 1]} ${year}`
 }
 
 function formatGas(value: number): string {
@@ -200,7 +200,7 @@ export function useBcerData(active: boolean) {
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
     return [
       { value: 'all', label: 'All areas' },
-      ...sorted.map(([area, count]) => ({ value: area, label: `${area} (${count.toLocaleString()})` })),
+      ...sorted.map(([area, count]) => ({ value: area, label: `${area} (${formatNumber(count)})` })),
     ]
   }, [wells])
 
@@ -278,92 +278,84 @@ export function BcerLayerControls({ bcer }: { bcer: BcerState }) {
 
 export function BcerSidebar({ bcer }: { bcer: BcerState }) {
   return (
-    <div className="space-y-4 border-b border-border p-4">
-      <div className="mb-1 flex items-center gap-2">
-        <Flame className="h-4 w-4 text-orange-600" />
-        <h2 className="text-sm font-semibold text-foreground">BCER oil &amp; gas wells</h2>
+    <SidebarSection title="BCER oil & gas wells" icon={Flame} iconClassName="text-orange-600">
+      <div className="space-y-4">
+        <label className="block text-xs font-medium text-foreground">
+          Orientation
+          <AppSelect
+            value={bcer.orientationFilter}
+            onValueChange={(value) => bcer.setOrientationFilter(value as BcerState['orientationFilter'])}
+            options={BCER_ORIENTATION_OPTIONS}
+            className="mt-1"
+            triggerClassName="h-8 rounded-md text-xs"
+          />
+        </label>
+        <label className="block text-xs font-medium text-foreground">
+          Area
+          <AppSelect
+            value={bcer.areaFilter}
+            onValueChange={(value) => bcer.setAreaFilter(value)}
+            options={bcer.areaOptions}
+            className="mt-1"
+            triggerClassName="h-8 rounded-md text-xs"
+          />
+        </label>
+        <label className="block text-xs font-medium text-foreground">
+          Production
+          <AppSelect
+            value={bcer.productionFilter}
+            onValueChange={(value) => bcer.setProductionFilter(value as BcerState['productionFilter'])}
+            options={BCER_PRODUCTION_OPTIONS}
+            className="mt-1"
+            triggerClassName="h-8 rounded-md text-xs"
+          />
+        </label>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={2}
+          items={[
+            { label: 'total wells', value: formatNumber(bcer.wells.length) },
+            { label: 'visible', value: formatNumber(bcer.filteredWells.length) },
+            { label: 'horizontal', value: formatNumber(bcer.horizontalCount) },
+            { label: 'producing', value: formatNumber(bcer.producingCount) },
+          ]}
+        />
+        {bcer.loading && <InlineAlert loading>Loading BCER well data...</InlineAlert>}
+        {bcer.error && <InlineAlert tone="warning">{bcer.error}</InlineAlert>}
+        {bcer.selectedWell && (
+          <SelectedItemCard title={bcer.selectedWell.properties.name} subtitle={bcer.selectedWell.properties.operator}>
+            <BcerWellDetailRows well={bcer.selectedWell} className="mt-3" />
+          </SelectedItemCard>
+        )}
       </div>
-      <label className="block text-xs font-medium text-foreground">
-        Orientation
-        <AppSelect
-          value={bcer.orientationFilter}
-          onValueChange={(value) => bcer.setOrientationFilter(value as BcerState['orientationFilter'])}
-          options={BCER_ORIENTATION_OPTIONS}
-          className="mt-1"
-          triggerClassName="h-8 rounded-md text-xs"
-        />
-      </label>
-      <label className="block text-xs font-medium text-foreground">
-        Area
-        <AppSelect
-          value={bcer.areaFilter}
-          onValueChange={(value) => bcer.setAreaFilter(value)}
-          options={bcer.areaOptions}
-          className="mt-1"
-          triggerClassName="h-8 rounded-md text-xs"
-        />
-      </label>
-      <label className="block text-xs font-medium text-foreground">
-        Production
-        <AppSelect
-          value={bcer.productionFilter}
-          onValueChange={(value) => bcer.setProductionFilter(value as BcerState['productionFilter'])}
-          options={BCER_PRODUCTION_OPTIONS}
-          className="mt-1"
-          triggerClassName="h-8 rounded-md text-xs"
-        />
-      </label>
-      <StatGrid
-        columns={2}
-        stats={[
-          { label: 'total wells', value: bcer.wells.length.toLocaleString() },
-          { label: 'visible', value: bcer.filteredWells.length.toLocaleString() },
-          { label: 'horizontal', value: bcer.horizontalCount.toLocaleString() },
-          { label: 'producing', value: bcer.producingCount.toLocaleString() },
-        ]}
-      />
-      {bcer.loading && <div className="text-xs text-muted-foreground">Loading BCER well data...</div>}
-      {bcer.error && <InlineAlert tone="warning">{bcer.error}</InlineAlert>}
-      {bcer.selectedWell && (
-        <div className="rounded-md border border-border bg-background p-3 text-xs">
-          <div className="font-semibold text-foreground">{bcer.selectedWell.properties.name}</div>
-          <div className="mt-1 text-muted-foreground">{bcer.selectedWell.properties.operator}</div>
-          <div className="mt-3 space-y-1">
-            <BcerWellDetailRows well={bcer.selectedWell} />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function BcerDetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-words text-right font-medium capitalize text-foreground">{value}</span>
-    </div>
+    </SidebarSection>
   )
 }
 
 // Shared well attributes rendered in the sidebar, desktop popup, and mobile sheet
 // so every surface stays in sync. Optional dates/UWI are hidden when the source
 // has no value rather than showing "Unknown" noise.
-function BcerWellDetailRows({ well }: { well: BcerWellFeature }) {
+function BcerWellDetailRows({ well, className }: { well: BcerWellFeature; className?: string }) {
   const props = well.properties
   return (
-    <>
-      <BcerDetailRow label="WA number" value={String(props.waNum)} />
-      {props.uwi && <BcerDetailRow label="UWI" value={props.uwi} />}
-      <BcerDetailRow label="Orientation" value={props.orientation} />
-      <BcerDetailRow label="Area" value={props.area} />
-      <BcerDetailRow label="Formation" value={props.formation} />
-      {props.spud !== 'Unknown' && <BcerDetailRow label="Spud" value={props.spud} />}
-      {props.rigRelease !== 'Unknown' && <BcerDetailRow label="Rig release" value={props.rigRelease} />}
-      {props.firstProd !== 'Unknown' && <BcerDetailRow label="First production" value={props.firstProd} />}
-      <BcerDetailRow label="3-yr gas" value={formatGas(props.gas3Yr)} />
-      <BcerDetailRow label="5-yr gas" value={formatGas(props.gas5Yr)} />
-    </>
+    <KeyValueRows
+      className={className}
+      valueMaxWidth={null}
+      valueClassName="capitalize"
+      rows={[
+        { label: 'WA number', value: String(props.waNum) },
+        props.uwi ? { label: 'UWI', value: props.uwi } : null,
+        { label: 'Orientation', value: props.orientation },
+        { label: 'Area', value: props.area },
+        { label: 'Formation', value: props.formation },
+        props.spud !== 'Unknown' && { label: 'Spud', value: props.spud },
+        props.rigRelease !== 'Unknown' && { label: 'Rig release', value: props.rigRelease },
+        props.firstProd !== 'Unknown' && { label: 'First production', value: props.firstProd },
+        { label: '3-yr gas', value: formatGas(props.gas3Yr) },
+        { label: '5-yr gas', value: formatGas(props.gas5Yr) },
+      ]}
+    />
   )
 }
 
@@ -426,17 +418,16 @@ export function BcerLayer({ bcer, isMobile = false }: { bcer: BcerState; isMobil
         <MapPopup
           longitude={bcer.selectedWell.geometry.coordinates[0]}
           latitude={bcer.selectedWell.geometry.coordinates[1]}
-          closeButton
           onClose={() => bcer.setSelectedWaNum(null)}
           className="max-w-xs"
         >
-          <div className="space-y-2 text-xs">
-            <div>
-              <div className="font-semibold text-foreground">{bcer.selectedWell.properties.name}</div>
-              <div className="text-muted-foreground">{bcer.selectedWell.properties.operator}</div>
-            </div>
+          <MapPopupCard
+            title={bcer.selectedWell.properties.name}
+            subtitle={bcer.selectedWell.properties.operator}
+            onClose={() => bcer.setSelectedWaNum(null)}
+          >
             <BcerWellDetailRows well={bcer.selectedWell} />
-          </div>
+          </MapPopupCard>
         </MapPopup>
       )}
     </>
@@ -454,10 +445,8 @@ export function MobileBcerFeatureCard({ bcer }: { bcer: BcerState }) {
       subtitle={well.properties.operator}
       onClose={() => bcer.setSelectedWaNum(null)}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          <BcerWellDetailRows well={well} />
-        </div>
+      <div className="rounded-md border border-border bg-background p-3 text-foreground">
+        <BcerWellDetailRows well={well} />
       </div>
     </MobileFeatureCard>
   )
@@ -491,8 +480,8 @@ export function BcerSourceNotes({ bcer }: { bcer: BcerState }) {
         Macauley (www.bc-er.ca).
       </p>
       <p>
-        Loaded {bcer.wells.length.toLocaleString()} wells with surface coordinates
-        {bcer.dashboard ? ` of ${bcer.dashboard.totalWells.toLocaleString()} total` : ''}.
+        Loaded {formatNumber(bcer.wells.length)} wells with surface coordinates
+        {bcer.dashboard ? ` of ${formatNumber(bcer.dashboard.totalWells)} total` : ''}.
       </p>
       <p>Served as statically exported gzipped JSON and decompressed in the browser.</p>
       <p>Gas production values are 3-year and 5-year totals as published in the BCER workbook export.</p>

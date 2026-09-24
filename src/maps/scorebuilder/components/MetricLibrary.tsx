@@ -1,17 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, FlipHorizontal, Lock, Plus, Search, X } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Check, FlipHorizontal, Lock, Plus, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { PanelDialog } from '@/components/ui/dialog-shell'
+import { CollapsibleSection, SearchInput } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/lib/studyArea'
 import { SCORE_METRICS } from '../constants'
 import { isMetricAvailableOnBoundary } from '../lib/metrics'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type {
-  ScoreMetricCategory,
-  ScoreMetricDefinition,
-  ScoreMetricKey,
-  ScoreMetricWeightMap,
-} from '../types'
+import type { ScoreMetricCategory, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { getDefaultMetricWeight, getWeightIntent } from './scoreBuilderPanelUtils'
 
 /**
@@ -30,7 +28,10 @@ function groupMetrics(metrics: ScoreMetricDefinition[], query: string): MetricLi
   const normalized = query.trim().toLowerCase()
   const byCategory = new Map<string, ScoreMetricDefinition[]>()
   metrics.forEach((metric) => {
-    if (normalized && !`${metric.label} ${metric.shortLabel} ${metric.description}`.toLowerCase().includes(normalized)) {
+    if (
+      normalized &&
+      !`${metric.label} ${metric.shortLabel} ${metric.description}`.toLowerCase().includes(normalized)
+    ) {
       return
     }
     const existing = byCategory.get(metric.category)
@@ -58,15 +59,15 @@ function MetricSearchInput({
   className?: string
 }) {
   return (
-    <div className={cn('relative', className)}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Search metrics..."
-        className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      />
-    </div>
+    <SearchInput
+      icon
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onClear={() => onChange('')}
+      placeholder="Search metrics..."
+      aria-label="Search metrics"
+      className={cn('focus:ring-cyan-500', className)}
+    />
   )
 }
 
@@ -176,50 +177,21 @@ export function MetricLibraryRows({
   const searching = query.trim().length > 0
 
   if (groups.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-        No metrics match "{query}".
-      </div>
-    )
+    return <EmptyHint>No metrics match "{query}".</EmptyHint>
   }
 
   return (
     <div className="space-y-4">
       {groups.map(({ category, metrics: categoryMetrics }) => {
         const activeCount = categoryMetrics.filter((metric) => (weights[metric.key] ?? 0) !== 0).length
-        const open =
-          !collapsibleCategories || searching || activeCount > 0 || expandedCategories.includes(category)
+        const open = !collapsibleCategories || searching || activeCount > 0 || expandedCategories.includes(category)
         const label = METRIC_CATEGORY_LABELS[category as ScoreMetricCategory] || category
-        return (
-        <div key={category}>
-          {collapsibleCategories ? (
-            <button
-              type="button"
-              onClick={() =>
-                setExpandedCategories((current) =>
-                  current.includes(category)
-                    ? current.filter((entry) => entry !== category)
-                    : [...current, category],
-                )
-              }
-              aria-expanded={open}
-              className="mb-1.5 flex w-full items-center justify-between gap-2 text-left"
-            >
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {label}
-                {activeCount > 0 && <span className="ml-1.5 text-cyan-600 dark:text-cyan-400">{activeCount}</span>}
-              </span>
-              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                {categoryMetrics.length}
-                <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
-              </span>
-            </button>
-          ) : (
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
-          )}
-          {renderCategoryExtras?.(category)}
-          {/* Unmounted rather than hidden — the point is to keep them off the first paint. */}
-          {open && (
+        const toggleCategory = () =>
+          setExpandedCategories((current) =>
+            current.includes(category) ? current.filter((entry) => entry !== category) : [...current, category],
+          )
+        // Unmounted rather than hidden — the point is to keep them off the first paint.
+        const cards = open && (
           <div className={cn(layout === 'card' ? 'grid gap-2 sm:grid-cols-2' : 'space-y-1.5')}>
             {categoryMetrics.map((metric) => {
               const active = (weights[metric.key] ?? 0) !== 0
@@ -227,7 +199,7 @@ export function MetricLibraryRows({
               // Add-only surfaces (the dialogs) lock metrics already in the equation
               // rather than silently doing nothing when they are clicked.
               const lockedReason = !available
-                ? metric.boundaryRequirementLabel ?? 'Not populated on the current study area.'
+                ? (metric.boundaryRequirementLabel ?? 'Not populated on the current study area.')
                 : active && !onRemoveMetric
                   ? 'Already in the equation.'
                   : null
@@ -246,8 +218,35 @@ export function MetricLibraryRows({
               )
             })}
           </div>
-          )}
-        </div>
+        )
+        if (collapsibleCategories) {
+          return (
+            // Pulled out by the row's padding so the heading lines up with the cards.
+            <CollapsibleSection
+              key={category}
+              open={open}
+              onOpenChange={toggleCategory}
+              className="-mx-3 border-b-0 bg-transparent"
+              contentClassName="px-3"
+              label={
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                  {label}
+                  {activeCount > 0 && <span className="ml-1.5 text-cyan-600 dark:text-cyan-400">{activeCount}</span>}
+                </span>
+              }
+              summary={<span className="block text-right">{categoryMetrics.length}</span>}
+            >
+              {renderCategoryExtras?.(category)}
+              {cards}
+            </CollapsibleSection>
+          )
+        }
+        return (
+          <div key={category}>
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+            {renderCategoryExtras?.(category)}
+            {cards}
+          </div>
         )
       })}
     </div>
@@ -283,12 +282,10 @@ export function MetricLibraryPanel({
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metric library</div>
           <div className="flex items-center gap-1.5">
             {headerAccessory}
-            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {activeCount} in use
-            </span>
+            <Badge size="sm">{activeCount} in use</Badge>
           </div>
         </div>
-        <MetricSearchInput value={query} onChange={setQuery} />
+        <MetricSearchInput value={query} onChange={setQuery} className="h-8 py-1 md:text-xs" />
       </div>
 
       <div className="p-3">
@@ -334,27 +331,27 @@ export function MetricPickerDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent variant="sheet" elevated className="sm:max-h-[86vh] sm:max-w-2xl">
-        <DialogHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 sm:pb-6">
-          <MetricSearchInput value={query} onChange={setQuery} className="[&_input]:h-10 [&_input]:text-sm" />
-          <MetricLibraryRows
-            metrics={metrics}
-            weights={weights}
-            boundarySource={boundarySource}
-            query={query}
-            layout="card"
-            onAddMetric={(metric) => {
-              onPick(metric)
-              handleOpenChange(false)
-            }}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <PanelDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={title}
+      subtitle={description}
+      size="md"
+      className="sm:max-h-[86vh]"
+      bodyClassName="pb-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:pb-6"
+      toolbar={<MetricSearchInput value={query} onChange={setQuery} />}
+    >
+      <MetricLibraryRows
+        metrics={metrics}
+        weights={weights}
+        boundarySource={boundarySource}
+        query={query}
+        layout="card"
+        onAddMetric={(metric) => {
+          onPick(metric)
+          handleOpenChange(false)
+        }}
+      />
+    </PanelDialog>
   )
 }

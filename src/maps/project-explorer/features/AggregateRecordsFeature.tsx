@@ -3,7 +3,7 @@ import { PaginationControls } from '@/components/ui/pagination-controls'
 import { useRef } from 'react'
 import { Globe } from 'lucide-react'
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { RecordDialog } from '@/components/ui/record-dialog'
 
 import type { ResearchRecord } from '../adapters/researchRecordsTypes'
 import type { ExplorerFeature } from './featureTypes'
@@ -50,43 +50,56 @@ export function AggregateRecordsDialog({
   recordSingular: string
   onOpenChange: (open: boolean) => void
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const pagination = usePagination(submissions, 20, `${open}:${submissions.map((record) => record.id).join(',')}`)
+  // The shell owns the scroll port (the whole sheet on phones, the body from
+  // sm up), so reset every ancestor up to the dialog when the page changes.
+  const scrollListToTop = () => {
+    for (
+      let node: HTMLElement | null = listRef.current;
+      node && node.getAttribute('role') !== 'dialog';
+      node = node.parentElement
+    ) {
+      node.scrollTop = 0
+    }
+  }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent variant="sheet" elevated className="gap-0 p-0 sm:max-h-[80dvh] sm:max-w-lg">
-        <div className="border-b px-4 py-3 pr-12">
-          <DialogTitle className="text-sm leading-5 text-foreground">{feature.modalTitle}</DialogTitle>
-          <DialogDescription className="mt-0.5 text-xs">
-            {applyCountTemplate(feature.modalDescription, submissions.length)}
-          </DialogDescription>
-        </div>
-        <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-          {pagination.items.map((submission) => (
-            <article key={submission.id} className="rounded-md border bg-muted/20 p-3">
-              <h3 className="text-sm font-medium leading-5 text-foreground">
-                {submission.title || `Untitled ${recordSingular}`}
-              </h3>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                {submission.author ? <span>{submission.author}</span> : null}
-                {submission.publicationYear ? <span>{submission.publicationYear}</span> : null}
-                <span>{resourceTypeLabels[submission.resourceTypeMain] ?? submission.resourceType}</span>
-              </div>
-            </article>
-          ))}
-        </div>
-        {pagination.pageCount > 1 && (
+    <RecordDialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={feature.modalTitle}
+      subtitle={applyCountTemplate(feature.modalDescription, submissions.length)}
+      size="md"
+      className="sm:max-h-[80dvh] sm:max-w-lg"
+      footerStart={
+        pagination.pageCount > 1 ? (
           <PaginationControls
             label="Record pages"
+            className="border-t-0 bg-transparent p-0"
             page={pagination.page}
             pageCount={pagination.pageCount}
             onPageChange={(page) => {
               pagination.setPage(page)
-              scrollRef.current?.scrollTo({ top: 0 })
+              scrollListToTop()
             }}
           />
-        )}
-      </DialogContent>
-    </Dialog>
+        ) : undefined
+      }
+    >
+      <div ref={listRef} className="space-y-2">
+        {pagination.items.map((submission) => (
+          <article key={submission.id} className="rounded-md border bg-background p-3">
+            <h3 className="text-sm font-medium leading-5 text-foreground">
+              {submission.title || `Untitled ${recordSingular}`}
+            </h3>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {submission.author ? <span>{submission.author}</span> : null}
+              {submission.publicationYear ? <span>{submission.publicationYear}</span> : null}
+              <span>{resourceTypeLabels[submission.resourceTypeMain] ?? submission.resourceType}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </RecordDialog>
   )
 }

@@ -1,7 +1,6 @@
-import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
 import type { ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
 
 import type { ResearchRecordsAdapterData } from './adapters/useResearchRecordsAdapter'
@@ -51,10 +50,7 @@ export function ProjectExplorerSidebar({
   return (
     <div className="flex h-full flex-col bg-background">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-2">
-        <Button type="button" variant="outline" size="sm" className="h-8 px-2.5" onClick={onBack}>
-          <ArrowLeft className="size-3.5" />
-          Projects
-        </Button>
+        <ProjectBackButton onBack={onBack} className="shrink-0" />
         <div className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground" title={title}>
           {title}
         </div>

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { Button } from '@/components/ui/button'
 import { Map, MapControls, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { PG_CENTER } from '@/components/ui/map-styles'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 import {
@@ -104,6 +106,11 @@ const DEFAULT_DRIVE: DriveState = {
   showAnalysis: false,
   quality: 'auto',
 }
+
+const HARVEST_PHASE_OPTIONS = [
+  { value: 'before', label: 'Before harvest' },
+  { value: 'after', label: 'After harvest' },
+] as const satisfies ReadonlyArray<{ value: DriveState['harvestPhase']; label: string }>
 
 const FIT_PADDING = { top: 72, bottom: 72, left: 48, right: 48 }
 
@@ -1177,8 +1184,8 @@ function DevForestryVisuals() {
         {drawMode !== 'none' && <div className="absolute top-3 left-3 right-14 z-10 rounded-lg border bg-background/95 p-3 shadow md:hidden" role="region" aria-label="Map drawing controls">
           <p className="text-xs">Tap the map to trace the {drawMode === 'corridor' ? 'road' : drawMode === 'spot' ? 'viewpoint' : 'polygon'}. {draftCoordinates.length} points added.</p>
           <div className="mt-2 flex gap-2">
-            {drawMode !== 'spot' && <button className="rounded border px-3 py-2 text-xs disabled:opacity-50" disabled={draftCoordinates.length < (drawMode === 'corridor' ? 2 : 3)} onClick={finishDraft}>Finish drawing</button>}
-            <button className="rounded border px-3 py-2 text-xs" onClick={() => handleDrawModeChange('none')}>Cancel drawing</button>
+            {drawMode !== 'spot' && <Button variant="outline" size="sm" className="touch:h-10" disabled={draftCoordinates.length < (drawMode === 'corridor' ? 2 : 3)} onClick={finishDraft}>Finish drawing</Button>}
+            <Button variant="outline" size="sm" className="touch:h-10" onClick={() => handleDrawModeChange('none')}>Cancel drawing</Button>
           </div>
         </div>}
 
@@ -1197,28 +1204,27 @@ function DevForestryVisuals() {
               <div className="space-y-2" aria-label="Harvest comparison">
                 {liveForest.loading && <p role="status" className="text-xs">Loading existing forest along the route…</p>}
                 {!!liveForest.data?.issues.length && <p className="text-xs">Existing forest data are incomplete. See Viewpoints, save & display to retry.</p>}
-                <div className="flex gap-1 text-xs">
-                  {(['before', 'after'] as const).map(phase => (
-                    <button key={phase} aria-pressed={drive.harvestPhase === phase}
-                      className={`flex-1 rounded border px-2 py-1.5 ${drive.harvestPhase === phase ? 'bg-primary text-primary-foreground' : ''}`}
-                      onClick={() => updateDrive({ harvestPhase: phase, playing: false, forest: true })}>
-                      {phase === 'before' ? 'Before harvest' : 'After harvest'}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  label="Harvest phase"
+                  variant="solid"
+                  size="sm"
+                  value={drive.harvestPhase}
+                  options={HARVEST_PHASE_OPTIONS}
+                  onChange={phase => updateDrive({ harvestPhase: phase, playing: false, forest: true })}
+                />
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <button className="rounded border px-2 py-1" onClick={() => updateDrive({ lookAtTargetId: drive.lookAtTargetId ? null : scene.targets.find(t => t.role === 'block' && t.id === selectedTargetId)?.id ?? scene.targets.find(t => t.role === 'block')?.id ?? null })}>
+                  <Button variant="outline" size="sm" className="touch:h-10" onClick={() => updateDrive({ lookAtTargetId: drive.lookAtTargetId ? null : scene.targets.find(t => t.role === 'block' && t.id === selectedTargetId)?.id ?? scene.targets.find(t => t.role === 'block')?.id ?? null })}>
                     {drive.lookAtTargetId ? 'Look along road' : 'Face cutblock'}
-                  </button>
-                  {scene.viewpoint.id === ROADSIDE_DEMO_ID && <button className="rounded border px-2 py-1" onClick={() => updateDrive({ positionMeters: 600, lookAtTargetId: scene.targets.find(t => t.role === 'block')?.id ?? null, playing: false })}>View opening</button>}
-                  {scene.viewpoint.id === ROADSIDE_DEMO_ID && <button className="rounded border px-2 py-1" onClick={() => updateDrive({ positionMeters: 200, lookAtTargetId: null, playing: true })}>Replay approach</button>}
+                  </Button>
+                  {scene.viewpoint.id === ROADSIDE_DEMO_ID && <Button variant="outline" size="sm" className="touch:h-10" onClick={() => updateDrive({ positionMeters: 600, lookAtTargetId: scene.targets.find(t => t.role === 'block')?.id ?? null, playing: false })}>View opening</Button>}
+                  {scene.viewpoint.id === ROADSIDE_DEMO_ID && <Button variant="outline" size="sm" className="touch:h-10" onClick={() => updateDrive({ positionMeters: 200, lookAtTargetId: null, playing: true })}>Replay approach</Button>}
                   <label className="flex items-center gap-1"><input type="checkbox" checked={drive.showAnalysis} onChange={e => updateDrive({ showAnalysis: e.target.checked })} />Analysis overlay</label>
                 </div>
                 <details className="text-xs"><summary className="cursor-pointer py-1">Viewpoints, save & display</summary>
                   <div className="mt-2 space-y-2">
                     <label className="block">Candidate viewpoints <select aria-label="Candidate viewpoint" className="mt-1 w-full rounded border bg-background p-1" value="" onChange={e => { const stop = stops[Number(e.target.value)]; if (stop) updateDrive({ positionMeters: stop.positionMeters, lookAtTargetId: stop.targetId, playing: false }) }}><option value="">{stops.length ? 'Choose a ground view…' : 'No visible ground candidates'}</option>{stops.map((stop, i) => <option key={stop.index} value={i}>{(stop.positionMeters / 1000).toFixed(2)} km · {Math.round(stop.visiblePercent)}% of block ground</option>)}</select></label>
                     <p className="text-[11px] text-muted-foreground">Candidates use terrain sightlines. Foreground trees can still hide the opening.</p>
-                    <div className="flex gap-2"><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={!canSaveView} onClick={saveView}>Save viewpoint</button><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={!canSaveView} onClick={saveImage}>Download image</button></div>
+                    <div className="flex gap-2"><Button variant="outline" size="sm" className="touch:h-10" disabled={!canSaveView} onClick={saveView}>Save viewpoint</Button><Button variant="outline" size="sm" className="touch:h-10" disabled={!canSaveView} onClick={saveImage}>Download image</Button></div>
                     {savedViews.length > 0 && <select aria-label="Saved viewpoint" className="w-full rounded border bg-background p-1" value="" onChange={e => { const view = savedViews.find(v => v.id === e.target.value); if (view) openPreview(view) }}><option value="">Reopen saved comparison…</option>{savedViews.map(v => <option key={v.id} value={v.id}>{v.name} · {(v.positionMeters / 1000).toFixed(2)} km</option>)}</select>}
                     <RegrowthControls drive={drive} update={updateDrive} year={visualYear} loading={liveForest.loading} data={liveForest.data} stands={regrowth.stands} unknown={regrowth.unknown} retry={liveForest.retry} />
                     <label className="flex items-center justify-between">Display quality <select aria-label="Display quality" className="rounded border bg-background p-1" value={drive.quality} onChange={e => updateDrive({ quality: e.target.value as DriveState['quality'] })}><option value="auto">Default</option><option value="detailed">Detailed</option><option value="fast">Faster</option></select></label>

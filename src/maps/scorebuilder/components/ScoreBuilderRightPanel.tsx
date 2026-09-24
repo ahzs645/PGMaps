@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 import { SCORE_BUILDER_EXAMPLES, SCORE_PRESETS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
@@ -205,48 +207,35 @@ export function ScoreBuilderRightPanel({
       </div>
 
       {tabOrder.length > 1 && (
-        <div
-          role="tablist"
-          className="flex shrink-0 overflow-x-auto border-b border-border bg-background/95"
-          data-score-builder-tablist="true"
-        >
-          {tabOrder.map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              type="button"
-              aria-selected={activeTab === tab}
-              data-score-builder-tab={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'relative min-w-[3.5rem] flex-1 whitespace-nowrap px-2 py-2.5 text-xs font-medium transition-colors',
-                activeTab === tab ? 'text-cyan-700 dark:text-cyan-300' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {TAB_LABELS[tab]}
-              {activeTab === tab && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-cyan-500" />}
-            </button>
-          ))}
+        <div className="shrink-0 bg-background/95" data-score-builder-tablist="true">
+          <TabBar
+            value={activeTab}
+            options={tabOrder.map((tab) => ({ value: tab, label: TAB_LABELS[tab] }))}
+            onChange={setActiveTab}
+            label="Results views"
+            variant="underline"
+            activeClassName="border-cyan-500 text-cyan-700 dark:text-cyan-300"
+            getTabProps={(option) => ({ 'data-score-builder-tab': option.value })}
+            className="gap-0 [&>button]:min-w-[3.5rem] [&>button]:flex-1 [&>button]:justify-center [&>button]:px-2"
+          />
         </div>
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
         {dataErrors.length > 0 && (
-          <div className="m-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-            <p className="font-medium">Unable to build scores</p>
+          <InlineAlert tone="error" title="Unable to build scores" className="m-3 p-3">
             {dataErrors.map((err, i) => (
               <p key={i}>{err}</p>
             ))}
-          </div>
+          </InlineAlert>
         )}
 
         {!hasActiveBoundarySurface && (
-          <div className="m-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
-            <p className="font-medium">Source grid mode</p>
-            <p className="mt-1 text-xs leading-4">
+          <InlineAlert tone="success" title="Source grid mode" className="m-3 p-3">
+            <p className="mt-1 leading-4">
               The map is showing the walkability source grid. Choose a study area to turn boundary rankings back on.
             </p>
-          </div>
+          </InlineAlert>
         )}
 
         {activeTab === 'density' && densityMode && (

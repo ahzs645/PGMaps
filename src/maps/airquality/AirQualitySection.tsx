@@ -7,12 +7,15 @@ import convex from '@turf/convex'
 import { featureCollection, point } from '@turf/helpers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { HEATMAP_COLOR_RAMPS } from '@/components/ui/map-styles'
+import { SelectAllActions } from '@/components/ui/text-button'
+import { DEFAULT_LOCALE, formatNumber } from '@/lib/format'
 import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
-import { getNetworkColor } from './constants'
+import { getBoundaryColorRamp, getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
 import { REGION_LEVEL_LABELS, useAirQualityState } from './hooks/useAirQualityState'
-import { calculateCorrectedPm25 } from './lib/corrections'
+import { calculateCorrectedPm25, formatPm25 } from './lib/corrections'
 import type {
   AirMonitor,
   AirQualityAreaStats,
@@ -44,6 +47,8 @@ function isMonitorInBounds(monitor: AirMonitor, bounds: AirQualityMapBounds | nu
 }
 
 const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
+/** The heatmap layer's own ramp, minus its transparent zero stop. */
+const HEATMAP_LEGEND_COLORS = HEATMAP_COLOR_RAMPS.air.slice(1).map(([, color]) => color)
 type BoundaryPickerFeature = GeoJSON.Feature<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
   {
@@ -260,14 +265,14 @@ function formatBoundaryMetricValue(value: number, metric: AirQualityBoundaryColo
   switch (metric) {
     case 'sensorCount':
     case 'networkCount':
-      return Math.round(value).toLocaleString()
+      return formatNumber(value)
     case 'overallDensity':
     case 'lowCostDensity':
     case 'otherDensity':
       return value > 0 ? `1 per ${(1 / value).toFixed(1)} km²` : '0'
     case 'correctedPm25':
     case 'rawPm25':
-      return `${value.toFixed(1)} ug/m3`
+      return formatPm25(value)
   }
 }
 
@@ -537,8 +542,8 @@ export default function AirQualitySection() {
   }, [actions])
 
   return (
-      <MapSectionLayout
-      mobilePeekTitle={<>Air Quality | {sidebarMonitors.length.toLocaleString()} {sidebarMonitorCountLabel}</>}
+    <MapSectionLayout
+      mobilePeekTitle={<>Air Quality | {sidebarMonitors.length.toLocaleString(DEFAULT_LOCALE)} {sidebarMonitorCountLabel}</>}
       mobilePeekSubtitle={<>{selectedMonitor?.name || `${selectedNetworks.length} networks selected`}</>}
       sidebar={(
         <AirQualitySidebar
@@ -582,56 +587,44 @@ export default function AirQualitySection() {
         />
 
         {showLegend && (
-          <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible contentClassName="space-y-3">
+          <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible defaultCollapsed="mobile" contentClassName="space-y-3">
             <div className="space-y-3">
               {boundaryLegendStats && (
                 <MapLegendSection
                   title={`${REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas`}
-                  value={boundaryLegendStats.areaCount.toLocaleString()}
+                  value={boundaryLegendStats.areaCount.toLocaleString(DEFAULT_LOCALE)}
                 >
                   <MapGradientLegendItem
-                    colors={boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
-                      ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
-                      : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']}
+                    colors={getBoundaryColorRamp(boundaryColorMetric)}
                     minLabel={getBoundaryMetricLabel(boundaryColorMetric)}
                     maxLabel={`${formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max`}
                   />
                   <div className="pt-1 text-xs text-muted-foreground">
-                    {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors
+                    {boundaryLegendStats.monitoredAreaCount.toLocaleString(DEFAULT_LOCALE)} of {boundaryLegendStats.areaCount.toLocaleString(DEFAULT_LOCALE)} areas have monitors
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {boundaryLegendStats.totalMonitors.toLocaleString()} monitors in study area
+                    {boundaryLegendStats.totalMonitors.toLocaleString(DEFAULT_LOCALE)} monitors in study area
                   </div>
                 </MapLegendSection>
               )}
 
               {showHeatmap && (
                 <MapLegendSection title="Heatmap" className="border-t border-border pt-3 first:border-t-0 first:pt-0">
-                  <MapGradientLegendItem colors={['#0ea5e9', '#22c55e', '#ef4444']} minLabel="Low" maxLabel="High" />
+                  <MapGradientLegendItem colors={HEATMAP_LEGEND_COLORS} minLabel="Low" maxLabel="High" />
                 </MapLegendSection>
               )}
 
               {showPoints && (
                 <MapLegendSection
                   title="Networks in view"
-                  value={legendNetworkRows.length.toLocaleString()}
+                  value={legendNetworkRows.length.toLocaleString(DEFAULT_LOCALE)}
                   actions={legendNetworkRows.length > 0 ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={selectLegendNetworks}
-                        className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearLegendNetworks}
-                        className="font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        None
-                      </button>
-                    </>
+                    <SelectAllActions
+                      onAll={selectLegendNetworks}
+                      onNone={clearLegendNetworks}
+                      allSelected={legendNetworkRows.every((row) => row.active)}
+                      noneSelected={legendNetworkRows.every((row) => !row.active)}
+                    />
                   ) : null}
                   className="border-t border-border pt-3 first:border-t-0 first:pt-0"
                 >
@@ -642,7 +635,7 @@ export default function AirQualitySection() {
                           key={row.network}
                           color={getNetworkColor(row.network)}
                           label={row.network}
-                          value={row.count.toLocaleString()}
+                          value={row.count.toLocaleString(DEFAULT_LOCALE)}
                           active={row.active}
                           onClick={() => actions.toggleNetwork(row.network)}
                         />

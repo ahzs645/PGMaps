@@ -7,28 +7,19 @@ import { LegendItem, MapLegendPanel, MapSizeLegend } from '@/components/ui/map-p
 import { RouletteModal } from './components/roulette'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
-import { HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilters'
+import { FACILITY_TYPE_OPTIONS, HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilters'
 import { stringCodec, useUrlState } from '@/hooks/useUrlState'
+import { isMobileViewport } from '@/hooks/useIsMobile'
 import { toggleArrayItem, useToggleArray } from '@/hooks/useToggleArray'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
 import { getHazardRating } from './hazard'
-import { useFoodMapWebMCP, type FoodViolationBucket } from './foodWebMCP'
+import { formatFullAddress } from './address'
+import { useFoodMapWebMCP } from './foodWebMCP'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
+import { FOOD_VIOLATION_BUCKETS, getViolationBucket, VIOLATION_BUCKET_STYLES, type FoodViolationBucket } from './violationBuckets'
 import type { RestaurantWithStats, HazardRating } from './types'
 
 type ViolationBucket = FoodViolationBucket
-
-const VIOLATION_BUCKETS: Array<{
-  key: ViolationBucket
-  label: string
-  color: string
-  matches: (count: number) => boolean
-}> = [
-  { key: 'zero', label: '0 violations', color: '#22c55e', matches: (count) => count === 0 },
-  { key: 'low', label: '1-2 violations', color: '#eab308', matches: (count) => count >= 1 && count <= 2 },
-  { key: 'medium', label: '3-5 violations', color: '#f97316', matches: (count) => count >= 3 && count <= 5 },
-  { key: 'high', label: '6+ violations', color: '#ef4444', matches: (count) => count >= 6 },
-]
 
 // Codec for the selected restaurant's name in the URL (absent = no selection)
 const restaurantNameCodec = stringCodec('')
@@ -91,17 +82,20 @@ export default function FoodMap() {
     visualizationMode,
     timelineMonths,
     violationTimelineMode,
+    sortOrder,
   } = filters
 
-  const [selectedViolationBuckets, setSelectedViolationBuckets] = useState<ViolationBucket[]>(
-    VIOLATION_BUCKETS.map((bucket) => bucket.key),
-  )
+  const [selectedViolationBuckets, setSelectedViolationBuckets] = useState<ViolationBucket[]>([
+    ...FOOD_VIOLATION_BUCKETS,
+  ])
   const [restaurantName, setRestaurantName] = useUrlState('restaurant', restaurantNameCodec)
   const selectedRowTrigger = useRef<HTMLButtonElement | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
   const [showRoulette, setShowRoulette] = useState(false)
-  const [legendCollapsed, setLegendCollapsed] = useState(false)
+  // Phones start with the legend folded: expanded, it covers a quarter of the
+  // map right above the sheet. Same rule as MapLegendPanel's defaultCollapsed="mobile".
+  const [legendCollapsed, setLegendCollapsed] = useState(isMobileViewport)
 
   // Timeline toggle
   const [showTimeline, setShowTimeline] = useState(false)
@@ -130,7 +124,7 @@ export default function FoodMap() {
     }
     const start = violationDateRange.start
     return start
-      ? `${formatMonthYear(start)}-${formatMonthYear(violationDateRange.end)}`
+      ? `${formatMonthYear(start)} – ${formatMonthYear(violationDateRange.end)}`
       : `Through ${formatMonthYear(timelineDate)}`
   }, [timelineDate, timelineMonths, violationDateRange, violationTimelineMode])
 
@@ -241,12 +235,8 @@ export default function FoodMap() {
       const ratingToCheck = visualizationMode === 'hazard' ? r.hazardRatingAtDate : getHazardRating(r)
 
       const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
-      const violationCount = r.violationStats?.total || 0
       const matchesViolationBucket =
-        visualizationMode !== 'violations' ||
-        VIOLATION_BUCKETS.some(
-          (bucket) => selectedViolationBuckets.includes(bucket.key) && bucket.matches(violationCount),
-        )
+        visualizationMode !== 'violations' || selectedViolationBuckets.includes(getViolationBucket(r.violationStats))
       const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
       const matchesSearch =
         !searchQuery ||
@@ -266,6 +256,47 @@ export default function FoodMap() {
   const geocodedRestaurants = useMemo(() => {
     return filteredRestaurants.filter((r) => r.latitude && r.longitude)
   }, [filteredRestaurants])
+
+  // Only the sidebar list is ordered; the map and WebMCP read filteredRestaurants.
+  const sortedRestaurants = useMemo(() => {
+    if (sortOrder === 'name') return filteredRestaurants
+    const latestTime = (r: RestaurantWithStats) =>
+      Math.max(0, ...(r.inspections || []).map((insp) => parseInspectionDate(insp.date || insp.inspection_date)?.getTime() || 0))
+    const keyed = filteredRestaurants.map((r) => ({
+      r,
+      key:
+        sortOrder === 'violations'
+          ? [
+              r.violationStats?.inspectionCount ? 1 : 0,
+              r.violationStats?.total || 0,
+              r.violationStats?.critical || 0,
+            ]
+          : [latestTime(r)],
+    }))
+    keyed.sort((a, b) => {
+      for (let i = 0; i < a.key.length; i++) {
+        if (a.key[i] !== b.key[i]) return b.key[i] - a.key[i]
+      }
+      return a.r.name.localeCompare(b.r.name)
+    })
+    return keyed.map((entry) => entry.r)
+  }, [filteredRestaurants, sortOrder])
+
+  // Filters narrowed from their "show everything" defaults. The legend's
+  // violation buckets count too: they hide list rows just like the chips do.
+  const activeFilterCount =
+    (selectedHazardRatings.length < HAZARD_RATING_OPTIONS.length ? 1 : 0) +
+    (selectedFacilityTypes.length < FACILITY_TYPE_OPTIONS.length ? 1 : 0) +
+    (visualizationMode === 'violations' && selectedViolationBuckets.length < FOOD_VIOLATION_BUCKETS.length ? 1 : 0)
+
+  const resetFilters = useCallback(() => {
+    actions.applyFilters({
+      hazardRatings: [...HAZARD_RATING_OPTIONS],
+      facilityTypes: [...FACILITY_TYPE_OPTIONS],
+      searchQuery: '',
+    })
+    setSelectedViolationBuckets([...FOOD_VIOLATION_BUCKETS])
+  }, [actions])
 
   // The URL param is the single source of truth for the selection: deriving
   // the selected restaurant from it (rather than mirroring it into local
@@ -298,9 +329,14 @@ export default function FoodMap() {
   }, [restaurantsWithStats])
 
   const violationBucketRows = useMemo(() => {
-    return VIOLATION_BUCKETS.map((bucket) => ({
+    const counts = new Map<ViolationBucket, number>()
+    restaurantsWithStats.forEach((restaurant) => {
+      const bucket = getViolationBucket(restaurant.violationStats)
+      counts.set(bucket, (counts.get(bucket) || 0) + 1)
+    })
+    return VIOLATION_BUCKET_STYLES.map((bucket) => ({
       ...bucket,
-      count: restaurantsWithStats.filter((restaurant) => bucket.matches(restaurant.violationStats?.total || 0)).length,
+      count: counts.get(bucket.key) || 0,
       active: selectedViolationBuckets.includes(bucket.key),
     }))
   }, [restaurantsWithStats, selectedViolationBuckets])
@@ -401,15 +437,20 @@ export default function FoodMap() {
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-        mobilePeekTitle={<>Food Safety | {geocodedRestaurants.length.toLocaleString()} on map</>}
+        mobilePeekTitle={<>Food Safety · {geocodedRestaurants.length.toLocaleString()} on map</>}
         mobilePeekSubtitle={
-          <>{selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}</>
+          <>
+            {selectedRestaurant?.name ||
+              (visualizationMode === 'violations'
+                ? `Violations · ${violationTimelineLabel}`
+                : `Hazard ratings · as of ${formatMonthYear(timelineDate)}`)}
+          </>
         }
         selectedFeatureMobilePeek={
           selectedRestaurant
             ? {
                 title: selectedRestaurant.name,
-                subtitle: selectedRestaurant.full_address || selectedRestaurant.address,
+                subtitle: formatFullAddress(selectedRestaurant),
               }
             : undefined
         }
@@ -417,7 +458,7 @@ export default function FoodMap() {
           <Sidebar
             className={MAP_SIDEBAR_CLASS}
             data={{
-              restaurants: filteredRestaurants,
+              restaurants: sortedRestaurants,
               geocodedRestaurants,
               loading,
               error,
@@ -425,9 +466,12 @@ export default function FoodMap() {
               timelineStats,
               hazardStatsAtDate,
               violationTimelineLabel,
+              hazardDateLabel: formatMonthYear(timelineDate),
+              activeFilterCount,
             }}
             filters={filters}
             filterActions={actions}
+            onResetFilters={resetFilters}
             selectedRestaurant={selectedRestaurant}
             showTimeline={showTimeline}
             onRestaurantClick={handleRestaurantClick}
@@ -463,8 +507,8 @@ export default function FoodMap() {
 
           {showLegend && (
             <MapLegendPanel
-              className="max-w-[200px]"
-              title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
+              className="max-w-[220px]"
+              title={visualizationMode === 'violations' ? 'Violations' : 'Hazard rating'}
               collapsible
               collapsed={legendCollapsed}
               onCollapsedChange={setLegendCollapsed}
@@ -475,7 +519,7 @@ export default function FoodMap() {
                   <span className="inline-flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
+                      onClick={() => setSelectedViolationBuckets([...FOOD_VIOLATION_BUCKETS])}
                       className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
                     >
                       All

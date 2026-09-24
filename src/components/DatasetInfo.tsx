@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Copy, Database, Download, ExternalLink, Flame, Info } from 'lucide-react'
+import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -31,11 +32,9 @@ interface DatasetInfoProps {
   defaultOpen?: boolean
 }
 
+/** Unparseable dates (e.g. "Quarterly") are shown as written. */
 function formatUpdated(value?: string | null): string {
-  if (!value) return 'Unknown'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  return formatDate(value, { fallback: value || 'Unknown' })
 }
 
 function copyText(value: string) {
@@ -106,7 +105,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
                 <a
                   href={dataset.downloadUrl}
                   download
-                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent touch:min-h-10"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Download
@@ -117,7 +116,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
                   href={dataset.apiUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent touch:min-h-10"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   API
@@ -126,7 +125,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
               <button
                 type="button"
                 onClick={() => copyText(primaryUrl)}
-                className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground touch:min-h-10"
               >
                 <Copy className="h-3.5 w-3.5" />
                 Copy link

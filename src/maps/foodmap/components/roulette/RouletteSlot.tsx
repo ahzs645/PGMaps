@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getHazardRating, HAZARD_TAILWIND } from '../../hazard'
+import { formatFullAddress } from '../../address'
 import type { RouletteRestaurant } from '../../types'
 
 interface RouletteSlotProps {
@@ -192,7 +193,7 @@ export function RouletteSlot({
           </div>
           <div className="text-lg font-semibold">{eligibleRestaurants[winnerIndex].name}</div>
           <div className="text-sky-100 text-sm">
-            {eligibleRestaurants[winnerIndex].full_address || eligibleRestaurants[winnerIndex].address}
+            {formatFullAddress(eligibleRestaurants[winnerIndex])}
           </div>
         </div>
       )}

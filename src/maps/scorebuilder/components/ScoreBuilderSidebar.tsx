@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
-import { BookOpen, Check, ChevronDown, ChevronUp, Copy, Hammer, Plus, Settings as SettingsIcon } from 'lucide-react'
+import { BookOpen, Check, Copy, Hammer, Plus, Settings as SettingsIcon } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { getLevelOptionsForSource } from '@/lib/studyArea'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -12,7 +15,6 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap,
 } from '../types'
-import { SCORE_DATA_SOURCES } from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
@@ -20,6 +22,7 @@ import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { formatScore, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import { CorrelateTab } from './CorrelateTab'
+import { DataSourceToggleList } from './DataSourceToggleList'
 import { DensityTab } from './DensityTab'
 import { WeightDistribution } from './EquationComposer'
 import type { MapLens } from './IndexLabHeader'
@@ -210,7 +213,7 @@ export function ScoreBuilderSidebar({
           <div className="text-base font-semibold leading-tight text-foreground">{activeRecipeLabel}</div>
           <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{activeRecipeDescription}</p>
           <div className="mt-2 text-xs text-muted-foreground">
-            {regions.length.toLocaleString()} regions · avg {formatScore(scoreSpread.average)} ·{' '}
+            {regions.length.toLocaleString(DEFAULT_LOCALE)} regions · avg {formatScore(scoreSpread.average)} ·{' '}
             {enabledDataSources.length} source{enabledDataSources.length === 1 ? '' : 's'}
           </div>
           <div className="mt-3 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
@@ -250,12 +253,11 @@ export function ScoreBuilderSidebar({
         </div>
 
         {dataErrors.length > 0 && (
-          <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-            <p className="font-medium">Unable to build scores</p>
+          <InlineAlert tone="error" title="Unable to build scores" className="m-4 p-3">
             {dataErrors.map((err, i) => (
               <p key={i}>{err}</p>
             ))}
-          </div>
+          </InlineAlert>
         )}
 
         {lens === 'density' && (
@@ -297,7 +299,7 @@ export function ScoreBuilderSidebar({
             <div>
               <h2 className="text-sm font-semibold text-foreground">Equation</h2>
               <div className="text-xs text-muted-foreground">
-                {activeTerms.length} active · {totalAbsoluteWeight.toLocaleString()} total influence
+                {activeTerms.length} active · {totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE)} total influence
               </div>
             </div>
             <button
@@ -311,9 +313,7 @@ export function ScoreBuilderSidebar({
           </div>
           <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
           {activeTerms.length === 0 ? (
-            <div className="mt-3 rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-              No active terms yet. Add a metric or pick a recipe.
-            </div>
+            <EmptyHint className="mt-3 rounded-md p-3">No active terms yet. Add a metric or pick a recipe.</EmptyHint>
           ) : (
             <div className="mt-3 space-y-2">
               {activeTerms.map((metric) => (
@@ -360,69 +360,25 @@ export function ScoreBuilderSidebar({
           dataPrefix="score-builder"
         />
 
-        <section className="border-b border-border" data-score-builder-section="dataSources">
-          <button
-            type="button"
-            onClick={() => setSourcesOpen((current) => !current)}
-            aria-expanded={sourcesOpen}
-            className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left"
+        <div data-score-builder-section="dataSources">
+          <CollapsibleSection
+            open={sourcesOpen}
+            onOpenChange={setSourcesOpen}
+            label={<span className="text-sm font-semibold">Data sources</span>}
+            summary={`${enabledDataSources.length} on`}
+            className="bg-transparent px-1"
+            contentClassName="px-3 pb-4"
           >
-            <span className="text-sm font-semibold text-foreground">
-              Data sources <span className="font-normal text-muted-foreground">· {enabledDataSources.length} on</span>
-            </span>
-            {sourcesOpen ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-          {sourcesOpen && (
-            <div className="space-y-2 px-4 pb-4">
-              <button
-                type="button"
-                onClick={onTogglePoints}
-                aria-pressed={showPoints}
-                className={cn(
-                  'flex min-h-11 w-full items-center justify-between rounded-md border px-3 text-left text-xs transition-colors',
-                  showPoints
-                    ? 'border-sky-500/60 bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <span className="min-w-0 truncate font-medium">Source points on map</span>
-                <span className={cn('text-xs font-semibold', showPoints ? 'text-sky-600' : 'text-muted-foreground')}>
-                  {showPoints ? 'ON' : 'OFF'}
-                </span>
-              </button>
-              {SCORE_DATA_SOURCES.map((ds) => {
-                const active = enabledSourceSet.has(ds.id)
-                const orphanedCount = [...unavailableTerms.values()].filter((entry) => entry.source === ds.id).length
-                return (
-                  <button
-                    key={ds.id}
-                    type="button"
-                    aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
-                    title={ds.description}
-                    onClick={() => onToggleDataSource(ds.id)}
-                    className={cn(
-                      'flex min-h-11 w-full items-center justify-between rounded-md border px-3 text-left text-xs transition-colors',
-                      active
-                        ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
-                        : orphanedCount > 0
-                          ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'
-                          : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <span className="min-w-0 truncate font-medium">{ds.label}</span>
-                    <span className={cn('text-xs font-semibold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
-                      {active ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </section>
+            <DataSourceToggleList
+              enabledSources={enabledSourceSet}
+              onToggleDataSource={onToggleDataSource}
+              showPoints={showPoints}
+              onTogglePoints={onTogglePoints}
+              unavailableTerms={unavailableTerms}
+              rowClassName="min-h-11"
+            />
+          </CollapsibleSection>
+        </div>
 
         <section className="px-4 py-3 pb-6" data-score-builder-section-id="regions">
           <h2 className="mb-2 text-sm font-semibold text-foreground">Regions</h2>

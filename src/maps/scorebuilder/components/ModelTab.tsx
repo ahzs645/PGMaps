@@ -1,4 +1,8 @@
 import { BarChart3, BookOpen, Filter } from 'lucide-react'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
+import { StatGroup } from '@/components/ui/stat-group'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { SCORE_PRESETS } from '../constants'
 import type {
@@ -89,20 +93,18 @@ export function ModelTab({
             Active weights are normalized by total influence, so a useful model can use any total.
           </p>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-xs uppercase text-muted-foreground">Influence</div>
-            <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
-          </div>
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-xs uppercase text-muted-foreground">Metrics</div>
-            <div className="font-semibold text-foreground">{activeMetricCount}</div>
-          </div>
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-xs uppercase text-muted-foreground">Average</div>
-            <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
-          </div>
-        </div>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          align="start"
+          columns={3}
+          className="mt-3"
+          items={[
+            { label: 'Influence', value: totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE) },
+            { label: 'Metrics', value: activeMetricCount },
+            { label: 'Average', value: formatScore(scoreSpread.average) },
+          ]}
+        />
       </div>
 
       {presetMethodology && (
@@ -119,9 +121,9 @@ export function ModelTab({
             <span className="font-semibold text-foreground">Normalization:</span> {presetMethodology.normalization}
           </div>
           {presetMethodology.proxy && (
-            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+            <InlineAlert tone="warning" className="mt-2 px-2 py-1">
               Proxy recipe. Use for screening, not as a validated exposure or health index.
-            </div>
+            </InlineAlert>
           )}
           <div className="mt-2">
             <div className="font-semibold text-foreground">Known limits</div>
@@ -164,9 +166,9 @@ export function ModelTab({
             ))}
           </div>
           {regions.some((region) => region.equityAudit.cutoffWarning) && (
-            <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+            <InlineAlert tone="warning" className="px-2 py-1">
               Some regions sit near score-band cutoffs; treat hard thresholds as sensitive.
-            </div>
+            </InlineAlert>
           )}
         </div>
       </div>
@@ -261,9 +263,8 @@ export function ModelTab({
       </div>
 
       {scenarioComparison && (
-        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-          <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">Scenario compare</div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-amber-900 dark:text-amber-100">
+        <InlineAlert tone="warning" title="Scenario compare" className="rounded-lg p-3">
+          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-amber-900 dark:text-amber-100">
             <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
               <div className="text-xs uppercase text-amber-700 dark:text-amber-300">Current top</div>
               <div className="font-semibold">{scenarioComparison.currentTopName || 'None'}</div>
@@ -313,13 +314,13 @@ export function ModelTab({
               ))}
             </div>
           </div>
-        </div>
+        </InlineAlert>
       )}
 
-      <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+      <EmptyHint className="bg-muted/10 p-3 text-left">
         Rubric mode is the next larger model change: metric values would be binned into named classes before weighting,
         similar to GIS-MCDA scoring matrices.
-      </div>
+      </EmptyHint>
     </div>
   )
 }

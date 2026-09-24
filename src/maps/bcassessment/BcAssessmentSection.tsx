@@ -1,16 +1,16 @@
 import { useCallback, useMemo, useState } from 'react'
-import { formatCompactCurrency } from '@/lib/format'
+import { DEFAULT_LOCALE, formatCompactCurrency, formatCurrency } from '@/lib/format'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
+import { KeyValueRows, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { Timeline } from '@/components/ui/timeline'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
-import { BcAssessmentSidebar, formatNumber, HistorySparkline } from './components/BcAssessmentSidebar'
+import { BcAssessmentSidebar, HistorySparkline } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
@@ -237,7 +237,7 @@ export default function BcAssessmentSection() {
 
   return (
     <MapSectionLayout
-      mobilePeekTitle={<>BC Assessment | {filteredProperties.length.toLocaleString()} parcels</>}
+      mobilePeekTitle={<>BC Assessment | {filteredProperties.length.toLocaleString(DEFAULT_LOCALE)} parcels</>}
       mobilePeekSubtitle={<>{visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}</>}
       sidebar={(
         <BcAssessmentSidebar
@@ -289,6 +289,7 @@ export default function BcAssessmentSection() {
           <MapLegendPanel
             title={`${boundaryLevel !== 'none' ? 'Avg ' : ''}${colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}`}
             collapsible
+            defaultCollapsed="mobile"
             width={ASSESSMENT_LEGEND_MODE === 'rows' ? 'md' : 'lg'}
           >
             {ASSESSMENT_LEGEND_MODE === 'rows' ? (
@@ -344,24 +345,18 @@ function MobileBcAssessmentFeatureCard({
       subtitle={property.description}
       onClose={onClose}
     >
-      <div className="mt-3 space-y-1 rounded-md border border-blue-300/60 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100">
-        <PropertyRow label="Total Assessed" value={`$${formatNumber(property.totalAssessed)}`} />
-        <PropertyRow label="Land" value={`$${formatNumber(property.totalLand)}`} />
-        <PropertyRow label="Building" value={`$${formatNumber(property.totalBuilding)}`} />
-        {property.yearBuilt ? <PropertyRow label="Year Built" value={String(property.yearBuilt)} /> : null}
-      </div>
+      <KeyValueRows
+        className="mt-3 rounded-md border border-blue-300/60 bg-blue-50 p-3 text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100"
+        rows={[
+          { label: 'Total Assessed', value: formatCurrency(property.totalAssessed) },
+          { label: 'Land', value: formatCurrency(property.totalLand) },
+          { label: 'Building', value: formatCurrency(property.totalBuilding) },
+          property.yearBuilt ? { label: 'Year Built', value: String(property.yearBuilt) } : null,
+        ]}
+      />
       {property.histValues && property.histValues.length > 1 && (
         <HistorySparkline values={property.histValues} />
       )}
     </MobileFeatureCard>
-  )
-}
-
-function PropertyRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="max-w-[12rem] text-right font-medium text-foreground">{value}</span>
-    </div>
   )
 }

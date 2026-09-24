@@ -39,3 +39,10 @@ export const HAZARD_TAILWIND: Record<HazardRating, { bg: string; border: string;
   Moderate: { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-amber-600 dark:text-amber-400' },
   Unknown: { bg: 'bg-gray-500', border: 'border-gray-500', text: 'text-gray-600 dark:text-gray-400' },
 }
+
+/** Soft badge classes per hazard rating for cards and popups. */
+export const HAZARD_BADGE_CLASSES: Record<HazardRating, string> = {
+  Low: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+  Moderate: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
+  Unknown: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+}

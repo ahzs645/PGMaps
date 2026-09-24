@@ -1,7 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Droplets, X } from 'lucide-react'
+import { Droplets } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import {
+  KeyValueRows,
+  MapLegendNote,
+  MapLegendPanel,
+  MapSidebarShell,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StatGroup } from '@/components/ui/stat-group'
 import { cn } from '@/lib/utils'
 import {
   SEWAGE_ATTRIBUTES,
@@ -23,80 +33,41 @@ function DevInteractSewage() {
   const domain = useMemo(() => attributeDomain(attribute), [attribute])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <Droplets className="size-4" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Sewage &amp; PFAS sites</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Felt-style proportional-circle point layer with a graduated-circle legend.
-            </p>
-          </div>
-        </div>
-      </div>
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title="Sewage & PFAS sites"
+      subtitle="Felt-style proportional-circle point layer with a graduated-circle legend."
+      icon={Droplets}
+    >
+      <SidebarSection title="Size circles by">
+        <SegmentedControl<SewageAttributeId>
+          label="Size circles by"
+          value={attribute}
+          options={SEWAGE_ATTRIBUTES.map((item) => ({ value: item.id, label: item.label }))}
+          onChange={setAttribute}
+        />
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <section>
-          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Size circles by</div>
-          <div className="grid grid-cols-2 gap-1">
-            {SEWAGE_ATTRIBUTES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setAttribute(item.id)}
-                aria-pressed={item.id === attribute}
-                className={cn(
-                  'rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                  item.id === attribute
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <h2 className="mb-2 text-sm font-semibold">Legend</h2>
-          <div role="list">
-            <SewageLegend
-              caption={activeAttribute.caption}
-              color={activeAttribute.color}
-              domain={domain}
-              visible={visible}
-              onToggleVisible={() => setVisible((current) => !current)}
-            />
-          </div>
-          <p className="mt-2 text-xs leading-4 text-muted-foreground">
-            Circle area is proportional to the value. Click a site for details.
-          </p>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Sites" value={String(siteFeatures.features.length)} />
-            <Stat label="Layer" value={visible ? 'On' : 'Off'} />
-          </div>
-        </section>
-      </div>
-    </aside>
+      <SidebarSection>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={2}
+          items={[
+            { label: 'Sites', value: String(siteFeatures.features.length) },
+            { label: 'Layer', value: visible ? 'On' : 'Off' },
+          ]}
+        />
+      </SidebarSection>
+    </MapSidebarShell>
   )
 
   return (
     <MapSectionLayout
       desktopSidebarWidth={320}
       mobileInitialSheetState="collapsed"
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">{siteFeatures.features.length} monitoring sites</div>
-          <div className="truncate text-xs text-muted-foreground">{activeAttribute.caption}</div>
-        </div>
-      )}
+      mobilePeekTitle={`${siteFeatures.features.length} monitoring sites`}
+      mobilePeekSubtitle={activeAttribute.caption}
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -145,6 +116,21 @@ function DevInteractSewage() {
               <SitePopup site={selected} onClose={() => setSelected(null)} />
             </MapPopup>
           )}
+
+          <MapLegendPanel title="Legend" collapsible defaultCollapsed="mobile">
+            <div role="list">
+              <SewageLegend
+                caption={activeAttribute.caption}
+                color={activeAttribute.color}
+                domain={domain}
+                visible={visible}
+                onToggleVisible={() => setVisible((current) => !current)}
+              />
+            </div>
+            <MapLegendNote className="mt-2 px-0">
+              Circle area is proportional to the value. Click a site for details.
+            </MapLegendNote>
+          </MapLegendPanel>
         </Map>
       </div>
     </MapSectionLayout>
@@ -153,34 +139,18 @@ function DevInteractSewage() {
 
 function SitePopup({ site, onClose }: { site: SewageSite; onClose: () => void }) {
   return (
-    <div className="w-60 overflow-hidden rounded-md bg-popover text-popover-foreground">
-      <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase text-muted-foreground">Monitoring site</div>
-          <div className="mt-0.5 truncate text-sm font-semibold">{site.properties.name}</div>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close popup">
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="px-3 py-1">
-        {site.properties.properties.map((row) => (
-          <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-border/70 py-1.5 text-sm last:border-b-0">
-            <span className="text-muted-foreground">{row.label}</span>
-            <span className="min-w-0 truncate font-medium text-foreground">{row.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold">{value}</div>
-    </div>
+    <MapPopupCard
+      className="w-56"
+      eyebrow="Monitoring site"
+      title={site.properties.name}
+      onClose={onClose}
+      closeLabel="Close popup"
+    >
+      <KeyValueRows
+        variant="divided"
+        rows={site.properties.properties.map((row) => ({ key: row.label, label: row.label, value: row.value }))}
+      />
+    </MapPopupCard>
   )
 }
 

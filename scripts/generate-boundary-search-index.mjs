@@ -16,6 +16,7 @@ const SOURCE_METADATA = {
   bcEr: { label: 'BCER admin zones', group: 'Administrative' },
   regionalDistrict: { label: 'Regional district', group: 'Administrative' },
   bcMunicipality: { label: 'Municipalities', group: 'Administrative' },
+  postal: { label: 'Postal boundaries', group: 'Administrative' },
   census: { label: 'Census boundaries', group: 'Administrative' },
   watershed: { label: 'Watershed boundaries', group: 'Natural / resource' },
   namedWatershed: { label: 'Named watersheds', group: 'Natural / resource' },
@@ -39,6 +40,9 @@ const LEVEL_LABELS = {
   cd: 'Census Division',
   csd: 'Census Subdivision',
   northSouthCsd: 'North / South CSDs',
+  postalRegion: 'BC postal region (V)',
+  postalPrefix2: 'Postal prefix (2 characters, derived)',
+  fsa: 'FSA (3 characters, 2021)',
   ct: 'Census Tract',
   da: 'Dissemination Area',
   majorWatershed: 'Major River Basin',
@@ -276,6 +280,9 @@ async function wildfireRecords() {
 }
 
 const FILE_SOURCES = [
+  { source: 'postal', level: 'postalRegion', path: 'boundaries/StatCan/bc_postal_region_2021.geojson.gz', codeKeys: ['boundaryCode'], nameKeys: ['boundaryName'] },
+  { source: 'postal', level: 'postalPrefix2', path: 'boundaries/StatCan/bc_postal_prefix2_2021.geojson.gz', codeKeys: ['boundaryCode'], nameKeys: ['boundaryName'] },
+  { source: 'postal', level: 'fsa', path: 'boundaries/StatCan/bc_fsa_2021.geojson.gz', codeKeys: ['CFSAUID'], nameKeys: ['boundaryName'] },
   { source: 'cityCommunity', level: 'communityPolygon', path: 'walkability/community_walkability.geojson', codeKeys: ['communityId', 'OBJECTID'], nameKeys: ['communityName', 'CommunityName'] },
   { source: 'cityPG', level: 'elementarySchoolCatchment', path: 'boundaries/CityPG/elementary_school_catchments.geojson', codeKeys: ['OBJECTID'], nameKeys: ['SchoolName'] },
   { source: 'cityPG', level: 'secondarySchoolCatchment', path: 'boundaries/CityPG/secondary_school_catchments.geojson', codeKeys: ['OBJECTID'], nameKeys: ['SchoolNam'] },

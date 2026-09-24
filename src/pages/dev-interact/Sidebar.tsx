@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarClock, Eye, EyeOff, Layers, MoreHorizontal, Ruler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MapTableButton } from '@/components/map/MapFeatureTable'
+import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { actionRows, mapDatasetMeta } from './data'
 import { formatArea, formatDistance } from './geo'
-import { MeasurementValue, StatCard } from './SmallControls'
 import type { LayerId, MeasurementMode, MeasurementStats, ScalePosition, YearRange } from './types'
 import { YearFilterWidget } from './YearFilterWidget'
-import { DEFAULT_LOCALE } from '@/lib/format'
 
 const scalePositionOptions: Array<{ value: ScalePosition; label: string }> = [
   { value: 'bottom-center', label: 'Bottom center' },
@@ -95,156 +96,161 @@ export function DevInteractSidebar({
   }
 
   return (
-    <aside className={cn('flex h-full min-h-0 flex-col overflow-hidden bg-background/95', className)}>
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <Layers className="size-4" />
+    <MapSidebarShell
+      className={className}
+      title="Interactive map shell"
+      subtitle="Shared sidebar, bottom sheet, popup cards, layer controls, and map actions."
+      icon={Layers}
+      iconClassName="border bg-muted text-foreground"
+      titleClassName="text-base"
+      scrollClassName="pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-0"
+    >
+      <SidebarSection>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Use this map to test the Felt-style presentation against the app's existing MapLibre stack.
+        </p>
+        <div className="mt-3 space-y-2">
+          {actionRows.map(({ label, icon: Icon }) => (
+            <div key={label} className="relative" ref={label === 'Measure areas' ? measurementMenuRef : undefined}>
+              {label === 'Open table' ? (
+                <MapTableButton onClick={onOpenTable} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={
+                    label === 'Search locations'
+                      ? onOpenSearch
+                      : label === 'Measure areas'
+                        ? () => setMeasurementMenuOpen((open) => !open)
+                        : undefined
+                  }
+                  aria-haspopup={label === 'Measure areas' ? 'menu' : undefined}
+                  aria-expanded={label === 'Measure areas' ? measurementMenuOpen : undefined}
+                  className="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+                >
+                  <Icon className="size-4" />
+                  <span>{label}</span>
+                </button>
+              )}
+              {label === 'Measure areas' && measurementMenuOpen && (
+                <MeasurementShapeMenu
+                  onPolygon={choosePolygonMeasurement}
+                  onCircle={chooseCircleMeasurement}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </SidebarSection>
+
+      <SidebarSection
+        title="Legend"
+        actions={(
+          <div className="relative" ref={legendMenuRef}>
+            <button
+              type="button"
+              className="rounded-md p-1.5 hover:bg-muted touch:p-2.5"
+              aria-label="More legend options"
+              aria-haspopup="menu"
+              aria-expanded={legendMenuOpen}
+              onClick={() => setLegendMenuOpen((open) => !open)}
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+            {legendMenuOpen && <LegendOptionsMenu />}
           </div>
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Interactive map shell</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Shared sidebar, bottom sheet, popup cards, layer controls, and map actions.
-            </p>
+        )}
+      >
+        <div className="space-y-2">
+          <div role="list" className="space-y-0.5">
+            <LegendRow title="Neighbourhood areas" color="#8b5cf6" active={visibleLayers.neighbourhoods} onToggle={() => onToggleLayer('neighbourhoods')} onIsolate={() => onIsolateLayer('neighbourhoods')} />
+            <LegendRow title="Parks" color="#22c55e" active={visibleLayers.parks} onToggle={() => onToggleLayer('parks')} onIsolate={() => onIsolateLayer('parks')} />
+            <LegendRow title="Transit routes" color="#0ea5e9" active={visibleLayers.routes} onToggle={() => onToggleLayer('routes')} onIsolate={() => onIsolateLayer('routes')} line />
+          </div>
+          <YearFilterWidget value={yearRange} onChange={onYearRangeChange} />
+        </div>
+      </SidebarSection>
+
+      <SidebarSection
+        title="Measurement"
+        actions={(
+          <button type="button" onClick={onClearMeasurement} className="rounded-md p-1.5 hover:bg-muted touch:p-2.5" aria-label="Delete measurement">
+            <Trash2 className="size-4" />
+          </button>
+        )}
+      >
+        <div className="rounded-md border border-border bg-muted/30 p-3">
+          <div className="text-xs text-muted-foreground">
+            {measurementMode === 'idle'
+              ? 'Start measuring to draw a private polygon or circle on the map.'
+              : `${measurementPointCount} point${measurementPointCount === 1 ? '' : 's'} placed`}
+          </div>
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            align="start"
+            columns={2}
+            className="mt-3"
+            items={[
+              { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
+              { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+            ]}
+          />
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant={measurementMode === 'drawing' ? 'secondary' : 'default'} onClick={onStartMeasurement} className="flex-1">
+              <Ruler className="mr-2 size-4" />
+              Measure
+            </Button>
+            <Button size="sm" variant="outline" disabled={measurementPointCount < 3 || measurementMode !== 'drawing'} onClick={onFinishMeasurement} className="flex-1">
+              Close
+            </Button>
           </div>
         </div>
-      </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-4 md:p-4">
-        <section>
-          <p className="text-xs leading-5 text-muted-foreground">
-            Use this map to test the Felt-style presentation against the app's existing MapLibre stack.
-          </p>
-          <div className="mt-3 space-y-2">
-            {actionRows.map(({ label, icon: Icon }) => (
-              <div key={label} className="relative" ref={label === 'Measure areas' ? measurementMenuRef : undefined}>
-                {label === 'Open table' ? (
-                  <MapTableButton onClick={onOpenTable} />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={
-                      label === 'Search locations'
-                        ? onOpenSearch
-                        : label === 'Measure areas'
-                          ? () => setMeasurementMenuOpen((open) => !open)
-                          : undefined
-                    }
-                    aria-haspopup={label === 'Measure areas' ? 'menu' : undefined}
-                    aria-expanded={label === 'Measure areas' ? measurementMenuOpen : undefined}
-                    className="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted"
-                  >
-                    <Icon className="size-4" />
-                    <span>{label}</span>
-                  </button>
-                )}
-                {label === 'Measure areas' && measurementMenuOpen && (
-                  <MeasurementShapeMenu
-                    onPolygon={choosePolygonMeasurement}
-                    onCircle={chooseCircleMeasurement}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+      </SidebarSection>
 
-        <section className="border-t border-border pt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Legend</h2>
-            <div className="relative" ref={legendMenuRef}>
-              <button
-                type="button"
-                className="rounded-md p-1.5 hover:bg-muted"
-                aria-label="More legend options"
-                aria-haspopup="menu"
-                aria-expanded={legendMenuOpen}
-                onClick={() => setLegendMenuOpen((open) => !open)}
-              >
-                <MoreHorizontal className="size-4" />
-              </button>
-              {legendMenuOpen && <LegendOptionsMenu />}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div role="list" className="space-y-0.5">
-              <LegendRow title="Neighbourhood areas" color="#8b5cf6" active={visibleLayers.neighbourhoods} onToggle={() => onToggleLayer('neighbourhoods')} onIsolate={() => onIsolateLayer('neighbourhoods')} />
-              <LegendRow title="Parks" color="#22c55e" active={visibleLayers.parks} onToggle={() => onToggleLayer('parks')} onIsolate={() => onIsolateLayer('parks')} />
-              <LegendRow title="Transit routes" color="#0ea5e9" active={visibleLayers.routes} onToggle={() => onToggleLayer('routes')} onIsolate={() => onIsolateLayer('routes')} line />
-            </div>
-            <YearFilterWidget value={yearRange} onChange={onYearRangeChange} />
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Measurement</h2>
-            <button type="button" onClick={onClearMeasurement} className="rounded-md p-1.5 hover:bg-muted" aria-label="Delete measurement">
-              <Trash2 className="size-4" />
-            </button>
-          </div>
-          <div className="rounded-md border border-border bg-muted/30 p-3">
-            <div className="text-xs text-muted-foreground">
-              {measurementMode === 'idle'
-                ? 'Start measuring to draw a private polygon or circle on the map.'
-                : `${measurementPointCount} point${measurementPointCount === 1 ? '' : 's'} placed`}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <MeasurementValue label="Perimeter" value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
-              <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" variant={measurementMode === 'drawing' ? 'secondary' : 'default'} onClick={onStartMeasurement} className="flex-1">
-                <Ruler className="mr-2 size-4" />
-                Measure
-              </Button>
-              <Button size="sm" variant="outline" disabled={measurementPointCount < 3 || measurementMode !== 'drawing'} onClick={onFinishMeasurement} className="flex-1">
-                Close
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <div className="mb-2">
-            <h2 className="text-sm font-semibold">Map components</h2>
-          </div>
-          <div className="space-y-2">
-            <ComponentToggle
-              title="Scale"
-              description="Show the scale, zoom, and source strip"
-              checked={scaleVisible}
-              onCheckedChange={onScaleVisibleChange}
-            />
-            <div className="rounded-md border border-border bg-background px-3 py-2 shadow-sm">
-              <label htmlFor="scale-position" className="block text-sm font-medium">Scale position</label>
-              <AppSelect
-                id="scale-position"
-                value={scalePosition}
-                onValueChange={(value) => onScalePositionChange(value as ScalePosition)}
-                options={scalePositionOptions}
-                className="mt-2"
-                triggerClassName="h-8 bg-background"
-                disabled={!scaleVisible}
-              />
-            </div>
-            <ComponentToggle
-              title="Open in menu"
-              description="Show map handoff options in feature sheets"
-              checked={openInEnabled}
-              onCheckedChange={onOpenInEnabledChange}
+      <SidebarSection title="Map components">
+        <div className="space-y-2">
+          <ComponentToggle
+            title="Scale"
+            description="Show the scale, zoom, and source strip"
+            checked={scaleVisible}
+            onCheckedChange={onScaleVisibleChange}
+          />
+          <div className="rounded-md border border-border bg-background px-3 py-2 shadow-sm">
+            <label htmlFor="scale-position" className="block text-sm font-medium">Scale position</label>
+            <AppSelect
+              id="scale-position"
+              value={scalePosition}
+              onValueChange={(value) => onScalePositionChange(value as ScalePosition)}
+              options={scalePositionOptions}
+              className="mt-2"
+              triggerClassName="h-8 bg-background"
+              disabled={!scaleVisible}
             />
           </div>
-        </section>
+          <ComponentToggle
+            title="Open in menu"
+            description="Show map handoff options in feature sheets"
+            checked={openInEnabled}
+            onCheckedChange={onOpenInEnabledChange}
+          />
+        </div>
+      </SidebarSection>
 
-        <section className="border-t border-border pt-4">
-          <div className="grid grid-cols-3 gap-2">
-            <StatCard label="Visible" value={Object.values(visibleLayers).filter(Boolean).length.toString()} />
-            <StatCard label="Features" value="6" />
-            <StatCard label="Cards" value="On" />
-          </div>
-        </section>
-      </div>
-    </aside>
+      <SidebarSection className="border-b-0">
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          align="start"
+          columns={3}
+          items={[
+            { label: 'Visible', value: Object.values(visibleLayers).filter(Boolean).length.toString() },
+            { label: 'Features', value: '6' },
+            { label: 'Cards', value: 'On' },
+          ]}
+        />
+      </SidebarSection>
+    </MapSidebarShell>
   )
 }
 
@@ -279,18 +285,6 @@ function ComponentToggle({
   )
 }
 
-function formatUpdated(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString(DEFAULT_LOCALE, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
 function LegendOptionsMenu() {
   return (
     <div
@@ -303,7 +297,7 @@ function LegendOptionsMenu() {
         <span className="min-w-0">
           <span className="block text-sm font-medium">Last updated</span>
           <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-            {formatUpdated(mapDatasetMeta.updated)}
+            {formatDate(mapDatasetMeta.updated, { fallback: mapDatasetMeta.updated, hour: 'numeric', minute: '2-digit' })}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {mapDatasetMeta.source}
@@ -424,13 +418,13 @@ function LegendRow({
       <div
         className={cn(
           'flex items-center gap-0.5 transition-opacity',
-          active ? 'opacity-0 group-hover:opacity-100 focus-within:opacity-100' : 'opacity-100',
+          active ? 'opacity-0 focus-within:opacity-100 group-hover:opacity-100 touch:opacity-100' : 'opacity-100',
         )}
       >
         <button
           type="button"
           onClick={onIsolate}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground touch:p-2.5"
           aria-label={`Show only ${title}`}
         >
           <IsolateIcon className="size-4" />
@@ -438,8 +432,9 @@ function LegendRow({
         <button
           type="button"
           onClick={onToggle}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground touch:p-2.5"
           aria-label="Toggle legend item visibility"
+          aria-pressed={active}
         >
           {active ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
         </button>

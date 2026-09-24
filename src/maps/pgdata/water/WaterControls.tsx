@@ -1,4 +1,5 @@
 import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { formatDate } from '../shared'
 import { WATER_HAZARD_DOT_COLORS } from './constants'
 import { formatMetricValue, getBoundaryMetricLabel } from './utils'
@@ -66,7 +67,7 @@ export function WaterLegend({ water }: { water: WaterState }) {
               key={rating}
               color={WATER_HAZARD_DOT_COLORS[rating] ?? WATER_HAZARD_DOT_COLORS.Unknown}
               label={rating}
-              value={(water.hazardCounts[rating] ?? 0).toLocaleString()}
+              value={(water.hazardCounts[rating] ?? 0).toLocaleString(DEFAULT_LOCALE)}
               className="text-xs"
             />
           ))}
@@ -100,7 +101,7 @@ export function WaterSourceNotes({ water }: { water: WaterState }) {
       <p>Drinking water extracts updated {formatDate(water.manifest.data?.generatedAt)}.</p>
       <p>
         Includes facilities, bacteriological samples, chemical results, and a combined active notices layer from HealthSpace and WaterToday
-        {summary?.combined_count ? ` (${summary.combined_count.toLocaleString()} canonical notices, ${summary.with_coordinates?.toLocaleString() ?? 'all'} mapped).` : '.'}
+        {summary?.combined_count ? ` (${summary.combined_count.toLocaleString(DEFAULT_LOCALE)} canonical notices, ${summary.with_coordinates?.toLocaleString(DEFAULT_LOCALE) ?? 'all'} mapped).` : '.'}
       </p>
       <div className="space-y-2 pt-1">
         <InlineAlert>
@@ -109,23 +110,23 @@ export function WaterSourceNotes({ water }: { water: WaterState }) {
         <StatGrid
           columns={2}
           stats={[
-            { label: 'facilities', value: facilityRecordCount.toLocaleString() },
-            { label: 'sample/result rows', value: water.samples.length.toLocaleString() },
-            { label: 'active notices', value: (summary?.combined_count ?? water.visibleNoticeCount).toLocaleString() },
-            { label: 'notice-only points', value: noticeOnlyPointCount.toLocaleString() },
+            { label: 'facilities', value: facilityRecordCount.toLocaleString(DEFAULT_LOCALE) },
+            { label: 'sample/result rows', value: water.samples.length.toLocaleString(DEFAULT_LOCALE) },
+            { label: 'active notices', value: (summary?.combined_count ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE) },
+            { label: 'notice-only points', value: noticeOnlyPointCount.toLocaleString(DEFAULT_LOCALE) },
           ]}
         />
         <StatGrid
           columns={2}
           stats={[
-            { label: 'combined notices', value: (summary?.combined_count ?? 0).toLocaleString() },
-            { label: 'mapped notices', value: (summary?.with_coordinates ?? water.visibleNoticeCount).toLocaleString() },
-            { label: 'HealthSpace', value: (summary?.healthspace_count ?? 0).toLocaleString() },
-            { label: 'WaterToday', value: (summary?.watertoday_count ?? 0).toLocaleString() },
+            { label: 'combined notices', value: (summary?.combined_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
+            { label: 'mapped notices', value: (summary?.with_coordinates ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE) },
+            { label: 'HealthSpace', value: (summary?.healthspace_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
+            { label: 'WaterToday', value: (summary?.watertoday_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
           ]}
         />
         <InlineAlert>
-          {summary?.with_multiple_sources?.toLocaleString() ?? 'Some'} notices have multiple source matches; unmatched WaterToday notices still draw as notice-only points when coordinates are available.
+          {summary?.with_multiple_sources?.toLocaleString(DEFAULT_LOCALE) ?? 'Some'} notices have multiple source matches; unmatched WaterToday notices still draw as notice-only points when coordinates are available.
         </InlineAlert>
       </div>
     </>

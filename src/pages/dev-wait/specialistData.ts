@@ -1,3 +1,5 @@
+import { formatNumber } from '@/lib/format'
+
 export interface SpecialistProcedure {
   procedure_key: string
   procedure_name: string
@@ -90,8 +92,7 @@ export const SPECIALIST_WAIT_MAP_CENTER: [number, number] = [-124.4, 51.8]
 export const SPECIALIST_WAIT_MAP_ZOOM = 4.7
 
 export function formatCases(value: number | null | undefined): string {
-  if (value == null) return '--'
-  return value.toLocaleString()
+  return formatNumber(value, { fallback: '--' })
 }
 
 export function formatWeeks(value: number | null | undefined): string {

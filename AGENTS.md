@@ -39,6 +39,10 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `MapSectionLayout` gives the page one fixed-height sidebar slot and that slot does not scroll, so everything the sidebar renders — `AssessmentPanel` included — belongs inside `MapSidebarShell`'s scroll container, which is what the `assessment` prop on `Sidebar.tsx` is for. Stacked beside the shell instead, a panel pushes the shell's lower half and the bottom of its scroll port off the screen, where scrolling never reaches them; nothing overflows visibly to give it away.
 - Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, `shapeImport.ts`, `reverseViewshed.ts`, `roadSnap.ts`, and `forest.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser. `roadSnap.ts` takes a structural `RoadQueryMap` rather than a MapLibre map for the same reason.
 
+## Shared UI
+
+- `docs/shared-ui.md` lists the shared sidebar, list, dialog, legend and formatting building blocks. Use them before hand-rolling markup; when a page needs something they cannot express, add an opt-in prop to the shared piece instead of copying it.
+
 ## Project packages
 
 - For project-package creation, renderer changes, capability additions, or package audits, read `.agents/skills/pgmaps-project-builder/SKILL.md` and only the references it routes to for the active project mode.

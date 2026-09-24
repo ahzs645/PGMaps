@@ -12,8 +12,10 @@ import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobi
 import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
-import { getNetworkColor } from '../constants'
-import { calculateCorrectedPm25, formatMeasurement, formatPm25 } from '../lib/corrections'
+import { getBoundaryColorRamp, getNetworkColor } from '../constants'
+import { calculateCorrectedPm25 } from '../lib/corrections'
+import { isSameLocation, monitorEntryKey, uniqueParameters } from '../lib/monitorPopup'
+import { CorrectionSummary } from './CorrectionSummary'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
 import type {
   AirMonitor,
@@ -65,22 +67,6 @@ type MonitorFeatureProperties = {
   name: string
   city: string
   province: string
-}
-
-function uniqueParameters(parameters: string[]): string[] {
-  return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
-}
-
-function monitorLocationKey(monitor: AirMonitor): string {
-  return `${monitor.longitude.toFixed(6)}:${monitor.latitude.toFixed(6)}`
-}
-
-function monitorEntryKey(monitor: AirMonitor): string {
-  return `${monitor.network}:${monitor.id}:${monitor.longitude.toFixed(6)}:${monitor.latitude.toFixed(6)}`
-}
-
-function isSameLocation(a: AirMonitor, b: AirMonitor): boolean {
-  return monitorLocationKey(a) === monitorLocationKey(b)
 }
 
 const AIR_QUALITY_MAP_STYLES: Record<AirQualityBasemap, { light: string; dark: string }> = {
@@ -141,21 +127,7 @@ function SelectedMonitorDetails({
           ))}
         </div>
       )}
-      <div className="mt-3 rounded-md border border-border bg-background/80 p-2 text-xs">
-        <div className="mb-1 font-semibold text-foreground">{correction.label}</div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-          <span className="text-muted-foreground">Raw PM2.5</span>
-          <span className="text-right font-medium text-foreground">{formatPm25(correction.rawPm25)}</span>
-          <span className="text-muted-foreground">Corrected</span>
-          <span className="text-right font-medium text-foreground">{formatPm25(correction.correctedPm25)}</span>
-          <span className="text-muted-foreground">RH</span>
-          <span className="text-right font-medium text-foreground">{formatMeasurement(correction.humidity, '%')}</span>
-          <span className="text-muted-foreground">Uncertainty</span>
-          <span className="text-right font-medium text-foreground">
-            {correction.uncertainty === null ? 'No data' : `+/- ${correction.uncertainty.toFixed(1)} ug/m3`}
-          </span>
-        </div>
-      </div>
+      <CorrectionSummary correction={correction} className="mt-3 border-border bg-background/80" />
     </div>
   )
 }
@@ -182,9 +154,7 @@ function BoundaryBrowseLayer({
   const hasFeatures = collection.features.length > 0
 
   const maxStop = maxColorValue > 0 ? maxColorValue : 1
-  const colorStops = colorMetric === 'correctedPm25' || colorMetric === 'rawPm25'
-    ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
-    : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']
+  const colorStops = getBoundaryColorRamp(colorMetric)
 
   return (
     <MapFillLayer

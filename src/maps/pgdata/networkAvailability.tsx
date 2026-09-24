@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { fetchJson } from '@/lib/fetchJson'
+import { formatBytes, formatNumber } from '@/lib/format'
 import { formatDate, useJsonManifest } from './shared'
-import { formatFileSize, formatVectorStatus } from './miscDataUtils'
+import { formatVectorStatus } from './miscDataUtils'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 interface NetworkAvailabilityDataset {
@@ -144,46 +148,41 @@ export function NetworkAvailabilitySidebar({
   )?.gzipBytes
 
   return (
-    <div className="space-y-4 p-4">
-      {!manifest.data && !manifest.error && (
-        <div className="text-sm text-muted-foreground">Loading network availability manifest...</div>
+    <>
+      {(!manifest.data || manifest.error) && (
+        <SidebarSection>
+          {manifest.error ? (
+            <InlineAlert tone="error">{manifest.error}</InlineAlert>
+          ) : (
+            <InlineAlert loading>Loading network availability manifest...</InlineAlert>
+          )}
+        </SidebarSection>
       )}
-      {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
-      <section className="rounded border border-border bg-card p-3">
-        <h2 className="mb-2 text-sm font-semibold text-foreground">Current Map Layer</h2>
+      <SidebarSection title="Current Map Layer">
         {layer.error ? (
-          <p className="text-xs leading-relaxed text-red-500">{layer.error}</p>
+          <InlineAlert tone="error">{layer.error}</InlineAlert>
         ) : layer.data ? (
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <div className="text-muted-foreground">Status</div>
-              <div className="font-medium text-foreground">Loaded</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Features</div>
-              <div className="font-medium text-foreground">{snapshotFeatures.length.toLocaleString()}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Snapshot</div>
-              <div className="font-medium text-foreground">{formatFileSize(snapshotBytes)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Year</div>
-              <div className="font-medium text-foreground">2024</div>
-            </div>
-          </div>
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            columns={2}
+            items={[
+              { label: 'Status', value: 'Loaded' },
+              { label: 'Features', value: formatNumber(snapshotFeatures.length) },
+              { label: 'Snapshot', value: formatBytes(snapshotBytes) },
+              { label: 'Year', value: '2024' },
+            ]}
+          />
         ) : (
-          <p className="text-xs leading-relaxed text-muted-foreground">Loading CRTC LTE/5G coverage snapshot...</p>
+          <InlineAlert loading>Loading CRTC LTE/5G coverage snapshot...</InlineAlert>
         )}
-      </section>
+      </SidebarSection>
       {manifest.data?.recommendedUse && (
-        <section className="rounded border border-border bg-muted/30 p-3">
-          <h2 className="mb-1 text-sm font-semibold text-foreground">Recommended Source Strategy</h2>
+        <SidebarSection title="Recommended Source Strategy">
           <p className="text-xs leading-relaxed text-muted-foreground">{manifest.data.recommendedUse}</p>
-        </section>
+        </SidebarSection>
       )}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Map Availability Sources</h2>
+      <SidebarSection title="Map Availability Sources">
         <div className="space-y-2">
           {mapDatasets.map((dataset) => (
             <article key={dataset.id} className="rounded border border-border bg-card p-3">
@@ -195,47 +194,31 @@ export function NetworkAvailabilitySidebar({
                   </div>
                 </div>
                 <div className="shrink-0 text-right text-xs text-muted-foreground">
-                  <div>{formatFileSize(dataset.http?.contentLength)}</div>
+                  <div>{formatBytes(dataset.http?.contentLength)}</div>
                   <div>{dataset.http?.lastModified ? formatDate(dataset.http.lastModified) : 'No date'}</div>
                 </div>
               </div>
               {dataset.notes && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{dataset.notes}</p>}
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                <a
-                  className="font-medium text-primary hover:underline"
-                  href={dataset.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                <ExternalLink href={dataset.url} className="touch:min-h-9">
                   Download
-                </a>
+                </ExternalLink>
                 {dataset.apiUrl && (
-                  <a
-                    className="font-medium text-primary hover:underline"
-                    href={dataset.apiUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <ExternalLink href={dataset.apiUrl} className="touch:min-h-9">
                     API
-                  </a>
+                  </ExternalLink>
                 )}
                 {dataset.schemaUrl && (
-                  <a
-                    className="font-medium text-primary hover:underline"
-                    href={dataset.schemaUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <ExternalLink href={dataset.schemaUrl} className="touch:min-h-9">
                     Schema
-                  </a>
+                  </ExternalLink>
                 )}
               </div>
             </article>
           ))}
         </div>
-      </section>
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Carrier API Findings</h2>
+      </SidebarSection>
+      <SidebarSection title="Carrier API Findings">
         <div className="space-y-2">
           {carrierFindings.map((finding) => (
             <article key={finding.provider} className="rounded border border-border bg-card p-3">
@@ -249,7 +232,7 @@ export function NetworkAvailabilitySidebar({
             </article>
           ))}
         </div>
-      </section>
-    </div>
+      </SidebarSection>
+    </>
   )
 }

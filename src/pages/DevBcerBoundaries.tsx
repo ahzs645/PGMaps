@@ -5,6 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { StatGroup } from '@/components/ui/stat-group'
+import { DevPageHeader } from '@/components/DevPageHeader'
+import { DEFAULT_LOCALE, formatBytes } from '@/lib/format'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 type BoundaryCollection = GeoJSON.FeatureCollection<
@@ -200,10 +203,9 @@ function topologyStats(collection: BoundaryCollection) {
   }
 }
 
-function formatBytes(bytes: number | null) {
-  if (bytes == null) return 'Unavailable'
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MiB`
-  return `${(bytes / 1024).toFixed(bytes >= 100 * 1024 ? 0 : 1)} KiB`
+function formatPayloadBytes(bytes: number | null) {
+  const digits = bytes == null ? 1 : bytes >= 1024 * 1024 ? 2 : bytes >= 100 * 1024 ? 0 : 1
+  return formatBytes(bytes, { fallback: 'Unavailable', digits })
 }
 
 function reductionPercent(smaller: number, larger: number) {
@@ -238,8 +240,8 @@ function BoundaryMap({
           <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex gap-2 text-[11px] text-muted-foreground">
-          <span className="rounded-full bg-muted px-2 py-1">{formatBytes(stats.bytes)}</span>
-          <span className="rounded-full bg-muted px-2 py-1">{stats.vertices.toLocaleString()} vertices</span>
+          <span className="rounded-full bg-muted px-2 py-1">{formatPayloadBytes(stats.bytes)}</span>
+          <span className="rounded-full bg-muted px-2 py-1">{stats.vertices.toLocaleString(DEFAULT_LOCALE)} vertices</span>
         </div>
       </div>
       <div className="relative h-[430px] min-h-80">
@@ -273,16 +275,6 @@ function BoundaryMap({
         </div>
       </div>
     </section>
-  )
-}
-
-function StatCard({ label, value, note }: { label: string; value: string; note: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="mt-1 text-xl font-semibold tracking-tight text-foreground">{value}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{note}</div>
-    </div>
   )
 }
 
@@ -336,45 +328,43 @@ function DevBcerBoundaries() {
   return (
     <div className="min-h-full overflow-auto bg-gradient-to-b from-muted/40 via-background to-background">
       <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-300">
-              <GitCompareArrows className="size-4" />
-              Boundary geometry comparison
-            </div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              BCER admin zones: optimized vs raw
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        <DevPageHeader
+          eyebrow="Boundary geometry comparison"
+          icon={GitCompareArrows}
+          title="BCER admin zones: optimized vs raw"
+          description={(
+            <>
               The left map uses the deployable PGMaps snapshot. The right map renders the untouched live BCER
               GeoJSON. Their viewports and selected zones stay synchronized so you can inspect boundary detail.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              to="/dev/boundaries"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
-            >
-              <MapPinned className="size-4" />
-              Boundary explorer
-            </Link>
-            <a
-              href={SOURCE_PAGE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
-            >
-              BCER source
-              <ExternalLink className="size-4" />
-            </a>
-          </div>
-        </div>
+            </>
+          )}
+          actions={(
+            <>
+              <Link
+                to="/dev/boundaries"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted touch:h-10"
+              >
+                <MapPinned className="size-4" />
+                Boundary explorer
+              </Link>
+              <a
+                href={SOURCE_PAGE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted touch:h-10"
+              >
+                BCER source
+                <ExternalLink className="size-4" />
+              </a>
+            </>
+          )}
+        />
 
         {!comparison && !error && (
           <div className="mt-6 flex min-h-[520px] items-center justify-center rounded-xl border border-border bg-card">
             <div className="text-center text-sm text-muted-foreground">
               <Loader2 className="mx-auto mb-3 size-6 animate-spin" />
-              Loading 7 MiB of raw geometry and the optimized snapshot…
+              Loading 7 MB of raw geometry and the optimized snapshot…
             </div>
           </div>
         )}
@@ -387,38 +377,43 @@ function DevBcerBoundaries() {
 
         {comparison && summary && (
           <>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-              <StatCard
-                label="Raw payload"
-                value={formatBytes(comparison.rawStats.bytes)}
-                note={`${formatBytes(comparison.rawStats.gzipBytes)} browser gzip`}
-              />
-              <StatCard
-                label="Optimized payload"
-                value={formatBytes(comparison.optimizedStats.bytes)}
-                note={`${formatBytes(comparison.optimizedStats.gzipBytes)} browser gzip`}
-              />
-              <StatCard
-                label="Payload reduction"
-                value={`${summary.payloadReduction.toFixed(1)}%`}
-                note={summary.gzipReduction == null ? 'Gzip unavailable' : `${summary.gzipReduction.toFixed(1)}% smaller gzip`}
-              />
-              <StatCard
-                label="Vertex reduction"
-                value={`${summary.vertexReduction.toFixed(1)}%`}
-                note={`${comparison.rawStats.vertices.toLocaleString()} → ${comparison.optimizedStats.vertices.toLocaleString()}`}
-              />
-              <StatCard
-                label="Maximum area change"
-                value={`${comparison.maxAreaDeltaPercent.toFixed(4)}%`}
-                note="Largest change among the four zones"
-              />
-              <StatCard
-                label="Topology check"
-                value={(comparison.overlappingPairCount ?? 0) === 0 ? 'Pass' : 'Review'}
-                note={`${(comparison.sharedEdgeCount ?? 0).toLocaleString()} exact shared edges · ${comparison.overlappingPairCount ?? 0} overlaps`}
-              />
-            </div>
+            <StatGroup
+              variant="tiles"
+              className="mt-6 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6"
+              items={[
+                {
+                  label: 'Raw payload',
+                  value: formatPayloadBytes(comparison.rawStats.bytes),
+                  note: `${formatPayloadBytes(comparison.rawStats.gzipBytes)} browser gzip`,
+                },
+                {
+                  label: 'Optimized payload',
+                  value: formatPayloadBytes(comparison.optimizedStats.bytes),
+                  note: `${formatPayloadBytes(comparison.optimizedStats.gzipBytes)} browser gzip`,
+                },
+                {
+                  label: 'Payload reduction',
+                  value: `${summary.payloadReduction.toFixed(1)}%`,
+                  note: summary.gzipReduction == null ? 'Gzip unavailable' : `${summary.gzipReduction.toFixed(1)}% smaller gzip`,
+                },
+                {
+                  label: 'Vertex reduction',
+                  value: `${summary.vertexReduction.toFixed(1)}%`,
+                  note: `${comparison.rawStats.vertices.toLocaleString(DEFAULT_LOCALE)} → ${comparison.optimizedStats.vertices.toLocaleString(DEFAULT_LOCALE)}`,
+                },
+                {
+                  label: 'Maximum area change',
+                  value: `${comparison.maxAreaDeltaPercent.toFixed(4)}%`,
+                  note: 'Largest change among the four zones',
+                },
+                {
+                  label: 'Topology check',
+                  value: (comparison.overlappingPairCount ?? 0) === 0 ? 'Pass' : 'Review',
+                  tone: (comparison.overlappingPairCount ?? 0) === 0 ? 'success' : 'warning',
+                  note: `${(comparison.sharedEdgeCount ?? 0).toLocaleString(DEFAULT_LOCALE)} exact shared edges · ${comparison.overlappingPairCount ?? 0} overlaps`,
+                },
+              ]}
+            />
 
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
               <span className="mr-1 font-medium text-muted-foreground">Inspection presets</span>
@@ -427,7 +422,7 @@ function DevBcerBoundaries() {
                   key={preset.label}
                   type="button"
                   onClick={() => setViewport(preset.viewport)}
-                  className="rounded-md border border-border bg-background px-2.5 py-1.5 font-medium text-foreground shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-md border border-border bg-background px-2.5 py-1.5 font-medium text-foreground shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-10"
                 >
                   {preset.label}
                 </button>
@@ -463,7 +458,7 @@ function DevBcerBoundaries() {
                   key={zone}
                   type="button"
                   onClick={() => setSelectedZone((current) => current === zone ? null : zone)}
-                  className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-10 touch:px-2"
                 >
                   <span
                     className="size-2.5 rounded-sm"
@@ -484,7 +479,7 @@ function DevBcerBoundaries() {
                 <button
                   type="button"
                   onClick={() => setSelectedZone(null)}
-                  className="ml-auto font-medium text-foreground hover:underline"
+                  className="ml-auto font-medium text-foreground hover:underline touch:min-h-10 touch:px-2"
                 >
                   Clear selection
                 </button>

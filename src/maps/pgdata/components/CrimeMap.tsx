@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { KeyValueRows } from '@/components/ui/map-panels'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { formatDate } from '@/lib/format'
@@ -257,14 +258,10 @@ function MobileCrimeFeatureCard({
         />
         <span className="text-xs font-medium text-foreground">{category}</span>
       </div>
-      <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-muted-foreground">File</span>
-          <span className="max-w-[12rem] text-right font-medium text-foreground">
-            {incident.fileNumber}
-          </span>
-        </div>
-      </div>
+      <KeyValueRows
+        className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2"
+        rows={[{ label: 'File', value: incident.fileNumber }]}
+      />
     </MobileFeatureCard>
   )
 }

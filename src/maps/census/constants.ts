@@ -1,4 +1,4 @@
-import type { CensusHierarchyOption, CensusMetricOption } from './types'
+import type { CensusHierarchyOption, CensusMetricOption, CensusUnit } from './types'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const CENSUS_METRICS: CensusMetricOption[] = [
@@ -59,5 +59,34 @@ export function formatMetricValue(value: number | null, format: 'int' | 'decimal
   if (format === 'decimal') {
     return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
   }
-  return Math.round(value).toLocaleString()
+  return Math.round(value).toLocaleString(DEFAULT_LOCALE)
+}
+
+export function formatUnitLabel(unit: CensusUnit): string {
+  switch (unit.level) {
+    case 'cd':
+      return `CD ${unit.id}`
+    case 'csd':
+      return `${unit.name} (${unit.id})`
+    case 'ct':
+      return `CT ${unit.name}`
+    case 'da':
+      return `DA ${unit.id}`
+    case 'db':
+      return `DB ${unit.id}`
+    default:
+      return unit.id
+  }
+}
+
+/** A census variable value: whole numbers grouped, fractions to 2 places. */
+export function formatValue(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return 'N/A'
+  if (Number.isInteger(value)) return value.toLocaleString(DEFAULT_LOCALE)
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
+}
+
+/** Square kilometres to one decimal place, without the unit. */
+export function formatAreaSqKm(value: number | null): string {
+  return (value || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
 }

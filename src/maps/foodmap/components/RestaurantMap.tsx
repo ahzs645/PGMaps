@@ -13,10 +13,17 @@ import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { cn } from '@/lib/utils'
-import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
+import { getHazardRating, HAZARD_BADGE_CLASSES, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
 import { MARKER_FADE_MS, useLingeringMarkers } from '../hooks/useLingeringMarkers'
+import { formatFullAddress } from '../address'
 import type { LingerPhase } from '../lingering'
 import type { HazardRating, MarkerStyle, RestaurantWithStats, VisualizationMode } from '../types'
+import {
+  getViolationBadgeLabel,
+  getViolationBucketIndex,
+  getViolationBucketStyle,
+  VIOLATION_BUCKET_STYLES,
+} from '../violationBuckets'
 
 interface RestaurantMapProps {
   restaurants: RestaurantWithStats[]
@@ -29,25 +36,11 @@ interface RestaurantMapProps {
   onClearSelection: () => void
 }
 
-function getViolationCountColor(count: number, isDarkMode: boolean): string {
-  if (count === 0) return isDarkMode ? '#33b074' : '#30a46c'
-  if (count <= 2) return isDarkMode ? '#ffff57' : '#ffe629'
-  if (count <= 5) return isDarkMode ? '#ff801f' : '#f76b15'
-  return isDarkMode ? '#ec5d5e' : '#e5484d'
-}
-
-function getViolationCountClass(count: number): string {
-  if (count === 0) return 'bg-green-500'
-  if (count <= 2) return 'bg-yellow-500'
-  if (count <= 5) return 'bg-orange-500'
-  return 'bg-red-500'
-}
-
 function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: VisualizationMode, isDarkMode: boolean): string {
   const colorMode = isDarkMode ? 'dark' : 'light'
 
   if (visualizationMode === 'violations') {
-    return getViolationCountColor(restaurant.violationStats?.total || 0, isDarkMode)
+    return getViolationBucketStyle(restaurant.violationStats).markerColor[colorMode]
   } else {
     const rating = getHazardRating(restaurant, { atDate: true })
     return HAZARD_HEX_COLORS[colorMode][rating] || HAZARD_HEX_COLORS[colorMode].Unknown
@@ -111,18 +104,11 @@ const CLUSTER_REVEAL_ZOOM = 13.5
 // CLUSTER_REVEAL_ZOOM the regular DOM markers take over.
 // ---------------------------------------------------------------------------
 
-/** Wedge colors per violation bucket: 0, 1-2, 3-5, 6+ (matches the legend). */
-const VIOLATION_BAND_COLORS: readonly string[] = ['#22c55e', '#eab308', '#f97316', '#ef4444']
+/** Wedge colors per violation bucket, in FOOD_VIOLATION_BUCKETS order (matches the legend). */
+const VIOLATION_BAND_COLORS: readonly string[] = VIOLATION_BUCKET_STYLES.map((bucket) => bucket.color)
 
 /** Wedge colors per hazard rating: Low, Moderate, Unknown (matches the legend). */
 const HAZARD_BAND_COLORS: readonly string[] = ['#22c55e', '#f59e0b', '#6b7280']
-
-function getViolationBandIndex(count: number): number {
-  if (count === 0) return 0
-  if (count <= 2) return 1
-  if (count <= 5) return 2
-  return 3
-}
 
 function getHazardBandIndex(rating: HazardRating): number {
   if (rating === 'Low') return 0
@@ -141,7 +127,8 @@ function MarkerDot({
   visualizationMode,
   isSelected,
 }: MarkerDotProps) {
-  // "Quiet" markers: nothing to flag, so they recede and let problem spots pop.
+  // "Quiet" markers: nothing to flag (including places not inspected in the
+  // period), so they recede and let problem spots pop.
   const isQuiet = visualizationMode === 'violations' ? violationCount === 0 : rating === 'Low'
 
   if (markerStyle === 'rings') {
@@ -324,7 +311,7 @@ export function RestaurantMap({
       properties: {
         color: getMarkerColor(r, visualizationMode, isDarkMode),
         bandIndex: visualizationMode === 'violations'
-          ? getViolationBandIndex(r.violationStats?.total || 0)
+          ? getViolationBucketIndex(r.violationStats)
           : getHazardBandIndex(getHazardRating(r, { atDate: true })),
         details_url: r.details_url,
       },
@@ -349,7 +336,8 @@ export function RestaurantMap({
     selectedRestaurant?.latitude != null && selectedRestaurant?.longitude != null
       ? { longitude: selectedRestaurant.longitude, latitude: selectedRestaurant.latitude }
       : null,
-    { zoom: 16, duration: 1000 },
+    // Close enough to pick out the marker, far enough to keep the neighbourhood.
+    { zoom: 14.5, duration: 1000 },
   )
 
   return (
@@ -424,16 +412,9 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
   }
   const color = getMarkerColor(restaurant, visualizationMode, isDarkMode)
   const size = getMarkerSize(stats.total, visualizationMode)
-  const rating = getHazardRating(restaurant)
+  const rating = getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })
 
   const hazardColorClass = HAZARD_TAILWIND[rating].bg
-  const ratingBadgeClass = rating === 'Low'
-    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-    : rating === 'Moderate'
-      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-
-  const violationColorClass = getViolationCountClass(stats.total)
 
   return (
     <MapMarker
@@ -451,7 +432,7 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
           size={size}
           violationCount={stats.total}
           criticalCount={stats.critical}
-          rating={getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })}
+          rating={rating}
           visualizationMode={visualizationMode}
           isSelected={isSelected}
         />
@@ -467,8 +448,8 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
                 {rating}
               </span>
             ) : (
-              <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', violationColorClass)}>
-                {stats.total} violation{stats.total !== 1 ? 's' : ''}
+              <span className={cn('text-xs px-1.5 py-0.5 rounded', getViolationBucketStyle(stats).badgeClass)}>
+                {getViolationBadgeLabel(stats)}
               </span>
             )}
           </div>
@@ -480,8 +461,6 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
           <RestaurantPopupContent
             restaurant={restaurant}
             rating={rating}
-            ratingBadgeClass={ratingBadgeClass}
-            violationColorClass={violationColorClass}
             onViewInspections={onViewInspections}
           />
         </MarkerPopup>
@@ -493,14 +472,10 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
 function RestaurantPopupContent({
   restaurant,
   rating,
-  ratingBadgeClass,
-  violationColorClass,
   onViewInspections,
 }: {
   restaurant: RestaurantWithStats
-  rating: string
-  ratingBadgeClass: string
-  violationColorClass: string
+  rating: HazardRating
   onViewInspections: () => void
 }) {
   const stats = restaurant.violationStats || {
@@ -509,27 +484,22 @@ function RestaurantPopupContent({
     inspectionCount: 0
   }
   const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
+  const latestOutsidePeriod = restaurant.filteredInspections.length === 0 && Boolean(restaurant.inspections?.length)
 
   return (
     <div className="w-[260px] p-3 pr-7">
       <h3 className="text-sm font-semibold leading-snug text-foreground">{restaurant.name}</h3>
       <p className="mt-1 text-xs leading-snug text-muted-foreground">
-        {restaurant.full_address || restaurant.address}
+        {formatFullAddress(restaurant)}
       </p>
 
-      <RestaurantSummaryBadges
-        rating={rating}
-        ratingBadgeClass={ratingBadgeClass}
-        violationColorClass={violationColorClass}
-        totalViolations={stats.total}
-        criticalViolations={stats.critical}
-      />
+      <RestaurantSummaryBadges rating={rating} stats={stats} />
 
       <div className="mt-2 text-xs text-muted-foreground">
         {stats.inspectionCount} inspection{stats.inspectionCount !== 1 ? 's' : ''}
         {latestInspection ? (
           <span>
-            {' '}| Latest {latestInspection.inspection_date || latestInspection.date}
+            {' '}· {latestOutsidePeriod ? 'Outside period' : 'Latest'} {latestInspection.inspection_date || latestInspection.date}
           </span>
         ) : null}
       </div>
@@ -542,7 +512,7 @@ function RestaurantPopupContent({
         }}
         className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
       >
-        View Inspections
+        Inspection history
       </button>
     </div>
   )
@@ -565,36 +535,25 @@ function MobileRestaurantFeatureCard({
     inspectionCount: 0
   }
   const rating = getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })
-  const ratingBadgeClass = rating === 'Low'
-    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-    : rating === 'Moderate'
-      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-  const violationColorClass = getViolationCountClass(stats.total)
   const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
+  const latestOutsidePeriod = restaurant.filteredInspections.length === 0 && Boolean(restaurant.inspections?.length)
 
   return (
     <MobileFeatureCard
       cardKey={restaurant.details_url}
       title={restaurant.name}
-      subtitle={restaurant.full_address || restaurant.address}
+      subtitle={formatFullAddress(restaurant)}
       onClose={onClose}
     >
-      <RestaurantSummaryBadges
-        rating={rating}
-        ratingBadgeClass={ratingBadgeClass}
-        violationColorClass={violationColorClass}
-        totalViolations={stats.total}
-        criticalViolations={stats.critical}
-      />
+      <RestaurantSummaryBadges rating={rating} stats={stats} />
       <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border/70 py-2 first:pt-0">
           <span className="text-muted-foreground">Inspections</span>
           <span className="font-medium">{stats.inspectionCount}</span>
         </div>
         <div className="flex items-center justify-between gap-3 py-2 last:pb-0">
-          <span className="text-muted-foreground">Latest</span>
-          <span className="min-w-0 truncate font-medium">{latestInspection?.inspection_date || latestInspection?.date || '-'}</span>
+          <span className="text-muted-foreground">{latestOutsidePeriod ? 'Outside period' : 'Latest'}</span>
+          <span className="min-w-0 truncate font-medium">{latestInspection?.inspection_date || latestInspection?.date || 'None on file'}</span>
         </div>
       </div>
       <button
@@ -602,7 +561,7 @@ function MobileRestaurantFeatureCard({
         onClick={onViewInspections}
         className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
       >
-        View Inspections
+        Inspection history
       </button>
     </MobileFeatureCard>
   )
@@ -610,28 +569,22 @@ function MobileRestaurantFeatureCard({
 
 function RestaurantSummaryBadges({
   rating,
-  ratingBadgeClass,
-  violationColorClass,
-  totalViolations,
-  criticalViolations,
+  stats,
 }: {
-  rating: string
-  ratingBadgeClass: string
-  violationColorClass: string
-  totalViolations: number
-  criticalViolations: number
+  rating: HazardRating
+  stats: { total: number; critical: number; inspectionCount: number }
 }) {
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      <span className={cn('rounded px-2 py-0.5 text-xs', ratingBadgeClass)}>
-        {rating}
+      <span className={cn('rounded px-2 py-0.5 text-xs', HAZARD_BADGE_CLASSES[rating])}>
+        {rating} hazard
       </span>
-      <span className={cn('rounded px-2 py-0.5 text-xs text-white', violationColorClass)}>
-        {totalViolations} violation{totalViolations !== 1 ? 's' : ''}
+      <span className={cn('rounded px-2 py-0.5 text-xs', getViolationBucketStyle(stats).badgeClass)}>
+        {getViolationBadgeLabel(stats)}
       </span>
-      {criticalViolations > 0 && (
+      {stats.critical > 0 && (
         <span className="text-xs font-medium text-red-600 dark:text-red-400">
-          {criticalViolations} critical
+          {stats.critical} critical
         </span>
       )}
     </div>

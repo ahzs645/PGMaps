@@ -15,3 +15,15 @@ export const NETWORK_COLORS: Record<string, string> = {
 export function getNetworkColor(network: string): string {
   return NETWORK_COLORS[network] || '#64748b'
 }
+
+/**
+ * Study-area fill ramps, low to high: a green-to-red scale for PM2.5 and a
+ * blue scale for sensor counts and densities. The boundary layer and its
+ * legend both read these.
+ */
+export const BOUNDARY_PM25_COLOR_RAMP = ['#dcfce7', '#fde047', '#fb923c', '#b91c1c'] as const
+export const BOUNDARY_COUNT_COLOR_RAMP = ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1'] as const
+
+export function getBoundaryColorRamp(metric: string): readonly [string, string, string, string] {
+  return metric === 'correctedPm25' || metric === 'rawPm25' ? BOUNDARY_PM25_COLOR_RAMP : BOUNDARY_COUNT_COLOR_RAMP
+}

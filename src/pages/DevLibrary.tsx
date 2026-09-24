@@ -23,6 +23,22 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'Climate vulnerability',
+    description: 'MHCCA input explorer, 80-variable source audit, and index reproducibility checks using shared FSA boundaries.',
+    href: '/dev/climate-vulnerability',
+    icon: MapPinned,
+    color: 'bg-teal-700',
+    label: '/dev/climate-vulnerability',
+  },
+  ...(import.meta.env.DEV ? [{
+    title: 'Early development',
+    description: 'Local EDI review: historical and current results, source releases, and boundary editions.',
+    href: '/dev/early-learning',
+    icon: MapPinned,
+    color: 'bg-emerald-600',
+    label: '/dev/early-learning',
+  }] : []),
+  {
     title: 'AQMap',
     description: 'Air-quality map prototype with URL state, overlays, smoke layers, and AQMap-style controls.',
     href: AQMAP_SAMPLE_PATH,

@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MINIMUM_DATA_COVERAGE } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 /**
  * Shown over the map when the data-coverage floor has left nothing to rank. Without
@@ -29,7 +30,7 @@ export function ScoreBuilderCoverageNotice({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-foreground">No regions have enough data to rank</div>
           <p className="mt-1 text-xs leading-4 text-muted-foreground">
-            {excludedCount.toLocaleString()} region{excludedCount === 1 ? '' : 's'} fell below the{' '}
+            {excludedCount.toLocaleString(DEFAULT_LOCALE)} region{excludedCount === 1 ? '' : 's'} fell below the{' '}
             {Math.round(MINIMUM_DATA_COVERAGE * 100)}% data-coverage floor for the metrics currently weighted. Pick
             metrics that cover this study area, or rank them anyway and read the scores as provisional.
           </p>

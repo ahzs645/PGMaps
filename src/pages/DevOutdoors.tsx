@@ -23,8 +23,9 @@ import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSect
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, useMap, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
-import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { BC_CENTER } from '@/components/ui/map-styles'
+import { TabBar } from '@/components/ui/tab-bar'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { fetchJson } from '@/lib/fetchJson'
 import {
@@ -132,6 +133,8 @@ const PLAN_STAGES: Array<{ id: PlanStage; shortLabel: string; title: string; des
     description: 'Keep camps, personal routes, travel ranges, notes, and shareable trip details.',
   },
 ]
+
+const PLAN_STAGE_TABS = PLAN_STAGES.map((stage) => ({ value: stage.id, label: stage.shortLabel }))
 
 function waypointIsInStage(waypoint: PlanWaypoint, stage: PlanStage): boolean {
   if (stage === 'access') return ['access', 'launch', 'site', 'hazard'].includes(waypoint.kind)
@@ -857,35 +860,23 @@ function DevOutdoors() {
       titleClassName="text-base"
     >
       <div className="border-b border-border px-3 py-3">
-        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Planning steps">
-          {PLAN_STAGES.map((stage) => (
-            <button
-              key={stage.id}
-              type="button"
-              role="tab"
-              aria-selected={activeStage === stage.id}
-              className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
-                activeStage === stage.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => {
-                cancelDraw()
-                setSelectedFeature(null)
-                setActiveStage(stage.id)
-              }}
-            >
-              {stage.shortLabel}
-            </button>
-          ))}
-        </div>
+        <TabBar
+          label="Planning steps"
+          value={activeStage}
+          options={PLAN_STAGE_TABS}
+          onChange={(stage) => {
+            cancelDraw()
+            setSelectedFeature(null)
+            setActiveStage(stage)
+          }}
+        />
         <p className="mt-2 text-xs font-semibold text-foreground">{activeStageInfo.title}</p>
         <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{activeStageInfo.description}</p>
         {activeStage !== 'field-plan' && (
-          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-4 text-amber-800 dark:text-amber-200">
+          <InlineAlert tone="warning" className="mt-2 text-[11px] leading-4">
             The blue WMU layer is authoritative. Imported and hand-drawn hunt areas, closures, routes, and access points
             remain planning references until checked against their official source.
-          </p>
+          </InlineAlert>
         )}
       </div>
 
@@ -948,9 +939,7 @@ function DevOutdoors() {
 
           <SidebarSection title="Management units">
             {wmuLayerError && (
-              <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
-                {wmuLayerError}
-              </p>
+              <InlineAlert tone="warning">{wmuLayerError}</InlineAlert>
             )}
             {plan.wmus.length === 0 ? (
               <p className="text-xs leading-5 text-muted-foreground">

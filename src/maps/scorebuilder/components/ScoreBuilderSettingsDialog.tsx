@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { PanelDialog } from '@/components/ui/dialog-shell'
+import { TabBar } from '@/components/ui/tab-bar'
 import type {
   RobustnessResult,
   ScoredBoundaryRegion,
@@ -19,12 +19,11 @@ import { RobustnessTab } from './RobustnessTab'
 
 type SettingsTab = 'methodology' | 'model' | 'robustness'
 
-const TAB_ORDER: SettingsTab[] = ['methodology', 'model', 'robustness']
-const TAB_LABELS: Record<SettingsTab, string> = {
-  methodology: 'Methodology',
-  model: 'Model & filters',
-  robustness: 'Robustness',
-}
+const TAB_OPTIONS: { value: SettingsTab; label: string }[] = [
+  { value: 'methodology', label: 'Methodology' },
+  { value: 'model', label: 'Model & filters' },
+  { value: 'robustness', label: 'Robustness' },
+]
 const TAB_DESCRIPTIONS: Record<SettingsTab, string> = {
   methodology: 'How the index is composed, normalized, and aggregated.',
   model: 'Filters, normalization, aggregation, and scenario comparison.',
@@ -75,72 +74,53 @@ export function ScoreBuilderSettingsDialog({
   const activePreset = SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        variant="sheet"
-        elevated
-        className="sm:max-h-[90vh] sm:w-[min(960px,calc(100vw-2rem))] sm:max-w-[960px]"
-      >
-        <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
-          <DialogTitle>Index settings</DialogTitle>
-          <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
-        </DialogHeader>
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <nav
-            role="tablist"
-            aria-label="Index settings sections"
-            className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-muted/40 px-3 py-2 md:w-48 md:flex-col md:gap-0.5 md:border-b-0 md:border-r md:px-2 md:py-3"
-          >
-            {TAB_ORDER.map((tab) => (
-              <button
-                key={tab}
-                role="tab"
-                type="button"
-                aria-selected={activeTab === tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium transition-colors',
-                  activeTab === tab
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
-                )}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            ))}
-          </nav>
-          <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-0">
-            {activeTab === 'methodology' && (
-              <MethodologyTab
-                weights={weights}
-                methodSettings={methodSettings}
-                componentSummaries={componentSummaries}
-                activePreset={activePreset}
-              />
-            )}
-            {activeTab === 'model' && (
-              <ModelTab
-                weights={weights}
-                totalAbsoluteWeight={totalAbsoluteWeight}
-                scoreFilters={scoreFilters}
-                onToggleScoreFilter={onToggleScoreFilter}
-                methodSettings={methodSettings}
-                onMethodSettingsChange={onMethodSettingsChange}
-                scoreBands={scoreBands}
-                scenarioComparison={scenarioComparison}
-                regions={regions}
-                totalRegionCount={totalRegionCount}
-                excludedRegionCount={excludedRegionCount}
-                scoreSpread={scoreSpread}
-                activePreset={activePreset}
-              />
-            )}
-            {activeTab === 'robustness' && (
-              <RobustnessTab robustnessResults={robustnessResults} scenarioComparison={scenarioComparison} />
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <PanelDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Index settings"
+      subtitle={TAB_DESCRIPTIONS[activeTab]}
+      className="sm:max-h-[90vh] sm:w-[min(960px,calc(100vw-2rem))] sm:max-w-[960px]"
+      bodyClassName="flex flex-col p-0 sm:overflow-hidden sm:p-0 md:flex-row"
+    >
+      {/* A row of tabs on phones, a side rail from md up; only the panel beside it scrolls. */}
+      <TabBar
+        value={activeTab}
+        options={TAB_OPTIONS}
+        onChange={setActiveTab}
+        label="Index settings sections"
+        orientation="responsive"
+        className="shrink-0 rounded-none border-b border-border bg-muted/40 px-3 py-2 md:w-48 md:border-b-0 md:border-r md:px-2 md:py-3"
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-0">
+        {activeTab === 'methodology' && (
+          <MethodologyTab
+            weights={weights}
+            methodSettings={methodSettings}
+            componentSummaries={componentSummaries}
+            activePreset={activePreset}
+          />
+        )}
+        {activeTab === 'model' && (
+          <ModelTab
+            weights={weights}
+            totalAbsoluteWeight={totalAbsoluteWeight}
+            scoreFilters={scoreFilters}
+            onToggleScoreFilter={onToggleScoreFilter}
+            methodSettings={methodSettings}
+            onMethodSettingsChange={onMethodSettingsChange}
+            scoreBands={scoreBands}
+            scenarioComparison={scenarioComparison}
+            regions={regions}
+            totalRegionCount={totalRegionCount}
+            excludedRegionCount={excludedRegionCount}
+            scoreSpread={scoreSpread}
+            activePreset={activePreset}
+          />
+        )}
+        {activeTab === 'robustness' && (
+          <RobustnessTab robustnessResults={robustnessResults} scenarioComparison={scenarioComparison} />
+        )}
+      </div>
+    </PanelDialog>
   )
 }

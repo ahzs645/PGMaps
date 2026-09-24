@@ -26,8 +26,8 @@ test('desktop search reopens a hidden sidebar, including the keyboard shortcut',
     await page.getByRole('button', { name: 'Hide sidebar', exact: true }).click()
     if (shortcut) await page.keyboard.press('Control+k')
     else await page.getByRole('button', { name: 'Open search', exact: true }).click()
-    await expect(page.getByPlaceholder('Search restaurants...')).toBeVisible()
-    await expect(page.getByPlaceholder('Search restaurants...')).toBeFocused()
+    await expect(page.getByPlaceholder('Search establishments...')).toBeVisible()
+    await expect(page.getByPlaceholder('Search establishments...')).toBeFocused()
   }
 })
 
@@ -106,7 +106,7 @@ test('restaurant results are bounded, keyboard selectable, and reach the end', a
   const requests: string[] = []
   page.on('request', (request) => requests.push(request.url()))
   await page.goto('/foodmap')
-  const list = page.getByRole('list', { name: 'Restaurants', exact: true })
+  const list = page.getByRole('list', { name: 'Establishments', exact: true })
   const rows = list.getByRole('listitem')
   await expect(rows.first()).toBeVisible()
   expect(await rows.count()).toBeLessThan(40)

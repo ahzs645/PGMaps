@@ -3,16 +3,17 @@ import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSect
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { COLOR_SCALES } from '@/components/ui/map-styles'
+import { formatNumber } from '@/lib/format'
 import { stringCodec, stringUnionCodec, useSetUrlParams, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
 import { CensusMap } from './components/CensusMap'
-import { CensusSidebar, formatArea, formatUnitLabel, formatValue } from './components/CensusSidebar'
-import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from './constants'
+import { CensusSidebar } from './components/CensusSidebar'
+import { CensusUnitDetails } from './components/CensusUnitDetails'
+import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue, formatUnitLabel } from './constants'
 import { useCensusCatalog } from './hooks/useCensusCatalog'
 import { useCensusData } from './hooks/useCensusData'
 import { getVariableValues, useCensusVariableData } from './hooks/useCensusVariableData'
 import type { CensusHierarchyLevel, CensusMetricKey, CensusUnit, CensusVariableSelection } from './types'
-
-const LEGEND_SWATCHES = ['#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309']
 
 const levelCodec = stringUnionCodec<CensusHierarchyLevel>(
   CENSUS_HIERARCHIES.map((option) => option.key),
@@ -148,8 +149,8 @@ export default function CensusSection() {
 
   return (
     <MapSectionLayout
-      mobilePeekTitle={<>Census | {filteredUnits.length.toLocaleString()} units</>}
-      mobilePeekSubtitle={<>{selectedHierarchyLabel} | {selectedUnit?.name || selectedMetricLabel}</>}
+      mobilePeekTitle={<>Census · {formatNumber(filteredUnits.length)} units</>}
+      mobilePeekSubtitle={<>{selectedHierarchyLabel} · {selectedUnit?.name || selectedMetricLabel}</>}
       sidebar={(
         <CensusSidebar
           className={MAP_SIDEBAR_CLASS}
@@ -194,11 +195,12 @@ export default function CensusSection() {
           title={selectedHierarchyLabel}
           description={selectedMetricLabel}
           collapsible
+          defaultCollapsed="mobile"
         >
           {variableLoading && (
             <div className="mb-2 text-xs text-amber-600">Loading variable data...</div>
           )}
-          <MapGradientLegendItem colors={LEGEND_SWATCHES} minLabel="Low" maxLabel="High" />
+          <MapGradientLegendItem colors={COLOR_SCALES.amber} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
 
         {isMobileViewport && selectedUnit && (
@@ -246,30 +248,15 @@ function MobileCensusFeatureCard({
       subtitle={hierarchyLabel}
       onClose={onClose}
     >
-      {isVariableMode ? (
-        <div>
-          <div className="text-xs text-amber-700 dark:text-amber-300">{variableCategoryName}</div>
-          <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-            {formatValue(variableValue)}
-          </div>
-          <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{variableLabel}</div>
-        </div>
-      ) : (
-        <div>
-          <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-            {metricValue}
-          </div>
-          <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{metricLabel}</div>
-        </div>
-      )}
-      <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/25 dark:text-amber-300">
-        <div>Area: {formatArea(unit.areaSqKm || 0)} km²</div>
-        <div>Pop: {(unit.population || 0).toLocaleString()}</div>
-        <div>Households: {(unit.households || 0).toLocaleString()}</div>
-        <div>Dwellings: {(unit.dwellings || 0).toLocaleString()}</div>
-        <div>DA count: {unit.daCount.toLocaleString()}</div>
-        <div>DB count: {unit.dbCount.toLocaleString()}</div>
-      </div>
+      <CensusUnitDetails
+        unit={unit}
+        isVariableMode={isVariableMode}
+        metricLabel={metricLabel}
+        metricValue={metricValue}
+        variableCategoryName={variableCategoryName}
+        variableLabel={variableLabel}
+        variableValue={variableValue}
+      />
     </MobileFeatureCard>
   )
 }

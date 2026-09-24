@@ -2,8 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Waves } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  KeyValueRows,
+  LegendItem,
+  MapGradientLegendItem,
+  SelectedItemCard,
+  SidebarSection,
+  ToggleChip,
+} from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
+import { DEFAULT_LOCALE, formatNumber } from '@/lib/format'
 import { BC_RFC_ARCGIS_ROOT, loadStudyAreaRegions, studyAreaRegionsToFeatureCollection } from '@/lib/studyArea'
 
 type FloodPointMode = 'current' | 'clever' | 'coffee'
@@ -108,7 +121,7 @@ export function getReturnPeriodScore(value: string): number {
 
 function formatArcGisDate(value: number | undefined): string {
   if (!value) return 'Unknown'
-  return new Date(value).toLocaleString('en-CA', {
+  return new Date(value).toLocaleString(DEFAULT_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -314,69 +327,116 @@ export function FloodLayerControls({ flood }: { flood: FloodState }) {
 }
 
 export function FloodSidebar({ flood }: { flood: FloodState }) {
+  const selected = flood.selectedStation?.properties
   return (
-    <div className="space-y-4 border-b border-border p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Waves className="h-4 w-4 text-sky-600" />
-        <h2 className="text-sm font-semibold text-foreground">Flood</h2>
-      </div>
-      <label className="block text-xs font-medium text-foreground">
-        RFC layer
-        <AppSelect
-          value={flood.mode}
-          onValueChange={(value) => flood.setMode(value as FloodPointMode)}
-          options={FLOOD_MODE_OPTIONS}
-          className="mt-1"
-          triggerClassName="h-8 rounded-md text-xs"
+    <SidebarSection title="Flood" icon={Waves} iconClassName="text-sky-600">
+      <div className="space-y-4">
+        <label className="block text-xs font-medium text-foreground">
+          RFC layer
+          <AppSelect
+            value={flood.mode}
+            onValueChange={(value) => flood.setMode(value as FloodPointMode)}
+            options={FLOOD_MODE_OPTIONS}
+            className="mt-1"
+            triggerClassName="h-8 rounded-md text-xs"
+          />
+        </label>
+        <label className="block text-xs font-medium text-foreground">
+          Return-period filter
+          <AppSelect
+            value={flood.riskFilter}
+            onValueChange={(value) => flood.setRiskFilter(value as FloodRiskFilter)}
+            options={FLOOD_RISK_OPTIONS}
+            className="mt-1"
+            triggerClassName="h-8 rounded-md text-xs"
+          />
+        </label>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={2}
+          items={[
+            { label: 'stations', value: formatNumber(flood.stations.length) },
+            { label: 'visible', value: formatNumber(flood.filteredStations.length) },
+            { label: '2-year or higher', value: formatNumber(flood.highRiskCount) },
+            { label: '5-year or higher', value: formatNumber(flood.severeRiskCount) },
+          ]}
         />
-      </label>
-      <label className="block text-xs font-medium text-foreground">
-        Return-period filter
-        <AppSelect
-          value={flood.riskFilter}
-          onValueChange={(value) => flood.setRiskFilter(value as FloodRiskFilter)}
-          options={FLOOD_RISK_OPTIONS}
-          className="mt-1"
-          triggerClassName="h-8 rounded-md text-xs"
-        />
-      </label>
-      <StatGrid
-        columns={2}
-        stats={[
-          { label: 'stations', value: flood.stations.length.toLocaleString() },
-          { label: 'visible', value: flood.filteredStations.length.toLocaleString() },
-          { label: '2-year or higher', value: flood.highRiskCount.toLocaleString() },
-          { label: '5-year or higher', value: flood.severeRiskCount.toLocaleString() },
-        ]}
-      />
-      {flood.loading && <div className="text-xs text-muted-foreground">Loading BC RFC data...</div>}
-      {flood.error && <InlineAlert tone="warning">{flood.error}</InlineAlert>}
-      {flood.selectedStation && (
-        <div className="rounded-md border border-border bg-background p-3 text-xs">
-          <div className="font-semibold text-foreground">{flood.selectedStation.properties.name}</div>
-          <div className="mt-1 text-muted-foreground">{flood.selectedStation.properties.basin}</div>
-          <div className="mt-3 space-y-1">
-            <FloodDetailRow label="Observed" value={flood.selectedStation.properties.observedReturnPeriod} />
-            <FloodDetailRow label="Forecast" value={flood.selectedStation.properties.forecastReturnPeriod} />
-            <FloodDetailRow label="Reading" value={flood.selectedStation.properties.reading} />
-            <FloodDetailRow label="Max forecast" value={flood.selectedStation.properties.forecastMaximum} />
-            <FloodDetailRow label="Updated" value={flood.selectedStation.properties.updatedAt} />
-          </div>
-        </div>
-      )}
-      <div className="rounded-md border border-border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought basin boundaries. This first layer uses live RFC stations, forecasts, and RFC snow-basin polygons.
+        {flood.loading && <InlineAlert loading>Loading BC RFC data...</InlineAlert>}
+        {flood.error && <InlineAlert tone="warning">{flood.error}</InlineAlert>}
+        {selected && (
+          <SelectedItemCard
+            title={selected.name}
+            subtitle={selected.basin}
+            rows={[
+              { label: 'Observed', value: selected.observedReturnPeriod },
+              { label: 'Forecast', value: selected.forecastReturnPeriod },
+              { label: 'Reading', value: selected.reading },
+              { label: 'Max forecast', value: selected.forecastMaximum },
+              { label: 'Updated', value: selected.updatedAt },
+            ]}
+          />
+        )}
+        <InlineAlert>
+          Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought basin boundaries. This first layer uses live RFC stations, forecasts, and RFC snow-basin polygons.
+        </InlineAlert>
       </div>
-    </div>
+    </SidebarSection>
   )
 }
 
-function FloodDetailRow({ label, value }: { label: string; value: string }) {
+function floodStationSourceUrl(station: FloodStationProperties): string {
+  return station.hydrographUrl || station.sourceUrl
+}
+
+function FloodPopup({ station, onClose }: { station: FloodStationFeature; onClose: () => void }) {
+  const props = station.properties
+  const sourceUrl = floodStationSourceUrl(props)
   return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value}</span>
-    </div>
+    <MapPopup
+      longitude={station.geometry.coordinates[0]}
+      latitude={station.geometry.coordinates[1]}
+      onClose={onClose}
+      className="max-w-xs"
+    >
+      <MapPopupCard
+        title={props.name}
+        subtitle={props.id.replace(/^(clever|coffee)-/, '')}
+        onClose={onClose}
+        actions={sourceUrl ? <ExternalLink href={sourceUrl} /> : undefined}
+      >
+        <KeyValueRows
+          rows={[
+            { label: 'Observed', value: props.observedReturnPeriod },
+            { label: 'Forecast', value: props.forecastReturnPeriod },
+            { label: 'Reading', value: props.reading },
+          ]}
+        />
+      </MapPopupCard>
+    </MapPopup>
+  )
+}
+
+function MobileFloodFeatureCard({ station, onClose }: { station: FloodStationFeature; onClose: () => void }) {
+  const props = station.properties
+  const sourceUrl = floodStationSourceUrl(props)
+  return (
+    <MobileFeatureCard cardKey={props.id} title={props.name} subtitle={props.basin} onClose={onClose}>
+      <div className="space-y-3">
+        <div className="rounded-md border border-border bg-background p-3">
+          <KeyValueRows
+            rows={[
+              { label: 'Observed', value: props.observedReturnPeriod },
+              { label: 'Forecast', value: props.forecastReturnPeriod },
+              { label: 'Reading', value: props.reading },
+              { label: 'Max forecast', value: props.forecastMaximum },
+              { label: 'Updated', value: props.updatedAt },
+            ]}
+          />
+        </div>
+        {sourceUrl && <ExternalLink href={sourceUrl} variant="button" />}
+      </div>
+    </MobileFeatureCard>
   )
 }
 
@@ -436,33 +496,10 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
         />
       ))}
       {flood.selectedStation && (
-        <MapPopup
-          longitude={flood.selectedStation.geometry.coordinates[0]}
-          latitude={flood.selectedStation.geometry.coordinates[1]}
-          closeButton
-          onClose={() => flood.setSelectedStationId(null)}
-          className="max-w-xs"
-        >
-          <div className="space-y-2 text-xs">
-            <div>
-              <div className="font-semibold text-foreground">{flood.selectedStation.properties.name}</div>
-              <div className="text-muted-foreground">{flood.selectedStation.properties.id.replace(/^(clever|coffee)-/, '')}</div>
-            </div>
-            <FloodDetailRow label="Observed" value={flood.selectedStation.properties.observedReturnPeriod} />
-            <FloodDetailRow label="Forecast" value={flood.selectedStation.properties.forecastReturnPeriod} />
-            <FloodDetailRow label="Reading" value={flood.selectedStation.properties.reading} />
-            {(flood.selectedStation.properties.hydrographUrl || flood.selectedStation.properties.sourceUrl) && (
-              <a
-                href={flood.selectedStation.properties.hydrographUrl || flood.selectedStation.properties.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-sky-700 underline-offset-2 hover:underline"
-              >
-                Open source
-              </a>
-            )}
-          </div>
-        </MapPopup>
+        <ResponsiveFeatureDetail
+          popup={<FloodPopup station={flood.selectedStation} onClose={() => flood.setSelectedStationId(null)} />}
+          card={<MobileFloodFeatureCard station={flood.selectedStation} onClose={() => flood.setSelectedStationId(null)} />}
+        />
       )}
     </>
   )
@@ -507,7 +544,7 @@ export function FloodSourceNotes({ flood }: { flood: FloodState }) {
     <>
       <p>BC River Forecast Centre live ArcGIS layers{latest ? ` updated ${latest}` : ''}.</p>
       <p>Advisory history is available from BC RFC bulletins, but polygons are inferred from watershed or basin names rather than supplied as historical shapes.</p>
-      <p>Loaded {flood.stations.length.toLocaleString()} station records and {flood.basins.features.length.toLocaleString()} RFC snow-basin polygons.</p>
+      <p>Loaded {formatNumber(flood.stations.length)} station records and {formatNumber(flood.basins.features.length)} RFC snow-basin polygons.</p>
     </>
   )
 }

@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { parseCsvRows } from '@/lib/parseCsv'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 /** Prefix that marks a metric recipe source as a user-uploaded dataset. */
 export const USER_DATASET_SOURCE_PREFIX = 'user.'
@@ -138,7 +139,9 @@ function parseGeoJsonDataset(text: string): ParsedUserDataset {
 
   const warnings: string[] = []
   if (features.length > MAX_USER_DATASET_FEATURES) {
-    warnings.push(`Dataset truncated to the first ${MAX_USER_DATASET_FEATURES.toLocaleString()} features.`)
+    warnings.push(
+      `Dataset truncated to the first ${MAX_USER_DATASET_FEATURES.toLocaleString(DEFAULT_LOCALE)} features.`,
+    )
     features = features.slice(0, MAX_USER_DATASET_FEATURES)
   }
 
@@ -176,9 +179,12 @@ function parseGeoJsonDataset(text: string): ParsedUserDataset {
 
   if (!pointFeatures.length) throw new Error('No usable point features found in the file.')
   if (convertedGeometries > 0) {
-    warnings.push(`${convertedGeometries.toLocaleString()} non-point geometries were reduced to representative points.`)
+    warnings.push(
+      `${convertedGeometries.toLocaleString(DEFAULT_LOCALE)} non-point geometries were reduced to representative points.`,
+    )
   }
-  if (dropped > 0) warnings.push(`${dropped.toLocaleString()} features without usable geometry were skipped.`)
+  if (dropped > 0)
+    warnings.push(`${dropped.toLocaleString(DEFAULT_LOCALE)} features without usable geometry were skipped.`)
 
   return {
     collection: { type: 'FeatureCollection', features: pointFeatures },
@@ -208,7 +214,7 @@ function parseCsvDataset(text: string, delimiter: string): ParsedUserDataset {
   const features: GeoJSON.Feature<GeoJSON.Point>[] = []
   for (const row of rows.slice(1)) {
     if (features.length >= MAX_USER_DATASET_FEATURES) {
-      warnings.push(`Dataset truncated to the first ${MAX_USER_DATASET_FEATURES.toLocaleString()} rows.`)
+      warnings.push(`Dataset truncated to the first ${MAX_USER_DATASET_FEATURES.toLocaleString(DEFAULT_LOCALE)} rows.`)
       break
     }
     const lat = Number(row[latIndex])
@@ -229,7 +235,8 @@ function parseCsvDataset(text: string, delimiter: string): ParsedUserDataset {
   }
 
   if (!features.length) throw new Error('No rows with valid coordinates found in the CSV.')
-  if (dropped > 0) warnings.push(`${dropped.toLocaleString()} rows with invalid coordinates were skipped.`)
+  if (dropped > 0)
+    warnings.push(`${dropped.toLocaleString(DEFAULT_LOCALE)} rows with invalid coordinates were skipped.`)
 
   return {
     collection: { type: 'FeatureCollection', features },

@@ -4,10 +4,11 @@ import {
   type BoundarySource,
   type RegionLevel,
 } from '@/lib/studyArea'
-import { formatPercentValue } from '@/lib/format'
+import { InlineAlert, KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink, TextButton } from '@/components/ui/text-button'
+import { formatBytes, formatNumber, formatPercentValue } from '@/lib/format'
 import { useJsonManifest } from './shared'
-import { formatFileSize } from './miscDataUtils'
-import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface EvChargingResource {
   id: string
@@ -81,17 +82,7 @@ function formatPercent(value: number): string {
 }
 
 function formatDensity(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return 'n/a'
-  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: value < 10 ? 1 : 0 })
-}
-
-function EvSummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded border border-border bg-card p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  )
+  return formatNumber(value, { fallback: 'n/a', maximumFractionDigits: value != null && value < 10 ? 1 : 0 })
 }
 
 function EvSummarySection({
@@ -106,44 +97,42 @@ function EvSummarySection({
   const subtitle =
     'boundaryName' in stats
       ? stats.boundaryName
-      : `${stats.stationCount.toLocaleString()} stations in the current map scope`
+      : `${formatNumber(stats.stationCount)} stations in the current map scope`
 
   return (
-    <section className="rounded border border-border bg-muted/30 p-3">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
-        </div>
-        {onClear && (
-          <button
-            type="button"
-            className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
-            onClick={onClear}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <EvSummaryCard label="Stations" value={stats.stationCount.toLocaleString()} />
-        <EvSummaryCard label="Ports" value={stats.totalPorts.toLocaleString()} />
-        <EvSummaryCard label="DC fast mix" value={formatPercent(stats.dcFastPortPercent)} />
-        <EvSummaryCard label="Stations / 1K km²" value={formatDensity(stats.densityPer1000Km2)} />
-      </div>
-      <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <span className="text-muted-foreground">Level 2 ports</span>
-        <span className="text-right font-medium text-foreground">{stats.level2Ports.toLocaleString()}</span>
-        <span className="text-muted-foreground">DC fast ports</span>
-        <span className="text-right font-medium text-foreground">{stats.dcFastPorts.toLocaleString()}</span>
-        <span className="text-muted-foreground">Station share</span>
-        <span className="text-right font-medium text-foreground">{formatPercent(stats.stationSharePercent)}</span>
-        <span className="text-muted-foreground">Top network</span>
-        <span className="truncate text-right font-medium text-foreground">
-          {stats.topNetworkCount > 0 ? `${stats.topNetwork} (${stats.topNetworkCount.toLocaleString()})` : 'n/a'}
-        </span>
-      </div>
-    </section>
+    <SidebarSection
+      title={title}
+      subtitle={<span className="block truncate">{subtitle}</span>}
+      actions={onClear && (
+        <TextButton tone="muted" onClick={onClear}>
+          Clear
+        </TextButton>
+      )}
+    >
+      <StatGroup
+        variant="tiles"
+        size="sm"
+        columns={2}
+        items={[
+          { label: 'Stations', value: formatNumber(stats.stationCount) },
+          { label: 'Ports', value: formatNumber(stats.totalPorts) },
+          { label: 'DC fast mix', value: formatPercent(stats.dcFastPortPercent) },
+          { label: 'Stations / 1K km²', value: formatDensity(stats.densityPer1000Km2) },
+        ]}
+      />
+      <KeyValueRows
+        className="mt-3"
+        rows={[
+          { label: 'Level 2 ports', value: formatNumber(stats.level2Ports) },
+          { label: 'DC fast ports', value: formatNumber(stats.dcFastPorts) },
+          { label: 'Station share', value: formatPercent(stats.stationSharePercent) },
+          {
+            label: 'Top network',
+            value: stats.topNetworkCount > 0 ? `${stats.topNetwork} (${formatNumber(stats.topNetworkCount)})` : 'n/a',
+          },
+        ]}
+      />
+    </SidebarSection>
   )
 }
 
@@ -179,11 +168,16 @@ export function EvChargingSidebar({
   const resources = manifest.data?.resources ?? []
 
   return (
-    <div className="space-y-4 p-4">
-      {!manifest.data && !manifest.error && (
-        <div className="text-sm text-muted-foreground">Loading EV charging manifest...</div>
+    <>
+      {(!manifest.data || manifest.error) && (
+        <SidebarSection>
+          {manifest.error ? (
+            <InlineAlert tone="error">{manifest.error}</InlineAlert>
+          ) : (
+            <InlineAlert loading>Loading EV charging manifest...</InlineAlert>
+          )}
+        </SidebarSection>
       )}
-      {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
       <EvSummarySection title="Current scope" stats={summaryStats} />
       {selectedBoundary && (
         <EvSummarySection title="Selected region" stats={selectedBoundary} onClear={onClearSelectedBoundary} />
@@ -199,35 +193,25 @@ export function EvChargingSidebar({
         levelSelectId="ev-charging-study-area-level"
       />
       {(boundaryLoading || boundaryError) && (
-        <section className="rounded border border-border bg-card p-3 text-xs">
-          {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
-          {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
-        </section>
+        <SidebarSection className="space-y-2">
+          {boundaryLoading && <InlineAlert loading>Loading boundaries...</InlineAlert>}
+          {boundaryError && <InlineAlert tone="error">{boundaryError}</InlineAlert>}
+        </SidebarSection>
       )}
-      {manifest.data?.counts && (
-        <section className="grid grid-cols-3 gap-2">
-          <div className="rounded border border-border bg-card p-3">
-            <div className="text-xs text-muted-foreground">Stations</div>
-            <div className="text-sm font-semibold text-foreground">
-              {manifest.data.counts.stations.toLocaleString()}
-            </div>
-          </div>
-          <div className="rounded border border-border bg-card p-3">
-            <div className="text-xs text-muted-foreground">Map points</div>
-            <div className="text-sm font-semibold text-foreground">
-              {manifest.data.counts.stationFeatures.toLocaleString()}
-            </div>
-          </div>
-          <div className="rounded border border-border bg-card p-3">
-            <div className="text-xs text-muted-foreground">Units</div>
-            <div className="text-sm font-semibold text-foreground">
-              {manifest.data.counts.chargingUnits.toLocaleString()}
-            </div>
-          </div>
-        </section>
-      )}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Exports</h2>
+      <SidebarSection title="Exports">
+        {manifest.data?.counts && (
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            columns={3}
+            className="mb-3"
+            items={[
+              { label: 'Stations', value: formatNumber(manifest.data.counts.stations) },
+              { label: 'Map points', value: formatNumber(manifest.data.counts.stationFeatures) },
+              { label: 'Units', value: formatNumber(manifest.data.counts.chargingUnits) },
+            ]}
+          />
+        )}
         <div className="space-y-2">
           {resources.map((resource) => (
             <article key={resource.id} className="rounded border border-border bg-card p-3">
@@ -239,22 +223,17 @@ export function EvChargingSidebar({
                   </div>
                 </div>
                 <div className="shrink-0 text-right text-xs text-muted-foreground">
-                  <div>{formatFileSize(resource.rawBytes)} raw</div>
-                  <div>{formatFileSize(resource.gzipBytes)} gzip -9</div>
+                  <div>{formatBytes(resource.rawBytes)} raw</div>
+                  <div>{formatBytes(resource.gzipBytes)} gzip -9</div>
                 </div>
               </div>
-              <a
-                className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
-                href={resource.url}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <ExternalLink href={resource.url} className="mt-2 touch:min-h-9">
                 Open resource
-              </a>
+              </ExternalLink>
             </article>
           ))}
         </div>
-      </section>
-    </div>
+      </SidebarSection>
+    </>
   )
 }

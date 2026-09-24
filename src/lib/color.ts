@@ -50,3 +50,49 @@ export function rgbToHex([red, green, blue]: [number, number, number]): string {
     .map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0'))
     .join('')}`
 }
+
+export interface ReadableTextColorOptions {
+  /** Relative luminance (0-1) above which the dark colour is used. */
+  threshold?: number
+  dark?: string
+  light?: string
+  /** Luma weights: Rec. 601 (0.299/0.587/0.114, the default) or Rec. 709. */
+  weights?: '601' | '709'
+}
+
+/**
+ * Text colour that stays legible on `background`: dark on light fills, light
+ * on dark ones. Callers that previously tuned their own threshold or dark
+ * shade pass them here so markers keep their exact look.
+ */
+export function readableTextColor(
+  background: string,
+  { threshold = 0.58, dark = '#111827', light = '#ffffff', weights = '601' }: ReadableTextColorOptions = {},
+): string {
+  const [red, green, blue] = hexToRgb(background)
+  const luminance =
+    weights === '709'
+      ? (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+      : (0.299 * red + 0.587 * green + 0.114 * blue) / 255
+  return luminance > threshold ? dark : light
+}
+
+/**
+ * Stable colour for a category key: an explicit entry when the palette names
+ * one, otherwise a fallback picked by hashing the key, so a category keeps its
+ * colour between renders and sessions without being listed.
+ */
+export function colorForKey(
+  key: string,
+  named: Readonly<Record<string, string>>,
+  fallbackPalette: readonly string[],
+): string {
+  const normalized = key.trim().toLowerCase()
+  if (named[normalized]) return named[normalized]
+  if (fallbackPalette.length === 0) return '#64748b'
+  let hash = 0
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0
+  }
+  return fallbackPalette[hash % fallbackPalette.length]
+}

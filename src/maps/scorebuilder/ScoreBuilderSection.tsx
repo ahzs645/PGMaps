@@ -47,6 +47,8 @@ import {
   downloadProjectPackage,
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
+import { DEFAULT_LOCALE } from '@/lib/format'
+
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
 interface StoredLayoutPrefs {
@@ -631,7 +633,7 @@ export default function ScoreBuilderSection() {
               mobilePeekSubtitle={
                 results.selectedRegion
                   ? `#${results.selectedRegion.rank} ${results.selectedRegion.region.name}`
-                  : `${results.scoredRegions.length.toLocaleString()} regions · avg ${results.scoreSpread.average.toFixed(1)}`
+                  : `${results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} regions · avg ${results.scoreSpread.average.toFixed(1)}`
               }
               mobileSnapTo={mobileSnap?.state}
               mobileSnapKey={mobileSnap?.key}

@@ -31,6 +31,14 @@ import type {
   ForecastZoneFeatureProperties,
 } from '../lib/aqMapTypes'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { readableTextColor } from '@/lib/color'
+import {
+  FORECAST_ZONE_COLUMNS,
+  formatForecastZoneMean,
+  getForecastZoneMonitors,
+  groupForecastZoneMonitors,
+  mean,
+} from '../lib/forecastZones'
 
 interface AqMapFeatureProperties {
   key: string
@@ -64,54 +72,8 @@ function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): s
   `
 }
 
-function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
-  let inside = false
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
-    const xi = Number(ring[index][0])
-    const yi = Number(ring[index][1])
-    const xj = Number(ring[previous][0])
-    const yj = Number(ring[previous][1])
-    const intersects = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function pointInPolygonCoordinates(lng: number, lat: number, rings: GeoJSON.Position[][]): boolean {
-  if (!rings.length || !pointInRing(lng, lat, rings[0])) return false
-  return !rings.slice(1).some((hole) => pointInRing(lng, lat, hole))
-}
-
-function monitorInForecastZone(
-  monitor: AirMonitor,
-  zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
-): boolean {
-  const { longitude, latitude } = monitor
-  if (zone.geometry.type === 'Polygon') {
-    return pointInPolygonCoordinates(longitude, latitude, zone.geometry.coordinates)
-  }
-  return zone.geometry.coordinates.some((polygon) => pointInPolygonCoordinates(longitude, latitude, polygon))
-}
-
 function getForecastZoneName(properties: ForecastZoneFeatureProperties): string {
   return String(properties.NAME ?? properties.NOM ?? 'Forecast zone').trim() || 'Forecast zone'
-}
-
-function getForecastZoneMonitorGroup(monitor: AirMonitor): 'FEM' | 'PA' | 'EGG' | null {
-  if (monitor.network === 'FEM' || monitor.network === 'BC ENV') return 'FEM'
-  if (monitor.network === 'PA') return 'PA'
-  if (monitor.network === 'EGG') return 'EGG'
-  return null
-}
-
-function mean(values: Array<number | null | undefined>): number | null {
-  const valid = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-  if (!valid.length) return null
-  return valid.reduce((sum, value) => sum + value, 0) / valid.length
-}
-
-function formatMean(value: number | null): string {
-  return value === null ? '-' : value.toFixed(1)
 }
 
 function buildForecastZonePm25ByCode(monitors: AirMonitor[]): Map<string, number | null> {
@@ -165,20 +127,8 @@ function formatForecastZoneSummaryPopup(
   zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
   monitors: AirMonitor[],
 ): string {
-  const zoneCode = String(zone.properties?.CLC ?? '').trim()
-  const monitorsByCode = zoneCode
-    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
-    : []
-  const zoneMonitors = monitorsByCode.length
-    ? monitorsByCode
-    : monitors.filter((monitor) => monitorInForecastZone(monitor, zone))
-  const columns = ['FEM', 'PA', 'EGG', 'ALL'] as const
-  const grouped = {
-    FEM: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'FEM'),
-    PA: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'PA'),
-    EGG: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'EGG'),
-    ALL: zoneMonitors,
-  }
+  const columns = FORECAST_ZONE_COLUMNS
+  const grouped = groupForecastZoneMonitors(getForecastZoneMonitors(zone, monitors))
   const rowClass = 'border-t border-gray-200'
   const headerCellClass = 'px-2 py-1 text-right font-semibold text-gray-900'
   const labelCellClass = 'whitespace-nowrap py-1 pr-3 text-gray-600'
@@ -201,11 +151,11 @@ function formatForecastZoneSummaryPopup(
           </tr>
           <tr class="${rowClass}">
             <td class="${labelCellClass}">1hr PM2.5 (&mu;g m<sup>-3</sup>)</td>
-            ${columns.map((column) => `<td class="${valueCellClass}">${formatMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour)))}</td>`).join('')}
+            ${columns.map((column) => `<td class="${valueCellClass}">${formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour)))}</td>`).join('')}
           </tr>
           <tr class="${rowClass}">
             <td class="${labelCellClass}">24hr PM2.5 (&mu;g m<sup>-3</sup>)</td>
-            ${columns.map((column) => `<td class="${valueCellClass}">${formatMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour)))}</td>`).join('')}
+            ${columns.map((column) => `<td class="${valueCellClass}">${formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour)))}</td>`).join('')}
           </tr>
         </tbody>
       </table>
@@ -982,15 +932,6 @@ function ringDonutSegment(start: number, end: number, r: number, r0: number, col
 const RING_COUNT_DARK = '#0f172a'
 const RING_COUNT_LIGHT = '#f8fafc'
 
-/** Perceived luminance test (ITU-R BT.601); true for light colours. */
-function isLightHex(hex: string): boolean {
-  const value = hex.replace('#', '')
-  const r = parseInt(value.slice(0, 2), 16)
-  const g = parseInt(value.slice(2, 4), 16)
-  const b = parseInt(value.slice(4, 6), 16)
-  return (r * 299 + g * 587 + b * 114) / 1000 > 140
-}
-
 /** Build the ring marker element for a cluster from its aggregated band counts. */
 function createRingDonutElement(props: Record<string, unknown>, style: AqRingStyle, darkBasemap: boolean): HTMLDivElement {
   const counts = RING_BAND_COLORS.map((_, index) => Number(props[`band${index}`]) || 0)
@@ -1039,7 +980,12 @@ function createRingDonutElement(props: Record<string, unknown>, style: AqRingSty
           topBand = band
         }
       })
-      countColor = isLightHex(RING_BAND_COLORS[topBand]) ? RING_COUNT_DARK : RING_COUNT_LIGHT
+      // BT.601 luma above 140/255 reads as a light backing.
+      countColor = readableTextColor(RING_BAND_COLORS[topBand], {
+        threshold: 140 / 255,
+        dark: RING_COUNT_DARK,
+        light: RING_COUNT_LIGHT,
+      })
     } else if (transparentCenter) {
       countColor = darkBasemap ? RING_COUNT_LIGHT : RING_COUNT_DARK
     }

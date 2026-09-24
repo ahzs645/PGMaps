@@ -243,6 +243,8 @@ export function ExplorerMap({
       {/* Spatial filter controls */}
       <div className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5 sm:left-4 sm:max-w-[calc(100%-5rem)] sm:gap-2 md:top-4 md:max-w-none">
         <button
+          type="button"
+          aria-pressed={drawMode}
           onClick={() => {
             if (drawMode) {
               setDrawMode(false)
@@ -253,7 +255,7 @@ export function ExplorerMap({
             }
           }}
           className={cn(
-            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors sm:px-3',
+            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors touch:min-h-10 sm:px-3',
             drawMode
               ? 'border-cyan-500 bg-cyan-500 text-white'
               : 'border-border bg-background/95 text-foreground hover:bg-accent'
@@ -262,6 +264,8 @@ export function ExplorerMap({
           {drawMode ? 'Drawing...' : 'Draw Area'}
         </button>
         <button
+          type="button"
+          aria-pressed={reportMode}
           onClick={() => {
             setReportMode((current) => !current)
             setDrawMode(false)
@@ -269,7 +273,7 @@ export function ExplorerMap({
             setDrawCurrent(null)
           }}
           className={cn(
-            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors sm:px-3',
+            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors touch:min-h-10 sm:px-3',
             reportMode
               ? 'border-emerald-500 bg-emerald-500 text-white'
               : 'border-border bg-background/95 text-foreground hover:bg-accent'
@@ -279,8 +283,9 @@ export function ExplorerMap({
         </button>
         {spatialFilter && (
           <button
+            type="button"
             onClick={() => onSpatialFilterChange(null)}
-            className="rounded-lg border border-border bg-background/95 px-2.5 py-2 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur hover:text-foreground sm:px-3"
+            className="rounded-lg border border-border bg-background/95 px-2.5 py-2 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur hover:text-foreground touch:min-h-10 sm:px-3"
           >
             Clear Filter
           </button>

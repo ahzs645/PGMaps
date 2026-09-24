@@ -1,7 +1,11 @@
 import { ArrowDown, ArrowUp, Pin, X } from 'lucide-react'
+import { StatGroup } from '@/components/ui/stat-group'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { formatScore } from '../lib/metrics'
+
+const BASELINE_TILE_CLASS = 'border-violet-200/70 bg-white/60 p-1.5 dark:border-violet-900/60 dark:bg-violet-950/40'
 
 interface BaselineComparisonCardProps {
   baseline: BaselineSnapshot | null
@@ -52,7 +56,8 @@ export function BaselineComparisonCard({
             Vs baseline: {baseline.label}
           </div>
           <div className="text-xs text-violet-800/80 dark:text-violet-200/80">
-            Pinned {new Date(baseline.capturedAt).toLocaleTimeString()} · {comparison.sharedRegionCount} shared regions
+            Pinned {new Date(baseline.capturedAt).toLocaleTimeString(DEFAULT_LOCALE)} · {comparison.sharedRegionCount}{' '}
+            shared regions
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -76,23 +81,24 @@ export function BaselineComparisonCard({
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs text-violet-900 dark:text-violet-100">
-        <div className="rounded-md bg-white/60 p-1.5 dark:bg-violet-950/40">
-          <div className="text-sm font-semibold">{comparison.averageAbsRankShift.toFixed(1)}</div>
-          <div className="text-violet-700/80 dark:text-violet-300/80">avg rank shift</div>
-        </div>
-        <div className="rounded-md bg-white/60 p-1.5 dark:bg-violet-950/40">
-          <div className="text-sm font-semibold">
-            {comparison.averageScoreDelta >= 0 ? '+' : ''}
-            {formatScore(comparison.averageScoreDelta)}
-          </div>
-          <div className="text-violet-700/80 dark:text-violet-300/80">avg score Δ</div>
-        </div>
-        <div className="rounded-md bg-white/60 p-1.5 dark:bg-violet-950/40">
-          <div className="text-sm font-semibold">{comparison.topChanged ? 'Changed' : 'Held'}</div>
-          <div className="text-violet-700/80 dark:text-violet-300/80">top region</div>
-        </div>
-      </div>
+      <StatGroup
+        variant="tiles"
+        size="sm"
+        columns={3}
+        className="mt-2"
+        items={[
+          { label: 'avg rank shift', value: comparison.averageAbsRankShift.toFixed(1) },
+          {
+            label: 'avg score Δ',
+            value: `${comparison.averageScoreDelta >= 0 ? '+' : ''}${formatScore(comparison.averageScoreDelta)}`,
+          },
+          { label: 'top region', value: comparison.topChanged ? 'Changed' : 'Held' },
+        ].map((item) => ({
+          ...item,
+          className: BASELINE_TILE_CLASS,
+          valueClassName: 'text-violet-900 dark:text-violet-100',
+        }))}
+      />
 
       {comparison.topChanged && (
         <div className="mt-2 text-xs text-violet-900 dark:text-violet-100">
@@ -133,8 +139,8 @@ export function BaselineComparisonCard({
 
       {(comparison.newRegionCount > 0 || comparison.droppedRegionCount > 0) && (
         <div className="mt-2 text-xs text-violet-800/80 dark:text-violet-200/80">
-          {comparison.newRegionCount} regions entered and {comparison.droppedRegionCount} left the comparison
-          (boundary or filter changes).
+          {comparison.newRegionCount} regions entered and {comparison.droppedRegionCount} left the comparison (boundary
+          or filter changes).
         </div>
       )}
     </div>

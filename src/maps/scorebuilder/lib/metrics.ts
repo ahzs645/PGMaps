@@ -7,7 +7,7 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap,
 } from '../types'
-import { DEFAULT_LOCALE } from '@/lib/format'
+import { DEFAULT_LOCALE, formatCompactCurrency, formatCurrency } from '@/lib/format'
 
 export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'airQuality') return 'airQuality'
@@ -175,17 +175,9 @@ export function formatMetricValue(metric: ScoreMetricKey, value: number, compact
   }
   if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'rawPercent') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })}%`
-  if (format === 'currency') {
-    if (compact) {
-      if (Math.abs(value) >= 1_000_000) {
-        return `$${(value / 1_000_000).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })}M`
-      }
-      return `$${Math.round(value / 1000).toLocaleString()}k`
-    }
-    return value.toLocaleString(DEFAULT_LOCALE, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
-  }
+  if (format === 'currency') return compact ? formatCompactCurrency(value) : formatCurrency(value)
   if (format === 'years') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} yrs`
-  if (Number.isInteger(value)) return value.toLocaleString()
+  if (Number.isInteger(value)) return value.toLocaleString(DEFAULT_LOCALE)
   return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
 }
 

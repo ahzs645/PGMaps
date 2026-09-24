@@ -1,4 +1,3 @@
-import { useIsMobile } from '@/hooks/useIsMobile'
 import { Layers } from 'lucide-react'
 
 import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
@@ -17,7 +16,6 @@ export function MapLegendFeature({
   counts: Array<[string, number]>
   elevated?: boolean
 }) {
-  const isMobile = useIsMobile()
   const countMap = new globalThis.Map(counts)
   return (
     <MapLegendPanel
@@ -25,7 +23,7 @@ export function MapLegendFeature({
       description={feature.description}
       icon={<Layers className="size-3.5" />}
       collapsible
-      defaultCollapsed={isMobile}
+      defaultCollapsed="mobile"
       elevated={elevated}
       width="sm"
       contentClassName="space-y-1"

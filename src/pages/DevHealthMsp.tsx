@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, FlaskConical, Hospital, MapPin, Stethoscope, X } from 'lucide-react'
+import { Clock, FlaskConical, Hospital, MapPin, Stethoscope } from 'lucide-react'
 import { Map, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { AppSelect } from '@/components/ui/select'
 import { Timeline } from '@/components/ui/timeline'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { FilterChipGroup, MapSidebarShell, SearchInput, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import {
+  FilterChipGroup,
+  KeyValueRows,
+  LegendItem,
+  MapLegendPanel,
+  MapSidebarShell,
+  SearchInput,
+  SidebarSection,
+  StatGrid,
+} from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { cn } from '@/lib/utils'
 import { formatCompactCurrency, formatPercent as formatPercentFraction } from '@/lib/format'
 
@@ -60,21 +70,24 @@ interface MspFacilityCollection extends GeoJSON.FeatureCollection<GeoJSON.Point,
   }
 }
 
-const TYPE_META: Record<PayeeType, { label: string; swatch: string; marker: string; icon: typeof Hospital }> = {
+const TYPE_META: Record<PayeeType, { label: string; color: string; swatch: string; marker: string; icon: typeof Hospital }> = {
   hospital: {
     label: 'Hospitals',
+    color: '#ef4444',
     swatch: 'bg-red-500',
     marker: 'border-red-100 bg-red-600 text-white shadow-red-950/20',
     icon: Hospital,
   },
   clinic: {
     label: 'Clinics',
+    color: '#10b981',
     swatch: 'bg-emerald-500',
     marker: 'border-emerald-100 bg-emerald-600 text-white shadow-emerald-950/20',
     icon: Stethoscope,
   },
   diagnostic_facility: {
     label: 'Diagnostics',
+    color: '#0ea5e9',
     swatch: 'bg-sky-500',
     marker: 'border-sky-100 bg-sky-600 text-white shadow-sky-950/20',
     icon: FlaskConical,
@@ -200,7 +213,7 @@ function DevHealthMsp() {
             type="button"
             onClick={() => setShowTimeline((current) => !current)}
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg transition-colors',
+              'flex size-8 items-center justify-center rounded-lg transition-colors touch:size-10',
               showTimeline ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
             aria-pressed={showTimeline}
@@ -251,9 +264,9 @@ function DevHealthMsp() {
           showDot={false}
           items={[
             { value: 'all', label: 'All', count: facilities.length },
-            { value: 'hospital', label: TYPE_META.hospital.label, count: stats.byType.hospital, color: '#ef4444' },
-            { value: 'clinic', label: TYPE_META.clinic.label, count: stats.byType.clinic, color: '#10b981' },
-            { value: 'diagnostic_facility', label: TYPE_META.diagnostic_facility.label, count: stats.byType.diagnostic_facility, color: '#0ea5e9' },
+            { value: 'hospital', label: TYPE_META.hospital.label, count: stats.byType.hospital, color: TYPE_META.hospital.color },
+            { value: 'clinic', label: TYPE_META.clinic.label, count: stats.byType.clinic, color: TYPE_META.clinic.color },
+            { value: 'diagnostic_facility', label: TYPE_META.diagnostic_facility.label, count: stats.byType.diagnostic_facility, color: TYPE_META.diagnostic_facility.color },
           ]}
           selectedValues={[typeFilter]}
           onToggle={(value) => setTypeFilter(value)}
@@ -307,15 +320,18 @@ function DevHealthMsp() {
         className="h-full"
        controls={<MapControls position="top-right" showFullscreen showLocate />}>
         <ZoomToSelected selected={selected} />
-        <div className="absolute right-3 z-10 hidden rounded-md border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur md:block md:bottom-[calc(var(--map-timeline-height,0px)+1rem)]">
-          <div className="mb-2 font-semibold">Legend</div>
+        <MapLegendPanel
+          title="Legend"
+          collapsible
+          defaultCollapsed="mobile"
+          elevated
+          width="fit"
+          contentClassName="space-y-0.5 text-xs"
+        >
           {(Object.keys(TYPE_META) as PayeeType[]).map((type) => (
-            <div key={type} className="flex items-center gap-2 py-0.5">
-              <span className={cn('size-3 rounded-full', TYPE_META[type].swatch)} />
-              <span>{TYPE_META[type].label} ({stats.byType[type]})</span>
-            </div>
+            <LegendItem key={type} color={TYPE_META[type].color} label={TYPE_META[type].label} value={stats.byType[type]} />
           ))}
-        </div>
+        </MapLegendPanel>
         <MspMarkers facilities={filteredFacilities} selectedYears={selectedFiscalYears} selectedId={selected?.properties.id ?? null} onSelect={setSelected} />
         {selected && <SelectedPanel feature={selected} selectedYears={selectedFiscalYears} periodLabel={timelinePeriodLabel} onClose={() => setSelected(null)} />}
         {showTimeline && timelineYearOptions.length > 1 && (
@@ -393,35 +409,38 @@ function SelectedPanel({
   const props = feature.properties
   const amount = periodAmount(feature, selectedYears)
   return (
-    <div className="absolute left-3 right-3 z-20 rounded-md border border-border bg-background/95 shadow-xl backdrop-blur bottom-[calc(var(--map-timeline-height,0px)+0.75rem)] md:left-auto md:right-4 md:w-[360px]">
-      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase text-muted-foreground">{TYPE_META[props.payeeType].label}</div>
-          <h2 className="mt-0.5 text-sm font-semibold leading-5">{props.payeeName}</h2>
-          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="size-3" />
+    <div className="absolute left-3 right-3 z-20 rounded-md border border-border bg-background/95 px-4 py-3 shadow-xl backdrop-blur bottom-[calc(var(--map-timeline-height,0px)+0.75rem)] md:left-auto md:right-4 md:w-[360px]">
+      <MapPopupCard
+        className="space-y-3"
+        eyebrow={TYPE_META[props.payeeType].label}
+        title={props.payeeName}
+        subtitle={(
+          <span className="mt-1 flex items-center gap-1">
+            <MapPin className="size-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{props.matchedLocality ?? 'BC'}</span>
-          </div>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close details">
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="space-y-3 px-4 py-3">
+          </span>
+        )}
+        onClose={onClose}
+      >
         <div className="rounded-md border bg-muted/35 px-3 py-2">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">MSP payments</div>
           <div className="mt-0.5 text-xl font-semibold">{formatCurrency(amount)}</div>
           <div className="mt-1 text-xs text-muted-foreground">{periodLabel}</div>
         </div>
-        <div className="grid gap-1.5 text-sm">
-          <DetailRow label="Matched location" value={props.matchedName ?? props.payeeName} />
-          <DetailRow label="Address" value={props.matchedAddress ?? '--'} />
-          <DetailRow label="Health authority" value={props.matchedHealthAuthority ?? '--'} />
-          <DetailRow label="Max annual" value={formatCurrency(props.maxAnnualAmount)} />
-          <DetailRow label="Average annual" value={formatCurrency(props.averageAnnualAmount)} />
-          <DetailRow label="Join method" value={`${props.matchMethod} (${formatPercent(props.matchScore)})`} />
-        </div>
-      </div>
+        <KeyValueRows
+          size="sm"
+          valueMaxWidth="max-w-[210px]"
+          className="space-y-1.5"
+          rows={[
+            { label: 'Matched location', value: props.matchedName ?? props.payeeName },
+            { label: 'Address', value: props.matchedAddress ?? '--' },
+            { label: 'Health authority', value: props.matchedHealthAuthority ?? '--' },
+            { label: 'Max annual', value: formatCurrency(props.maxAnnualAmount) },
+            { label: 'Average annual', value: formatCurrency(props.averageAnnualAmount) },
+            { label: 'Join method', value: `${props.matchMethod} (${formatPercent(props.matchScore)})` },
+          ]}
+        />
+      </MapPopupCard>
     </div>
   )
 }
@@ -468,15 +487,6 @@ function FacilityListButton({
         </span>
       </span>
     </button>
-  )
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="max-w-[210px] text-right font-medium">{value}</span>
-    </div>
   )
 }
 

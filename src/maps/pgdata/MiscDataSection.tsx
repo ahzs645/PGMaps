@@ -82,6 +82,7 @@ import {
   WarsSourceNotes,
   useWarsData,
 } from './wars'
+import { DEFAULT_WARS_HEATMAP, serializeWarsHeatmapSettings } from './WarsHeatmapControls'
 import {
   OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
   formatLitterName,
@@ -461,6 +462,7 @@ export default function MiscDataSection() {
     searchParams.get('warsHotspots'),
     searchParams.get('warsWinterRange'),
     searchParams.get('warsWinterRangeMode'),
+    searchParams.get('warsHeatmapOptions'),
   )
   const openLitterMap = useOpenLitterMapData(
     activeTab === 'openLitterMap',
@@ -531,6 +533,12 @@ export default function MiscDataSection() {
     else params.delete('warsPoints')
     if (activeTab === 'wars' && wars.showHeatmap) params.set('warsHeatmap', '1')
     else params.delete('warsHeatmap')
+    const heatmapOptions = serializeWarsHeatmapSettings(wars.heatmapSettings)
+    if (activeTab === 'wars' && heatmapOptions !== serializeWarsHeatmapSettings(DEFAULT_WARS_HEATMAP)) {
+      params.set('warsHeatmapOptions', heatmapOptions)
+    } else {
+      params.delete('warsHeatmapOptions')
+    }
     if (activeTab === 'wars' && wars.showHotspots) params.set('warsHotspots', '1')
     else params.delete('warsHotspots')
     if (activeTab === 'wars' && wars.showWinterRange) params.set('warsWinterRange', '1')
@@ -610,6 +618,7 @@ export default function MiscDataSection() {
     icbc.showPoints,
     icbc.selectedDatasetId,
     wars.showHeatmap,
+    wars.heatmapSettings,
     wars.showPoints,
     wars.showHotspots,
     wars.showWinterRange,

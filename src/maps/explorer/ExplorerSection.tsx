@@ -3,6 +3,7 @@ import { HeatmapMashupLayer } from '@/components/HeatmapMashupLayer'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
+import { formatNumber } from '@/lib/format'
 import { ExplorerLegend } from './components/ExplorerLegend'
 import { ExplorerMap } from './components/ExplorerMap'
 import { ExplorerSidebar } from './components/ExplorerSidebar'
@@ -62,18 +63,12 @@ export default function ExplorerSection() {
   return (
     <MapSectionLayout
       desktopSidebarWidth={370}
-      mobilePeek={
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            Explorer | {filteredItems.length.toLocaleString()} visible
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {activeDatasetIds.length === ALL_DATASET_IDS.length
-              ? 'All datasets'
-              : `${activeDatasetIds.length} datasets`}
-            {selectedItem ? ` | ${selectedItem.name}` : searchQuery ? ` | "${searchQuery}"` : ''}
-          </div>
-        </div>
+      mobilePeekTitle={<>Explorer · {formatNumber(filteredItems.length)} visible</>}
+      mobilePeekSubtitle={
+        <>
+          {activeDatasetIds.length === ALL_DATASET_IDS.length ? 'All datasets' : `${activeDatasetIds.length} datasets`}
+          {selectedItem ? ` · ${selectedItem.name}` : searchQuery ? ` · "${searchQuery}"` : ''}
+        </>
       }
       sidebar={
         <ExplorerSidebar

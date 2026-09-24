@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { useJsonManifest } from '../shared'
@@ -311,7 +312,7 @@ export function useWaterData(active: boolean) {
       .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
       .map(([parameter, count]) => ({
         value: parameter,
-        label: `${parameter} (${count.toLocaleString()})`,
+        label: `${parameter} (${count.toLocaleString(DEFAULT_LOCALE)})`,
       }))
   ), [sampleParameterCounts])
 

@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { downloadText } from '@/lib/download'
+import { DEFAULT_LOCALE } from '@/lib/format'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { RecordDialog, RecordEmptyState } from '@/components/ui/record-dialog'
+import { StatGroup, type StatItem } from '@/components/ui/stat-group'
 import { formatMetricValue, formatScore, getMetricLabel } from '../lib/metrics'
 import { formatDriverDelta } from '../lib/scoreDrivers'
 import type {
@@ -13,6 +17,7 @@ import type {
 } from '../types'
 import { METRIC_CATEGORY_LABELS } from '../types'
 import { BcEnviroScreenRegionProfile } from './BcEnviroScreenRegionProfile'
+import { formatNormalizationMethod } from './scoreBuilderPanelUtils'
 
 interface ScoreBuilderRegionInsightDialogProps {
   open: boolean
@@ -26,13 +31,6 @@ interface ScoreBuilderRegionInsightDialogProps {
 }
 
 const MOBILE_MAX_CONTRIBUTIONS = 4
-
-function formatNormalizationMethod(method: ScoreMethodSettings['normalization']): string {
-  if (method === 'percentile') return 'percentile rank'
-  if (method === 'winsorizedMinMax') return 'winsorized min-max'
-  if (method === 'zScore') return 'z-score'
-  return 'min-max'
-}
 
 function getCoverageLabel(score: number): { label: string; tone: string } {
   if (score >= 0.85) return { label: 'Strong coverage', tone: 'text-emerald-700 dark:text-emerald-300' }
@@ -92,18 +90,6 @@ function csvEscape(value: string | number | null | undefined): string {
   return `"${text.split('"').join('""')}"`
 }
 
-function downloadTextFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  URL.revokeObjectURL(url)
-}
-
 function createRegionReportCsv({
   region,
   weights,
@@ -128,7 +114,7 @@ function createRegionReportCsv({
 }): string {
   const lines = [
     ['Report', 'PGMaps score-builder region report'],
-    ['Generated', new Date().toLocaleString()],
+    ['Generated', new Date().toLocaleString(DEFAULT_LOCALE)],
     ['Region', region.region.name],
     ['Code', region.region.code],
     ['Boundary level', region.region.level],
@@ -321,342 +307,335 @@ export function ScoreBuilderRegionInsightDialog({
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || 'region'
-    downloadTextFile(csv, `pgmaps-${slug}-score-report.csv`, 'text/csv')
+    downloadText(csv, `pgmaps-${slug}-score-report.csv`, 'text/csv')
   }
 
+  const summaryStats: StatItem[] = region
+    ? [
+        { label: 'Rank', value: `#${region.rank}` },
+        { label: 'Score', value: formatScore(region.score) },
+        { label: 'Area', value: `${region.region.areaKm2.toFixed(1)} km²` },
+        { label: 'Sensors', value: region.counts.monitorCount.toLocaleString(DEFAULT_LOCALE) },
+        {
+          label: 'Data coverage',
+          value: `${(region.dataCoverageScore * 100).toFixed(0)}%`,
+          valueClassName: coverage?.tone,
+        },
+        { label: 'Normalization', value: formatNormalizationMethod(methodSettings.normalization), compact: true },
+        {
+          label: 'Rank confidence',
+          value: region.rankConfidence,
+          compact: true,
+          className: 'col-span-full',
+          note: `Rank #${region.rankInterval[0]}-#${region.rankInterval[1]} · score ${formatScore(region.scoreInterval[0])}-${formatScore(region.scoreInterval[1])}`,
+        },
+        ...(region.scoreMethodLabel
+          ? [{ label: 'Score method', value: region.scoreMethodLabel, compact: true, className: 'col-span-full' }]
+          : []),
+      ]
+    : []
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        variant="sheet"
-        elevated
-        className="max-h-[min(88dvh,720px)] sm:max-h-[min(88dvh,720px)] sm:max-w-2xl"
-        data-score-builder-region-insight-dialog="true"
-      >
-        <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
-          <DialogTitle className="pr-8 text-base sm:text-lg">
-            {region ? 'Region Score Drivers' : 'Region Insight'}
-          </DialogTitle>
-          <DialogDescription className="line-clamp-3 pr-4 text-xs leading-relaxed sm:text-sm">
-            {region
-              ? `${region.region.name} (Code ${region.region.code})${topDriverSummary ? ` | Top drivers: ${topDriverSummary} pts` : ''}`
-              : 'Select a region to review detailed score contributions.'}
-          </DialogDescription>
-        </DialogHeader>
+    <RecordDialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={region ? 'Region Score Drivers' : 'Region Insight'}
+      subtitle={
+        region
+          ? `${region.region.name} (Code ${region.region.code})${topDriverSummary ? ` | Top drivers: ${topDriverSummary} pts` : ''}`
+          : 'Select a region to review detailed score contributions.'
+      }
+      // Not "Close": the footer already has a Close button, and one name per control keeps it unambiguous.
+      closeLabel="Dismiss region drivers"
+      size="md"
+      className="max-h-[min(88dvh,720px)] sm:max-h-[min(88dvh,720px)]"
+      bodyClassName="space-y-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+      contentProps={{ 'data-score-builder-region-insight-dialog': 'true' }}
+      summary={region ? <StatGroup variant="tiles" items={summaryStats} /> : undefined}
+      footerActions={
+        region ? (
+          <button
+            type="button"
+            onClick={handleDownloadReport}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Download region report
+          </button>
+        ) : undefined
+      }
+    >
+      {!region ? (
+        <RecordEmptyState title="Region details will appear here after selecting a boundary." />
+      ) : (
+        <>
+          {/* Plain-English score summary */}
+          {narrative && (
+            <div className="rounded-lg border border-cyan-200/70 bg-cyan-50 p-3 text-sm leading-relaxed text-cyan-950 dark:border-cyan-900/70 dark:bg-cyan-950/25 dark:text-cyan-100">
+              {narrative}
+              {explanationBullets.length > 0 && (
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs">
+                  {explanationBullets.map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
 
-        {!region ? (
-          <div className="px-4 pb-6 text-sm text-muted-foreground sm:px-6">
-            Region details will appear here after selecting a boundary.
+          <div className="rounded-lg border border-border bg-background p-3 text-xs">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-foreground">Why this score?</div>
+              {coverage && <span className={cn('font-semibold', coverage.tone)}>{coverage.label}</span>}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Top positive drivers
+                </div>
+                <div className="space-y-1">
+                  {topPositiveDrivers.map((row) => (
+                    <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
+                      <span className="truncate text-foreground">{row.intentLabel}</span>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                        +{row.scoreDelta.toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Top pressure drivers
+                </div>
+                <div className="space-y-1">
+                  {topPressureDrivers.map((row) => (
+                    <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
+                      <span className="truncate text-foreground">{row.fullLabel}</span>
+                      <span className="font-semibold text-amber-700 dark:text-amber-300">
+                        -{row.pressureDelta.toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {weakDataRows.length > 0 && (
+              <InlineAlert tone="warning" className="mt-3">
+                Missing or weak active data: {weakDataRows.map((row) => row.fullLabel).join(', ')}.
+              </InlineAlert>
+            )}
           </div>
-        ) : (
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-1 sm:px-6 sm:pb-6">
-            {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Rank</div>
-                <div className="text-sm font-semibold text-foreground">#{region.rank}</div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Score</div>
-                <div className="text-sm font-semibold text-foreground">{formatScore(region.score)}</div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Area</div>
-                <div className="text-sm font-semibold text-foreground">{region.region.areaKm2.toFixed(1)} km²</div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Sensors</div>
-                <div className="text-sm font-semibold text-foreground">
-                  {region.counts.monitorCount.toLocaleString()}
-                </div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Data coverage</div>
-                <div className={cn('text-sm font-semibold', coverage?.tone)}>
-                  {(region.dataCoverageScore * 100).toFixed(0)}%
-                </div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-xs uppercase text-muted-foreground">Normalization</div>
-                <div className="text-sm font-semibold text-foreground">
-                  {formatNormalizationMethod(methodSettings.normalization)}
-                </div>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                <div className="text-xs uppercase text-muted-foreground">Rank confidence</div>
-                <div className="text-sm font-semibold text-foreground">{region.rankConfidence}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  Rank #{region.rankInterval[0]}-#{region.rankInterval[1]} · score{' '}
-                  {formatScore(region.scoreInterval[0])}-{formatScore(region.scoreInterval[1])}
-                </div>
-              </div>
-              {region.scoreMethodLabel && (
-                <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                  <div className="text-xs uppercase text-muted-foreground">Score method</div>
-                  <div className="text-sm font-semibold text-foreground">{region.scoreMethodLabel}</div>
-                </div>
-              )}
-            </div>
 
-            <button
-              type="button"
-              onClick={handleDownloadReport}
-              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download region report
-            </button>
+          {region.bcEnviroScreen && <BcEnviroScreenRegionProfile region={region} />}
 
-            {/* Plain-English score summary */}
-            {narrative && (
-              <div className="rounded-lg border border-cyan-200/70 bg-cyan-50 p-3 text-sm leading-relaxed text-cyan-950 dark:border-cyan-900/70 dark:bg-cyan-950/25 dark:text-cyan-100">
-                {narrative}
-                {explanationBullets.length > 0 && (
-                  <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs">
-                    {explanationBullets.map((bullet) => (
-                      <li key={bullet}>{bullet}</li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            )}
-
-            <div className="rounded-lg border border-border bg-background p-3 text-xs">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-foreground">Why this score?</div>
-                {coverage && <span className={cn('font-semibold', coverage.tone)}>{coverage.label}</span>}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Top positive drivers
-                  </div>
-                  <div className="space-y-1">
-                    {topPositiveDrivers.map((row) => (
-                      <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
-                        <span className="truncate text-foreground">{row.intentLabel}</span>
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          +{row.scoreDelta.toFixed(1)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Top pressure drivers
-                  </div>
-                  <div className="space-y-1">
-                    {topPressureDrivers.map((row) => (
-                      <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
-                        <span className="truncate text-foreground">{row.fullLabel}</span>
-                        <span className="font-semibold text-amber-700 dark:text-amber-300">
-                          -{row.pressureDelta.toFixed(1)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {weakDataRows.length > 0 && (
-                <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
-                  Missing or weak active data: {weakDataRows.map((row) => row.fullLabel).join(', ')}.
-                </div>
-              )}
-            </div>
-
-            {region.bcEnviroScreen && (
-              <BcEnviroScreenRegionProfile region={region} />
-            )}
-
-            {componentRows.length > 0 && (
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 text-sm font-semibold text-foreground">
-                  {region.moduleScores?.length ? 'Module ranks' : 'Component sub-scores'}
-                </div>
-                <div className="space-y-2">
-                  {componentRows.map((component) => (
-                    <div key={component.category}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-foreground">{component.label}</span>
-                        <span className="text-muted-foreground">
-                          {formatScore(component.score)} · {component.points.toFixed(1)} pts
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {region.domainScores && region.domainScores.length > 0 && (
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 text-sm font-semibold text-foreground">Domain summaries</div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {region.domainScores.map((domain) => (
-                    <div key={domain.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-foreground">{domain.label}</span>
-                        <span className="font-semibold text-cyan-700 dark:text-cyan-300">
-                          {formatScore(domain.score)}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} ·{' '}
-                        {domain.module}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {region.missingDataFlags && region.missingDataFlags.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
-                <div className="mb-1 text-sm font-semibold">
-                  {region.bcEnviroScreen ? 'Source and missing-data flags' : 'Missing-data flags'}
-                </div>
-                <ul className="space-y-1">
-                  {region.missingDataFlags.map((flag) => (
-                    <li key={flag}>{flag}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Coverage snapshot */}
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
-              <div className="mb-2 text-sm font-semibold text-foreground">Coverage Snapshot</div>
-              <div className="grid grid-cols-2 gap-2 text-muted-foreground sm:grid-cols-4">
-                <div>
-                  Low-cost:{' '}
-                  <span className="font-medium text-foreground">{region.counts.lowCostCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Reference:{' '}
-                  <span className="font-medium text-foreground">{region.counts.referenceCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Active:{' '}
-                  <span className="font-medium text-foreground">{region.counts.activeCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Networks:{' '}
-                  <span className="font-medium text-foreground">
-                    {formatMetricValue('networkVariety', region.metrics.networkVariety, true)}
-                  </span>
-                </div>
-                <div>
-                  Parks: <span className="font-medium text-foreground">{region.counts.parkCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Trails:{' '}
-                  <span className="font-medium text-foreground">{region.counts.trailCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Restaurants:{' '}
-                  <span className="font-medium text-foreground">{region.counts.restaurantCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Population:{' '}
-                  <span className="font-medium text-foreground">{region.counts.populationSum.toLocaleString()}</span>
-                </div>
-                <div>
-                  Parcels:{' '}
-                  <span className="font-medium text-foreground">{region.counts.parcelCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Crime:{' '}
-                  <span className="font-medium text-foreground">{region.counts.crimeCount.toLocaleString()}</span>
-                </div>
-                <div>
-                  Critical violations:{' '}
-                  <span className="font-medium text-foreground">
-                    {region.counts.criticalViolationCount.toLocaleString()}
-                  </span>
-                </div>
-                <div>
-                  Follow-ups:{' '}
-                  <span className="font-medium text-foreground">
-                    {region.counts.followUpInspectionCount.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Metric contributions grouped by category */}
+          {componentRows.length > 0 && (
             <div className="rounded-lg border border-border bg-background p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Weighted Metric Drivers</h3>
-                <span className="text-xs text-muted-foreground">
-                  {visibleContributionRows.length} of {contributionRows.length}
-                </span>
+              <div className="mb-2 text-sm font-semibold text-foreground">
+                {region.moduleScores?.length ? 'Module ranks' : 'Component sub-scores'}
               </div>
-              {topDriverSummary && (
-                <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
-                  Strongest drivers for this score:{' '}
-                  <span className="font-medium text-foreground">{topDriverSummary} pts</span>
-                </div>
-              )}
-
-              {isMobile && contributionRows.length > MOBILE_MAX_CONTRIBUTIONS && (
-                <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-xs text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
-                  Compact mobile view showing top {MOBILE_MAX_CONTRIBUTIONS} drivers.
-                </div>
-              )}
-
-              <div className="space-y-3">
-                {Object.entries(groupedRows).map(([category, rows]) => (
-                  <div key={category}>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
+              <div className="space-y-2">
+                {componentRows.map((component) => (
+                  <div key={component.category}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground">{component.label}</span>
+                      <span className="text-muted-foreground">
+                        {formatScore(component.score)} · {component.points.toFixed(1)} pts
+                      </span>
                     </div>
-                    <div className="space-y-1.5">
-                      {rows.map((row) => {
-                        const positive = row.scoreDelta >= 0
-                        return (
-                          <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-foreground">{row.intentLabel}</span>
-                              <span
-                                className={cn(
-                                  'font-semibold',
-                                  positive
-                                    ? 'text-emerald-700 dark:text-emerald-300'
-                                    : 'text-rose-700 dark:text-rose-300',
-                                )}
-                              >
-                                {positive ? '+' : ''}
-                                {row.scoreDelta.toFixed(2)} pts
-                              </span>
-                            </div>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                              <span>weight {row.weight}</span>
-                              <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
-                              <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
-                            </div>
-                            {!isMobile && (
-                              <div className="mt-0.5 text-xs text-muted-foreground">{getMetricLabel(row.key)}</div>
-                            )}
-                          </div>
-                        )
-                      })}
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
 
-                {visibleContributionRows.length === 0 && (
-                  <div className="rounded border border-border bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
-                    No active metric weights. Apply a preset or set metric weights above zero.
+          {region.domainScores && region.domainScores.length > 0 && (
+            <div className="rounded-lg border border-border bg-background p-3">
+              <div className="mb-2 text-sm font-semibold text-foreground">Domain summaries</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {region.domainScores.map((domain) => (
+                  <div key={domain.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">{domain.label}</span>
+                      <span className="font-semibold text-cyan-700 dark:text-cyan-300">
+                        {formatScore(domain.score)}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} · {domain.module}
+                    </div>
                   </div>
-                )}
+                ))}
+              </div>
+            </div>
+          )}
+
+          {region.missingDataFlags && region.missingDataFlags.length > 0 && (
+            <InlineAlert
+              tone="warning"
+              title={region.bcEnviroScreen ? 'Source and missing-data flags' : 'Missing-data flags'}
+              className="p-3"
+            >
+              <ul className="mt-1 space-y-1">
+                {region.missingDataFlags.map((flag) => (
+                  <li key={flag}>{flag}</li>
+                ))}
+              </ul>
+            </InlineAlert>
+          )}
+
+          {/* Coverage snapshot */}
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
+            <div className="mb-2 text-sm font-semibold text-foreground">Coverage Snapshot</div>
+            <div className="grid grid-cols-2 gap-2 text-muted-foreground sm:grid-cols-4">
+              <div>
+                Low-cost:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.lowCostCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Reference:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.referenceCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Active:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.activeCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Networks:{' '}
+                <span className="font-medium text-foreground">
+                  {formatMetricValue('networkVariety', region.metrics.networkVariety, true)}
+                </span>
+              </div>
+              <div>
+                Parks:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.parkCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Trails:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.trailCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Restaurants:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.restaurantCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Population:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.populationSum.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Parcels:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.parcelCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Crime:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.crimeCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Critical violations:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.criticalViolationCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
+              </div>
+              <div>
+                Follow-ups:{' '}
+                <span className="font-medium text-foreground">
+                  {region.counts.followUpInspectionCount.toLocaleString(DEFAULT_LOCALE)}
+                </span>
               </div>
             </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          {/* Metric contributions grouped by category */}
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Weighted Metric Drivers</h3>
+              <span className="text-xs text-muted-foreground">
+                {visibleContributionRows.length} of {contributionRows.length}
+              </span>
+            </div>
+            {topDriverSummary && (
+              <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
+                Strongest drivers for this score:{' '}
+                <span className="font-medium text-foreground">{topDriverSummary} pts</span>
+              </div>
+            )}
+
+            {isMobile && contributionRows.length > MOBILE_MAX_CONTRIBUTIONS && (
+              <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-xs text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
+                Compact mobile view showing top {MOBILE_MAX_CONTRIBUTIONS} drivers.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {Object.entries(groupedRows).map(([category, rows]) => (
+                <div key={category}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
+                  </div>
+                  <div className="space-y-1.5">
+                    {rows.map((row) => {
+                      const positive = row.scoreDelta >= 0
+                      return (
+                        <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-foreground">{row.intentLabel}</span>
+                            <span
+                              className={cn(
+                                'font-semibold',
+                                positive
+                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  : 'text-rose-700 dark:text-rose-300',
+                              )}
+                            >
+                              {positive ? '+' : ''}
+                              {row.scoreDelta.toFixed(2)} pts
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span>weight {row.weight}</span>
+                            <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
+                            <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
+                          </div>
+                          {!isMobile && (
+                            <div className="mt-0.5 text-xs text-muted-foreground">{getMetricLabel(row.key)}</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {visibleContributionRows.length === 0 && (
+                <div className="rounded border border-border bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
+                  No active metric weights. Apply a preset or set metric weights above zero.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </RecordDialog>
   )
 }

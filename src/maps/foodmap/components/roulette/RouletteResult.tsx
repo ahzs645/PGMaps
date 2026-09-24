@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { getHazardRating, HAZARD_TAILWIND } from '../../hazard'
+import { cleanAddress } from '../../address'
 import type { RouletteRestaurant, HazardRating } from '../../types'
 
 interface RouletteResultProps {
@@ -77,9 +78,9 @@ export function RouletteResult({ winner, onSpinAgain, onViewOnMap }: RouletteRes
             </div>
           )}
 
-          {winner.full_address && (
+          {cleanAddress(winner.full_address) && (
             <div className="text-xs text-muted-foreground">
-              {winner.full_address}
+              {cleanAddress(winner.full_address)}
             </div>
           )}
         </div>

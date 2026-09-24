@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatScore } from '../lib/metrics'
 import { formatDriverDelta, type ScoreDriver } from '../lib/scoreDrivers'
 import type { ScoredBoundaryRegion, ScoreDataSource } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface ScoreBuilderMobileRegionCardProps {
   region: ScoredBoundaryRegion
@@ -30,10 +31,11 @@ export function ScoreBuilderMobileRegionCard({
     ['Area', `${region.region.areaKm2.toFixed(1)} km²`],
     ['Coverage', `${(region.dataCoverageScore * 100).toFixed(0)}%`],
   ]
-  if (sources.has('airQuality')) facts.push(['Sensors', region.counts.monitorCount.toLocaleString()])
-  if (sources.has('parks')) facts.push(['Parks', region.counts.parkCount.toLocaleString()])
-  if (sources.has('restaurants')) facts.push(['Restaurants', region.counts.restaurantCount.toLocaleString()])
-  if (sources.has('census')) facts.push(['Population', region.counts.populationSum.toLocaleString()])
+  if (sources.has('airQuality')) facts.push(['Sensors', region.counts.monitorCount.toLocaleString(DEFAULT_LOCALE)])
+  if (sources.has('parks')) facts.push(['Parks', region.counts.parkCount.toLocaleString(DEFAULT_LOCALE)])
+  if (sources.has('restaurants'))
+    facts.push(['Restaurants', region.counts.restaurantCount.toLocaleString(DEFAULT_LOCALE)])
+  if (sources.has('census')) facts.push(['Population', region.counts.populationSum.toLocaleString(DEFAULT_LOCALE)])
 
   return (
     <MobileFeatureCard

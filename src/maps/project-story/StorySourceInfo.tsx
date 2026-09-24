@@ -2,14 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { PanelDialog } from '@/components/ui/dialog-shell'
 import { downloadProjectPackage, type ProjectPackage } from '@/lib/projectPackages'
 
 /** Use the same slot beside search as other maps' dataset information. */
@@ -32,8 +25,13 @@ export function StorySourceInfo({ project }: { project: ProjectPackage }) {
   }, [])
   if (!slot) return null
   return createPortal(
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <PanelDialog
+      open={open}
+      onOpenChange={setOpen}
+      size="md"
+      title="Sources and interpretation"
+      subtitle={project.title}
+      trigger={
         <button
           type="button"
           aria-label="Sources and downloads"
@@ -42,23 +40,24 @@ export function StorySourceInfo({ project }: { project: ProjectPackage }) {
         >
           <Info className="h-5 w-5" aria-hidden="true" />
         </button>
-      </DialogTrigger>
-      <DialogContent
-        elevated
-        className="max-h-[85svh] overflow-y-auto"
-        onKeyDown={(event) => {
+      }
+      contentProps={{
+        onKeyDown: (event) => {
           // Also handle Escape during the opening frame, before the modal's
           // document-level dismissable-layer listener has settled.
           if (event.key === 'Escape') {
             event.preventDefault()
             setOpen(false)
           }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Sources and interpretation</DialogTitle>
-          <DialogDescription>{project.title}</DialogDescription>
-        </DialogHeader>
+        },
+      }}
+      footer={
+        <Button variant="outline" className="w-full sm:w-auto" onClick={() => downloadProjectPackage(project)}>
+          Download story JSON
+        </Button>
+      }
+    >
+      <div className="space-y-4">
         <p className="text-sm leading-6 text-muted-foreground">{project.sourceNote}</p>
         {project.details?.map((detail, index) => (
           <p key={index} className="text-sm leading-6 text-muted-foreground">
@@ -76,11 +75,8 @@ export function StorySourceInfo({ project }: { project: ProjectPackage }) {
               </li>
             ))}
         </ul>
-        <Button variant="outline" onClick={() => downloadProjectPackage(project)}>
-          Download story JSON
-        </Button>
-      </DialogContent>
-    </Dialog>,
+      </div>
+    </PanelDialog>,
     slot,
   )
 }

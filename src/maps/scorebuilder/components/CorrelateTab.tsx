@@ -1,5 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { FlipHorizontal } from 'lucide-react'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { EmptyHint } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS_BY_CATEGORY } from '../constants'
@@ -159,11 +161,11 @@ export function CorrelateTab({
         <StatTile label="n" value={stats ? String(stats.n) : '-'} />
       </div>
       {stats && (stats.xMin === stats.xMax || stats.yMin === stats.yMax) && (
-        <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-snug text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+        <InlineAlert tone="warning" className="leading-snug">
           {stats.xMin === stats.xMax
             ? `${getMetricLabel(metricX)} has the same value for every region - likely the data source is off in the left panel.`
             : `${getMetricLabel(metricY)} has the same value for every region - likely the data source is off in the left panel.`}
-        </div>
+        </InlineAlert>
       )}
       <div className="grid grid-cols-2 gap-2">
         <StatTile label="Spearman" value={stats ? stats.spearman.toFixed(2) : '-'} />
@@ -242,11 +244,11 @@ function CorrelationScatter({
   const { stats, points } = result
   if (!stats || points.length === 0) {
     return (
-      <div className="rounded border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+      <EmptyHint>
         {active
           ? 'No region has finite values for both metrics in the current boundary level.'
           : 'Turn correlation mode on to plot the scatter and load statistics.'}
-      </div>
+      </EmptyHint>
     )
   }
 

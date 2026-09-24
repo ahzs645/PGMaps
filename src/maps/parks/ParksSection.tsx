@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { KeyValueRows, LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
 import { ParksMap } from './components/ParksMap'
@@ -12,7 +12,7 @@ import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
 import { getClassificationColor, getTrailColor } from './constants'
 import type { Park, Trail, ParkClassification, TrailUserClass, ActiveLayer } from './types'
-import { formatArea, formatLength } from '@/lib/format'
+import { formatArea, formatLength, formatNumber } from '@/lib/format'
 
 const ALL_CLASSIFICATIONS: ParkClassification[] = [
   'Athletic', 'Community', 'Downtown', 'Green Space',
@@ -111,6 +111,12 @@ export default function ParksSection() {
     setTrailTypesOverride((current) => toggleArrayItem(current ?? ALL_TRAIL_TYPES, type))
   }, [])
 
+  const handleResetFilters = useCallback(() => {
+    setClassificationsOverride(null)
+    setTrailTypesOverride(null)
+    setSearchQuery('')
+  }, [])
+
   const handleClearSelection = useCallback(() => {
     // Both clears write through useSetUrlParams, so the second does not start
     // from the first's stale render params.
@@ -191,7 +197,7 @@ export default function ParksSection() {
 
   return (
     <MapSectionLayout
-      mobilePeekTitle={<>Parks & Trails | {filteredParks.length + filteredTrails.length} visible</>}
+      mobilePeekTitle={<>Parks & Trails · {formatNumber(filteredParks.length + filteredTrails.length)} visible</>}
       mobilePeekSubtitle={<>{visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}</>}
       sidebar={(
         <ParksSidebar
@@ -217,6 +223,7 @@ export default function ParksSection() {
           onParkClick={handleParkClick}
           onTrailClick={handleTrailClick}
           onClearSelection={handleClearSelection}
+          onResetFilters={handleResetFilters}
         />
       )}
     >
@@ -245,16 +252,16 @@ export default function ParksSection() {
 
         {/* Legend */}
         {showLegend && (
-          <MapLegendPanel title="Legend" collapsible contentClassName="space-y-3">
+          <MapLegendPanel title="Legend" collapsible defaultCollapsed="mobile" contentClassName="space-y-3">
             {activeLayers.includes('parks') && selectedClassifications.length > 0 && (
-              <MapLegendSection title="Parks" value={parkLegendRows.length.toLocaleString()}>
+              <MapLegendSection title="Parks" value={formatNumber(parkLegendRows.length)}>
                 {parkLegendRows.length > 0 ? (
                   parkLegendRows.map((row) => (
                     <LegendItem
                       key={row.classification}
                       color={getClassificationColor(row.classification)}
                       label={row.classification}
-                      value={row.count.toLocaleString()}
+                      value={formatNumber(row.count)}
                       active={row.active}
                       onClick={() => toggleClassification(row.classification)}
                     />
@@ -266,14 +273,14 @@ export default function ParksSection() {
             )}
 
             {activeLayers.includes('trails') && selectedTrailTypes.length > 0 && (
-              <MapLegendSection title="Trails" value={trailLegendRows.length.toLocaleString()} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+              <MapLegendSection title="Trails" value={formatNumber(trailLegendRows.length)} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
                 {trailLegendRows.length > 0 ? (
                   trailLegendRows.map((row) => (
                     <LegendItem
                       key={row.type}
                       color={getTrailColor(row.type)}
                       label={`${row.type} Trail`}
-                      value={row.count.toLocaleString()}
+                      value={formatNumber(row.count)}
                       active={row.active}
                       swatchShape="dashed-line"
                       onClick={() => toggleTrailType(row.type)}
@@ -286,7 +293,7 @@ export default function ParksSection() {
             )}
 
             {overlayLegendItems.length > 0 && (
-              <MapLegendSection title="Overlays" value={overlayLegendItems.length.toLocaleString()} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+              <MapLegendSection title="Overlays" value={formatNumber(overlayLegendItems.length)} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
                 {overlayLegendItems.map((item) => (
                   <LegendItem
                     key={item.layer}
@@ -305,16 +312,6 @@ export default function ParksSection() {
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  if (!value) return null
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-border/70 py-2 first:pt-0 last:border-b-0 last:pb-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 max-w-[13rem] text-right font-medium text-foreground">{value}</span>
-    </div>
-  )
-}
-
 function MobileParkFeatureCard({ park, onClose }: { park: Park; onClose: () => void }) {
   const subtitle = [
     `${park.classification || 'Unknown'} ${park.subType || 'Park'}`,
@@ -328,10 +325,17 @@ function MobileParkFeatureCard({ park, onClose }: { park: Park; onClose: () => v
       subtitle={subtitle}
       onClose={onClose}
     >
-      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-        <DetailRow label="Type" value={`${park.classification || 'Unknown'} ${park.subType || 'Park'}`} />
-        <DetailRow label="Area" value={park.area ? formatArea(park.area) : 'Not listed'} />
-        <DetailRow label="Developed" value={park.developed ? 'Yes' : 'No'} />
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+        <KeyValueRows
+          variant="divided"
+          size="sm"
+          valueMaxWidth="max-w-[13rem]"
+          rows={[
+            { label: 'Type', value: `${park.classification || 'Unknown'} ${park.subType || 'Park'}` },
+            { label: 'Area', value: park.area ? formatArea(park.area) : 'Not listed' },
+            { label: 'Developed', value: park.developed ? 'Yes' : 'No' },
+          ]}
+        />
       </div>
     </MobileFeatureCard>
   )
@@ -351,12 +355,19 @@ function MobileTrailFeatureCard({ trail, onClose }: { trail: Trail; onClose: () 
       subtitle={subtitle}
       onClose={onClose}
     >
-      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-        <DetailRow label="Trail type" value={trail.userClass || 'Trail'} />
-        <DetailRow label="Surface" value={trail.surfaceMaterial || trail.surfaceClass || 'Not listed'} />
-        <DetailRow label="Length" value={trail.length ? formatLength(trail.length) : 'Not listed'} />
-        <DetailRow label="Park" value={trail.parkName || 'Not listed'} />
-        <DetailRow label="Winter maintenance" value={trail.winterMaintenance ? 'Yes' : 'No'} />
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+        <KeyValueRows
+          variant="divided"
+          size="sm"
+          valueMaxWidth="max-w-[13rem]"
+          rows={[
+            { label: 'Trail type', value: trail.userClass || 'Trail' },
+            { label: 'Surface', value: trail.surfaceMaterial || trail.surfaceClass || 'Not listed' },
+            { label: 'Length', value: trail.length ? formatLength(trail.length) : 'Not listed' },
+            { label: 'Park', value: trail.parkName || 'Not listed' },
+            { label: 'Winter maintenance', value: trail.winterMaintenance ? 'Yes' : 'No' },
+          ]}
+        />
       </div>
     </MobileFeatureCard>
   )

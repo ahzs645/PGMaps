@@ -1,19 +1,8 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { downloadText } from '@/lib/download'
 import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMethodSettings } from '../types'
 
 export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png' | 'pdf'
-
-function downloadBlob(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  URL.revokeObjectURL(url)
-}
 
 function downloadDataUrl(dataUrl: string, filename: string) {
   const anchor = document.createElement('a')
@@ -114,7 +103,7 @@ export function exportScoredRegions(
       ...metricKeys.map((k) => r.metrics[k].toFixed(4)),
     ])
     const csv = [header.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n')
-    downloadBlob(csv, 'score-builder-regions.csv', 'text/csv')
+    downloadText(csv, 'score-builder-regions.csv', 'text/csv')
   } else {
     const fc: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
@@ -142,6 +131,6 @@ export function exportScoredRegions(
         },
       })),
     }
-    downloadBlob(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
+    downloadText(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
   }
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMap } from '@/components/ui/map'
 import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
@@ -164,7 +165,7 @@ export function DriveCamera(props: Props) {
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold">Road-level preview · 1× terrain</p>
-        <button className="shrink-0 rounded border px-2 py-1 text-xs" aria-expanded={optionsExpanded} onClick={() => setOptionsExpanded(current => !current)}>{optionsExpanded ? 'Hide options' : 'Show options'}</button>
+        <Button variant="outline" size="sm" className="shrink-0 touch:h-10" aria-expanded={optionsExpanded} onClick={() => setOptionsExpanded(current => !current)}>{optionsExpanded ? 'Hide options' : 'Show options'}</Button>
       </div>
       <p className="mt-1 text-xs" role="status">
         {status === 'waiting-for-terrain'
@@ -177,24 +178,25 @@ export function DriveCamera(props: Props) {
         <input aria-label="Route position" className="mt-1 block w-full accent-primary" type="range" min={0} max={props.routeLengthMeters ?? 1} step={5} value={props.seekMeters} onChange={e => props.onSeek?.(Number(e.target.value))} />
       </label>}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <button className="rounded border px-2 py-1" onClick={() => setView({ yaw: 0, tilt: 0 })}>
+        <Button variant="outline" size="sm" className="touch:h-10" onClick={() => setView({ yaw: 0, tilt: 0 })}>
           Reset look
-        </button>
-        <button
-          className="rounded bg-primary text-primary-foreground px-3 py-2 font-semibold disabled:opacity-50"
+        </Button>
+        <Button
+          size="sm"
+          className="font-semibold touch:h-10"
           disabled={props.stations.length < 2 || (!props.playing && (status !== 'ready' || props.forestReady === false))}
           onClick={() => (props.playing ? props.onPause?.() : props.onPlay?.())}
         >
           {props.playing ? 'Pause' : 'Play'}
-        </button>
+        </Button>
         {props.onSpeedChange && <select aria-label="Driving speed" className="rounded border bg-background py-1" value={props.speedKmh} onChange={e => props.onSpeedChange?.(Number(e.target.value))}>{DRIVE_SPEEDS_KMH.map(speed => <option key={speed} value={speed}>{speed} km/h</option>)}</select>}
-        <button className="rounded border px-2 py-1" onClick={props.onExit}>
+        <Button variant="outline" size="sm" className="touch:h-10" onClick={props.onExit}>
           Return to map
-        </button>
+        </Button>
       </div>
       {props.onSeek && <div className="mt-2 flex items-center gap-2 text-xs">
-        <button className="rounded border px-2 py-1" disabled={props.seekMeters <= 0} onClick={() => { props.onPause?.(); props.onSeek?.(Math.max(0, props.seekMeters - 10)) }}>Back 10 m</button>
-        <button className="rounded border px-2 py-1" disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)} onClick={() => { props.onPause?.(); props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10)) }}>Forward 10 m</button>
+        <Button variant="outline" size="sm" className="touch:h-10" disabled={props.seekMeters <= 0} onClick={() => { props.onPause?.(); props.onSeek?.(Math.max(0, props.seekMeters - 10)) }}>Back 10 m</Button>
+        <Button variant="outline" size="sm" className="touch:h-10" disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)} onClick={() => { props.onPause?.(); props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10)) }}>Forward 10 m</Button>
       </div>}
       <p className="mt-1 text-[10px] text-muted-foreground">Preview speed; posted limits are not loaded. {props.speedKmh && props.routeLengthMeters ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.` : ''}</p>
       <div className="mt-2" hidden={!optionsExpanded}>{props.comparison}</div>

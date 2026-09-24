@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { formatCompactCurrency } from '@/lib/format'
+import { formatCompactCurrency, formatCurrency } from '@/lib/format'
 import { Clock } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
 import {
+  CollapsibleSection,
   FilterChipGroup,
   MapSidebarShell,
   SearchInput,
@@ -11,6 +12,8 @@ import {
   SidebarSection,
   StatGrid,
 } from '@/components/ui/map-panels'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import {
   BOUNDARY_SOURCE_OPTIONS,
   createStudyAreaLevelOptions,
@@ -20,7 +23,13 @@ import {
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { DATASETS } from '@/lib/dataCatalog'
-import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS } from '../constants'
+import {
+  ALL_CATEGORIES,
+  ASSESSMENT_HISTORY_START_YEAR,
+  CATEGORY_LABELS,
+  getCategoryColor,
+  COLOR_METRICS,
+} from '../constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -108,10 +117,7 @@ const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<AssessmentBoundarySourc
   }
 })
 
-const REGION_LEVEL_OPTIONS: Record<
-  AssessmentBoundarySource,
-  Array<StudyAreaLevelOption<AssessmentBoundaryLevel>>
-> = {
+const REGION_LEVEL_OPTIONS: Record<AssessmentBoundarySource, Array<StudyAreaLevelOption<AssessmentBoundaryLevel>>> = {
   bcHealth: createStudyAreaLevelOptions(['chsa', 'lha', 'hsda', 'healthAuthority'] as const),
   regionalDistrict: createStudyAreaLevelOptions(['regionalDistrict'] as const),
   census: createStudyAreaLevelOptions(['ct', 'da', 'db'] as const),
@@ -119,21 +125,49 @@ const REGION_LEVEL_OPTIONS: Record<
   watershed: createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 }
 
-export { formatNumber }
+const SPARKLINE_TONES = {
+  // Property history: blue, matching the selected-property card.
+  blue: {
+    label: 'text-blue-600 dark:text-blue-400',
+    value: 'text-blue-900 dark:text-blue-200',
+    focus: 'focus-visible:outline-blue-600',
+    bar: 'bg-blue-400 dark:bg-blue-500',
+    barActive: 'bg-blue-600 dark:bg-blue-300',
+    axis: 'text-blue-500 dark:text-blue-400',
+  },
+  // Boundary averages: orange, matching the selected-block card.
+  orange: {
+    label: 'text-orange-600 dark:text-orange-400',
+    value: 'text-orange-900 dark:text-orange-200',
+    focus: 'focus-visible:outline-orange-600',
+    bar: 'bg-orange-400 dark:bg-orange-500',
+    barActive: 'bg-orange-600 dark:bg-orange-300',
+    axis: 'text-orange-500 dark:text-orange-400',
+  },
+} as const
 
-export function HistorySparkline({ values }: { values: number[] }) {
+export function HistorySparkline({
+  values,
+  tone = 'blue',
+  label = '10-Year Assessment History',
+}: {
+  values: number[]
+  tone?: keyof typeof SPARKLINE_TONES
+  label?: string
+}) {
   const [hovered, setHovered] = useState<number | null>(null)
   const max = Math.max(...values)
   const min = Math.min(...values)
   const range = max - min || 1
+  const colors = SPARKLINE_TONES[tone]
 
   return (
     <div className="mt-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs text-blue-600 dark:text-blue-400">10-Year Assessment History</span>
+        <span className={cn('text-xs', colors.label)}>{label}</span>
         {hovered !== null && (
-          <span className="text-xs font-semibold text-blue-900 dark:text-blue-200">
-            {ASSESSMENT_HISTORY_START_YEAR + hovered}: ${formatNumber(values[hovered])}
+          <span className={cn('text-xs font-semibold', colors.value)}>
+            {ASSESSMENT_HISTORY_START_YEAR + hovered}: {formatCurrency(values[hovered])}
           </span>
         )}
       </div>
@@ -142,9 +176,10 @@ export function HistorySparkline({ values }: { values: number[] }) {
           <button
             key={i}
             type="button"
-            aria-label={`${ASSESSMENT_HISTORY_START_YEAR + i}: $${formatNumber(v)}`}
+            aria-label={`${ASSESSMENT_HISTORY_START_YEAR + i}: ${formatCurrency(v)}`}
             className={cn(
-              'flex h-full flex-1 cursor-pointer items-end rounded-t focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600',
+              'flex h-full flex-1 cursor-pointer items-end rounded-t focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+              colors.focus,
             )}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
@@ -153,65 +188,13 @@ export function HistorySparkline({ values }: { values: number[] }) {
             onPointerDown={() => setHovered(i)}
           >
             <span
-              className={cn(
-                'w-full rounded-t transition-colors',
-                hovered === i ? 'bg-blue-600 dark:bg-blue-300' : 'bg-blue-400 dark:bg-blue-500',
-              )}
+              className={cn('w-full rounded-t transition-colors', hovered === i ? colors.barActive : colors.bar)}
               style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
             />
           </button>
         ))}
       </div>
-      <div className="mt-0.5 flex justify-between text-xs text-blue-500 dark:text-blue-400">
-        <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
-        <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
-      </div>
-    </div>
-  )
-}
-
-function BoundaryHistorySparkline({ values }: { values: number[] }) {
-  const [hovered, setHovered] = useState<number | null>(null)
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const range = max - min || 1
-
-  return (
-    <div className="mt-3">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs text-orange-600 dark:text-orange-400">Avg 10-Year History</span>
-        {hovered !== null && (
-          <span className="text-xs font-semibold text-orange-900 dark:text-orange-200">
-            {ASSESSMENT_HISTORY_START_YEAR + hovered}: ${formatNumber(values[hovered])}
-          </span>
-        )}
-      </div>
-      <div className="flex items-end gap-0.5" style={{ height: 40 }}>
-        {values.map((v, i) => (
-          <button
-            key={i}
-            type="button"
-            aria-label={`${ASSESSMENT_HISTORY_START_YEAR + i}: $${formatNumber(v)}`}
-            className={cn(
-              'flex h-full flex-1 cursor-pointer items-end rounded-t focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600',
-            )}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            onFocus={() => setHovered(i)}
-            onBlur={() => setHovered(null)}
-            onPointerDown={() => setHovered(i)}
-          >
-            <span
-              className={cn(
-                'w-full rounded-t transition-colors',
-                hovered === i ? 'bg-orange-600 dark:bg-orange-300' : 'bg-orange-400 dark:bg-orange-500',
-              )}
-              style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
-            />
-          </button>
-        ))}
-      </div>
-      <div className="mt-0.5 flex justify-between text-xs text-orange-500 dark:text-orange-400">
+      <div className={cn('mt-0.5 flex justify-between text-xs', colors.axis)}>
         <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
         <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
       </div>
@@ -313,7 +296,9 @@ export function BcAssessmentSidebar({
             onClick={onToggleTimeline}
             className={cn(
               'flex size-9 items-center justify-center rounded-lg transition-colors',
-              showTimeline ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
+              showTimeline
+                ? 'bg-sky-500 text-white hover:bg-sky-600'
+                : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
             aria-pressed={showTimeline}
             title={showTimeline ? 'Hide timeline' : 'Show timeline'}
@@ -362,9 +347,9 @@ export function BcAssessmentSidebar({
             subtitle={`${formatNumber(selectedBoundary.count)} properties`}
             onClear={onClearSelection}
             rows={[
-              { label: 'Avg Assessed', value: `$${formatNumber(selectedBoundary.avgAssessed)}` },
-              { label: 'Avg Land', value: `$${formatNumber(selectedBoundary.avgLand)}` },
-              { label: 'Avg Building', value: `$${formatNumber(selectedBoundary.avgBuilding)}` },
+              { label: 'Avg Assessed', value: formatCurrency(selectedBoundary.avgAssessed) },
+              { label: 'Avg Land', value: formatCurrency(selectedBoundary.avgLand) },
+              { label: 'Avg Building', value: formatCurrency(selectedBoundary.avgBuilding) },
               ...(selectedBoundary.avgYearBuilt
                 ? [{ label: 'Avg Year Built', value: selectedBoundary.avgYearBuilt }]
                 : []),
@@ -393,7 +378,7 @@ export function BcAssessmentSidebar({
             )}
 
             {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
-              <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
+              <HistorySparkline values={selectedBoundary.avgHistory} tone="orange" label="Avg 10-Year History" />
             )}
           </SelectedItemCard>
         )}
@@ -407,9 +392,9 @@ export function BcAssessmentSidebar({
             subtitle={selectedProperty.description}
             onClear={onClearSelection}
             rows={[
-              { label: 'Total Assessed', value: `$${formatNumber(selectedProperty.totalAssessed)}` },
-              { label: 'Land', value: `$${formatNumber(selectedProperty.totalLand)}` },
-              { label: 'Building', value: `$${formatNumber(selectedProperty.totalBuilding)}` },
+              { label: 'Total Assessed', value: formatCurrency(selectedProperty.totalAssessed) },
+              { label: 'Land', value: formatCurrency(selectedProperty.totalLand) },
+              { label: 'Building', value: formatCurrency(selectedProperty.totalBuilding) },
               ...(selectedProperty.yearBuilt ? [{ label: 'Year Built', value: selectedProperty.yearBuilt }] : []),
             ]}
           >
@@ -420,145 +405,98 @@ export function BcAssessmentSidebar({
         )}
 
         <SearchInput
+          icon
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
+          onClear={() => onSearchQueryChange('')}
           placeholder="Search by address..."
+          aria-label="Search by address"
           className="focus:ring-blue-500"
         />
       </SidebarSection>
 
       {/* Filters (collapsible) */}
-      <div className="border-b border-border bg-background/95">
-        <button
-          onClick={() => setFiltersOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent/50"
-          aria-expanded={filtersOpen}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-foreground">Filters</div>
-            {!filtersOpen && (
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                {categorySummary} · Color: {colorMetricLabel} · Boundaries: {boundaryLabel}
-              </div>
-            )}
+      <CollapsibleSection
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        label={<span className="text-sm">Filters</span>}
+        summary={
+          filtersOpen ? undefined : `${categorySummary} · Color: ${colorMetricLabel} · Boundaries: ${boundaryLabel}`
+        }
+        className="px-1"
+        contentClassName="space-y-4 px-3 pb-4"
+      >
+        <div>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Color By</h2>
+          <div className="flex flex-wrap gap-1.5">
+            <FilterChipGroup
+              items={COLOR_METRICS.map(({ value, label }) => ({ value, label }))}
+              selectedValues={[colorMetric]}
+              onToggle={onColorMetricChange}
+              showDot={false}
+              selectedClassName="border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+            />
           </div>
-          <svg
-            className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', filtersOpen && 'rotate-180')}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        </div>
 
-        {filtersOpen && (
-          <div className="space-y-4 px-4 pb-4">
-            <div>
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Color By</h2>
-              <div className="flex flex-wrap gap-1.5">
-                <FilterChipGroup
-                  items={COLOR_METRICS.map(({ value, label }) => ({ value, label }))}
-                  selectedValues={[colorMetric]}
-                  onToggle={onColorMetricChange}
-                  showDot={false}
-                  selectedClassName="border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-                />
-              </div>
-            </div>
+        <div>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Property Type</h2>
+          <FilterChipGroup
+            items={ALL_CATEGORIES.map((category) => ({
+              value: category,
+              label: CATEGORY_LABELS[category],
+              count: formatNumber(categoryCounts.get(category) || 0),
+              color: getCategoryColor(category),
+              disabled: (categoryCounts.get(category) || 0) === 0,
+            })).filter((item) => item.count !== '0')}
+            selectedValues={selectedCategories}
+            onToggle={onToggleCategory}
+          />
+        </div>
 
-            <div>
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Property Type</h2>
-              <FilterChipGroup
-                items={ALL_CATEGORIES.map((category) => ({
-                  value: category,
-                  label: CATEGORY_LABELS[category],
-                  count: formatNumber(categoryCounts.get(category) || 0),
-                  color: getCategoryColor(category),
-                  disabled: (categoryCounts.get(category) || 0) === 0,
-                })).filter((item) => item.count !== '0')}
-                selectedValues={selectedCategories}
-                onToggle={onToggleCategory}
-              />
-            </div>
-
-            <div>
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Quick Boundaries
-              </h2>
-              <div className="flex flex-wrap gap-1.5">
-                {[{ value: 'none' as const, label: 'None' }, ...levelOptions].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => onBoundaryLevelChange(value)}
-                    className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                      boundaryLevel === value
-                        ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400'
-                        : 'border-input text-muted-foreground hover:bg-accent',
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        <div>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick Boundaries</h2>
+          <FilterChipGroup<BoundaryLevel>
+            items={[{ value: 'none' as const, label: 'None' }, ...levelOptions]}
+            selectedValues={[boundaryLevel]}
+            onToggle={onBoundaryLevelChange}
+            showDot={false}
+            selectedClassName="border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
+          />
+        </div>
+      </CollapsibleSection>
 
       {/* List + selection details (all scrollable) */}
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading assessment data...
-        </div>
-      ) : error ? (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <div className="text-center text-sm text-red-500">
-            <p className="font-medium">Error loading data</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
-            <span>Properties ({formatNumber(filteredProperties.length)})</span>
-          </div>
-          <div className="divide-y divide-border">
-            {filteredProperties.slice(0, 200).map((prop) => {
-              const isSelected = selectedProperty?.id === prop.id
-              return (
-                <button
-                  key={prop.id}
+      <ListState
+        loading={loading}
+        loadingLabel="Loading assessment data..."
+        error={error}
+        errorTitle="Error loading data"
+        empty={filteredProperties.length === 0}
+        emptyLabel="No properties match these filters."
+      >
+        {filteredProperties.length > 0 && (
+          <>
+            <ListHeader count={filteredProperties.length} noun={['property', 'properties']} />
+            <VirtualResultList
+              items={filteredProperties}
+              getKey={(property) => property.id}
+              estimateSize={64}
+              label="Properties"
+            >
+              {(prop) => (
+                <ResultRow
+                  title={prop.address}
+                  subtitle={`${formatCompactCurrency(prop.totalAssessed)} · ${prop.description}`}
+                  dotColor={getCategoryColor(prop.category)}
+                  selected={selectedProperty?.id === prop.id}
                   onClick={() => onPropertyClick(prop)}
-                  className={cn(
-                    'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                    isSelected && 'bg-blue-50 dark:bg-blue-950/30',
-                  )}
-                >
-                  <div className="mb-1 flex items-start justify-between gap-2">
-                    <span className="line-clamp-1 text-sm font-medium text-foreground">{prop.address}</span>
-                    <span
-                      className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                      style={{ backgroundColor: getCategoryColor(prop.category) }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{formatCompactCurrency(prop.totalAssessed)}</span>
-                    <span>·</span>
-                    <span className="line-clamp-1">{prop.description}</span>
-                  </div>
-                </button>
-              )
-            })}
-            {filteredProperties.length > 200 && (
-              <div className="px-4 py-3 text-center text-xs text-muted-foreground">
-                Showing 200 of {formatNumber(filteredProperties.length)} — use search to narrow
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                />
+              )}
+            </VirtualResultList>
+          </>
+        )}
+      </ListState>
     </MapSidebarShell>
   )
 }

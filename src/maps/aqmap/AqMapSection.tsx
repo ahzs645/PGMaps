@@ -1,12 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
-import { AlertCircle, HeartPulse, Users } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { KeyValueRows } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Map as PgMap } from '@/components/ui/map'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
-import { distanceKm, getAqhiCategory, getMonitorAqhiPm25, isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
+import { distanceKm, getMonitorAqhiPm25, isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
 import {
   AQ_OBSERVATION_NETWORKS,
   type AqBasemap,
@@ -28,11 +28,7 @@ import {
 } from './lib/urlState'
 import { WMS_LAYERS, type WmsLayerKey } from './lib/wmsLayers'
 import {
-  buildObservationRowLabels,
-  formatAqhiCategory,
-  formatAqmapPm25Localized,
   formatLocalizedDate,
-  localizeHealthMessage,
   localizeMonitorType,
   translate,
   type AqmapLocale,
@@ -62,7 +58,15 @@ import type {
   ModelledSmokeRenderMode,
   OverlayRenderMode,
 } from './lib/aqMapTypes'
-import { getAqhiPlusColor } from './lib/aqhiScale'
+import {
+  FORECAST_ZONE_COLUMNS,
+  formatForecastZoneMean,
+  getForecastZoneMonitors,
+  groupForecastZoneMonitors,
+  mean,
+  pointInForecastZone,
+  type ForecastZoneFeature,
+} from './lib/forecastZones'
 import { FloatingLayerControl, MainLayerControl, MapStatusBar, MapUtilityControls } from './components/AqMapControls'
 import {
   AqMonitorLegend,
@@ -80,18 +84,22 @@ import {
   SmokePolygonLayer,
   WmsRasterLayer,
 } from './components/AqMapLayers'
-import { MonitorPopup, MonitorTooltip } from './components/MonitorPopup'
+import {
+  AqhiStatusChip,
+  MonitorHealthAdvice,
+  MonitorPopup,
+  MonitorReadings,
+  MonitorTooltip,
+} from './components/MonitorPopup'
 import { MonitorPlotPanel, type NearbyFem } from './components/MonitorPlotPanel'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
 import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
 import type maplibregl from 'maplibre-gl'
 
-type ForecastZoneFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
 type ForecastZoneCollection = GeoJSON.FeatureCollection<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
   ForecastZoneFeatureProperties
 >
-type ForecastZoneBounds = [minLng: number, minLat: number, maxLng: number, maxLat: number]
 type ForecastZoneAssignment = {
   code: string | null
   name: string | null
@@ -147,7 +155,6 @@ function mapStyleStatsEqual(left: AqMapStyleStats, right: AqMapStyleStats) {
 
 let forecastZoneDataCache: ForecastZoneCollection | null = null
 let forecastZoneDataPromise: Promise<ForecastZoneCollection> | null = null
-const forecastZoneBoundsCache = new WeakMap<ForecastZoneFeature, ForecastZoneBounds>()
 
 async function fetchForecastZones(url: string): Promise<ForecastZoneCollection> {
   const response = await fetch(url)
@@ -174,96 +181,9 @@ function loadForecastZoneData(): Promise<ForecastZoneCollection> {
   return forecastZoneDataPromise
 }
 
-function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
-  let inside = false
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
-    const xi = Number(ring[index][0])
-    const yi = Number(ring[index][1])
-    const xj = Number(ring[previous][0])
-    const yj = Number(ring[previous][1])
-    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function pointInPolygonCoordinates(lng: number, lat: number, rings: GeoJSON.Position[][]): boolean {
-  if (!rings.length || !pointInRing(lng, lat, rings[0])) return false
-  return !rings.slice(1).some((hole) => pointInRing(lng, lat, hole))
-}
-
-function computeForecastZoneBounds(zone: ForecastZoneFeature): ForecastZoneBounds {
-  const cached = forecastZoneBoundsCache.get(zone)
-  if (cached) return cached
-
-  let minLng = Infinity
-  let minLat = Infinity
-  let maxLng = -Infinity
-  let maxLat = -Infinity
-
-  const visit = (coordinates: GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][]) => {
-    for (const entry of coordinates) {
-      if (typeof entry[0] === 'number') {
-        const [lng, lat] = entry as GeoJSON.Position
-        minLng = Math.min(minLng, lng)
-        minLat = Math.min(minLat, lat)
-        maxLng = Math.max(maxLng, lng)
-        maxLat = Math.max(maxLat, lat)
-      } else {
-        visit(entry as GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][])
-      }
-    }
-  }
-
-  visit(zone.geometry.coordinates)
-  const bounds: ForecastZoneBounds = [minLng, minLat, maxLng, maxLat]
-  forecastZoneBoundsCache.set(zone, bounds)
-  return bounds
-}
-
-function pointInForecastZone(monitor: AirMonitor, zone: ForecastZoneFeature): boolean {
-  const { longitude, latitude } = monitor
-  const [minLng, minLat, maxLng, maxLat] = computeForecastZoneBounds(zone)
-  if (longitude < minLng || longitude > maxLng || latitude < minLat || latitude > maxLat) return false
-
-  const { geometry } = zone
-  if (geometry.type === 'Polygon') {
-    return pointInPolygonCoordinates(longitude, latitude, geometry.coordinates)
-  }
-  return geometry.coordinates.some((polygon) => pointInPolygonCoordinates(longitude, latitude, polygon))
-}
-
 function getForecastZoneName(properties: ForecastZoneFeatureProperties): string | null {
   const name = String(properties.NAME ?? properties.NOM ?? '').trim()
   return name || null
-}
-
-function getForecastZoneMonitorGroup(monitor: AirMonitor): 'FEM' | 'PA' | 'EGG' | null {
-  if (monitor.network === 'FEM' || monitor.network === 'BC ENV') return 'FEM'
-  if (monitor.network === 'PA') return 'PA'
-  if (monitor.network === 'EGG') return 'EGG'
-  return null
-}
-
-function mean(values: Array<number | null | undefined>): number | null {
-  const numericValues = values.filter((value): value is number => Number.isFinite(value))
-  if (!numericValues.length) return null
-  return numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
-}
-
-function formatForecastZoneMean(value: number | null): string {
-  if (value === null) return '-'
-  return value.toFixed(1)
-}
-
-function getForecastZoneMonitors(zone: ForecastZoneFeature, monitors: AirMonitor[]): AirMonitor[] {
-  const zoneCode = String(zone.properties?.CLC ?? '').trim()
-  const monitorsByCode = zoneCode
-    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
-    : []
-  return monitorsByCode.length
-    ? monitorsByCode
-    : monitors.filter((monitor) => pointInForecastZone(monitor, zone))
 }
 
 function buildForecastZoneAssignments(
@@ -283,12 +203,6 @@ function buildForecastZoneAssignments(
   }
 
   return assignments
-}
-
-function splitHealthLine(line: string): { label: string; detail: string } {
-  const match = line.match(/^(.*?)\s[-—–]\s(.*)$/)
-  if (match) return { label: match[1], detail: match[2] }
-  return { label: '', detail: line }
 }
 
 function parseOverlayMode(value: string | null, fallback: OverlayRenderMode): OverlayRenderMode {
@@ -1226,16 +1140,8 @@ function MobileForecastZoneFeatureCard({
   onClose: () => void
 }) {
   const zoneName = getForecastZoneName(zone.properties) ?? 'Forecast zone'
-  const columns = ['FEM', 'PA', 'EGG', 'ALL'] as const
-  const grouped = useMemo(() => {
-    const zoneMonitors = getForecastZoneMonitors(zone, monitors)
-    return {
-      FEM: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'FEM'),
-      PA: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'PA'),
-      EGG: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'EGG'),
-      ALL: zoneMonitors,
-    }
-  }, [monitors, zone])
+  const columns = FORECAST_ZONE_COLUMNS
+  const grouped = useMemo(() => groupForecastZoneMonitors(getForecastZoneMonitors(zone, monitors)), [monitors, zone])
   const rows = [
     {
       label: '# of Monitors',
@@ -1313,24 +1219,7 @@ function MobileAqMonitorFeatureCard({
   onClose: () => void
 }) {
   const pm25 = getMonitorAqhiPm25(monitor)
-  const aqhiCategory = getAqhiCategory(pm25)
-  const health = localizeHealthMessage(aqhiCategory, locale)
   const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
-  const unit = translate('aqhi.unit', locale)
-  const aqColor = getAqhiPlusColor(pm25)
-  const categoryLabel = formatAqhiCategory(aqhiCategory, locale)
-  const isNoData = pm25 === null
-  const observationRows = buildObservationRowLabels(locale)
-    .map((row) => {
-      const valueByKey: Record<string, number | null> = {
-        pm25_10min: monitor.pm25Recent ?? null,
-        pm25_1hr: monitor.pm25OneHour ?? null,
-        pm25_3hr: monitor.pm25ThreeHour ?? null,
-        pm25_24hr: monitor.pm25TwentyFourHour ?? null,
-      }
-      return { ...row, value: valueByKey[row.key] ?? null }
-    })
-    .filter((row) => !isFemMonitor(monitor) || row.key !== 'pm25_10min')
 
   return (
     <MobileFeatureCard
@@ -1342,78 +1231,30 @@ function MobileAqMonitorFeatureCard({
       <div className="space-y-3 text-xs text-foreground">
         <div className="rounded-md border border-border bg-background p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground"
-              style={{ backgroundColor: `${aqColor}26` }}
-            >
-              <span className="size-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
-              {categoryLabel}
-              <span className="font-normal text-muted-foreground">·</span>
-              <span className="tabular-nums">
-                {formatAqmapPm25Localized(pm25, locale)} {unit}
-              </span>
-            </span>
+            <AqhiStatusChip pm25={pm25} locale={locale} />
             <span className="text-xs text-muted-foreground">
               {formatLocalizedDate(monitor.dateObserved, locale)}
             </span>
           </div>
-          {monitor.forecastZoneName && (
-            <div className="mt-2 flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">{translate('popup.forecastZone', locale)}</span>
-              <span className="max-w-[13rem] text-right font-medium text-foreground">{monitor.forecastZoneName}</span>
-            </div>
-          )}
-          <div className="mt-1 flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Network</span>
-            <span className="font-medium text-foreground">{monitor.network}</span>
-          </div>
+          <KeyValueRows
+            className="mt-2"
+            valueMaxWidth="max-w-[13rem]"
+            rows={[
+              Boolean(monitor.forecastZoneName) && {
+                key: 'forecastZone',
+                label: translate('popup.forecastZone', locale),
+                value: monitor.forecastZoneName,
+              },
+              { key: 'network', label: 'Network', value: monitor.network },
+            ]}
+          />
         </div>
 
         <div className="rounded-md border border-border bg-background p-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {translate('popup.readings', locale)}
-          </div>
-          <div className="space-y-1.5">
-            {observationRows.map((row) => (
-              <div key={row.key} className="flex items-center justify-between gap-3" title={row.title}>
-                <span className="text-muted-foreground">{row.label}</span>
-                <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-foreground">
-                  <span
-                    className="size-1.5 rounded-full"
-                    style={{ backgroundColor: getAqhiPlusColor(row.value) }}
-                    aria-hidden="true"
-                  />
-                  {formatAqmapPm25Localized(row.value, locale)}
-                  <span className="font-normal text-muted-foreground">{unit}</span>
-                </span>
-              </div>
-            ))}
-          </div>
+          <MonitorReadings monitor={monitor} locale={locale} />
         </div>
 
-        <div className="rounded-md border border-border bg-muted/40 p-3">
-          <div
-            className="text-xs font-semibold leading-snug text-foreground"
-            title={translate('popup.healthMessage', locale)}
-          >
-            {health.heading}
-          </div>
-          <div className="mt-2 space-y-1.5">
-            {health.lines.map((line, index) => {
-              const { label, detail } = splitHealthLine(line)
-              const Icon = isNoData ? AlertCircle : index === 0 ? Users : HeartPulse
-              return (
-                <div key={line} className="flex items-start gap-2">
-                  <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="text-muted-foreground">
-                    {label && <span className="font-medium text-foreground">{label}: </span>}
-                    {detail}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <MonitorHealthAdvice pm25={pm25} locale={locale} className="p-3" />
 
         <MonitorPlotPanel monitor={monitor} locale={locale} nearbyFem={nearbyFem} />
       </div>

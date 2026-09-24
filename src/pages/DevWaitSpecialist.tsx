@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
-import { Activity, ExternalLink, MapPin, Search, Stethoscope, X } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import { Activity, MapPin, Stethoscope } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { FilterChipGroup, InlineAlert, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink, TextButton } from '@/components/ui/text-button'
 import { cn } from '@/lib/utils'
 import {
   SPECIALIST_WAIT_DATA_URL,
@@ -19,7 +25,6 @@ import {
   searchFacility,
   waitBand,
   type FacilitySpecialist,
-  type FacilityWaitMetrics,
   type PatientType,
   type SpecialistFacility,
   type SpecialistFilter,
@@ -31,25 +36,33 @@ import {
 type AuthorityFilter = 'all' | string
 type BandFilter = 'all' | WaitBand
 
-const PATIENT_OPTIONS: Array<{ id: PatientType; label: string }> = [
-  { id: 'all', label: 'All ages' },
-  { id: 'adult', label: 'Adult' },
-  { id: 'pediatric', label: 'Pediatric' },
+const PATIENT_OPTIONS: Array<{ value: PatientType; label: string }> = [
+  { value: 'all', label: 'All ages' },
+  { value: 'adult', label: 'Adult' },
+  { value: 'pediatric', label: 'Pediatric' },
 ]
 
-const BAND_OPTIONS: Array<{ id: BandFilter; label: string; swatch: string }> = [
-  { id: 'all', label: 'All', swatch: 'bg-slate-400' },
-  { id: 'short', label: '< 12w', swatch: 'bg-[#0f766e]' },
-  { id: 'medium', label: '12-26w', swatch: 'bg-[#b45309]' },
-  { id: 'long', label: '26w+', swatch: 'bg-[#991b1b]' },
-  { id: 'unknown', label: 'No P90', swatch: 'bg-[#475569]' },
+/** Marker fill per P90 band; the band filter chips read the same colours. */
+const BAND_COLORS: Record<WaitBand, string> = {
+  short: '#0f766e',
+  medium: '#b45309',
+  long: '#991b1b',
+  unknown: '#475569',
+}
+
+const BAND_OPTIONS: Array<{ value: BandFilter; label: string; color: string }> = [
+  { value: 'all', label: 'All', color: '#94a3b8' },
+  { value: 'short', label: '< 12w', color: BAND_COLORS.short },
+  { value: 'medium', label: '12-26w', color: BAND_COLORS.medium },
+  { value: 'long', label: '26w+', color: BAND_COLORS.long },
+  { value: 'unknown', label: 'No P90', color: BAND_COLORS.unknown },
 ]
 
-const SORT_OPTIONS: Array<{ id: SpecialistSort; label: string }> = [
-  { id: 'wait', label: 'Longest P90 wait' },
-  { id: 'cases', label: 'Most known cases' },
-  { id: 'specialists', label: 'Most specialists' },
-  { id: 'name', label: 'Facility name (A-Z)' },
+const SORT_OPTIONS: Array<{ value: SpecialistSort; label: string }> = [
+  { value: 'wait', label: 'Longest P90 wait' },
+  { value: 'cases', label: 'Most known cases' },
+  { value: 'specialists', label: 'Most specialists' },
+  { value: 'name', label: 'Facility name (A-Z)' },
 ]
 
 interface SpecialistMarkerCluster {
@@ -148,207 +161,163 @@ function DevWaitSpecialist() {
   }, [facilities.length, filteredFacilities, filter])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <Stethoscope className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-tight">Surgery specialists</h1>
-            <p className="mt-1 text-xs leading-4 text-muted-foreground">
-              BC Surgery Wait Times by facility, specialist, and procedure.
-            </p>
-            <Link to="/dev/health/wait" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
-              ER wait map
-            </Link>
-          </div>
-        </div>
-      </div>
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title="Surgery specialists"
+      subtitle={(
+        <>
+          BC Surgery Wait Times by facility, specialist, and procedure.
+          <Link to="/dev/health/wait" className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400">
+            ER wait map
+          </Link>
+        </>
+      )}
+      icon={Stethoscope}
+    >
+      <SidebarSection title="Search">
+        <SearchInput
+          id="specialist-search"
+          icon
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
+          placeholder="Facility, specialist, or procedure"
+          aria-label="Search facilities, specialists, or procedures"
+        />
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <section className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="specialist-search">
-            Search
-          </label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              id="specialist-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Facility, specialist, or procedure"
-              className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-sky-500"
-            />
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Filters</div>
-            {filterActive && (
-              <button
-                type="button"
-                onClick={() => {
-                  setProcedureName('all')
-                  setPatientType('all')
-                  setBand('all')
-                }}
-                className="text-xs font-medium text-sky-700 hover:underline"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          <select
+      <SidebarSection
+        title="Filters"
+        actions={filterActive && (
+          <TextButton
+            onClick={() => {
+              setProcedureName('all')
+              setPatientType('all')
+              setBand('all')
+            }}
+          >
+            Clear
+          </TextButton>
+        )}
+      >
+        <div className="space-y-2">
+          <AppSelect
             value={authority}
-            onChange={(event) => setAuthority(event.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-            aria-label="Health authority"
-          >
-            <option value="all">All health authorities</option>
-            {authorities.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-
-          <select
+            onValueChange={setAuthority}
+            options={[
+              { value: 'all', label: 'All health authorities' },
+              ...authorities.map((name) => ({ value: name, label: name })),
+            ]}
+            triggerAriaLabel="Health authority"
+            className="w-full"
+            triggerClassName="h-9 rounded-md text-sm"
+          />
+          <AppSelect
             value={procedureName}
-            onChange={(event) => setProcedureName(event.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-            aria-label="Procedure"
-          >
-            <option value="all">All procedures</option>
-            {procedureOptions.map((option) => (
-              <option key={option.name} value={option.name}>
-                {option.name} ({option.facilityCount})
-              </option>
-            ))}
-          </select>
-        </section>
+            onValueChange={setProcedureName}
+            options={[
+              { value: 'all', label: 'All procedures' },
+              ...procedureOptions.map((option) => ({ value: option.name, label: `${option.name} (${option.facilityCount})` })),
+            ]}
+            triggerAriaLabel="Procedure"
+            className="w-full"
+            triggerClassName="h-9 rounded-md text-sm"
+          />
+        </div>
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Patient type</div>
-          <div className="grid grid-cols-3 gap-1">
-            {PATIENT_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setPatientType(option.id)}
-                aria-pressed={patientType === option.id}
-                className={cn(
-                  'rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                  patientType === option.id
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </section>
+      <SidebarSection title="Patient type">
+        <SegmentedControl<PatientType>
+          label="Patient type"
+          value={patientType}
+          options={PATIENT_OPTIONS}
+          onChange={setPatientType}
+        />
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">P90 wait band</div>
-          <div className="grid grid-cols-5 gap-1">
-            {BAND_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setBand(option.id)}
-                aria-pressed={band === option.id}
-                className={cn(
-                  'flex flex-col items-center gap-1 rounded-md border px-1 py-1.5 text-xs font-medium transition-colors',
-                  band === option.id
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                <span className={cn('size-2.5 rounded-sm', option.swatch)} />
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs leading-4 text-muted-foreground">
-            Marker color and value reflect the median 90th-percentile wait{procedureName !== 'all' ? ` for ${procedureName}` : ''}.
+      <SidebarSection title="P90 wait band">
+        <FilterChipGroup<BandFilter>
+          layout="grid"
+          columns={3}
+          items={BAND_OPTIONS}
+          selectedValues={[band]}
+          onToggle={setBand}
+          chipClassName="justify-center rounded-md py-1.5"
+        />
+        <p className="mt-2 text-xs leading-4 text-muted-foreground">
+          Marker color and value reflect the median 90th-percentile wait{procedureName !== 'all' ? ` for ${procedureName}` : ''}.
+        </p>
+      </SidebarSection>
+
+      <SidebarSection title="Sort facilities">
+        <AppSelect
+          value={sort}
+          onValueChange={(value) => setSort(value as SpecialistSort)}
+          options={SORT_OPTIONS}
+          triggerAriaLabel="Sort facilities"
+          className="w-full"
+          triggerClassName="h-9 rounded-md text-sm"
+        />
+      </SidebarSection>
+
+      <SidebarSection>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={2}
+          items={[
+            { label: 'Visible', value: `${stats.visible}/${stats.facilities}` },
+            { label: 'Specialists', value: String(stats.specialists) },
+            { label: 'Known cases', value: formatCases(stats.knownCases) },
+            { label: 'Median P90', value: formatWeeks(stats.medianP90) },
+          ]}
+        />
+        <InlineAlert className="mt-3">
+          Latest scrape run: {metadata?.latest_run_id ?? '--'}. {metadata?.procedure_count ?? '--'} procedures. {stats.rollups} Greater Victoria roll-up points.
+        </InlineAlert>
+      </SidebarSection>
+
+      <SidebarSection title="Facilities">
+        {filteredFacilities.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+            No facilities match the current filters.
           </p>
-        </section>
-
-        <section className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sort facilities</div>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SpecialistSort)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-            aria-label="Sort facilities"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
+        ) : (
+          <div className="space-y-2">
+            {filteredFacilities.slice(0, 80).map((facility) => (
+              <button
+                key={facility.id}
+                type="button"
+                onClick={() => setSelected(facility)}
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
+                  selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate text-sm font-medium">{facility.facility_name}</span>
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+                    {facility.specialist_count}
+                  </span>
+                </div>
+                <div className="mt-1 truncate text-xs text-muted-foreground">
+                  {[facility.locality, facility.health_authority].filter(Boolean).join(' • ')}
+                </div>
+                <FacilityListMetrics facility={facility} filter={filter} />
+              </button>
             ))}
-          </select>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Visible" value={`${stats.visible}/${stats.facilities}`} />
-            <Stat label="Specialists" value={String(stats.specialists)} />
-            <Stat label="Known cases" value={formatCases(stats.knownCases)} />
-            <Stat label="Median P90" value={formatWeeks(stats.medianP90)} />
           </div>
-          <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-4 text-muted-foreground">
-            Latest scrape run: {metadata?.latest_run_id ?? '--'}. {metadata?.procedure_count ?? '--'} procedures. {stats.rollups} Greater Victoria roll-up points.
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <h2 className="mb-2 text-sm font-semibold">Facilities</h2>
-          {filteredFacilities.length === 0 ? (
-            <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-              No facilities match the current filters.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {filteredFacilities.slice(0, 80).map((facility) => (
-                <button
-                  key={facility.id}
-                  type="button"
-                  onClick={() => setSelected(facility)}
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
-                    selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate text-sm font-medium">{facility.facility_name}</span>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
-                      {facility.specialist_count}
-                    </span>
-                  </div>
-                  <div className="mt-1 truncate text-xs text-muted-foreground">
-                    {[facility.locality, facility.health_authority].filter(Boolean).join(' • ')}
-                  </div>
-                  <FacilityListMetrics facility={facility} filter={filter} />
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </aside>
+        )}
+      </SidebarSection>
+    </MapSidebarShell>
   )
 
   return (
     <MapSectionLayout
       desktopSidebarWidth={380}
       mobileInitialSheetState="collapsed"
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">{stats.visible} specialist facilities</div>
-          <div className="truncate text-xs text-muted-foreground">BC surgery wait-time source</div>
-        </div>
-      )}
+      mobilePeekTitle={`${stats.visible} specialist facilities`}
+      mobilePeekSubtitle="BC surgery wait-time source"
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -379,9 +348,9 @@ function DevWaitSpecialist() {
         </Map>
 
         {error && (
-          <div className="absolute left-3 top-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow">
+          <InlineAlert tone="error" className="absolute left-3 top-3 z-10 text-sm shadow">
             {error}
-          </div>
+          </InlineAlert>
         )}
       </div>
     </MapSectionLayout>
@@ -593,9 +562,10 @@ function SpecialistFacilityMarker({
             aria-label={`${facility.facility_name}: median P90 ${formatWeeks(metrics.p90MedianWeeks)}, ${facility.specialist_count} specialists`}
             className={cn(
               'relative rounded-full border-2 px-3 py-1.5 text-[13px] font-semibold leading-none text-white shadow-md transition-transform hover:scale-105',
-              facility.is_rollup_child ? 'border-amber-100 bg-[#9a5b13]' : markerClass(metrics),
+              facility.is_rollup_child ? 'border-amber-100 bg-[#9a5b13]' : 'border-white',
               selected && 'ring-2 ring-sky-400 ring-offset-2 ring-offset-background',
             )}
+            style={facility.is_rollup_child ? undefined : { backgroundColor: BAND_COLORS[waitBand(metrics.p90MedianWeeks)] }}
           >
             {markerText}
             {facility.is_rollup_child && (
@@ -627,36 +597,34 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
   const procedureCount = filterActive ? matchingProcedures.length : facility.procedure_count
 
   return (
-    <div className="w-80 overflow-hidden rounded-md bg-popover text-popover-foreground">
-      <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase text-muted-foreground">
-            {facility.is_rollup_child ? 'Roll-up child point' : 'Surgery facility'}
-          </div>
-          <div className="mt-0.5 text-sm font-semibold leading-5">{facility.facility_name}</div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {[facility.address, facility.locality].filter(Boolean).join(', ')}
-          </div>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close popup">
-          <X className="size-4" />
-        </button>
-      </div>
-
-      <div className="space-y-3 px-3 py-3">
-        <div className="grid grid-cols-3 gap-2">
-          <PopupStat icon={<Stethoscope className="size-3.5" />} label="Specialists" value={specialistCount} />
-          <PopupStat icon={<Activity className="size-3.5" />} label="Procedures" value={procedureCount} />
-          <PopupStat icon={<MapPin className="size-3.5" />} label="Known cases" value={formatCases(metrics.knownCases)} />
-          <PopupStat icon={<Activity className="size-3.5" />} label="Median P50" value={formatWeeks(metrics.p50MedianWeeks)} />
-          <PopupStat icon={<Activity className="size-3.5" />} label="Median P90" value={formatWeeks(metrics.p90MedianWeeks)} />
-          <PopupStat icon={<MapPin className="size-3.5" />} label="Rows" value={metrics.procedureRows} />
-        </div>
+    <MapPopupCard
+      className="w-72"
+      eyebrow={facility.is_rollup_child ? 'Roll-up child point' : 'Surgery facility'}
+      title={facility.facility_name}
+      subtitle={[facility.address, facility.locality].filter(Boolean).join(', ')}
+      onClose={onClose}
+      closeLabel="Close popup"
+      actions={facility.source_url && <ExternalLink href={facility.source_url}>Location source</ExternalLink>}
+    >
+      <div className="space-y-3">
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={3}
+          items={[
+            { label: 'Specialists', value: specialistCount, icon: <Stethoscope className="size-3.5" /> },
+            { label: 'Procedures', value: procedureCount, icon: <Activity className="size-3.5" /> },
+            { label: 'Known cases', value: formatCases(metrics.knownCases), icon: <MapPin className="size-3.5" /> },
+            { label: 'Median P50', value: formatWeeks(metrics.p50MedianWeeks), icon: <Activity className="size-3.5" /> },
+            { label: 'Median P90', value: formatWeeks(metrics.p90MedianWeeks), icon: <Activity className="size-3.5" /> },
+            { label: 'Rows', value: metrics.procedureRows, icon: <MapPin className="size-3.5" /> },
+          ]}
+        />
 
         {facility.is_rollup_child && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+          <InlineAlert tone="warning">
             Source rows are reported as Greater Victoria Hospitals and are not separated between Royal Jubilee and Victoria General.
-          </div>
+          </InlineAlert>
         )}
 
         <section>
@@ -679,19 +647,8 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
             ))}
           </div>
         </section>
-
-        {facility.source_url && (
-          <a
-            href={facility.source_url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:underline"
-          >
-            Location source <ExternalLink className="size-3" />
-          </a>
-        )}
       </div>
-    </div>
+    </MapPopupCard>
   )
 }
 
@@ -722,27 +679,6 @@ function SpecialistRow({ specialist, filter }: { specialist: FacilitySpecialist;
   )
 }
 
-function PopupStat({ icon, label, value }: { icon: ReactNode; label: string; value: number | string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        {icon}
-        <span className="text-xs uppercase">{label}</span>
-      </div>
-      <div className="mt-1 text-sm font-semibold">{value}</div>
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold">{value}</div>
-    </div>
-  )
-}
-
 function FacilityListMetrics({ facility, filter }: { facility: SpecialistFacility; filter: SpecialistFilter }) {
   const metrics = facilityWaitMetrics(facility, filter)
 
@@ -760,14 +696,6 @@ function clusterStyle(count: number): string {
   if (count >= 10) return 'size-11 bg-[#334155] text-sm'
   if (count >= 5) return 'size-10 bg-[#475569] text-sm'
   return 'size-9 bg-[#64748b] text-sm'
-}
-
-function markerClass(metrics: FacilityWaitMetrics): string {
-  const band = waitBand(metrics.p90MedianWeeks)
-  if (band === 'short') return 'border-white bg-[#0f766e]'
-  if (band === 'medium') return 'border-white bg-[#b45309]'
-  if (band === 'long') return 'border-white bg-[#991b1b]'
-  return 'border-white bg-[#475569]'
 }
 
 function markerPriority(facility: SpecialistFacility, filter: SpecialistFilter): number {

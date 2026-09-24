@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DEFAULT_TABLE_PANE_HEIGHT, MapTableButton } from '@/components/map/MapFeatureTable'
 import {
   DEV_DATA_CENTER,
@@ -70,6 +70,7 @@ function DevData() {
 
   const sidebar = (
     <DevDataSidebar
+      className={MAP_SIDEBAR_CLASS}
       enabledLayers={enabledLayers}
       tableLayer={tableLayer}
       getLayer={getLayer}

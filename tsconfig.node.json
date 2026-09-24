@@ -11,6 +11,7 @@
   },
   "include": [
     "vite.config.ts",
+    "scripts/remediation-dev-data.ts",
     "src/maps/aqmap/server/**/*.ts",
     "src/maps/aqmap/lib/smokeLayers.ts",
     "src/lib/parseCsv.ts"

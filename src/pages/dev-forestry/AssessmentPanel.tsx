@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import type { ForestryScene } from './scene'
 import type { AnalysisResult } from './types'
 import { findSceneLandform } from './sceneInput'
@@ -50,8 +51,8 @@ export function AssessmentPanel({scene,onChange,result,stale,snapshot,currentSta
     </div></details>
     {result&&<details open><summary className="cursor-pointer font-medium">Export selected viewpoints</summary><div className="mt-2 space-y-2">
       <p>FS1252 2008/04 — simulation draft. One form per selected station; original reference pages and a scenario appendix follow.</p>
-      <div className="flex gap-2"><select className="min-w-0 flex-1 rounded border bg-background p-1" aria-label="Report viewpoint" value={pick} onChange={e=>setPick(Number(e.target.value))}>{result.stations.map((s,i)=><option value={i} key={i}>Station {i+1} · {(s.distanceAlongMeters/1000).toFixed(2)} km{result.assessmentStationIndex===i?' · highest estimated ratio':''}</option>)}</select><button className="rounded border px-2" onClick={()=>setSelected(s=>s.includes(pick)?s:[...s,pick].sort((a,b)=>a-b))}>Add</button></div>
-      <button className="rounded border px-2 py-1" onClick={()=>setSelected(s=>s.includes(currentStation)?s:[...s,currentStation].sort((a,b)=>a-b))}>Add current road-view station</button>
+      <div className="flex gap-2"><select className="min-w-0 flex-1 rounded border bg-background p-1" aria-label="Report viewpoint" value={pick} onChange={e=>setPick(Number(e.target.value))}>{result.stations.map((s,i)=><option value={i} key={i}>Station {i+1} · {(s.distanceAlongMeters/1000).toFixed(2)} km{result.assessmentStationIndex===i?' · highest estimated ratio':''}</option>)}</select><Button variant="outline" size="sm" className="touch:h-10" onClick={()=>setSelected(s=>s.includes(pick)?s:[...s,pick].sort((a,b)=>a-b))}>Add</Button></div>
+      <Button variant="outline" size="sm" className="touch:h-10" onClick={()=>setSelected(s=>s.includes(currentStation)?s:[...s,currentStation].sort((a,b)=>a-b))}>Add current road-view station</Button>
       {selected.map(index=><div key={index} className="rounded border p-2">
         <div className="flex justify-between"><span>Station {index+1}</span><button onClick={()=>setSelected(s=>s.filter(i=>i!==index))}>Remove</button></div>
         <details className="mt-2"><summary className="cursor-pointer">Optional reviewer-supplied design inputs</summary>
@@ -63,7 +64,7 @@ export function AssessmentPanel({scene,onChange,result,stale,snapshot,currentSta
           <textarea className="mt-2 w-full rounded border bg-background p-1" aria-label={`Review notes for station ${index+1}`} maxLength={4000} placeholder="Reviewer notes and evidence" value={reviews[index]?.notes??''} onChange={e=>changeReview(index,{notes:e.target.value})}/>
         </details>
       </div>)}
-      <button className="w-full rounded border bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50" disabled={busy||stale||!snapshot||!selected.length||selected.length>30} onClick={()=>void exportPdf()}>{busy?'Preparing PDF…':'Export filled FS1252 PDF'}</button>
+      <Button size="sm" className="w-full touch:h-10" disabled={busy||stale||!snapshot||!selected.length||selected.length>30} onClick={()=>void exportPdf()}>{busy?'Preparing PDF…':'Export filled FS1252 PDF'}</Button>
       <p className="text-muted-foreground">Ocular assessment, photography, final EE decision and signature remain for human completion. Custom planning thresholds do not replace the form’s perspective class ranges.</p>
     </div></details>}
     {error&&<p role="alert" className="rounded border border-red-500 p-2">{error}</p>}

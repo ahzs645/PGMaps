@@ -1,3 +1,4 @@
+import { MONTH_NAMES, MONTH_SHORT_NAMES } from '@/lib/format'
 import {
   BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS,
   createStudyAreaLevelOptions,
@@ -521,25 +522,19 @@ export const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, strin
 }
 
 export { BC_CENTER } from '@/components/ui/map-styles'
-export const CANUE_MONTHS = [
-  { value: 1, key: 'jan', label: 'January' },
-  { value: 2, key: 'feb', label: 'February' },
-  { value: 3, key: 'mar', label: 'March' },
-  { value: 4, key: 'apr', label: 'April' },
-  { value: 5, key: 'may', label: 'May' },
-  { value: 6, key: 'jun', label: 'June' },
-  { value: 7, key: 'jul', label: 'July' },
-  { value: 8, key: 'aug', label: 'August' },
-  { value: 9, key: 'sep', label: 'September' },
-  { value: 10, key: 'oct', label: 'October' },
-  { value: 11, key: 'nov', label: 'November' },
-  { value: 12, key: 'dec', label: 'December' },
-] as const
+type CanueMonth = { value: number; key: string; label: string }
 
-export const CANUE_MONTH_BY_VALUE: Map<number, (typeof CANUE_MONTHS)[number]> = new Map(
+// Keys match the lowercase month suffix in CANUE variable names (e.g. `_jan_01`).
+export const CANUE_MONTHS: readonly CanueMonth[] = MONTH_NAMES.map((label, index) => ({
+  value: index + 1,
+  key: MONTH_SHORT_NAMES[index].toLowerCase(),
+  label,
+}))
+
+export const CANUE_MONTH_BY_VALUE: Map<number, CanueMonth> = new Map(
   CANUE_MONTHS.map((month) => [month.value, month]),
 )
-export const CANUE_MONTH_BY_KEY: Map<string, (typeof CANUE_MONTHS)[number]> = new Map(
+export const CANUE_MONTH_BY_KEY: Map<string, CanueMonth> = new Map(
   CANUE_MONTHS.map((month) => [month.key, month]),
 )
 export const CANUE_MONTH_PATTERN = /_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_\d{2}$/i

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
@@ -48,6 +48,7 @@ export function AqMonitorLegend({
       title={translate('map.legend', locale)}
       width="md"
       collapsible
+      defaultCollapsed="mobile"
       className="aqmap-monitor-legend max-h-[min(22rem,calc(100vh-8rem))] max-md:w-[min(14rem,calc(100vw-1.5rem))]"
       contentClassName="max-h-[calc(min(22rem,calc(100vh-8rem))-3rem)] space-y-3 overflow-y-auto pr-1"
     >
@@ -256,75 +257,20 @@ function FireDangerLegendContent({ variant = 'compact' }: { variant?: FireDanger
 }
 
 function FireDangerCompactStripLegend() {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const activeIndex = hoveredIndex ?? selectedIndex
-  const activeBand = activeIndex === null ? null : FIRE_DANGER_LEGEND_BANDS[activeIndex]
-
   return (
-    <div className="space-y-1">
-      <div
-        className="grid overflow-hidden rounded-sm border border-border"
-        style={{ gridTemplateColumns: `repeat(${FIRE_DANGER_LEGEND_BANDS.length}, minmax(0, 1fr))` }}
-      >
-        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
-          <button
-            key={band.label}
-            type="button"
-            title={`Fire Danger: ${band.label}`}
-            aria-label={`Fire Danger: ${band.label}`}
-            aria-pressed={selectedIndex === index}
-            className="block h-11 min-w-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-            style={{ backgroundColor: band.color }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            onFocus={() => setHoveredIndex(index)}
-            onBlur={() => setHoveredIndex(null)}
-            onClick={() => setSelectedIndex((current) => (current === index ? null : index))}
-          />
-        ))}
-      </div>
+    <FireDangerStripLegend>
       <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground sm:text-xs">
         <span>Low</span>
         <span className="text-center">High</span>
         <span className="text-right">Extreme</span>
       </div>
-      <div className="min-h-4 text-xs font-medium text-foreground" aria-live="polite">
-        {activeBand ? `Fire Danger: ${activeBand.label}` : null}
-      </div>
-    </div>
+    </FireDangerStripLegend>
   )
 }
 
 function FireDangerTiltedStripLegend() {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const activeIndex = hoveredIndex ?? selectedIndex
-  const activeBand = activeIndex === null ? null : FIRE_DANGER_LEGEND_BANDS[activeIndex]
-
   return (
-    <div className="space-y-1">
-      <div
-        className="grid overflow-hidden rounded-sm border border-border"
-        style={{ gridTemplateColumns: `repeat(${FIRE_DANGER_LEGEND_BANDS.length}, minmax(0, 1fr))` }}
-      >
-        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
-          <button
-            key={band.label}
-            type="button"
-            title={`Fire Danger: ${band.label}`}
-            aria-label={`Fire Danger: ${band.label}`}
-            aria-pressed={selectedIndex === index}
-            className="block h-11 min-w-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-            style={{ backgroundColor: band.color }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            onFocus={() => setHoveredIndex(index)}
-            onBlur={() => setHoveredIndex(null)}
-            onClick={() => setSelectedIndex((current) => (current === index ? null : index))}
-          />
-        ))}
-      </div>
+    <FireDangerStripLegend>
       <div className="relative mt-1 min-h-14 overflow-visible text-xs leading-none text-muted-foreground sm:text-xs">
         {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
           <span
@@ -338,6 +284,44 @@ function FireDangerTiltedStripLegend() {
           </span>
         ))}
       </div>
+    </FireDangerStripLegend>
+  )
+}
+
+/**
+ * Interactive fire-danger strip: hovering or focusing a band names it, clicking
+ * pins it. `children` are the labels drawn between the strip and that name.
+ */
+function FireDangerStripLegend({ children }: { children: ReactNode }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const activeIndex = hoveredIndex ?? selectedIndex
+  const activeBand = activeIndex === null ? null : FIRE_DANGER_LEGEND_BANDS[activeIndex]
+
+  return (
+    <div className="space-y-1">
+      <div
+        className="grid overflow-hidden rounded-sm border border-border"
+        style={{ gridTemplateColumns: `repeat(${FIRE_DANGER_LEGEND_BANDS.length}, minmax(0, 1fr))` }}
+      >
+        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
+          <button
+            key={band.label}
+            type="button"
+            title={`Fire Danger: ${band.label}`}
+            aria-label={`Fire Danger: ${band.label}`}
+            aria-pressed={selectedIndex === index}
+            className="block h-11 min-w-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            style={{ backgroundColor: band.color }}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            onFocus={() => setHoveredIndex(index)}
+            onBlur={() => setHoveredIndex(null)}
+            onClick={() => setSelectedIndex((current) => (current === index ? null : index))}
+          />
+        ))}
+      </div>
+      {children}
       <div className="min-h-4 text-xs font-medium text-foreground" aria-live="polite">
         {activeBand ? `Fire Danger: ${activeBand.label}` : null}
       </div>

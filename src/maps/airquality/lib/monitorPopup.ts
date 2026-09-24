@@ -2,30 +2,6 @@ import { haversineKm } from '@/lib/geo'
 import type { AirMonitor } from '../types'
 
 export const MONITOR_ZOOM = 15
-export const PM25_UNIT = 'ug/m3'
-
-const AQHI_MESSAGES: Record<string, { generalPopulation: string; atRisk: string }> = {
-  'No Data': {
-    generalPopulation: 'General Population - Data for the past hour from this monitor is missing.',
-    atRisk: 'At Risk - Data for the past hour from this monitor is missing.'
-  },
-  Low: {
-    generalPopulation: 'General Population - Ideal air for outdoor activities.',
-    atRisk: 'At Risk - Enjoy usual outdoor activities.'
-  },
-  Moderate: {
-    generalPopulation: 'General Population - No need to modify usual outdoor activities unless symptoms occur.',
-    atRisk: 'At Risk - Consider reducing or rescheduling strenuous activities outdoors if symptoms occur.'
-  },
-  High: {
-    generalPopulation: 'General Population - Consider reducing or rescheduling strenuous outdoor activities if symptoms occur.',
-    atRisk: 'At Risk - Reduce or reschedule strenuous outdoor activities. Children and the elderly should also take it easy.'
-  },
-  'Very High': {
-    generalPopulation: 'General Population - Reduce or reschedule strenuous outdoor activities.',
-    atRisk: 'At Risk - Avoid strenuous outdoor activities. Children and the elderly should also avoid outdoor physical exertion.'
-  }
-}
 
 export function uniqueParameters(parameters: string[]): string[] {
   return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
@@ -49,25 +25,6 @@ export function getAqhiCategory(pm25: number | null): string {
   if (pm25 < 60) return 'Moderate'
   if (pm25 < 100) return 'High'
   return 'Very High'
-}
-
-export function getAqhiPlus(pm25: number | null) {
-  const category = getAqhiCategory(pm25)
-  const message = AQHI_MESSAGES[category]
-  const range = category === 'No Data'
-    ? 'No recent 1 hour average'
-    : category === 'Low'
-      ? '1 Hour Average Between 0 - 29.9'
-      : category === 'Moderate'
-        ? '1 Hour Average Between 30 - 59.9'
-        : category === 'High'
-          ? '1 Hour Average Between 60 - 99.9'
-          : '1 Hour Average 100+'
-
-  return {
-    heading: `${range} ${PM25_UNIT} (${category} AQHI+):`,
-    ...message
-  }
 }
 
 export function getMonitorTypeLabel(network: string): string {
@@ -96,70 +53,12 @@ export function formatObservedDate(value: string | null | undefined): string {
   return `${byType.get('year')} ${byType.get('month')} ${byType.get('day')} ${byType.get('hour')}:${byType.get('minute')} ${byType.get('timeZoneName')}`
 }
 
-export function formatPopupPm25(value: number | null): string {
-  if (value === null) return '-'
-  return `${value.toFixed(1)} ${PM25_UNIT}`
-}
-
 export function getMonitorAqhiPm25(monitor: AirMonitor): number | null {
   return monitor.pm25OneHour ?? monitor.pm25Recent ?? null
 }
 
 export function getMonitorPlotPm25(monitor: AirMonitor): number | null {
   return monitor.pm25OneHour ?? monitor.pm25Recent ?? null
-}
-
-export function getObservationRows(monitor: AirMonitor) {
-  const values = {
-    tenMinute: monitor.pm25Recent ?? null,
-    oneHour: monitor.pm25OneHour ?? null,
-    threeHour: monitor.pm25ThreeHour ?? null,
-    twentyFourHour: monitor.pm25TwentyFourHour ?? null
-  }
-
-  return [
-    [
-      {
-        isLabel: true,
-        label: 'Past 10-min:',
-        title: 'Mean average PM2.5 concentration for the past 10 minutes.'
-      },
-      { isLabel: false, label: 'Past 10-min value', value: formatPopupPm25(values.tenMinute) },
-      {
-        isLabel: true,
-        label: 'Past 1-hr:',
-        title: 'Mean average PM2.5 concentration for the past hour.'
-      },
-      { isLabel: false, label: 'Past 1-hr value', value: formatPopupPm25(values.oneHour) }
-    ],
-    [
-      {
-        isLabel: true,
-        label: 'Past 3-hr:',
-        title: 'Mean average PM2.5 concentration for the past 3 hours.'
-      },
-      { isLabel: false, label: 'Past 3-hr value', value: formatPopupPm25(values.threeHour) },
-      {
-        isLabel: true,
-        label: 'Past 24-hr:',
-        title: 'Mean average PM2.5 concentration for the past 24 hours.'
-      },
-      { isLabel: false, label: 'Past 24-hr value', value: formatPopupPm25(values.twentyFourHour) }
-    ]
-  ]
-}
-
-export function getAqhiColor(pm25: number | null | undefined): string {
-  if (pm25 === null || pm25 === undefined || !Number.isFinite(pm25)) return '#94a3b8'
-  if (pm25 < 30) return '#3bb54a'
-  if (pm25 < 60) return '#f7d13d'
-  if (pm25 < 100) return '#f59e0b'
-  return '#c81e1e'
-}
-
-export function getAqhiLabel(pm25: number | null | undefined): string {
-  if (pm25 === null || pm25 === undefined || !Number.isFinite(pm25)) return 'No recent PM2.5'
-  return getAqhiCategory(pm25)
 }
 
 export function getMarkerText(pm25: number | null | undefined): string {

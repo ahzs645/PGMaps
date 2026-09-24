@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, HeartPulse, Users } from 'lucide-react'
 import { MapPopup, useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
-import { getAqhiCategory, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { KeyValueRows } from '@/components/ui/map-panels'
+import { getAqhiCategory, getMonitorAqhiPm25, isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
 import { getAqhiPlusColor } from '../lib/aqhiScale'
 import {
   buildObservationRowLabels,
@@ -16,12 +17,119 @@ import {
 } from '../lib/i18n'
 import { MonitorPlotPanel, type NearbyFem } from './MonitorPlotPanel'
 import { hexToRgba } from '@/lib/color'
+import { cn } from '@/lib/utils'
 
 /** Split a health line like "General Population - message" into label + detail. */
 function splitHealthLine(line: string): { label: string; detail: string } {
   const match = line.match(/^(.*?)\s[-—–]\s(.*)$/)
   if (match) return { label: match[1], detail: match[2] }
   return { label: '', detail: line }
+}
+
+/**
+ * The PM2.5 averages a monitor reports, in display order. FEM monitors report
+ * no 10-minute average, so that row is dropped for them (as upstream does).
+ */
+function getObservationValues(monitor: AirMonitor): Array<{ key: string; value: number | null }> {
+  const values = [
+    { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
+    { key: 'pm25_1hr', value: monitor.pm25OneHour ?? null },
+    { key: 'pm25_3hr', value: monitor.pm25ThreeHour ?? null },
+    { key: 'pm25_24hr', value: monitor.pm25TwentyFourHour ?? null },
+  ]
+  return isFemMonitor(monitor) ? values.filter((row) => row.key !== 'pm25_10min') : values
+}
+
+/** AQHI+ category chip: colour dot, category and the current PM2.5 reading. */
+export function AqhiStatusChip({ pm25, locale }: { pm25: number | null; locale: AqmapLocale }) {
+  const aqColor = getAqhiPlusColor(pm25)
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground"
+      style={{ backgroundColor: hexToRgba(aqColor, 0.16) }}
+    >
+      <span className="size-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
+      {formatAqhiCategory(getAqhiCategory(pm25), locale)}
+      <span className="font-normal text-muted-foreground">·</span>
+      <span className="tabular-nums">
+        {formatAqmapPm25Localized(pm25, locale)} {translate('aqhi.unit', locale)}
+      </span>
+    </span>
+  )
+}
+
+/** "Readings" heading and the monitor's PM2.5 averages, each with its AQHI+ colour. */
+export function MonitorReadings({ monitor, locale }: { monitor: AirMonitor; locale: AqmapLocale }) {
+  const unit = translate('aqhi.unit', locale)
+  const labels = useMemo(() => {
+    return new Map(buildObservationRowLabels(locale).map((entry) => [entry.key, entry]))
+  }, [locale])
+
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {translate('popup.readings', locale)}
+      </div>
+      <KeyValueRows
+        valueMaxWidth={null}
+        valueClassName="tabular-nums"
+        rows={getObservationValues(monitor).map((row) => {
+          const label = labels.get(row.key)
+          return {
+            key: row.key,
+            label: <span title={label?.title}>{label?.label}</span>,
+            value: (
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: getAqhiPlusColor(row.value) }}
+                  aria-hidden="true"
+                />
+                {formatAqmapPm25Localized(row.value, locale)}
+                <span className="font-normal text-muted-foreground">{unit}</span>
+              </span>
+            ),
+          }
+        })}
+      />
+    </div>
+  )
+}
+
+/** Health advice for the monitor's AQHI+ category. */
+export function MonitorHealthAdvice({
+  pm25,
+  locale,
+  className,
+}: {
+  pm25: number | null
+  locale: AqmapLocale
+  className?: string
+}) {
+  const health = localizeHealthMessage(getAqhiCategory(pm25), locale)
+  const isNoData = pm25 === null
+  return (
+    <div className={cn('rounded-md border border-border bg-muted/40', className)}>
+      <div className="text-xs font-semibold leading-snug text-foreground" title={translate('popup.healthMessage', locale)}>
+        {health.heading}
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {health.lines.map((line, index) => {
+          const { label, detail } = splitHealthLine(line)
+          const Icon = isNoData ? AlertCircle : index === 0 ? Users : HeartPulse
+          return (
+            <div key={line} className="flex items-start gap-1.5">
+              <Icon className="mt-[2px] size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="text-muted-foreground">
+                {label && <span className="font-medium text-foreground">{label}: </span>}
+                {detail}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function MonitorPopup({
@@ -39,29 +147,9 @@ export function MonitorPopup({
   const contentRef = useRef<HTMLDivElement>(null)
   const [plotRevision, setPlotRevision] = useState(0)
   const pm25 = getMonitorAqhiPm25(monitor)
-  const aqhiCategory = getAqhiCategory(pm25)
-  const health = localizeHealthMessage(aqhiCategory, locale)
   const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
   const aqColor = getAqhiPlusColor(pm25)
-  const categoryLabel = formatAqhiCategory(aqhiCategory, locale)
-  const unit = translate('aqhi.unit', locale)
-  const isNoData = pm25 === null
-  const labelMap = useMemo(() => {
-    const map = new Map<string, { label: string; title: string }>()
-    for (const entry of buildObservationRowLabels(locale)) {
-      map.set(entry.key, { label: entry.label, title: entry.title })
-    }
-    return map
-  }, [locale])
   const supportsComparison = monitor.network === 'PA' || monitor.network === 'EGG'
-  const isFem = monitor.network === 'FEM' || monitor.network === 'BC ENV'
-  const observationValues: Array<{ key: string; value: number | null }> = [
-    { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
-    { key: 'pm25_1hr', value: monitor.pm25OneHour ?? null },
-    { key: 'pm25_3hr', value: monitor.pm25ThreeHour ?? null },
-    { key: 'pm25_24hr', value: monitor.pm25TwentyFourHour ?? null },
-  ]
-  const visibleObservationRows = isFem ? observationValues.filter((row) => row.key !== 'pm25_10min') : observationValues
   const handlePlotVisibilityChange = useCallback(() => {
     setPlotRevision((current) => current + 1)
   }, [])
@@ -119,17 +207,7 @@ export function MonitorPopup({
 
         {/* Status chip + observation timestamp */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground"
-            style={{ backgroundColor: hexToRgba(aqColor, 0.16) }}
-          >
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
-            {categoryLabel}
-            <span className="font-normal text-muted-foreground">·</span>
-            <span className="tabular-nums">
-              {formatAqmapPm25Localized(pm25, locale)} {unit}
-            </span>
-          </span>
+          <AqhiStatusChip pm25={pm25} locale={locale} />
           <span className="text-xs text-muted-foreground">
             {translate('popup.observedAsOf', locale)} {formatLocalizedDate(monitor.dateObserved, locale)}
           </span>
@@ -139,54 +217,11 @@ export function MonitorPopup({
 
         {/* PM2.5 averages */}
         <div className="px-3 py-2">
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {translate('popup.readings', locale)}
-          </div>
-          <div className="space-y-1">
-            {visibleObservationRows.map((row) => {
-              const labels = labelMap.get(row.key)
-              return (
-                <div key={row.key} className="flex items-center justify-between gap-3" title={labels?.title}>
-                  <span className="text-muted-foreground">{labels?.label}</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-foreground">
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: getAqhiPlusColor(row.value) }}
-                      aria-hidden="true"
-                    />
-                    {formatAqmapPm25Localized(row.value, locale)}
-                    <span className="font-normal text-muted-foreground">{unit}</span>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <MonitorReadings monitor={monitor} locale={locale} />
         </div>
 
         {/* Health advice keyed to AQHI+ category */}
-        <div className="mx-3 mb-2 rounded-md border border-border bg-muted/40 p-2">
-          <div
-            className="text-xs font-semibold leading-snug text-foreground"
-            title={translate('popup.healthMessage', locale)}
-          >
-            {health.heading}
-          </div>
-          <div className="mt-1.5 space-y-1">
-            {health.lines.map((line, index) => {
-              const { label, detail } = splitHealthLine(line)
-              const Icon = isNoData ? AlertCircle : index === 0 ? Users : HeartPulse
-              return (
-                <div key={line} className="flex items-start gap-1.5">
-                  <Icon className="mt-[2px] size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="text-muted-foreground">
-                    {label && <span className="font-medium text-foreground">{label}: </span>}
-                    {detail}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <MonitorHealthAdvice pm25={pm25} locale={locale} className="mx-3 mb-2 p-2" />
 
         {/* Timeseries + comparison plots */}
         <div className="px-3 pb-2.5">
@@ -211,14 +246,7 @@ export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; local
     }
     return map
   }, [locale])
-  const isFem = monitor.network === 'FEM' || monitor.network === 'BC ENV'
-  const observations: Array<{ key: string; value: number | null }> = [
-    { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
-    { key: 'pm25_1hr', value: monitor.pm25OneHour ?? null },
-    { key: 'pm25_3hr', value: monitor.pm25ThreeHour ?? null },
-    { key: 'pm25_24hr', value: monitor.pm25TwentyFourHour ?? null },
-  ]
-  const rows = isFem ? observations.filter((row) => row.key !== 'pm25_10min') : observations
+  const rows = getObservationValues(monitor)
 
   return (
     <MapPopup

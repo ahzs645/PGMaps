@@ -5,6 +5,32 @@ import path from 'path'
 import fs from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { aqmapApiPlugin } from './src/maps/aqmap/server/aqmapApiPlugin'
+import { remediationDevDataPlugin } from './scripts/remediation-dev-data'
+
+// Local review only: restricted EDI caches never enter public/ or the build.
+function earlyLearningDevDataPlugin(): Plugin {
+  const root = path.resolve(__dirname, 'vendor/bcdatamapper/datascrapers/bc/early-learning/cache/products')
+  return {
+    name: 'early-learning-local-review',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__dev_early_learning', (req, res) => {
+        const filename = (req.url ?? '').split('?')[0].replace(/^\//, '')
+        if (!/^(latest\.json|releases\/[a-f0-9]{64}\.json|blobs\/[a-f0-9]{64}\.json\.gz)$/.test(filename)) {
+          res.statusCode = 404; res.end('Unknown EDI product'); return
+        }
+        const stream = fs.createReadStream(path.join(root, filename))
+        stream.on('error', () => { res.statusCode = 404; res.end('Run the local EDI normalizer first.') })
+        stream.on('open', () => {
+          res.setHeader('content-type', 'application/json')
+          res.setHeader('cache-control', 'no-store')
+          if (filename.endsWith('.gz')) res.setHeader('content-encoding', 'gzip')
+          stream.pipe(res)
+        })
+      })
+    },
+  }
+}
 
 function networkDevDataPlugin(): Plugin {
   const root = path.resolve(__dirname, 'vendor/bcdatamapper/datascrapers/network')
@@ -58,6 +84,8 @@ export default defineConfig({
     }),
     aqmapApiPlugin(),
     networkDevDataPlugin(),
+    earlyLearningDevDataPlugin(),
+    remediationDevDataPlugin(),
   ],
   resolve: {
     alias: {

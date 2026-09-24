@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { Map as MapIcon, Plus } from 'lucide-react'
 import type { AirMonitor, BoundarySource, RegionLevel } from '@/maps/airquality'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { EmptyHint } from '@/components/ui/result-list'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StatGroup } from '@/components/ui/stat-group'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { getLevelOptionsForSource } from '@/lib/studyArea'
-import { cn } from '@/lib/utils'
 import { SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS } from '../constants'
 import { getUnavailableWeightedMetrics } from '../lib/metrics'
 import { MetricLibraryPanel, MetricPickerDialog } from './MetricLibrary'
@@ -36,6 +39,11 @@ import { getDefaultMetricWeight } from './scoreBuilderPanelUtils'
 // Re-exported for the callers that historically imported the notice from here.
 export { InactiveTermNotice } from './WeightRow'
 export { IndexLabHeader, ViewModeToggle } from './IndexLabHeader'
+
+const BUILDER_MODE_OPTIONS = [
+  { value: 'formula', label: 'Formula' },
+  { value: 'priority', label: 'Priority' },
+] as const
 
 export interface ScoreBuilderBuildViewProps {
   weights: ScoreMetricWeightMap
@@ -155,7 +163,7 @@ export function ScoreBuilderBuildView({
       ...activeTermKeys.filter((key) => !priorityOrder.includes(key)),
     ]
   }, [activeTermKeys, priorityOrder])
-  const previewMetric = focusedMetric && weights[focusedMetric] !== 0 ? focusedMetric : activeTerms[0]?.key ?? null
+  const previewMetric = focusedMetric && weights[focusedMetric] !== 0 ? focusedMetric : (activeTerms[0]?.key ?? null)
 
   const movePriority = (metricKey: ScoreMetricKey, direction: -1 | 1) => {
     setPriorityOrder(() => {
@@ -231,35 +239,20 @@ export function ScoreBuilderBuildView({
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <div className="inline-flex rounded-md border border-input bg-muted/20 p-0.5" role="group" aria-label="Builder mode">
-                  {(
-                    [
-                      ['formula', 'Formula'],
-                      ['priority', 'Priority'],
-                    ] as const
-                  ).map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      aria-pressed={builderMode === mode}
-                      onClick={() => setBuilderMode(mode)}
-                      className={cn(
-                        'rounded px-2 py-1.5 text-xs font-medium transition-colors md:py-1',
-                        builderMode === mode
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  value={builderMode}
+                  options={BUILDER_MODE_OPTIONS}
+                  onChange={setBuilderMode}
+                  label="Builder mode"
+                  size="sm"
+                  fullWidth={false}
+                />
                 {builderMode === 'priority' && (
                   <button
                     type="button"
                     onClick={applyPriorityWeights}
                     disabled={activePriorityOrder.length === 0}
-                    className="inline-flex h-9 items-center rounded-md border border-cyan-500/50 bg-cyan-50 px-2.5 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 disabled:opacity-50 dark:bg-cyan-950/30 dark:text-cyan-100 md:h-8"
+                    className="inline-flex h-8 items-center rounded-md border border-cyan-500/50 bg-cyan-50 px-2.5 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 disabled:opacity-50 dark:bg-cyan-950/30 dark:text-cyan-100 touch:h-10"
                   >
                     Apply ranking
                   </button>
@@ -267,7 +260,7 @@ export function ScoreBuilderBuildView({
                 <button
                   type="button"
                   onClick={() => setPickerOpen(true)}
-                  className="inline-flex h-9 items-center gap-1 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground md:h-8"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground touch:h-10"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add metric
@@ -277,9 +270,7 @@ export function ScoreBuilderBuildView({
             <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
 
             {activeTerms.length === 0 ? (
-              <div className="mt-3 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                No active metrics. Add one to start the equation.
-              </div>
+              <EmptyHint className="mt-3 px-3 py-4">No active metrics. Add one to start the equation.</EmptyHint>
             ) : builderMode === 'priority' ? (
               <div className="mt-3">
                 <PriorityMode
@@ -335,8 +326,8 @@ export function ScoreBuilderBuildView({
             <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Formula</div>
             <div className="break-words font-mono text-xs text-foreground">{equationPreview}</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              |weights| sum: {totalAbsoluteWeight.toLocaleString()} — weights are divided by total influence, so they
-              do not need to equal 100.
+              |weights| sum: {totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE)} — weights are divided by total
+              influence, so they do not need to equal 100.
             </div>
           </section>
 
@@ -373,9 +364,7 @@ export function ScoreBuilderBuildView({
           <div className="space-y-3 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-l">
             <section className="overflow-hidden rounded-lg border border-border bg-background">
               <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Live preview
-                </div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live preview</div>
                 <button
                   type="button"
                   onClick={onSwitchToExplore}
@@ -449,20 +438,18 @@ function LiveResults({
           <div className="mt-1 text-xs text-muted-foreground">Avg {formatScore(scoreSpread.average)}</div>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-        <div className="rounded border border-border bg-muted/20 p-2">
-          <div className="text-xs uppercase text-muted-foreground">Low</div>
-          <div className="font-semibold text-foreground">{formatScore(scoreSpread.min)}</div>
-        </div>
-        <div className="rounded border border-border bg-muted/20 p-2">
-          <div className="text-xs uppercase text-muted-foreground">High</div>
-          <div className="font-semibold text-foreground">{formatScore(scoreSpread.max)}</div>
-        </div>
-        <div className="rounded border border-border bg-muted/20 p-2">
-          <div className="text-xs uppercase text-muted-foreground">Regions</div>
-          <div className="font-semibold text-foreground">{scoredRegions.length.toLocaleString()}</div>
-        </div>
-      </div>
+      <StatGroup
+        variant="tiles"
+        size="sm"
+        align="start"
+        columns={3}
+        className="mt-3"
+        items={[
+          { label: 'Low', value: formatScore(scoreSpread.min) },
+          { label: 'High', value: formatScore(scoreSpread.max) },
+          { label: 'Regions', value: scoredRegions.length.toLocaleString(DEFAULT_LOCALE) },
+        ]}
+      />
       {topRegions.length > 1 && (
         <div className="mt-3 space-y-1">
           {topRegions.map((region) => (

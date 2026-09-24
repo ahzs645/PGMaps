@@ -1,4 +1,4 @@
-import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
+import { InlineAlert, MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata/walkabilityMiBands'
@@ -9,6 +9,7 @@ import type { ScoreSpread } from '../lib/scoreSummaries'
 import type { ScoreMethodSettings, ScoreMetricKey } from '../types'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import type { BcEnviroScreenMapView } from '../lib/bcEnviroScreenMapView'
+import { BcEnviroScreenMapLegend } from './BcEnviroScreenMapLegend'
 
 interface ScoreBuilderMapLegendProps {
   isDesktop: boolean
@@ -60,9 +61,8 @@ export function ScoreBuilderMapLegend({
   // the legend too.
   const miBands = useWalkabilityMiBands(showWalkabilitySourceSurface || canUseWalkabilitySourceSurface)
   return (
-    // Collapsed by default: the expanded panel covers a quarter of the map, and the
-    // score ramp is only needed on demand.
-    <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible defaultCollapsed>
+    // Collapsed on phones, where the expanded panel covers much of the map.
+    <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible defaultCollapsed="mobile">
       {correlateMode ? (
         <CorrelationMapLegend
           metricX={correlateMetricX}
@@ -76,28 +76,14 @@ export function ScoreBuilderMapLegend({
       ) : (
         <>
           {bcEnviroScreenMapView ? (
-            <>
-              <h4 className="mb-2 text-xs font-semibold text-foreground">{bcEnviroScreenMapView.label}</h4>
-              <MapSteppedLegend
-                bands={bcEnviroScreenMapView.bands}
-                labels={bcEnviroScreenMapView.legendLabels}
-                angledLabels={bcEnviroScreenMapView.binCount > 5}
-                data-bc-enviro-screen-legend="true"
-              />
-              {!compact && (
-                <div className="mt-2 text-xs leading-snug text-muted-foreground">
-                  {bcEnviroScreenMapView.binCount} equal-interval classes across the provincial LHA release. Green is
-                  lower burden; purple is higher burden.
-                </div>
-              )}
-              {bcEnviroScreenMapView.missingCount > 0 && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="h-3 w-3 rounded-sm border border-black/10 bg-slate-400" />
-                  Missing in {bcEnviroScreenMapView.missingCount} LHA
-                  {bcEnviroScreenMapView.missingCount === 1 ? '' : 's'}
-                </div>
-              )}
-            </>
+            <BcEnviroScreenMapLegend
+              view={bcEnviroScreenMapView}
+              note={
+                compact
+                  ? undefined
+                  : `${bcEnviroScreenMapView.binCount} equal-interval classes across the provincial LHA release. Green is lower burden; purple is higher burden.`
+              }
+            />
           ) : (
             <>
               <h4 className="mb-2 text-xs font-semibold text-foreground">
@@ -136,8 +122,8 @@ export function ScoreBuilderMapLegend({
                   />
                   {!compact && (
                     <div className="mt-2 text-xs leading-snug text-muted-foreground">
-                      Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6.
-                      Uncolored regions do not meet the HealthyPlan threshold.
+                      Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6. Uncolored
+                      regions do not meet the HealthyPlan threshold.
                     </div>
                   )}
                 </>
@@ -207,7 +193,13 @@ export function ScoreBuilderMapLegend({
             </>
           )}
           {bcEnviroScreenMapView ? (
-            <div className={compact ? 'mt-2 text-xs text-muted-foreground' : 'mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground'}>
+            <div
+              className={
+                compact
+                  ? 'mt-2 text-xs text-muted-foreground'
+                  : 'mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground'
+              }
+            >
               {compact ? (
                 <>
                   Avg <span className="font-medium text-foreground">{bcEnviroScreenMapView.average.toFixed(2)}</span>
@@ -278,9 +270,9 @@ export function ScoreBuilderMapLegend({
                 Thin data in {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'}.
               </div>
             ) : (
-              <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+              <InlineAlert tone="warning" className="mt-2 px-2 py-1 font-medium">
                 {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
-              </div>
+              </InlineAlert>
             ))}
         </>
       )}

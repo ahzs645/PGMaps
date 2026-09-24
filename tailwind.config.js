@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
@@ -56,5 +58,11 @@ export default {
       }
     }
   },
-  plugins: [],
+  plugins: [
+    // `touch:` targets coarse pointers (phones, tablets) so controls can grow
+    // to a finger-sized hit area without changing the mouse layout.
+    plugin(({ addVariant }) => {
+      addVariant('touch', '@media (pointer: coarse)')
+    }),
+  ],
 }

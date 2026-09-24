@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { RecordDialog } from '@/components/ui/record-dialog'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { buildProjectLabParams, type ProjectPackage } from '@/lib/projectPackages'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -8,6 +9,7 @@ import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata
 import { SCORE_METRICS } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { BcEnviroScreenMapControls } from './components/BcEnviroScreenMapControls'
+import { BcEnviroScreenMapLegend } from './components/BcEnviroScreenMapLegend'
 import { BcEnviroScreenRegionProfile } from './components/BcEnviroScreenRegionProfile'
 import {
   createInitialScoreBuilderState,
@@ -166,7 +168,7 @@ export function ProjectScoreMapPreview({
         />
       )}
 
-      <MapLegendPanel title={project.title} width="sm" collapsible defaultCollapsed={!isDesktop}>
+      <MapLegendPanel title={project.title} width="sm" collapsible defaultCollapsed="mobile">
         <div className="space-y-2">
           {/*
             The score palette only describes the boundary surface. When the
@@ -175,32 +177,16 @@ export function ProjectScoreMapPreview({
             the raster is actually painted with.
           */}
           {bcEnviroScreenMapView ? (
-            <>
-              <div className="text-xs font-semibold text-foreground">{bcEnviroScreenMapView.label}</div>
-              <MapSteppedLegend
-                bands={bcEnviroScreenMapView.bands}
-                labels={bcEnviroScreenMapView.legendLabels}
-                angledLabels={bcEnviroScreenMapView.binCount > 5}
-                data-bc-enviro-screen-legend="true"
-              />
-              <div className="text-xs leading-snug text-muted-foreground">
-                {bcEnviroScreenMapView.binCount} equal-interval classes across {bcEnviroScreenMapView.valueCount} LHAs.
-                Click an LHA for its full score and indicator profile.
-              </div>
-              {bcEnviroScreenMapView.missingCount > 0 && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="h-3 w-3 rounded-sm border border-black/10 bg-slate-400" />
-                  Missing in {bcEnviroScreenMapView.missingCount} LHA
-                  {bcEnviroScreenMapView.missingCount === 1 ? '' : 's'}
-                </div>
-              )}
-            </>
+            <BcEnviroScreenMapLegend
+              view={bcEnviroScreenMapView}
+              note={`${bcEnviroScreenMapView.binCount} equal-interval classes across ${bcEnviroScreenMapView.valueCount} LHAs. Click an LHA for its full score and indicator profile.`}
+            />
           ) : showWalkabilitySourceSurface ? (
             <>
               <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} angledLabels={project.angledLegendLabels} />
               <div className="text-xs leading-snug text-muted-foreground">
                 Mobility Index surface derived from the project recipe, over{' '}
-                {results.scoredRegions.length.toLocaleString()} scored regions.
+                {results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} scored regions.
               </div>
             </>
           ) : (
@@ -211,39 +197,25 @@ export function ProjectScoreMapPreview({
                 maxLabel={palette.legend.high}
               />
               <div className="text-xs leading-snug text-muted-foreground">
-                {results.scoredRegions.length.toLocaleString()} regions scored with the project recipe.
+                {results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} regions scored with the project recipe.
               </div>
             </>
           )}
         </div>
       </MapLegendPanel>
 
-      <Dialog
-        open={Boolean(selectedRegion?.bcEnviroScreen)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedRegionId(null)
-        }}
-      >
-        <DialogContent
-          variant="sheet"
-          elevated
+      {selectedRegion?.bcEnviroScreen && (
+        <RecordDialog
+          onClose={() => setSelectedRegionId(null)}
+          closeLabel="Close LHA profile"
+          title={`Selected LHA: ${selectedRegion.region.name}`}
+          subtitle="Composite scores and provincial indicator percentiles from the current reconstruction release."
           className="max-h-[min(90dvh,760px)] sm:max-h-[min(90dvh,760px)] sm:max-w-3xl"
+          bodyClassName="bg-background"
         >
-          <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
-            <DialogTitle className="pr-8 text-base sm:text-lg">
-              {selectedRegion ? `Selected LHA: ${selectedRegion.region.name}` : 'Selected LHA'}
-            </DialogTitle>
-            <DialogDescription>
-              Composite scores and provincial indicator percentiles from the current reconstruction release.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRegion?.bcEnviroScreen && (
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
-              <BcEnviroScreenRegionProfile region={selectedRegion} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          <BcEnviroScreenRegionProfile region={selectedRegion} />
+        </RecordDialog>
+      )}
     </div>
   )
 }

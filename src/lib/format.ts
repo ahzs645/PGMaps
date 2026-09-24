@@ -106,3 +106,38 @@ export function formatCompactCurrency(
   }
   return `${sign}$${abs.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })}`
 }
+
+/** Binary-scaled file size (B, KB, MB, GB). `fallback` for null/NaN. */
+export function formatBytes(
+  bytes: number | null | undefined,
+  { fallback = 'Unknown size', digits = 1 }: { fallback?: string; digits?: number } = {},
+): string {
+  if (bytes == null || !Number.isFinite(bytes)) return fallback
+  const units = ['B', 'KB', 'MB', 'GB'] as const
+  let value = bytes
+  let unit = 0
+  while (Math.abs(value) >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return unit === 0 ? `${Math.round(value)} B` : `${value.toFixed(digits)} ${units[unit]}`
+}
+
+/** Square kilometres, e.g. "12.3 km²". Empty string for 0/null. */
+export function formatSquareKm(squareKm: number | null | undefined, { digits = 1 }: { digits?: number } = {}): string {
+  if (!squareKm || !Number.isFinite(squareKm)) return ''
+  return `${squareKm.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: digits })} km²`
+}
+
+/** Month names in the pinned locale, January first. */
+export const MONTH_NAMES: readonly string[] = Array.from({ length: 12 }, (_, month) =>
+  new Date(2000, month, 1).toLocaleDateString(DEFAULT_LOCALE, { month: 'long' }),
+)
+
+/** Three-letter month names, January first ("Jan", "Feb", ...). */
+export const MONTH_SHORT_NAMES: readonly string[] = MONTH_NAMES.map((name) => name.slice(0, 3))
+
+/** "Sep 2026" */
+export function formatMonthYear(date: Date): string {
+  return date.toLocaleDateString(DEFAULT_LOCALE, { month: 'short', year: 'numeric' })
+}

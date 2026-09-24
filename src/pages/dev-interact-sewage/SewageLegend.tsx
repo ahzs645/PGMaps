@@ -54,7 +54,7 @@ export function SewageLegend({
         <div data-legend-end-overlay="true" className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted touch:p-2.5"
             aria-label="Classification"
           >
             <Aperture className="size-4" />
@@ -62,7 +62,7 @@ export function SewageLegend({
           <button
             type="button"
             onClick={onToggleVisible}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted touch:p-2.5"
             aria-label="Toggle legend item visibility"
             aria-pressed={visible}
           >
@@ -78,5 +78,6 @@ export function SewageLegend({
 }
 
 function cnRow(visible: boolean): string {
-  return `rounded-md border border-border bg-background p-3 shadow-sm${visible ? '' : ' opacity-70'}`
+  // Sits inside the map legend panel, which already draws the card.
+  return `rounded-md${visible ? '' : ' opacity-70'}`
 }

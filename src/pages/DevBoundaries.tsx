@@ -1,3 +1,5 @@
+import { PostalHierarchyControls } from '@/maps/boundaries/PostalHierarchyControls'
+import { migratePostalShareState } from '@/maps/boundaries/postalShareState'
 import area from '@turf/area'
 import bbox from '@turf/bbox'
 import createWebShareEngine from '@firstform/json-url/web-share'
@@ -307,7 +309,7 @@ const BOUNDARY_EXPLORER_SOURCE_OPTIONS = BOUNDARY_SOURCE_OPTIONS.flatMap((option
   option.value === 'census'
     ? {
         ...option,
-        description: 'National North/South CSDs plus BC-wide hierarchy, division to dissemination block',
+        description: 'BC census hierarchy and national North/South CSDs',
       }
     : option,
 )
@@ -336,6 +338,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   regionalDistrict: { fill: '#8b5cf6', line: '#6d28d9' },
   bcMunicipality: { fill: '#ec4899', line: '#be185d' },
   census: { fill: '#ef4444', line: '#b91c1c' },
+  postal: { fill: '#14b8a6', line: '#0f766e' },
   watershed: { fill: '#22c55e', line: '#15803d' },
   namedWatershed: { fill: '#10b981', line: '#047857' },
   bcDrainage: { fill: '#0891b2', line: '#155e75' },
@@ -1136,7 +1139,8 @@ function DevBoundaries() {
 
     let cancelled = false
     decodeBoundariesShareState(token)
-      .then((shareState) => {
+      .then((savedState) => {
+        const shareState = migratePostalShareState(savedState)
         if (cancelled || shareState.version !== 1) return
 
         const nextActiveSources: BoundarySource[] = Array.isArray(shareState.activeSources)
@@ -3015,6 +3019,12 @@ function DevBoundaries() {
                     )
                   })}
                 </div>
+                {source === 'postal' && (
+                  <PostalHierarchyControls
+                    level={selectedLevel === 'fsa' || selectedLevel === 'postalPrefix2' ? selectedLevel : 'postalRegion'}
+                    onChange={(level) => handleVariantChange(source, level)}
+                  />
+                )}
                 {source === 'namedWatershed' && selectedLayer && !selectedLayer.loading && (
                   <div className="mt-2 rounded-md border border-sky-200 bg-sky-50 p-2.5 text-xs leading-4 text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
                     <div className="font-semibold">Nested cumulative drainage areas</div>

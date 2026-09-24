@@ -3,18 +3,30 @@ import { Bus, MapPin, Route } from 'lucide-react'
 import { MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
-import { LegendItem, MapLegendPanel, MapLegendSection, StatTile } from '@/components/ui/map-panels'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { DatasetInfo } from '@/components/DatasetInfo'
+import {
+  InlineAlert,
+  LegendItem,
+  MapLegendPanel,
+  MapLegendSection,
+  MapSidebarShell,
+  SearchInput,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { PG_CENTER } from '@/components/ui/map-styles'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { SelectAllActions } from '@/components/ui/text-button'
+import { ToggleRow } from '@/components/ui/toggle-row'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { cn } from '@/lib/utils'
 import { distanceKm } from '@/lib/geo'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
 import { bundleRoutes, type BundledFeatureCollection, type RouteInput } from './lib/transitiveBundling'
 import { useTransitiveZoom } from './hooks/useTransitiveZoom'
-import { DEFAULT_LOCALE } from '@/lib/format'
+import { formatLength, formatNumber } from '@/lib/format'
 
 type TransitLayerId = 'stops' | 'routes'
 type StopCategory = 'shelter' | 'accessible' | 'other'
@@ -105,10 +117,8 @@ function subtypeLabel(subtype: number | null): string {
   return 'Bus stop'
 }
 
-function formatDistanceKm(km: number): string {
-  if (!Number.isFinite(km)) return 'No value'
-  if (km < 1) return `${Math.round(km * 1000).toLocaleString()} m`
-  return `${km.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km`
+function stopDescription(stop: TransitStop): string {
+  return `${subtypeLabel(stop.subtype)}${stop.accessible ? ' · accessible proxy' : ''}${stop.hasShelter ? ' · shelter/exchange' : ''}`
 }
 
 function useRouteData() {
@@ -256,174 +266,131 @@ export default function TransitDataSection() {
   const allStopCategoriesHidden = hiddenStopCategories.size >= 3
   const showLegend = (activeLayers.includes('routes') && !allRoutesHidden)
     || (activeLayers.includes('stops') && !allStopCategoriesHidden)
-  const toggleAllRoutes = () => {
-    if (allRoutesHidden) {
-      setHiddenRoutes(new Set())
-    } else {
-      setHiddenRoutes(new Set(routeLegendItems.map((item) => item.id)))
-    }
-  }
+  const toggleSelectedStop = (stopId: string) => setSelectedStopId((current) => (current === stopId ? null : stopId))
 
   return (
     <MapSectionLayout
       mobilePeek={
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            Transit | {stops.length.toLocaleString()} stops
+            Transit · {formatNumber(stops.length)} stops
           </div>
           <div className="truncate text-xs text-muted-foreground">
-            {activeLayers.join(', ')} | {routeCounts.routes.toLocaleString()} routes
+            {activeLayers.join(', ')} · {formatNumber(routeCounts.routes)} routes
           </div>
         </div>
       }
       sidebar={
-        <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-0 bg-background shadow-none md:border-r md:shadow-xl">
-          <div className="border-b border-border p-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300">
-                <Bus className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Transit Access</h2>
-                <p className="text-xs text-muted-foreground">CityPG stops and BC Transit route geometry</p>
-              </div>
-            </div>
-          </div>
+        <MapSidebarShell
+          className={MAP_SIDEBAR_CLASS}
+          title="Transit Access"
+          subtitle="CityPG stops and BC Transit route geometry"
+          icon={Bus}
+          iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
+          dataset={DATASETS.transit}
+        >
+          <SidebarSection className="space-y-4">
+            {(stopsError || routesError) && <InlineAlert tone="error">{stopsError || routesError}</InlineAlert>}
 
-          <DatasetInfo dataset={DATASETS.transit} />
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={2}
+              items={[
+                { label: 'Stops', value: formatNumber(stops.length), loading: stopsLoading },
+                { label: 'Accessible', value: formatNumber(accessibleCount), loading: stopsLoading },
+                { label: 'Shelters/exchanges', value: formatNumber(shelterCount), loading: stopsLoading },
+                { label: 'Routes', value: formatNumber(routeCounts.routes), loading: routesLoading },
+              ]}
+            />
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {(stopsError || routesError) && (
-              <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                {stopsError || routesError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <StatTile
-                label="Stops"
-                value={stops.length.toLocaleString()}
-                loading={stopsLoading}
-                valueClassName="text-lg font-semibold"
-              />
-              <StatTile
-                label="Accessible"
-                value={accessibleCount.toLocaleString()}
-                loading={stopsLoading}
-                valueClassName="text-lg font-semibold"
-              />
-              <StatTile
-                label="Shelters/exchanges"
-                value={shelterCount.toLocaleString()}
-                loading={stopsLoading}
-                valueClassName="text-lg font-semibold"
-              />
-              <StatTile
-                label="Routes"
-                value={routeCounts.routes.toLocaleString()}
-                loading={routesLoading}
-                valueClassName="text-lg font-semibold"
-              />
-            </div>
-
-            <div className="mt-4 rounded-md border border-border bg-muted/30 p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <MapPin className="h-4 w-4 text-teal-600" />
-                400 m proximity reference
-              </div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            <InlineAlert
+              title={
+                <span className="flex items-center gap-1.5 text-foreground">
+                  <MapPin className="h-3.5 w-3.5 text-teal-600" aria-hidden="true" />
+                  400 m proximity reference
+                </span>
+              }
+            >
+              <p className="mt-1">
                 The OCP source treats 400 m from conventional transit as a reasonable walking distance for single
                 residential housing.
               </p>
               {pgCenterNearestStop && (
-                <div className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2">
                   Nearest loaded stop to map center:{' '}
                   <span className="font-medium text-foreground">{pgCenterNearestStop.stop.name}</span> (
-                  {formatDistanceKm(pgCenterNearestStop.distanceKm)})
-                </div>
+                  {formatLength(pgCenterNearestStop.distanceKm * 1000)})
+                </p>
               )}
-            </div>
+            </InlineAlert>
+          </SidebarSection>
 
-            <div className="mt-4 space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Layers</label>
-              <div className="grid grid-cols-2 gap-2">
-                {LAYER_OPTIONS.map((layer) => (
-                  <button
-                    key={layer.id}
-                    type="button"
-                    onClick={() => toggleLayer(layer.id)}
-                    className={cn(
-                      'rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors',
-                      activeLayers.includes(layer.id)
-                        ? 'border-teal-500 bg-teal-500/10 text-teal-800 dark:text-teal-200'
-                        : 'border-border text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {layer.label}
-                  </button>
-                ))}
-              </div>
+          <SidebarSection title="Layers">
+            <div className="grid grid-cols-2 gap-2">
+              {LAYER_OPTIONS.map((layer) => (
+                <ToggleRow
+                  key={layer.id}
+                  tone="teal"
+                  active={activeLayers.includes(layer.id)}
+                  onClick={() => toggleLayer(layer.id)}
+                  label={layer.label}
+                />
+              ))}
             </div>
+          </SidebarSection>
 
-            <div className="mt-4 space-y-2">
-              <input
-                data-map-search-input="true"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search stop name or ID..."
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-teal-500"
-              />
-              <AppSelect
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
-                options={[
-                  { value: 'all', label: 'All stops' },
-                  { value: 'active', label: 'Active stops' },
-                  { value: 'shelter', label: 'Shelters and exchanges' },
-                  { value: 'accessible', label: 'Accessible / sidewalk proxy' },
-                ]}
-                triggerClassName="h-9 rounded-md text-sm focus:border-teal-500"
-              />
-            </div>
+          <SidebarSection className="space-y-2">
+            <SearchInput
+              aria-label="Search stops"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search stop name or ID..."
+              className="focus:ring-teal-500"
+            />
+            <AppSelect
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+              options={[
+                { value: 'all', label: 'All stops' },
+                { value: 'active', label: 'Active stops' },
+                { value: 'shelter', label: 'Shelters and exchanges' },
+                { value: 'accessible', label: 'Accessible / sidewalk proxy' },
+              ]}
+              triggerClassName="h-9 rounded-md text-sm focus:border-teal-500"
+            />
+          </SidebarSection>
 
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{filteredStops.length.toLocaleString()} visible stops</span>
-                <span>{routeCounts.shapes.toLocaleString()} route variants</span>
-              </div>
-              <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1">
-                {filteredStops.slice(0, 120).map((stop) => (
-                  <button
-                    key={stop.id}
-                    type="button"
-                    onClick={() => setSelectedStopId((current) => current === stop.id ? null : stop.id)}
-                    className={cn(
-                      'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                      selectedStopId === stop.id
-                        ? 'border-teal-500 bg-teal-500/10'
-                        : 'border-border bg-background hover:bg-muted',
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="line-clamp-1 text-sm font-medium text-foreground">{stop.name}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{stop.id}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {subtypeLabel(stop.subtype)}
-                      {stop.accessible ? ' · accessible proxy' : ''}
-                      {stop.hasShelter ? ' · shelter/exchange' : ''}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
+          <ListState
+            loading={stopsLoading}
+            loadingLabel="Loading transit stops..."
+            empty={!stopsError && filteredStops.length === 0}
+            emptyLabel="No stops match these filters."
+          >
+            <ListHeader
+              count={filteredStops.length}
+              noun={['visible stop', 'visible stops']}
+              aside={<span>{formatNumber(routeCounts.shapes)} route variants</span>}
+            />
+            <VirtualResultList items={filteredStops} getKey={(stop) => stop.id} estimateSize={60} label="Transit stops">
+              {(stop) => (
+                <ResultRow
+                  accent="teal"
+                  title={stop.name}
+                  subtitle={stopDescription(stop)}
+                  trailing={<span className="text-xs font-normal text-muted-foreground">{stop.id}</span>}
+                  selected={selectedStopId === stop.id}
+                  onClick={() => toggleSelectedStop(stop.id)}
+                />
+              )}
+            </VirtualResultList>
+          </ListState>
+        </MapSidebarShell>
       }
     >
       <div className="relative h-full">
         <SharedMap
-                   loading={stopsLoading || routesLoading}
+          loading={stopsLoading || routesLoading}
           loadingLabel="Loading transit data"
         >
           {visibleRouteInputs && (
@@ -435,7 +402,7 @@ export default function TransitDataSection() {
                 key={stop.id}
                 longitude={stop.longitude}
                 latitude={stop.latitude}
-                onClick={() => setSelectedStopId((current) => current === stop.id ? null : stop.id)}
+                onClick={() => toggleSelectedStop(stop.id)}
               >
                 <MarkerContent>
                   <span
@@ -453,11 +420,7 @@ export default function TransitDataSection() {
                     <div className="max-w-[220px] p-2">
                       <div className="text-sm font-semibold text-foreground">{stop.name}</div>
                       <div className="mt-1 text-xs text-muted-foreground">Stop ID {stop.id}</div>
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {subtypeLabel(stop.subtype)}
-                        {stop.accessible ? ' · accessible proxy' : ''}
-                        {stop.hasShelter ? ' · shelter/exchange' : ''}
-                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">{stopDescription(stop)}</div>
                     </div>
                   </MarkerPopup>
                 )}
@@ -473,13 +436,12 @@ export default function TransitDataSection() {
             collapsible
             actions={
               routeLegendItems.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={toggleAllRoutes}
-                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
-                >
-                  {allRoutesHidden ? 'Show all' : 'Hide all'}
-                </button>
+                <SelectAllActions
+                  onAll={() => setHiddenRoutes(new Set())}
+                  onNone={() => setHiddenRoutes(new Set(routeLegendItems.map((item) => item.id)))}
+                  allSelected={hiddenRoutes.size === 0}
+                  noneSelected={allRoutesHidden}
+                />
               ) : null
             }
           >

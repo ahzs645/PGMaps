@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Layers } from 'lucide-react'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { formatNumber } from '@/lib/format'
 import { datasetById, GEOMETRY_TYPE_LABEL } from '../constants'
 import type { ExplorerDatasetDefinition, ExplorerDatasetStat, ExplorerItem } from '../types'
 
@@ -31,6 +32,7 @@ export function ExplorerLegend({
       title="Active Layers"
       icon={<Layers className="h-3.5 w-3.5 shrink-0" />}
       collapsible
+      defaultCollapsed="mobile"
       contentClassName="space-y-1"
     >
       <div
@@ -66,9 +68,9 @@ export function ExplorerLegend({
                 key={dataset.id}
                 color={dataset.color}
                 label={dataset.label}
-                className="min-h-8 md:min-h-6"
+                className="min-h-6 touch:min-h-8"
                 value={
-                  display === 'count' ? (stat?.count ?? 0).toLocaleString() : GEOMETRY_TYPE_LABEL[dataset.geometryType]
+                  display === 'count' ? formatNumber(stat?.count ?? 0) : GEOMETRY_TYPE_LABEL[dataset.geometryType]
                 }
               />
             )
@@ -84,7 +86,7 @@ export function ExplorerLegend({
           <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
             Selected: <span className="font-medium text-foreground">{selectedItem.name}</span>
             <div>
-              {datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}
+              {datasetById(selectedItem.datasetId).label} · relevance {Math.round(selectedItem.relevance)}
             </div>
           </div>
         )}

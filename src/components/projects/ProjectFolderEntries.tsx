@@ -1,5 +1,6 @@
 import { ArrowRight, Folder } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { collectionHref, type ProjectCollectionSummary } from '@/lib/projectCollections'
 import { cn } from '@/lib/utils'
@@ -26,9 +27,9 @@ function FolderTile({ className }: { className?: string }) {
 
 export function FolderBadge() {
   return (
-    <span className="inline-flex rounded-md border border-cyan-600/40 bg-cyan-600/10 px-2 py-0.5 text-xs font-semibold text-cyan-800 dark:text-cyan-200">
+    <Badge tone="cyan" variant="outline" size="sm" className="font-semibold">
       Folder
-    </span>
+    </Badge>
   )
 }
 

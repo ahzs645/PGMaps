@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { Slider } from '@/components/ui/slider'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
@@ -62,7 +63,7 @@ export function CompactWeightRow({
       }}
       aria-label={`${metric.shortLabel} weight`}
       data-score-builder-equation-number={metric.key}
-      className="h-10 w-14 shrink-0 rounded border border-input bg-background px-1 text-right text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500 md:h-auto md:w-11 md:py-0.5 md:text-xs"
+      className="w-11 shrink-0 rounded border border-input bg-background px-1 py-0.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500 touch:h-10 touch:w-14 touch:py-0 touch:text-sm"
     />
   )
 
@@ -109,7 +110,7 @@ export function CompactWeightRow({
             aria-label={`Flip direction for ${metric.shortLabel}`}
             data-score-builder-flip={metric.key}
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded border text-sm font-bold md:h-6 md:w-6 md:text-xs',
+              'flex h-6 w-6 shrink-0 items-center justify-center rounded border text-xs font-bold touch:h-10 touch:w-10 touch:text-sm',
               positive
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
                 : 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300',
@@ -156,9 +157,9 @@ export function CompactWeightRow({
               onClick={onRemove}
               title="Remove metric"
               aria-label={`Remove ${metric.shortLabel}`}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-background hover:text-foreground md:h-auto md:w-auto md:p-1"
+              className="flex shrink-0 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground touch:h-10 touch:w-10 touch:p-0"
             >
-              <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
+              <X className="h-3.5 w-3.5 touch:h-4 touch:w-4" />
             </button>
           )}
         </div>
@@ -193,26 +194,22 @@ export function InactiveTermNotice({
 }) {
   const source = unavailable.source
   return (
-    <div
-      data-score-builder-inactive-term={metric.key}
-      className={cn(
-        'flex flex-wrap items-center gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100',
-        className,
-      )}
-    >
-      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-      <span className="min-w-0 flex-1">
-        <span className="font-semibold">{metric.shortLabel}</span> {unavailable.message}
-      </span>
-      {source && onEnableDataSource && (
-        <button
-          type="button"
-          onClick={() => onEnableDataSource(source)}
-          className="shrink-0 rounded border border-amber-400 bg-background px-2 py-0.5 font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-950/60"
-        >
-          Turn on
-        </button>
-      )}
+    <div data-score-builder-inactive-term={metric.key} className={className}>
+      <InlineAlert tone="warning" className="flex flex-wrap items-center gap-2 px-2 py-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="font-semibold">{metric.shortLabel}</span> {unavailable.message}
+        </span>
+        {source && onEnableDataSource && (
+          <button
+            type="button"
+            onClick={() => onEnableDataSource(source)}
+            className="shrink-0 rounded border border-amber-400 bg-background px-2 py-0.5 font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-950/60"
+          >
+            Turn on
+          </button>
+        )}
+      </InlineAlert>
     </div>
   )
 }

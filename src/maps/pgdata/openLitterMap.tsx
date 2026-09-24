@@ -3,22 +3,27 @@ import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import {
   InlineAlert,
+  KeyValueRows,
   LegendItem,
   MapGradientLegendItem,
   MapLegendNote,
+  MapLegendSection,
   SelectedItemCard,
   SidebarSection,
-  StatGrid,
   ToggleChip,
 } from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
+import { TextButton } from '@/components/ui/text-button'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { useFetchData } from '@/hooks/useFetchData'
 import { formatDate, useJsonManifest } from './shared'
-import { hexToRgba } from '@/lib/color'
+import { colorForKey, hexToRgba } from '@/lib/color'
+import { formatBytes, formatNumber } from '@/lib/format'
 
 export const OPEN_LITTER_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: 1, label: '1 mo' },
@@ -136,19 +141,21 @@ const CATEGORY_COLORS: Record<string, string> = {
   sanitary: '#be123c',
   smoking: '#dc2626',
   softdrinks: '#0891b2',
+  // Pinned to the colour the previous hash gave it, so the switch to colorForKey
+  // did not repaint a category already in the extract.
+  marine: '#ea580c',
 }
+
+/** Hex fill stops, low to high. The layer and its legend both read this so they cannot drift. */
+const HEX_COUNT_RAMP = ['#fef3c7', '#fb923c', '#dc2626'] as const
+
+/** Heatmap density stops above the transparent floor, shared with the legend for the same reason. */
+const HEATMAP_RAMP = ['#fde68a', '#fb923c', '#ef4444', '#7f1d1d'] as const
 
 const FALLBACK_COLORS = ['#0d9488', '#9333ea', '#ca8a04', '#0369a1', '#be185d', '#65a30d', '#ea580c', '#4f46e5']
 
-function hashName(name: string): number {
-  let hash = 0
-  for (let index = 0; index < name.length; index += 1) hash = ((hash << 5) - hash + name.charCodeAt(index)) | 0
-  return Math.abs(hash)
-}
-
 function getCategoryColor(category: string): string {
-  const key = category.toLowerCase()
-  return CATEGORY_COLORS[key] ?? FALLBACK_COLORS[hashName(category) % FALLBACK_COLORS.length]
+  return colorForKey(category, CATEGORY_COLORS, FALLBACK_COLORS)
 }
 
 function parseLitterDate(feature: OpenLitterPointFeature): Date | null {
@@ -158,11 +165,9 @@ function parseLitterDate(feature: OpenLitterPointFeature): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
+/** An unparseable source date is shown as given rather than hidden behind "Unknown". */
 function formatLitterDate(value: string | null): string {
-  if (!value) return 'Unknown'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  return formatDate(value, { fallback: value || 'Unknown' })
 }
 
 // OpenLitterMap ships raw snake_case / lowercase tags (e.g. "beer_can",
@@ -196,14 +201,6 @@ export function formatLitterName(name: string | null | undefined): string {
 function formatLitterNames(names: string[] | null | undefined, fallback = 'Unknown'): string {
   if (!names || names.length === 0) return fallback
   return names.map((name) => formatLitterName(name)).join(', ')
-}
-
-function formatBytes(value: number | null | undefined): string {
-  if (!Number.isFinite(value ?? NaN)) return 'Unknown size'
-  const bytes = Number(value)
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`
 }
 
 function getFeatureKey(feature: OpenLitterPointFeature): string {
@@ -659,7 +656,7 @@ export function OpenLitterMapSidebar({
                 { value: ALL_CATEGORIES, label: 'All categories' },
                 ...(manifest?.categories ?? []).map((category) => ({
                   value: category.name,
-                  label: `${formatLitterName(category.name)} (${category.litter.toLocaleString()})`,
+                  label: `${formatLitterName(category.name)} (${formatNumber(category.litter)})`,
                   selectedLabel: formatLitterName(category.name),
                 })),
               ]}
@@ -685,7 +682,7 @@ export function OpenLitterMapSidebar({
                   },
                   ...litter.objectOptions.map((object) => ({
                     value: object.name,
-                    label: `${formatLitterName(object.name)} (${object.litter.toLocaleString()})`,
+                    label: `${formatLitterName(object.name)} (${formatNumber(object.litter)})`,
                     selectedLabel: formatLitterName(object.name),
                   })),
                 ]}
@@ -696,19 +693,18 @@ export function OpenLitterMapSidebar({
           )}
 
           {objectFilterActive && (
-            <button
-              type="button"
-              onClick={() => litter.setSelectedObject(ALL_OBJECTS)}
-              className="text-xs font-medium text-rose-600 hover:underline dark:text-rose-400"
-            >
+            <TextButton tone="danger" onClick={() => litter.setSelectedObject(ALL_OBJECTS)}>
               Clear object filter
-            </button>
+            </TextButton>
           )}
 
-          <StatGrid
-            stats={[
-              { label: 'records', value: litter.filteredFeatures.length.toLocaleString() },
-              { label: 'items', value: litter.totalLitter.toLocaleString() },
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            columns={3}
+            items={[
+              { label: 'records', value: formatNumber(litter.filteredFeatures.length) },
+              { label: 'items', value: formatNumber(litter.totalLitter) },
               { label: 'period', value: dateLabel },
             ]}
           />
@@ -729,7 +725,7 @@ export function OpenLitterMapSidebar({
               <li key={`${contributor.name}-${contributor.team ?? ''}`} className="flex items-start justify-between gap-3">
                 <span className="min-w-0 truncate font-medium text-foreground">{contributor.name}</span>
                 <span className="shrink-0 text-right">
-                  {contributor.litter.toLocaleString()} items
+                  {formatNumber(contributor.litter)} items
                   {contributor.team ? <span className="block max-w-36 truncate text-xs">{contributor.team}</span> : null}
                 </span>
               </li>
@@ -747,7 +743,7 @@ export function OpenLitterMapSidebar({
               { label: 'Observed', value: formatLitterDate(litter.selectedFeature.properties.datetime) },
               { label: 'Objects', value: formatLitterNames(litter.selectedFeature.properties.objectNames) },
               { label: 'Materials', value: formatLitterNames(litter.selectedFeature.properties.materialNames) },
-              { label: 'Items', value: litter.selectedFeature.properties.litterCount.toLocaleString() },
+              { label: 'Items', value: formatNumber(litter.selectedFeature.properties.litterCount) },
               { label: 'Picked up', value: litter.selectedFeature.properties.pickedUp ? 'Yes' : 'No' },
               { label: 'Contributor', value: litter.selectedFeature.properties.name || 'Unknown' },
               { label: 'Username', value: litter.selectedFeature.properties.username || 'Unknown' },
@@ -836,11 +832,11 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
             ['linear'],
             ['coalesce', ['to-number', ['get', 'litterCount']], 0],
             0,
-            '#fef3c7',
+            HEX_COUNT_RAMP[0],
             maxHexLitter * 0.35,
-            '#fb923c',
+            HEX_COUNT_RAMP[1],
             maxHexLitter,
-            '#dc2626',
+            HEX_COUNT_RAMP[2],
           ]}
           fillOpacity={hexOpacity}
           lineColor="#991b1b"
@@ -870,10 +866,10 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
           ]}
           colorRamp={[
             [0, 'rgba(248, 113, 113, 0)'],
-            [0.2, '#fde68a'],
-            [0.45, '#fb923c'],
-            [0.7, '#ef4444'],
-            [1, '#7f1d1d'],
+            [0.2, HEATMAP_RAMP[0]],
+            [0.45, HEATMAP_RAMP[1]],
+            [0.7, HEATMAP_RAMP[2]],
+            [1, HEATMAP_RAMP[3]],
           ]}
         />
       )}
@@ -914,31 +910,33 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
         )
       })()}
 
+      {/* The phone card is rendered by the section, which owns the card stack. */}
       {litter.selectedFeature && (
-        <MapPopup
-          longitude={litter.selectedFeature.geometry.coordinates[0]}
-          latitude={litter.selectedFeature.geometry.coordinates[1]}
-          onClose={() => litter.setSelectedId(null)}
-        >
-          <div className="min-w-52 text-xs">
-            <div className="pr-5 text-sm font-semibold text-foreground">
-              {formatLitterNames(litter.selectedFeature.properties.categoryNames, 'Litter record')}
-            </div>
-            <div className="text-muted-foreground">{formatLitterDate(litter.selectedFeature.properties.datetime)}</div>
-            <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-              <span className="text-muted-foreground">Objects</span>
-              <span className="font-medium text-foreground">
-                {formatLitterNames(litter.selectedFeature.properties.objectNames)}
-              </span>
-              <span className="text-muted-foreground">Items</span>
-              <span className="font-medium text-foreground">{litter.selectedFeature.properties.litterCount}</span>
-              <span className="text-muted-foreground">Picked up</span>
-              <span className="font-medium text-foreground">
-                {litter.selectedFeature.properties.pickedUp ? 'Yes' : 'No'}
-              </span>
-            </div>
-          </div>
-        </MapPopup>
+        <ResponsiveFeatureDetail
+          popup={(
+            <MapPopup
+              longitude={litter.selectedFeature.geometry.coordinates[0]}
+              latitude={litter.selectedFeature.geometry.coordinates[1]}
+              onClose={() => litter.setSelectedId(null)}
+            >
+              <MapPopupCard
+                className="min-w-52"
+                title={formatLitterNames(litter.selectedFeature.properties.categoryNames, 'Litter record')}
+                subtitle={formatLitterDate(litter.selectedFeature.properties.datetime)}
+                onClose={() => litter.setSelectedId(null)}
+              >
+                <KeyValueRows
+                  variant="grid"
+                  rows={[
+                    { label: 'Objects', value: formatLitterNames(litter.selectedFeature.properties.objectNames) },
+                    { label: 'Items', value: formatNumber(litter.selectedFeature.properties.litterCount) },
+                    { label: 'Picked up', value: litter.selectedFeature.properties.pickedUp ? 'Yes' : 'No' },
+                  ]}
+                />
+              </MapPopupCard>
+            </MapPopup>
+          )}
+        />
       )}
     </>
   )
@@ -955,20 +953,15 @@ export function MobileOpenLitterMapFeatureCard({ litter }: { litter: OpenLitterM
       subtitle={formatLitterDate(feature.properties.datetime)}
       onClose={() => litter.setSelectedId(null)}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          {[
-            ['Objects', formatLitterNames(feature.properties.objectNames)],
-            ['Materials', formatLitterNames(feature.properties.materialNames)],
-            ['Items', feature.properties.litterCount.toLocaleString()],
-            ['Picked up', feature.properties.pickedUp ? 'Yes' : 'No'],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">{label}</span>
-              <span className="max-w-[12rem] text-right font-medium text-foreground">{value}</span>
-            </div>
-          ))}
-        </div>
+      <div className="rounded-md border border-border bg-background p-3 text-foreground">
+        <KeyValueRows
+          rows={[
+            { label: 'Objects', value: formatLitterNames(feature.properties.objectNames) },
+            { label: 'Materials', value: formatLitterNames(feature.properties.materialNames) },
+            { label: 'Items', value: formatNumber(feature.properties.litterCount) },
+            { label: 'Picked up', value: feature.properties.pickedUp ? 'Yes' : 'No' },
+          ]}
+        />
       </div>
     </MobileFeatureCard>
   )
@@ -978,26 +971,14 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
   return (
     <div className="w-full space-y-1.5 text-xs text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
       {litter.showHeatmap && (
-        <div className="space-y-1 border-b border-border pb-2">
-          <div className="px-1 text-xs font-medium text-foreground">Litter density</div>
-          <MapGradientLegendItem
-            className="px-1"
-            colors={['#fde68a', '#fb923c', '#ef4444', '#7f1d1d']}
-            minLabel="Low"
-            maxLabel="High"
-          />
-        </div>
+        <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2">
+          <MapGradientLegendItem colors={HEATMAP_RAMP} minLabel="Low" maxLabel="High" />
+        </MapLegendSection>
       )}
       {litter.showHexes && (
-        <div className="space-y-1 border-b border-border pb-2">
-          <div className="px-1 text-xs font-medium text-foreground">Hex item count</div>
-          <MapGradientLegendItem
-            className="px-1"
-            colors={['#fef2f2', '#fb923c', '#b91c1c']}
-            minLabel="Low"
-            maxLabel="High"
-          />
-        </div>
+        <MapLegendSection title="Hex item count" className="border-b border-border px-1 pb-2">
+          <MapGradientLegendItem colors={HEX_COUNT_RAMP} minLabel="Low" maxLabel="High" />
+        </MapLegendSection>
       )}
       {litter.showPoints && (
         <>
@@ -1009,7 +990,7 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
                 <li key={entry.name}>
                   <LegendItem
                     color={entry.color}
-                    label={`${formatLitterName(entry.name)} (${entry.litter.toLocaleString()})`}
+                    label={`${formatLitterName(entry.name)} (${formatNumber(entry.litter)})`}
                     active
                     className="md:gap-2"
                   />

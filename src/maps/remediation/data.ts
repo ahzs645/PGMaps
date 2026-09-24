@@ -38,12 +38,14 @@ export function filterSites(collection: SiteCollection, search: string): SiteCol
 }
 
 export async function loadRemediation(signal: AbortSignal) {
-  const base = REMEDIATION_R2_BASE
+  const base = import.meta.env.DEV ? `${import.meta.env.BASE_URL}__dev_remediation/` : REMEDIATION_R2_BASE
   let manifest: RemediationManifest
   try {
     manifest = await fetchJson<RemediationManifest>(`${base}map-manifest.json`, signal)
   } catch {
-    throw new Error('Remediation snapshot unavailable from R2. Try again later.')
+    throw new Error(import.meta.env.DEV
+      ? 'Local snapshot unavailable. Run npm run remediation:sync, then Retry.'
+      : 'Remediation snapshot unavailable from R2. Try again later.')
   }
   if (manifest.schemaVersion !== 1 || !/^sites-[a-f0-9]{64}\.geojson\.gz$/.test(manifest.resource)) {
     throw new Error('Unrecognized remediation snapshot manifest.')

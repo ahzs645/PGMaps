@@ -20,7 +20,6 @@ import {
   FileText,
   FolderKanban,
   Layers,
-  Search,
   Settings2,
   SlidersHorizontal,
   Trash2,
@@ -31,6 +30,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
+import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import {
   buildProjectLabUrl,
@@ -579,16 +579,15 @@ function ProjectCatalogPage({
 
               {/* One row at every width: search, type filter (icon-only on phones), import. */}
               <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_2.75rem]">
-                <div className="relative min-w-0">
-                  <Search className="pointer-events-none absolute left-3 top-3.5 sm:top-2.5 h-4 w-4 text-muted-foreground" />
-                  <input
-                    value={query}
-                    onChange={(event) => onQueryChange(event.target.value)}
-                    placeholder="Search projects"
-                    aria-label="Search projects"
-                    className="h-11 w-full rounded-md sm:h-9 border bg-background pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/25"
-                  />
-                </div>
+                <SearchInput
+                  icon
+                  wrapperClassName="min-w-0"
+                  value={query}
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder="Search projects"
+                  aria-label="Search projects"
+                  className="h-11 rounded-md py-0 sm:h-9"
+                />
                 <AppSelect
                   value={filter}
                   onValueChange={(value) => onFilterChange(value as CatalogFilter)}
@@ -636,9 +635,9 @@ function ProjectCatalogPage({
               </div>
             </div>
             {importError && (
-              <div className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              <InlineAlert tone="error" className="mt-3">
                 {importError}
-              </div>
+              </InlineAlert>
             )}
           </header>
 

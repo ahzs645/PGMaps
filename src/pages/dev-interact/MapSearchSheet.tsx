@@ -1,7 +1,8 @@
-import { Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { cn } from '@/lib/utils'
+import { SearchInput } from '@/components/ui/map-panels'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
 import { featureMatchesYearRange, layerLabel } from './geo'
 import type { InteractFeature, LayerId, YearRange } from './types'
@@ -182,25 +183,18 @@ function SearchBody({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={cn('shrink-0 border-b border-border p-3', mobilePrimary && 'border-b-0 px-3 pb-2 pt-3')}>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search map items..."
-            aria-label="Search map items"
-            className={cn(
-              'h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none focus:ring-1 focus:ring-ring',
-              mobilePrimary && 'border-rose-300 shadow-sm focus:ring-rose-300',
-            )}
-          />
-          {query ? (
-            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-muted" onClick={() => onQueryChange('')} aria-label="Clear search">
-              <X className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <SearchInput
+          ref={inputRef}
+          icon
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          onClear={() => onQueryChange('')}
+          placeholder="Search map items..."
+          aria-label="Search map items"
+          // Opened by its own button; keep the page search shortcut on the sidebar field.
+          data-map-search-input="false"
+          className={cn('h-10 rounded-md border-border', mobilePrimary && 'border-rose-300 shadow-sm focus:ring-rose-300')}
+        />
       </div>
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto py-2', mobilePrimary && 'pt-1')}>

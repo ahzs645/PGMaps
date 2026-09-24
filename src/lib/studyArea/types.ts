@@ -6,6 +6,7 @@ export type {
   BcRfcBoundaryLevel,
   BcerBoundaryLevel,
   CensusBoundaryLevel,
+  PostalBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,

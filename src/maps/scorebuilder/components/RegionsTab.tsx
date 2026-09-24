@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Download, Image as ImageIcon, Search } from 'lucide-react'
+import { Download, Image as ImageIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { CollapsibleSection, InlineAlert, SearchInput } from '@/components/ui/map-panels'
+import { EmptyHint, ListState } from '@/components/ui/result-list'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
@@ -91,17 +95,16 @@ export function RegionsTab({
     <div className={cn('space-y-3', className)} data-score-builder-section="regions">
       <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              data-map-search-input="true"
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange(event.target.value)}
-              placeholder="Search by code or name..."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-7 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
+          <SearchInput
+            icon
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            onClear={() => onSearchQueryChange('')}
+            placeholder="Search by code or name..."
+            aria-label="Search regions"
+            wrapperClassName="min-w-0 flex-1"
+            className="focus:ring-cyan-500 md:text-xs"
+          />
           <div className="flex gap-1">
             <button
               onClick={() => onExport('csv')}
@@ -159,48 +162,34 @@ export function RegionsTab({
       />
 
       {populationEquitySummary && (
-        <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">
-          <button
-            type="button"
-            onClick={() => setEquityOpen((current) => !current)}
-            aria-expanded={equityOpen}
-            className="flex w-full items-center justify-between gap-2 p-3 text-left"
-          >
-            <span
-              className={cn(
-                'min-w-0 text-xs font-semibold',
-                !equityOpen && 'line-clamp-1',
-              )}
-            >
-              {populationEquitySummary.narrative}
-            </span>
-            {equityOpen ? (
-              <ChevronUp className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
-            )}
-          </button>
-          {equityOpen && (
-            <div className="px-3 pb-3 text-xs text-cyan-800/80 dark:text-cyan-200/80">
-              {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
-              {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
-              {populationEquitySummary.priorityRegionCount} regions
-            </div>
-          )}
-        </div>
+        <CollapsibleSection
+          open={equityOpen}
+          onOpenChange={setEquityOpen}
+          label="Population equity"
+          // The one-line narrative while folded; the full sentence once open.
+          summary={equityOpen ? undefined : populationEquitySummary.narrative}
+          className="rounded-lg border border-cyan-200 bg-cyan-50/70 text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100"
+          contentClassName="px-3 pb-3 text-xs"
+        >
+          <p className="font-semibold">{populationEquitySummary.narrative}</p>
+          <p className="mt-1 text-cyan-800/80 dark:text-cyan-200/80">
+            {populationEquitySummary.priorityPopulation.toLocaleString(DEFAULT_LOCALE)} of{' '}
+            {populationEquitySummary.totalPopulation.toLocaleString(DEFAULT_LOCALE)} people ·{' '}
+            {populationEquitySummary.priorityRegionCount} regions
+          </p>
+        </CollapsibleSection>
       )}
 
       {dataErrors.length > 0 && (
-        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-          <p className="font-medium">Data loading issues</p>
+        <InlineAlert tone="error" title="Data loading issues" className="p-3">
           {dataErrors.map((err, i) => (
             <p key={i}>{err}</p>
           ))}
-        </div>
+        </InlineAlert>
       )}
 
       {comparisonRegions.length > 0 && (
-        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
+        <InlineAlert tone="warning" className="rounded-lg p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
               Compare ({comparisonRegions.length}/3)
@@ -255,7 +244,7 @@ export function RegionsTab({
               </div>
             </>
           )}
-        </div>
+        </InlineAlert>
       )}
 
       {selectedRegion && (
@@ -273,9 +262,9 @@ export function RegionsTab({
           </div>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-cyan-800 dark:text-cyan-200">
             <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
-            <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString()}</div>
-            <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
-            <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString()}</div>
+            <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString(DEFAULT_LOCALE)}</div>
+            <div>Parks: {selectedRegion.counts.parkCount.toLocaleString(DEFAULT_LOCALE)}</div>
+            <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString(DEFAULT_LOCALE)}</div>
             <div>Coverage: {(selectedRegion.dataCoverageScore * 100).toFixed(0)}%</div>
           </div>
           {selectedRegionDrivers.length > 0 && (
@@ -317,9 +306,7 @@ export function RegionsTab({
       )}
 
       {loading ? (
-        <div className="flex min-h-24 items-center justify-center text-sm text-muted-foreground">
-          Building region scores...
-        </div>
+        <ListState loading loadingLabel="Building region scores..." className="min-h-24" />
       ) : (
         <div className="space-y-2">
           {visibleRows.map((entry) => {
@@ -352,11 +339,7 @@ export function RegionsTab({
                           </>
                         )}
                       </span>
-                      {entry.dataCoverageScore < 0.6 && (
-                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                          Thin data
-                        </span>
-                      )}
+                      {entry.dataCoverageScore < 0.6 && <Badge tone="warning">Thin data</Badge>}
                     </div>
                     {selected && (
                       <>
@@ -398,14 +381,11 @@ export function RegionsTab({
               onClick={() => setPagination({ query: searchQuery, count: visibleCount + MAX_VISIBLE_REGION_ROWS })}
               className="w-full rounded-lg border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground"
             >
-              Show {Math.min(MAX_VISIBLE_REGION_ROWS, remainingRows)} more ({remainingRows.toLocaleString()} remaining)
+              Show {Math.min(MAX_VISIBLE_REGION_ROWS, remainingRows)} more (
+              {remainingRows.toLocaleString(DEFAULT_LOCALE)} remaining)
             </button>
           )}
-          {visibleRows.length === 0 && (
-            <div className="rounded border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-              No regions match this filter.
-            </div>
-          )}
+          {visibleRows.length === 0 && <EmptyHint className="p-3">No regions match this filter.</EmptyHint>}
         </div>
       )}
     </div>

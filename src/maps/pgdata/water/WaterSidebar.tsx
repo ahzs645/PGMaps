@@ -1,8 +1,11 @@
 import { Beaker, Building2, FlaskConical } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
-import { FilterChipGroup, SidebarSection } from '@/components/ui/map-panels'
+import { FilterChipGroup, KeyValueRows, SelectedItemCard, SidebarSection } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { AppSelect } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { StatGroup } from '@/components/ui/stat-group'
+import { TextButton } from '@/components/ui/text-button'
+import { formatNumber } from '@/lib/format'
 import { formatDate } from '../shared'
 import { WATER_HAZARD_DOT_COLORS, WATER_SOURCE_OPTIONS } from './constants'
 import { firstDate, firstString, formatMetricValue, formatUnknown } from './utils'
@@ -11,10 +14,7 @@ import { WaterSamplingReportModal } from './WaterSamplingReportModal'
 import type { WaterBoundaryLevel, WaterBoundarySource, WaterLayerMode, WaterPointCategory, WaterSampleKindFilter } from './types'
 import type { WaterState } from './useWaterData'
 
-const WATER_LAYER_OPTIONS: Array<{
-  value: WaterLayerMode
-  label: string
-}> = [
+const WATER_LAYER_OPTIONS: Array<{ value: WaterLayerMode; label: string }> = [
   { value: 'facilities', label: 'Facilities' },
   { value: 'samples', label: 'Samples' },
   { value: 'notices', label: 'Notices' },
@@ -56,12 +56,10 @@ export function WaterSidebar({ water }: { water: WaterState }) {
       />
 
       {(water.selectedBoundary || water.selectedFacility) && (
-        <section className="border-b border-border bg-background/95 p-4">
-          <div className="space-y-3">
+        <SidebarSection className="space-y-3">
           {water.selectedBoundary && <WaterBoundarySummary water={water} />}
           {water.selectedFacility && <WaterFacilityDetailCard water={water} />}
-          </div>
-        </section>
+        </SidebarSection>
       )}
 
       {water.layerMode !== 'notices' && (
@@ -76,7 +74,7 @@ export function WaterSidebar({ water }: { water: WaterState }) {
                 items={water.hazardOptions.map((rating) => ({
                   value: rating,
                   label: rating,
-                  count: (water.hazardCounts[rating] ?? 0).toLocaleString(),
+                  count: formatNumber(water.hazardCounts[rating] ?? 0),
                   color: getHazardDotColor(rating),
                 }))}
                 selectedValues={selectedHazardRatings}
@@ -94,7 +92,7 @@ export function WaterSidebar({ water }: { water: WaterState }) {
                 items={water.facilityTypeOptions.map((facilityType) => ({
                   value: facilityType,
                   label: facilityType,
-                  count: (water.facilityTypeCounts[facilityType] ?? 0).toLocaleString(),
+                  count: formatNumber(water.facilityTypeCounts[facilityType] ?? 0),
                   color: '#0284c7',
                 }))}
                 selectedValues={selectedFacilityTypes}
@@ -134,22 +132,23 @@ export function WaterSidebar({ water }: { water: WaterState }) {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded border border-border bg-background p-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Beaker className="h-3 w-3" />
-                  Bacteriological
-                </div>
-                <div className="mt-1 text-sm font-semibold text-foreground">{water.sampleKindCounts.bacteriological.toLocaleString()}</div>
-              </div>
-              <div className="rounded border border-border bg-background p-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <FlaskConical className="h-3 w-3" />
-                  Chemical
-                </div>
-                <div className="mt-1 text-sm font-semibold text-foreground">{water.sampleKindCounts.chemical.toLocaleString()}</div>
-              </div>
-            </div>
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={2}
+              items={[
+                {
+                  label: 'Bacteriological',
+                  value: formatNumber(water.sampleKindCounts.bacteriological),
+                  icon: <Beaker className="h-3.5 w-3.5" />,
+                },
+                {
+                  label: 'Chemical',
+                  value: formatNumber(water.sampleKindCounts.chemical),
+                  icon: <FlaskConical className="h-3.5 w-3.5" />,
+                },
+              ]}
+            />
           </div>
         </SidebarSection>
       )}
@@ -171,32 +170,7 @@ function WaterLayerTabs({
   return (
     <section className="border-b border-border p-4">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Water view</h3>
-      <div
-        role="tablist"
-        aria-label="Water data view"
-        className="grid grid-cols-3 rounded-lg border border-border bg-muted/40 p-0.5"
-      >
-        {WATER_LAYER_OPTIONS.map((option) => {
-          const active = value === option.value
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onChange(option.value)}
-              className={cn(
-                'rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
-                active
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
+      <SegmentedControl label="Water data view" value={value} options={WATER_LAYER_OPTIONS} onChange={onChange} />
     </section>
   )
 }
@@ -206,18 +180,18 @@ function WaterBoundarySummary({ water }: { water: WaterState }) {
   if (!properties) return null
   const scopeRows = water.layerMode === 'notices'
     ? [
-        { label: 'Active notices', value: properties.activeNotices.toLocaleString(), emphasis: true },
-        { label: 'Notice points', value: properties.facilityCount.toLocaleString() },
+        { label: 'Active notices', value: formatNumber(properties.activeNotices) },
+        { label: 'Notice points', value: formatNumber(properties.facilityCount) },
       ]
     : water.layerMode === 'samples'
       ? [
-          { label: 'Sample rows', value: properties.sampleRows.toLocaleString(), emphasis: true },
-          { label: 'Sample facilities', value: properties.facilityCount.toLocaleString() },
+          { label: 'Sample rows', value: formatNumber(properties.sampleRows) },
+          { label: 'Sample facilities', value: formatNumber(properties.facilityCount) },
           { label: 'Avg / facility', value: formatMetricValue(properties.avgSamplesPerFacility, 'avgSamplesPerFacility') },
         ]
       : [
-          { label: 'Facilities', value: properties.facilityCount.toLocaleString(), emphasis: true },
-          { label: 'Active notices', value: properties.activeNotices.toLocaleString() },
+          { label: 'Facilities', value: formatNumber(properties.facilityCount) },
+          { label: 'Active notices', value: formatNumber(properties.activeNotices) },
         ]
   const scopeLabel = water.layerMode === 'notices'
     ? 'Selected notice scope'
@@ -226,25 +200,11 @@ function WaterBoundarySummary({ water }: { water: WaterState }) {
       : 'Selected facility scope'
 
   return (
-    <div className="rounded-md border border-sky-200 bg-sky-50/80 p-3 text-xs text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-50">
-      <div className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">{scopeLabel}</div>
-      <div className="mt-1 font-semibold">{properties.boundaryName}</div>
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-        {scopeRows.map((row) => (
-          <div key={row.label} className="contents">
-            <span className="text-sky-800/75 dark:text-sky-200/75">{row.label}</span>
-            <span className={cn('text-right font-medium', row.emphasis && 'text-sky-950 dark:text-sky-50')}>{row.value}</span>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        className="mt-2 text-xs font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
-        onClick={() => water.setSelectedBoundaryId(null)}
-      >
+    <SelectedItemCard tone="sky" eyebrow={scopeLabel} title={properties.boundaryName} rows={scopeRows}>
+      <TextButton className="mt-2" onClick={() => water.setSelectedBoundaryId(null)}>
         Clear scope
-      </button>
-    </div>
+      </TextButton>
+    </SelectedItemCard>
   )
 }
 
@@ -268,26 +228,20 @@ function WaterFacilityDetailCard({ water }: { water: WaterState }) {
           <div className="font-semibold text-foreground">{facility.name}</div>
           <div className="mt-1 text-muted-foreground">{facility.community || facility.address || 'No locality provided'}</div>
         </div>
-        <button
-          type="button"
-          className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          onClick={() => water.setSelectedFacilityId(null)}
-        >
+        <TextButton tone="muted" onClick={() => water.setSelectedFacilityId(null)}>
           Clear
-        </button>
+        </TextButton>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1">
-        <span className="text-muted-foreground">Bacteriological</span>
-        <span className="text-right font-medium">{facility.bacteriologicalSamples.toLocaleString()}</span>
-        <span className="text-muted-foreground">Chemical</span>
-        <span className="text-right font-medium">{facility.chemicalResults.toLocaleString()}</span>
-        <span className="text-muted-foreground">All sample rows</span>
-        <span className="text-right font-medium">{sampleRows.toLocaleString()}</span>
-        <span className="text-muted-foreground">Active notices</span>
-        <span className="text-right font-medium">{facility.activeNotices.toLocaleString()}</span>
-        <span className="text-muted-foreground">Last sample</span>
-        <span className="text-right font-medium">{formatDate(facility.lastSampleDate?.toISOString())}</span>
-      </div>
+      <KeyValueRows
+        className="mt-3"
+        rows={[
+          { label: 'Bacteriological', value: formatNumber(facility.bacteriologicalSamples) },
+          { label: 'Chemical', value: formatNumber(facility.chemicalResults) },
+          { label: 'All sample rows', value: formatNumber(sampleRows) },
+          { label: 'Active notices', value: formatNumber(facility.activeNotices) },
+          { label: 'Last sample', value: formatDate(facility.lastSampleDate?.toISOString()) },
+        ]}
+      />
       {facility.geocodedAddress && (
         <div className="mt-2 border-t border-border pt-2 text-muted-foreground">
           {facility.geocodedAddress}
@@ -296,7 +250,7 @@ function WaterFacilityDetailCard({ water }: { water: WaterState }) {
       )}
       <button
         type="button"
-        className="mt-3 w-full rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700"
+        className="mt-3 w-full rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 touch:min-h-10"
         onClick={() => water.setShowSelectedFacilityReport(true)}
       >
         {reportButtonLabel}
@@ -318,20 +272,16 @@ function WaterFacilityDetailCard({ water }: { water: WaterState }) {
               <div className="font-medium capitalize text-foreground">{sample.kind}</div>
               <div className="text-muted-foreground">{formatDate(sample.date?.toISOString())}</div>
             </div>
-            <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
-              <span>Parameter</span>
-              <span className="text-right text-foreground">{sample.parameter || formatUnknown(sample.source.type)}</span>
-              <span>Result</span>
-              <span className="text-right text-foreground">{sample.result || formatUnknown(sample.source.value)}</span>
-              {sample.kind === 'bacteriological' && (
-                <>
-                  <span>Total coliform</span>
-                  <span className="text-right text-foreground">{formatUnknown(sample.source.total_coliform)}</span>
-                  <span>E. coli</span>
-                  <span className="text-right text-foreground">{formatUnknown(sample.source.e_coli)}</span>
-                </>
-              )}
-            </div>
+            <KeyValueRows
+              className="mt-1"
+              valueClassName="font-normal"
+              rows={[
+                { label: 'Parameter', value: sample.parameter || formatUnknown(sample.source.type) },
+                { label: 'Result', value: sample.result || formatUnknown(sample.source.value) },
+                sample.kind === 'bacteriological' && { label: 'Total coliform', value: formatUnknown(sample.source.total_coliform) },
+                sample.kind === 'bacteriological' && { label: 'E. coli', value: formatUnknown(sample.source.e_coli) },
+              ]}
+            />
           </div>
           ))}
         </WaterDetailSection>

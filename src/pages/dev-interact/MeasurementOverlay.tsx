@@ -2,9 +2,9 @@ import { Navigation, Redo, Undo, X } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMap } from '@/components/ui/map'
+import { StatGroup } from '@/components/ui/stat-group'
 import { cn } from '@/lib/utils'
 import { formatArea, formatDistance, measurementCanClose } from './geo'
-import { MeasurementValue } from './SmallControls'
 import type { MeasurementMode, MeasurementStats } from './types'
 
 export function MeasurementOverlay({
@@ -124,15 +124,24 @@ function DesktopMeasurementCard({
               : 'Measurement is visible only in this session.'}
           </div>
         </div>
-        <button type="button" className="rounded-md p-1.5 hover:bg-muted" onClick={onClearMeasurement} aria-label="Clear measurement">
+        <button type="button" className="rounded-md p-1.5 hover:bg-muted touch:p-2.5" onClick={onClearMeasurement} aria-label="Clear measurement">
           <X className="size-4" />
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {measurementShape === 'circle' && <MeasurementValue label="Radius" value={measurementStats?.radius ? formatDistance(measurementStats.radius) : '-'} />}
-        <MeasurementValue label={measurementShape === 'circle' ? 'Circumference' : 'Perimeter'} value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
-        <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
-      </div>
+      <StatGroup
+        variant="tiles"
+        size="sm"
+        align="start"
+        columns={2}
+        className="mt-3"
+        items={[
+          ...(measurementShape === 'circle'
+            ? [{ label: 'Radius', value: measurementStats?.radius ? formatDistance(measurementStats.radius) : '-' }]
+            : []),
+          { label: measurementShape === 'circle' ? 'Circumference' : 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
+          { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+        ]}
+      />
       {measurementMode === 'drawing' && (
         <Button size="sm" className="mt-3 w-full" disabled={!canClose} onClick={onFinishMeasurement}>
           {measurementShape === 'circle' ? 'Set circle' : 'Close polygon'}
@@ -282,10 +291,17 @@ function MobileMeasurementSheet({
               Add point
             </Button>
           ) : null}
-          <div className={cn('grid grid-cols-2 gap-2', measurementMode === 'drawing' && 'mt-3')}>
-            <MeasurementValue label="Perimeter" value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
-            <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
-          </div>
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            align="start"
+            columns={2}
+            className={cn(measurementMode === 'drawing' && 'mt-3')}
+            items={[
+              { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
+              { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+            ]}
+          />
         </div>
 
         <div role="toolbar" className="flex items-center gap-2 border-t border-border bg-muted/35 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">

@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clock3, Search, X } from 'lucide-react'
+import { Clock3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import {
+  FilterChipGroup,
+  InlineAlert,
+  KeyValueRows,
+  LegendItem,
+  MapLegendNote,
+  MapLegendPanel,
+  MapSidebarShell,
+  SearchInput,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { AppSelect } from '@/components/ui/select'
+import { StatGroup } from '@/components/ui/stat-group'
 import { cn } from '@/lib/utils'
 import {
   PROVINCE_NAMES,
@@ -29,30 +43,40 @@ interface MarkerCluster {
 
 const CLUSTER_RADIUS_PX = 54
 
-const STATUS_META: Record<WaitStatus, { label: string; swatch: string; marker: string }> = {
+const SOURCE_FILTERS: Array<{ value: SourceFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'official', label: 'Official' },
+  { value: 'predicted', label: 'Predicted' },
+  { value: 'none', label: 'No data' },
+  { value: 'closed', label: 'Closed' },
+]
+
+const LEGEND_STATUSES: WaitStatus[] = ['quick', 'moderate', 'packed', 'unknown', 'closed']
+
+const STATUS_META: Record<WaitStatus, { label: string; color: string; marker: string }> = {
   quick: {
     label: '< 2h',
-    swatch: 'bg-emerald-500',
+    color: '#10b981',
     marker: 'border-white bg-[#10b981] text-white',
   },
   moderate: {
     label: '2-5h',
-    swatch: 'bg-orange-500',
+    color: '#ea7a0a',
     marker: 'border-white bg-[#ea7a0a] text-white',
   },
   packed: {
     label: '5h+',
-    swatch: 'bg-red-500',
+    color: '#ef4444',
     marker: 'border-white bg-[#ef4444] text-white',
   },
   unknown: {
     label: 'No data',
-    swatch: 'bg-slate-400',
+    color: '#94a3b8',
     marker: 'border-white/80 bg-[#94a3b8] text-white opacity-90 dark:bg-slate-600 dark:text-slate-100',
   },
   closed: {
     label: 'Closed',
-    swatch: 'bg-slate-800',
+    color: '#1f2937',
     marker: 'border-red-500 bg-[#1f2937] text-white shadow-[0_0_0_3px_rgba(239,68,68,0.24)]',
   },
 }
@@ -123,125 +147,83 @@ function DevWait() {
   }, [filteredHospitals.length, hospitals])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <Clock3 className="size-4" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold leading-tight">ER wait times</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              ERStat-style wait labels using local captured hospital data.
-            </p>
-            <Link to="/dev/health/wait/specialist" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
-              Surgery specialist map
-            </Link>
-          </div>
-        </div>
-      </div>
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title="ER wait times"
+      subtitle={(
+        <>
+          ERStat-style wait labels using local captured hospital data.
+          <Link to="/dev/health/wait/specialist" className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400">
+            Surgery specialist map
+          </Link>
+        </>
+      )}
+      icon={Clock3}
+    >
+      <SidebarSection title="Search">
+        <SearchInput
+          id="wait-search"
+          icon
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
+          placeholder="Hospital or city"
+          aria-label="Search hospitals"
+        />
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <section className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="wait-search">
-            Search
-          </label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              id="wait-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Hospital or city"
-              className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-sky-500"
-            />
-          </div>
-        </section>
+      <SidebarSection title="Province">
+        <AppSelect
+          value={province}
+          onValueChange={setProvince}
+          options={[
+            { value: 'all', label: 'Canada' },
+            ...provinces.map((code) => ({ value: code, label: PROVINCE_NAMES[code] ?? code })),
+          ]}
+          triggerAriaLabel="Province"
+          className="w-full"
+          triggerClassName="h-9 rounded-md text-sm"
+        />
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Province</div>
-          <select
-            value={province}
-            onChange={(event) => setProvince(event.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-          >
-            <option value="all">Canada</option>
-            {provinces.map((code) => (
-              <option key={code} value={code}>{PROVINCE_NAMES[code] ?? code}</option>
-            ))}
-          </select>
-        </section>
+      <SidebarSection title="Markers">
+        <FilterChipGroup<SourceFilter>
+          layout="grid"
+          columns={2}
+          showDot={false}
+          items={SOURCE_FILTERS}
+          selectedValues={[source]}
+          onToggle={setSource}
+          selectedClassName="border-sky-500 text-sky-700 dark:text-sky-300"
+          chipClassName="justify-center rounded-md py-1.5"
+        />
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Markers</div>
-          <div className="grid grid-cols-2 gap-1">
-            {[
-              ['all', 'All'],
-              ['official', 'Official'],
-              ['predicted', 'Predicted'],
-              ['none', 'No data'],
-              ['closed', 'Closed'],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setSource(id as SourceFilter)}
-                aria-pressed={source === id}
-                className={cn(
-                  'rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                  source === id
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <h2 className="mb-2 text-sm font-semibold">Legend</h2>
-          <div className="space-y-2">
-            {(['quick', 'moderate', 'packed', 'unknown', 'closed'] as WaitStatus[]).map((status) => (
-              <div key={status} className="flex items-center gap-2 text-sm">
-                <span className={cn('size-3 rounded-sm', STATUS_META[status].swatch)} />
-                <span>{STATUS_META[status].label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-xs leading-4 text-muted-foreground">
-            Green, orange, and red are live wait thresholds. Gray pills are predicted or no-data markers. Dense areas collapse to dark count bubbles; click one to zoom in and split it into sub-clusters.
-          </p>
-        </section>
-
-        <section className="border-t border-border pt-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Visible" value={`${stats.visible}/${stats.total}`} />
-            <Stat label="Official" value={String(stats.live)} />
-            <Stat label="Predicted" value={String(stats.predicted)} />
-            <Stat label="Closed" value={String(stats.closed)} />
-          </div>
-          {stats.newest && (
-            <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-4 text-muted-foreground">
-              Latest timestamp: {stats.newest}
-            </div>
-          )}
-        </section>
-      </div>
-    </aside>
+      <SidebarSection>
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={2}
+          items={[
+            { label: 'Visible', value: `${stats.visible}/${stats.total}` },
+            { label: 'Official', value: String(stats.live) },
+            { label: 'Predicted', value: String(stats.predicted) },
+            { label: 'Closed', value: String(stats.closed) },
+          ]}
+        />
+        {stats.newest && (
+          <InlineAlert className="mt-3">Latest timestamp: {stats.newest}</InlineAlert>
+        )}
+      </SidebarSection>
+    </MapSidebarShell>
   )
 
   return (
     <MapSectionLayout
       desktopSidebarWidth={360}
       mobileInitialSheetState="collapsed"
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">{stats.visible} ER markers</div>
-          <div className="truncate text-xs text-muted-foreground">Wait-time labels and ER status</div>
-        </div>
-      )}
+      mobilePeekTitle={`${stats.visible} ER markers`}
+      mobilePeekSubtitle="Wait-time labels and ER status"
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -268,12 +250,23 @@ function DevWait() {
               <HospitalPopup hospitalItem={selected} onClose={() => setSelected(null)} />
             </MapPopup>
           )}
+
+          <MapLegendPanel title="Legend" collapsible defaultCollapsed="mobile" width="sm">
+            <div className="space-y-1 text-xs">
+              {LEGEND_STATUSES.map((status) => (
+                <LegendItem key={status} color={STATUS_META[status].color} label={STATUS_META[status].label} swatchShape="square" />
+              ))}
+            </div>
+            <MapLegendNote className="mt-2 px-0">
+              Green, orange, and red are live wait thresholds. Gray pills are predicted or no-data markers. Dense areas collapse to dark count bubbles; click one to zoom in and split it into sub-clusters.
+            </MapLegendNote>
+          </MapLegendPanel>
         </Map>
 
         {error && (
-          <div className="absolute left-3 top-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow">
+          <InlineAlert tone="error" className="absolute left-3 top-3 z-10 text-sm shadow">
             {error}
-          </div>
+          </InlineAlert>
         )}
       </div>
     </MapSectionLayout>
@@ -491,58 +484,34 @@ function markerPriority(hospitalItem: WaitHospital): number {
 
 function HospitalPopup({ hospitalItem, onClose }: { hospitalItem: WaitHospital; onClose: () => void }) {
   return (
-    <div className="w-72 overflow-hidden rounded-md bg-popover text-popover-foreground">
-      <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase text-muted-foreground">Emergency department</div>
-          <div className="mt-0.5 text-sm font-semibold leading-5">{hospitalItem.name}</div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {[hospitalItem.city, hospitalItem.province].filter(Boolean).join(', ')}
-          </div>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close popup">
-          <X className="size-4" />
-        </button>
+    <MapPopupCard
+      className="w-64"
+      eyebrow="Emergency department"
+      title={hospitalItem.name}
+      subtitle={[hospitalItem.city, hospitalItem.province].filter(Boolean).join(', ')}
+      onClose={onClose}
+      closeLabel="Close popup"
+    >
+      <div className={cn('rounded-md px-3 py-2 text-white', STATUS_META[hospitalItem.status].marker)}>
+        <div className="text-xs uppercase tracking-wide opacity-80">{sourceLabel(hospitalItem.source)}</div>
+        <div className="mt-0.5 text-xl font-semibold">{hospitalItem.waitLabel}</div>
       </div>
-      <div className="space-y-3 px-3 py-3">
-        <div className={cn('rounded-md px-3 py-2 text-white', STATUS_META[hospitalItem.status].marker)}>
-          <div className="text-xs uppercase tracking-wide opacity-80">{sourceLabel(hospitalItem.source)}</div>
-          <div className="mt-0.5 text-xl font-semibold">{hospitalItem.waitLabel}</div>
-        </div>
 
-        <div className="grid gap-1.5 text-sm">
-          <PopupRow label="Official wait" value={formatWait(hospitalItem.er_wait_minutes ?? hospitalItem.er_elos_minutes)} />
-          <PopupRow label="Predicted wait" value={formatWait(hospitalItem.predicted_wait_minutes)} />
-          <PopupRow label="Data source" value={hospitalItem.data_source ?? 'None'} />
-          <PopupRow label="Updated" value={hospitalItem.data_updated_at ?? hospitalItem.official_updated_at ?? hospitalItem.predicted_at ?? '--'} />
-          <PopupRow label="Status" value={hospitalItem.official_status ?? 'unknown'} />
-        </div>
+      <KeyValueRows
+        variant="divided"
+        rows={[
+          { label: 'Official wait', value: formatWait(hospitalItem.er_wait_minutes ?? hospitalItem.er_elos_minutes) },
+          { label: 'Predicted wait', value: formatWait(hospitalItem.predicted_wait_minutes) },
+          { label: 'Data source', value: hospitalItem.data_source ?? 'None' },
+          { label: 'Updated', value: hospitalItem.data_updated_at ?? hospitalItem.official_updated_at ?? hospitalItem.predicted_at ?? '--' },
+          { label: 'Status', value: hospitalItem.official_status ?? 'unknown' },
+        ]}
+      />
 
-        {(hospitalItem.official_status_message || hospitalItem.advisory_message) && (
-          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
-            {hospitalItem.official_status_message ?? hospitalItem.advisory_message}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function PopupRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[104px_minmax(0,1fr)] gap-2 border-b border-border/70 pb-1.5 last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate font-medium text-foreground">{value}</span>
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold">{value}</div>
-    </div>
+      {(hospitalItem.official_status_message || hospitalItem.advisory_message) && (
+        <InlineAlert>{hospitalItem.official_status_message ?? hospitalItem.advisory_message}</InlineAlert>
+      )}
+    </MapPopupCard>
   )
 }
 

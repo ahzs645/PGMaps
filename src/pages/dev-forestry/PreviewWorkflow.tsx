@@ -1,12 +1,16 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
+import { Button, type ButtonProps } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { ForestryScene } from './scene'
 import type { AnalysisState } from './useVisibilityAnalysis'
 import type { DrawMode } from './Sidebar'
 import { previewInputError, type SavedDriveView } from './previewState'
 import { lineLengthMeters } from './visibility'
 
-const button = 'rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50'
+function ActionButton({ className, ...props }: ButtonProps) {
+  return <Button variant="outline" size="sm" className={cn('touch:h-10', className)} {...props} />
+}
 type Props = {
   scene: ForestryScene
   analysis: AnalysisState
@@ -50,12 +54,12 @@ export function PreviewWorkflow(props: Props) {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className={button} onClick={props.onSample} disabled={busy}>
+        <ActionButton onClick={props.onSample} disabled={busy}>
           Try sample drive
-        </button>
-        <button className={button} onClick={props.onNew} disabled={busy || props.active}>
+        </ActionButton>
+        <ActionButton onClick={props.onNew} disabled={busy || props.active}>
           Start with my site
-        </button>
+        </ActionButton>
       </div>
       <input
         ref={file}
@@ -77,12 +81,12 @@ export function PreviewWorkflow(props: Props) {
             : 'No road selected'}
         </p>
         <div className="flex gap-2">
-          <button className={button} disabled={busy || props.active} onClick={() => props.onDraw('corridor')}>
+          <ActionButton disabled={busy || props.active} onClick={() => props.onDraw('corridor')}>
             Draw road
-          </button>
-          <button className={button} disabled={busy || props.active} onClick={() => select('road')}>
+          </ActionButton>
+          <ActionButton disabled={busy || props.active} onClick={() => select('road')}>
             Import road
-          </button>
+          </ActionButton>
         </div>
       </div>
       <div className="rounded-lg border p-3 space-y-2">
@@ -91,12 +95,12 @@ export function PreviewWorkflow(props: Props) {
           {blocks.length ? blocks.map((b) => b.name).join(', ') : 'No cutblocks selected'}
         </p>
         <div className="flex gap-2">
-          <button className={button} disabled={busy || props.active} onClick={() => props.onDraw('block')}>
+          <ActionButton disabled={busy || props.active} onClick={() => props.onDraw('block')}>
             Draw cutblock
-          </button>
-          <button className={button} disabled={busy || props.active} onClick={() => select('blocks')}>
+          </ActionButton>
+          <ActionButton disabled={busy || props.active} onClick={() => select('blocks')}>
             Import cutblocks
-          </button>
+          </ActionButton>
         </div>
         <p className="text-[11px] text-muted-foreground">
           GeoJSON or zipped shapefiles. Imports replace the selected road or proposed cutblocks.
@@ -109,28 +113,28 @@ export function PreviewWorkflow(props: Props) {
             added.
           </p>
           <div className="mt-2 flex gap-2">
-            <button
-              className={button}
+            <ActionButton
               disabled={props.pointCount < (props.drawMode === 'corridor' ? 2 : 3)}
               onClick={props.onFinish}
             >
               Finish drawing
-            </button>
-            <button className={button} onClick={() => props.onDraw('none')}>
+            </ActionButton>
+            <ActionButton onClick={() => props.onDraw('none')}>
               Cancel drawing
-            </button>
+            </ActionButton>
           </div>
         </div>
       )}
       {!props.active && (
         <div className="space-y-2">
-          <button
-            className={`${button} w-full bg-primary text-primary-foreground hover:bg-primary/90`}
+          <Button
+            size="sm"
+            className="w-full touch:h-10"
             disabled={!!error || busy || props.drawMode !== 'none'}
             onClick={props.onPreview}
           >
             {props.analysis.status === 'error' ? 'Retry preview' : busy ? 'Preparing preview…' : 'Preview drive'}
-          </button>
+          </Button>
           {error && <p className="text-xs text-muted-foreground">{error}</p>}
           {busy && (
             <div role="status" className="text-xs">
@@ -140,9 +144,9 @@ export function PreviewWorkflow(props: Props) {
                   ? ` · ${Math.round((100 * progress.completed) / progress.total)}%`
                   : '…'}
               </p>
-              <button className={`${button} mt-2`} onClick={props.onCancel}>
+              <ActionButton className="mt-2" onClick={props.onCancel}>
                 Cancel preparation
-              </button>
+              </ActionButton>
             </div>
           )}
         </div>
@@ -164,27 +168,27 @@ export function PreviewWorkflow(props: Props) {
           Save a viewpoint from the drive. Reopen it to compare both harvest phases from the same position.
         </p>
         {props.onReopenPrevious && (
-          <button className={button} onClick={props.onReopenPrevious}>
+          <ActionButton onClick={props.onReopenPrevious}>
             Reopen previous saved preview
-          </button>
+          </ActionButton>
         )}
         {props.views.map((view) => (
           <div key={view.id} className="flex items-center gap-2">
-            <button className={`${button} flex-1 text-left`} disabled={busy} onClick={() => props.onRestore(view)}>
+            <ActionButton className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10" disabled={busy} onClick={() => props.onRestore(view)}>
               {view.name} · {(view.positionMeters / 1000).toFixed(2)} km
-            </button>
-            <button className={button} aria-label={`Remove ${view.name}`} onClick={() => props.onRemoveView(view.id)}>
+            </ActionButton>
+            <ActionButton aria-label={`Remove ${view.name}`} onClick={() => props.onRemoveView(view.id)}>
               ×
-            </button>
+            </ActionButton>
           </div>
         ))}
         <div className="flex flex-wrap gap-2">
-          <button className={button} disabled={!!error} onClick={props.onExport}>
+          <ActionButton disabled={!!error} onClick={props.onExport}>
             Download preview
-          </button>
-          <button className={button} disabled={busy} onClick={() => select('preview')}>
+          </ActionButton>
+          <ActionButton disabled={busy} onClick={() => select('preview')}>
             Open saved preview
-          </button>
+          </ActionButton>
         </div>
         {props.storageWarning && <p role="alert">{props.storageWarning}</p>}
         <p className="text-[11px] text-muted-foreground">

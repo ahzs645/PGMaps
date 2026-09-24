@@ -24,6 +24,7 @@ const contentMappings = [
 ]
 
 const pathMappings = [
+  ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],
   ['datascrapers/bc/forest-map-sources/output/visual-inventory', 'forest/visual-inventory'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],
   ['datascrapers/manual/output/indicators', 'indicators'],

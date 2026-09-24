@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { SCORE_BUILDER_EXAMPLES } from '../constants'
 import { getDataSourceLabel } from './scoreBuilderPanelUtils'
@@ -43,12 +44,9 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
             </div>
             <div className="flex flex-wrap gap-1">
               {selectedExample.dataSources.map((ds) => (
-                <span
-                  key={ds}
-                  className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                >
+                <Badge key={ds} pill>
                   {getDataSourceLabel(ds)}
-                </span>
+                </Badge>
               ))}
             </div>
             <button
@@ -92,20 +90,15 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-sm font-semibold text-foreground">{example.label}</div>
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                        {levelLabel}
-                      </span>
+                      <Badge className="font-semibold">{levelLabel}</Badge>
                     </div>
                     <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">{example.question}</div>
                     <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{example.description}</div>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {example.dataSources.map((ds) => (
-                        <span
-                          key={ds}
-                          className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                        >
+                        <Badge key={ds} pill>
                           {getDataSourceLabel(ds)}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </button>

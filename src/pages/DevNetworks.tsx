@@ -8,8 +8,10 @@ import { Eye, EyeOff, Image, Layers, RadioTower, Shapes } from 'lucide-react'
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { fetchJson } from '@/lib/fetchJson'
+import { formatBytes, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { escapeHtml } from '@/lib/escapeHtml'
 
@@ -138,13 +140,7 @@ type BellRenderMode = 'raster' | 'polygon'
 type TileBoundingBox = [[number, number], [number, number]]
 type DeckTileIndex = { x: number; y: number; z: number }
 
-function formatBytes(bytes?: number | null) {
-  if (!Number.isFinite(bytes ?? NaN)) return 'unknown'
-  const value = Number(bytes)
-  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(2)} MB`
-  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`
-  return `${value} B`
-}
+const BYTES_FORMAT = { fallback: 'unknown', digits: 2 }
 
 function themedTooltipHtml(title: string, rows: Array<[string, string | number | undefined | null]>): string {
   return `
@@ -505,193 +501,183 @@ export default function DevNetworks() {
   }
 
   const sidebar = (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <RadioTower className="h-4 w-4" />
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold text-foreground">Network Coverage Dev Map</h1>
-              <p className="text-xs text-muted-foreground">TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG snapshots</p>
-            </div>
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title="Network Coverage Dev Map"
+      subtitle="TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG snapshots"
+      icon={RadioTower}
+      iconClassName="bg-primary text-primary-foreground"
+      titleClassName="text-base"
+    >
+      <SidebarSection
+        title="TELUS MVT"
+        icon={Layers}
+        actions={<span className="text-xs text-muted-foreground">{visibleTelusLayerIds.length} visible</span>}
+      >
+        <div className="space-y-1.5">
+          {TELUS_LAYERS.map((layer) => {
+            const active = visibleTelusLayerIds.includes(layer.id)
+            const stats = telusStatsById.get(layer.id)
+            const archiveBytes = stats?.archives?.find((archive) => archive.type === 'tar.gz')?.bytes
+            return (
+              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleTelusLayer(layer.id)}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{layer.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {stats?.stats?.saved ?? 'unknown'} saved tiles · {formatBytes(archiveBytes ?? stats?.stats?.bytes, BYTES_FORMAT)}
+                    </span>
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      </SidebarSection>
+
+      <SidebarSection
+        title="Rogers PNG"
+        icon={Layers}
+        actions={<span className="text-xs text-muted-foreground">{visibleRogersLayerIds.length} visible</span>}
+      >
+        <div className="space-y-1.5">
+          {ROGERS_LAYERS.map((layer) => {
+            const active = visibleRogersLayerIds.includes(layer.id)
+            const stats = rogersStatsById.get(layer.id)
+            const sourceZooms = stats?.configuredZoomRange?.from != null && stats?.configuredZoomRange?.to != null
+              ? `source z${stats.configuredZoomRange.from}-z${stats.configuredZoomRange.to}`
+              : 'source zoom unknown'
+            return (
+              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleRogersLayer(layer.id)}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{layer.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {formatNumber(stats?.stats?.downloaded, { fallback: 'unknown' })} saved tiles · {formatBytes(stats?.stats?.bytesSaved, BYTES_FORMAT)}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      pulled z{rogersManifest?.requested?.minZoom ?? ROGERS_RASTER_MIN_ZOOM}-z{rogersManifest?.requested?.maxZoom ?? ROGERS_RASTER_MAX_ZOOM} · {sourceZooms}
+                    </span>
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      </SidebarSection>
+
+      <SidebarSection
+        title="Bell PNG"
+        icon={Layers}
+        actions={(
+          <span className="text-xs text-muted-foreground">
+            {bellRenderMode === 'polygon' && visibleBellLoadingCount ? `${visibleBellLoadingCount} loading` : `${visibleBellLayerIds.length} visible`}
+          </span>
+        )}
+      >
+        <div className="mb-2 grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            className={layerButtonClass(bellRenderMode === 'raster')}
+            aria-pressed={bellRenderMode === 'raster'}
+            onClick={() => setBellRenderMode('raster')}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Image className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate font-medium">Raster tiles</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className={layerButtonClass(bellRenderMode === 'polygon')}
+            aria-pressed={bellRenderMode === 'polygon'}
+            onClick={() => setBellRenderMode('polygon')}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Shapes className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate font-medium">Polygon debug</span>
+            </span>
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          {BELL_LAYERS.map((layer) => {
+            const active = visibleBellLayerIds.includes(layer.id)
+            const stats = bellManifest?.layers?.find((manifestLayer) => manifestLayer.id === layer.id)?.polygonize
+            const state = bellDataById[layer.id]
+            return (
+              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleBellLayer(layer.id)}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{layer.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {bellRenderMode === 'raster'
+                        ? `PNG tiles · z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
+                        : state?.loading
+                        ? 'loading'
+                        : `${formatNumber(stats?.stats?.featureCount, { fallback: 'unknown' })} features · ${formatBytes(stats?.outputBytes, BYTES_FORMAT)}`}
+                    </span>
+                    {bellRenderMode === 'polygon' && state?.error && <span className="block truncate text-xs text-destructive">{state.error}</span>}
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      </SidebarSection>
+
+      <SidebarSection>
+        <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <div className="font-medium text-foreground">Visible Bell layers</div>
+          <div className="mt-1">
+            {visibleBellLayerIds.length} Bell layer{visibleBellLayerIds.length === 1 ? '' : 's'} ·{' '}
+            {visibleRogersLayerIds.length} Rogers layer{visibleRogersLayerIds.length === 1 ? '' : 's'} ·{' '}
+            {bellRenderMode === 'raster'
+              ? `deck.gl raster tiles, z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
+              : `${formatNumber(visibleBellFeatureCount)} loaded polygon rectangles`}
+          </div>
+          <div className="mt-1">
+            {bellRenderMode === 'raster'
+              ? 'This is the recommended web path: only visible PNG tiles are fetched.'
+              : 'Debug mode loads flat GeoJSON rectangles and should stay low-zoom only.'}
           </div>
         </div>
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Layers className="h-3.5 w-3.5" />
-                TELUS MVT
-              </h2>
-              <span className="text-xs text-muted-foreground">{visibleTelusLayerIds.length} visible</span>
-            </div>
-            <div className="space-y-1.5">
-              {TELUS_LAYERS.map((layer) => {
-                const active = visibleTelusLayerIds.includes(layer.id)
-                const stats = telusStatsById.get(layer.id)
-                const archiveBytes = stats?.archives?.find((archive) => archive.type === 'tar.gz')?.bytes
-                return (
-                  <button key={layer.id} type="button" className={layerButtonClass(active)} onClick={() => toggleTelusLayer(layer.id)}>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {stats?.stats?.saved ?? 'unknown'} saved tiles · {formatBytes(archiveBytes ?? stats?.stats?.bytes)}
-                        </span>
-                      </span>
-                    </span>
-                    {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Layers className="h-3.5 w-3.5" />
-                Rogers PNG
-              </h2>
-              <span className="text-xs text-muted-foreground">{visibleRogersLayerIds.length} visible</span>
-            </div>
-            <div className="space-y-1.5">
-              {ROGERS_LAYERS.map((layer) => {
-                const active = visibleRogersLayerIds.includes(layer.id)
-                const stats = rogersStatsById.get(layer.id)
-                const sourceZooms = stats?.configuredZoomRange?.from != null && stats?.configuredZoomRange?.to != null
-                  ? `source z${stats.configuredZoomRange.from}-z${stats.configuredZoomRange.to}`
-                  : 'source zoom unknown'
-                return (
-                  <button key={layer.id} type="button" className={layerButtonClass(active)} onClick={() => toggleRogersLayer(layer.id)}>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {stats?.stats?.downloaded?.toLocaleString() ?? 'unknown'} saved tiles · {formatBytes(stats?.stats?.bytesSaved)}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          pulled z{rogersManifest?.requested?.minZoom ?? ROGERS_RASTER_MIN_ZOOM}-z{rogersManifest?.requested?.maxZoom ?? ROGERS_RASTER_MAX_ZOOM} · {sourceZooms}
-                        </span>
-                      </span>
-                    </span>
-                    {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Layers className="h-3.5 w-3.5" />
-                Bell PNG
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {bellRenderMode === 'polygon' && visibleBellLoadingCount ? `${visibleBellLoadingCount} loading` : `${visibleBellLayerIds.length} visible`}
-              </span>
-            </div>
-            <div className="mb-2 grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                className={layerButtonClass(bellRenderMode === 'raster')}
-                onClick={() => setBellRenderMode('raster')}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <Image className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate font-medium">Raster tiles</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                className={layerButtonClass(bellRenderMode === 'polygon')}
-                onClick={() => setBellRenderMode('polygon')}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <Shapes className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate font-medium">Polygon debug</span>
-                </span>
-              </button>
-            </div>
-            <div className="space-y-1.5">
-              {BELL_LAYERS.map((layer) => {
-                const active = visibleBellLayerIds.includes(layer.id)
-                const stats = bellManifest?.layers?.find((manifestLayer) => manifestLayer.id === layer.id)?.polygonize
-                const state = bellDataById[layer.id]
-                return (
-                  <button key={layer.id} type="button" className={layerButtonClass(active)} onClick={() => toggleBellLayer(layer.id)}>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {bellRenderMode === 'raster'
-                            ? `PNG tiles · z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
-                            : state?.loading
-                            ? 'loading'
-                            : `${stats?.stats?.featureCount?.toLocaleString() ?? 'unknown'} features · ${formatBytes(stats?.outputBytes)}`}
-                        </span>
-                        {bellRenderMode === 'polygon' && state?.error && <span className="block truncate text-xs text-destructive">{state.error}</span>}
-                      </span>
-                    </span>
-                    {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <div className="font-medium text-foreground">Visible Bell layers</div>
-            <div className="mt-1">
-              {visibleBellLayerIds.length} Bell layer{visibleBellLayerIds.length === 1 ? '' : 's'} ·{' '}
-              {visibleRogersLayerIds.length} Rogers layer{visibleRogersLayerIds.length === 1 ? '' : 's'} ·{' '}
-              {bellRenderMode === 'raster'
-                ? `deck.gl raster tiles, z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
-                : `${visibleBellFeatureCount.toLocaleString()} loaded polygon rectangles`}
-            </div>
-            <div className="mt-1">
-              {bellRenderMode === 'raster'
-                ? 'This is the recommended web path: only visible PNG tiles are fetched.'
-                : 'Debug mode loads flat GeoJSON rectangles and should stay low-zoom only.'}
-            </div>
-          </section>
+      <div className="sticky bottom-0 border-t border-border bg-background px-4 py-3">
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 text-xs touch:h-10"
+            onClick={() => setVisibleTelusLayerIds(visibleTelusLayerIds.length ? [] : [...DEFAULT_TELUS_VISIBLE])}
+          >
+            {visibleTelusLayerIds.length ? 'Hide TELUS' : 'Show TELUS'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 text-xs touch:h-10"
+            onClick={() => setVisibleBellLayerIds(visibleBellLayerIds.length ? [] : [...DEFAULT_BELL_VISIBLE])}
+          >
+            {visibleBellLayerIds.length ? 'Hide Bell' : 'Show Bell'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="col-span-2 h-8 text-xs touch:h-10"
+            onClick={() => setVisibleRogersLayerIds(visibleRogersLayerIds.length ? [] : [...DEFAULT_ROGERS_VISIBLE])}
+          >
+            {visibleRogersLayerIds.length ? 'Hide Rogers' : 'Show Rogers'}
+          </Button>
         </div>
-
-      <div className="border-t border-border px-4 py-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={() => setVisibleTelusLayerIds(visibleTelusLayerIds.length ? [] : [...DEFAULT_TELUS_VISIBLE])}
-            >
-              {visibleTelusLayerIds.length ? 'Hide TELUS' : 'Show TELUS'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={() => setVisibleBellLayerIds(visibleBellLayerIds.length ? [] : [...DEFAULT_BELL_VISIBLE])}
-            >
-              {visibleBellLayerIds.length ? 'Hide Bell' : 'Show Bell'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="col-span-2 h-8 text-xs"
-              onClick={() => setVisibleRogersLayerIds(visibleRogersLayerIds.length ? [] : [...DEFAULT_ROGERS_VISIBLE])}
-            >
-              {visibleRogersLayerIds.length ? 'Hide Rogers' : 'Show Rogers'}
-            </Button>
-          </div>
-        </div>
-    </div>
+      </div>
+    </MapSidebarShell>
   )
 
   return (

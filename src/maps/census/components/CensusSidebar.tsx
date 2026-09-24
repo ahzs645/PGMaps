@@ -1,10 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { ChevronLeft, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
-import { MapSidebarShell, SearchInput, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  MapSidebarShell,
+  SearchInput,
+  SelectedItemCard,
+  SidebarSection,
+  StatGrid,
+} from '@/components/ui/map-panels'
+import { ListState, ResultRow } from '@/components/ui/result-list'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StickyListToolbar, useRevealBelowSticky } from '@/components/ui/sticky-list-toolbar'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { DATASETS } from '@/lib/dataCatalog'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
+import {
+  CENSUS_HIERARCHIES,
+  CENSUS_METRICS,
+  formatAreaSqKm,
+  formatMetricValue,
+  formatUnitLabel,
+  formatValue,
+} from '../constants'
+import { CensusUnitDetails } from './CensusUnitDetails'
 import type {
   CensusCatalog,
   CensusHierarchyLevel,
@@ -13,7 +34,6 @@ import type {
   CensusUnit,
   CensusVariableSelection,
 } from '../types'
-import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface CensusSidebarProps {
   className?: string
@@ -41,34 +61,14 @@ interface CensusSidebarProps {
   onClearVariable: () => void
 }
 
-const MAX_ROWS = 140
+type VariableTypeFilter = 'Total' | 'Male' | 'Female' | 'all'
 
-export function formatUnitLabel(unit: CensusUnit): string {
-  switch (unit.level) {
-    case 'cd':
-      return `CD ${unit.id}`
-    case 'csd':
-      return `${unit.name} (${unit.id})`
-    case 'ct':
-      return `CT ${unit.name}`
-    case 'da':
-      return `DA ${unit.id}`
-    case 'db':
-      return `DB ${unit.id}`
-    default:
-      return unit.id
-  }
-}
-
-export function formatArea(value: number): string {
-  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
-}
-
-export function formatValue(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return 'N/A'
-  if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
-}
+const VARIABLE_TYPE_OPTIONS = [
+  { value: 'Total', label: 'Total' },
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'all', label: 'All' },
+] as const
 
 export function CensusSidebar({
   className,
@@ -97,8 +97,10 @@ export function CensusSidebar({
 }: CensusSidebarProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [variableSearch, setVariableSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'Total' | 'Male' | 'Female' | 'all'>('Total')
+  const [typeFilter, setTypeFilter] = useState<VariableTypeFilter>('Total')
   const [showVariableBrowser, setShowVariableBrowser] = useState(false)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const selectedCardRef = useRef<HTMLDivElement>(null)
 
   const selectedMetricDef = useMemo(
     () => availableMetrics.find((metric) => metric.key === selectedMetric) || availableMetrics[0] || CENSUS_METRICS[0],
@@ -146,7 +148,7 @@ export function CensusSidebar({
   }, [filteredUnits])
 
   const sortedUnits = useMemo(() => {
-    const sorted = [...filteredUnits].sort((a, b) => {
+    return [...filteredUnits].sort((a, b) => {
       if (isVariableMode && variableValuesByGeoUid) {
         const av = variableValuesByGeoUid.get(a.id) ?? null
         const bv = variableValuesByGeoUid.get(b.id) ?? null
@@ -162,7 +164,6 @@ export function CensusSidebar({
       if (bv == null) return -1
       return bv - av
     })
-    return sorted.slice(0, MAX_ROWS)
   }, [filteredUnits, isVariableMode, selectedMetric, variableValuesByGeoUid])
 
   const activeVariableLabel = useMemo(() => {
@@ -190,13 +191,19 @@ export function CensusSidebar({
     return Array.from(groups.entries()).map(([name, cats]) => ({ name, categories: cats }))
   }, [catalog])
 
+  const rankLabel = isVariableMode ? activeVariableLabel || 'variable' : selectedMetricDef.label.toLowerCase()
+
+  // Selecting a unit on the map inserts its card above the list, out of view
+  // if the list was scrolled. Bring it in under the toolbar.
+  useRevealBelowSticky(toolbarRef, selectedCardRef, selectedUnit?.id)
+
   return (
     <MapSidebarShell
       className={className}
       title="Census Data Explorer"
       subtitle={
         catalog
-          ? `${catalog.totalVariables.toLocaleString()} variables across 5 geographic levels`
+          ? `${formatNumber(catalog.totalVariables)} variables across 5 geographic levels`
           : catalogLoading
             ? 'Loading catalog... across 5 geographic levels'
             : 'Census patterns across 5 geographic levels'
@@ -215,7 +222,7 @@ export function CensusSidebar({
       {/* Level & Metric selectors */}
       <div className="border-b border-border bg-background/95 px-4 py-3">
         <div className="mb-2 text-xs text-muted-foreground">
-          {filteredUnits.length} of {units.length} units
+          {formatNumber(filteredUnits.length)} of {formatNumber(units.length)} units
         </div>
         <div className="space-y-2">
           <AppSelect
@@ -238,9 +245,9 @@ export function CensusSidebar({
       {/* Variable browser toggle & active variable display */}
       <div className="border-b border-border bg-background/95 px-4 py-3">
         {selectedHierarchy === 'db' ? (
-          <div className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <InlineAlert>
             Census variables are suppressed at DB level for privacy. Use DA or higher for detailed variable data.
-          </div>
+          </InlineAlert>
         ) : (
           <>
             {isVariableMode && (
@@ -252,19 +259,20 @@ export function CensusSidebar({
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={onClearVariable}
-                  className="shrink-0 text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+                  className="shrink-0 rounded p-0.5 text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100 touch:p-2"
                   aria-label="Clear variable selection"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             )}
             {catalog ? (
               <button
+                type="button"
                 onClick={() => setShowVariableBrowser((v) => !v)}
+                aria-expanded={showVariableBrowser}
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                   showVariableBrowser
@@ -275,13 +283,11 @@ export function CensusSidebar({
                 {showVariableBrowser ? 'Hide Variable Browser' : 'Browse Census Variables...'}
               </button>
             ) : catalogLoading ? (
-              <div className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Loading census variable catalog...
-              </div>
+              <InlineAlert loading>Loading census variable catalog...</InlineAlert>
             ) : (
-              <div className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <InlineAlert tone={catalogError ? 'warning' : 'info'}>
                 {catalogError || 'Census variable catalog is not available.'} Core metrics above still work.
-              </div>
+              </InlineAlert>
             )}
           </>
         )}
@@ -301,6 +307,7 @@ export function CensusSidebar({
                   {group.categories.map((cat) => (
                     <button
                       key={cat.id}
+                      type="button"
                       onClick={() => {
                         setSelectedCategoryId(cat.id)
                         setVariableSearch('')
@@ -325,38 +332,35 @@ export function CensusSidebar({
               <div className="border-b border-border px-4 py-2">
                 <div className="mb-2 flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => setSelectedCategoryId(null)}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    className="rounded p-0.5 text-sm text-muted-foreground hover:text-foreground touch:p-2"
                     aria-label="Back to category list"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                   </button>
                   <span className="text-sm font-semibold text-foreground">{selectedCategory?.name}</span>
                   <span className="text-xs text-muted-foreground">({filteredVariables.length})</span>
                 </div>
-                <input
-                  type="text"
+                <SearchInput
                   value={variableSearch}
                   onChange={(e) => setVariableSearch(e.target.value)}
+                  onClear={() => setVariableSearch('')}
+                  icon
                   placeholder="Search variables..."
-                  className="mb-2 w-full rounded border border-input bg-background px-2 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  aria-label="Search variables"
+                  // The toolbar's unit search stays the target of the map's search shortcut.
+                  data-map-search-input="false"
+                  wrapperClassName="mb-2"
+                  className="focus:ring-amber-500"
                 />
-                <div className="flex gap-1">
-                  {(['Total', 'Male', 'Female', 'all'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTypeFilter(t)}
-                      className={cn(
-                        'rounded px-2 py-0.5 text-xs font-medium transition-colors',
-                        typeFilter === t ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:bg-accent',
-                      )}
-                    >
-                      {t === 'all' ? 'All' : t}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  label="Variable type"
+                  size="sm"
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  options={VARIABLE_TYPE_OPTIONS}
+                />
               </div>
               <div>
                 {variableLoading && <div className="px-4 py-2 text-xs text-muted-foreground">Loading data...</div>}
@@ -365,6 +369,8 @@ export function CensusSidebar({
                   return (
                     <button
                       key={v.id}
+                      type="button"
+                      aria-pressed={isActive}
                       onClick={() => {
                         onVariableSelect(selectedCategoryId!, v.id)
                       }}
@@ -391,114 +397,101 @@ export function CensusSidebar({
         </div>
       )}
 
-      {/* Search */}
-      <SidebarSection>
-        <SearchInput
-          value={searchQuery}
-          onChange={(event) => onSearchQueryChange(event.target.value)}
-          placeholder={`Search ${selectedHierarchyDef.label}...`}
-          className="focus:ring-amber-500"
-        />
-      </SidebarSection>
-
       {/* Summary stats */}
       <SidebarSection className="px-4 py-3">
         <StatGrid
           stats={[
-            { label: 'units', value: filteredUnits.length.toLocaleString(), valueClassName: 'text-base' },
-            { label: 'population', value: totals.population.toLocaleString(), valueClassName: 'text-base' },
-            { label: 'km² area', value: formatArea(totals.areaSqKm), valueClassName: 'text-base' },
+            { label: 'units', value: formatNumber(filteredUnits.length), valueClassName: 'text-base' },
+            { label: 'population', value: formatNumber(totals.population), valueClassName: 'text-base' },
+            { label: 'km² area', value: formatAreaSqKm(totals.areaSqKm), valueClassName: 'text-base' },
           ]}
         />
       </SidebarSection>
 
+      {/* Search stays reachable while the unit list scrolls. */}
+      <StickyListToolbar
+        ref={toolbarRef}
+        search={
+          <SearchInput
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            onClear={() => onSearchQueryChange('')}
+            icon
+            placeholder={`Search ${selectedHierarchyDef.label}...`}
+            aria-label={`Search ${selectedHierarchyDef.label}`}
+            className="focus:ring-amber-500"
+          />
+        }
+        count={
+          !loading && !error ? (
+            <>
+              {formatNumber(sortedUnits.length)} {sortedUnits.length === 1 ? 'unit' : 'units'} · top by {rankLabel}
+            </>
+          ) : undefined
+        }
+      />
+
       {/* Selected unit detail */}
       {selectedUnit && (
-        <SidebarSection>
-          <SelectedItemCard
-            tone="amber"
-            title={formatUnitLabel(selectedUnit)}
-            subtitle={selectedHierarchyDef.label}
-            onClear={onClearSelection}
-            clearLabel="Clear selected unit"
-          >
-            {isVariableMode ? (
-              <div>
-                <div className="text-xs text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
-                <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-                  {formatValue(getUnitVariableValue(selectedUnit))}
-                </div>
-                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{activeVariableLabel}</div>
-              </div>
-            ) : (
-              <div>
-                <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-                  {formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
-                </div>
-                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{selectedMetricDef.label}</div>
-              </div>
-            )}
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-amber-800 dark:text-amber-300">
-              <div>Area: {formatArea(selectedUnit.areaSqKm || 0)} km²</div>
-              <div>Pop: {(selectedUnit.population || 0).toLocaleString()}</div>
-              <div>Households: {(selectedUnit.households || 0).toLocaleString()}</div>
-              <div>Dwellings: {(selectedUnit.dwellings || 0).toLocaleString()}</div>
-              <div>DA count: {selectedUnit.daCount.toLocaleString()}</div>
-              <div>DB count: {selectedUnit.dbCount.toLocaleString()}</div>
-            </div>
-          </SelectedItemCard>
-        </SidebarSection>
+        <div ref={selectedCardRef}>
+          <SidebarSection>
+            <SelectedItemCard
+              tone="amber"
+              title={formatUnitLabel(selectedUnit)}
+              subtitle={selectedHierarchyDef.label}
+              onClear={onClearSelection}
+              clearLabel="Clear selected unit"
+            >
+              <CensusUnitDetails
+                className="mt-2"
+                unit={selectedUnit}
+                isVariableMode={isVariableMode}
+                metricLabel={selectedMetricDef.label}
+                metricValue={formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
+                variableCategoryName={activeCategoryName}
+                variableLabel={activeVariableLabel}
+                variableValue={getUnitVariableValue(selectedUnit)}
+              />
+            </SelectedItemCard>
+          </SidebarSection>
+        </div>
       )}
 
       {/* Unit list */}
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading census data...
-        </div>
-      ) : error ? (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <div className="text-center text-sm text-red-500">
-            <p className="font-medium">Error loading census data</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-            <span>
-              Top units by {isVariableMode ? activeVariableLabel || 'variable' : selectedMetricDef.label.toLowerCase()}
-            </span>
-            {filteredUnits.length > MAX_ROWS && <span>Showing {MAX_ROWS}</span>}
-          </div>
-          <div className="divide-y divide-border">
-            {sortedUnits.map((unit) => {
-              const isSelected = selectedUnit?.id === unit.id
-              const displayValue = isVariableMode
-                ? formatValue(getUnitVariableValue(unit))
-                : formatMetricValue(unit[selectedMetric], selectedMetricDef.format)
-
-              return (
-                <button
-                  key={`${unit.level}-${unit.id}`}
-                  onClick={() => onUnitClick(unit)}
-                  className={cn(
-                    'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                    isSelected && 'bg-amber-50 dark:bg-amber-950/30',
-                  )}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-foreground">{formatUnitLabel(unit)}</span>
-                    <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{displayValue}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Area {formatArea(unit.areaSqKm || 0)} km² | DA {unit.daCount} | DB {unit.dbCount}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <ListState
+        loading={loading}
+        loadingLabel="Loading census data..."
+        error={error}
+        errorTitle="Error loading census data"
+        empty={sortedUnits.length === 0}
+        emptyLabel="No units match this search."
+        onReset={searchQuery ? () => onSearchQueryChange('') : undefined}
+        resetLabel="Clear search"
+      >
+        <VirtualResultList
+          items={sortedUnits}
+          getKey={(unit) => `${unit.level}-${unit.id}`}
+          estimateSize={64}
+          label="Census units"
+        >
+          {(unit) => (
+            <ResultRow
+              accent="amber"
+              selected={selectedUnit?.id === unit.id}
+              onClick={() => onUnitClick(unit)}
+              title={formatUnitLabel(unit)}
+              subtitle={`Area ${formatAreaSqKm(unit.areaSqKm)} km² · DA ${formatNumber(unit.daCount)} · DB ${formatNumber(unit.dbCount)}`}
+              trailing={
+                <span className="text-amber-600 dark:text-amber-400">
+                  {isVariableMode
+                    ? formatValue(getUnitVariableValue(unit))
+                    : formatMetricValue(unit[selectedMetric], selectedMetricDef.format)}
+                </span>
+              }
+            />
+          )}
+        </VirtualResultList>
+      </ListState>
     </MapSidebarShell>
   )
 }

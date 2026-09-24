@@ -1,16 +1,13 @@
+import { Badge } from '@/components/ui/badge'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { RecordDialog } from '@/components/ui/record-dialog'
+import { StatGroup, type StatItem } from '@/components/ui/stat-group'
 import { formatDate } from '../shared'
 import { firstDate, firstString, formatUnknown, getNoticeDetailsUrl, parseSampleLocation } from './utils'
 import { EmptyWaterDetail, WaterNoticeCard } from './WaterDetails'
 import type { WaterSampleRow } from './types'
 import type { WaterState } from './useWaterData'
-
-type ModalStat = {
-  label: string
-  value: string
-  compact?: boolean
-}
 
 export function WaterSamplingReportModal({ water, onClose }: { water: WaterState; onClose: () => void }) {
   const facility = water.selectedFacility
@@ -31,118 +28,70 @@ export function WaterSamplingReportModal({ water, onClose }: { water: WaterState
     : water.layerMode === 'samples'
       ? 'Sampling report'
       : 'Facility report'
-  const modalStats: ModalStat[] = water.layerMode === 'notices'
+  const modalStats: StatItem[] = water.layerMode === 'notices'
     ? [
-        { label: 'Active notices', value: water.selectedFacilityNotices.length.toLocaleString() },
-        { label: 'Source records', value: sourceRecordCount.toLocaleString() },
-        { label: 'HealthSpace', value: healthSpaceNoticeCount.toLocaleString() },
-        { label: 'WaterToday', value: waterTodayNoticeCount.toLocaleString() },
+        { label: 'Active notices', value: formatNumber(water.selectedFacilityNotices.length) },
+        { label: 'Source records', value: formatNumber(sourceRecordCount) },
+        { label: 'HealthSpace', value: formatNumber(healthSpaceNoticeCount) },
+        { label: 'WaterToday', value: formatNumber(waterTodayNoticeCount) },
         { label: 'Earliest', value: formatDate(earliestNoticeDate?.toISOString()), compact: true },
       ]
     : water.layerMode === 'samples'
       ? [
-          { label: 'Samples', value: sampleRows.toLocaleString() },
-          { label: 'Bacteriological', value: facility.bacteriologicalSamples.toLocaleString() },
-          { label: 'Chemical', value: facility.chemicalResults.toLocaleString() },
-          { label: 'Notices', value: facility.activeNotices.toLocaleString() },
+          { label: 'Samples', value: formatNumber(sampleRows) },
+          { label: 'Bacteriological', value: formatNumber(facility.bacteriologicalSamples) },
+          { label: 'Chemical', value: formatNumber(facility.chemicalResults) },
+          { label: 'Notices', value: formatNumber(facility.activeNotices) },
           { label: 'Latest', value: formatDate(facility.lastSampleDate?.toISOString()), compact: true },
         ]
       : [
-          { label: 'Samples', value: sampleRows.toLocaleString() },
-          { label: 'Notices', value: facility.activeNotices.toLocaleString() },
-          { label: 'History rows', value: water.selectedFacilityInspections.length.toLocaleString() },
+          { label: 'Samples', value: formatNumber(sampleRows) },
+          { label: 'Notices', value: formatNumber(facility.activeNotices) },
+          { label: 'History rows', value: formatNumber(water.selectedFacilityInspections.length) },
           { label: 'Hazard', value: facility.hazardRating || 'Unknown', compact: true },
           { label: 'Connection size', value: facility.type || 'Unknown', compact: true },
         ]
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent variant="sheet" elevated showClose={false} className="sm:max-w-5xl sm:max-h-[92dvh]">
-        <div className="shrink-0 border-b border-border bg-background/90 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{reportLabel}</div>
-              <DialogTitle className="truncate text-xl font-bold text-foreground">{facility.name}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-muted-foreground">{facility.community || facility.address || facility.geocodedAddress || 'No locality provided'}</DialogDescription>
-              {facility.geocodedAddress && (
-                <p className="mt-1 text-xs text-muted-foreground">{facility.geocodedAddress}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close sampling report"
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {modalStats.map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-                <div className={cn('font-bold text-foreground', stat.compact ? 'text-lg' : 'text-2xl')}>{stat.value}</div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+    <RecordDialog
+      size="xl"
+      eyebrow={reportLabel}
+      title={facility.name}
+      subtitle={
+        <>
+          {facility.community || facility.address || facility.geocodedAddress || 'No locality provided'}
+          {facility.geocodedAddress && <span className="mt-1 block text-xs">{facility.geocodedAddress}</span>}
+        </>
+      }
+      closeLabel="Close sampling report"
+      source={facility.primarySource || (facility.noticeOnly ? 'WaterToday / HealthSpace combined notices' : 'Northern Health Authority HealthSpace')}
+      sourceHref={detailsUrl || undefined}
+      onClose={onClose}
+      summary={<StatGroup variant="tiles" items={modalStats} />}
+    >
+      {water.layerMode === 'notices' ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)]">
+          <NoticeSection water={water} />
+          <aside className="space-y-6">
+            <FacilityContextSection water={water} />
+            <FacilityHistorySection water={water} />
+          </aside>
         </div>
-
-        <div className="flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6">
-          {water.layerMode === 'notices' ? (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)]">
-              <NoticeSection water={water} />
-              <aside className="space-y-6">
-                <FacilityContextSection water={water} />
-                <FacilityHistorySection water={water} />
-              </aside>
-            </div>
-          ) : water.layerMode === 'samples' ? (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.45fr)]">
-              <SamplingSection water={water} />
-              <aside className="space-y-6">
-                <NoticeSection water={water} />
-                <FacilityHistorySection water={water} />
-              </aside>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <FacilityContextSection water={water} />
-              <FacilityHistorySection water={water} />
-            </div>
-          )}
+      ) : water.layerMode === 'samples' ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.45fr)]">
+          <SamplingSection water={water} />
+          <aside className="space-y-6">
+            <NoticeSection water={water} />
+            <FacilityHistorySection water={water} />
+          </aside>
         </div>
-
-        <div className="shrink-0 border-t border-border bg-background/90 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">
-              Data from {facility.primarySource || (facility.noticeOnly ? 'WaterToday / HealthSpace combined notices' : 'Northern Health Authority HealthSpace')}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {detailsUrl && (
-                <a
-                  href={detailsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                >
-                  View source
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="inline-flex items-center justify-center rounded-lg border border-input bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+      ) : (
+        <div className="space-y-6">
+          <FacilityContextSection water={water} />
+          <FacilityHistorySection water={water} />
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </RecordDialog>
   )
 }
 
@@ -150,7 +99,7 @@ function SectionHeading({ title, count }: { title: string; count?: number }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      {count != null && <span className="text-xs tabular-nums text-muted-foreground">{count.toLocaleString()}</span>}
+      {count != null && <span className="text-xs tabular-nums text-muted-foreground">{formatNumber(count)}</span>}
     </div>
   )
 }
@@ -276,14 +225,9 @@ function WaterSamplingGridRow({ sample }: { sample: WaterSampleRow }) {
         {formatDate(sample.date?.toISOString())}
       </td>
       <td className="border-b border-border/70 px-3 py-2">
-        <span className={cn(
-          'inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize',
-          sample.kind === 'chemical'
-            ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-200'
-            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
-        )}>
+        <Badge tone={sample.kind === 'chemical' ? 'cyan' : 'info'} size="sm" pill className="capitalize">
           {sample.kind}
-        </span>
+        </Badge>
       </td>
       <td className="border-b border-border/70 px-3 py-2 font-medium text-foreground">
         {sample.parameter || 'Unknown parameter'}
