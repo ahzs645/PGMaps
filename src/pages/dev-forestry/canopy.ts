@@ -31,6 +31,8 @@ export type CanopyStand = {
    * Optional: screening does not care what the trees are, only how tall.
    */
   speciesCode?: string | null
+  /** Live stems per hectare, for drawing only; screening does not use it. */
+  stemsPerHa?: number | null
   geometry: PolygonGeometry
 }
 

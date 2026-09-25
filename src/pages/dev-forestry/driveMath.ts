@@ -78,5 +78,17 @@ export function smoothAngle(previous: number, next: number, amount: number): num
   return (previous + delta * amount + 360) % 360
 }
 
+/**
+ * How far from dead level the camera is kept. A pitch of exactly 90° (looking
+ * straight at the horizon) crashed the renderer outright in testing: a level
+ * view from a 360° photo did it every time, and a road whose look-ahead grade
+ * came out at exactly zero would too. A tenth of a degree down is invisible.
+ */
+export const HORIZON_MARGIN_DEGREES = 0.1
+
+export function horizonSafePitch(pitch: number): number {
+  return Math.abs(pitch - 90) < HORIZON_MARGIN_DEGREES ? 90 - HORIZON_MARGIN_DEGREES : pitch
+}
+
 /** Preview travel speeds, not inferred posted road limits. */
 export const DRIVE_SPEEDS_KMH = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]

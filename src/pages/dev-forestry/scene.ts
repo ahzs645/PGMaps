@@ -7,6 +7,7 @@
 import { geometryBounds, type BBox } from '@/lib/geo'
 import type { InventoryEvidence } from './types'
 import type { FormMetadata } from './pdf/fs1252'
+import { parseViaReview, type ViaReview } from './via'
 
 import { polygonAreaMeters, polygonBounds } from './visibility'
 import {
@@ -35,6 +36,8 @@ export type ForestryScene = {
   assessmentYear?: number
   harvestInventory?: InventoryEvidence
   reportMetadata?: FormMetadata
+  /** The reviewer's handbook step 2–5 judgements. A record of review, not an input to the run. */
+  viaReview?: ViaReview
   viewpoint: Viewpoint
   targets: TargetPolygon[]
   settings: AnalysisSettings
@@ -52,7 +55,8 @@ export function createEmptyScene(): ForestryScene {
   return {
     activeLandformId: null,
     assessmentYear: new Date().getFullYear(),
-    viewpoint: { id: createId('viewpoint'), name: 'Viewpoint', mode: 'spot', coordinates: [] },
+    // A road, not a spot: the road view and most assessments are written from one.
+    viewpoint: { id: createId('viewpoint'), name: 'Viewpoint', mode: 'corridor', coordinates: [] },
     targets: [],
     settings: { ...DEFAULT_ANALYSIS_SETTINGS },
     thresholds: { ...DEFAULT_VISUAL_QUALITY_THRESHOLDS },
@@ -346,6 +350,7 @@ type SerializedScene = {
   assessmentYear?: number
   harvestInventory?: InventoryEvidence
   reportMetadata?: FormMetadata
+  viaReview?: ViaReview
   version: 1
   viewpoint: Viewpoint
   targets: TargetPolygon[]
@@ -401,6 +406,10 @@ function parseThresholds(raw: unknown): VisualQualityThresholds {
  * A saved scene outliving a change to the settings shape should cost the user
  * the setting, not the scene.
  */
+function percentOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null
+}
+
 export function parseScene(input: unknown): ForestryScene | null {
   if (!input || typeof input !== 'object') return null
   const raw = input as Partial<SerializedScene>
@@ -428,6 +437,15 @@ export function parseScene(input: unknown): ForestryScene | null {
             siteDisturbance: target.siteDisturbance === true,
             recoveryPercent: typeof target.recoveryPercent === 'number' && Number.isFinite(target.recoveryPercent) ? Math.max(0, Math.min(100, target.recoveryPercent)) : null,
             inventoryUnitId: typeof target.inventoryUnitId === 'string' ? target.inventoryUnitId : null,
+            ...(target.harvestSystem === 'retention' || target.harvestSystem === 'partial'
+              ? { harvestSystem: target.harvestSystem }
+              : {}),
+            retentionPercent: percentOrNull(target.retentionPercent),
+            volumeRemovedPercent: percentOrNull(target.volumeRemovedPercent),
+            residualHeightMeters:
+              typeof target.residualHeightMeters === 'number' && target.residualHeightMeters > 0 && target.residualHeightMeters < 100
+                ? target.residualHeightMeters
+                : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -450,6 +468,7 @@ export function parseScene(input: unknown): ForestryScene | null {
     assessmentYear: numeric(raw.assessmentYear, base.assessmentYear ?? new Date().getFullYear()),
     harvestInventory: raw.harvestInventory && ['complete', 'partial', 'unavailable', 'not-requested', 'scenario-only'].includes(raw.harvestInventory.status) ? raw.harvestInventory : undefined,
     reportMetadata: raw.reportMetadata && typeof raw.reportMetadata === 'object' ? Object.fromEntries(Object.entries(raw.reportMetadata).filter(([, value]) => typeof value === 'string')) : {},
+    viaReview: parseViaReview(raw.viaReview),
     settings: {
       demZoom: numeric(raw.settings?.demZoom, base.settings.demZoom),
       observerHeightMeters: numeric(raw.settings?.observerHeightMeters, base.settings.observerHeightMeters),

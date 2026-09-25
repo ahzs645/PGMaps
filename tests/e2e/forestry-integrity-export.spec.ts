@@ -16,7 +16,9 @@ async function openScenario(page: Page) {
   const scene = { ...input, version: 1, viewpoint: { ...input.viewpoint, id: 'test-road', name: 'Integration test road' }, thresholds: DEFAULT_VISUAL_QUALITY_THRESHOLDS }
   await page.addInitScript(scene => localStorage.setItem('pgmaps.forestry-visual-quality.v1', JSON.stringify(scene)), scene)
   await page.goto(routePath)
-  await page.getByText('Advanced assessment & settings', { exact: true }).click()
+  // The handbook steps are tabs; the run is in step 3.
+  await expect(page.locator('[data-via-step]')).toHaveCount(5)
+  await page.locator('[data-via-step="design"]').click()
   await page.getByRole('button', { name: 'Run visibility', exact: true }).click()
   await expect(page.getByText('Scenario numerical fields available', { exact: true })).toBeVisible({ timeout: 120_000 })
 }
@@ -46,6 +48,7 @@ test('road preview has finite real camera state and restores map controls', asyn
   await openScenario(page)
   const before = await cameraState(page)
   expect(before).not.toBeNull()
+  await page.locator('[data-via-step="visit"]').click()
   await page.getByRole('button', { name: 'Look from the road', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible()
   await expect.poll(async () => (await cameraState(page))?.terrain).toBe(true)
@@ -69,8 +72,7 @@ test('a scenario edit withholds stale PDF export until a new run', async ({ page
 test('PDF button downloads the historical template with embedded scenario record', async ({ page }) => {
   test.setTimeout(180_000)
   await openScenario(page)
-  await page.getByText('Advanced assessment & settings', { exact: true }).click()
-  await page.getByRole('button', { name: 'Fill / export FS1252 PDF', exact: true }).click()
+  await page.locator('[data-via-step="rate"]').click()
   await expect(page.getByRole('region', { name: 'Assessment integrity and PDF export' })).toBeVisible()
   await page.getByText('FS1252 office information', { exact: true }).click()
   await page.getByLabel('Forest district', { exact: true }).fill('Interface PDF test district')

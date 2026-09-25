@@ -6,7 +6,7 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
   const forms=scene.targets.filter(t=>t.role==='landscape')
   return {
     viewpoint:{mode:scene.viewpoint.mode,coordinates:scene.viewpoint.coordinates},
-    targets:scene.targets.map(({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent})=>({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent})),
+    targets:scene.targets.map(({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent,harvestSystem})=>({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent,...(harvestSystem==='partial'?{harvestSystem}:{})})),
     settings:scene.settings,assessmentYear:scene.assessmentYear ?? new Date().getFullYear(),
     activeLandformId:scene.activeLandformId ?? (forms.length===1?forms[0].id:null),
     harvestInventory:scene.harvestInventory,
@@ -15,9 +15,21 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
 /** This also binds the report labels, objectives and thresholds to the run. */
 export function sceneFingerprint(scene: ForestryScene): string | null {
   try {
-    // Office metadata is recorded with the export, not assessed: editing it must not stale the run.
+    // Office metadata and the reviewer's VIA judgements are recorded with the
+    // export, not computed by the run: editing them must not stale it.
     const assessed: Partial<ForestryScene> = { ...scene }
     delete assessed.reportMetadata
+    delete assessed.viaReview
+    // Likewise a block's retention and partial-cut figures (Tables 5 and 6);
+    // only whether a block is a partial cut changes what the run clears.
+    assessed.targets = scene.targets.map((target) => {
+      const kept: TargetPolygon = { ...target }
+      delete kept.retentionPercent
+      delete kept.volumeRemovedPercent
+      delete kept.residualHeightMeters
+      if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
+      return kept
+    })
     return canonicalInput({...assessed,assessmentYear:buildSceneInput(scene).assessmentYear})
   } catch { return null }
 }

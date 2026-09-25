@@ -25,9 +25,9 @@
 
 import { MercatorCoordinate } from 'maplibre-gl'
 
-import type { ForestMesh, TreeInstance } from './forest'
-import { crownColor } from './forest'
-import { BILLBOARD_ASPECT, atlasCell, type ImpostorAtlas } from './impostor'
+import type { ForestMesh, TreeInstance, ViewingGap } from './forest'
+import { CONE_BASE_DIAMETER, SPECIES_CROWN_RATIO, crownColor } from './forest'
+import { BILLBOARD_ASPECT, CLUMP_WIDTH_FACTOR, atlasCell, type ImpostorAtlas } from './impostor'
 
 /** What MapLibre v5 hands a custom layer's render method. */
 type RenderArgs = {
@@ -52,10 +52,20 @@ in vec3 a_color;
 uniform mat4 u_matrix;
 uniform vec3 u_eye;
 uniform vec4 u_range;
-out float v_coverage;
+out vec2 v_fade;
 out float v_distance;
-float coverage(float d) {
-  return smoothstep(u_range.x, u_range.y, d) * (1.0 - smoothstep(u_range.z, u_range.w, d));
+// Fading in and fading out as separate amounts, so the fragment can dither
+// them against complementary halves of the same noise: where one band fades out
+// the next fades in over exactly the pixels it leaves.
+vec2 fade(float d) {
+  return vec2(smoothstep(u_range.x, u_range.y, d), smoothstep(u_range.z, u_range.w, d));
+}
+// A viewing gap: unit direction (mercator frame), length in metres, cosine of
+// its half-angle. Length 0 is no gap. Stems inside it are not drawn.
+uniform vec4 u_gap;
+bool inGap(vec2 offset, float metres) {
+  if (u_gap.z <= 0.0 || metres > u_gap.z || metres < 0.5) return false;
+  return dot(normalize(offset - u_eye.xy), u_gap.xy) > u_gap.w;
 }
 /** One metre, in mercator units at this latitude. */
 uniform float u_meterScale;
@@ -67,8 +77,8 @@ void main() {
   // Mercator y runs south, so north-facing geometry flips.
   vec3 metres = vec3(a_position.x * a_scale.x, -a_position.y * a_scale.x, a_position.z * a_scale.y);
   v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
-  v_coverage = coverage(v_distance);
-  gl_Position = v_coverage > 0.0 ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
+  v_fade = fade(v_distance);
+  gl_Position = v_fade.x > 0.0 && v_fade.y < 1.0 && !inGap(a_offset.xy, v_distance) ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
 
   v_color = mix(a_color, vec3(0.29, 0.23, 0.17), a_bark);
   // Non-uniform scaling skews a normal, so divide by the scale rather than
@@ -81,12 +91,12 @@ precision highp float;
 
 in vec3 v_color;
 in vec3 v_normal;
-in float v_coverage;
+in vec2 v_fade;
 in float v_distance;
 out vec4 fragColor;
 void clipCoverage() {
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-  if (noise >= v_coverage) discard;
+  if (noise >= v_fade.x || noise < v_fade.y) discard;
 }
 
 /** A late-morning sun from the south-east, which is how BC hillshades are lit. */
@@ -119,10 +129,20 @@ in vec3 a_tint;
 uniform mat4 u_matrix;
 uniform vec3 u_eye;
 uniform vec4 u_range;
-out float v_coverage;
+out vec2 v_fade;
 out float v_distance;
-float coverage(float d) {
-  return smoothstep(u_range.x, u_range.y, d) * (1.0 - smoothstep(u_range.z, u_range.w, d));
+// Fading in and fading out as separate amounts, so the fragment can dither
+// them against complementary halves of the same noise: where one band fades out
+// the next fades in over exactly the pixels it leaves.
+vec2 fade(float d) {
+  return vec2(smoothstep(u_range.x, u_range.y, d), smoothstep(u_range.z, u_range.w, d));
+}
+// A viewing gap: unit direction (mercator frame), length in metres, cosine of
+// its half-angle. Length 0 is no gap. Stems inside it are not drawn.
+uniform vec4 u_gap;
+bool inGap(vec2 offset, float metres) {
+  if (u_gap.z <= 0.0 || metres > u_gap.z || metres < 0.5) return false;
+  return dot(normalize(offset - u_eye.xy), u_gap.xy) > u_gap.w;
 }
 uniform float u_meterScale;
 uniform vec2 u_cellSize;
@@ -152,8 +172,8 @@ void main() {
 
   vec3 metres = vec3(across * (a_corner.x * a_scale.x), a_corner.y * a_scale.y);
   v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
-  v_coverage = coverage(v_distance);
-  gl_Position = v_coverage > 0.0 ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
+  v_fade = fade(v_distance);
+  gl_Position = v_fade.x > 0.0 && v_fade.y < 1.0 && !inGap(a_offset.xy, v_distance) ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
 
   // The atlas is drawn y-down from the top of the cell.
   v_uv = a_cell + vec2(a_corner.x + 0.5, 1.0 - a_corner.y) * u_cellSize;
@@ -166,12 +186,12 @@ precision highp float;
 in vec2 v_uv;
 in vec3 v_tint;
 uniform sampler2D u_atlas;
-in float v_coverage;
+in vec2 v_fade;
 in float v_distance;
 out vec4 fragColor;
 void clipCoverage() {
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-  if (noise >= v_coverage) discard;
+  if (noise >= v_fade.x || noise < v_fade.y) discard;
 }
 
 void main() {
@@ -181,7 +201,13 @@ void main() {
   // a stand has no back to front. A hard edge costs some aliasing and keeps the
   // depth buffer honest, so trees behind a ridge stay behind it.
   if (texel.a < 0.45) discard;
-  fragColor = vec4(mix(texel.rgb * v_tint, vec3(0.68, 0.76, 0.79), min(0.65, v_distance / 22000.0)), 1.0);
+  // Filtering mixes in the transparent pixels around a crown, which are black;
+  // dividing by coverage takes that dark fringe back out.
+  vec3 colour = texel.rgb / max(texel.a, 0.001);
+  // Tint the foliage only: bark is not green, and a tinted birch stem went pink.
+  float foliage = clamp((colour.g - max(colour.r, colour.b)) * 12.0, 0.0, 1.0);
+  colour *= mix(vec3(1.0), v_tint, foliage);
+  fragColor = vec4(mix(colour, vec3(0.68, 0.76, 0.79), min(0.65, v_distance / 22000.0)), 1.0);
 }`
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
@@ -220,6 +246,8 @@ export type TreeLayerOptions = {
   atlas?: ImpostorAtlas
   range?: [number, number, number, number]
   widthScale?: number
+  /** Cards are clumps (`impostorClumpShapes`): as wide as the stand's share, not one crown. */
+  clumps?: boolean
 }
 
 export type TreeLayer = {
@@ -232,6 +260,8 @@ export type TreeLayer = {
   /** Replaces the stand. Safe to call before the layer is added to the map. */
   setTrees: (trees: TreeInstance[]) => void
   setEye: (eye: { lng: number; lat: number }) => void
+  /** Leaves the stems in a wedge from the eye undrawn; null draws them all. */
+  setGap: (gap: ViewingGap | null) => void
   /** How many stems the layer last drew — for tests and diagnostics. */
   readonly treeCount: number
   /** Triangles per stem, which is the whole point of the billboard path. */
@@ -271,6 +301,8 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
   let origin = [0, 0, 0]
   let eye = { lng: 0, lat: 0 }
   let eyeLocation: WebGLUniformLocation | null = null
+  let gapLocation: WebGLUniformLocation | null = null
+  let gap: ViewingGap | null = null
   let rangeLocation: WebGLUniformLocation | null = null
   const translated = new Float32Array(16)
 
@@ -302,10 +334,16 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       offsets[index * 3 + 1] = mercator.y - origin[1]
       offsets[index * 3 + 2] = mercator.z ?? 0
 
-      // A card is drawn at one aspect and the species fills as much of it as its
-      // crown needs, so every card is the same shape in the world.
+      // A card is drawn at one aspect with the species' crown filling
+      // `SPECIES_CROWN_RATIO` of the tree's height; stretching it by the stem's
+      // own ratio over that gives the crown the width its stand's closure set.
       scales[index * 2] =
-        tree.heightMeters * (billboard ? BILLBOARD_ASPECT * (options.widthScale ?? 1) : tree.slenderness)
+        tree.heightMeters *
+        (billboard
+          ? options.clumps
+            ? tree.slenderness * CLUMP_WIDTH_FACTOR * (options.widthScale ?? 1)
+            : BILLBOARD_ASPECT * (tree.slenderness / SPECIES_CROWN_RATIO[tree.species]) * (options.widthScale ?? 1)
+          : tree.slenderness / CONE_BASE_DIAMETER)
       scales[index * 2 + 1] = tree.heightMeters
 
       if (billboard && atlas && tints) {
@@ -373,6 +411,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
 
       matrixLocation = gl.getUniformLocation(program, 'u_matrix')
       eyeLocation = gl.getUniformLocation(program, 'u_eye')
+      gapLocation = gl.getUniformLocation(program, 'u_gap')
       rangeLocation = gl.getUniformLocation(program, 'u_range')
       meterScaleLocation = gl.getUniformLocation(program, 'u_meterScale')
       cellSizeLocation = gl.getUniformLocation(program, 'u_cellSize')
@@ -441,8 +480,13 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         texture = gl.createTexture()
         gl.bindTexture(gl.TEXTURE_2D, texture)
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+        // Premultiplied, so filtering and mipmapping blend a crown's edge with
+        // the transparent texels around it correctly; the shader divides back
+        // by coverage. Unpremultiplied, the edge went dark, and dividing it
+        // then left a pale halo.
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas.canvas)
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
         // Mipmaps are what stop the far shell from crawling as the camera moves.
         gl.generateMipmap(gl.TEXTURE_2D)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
@@ -495,6 +539,11 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.uniformMatrix4fv(matrixLocation, false, translated)
       const eyeMercator = MercatorCoordinate.fromLngLat(eye)
       gl.uniform3f(eyeLocation, eyeMercator.x - origin[0], eyeMercator.y - origin[1], 0)
+      if (gap) {
+        // Mercator y runs south, so north is −y.
+        const bearing = (gap.bearingDegrees * Math.PI) / 180
+        gl.uniform4f(gapLocation, Math.sin(bearing), -Math.cos(bearing), gap.lengthMeters, Math.cos((gap.halfAngleDegrees * Math.PI) / 180))
+      } else gl.uniform4f(gapLocation, 0, 0, 0, 1)
       gl.uniform4fv(rangeLocation, options.range ?? [-2, -1, 99000, 100000])
       gl.uniform1f(meterScaleLocation, meterScale)
 
@@ -521,6 +570,10 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
 
     setEye(value) {
       eye = value
+    },
+
+    setGap(value) {
+      gap = value
     },
 
     setTrees(trees) {

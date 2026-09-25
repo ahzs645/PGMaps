@@ -24,7 +24,25 @@ import { SPECIES_CROWN_RATIO, VARIANTS_PER_SPECIES, TREE_SPECIES_IDS, type TreeS
  * and each species uses as much of the width as its crown needs, so one texture
  * covers a narrow fir and a broad aspen without stretching either.
  */
-export const BILLBOARD_ASPECT = 0.5
+export const BILLBOARD_ASPECT = 0.3
+
+/**
+ * Past about half a kilometre one card stands for many stems, and a single
+ * tree stretched to that width reads as a pancake on the skyline. A clump card
+ * draws this many whole trees side by side instead.
+ */
+export const CLUMP_TREES = 8
+
+/** A clump cell's width over its height. */
+export const CLUMP_ASPECT = 3
+
+/**
+ * A clump card's width over the closure crown width it stands in for. At the
+ * regional stand this makes a card about 1.2 × the band's spacing, so the rows
+ * overlap and a hillside seen side-on is closed, as a mature forest is from
+ * across a valley; the top-down closure only set how wide one stem's share is.
+ */
+export const CLUMP_WIDTH_FACTOR = 1.6
 
 /** A filled shape in unit space: x across the card, y up from the ground. */
 export type ImpostorShape = {
@@ -68,7 +86,9 @@ export const TREE_SPECIES_DRAWING: Record<TreeSpeciesId, SpeciesDrawing> = {
   spruce: {
     label: 'Interior spruce',
     crownRatio: SPECIES_CROWN_RATIO.spruce,
-    crownBase: 0.14,
+    // Inside a stand the lower branches die back; live crown is about the top
+    // 60–70%, so a view in under the canopy reaches past the first row.
+    crownBase: 0.3,
     tiers: 13,
     droop: 1.25,
     foliage: [44, 82, 64],
@@ -77,7 +97,7 @@ export const TREE_SPECIES_DRAWING: Record<TreeSpeciesId, SpeciesDrawing> = {
   fir: {
     label: 'Subalpine fir',
     crownRatio: SPECIES_CROWN_RATIO.fir,
-    crownBase: 0.1,
+    crownBase: 0.25,
     tiers: 16,
     droop: 0.8,
     foliage: [38, 72, 60],
@@ -91,6 +111,16 @@ export const TREE_SPECIES_DRAWING: Record<TreeSpeciesId, SpeciesDrawing> = {
     droop: 0,
     foliage: [112, 142, 68],
     bark: [198, 198, 184],
+    broadleaf: true,
+  },
+  birch: {
+    label: 'Paper birch',
+    crownRatio: SPECIES_CROWN_RATIO.birch,
+    crownBase: 0.48,
+    tiers: 0,
+    droop: 0,
+    foliage: [96, 132, 62],
+    bark: [226, 222, 212],
     broadleaf: true,
   },
 }
@@ -242,6 +272,36 @@ export function impostorShapes(species: TreeSpeciesId, variant: number): Imposto
   return shapes
 }
 
+/**
+ * A clump of the species: `CLUMP_TREES` trees across a unit card, of varied
+ * heights, each drawn from `impostorShapes` and set in its own slot so
+ * neighbouring crowns just touch. Same coordinates as one tree's card.
+ */
+export function impostorClumpShapes(species: TreeSpeciesId, variant: number): ImpostorShape[] {
+  const random = mulberry32((TREE_SPECIES_IDS.indexOf(species) + 1) * 3571 + variant * 65_537)
+  const spec = TREE_SPECIES_DRAWING[species]
+  const crownHalf = spec.crownRatio / BILLBOARD_ASPECT / 2
+  const slot = 1 / CLUMP_TREES
+  const trees = Array.from({ length: CLUMP_TREES }, (_, k) => ({
+    centre: (k + 0.5) * slot + (random() - 0.5) * slot * 0.4,
+    height: 0.62 + random() * 0.38,
+    variant: (variant * CLUMP_TREES + k) % VARIANTS_PER_SPECIES,
+  }))
+  // One tree reaches the top, so a clump is as tall as the stand it stands in for.
+  trees[Math.floor(random() * CLUMP_TREES)].height = 1
+  // Short trees first: taller ones behind them would hide them.
+  trees.sort((a, b) => b.height - a.height)
+  return trees.flatMap((tree) =>
+    impostorShapes(species, tree.variant).map((shape) => ({
+      color: shape.color,
+      points: shape.points.map(([x, y]): [number, number] => [
+        Math.max(0, Math.min(1, tree.centre + ((x - 0.5) / crownHalf) * slot * 0.55)),
+        y * tree.height,
+      ]),
+    })),
+  )
+}
+
 export type ImpostorAtlas = {
   canvas: HTMLCanvasElement
   /** Variants across. */
@@ -271,8 +331,9 @@ export function atlasCell(
  * and the result is uploaded as a mipmapped texture, which is what keeps the
  * far shell from shimmering.
  */
-export function buildImpostorAtlas(cellHeight = 256): ImpostorAtlas {
-  const cellWidth = Math.round(cellHeight * BILLBOARD_ASPECT)
+export function buildImpostorAtlas(cellHeight = 256, kind: 'tree' | 'clump' = 'tree'): ImpostorAtlas {
+  const cellWidth = Math.round(cellHeight * (kind === 'clump' ? CLUMP_ASPECT : BILLBOARD_ASPECT))
+  const shapesFor = kind === 'clump' ? impostorClumpShapes : impostorShapes
   const columns = VARIANTS_PER_SPECIES
   const rows = TREE_SPECIES_IDS.length
 
@@ -289,7 +350,7 @@ export function buildImpostorAtlas(cellHeight = 256): ImpostorAtlas {
       const originX = variant * cellWidth
       const originY = row * cellHeight
 
-      for (const shape of impostorShapes(species, variant)) {
+      for (const shape of shapesFor(species, variant)) {
         context.beginPath()
         shape.points.forEach(([x, y], index) => {
           // Unit space is y-up from the ground; a canvas is y-down from the top.

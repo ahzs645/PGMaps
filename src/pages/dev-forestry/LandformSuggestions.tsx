@@ -41,8 +41,8 @@ export function LandformSuggestions({ scene, onShow, onAdopt }: { scene: Forestr
     const a = document.createElement('a'); a.href = url; a.download = 'bc-nearby-visual-inventory.geojson'; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
-  return <details className="rounded-lg border p-3 text-xs" open>
-    <summary className="cursor-pointer font-medium">Find a landform</summary>
+  return <details className="rounded-lg border p-3 text-xs" data-forestry-disclosure="inventory-landforms">
+    <summary className="cursor-pointer font-medium">Find a landform in the BC inventory</summary>
     <p className="my-2 text-muted-foreground">Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside from the road before using one as the assessment landform.</p>
     {road.length > 1 && <label className="block">Search area<select aria-label="Landform search area" className="my-1 w-full rounded border bg-background p-1" value={searchMode} onChange={e => setSearchMode(e.target.value as 'road' | 'block')}><option value="road">Whole road corridor</option><option value="block">Selected cutblock centre</option></select></label>}
     {!useRoad && blocks.length > 1 && <label className="block">Search near cutblock<select aria-label="Landform search cutblock" className="my-1 w-full rounded border bg-background p-1" value={selected?.id} onChange={e => setBlockId(e.target.value)}>{blocks.map(block => <option key={block.id} value={block.id}>{block.name}</option>)}</select></label>}

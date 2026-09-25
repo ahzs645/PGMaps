@@ -977,11 +977,14 @@ export function MapSectionLayout({
             {showMobileSheetChevron && (
               <button
                 type="button"
+                // Its own tap, not the start of a handle drag: the handle's
+                // pointer capture otherwise swallowed the click.
+                onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                   event.stopPropagation()
                   snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
                 }}
-                className="absolute right-2 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-3"
+                className="absolute right-2 top-1 z-10 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-3"
                 aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
               >
                 {mobileSheetState === 'collapsed' ? (

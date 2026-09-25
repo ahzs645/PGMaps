@@ -11,11 +11,15 @@ const inputs = { stands: [], clearings: [], heightMeters: 28 }
 describe('driving through a forest', () => {
   it('keeps the foreground canopy fully covered throughout the close-detail transition', () => {
     const [fadeInStart, fadeInEnd, fadeOutStart] = canopyRange(bands, 0)
-    for (const distance of [0, 5, 30, 60, 80, 100, 180, 400]) {
+    for (const distance of [0, 5, 30, 60, 80, 100, 180, 240]) {
       expect(distance).toBeGreaterThan(fadeInStart)
       expect(distance).toBeGreaterThan(fadeInEnd)
       expect(distance).toBeLessThan(fadeOutStart)
     }
+    // Past the stem-for-stem band the next one is fully in before it fades out.
+    const [, nextIn, nextOut] = canopyRange(bands, 1)
+    expect(nextIn).toBeLessThanOrEqual(bands[0].far)
+    expect(nextOut).toBeGreaterThanOrEqual(bands[1].far - 300)
   })
   it('preloads every foreground tile before it can enter view between membership updates', () => {
     expect(FOREST_PATCH_GUARD_METERS).toBeGreaterThan(75)
@@ -77,7 +81,7 @@ describe('driving through a forest', () => {
   })
   it('covers the distant hillside without duplicating trees at tile boundaries', () => {
     const patches = forestPatches(eye, bands, eye.lat)
-    expect(patches.some((p) => p.band === 2 && p.centre.lng > eye.lng + 0.1)).toBe(true)
+    expect(patches.some((p) => p.band === bands.length - 1 && p.centre.lng > eye.lng + 0.1)).toBe(true)
     const trees = patches
       .filter((p) => p.band === 0)
       .flatMap((p) => growForestPatch(p, bands[0], inputs, { elevationAt: () => 800 }, eye.lat))

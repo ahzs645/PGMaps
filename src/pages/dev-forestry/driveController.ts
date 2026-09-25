@@ -9,6 +9,7 @@ import {
   type DriveLookAt,
   type DriveStation,
   type RoadVertex,
+  horizonSafePitch,
 } from './driveMath'
 export type DrivePose = {
   distanceMeters: number
@@ -29,6 +30,12 @@ export type DriveOptions = {
   spotBearing: number
   yaw: number
   tilt: number
+  /**
+   * Hold the view on a fixed bearing and pitch (degrees above the horizon)
+   * instead of looking along the road — a field photo's pose. Yaw and tilt
+   * still apply on top, so the view can be nudged into line.
+   */
+  fixedLook?: { bearing: number; pitch: number } | null
   onPosition: (pose: DrivePose) => void
   onReachEnd?: () => void
   onStatus?: (status: DriveStatus) => void
@@ -211,14 +218,19 @@ export class DriveController {
       Number.isFinite(afterGround)
         ? (Math.atan2(afterGround - beforeGround, ahead.span) * 180) / Math.PI
         : 0
-    const desired = viewRotation(
-      placement,
-      eye,
-      options.lookAt,
-      this.path.length > 1 ? (ahead?.bearing ?? placement.travelBearing) : options.spotBearing,
-      options.yaw,
-      options.tilt + (options.lookAt ? 0 : grade),
-    )
+    const desired = options.fixedLook
+      ? {
+          bearing: (((options.fixedLook.bearing + options.yaw) % 360) + 360) % 360,
+          pitch: Math.max(40, Math.min(110, 90 + options.fixedLook.pitch + options.tilt)),
+        }
+      : viewRotation(
+          placement,
+          eye,
+          options.lookAt,
+          this.path.length > 1 ? (ahead?.bearing ?? placement.travelBearing) : options.spotBearing,
+          options.yaw,
+          options.tilt + (options.lookAt ? 0 : grade),
+        )
     // Damping the direction preserves the actual road position and eye clearance.
     // Paused look controls stay immediate; seek resets the filter completely.
     const amount = 1 - Math.exp(-elapsed / 0.18)
@@ -241,14 +253,15 @@ export class DriveController {
         lng: placement.lng + (Math.sin(radians) * metres) / (111320 * Math.cos((placement.lat * Math.PI) / 180)),
         lat: placement.lat + (Math.cos(radians) * metres) / 111320,
       }
-      const targetElevation = eye + Math.tan(((rotation.pitch - 90) * Math.PI) / 180) * metres
+      const pitch = horizonSafePitch(rotation.pitch)
+      const targetElevation = eye + Math.tan(((pitch - 90) * Math.PI) / 180) * metres
       const camera = this.map.calculateCameraOptionsFromTo
         ? { ...this.map.calculateCameraOptionsFromTo(placement, eye, target, targetElevation), roll: 0 }
         : this.map.calculateCameraOptionsFromCameraLngLatAltRotation(
             placement,
             eye,
             rotation.bearing,
-            rotation.pitch,
+            pitch,
             0,
           )
       if (!finiteCamera(camera)) {

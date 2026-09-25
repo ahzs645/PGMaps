@@ -10,6 +10,8 @@ import {
   demTileUrl,
   lngLatToMercator,
   mercatorToLngLat,
+  renderedGroundSource,
+  worldPixelToLngLat,
 } from './terrain'
 
 describe('decodeTerrariumElevation', () => {
@@ -119,6 +121,18 @@ describe('ElevationGrid', () => {
     expect(grid.elevationAtWorldPixel(300, 300)).toBe(100)
     expect(grid.elevationAtWorldPixel(600, 600)).toBe(900)
     expect(grid.tileCount).toBe(2)
+  })
+
+  it('reads a sample at its pixel corner for the rendered-ground view, as MapLibre draws it', () => {
+    const grid = new ElevationGrid(ORIGIN_TILE_RANGE)
+    grid.setTile(0, 0, rampTile())
+    const drawn = renderedGroundSource(grid)
+    // Pixel 1's value sits at world pixel 1.0 rather than 1.5: half a pixel on.
+    const [lng, lat] = worldPixelToLngLat(1, 0.25, ORIGIN_TILE_RANGE.zoom)
+    expect(drawn.elevationAt(lng, lat)).toBeCloseTo(grid.elevationAtWorldPixel(1.5, 0.75), 6)
+    expect(drawn.elevationAt(lng, lat)).toBeCloseTo(1, 6)
+    const [mx, my] = lngLatToMercator(lng, lat)
+    expect(drawn.elevationAtMercator!(mx, my)).toBeCloseTo(drawn.elevationAt(lng, lat), 6)
   })
 
   it('reaches the same sample through lng/lat and through Mercator', () => {

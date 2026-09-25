@@ -6,6 +6,7 @@ import { Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAP_OVERLAY_Z } from "./map-overlay";
 import { useMap } from "./map-context";
+import { greatCircleMeters, scaleBarFor, type ScaleBar } from "./map-scale";
 
 type MapControlsProps = {
   /** Position of the controls on the map (default: "bottom-right") */
@@ -247,4 +248,69 @@ export const DEFAULT_MAP_CONTROLS = (
   <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 );
 
-export { MapControls };
+type MapScaleBarProps = {
+  /** Corner to sit in; bottom corners clear the phone sheet like the controls do. */
+  position?: "bottom-left" | "bottom-right";
+  /** Longest the bar may be, in pixels (default 100). */
+  maxWidth?: number;
+  /** Hide when the map is pitched past this, where one scale no longer holds (default 60°). */
+  hideAbovePitch?: number;
+  className?: string;
+};
+
+/**
+ * A metric scale bar measured across the map's vertical middle, great-circle,
+ * as MapLibre's own control is, but drawn in the app's theme. Hidden on a
+ * steeply pitched map (an eye-level view), where the scale runs from
+ * centimetres at the bottom to kilometres at the horizon.
+ */
+function MapScaleBar({ position = "bottom-left", maxWidth = 100, hideAbovePitch = 60, className }: MapScaleBarProps) {
+  const { map, isLoaded } = useMap();
+  const [bar, setBar] = useState<ScaleBar | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded || !map) return;
+    const update = () => {
+      if (map.getPitch() > hideAbovePitch) {
+        setBar(null);
+        return;
+      }
+      const y = map.getContainer().clientHeight / 2;
+      const left = map.unproject([0, y]);
+      const right = map.unproject([maxWidth, y]);
+      setBar(scaleBarFor(greatCircleMeters(left, right) / maxWidth, maxWidth));
+    };
+    update();
+    map.on("move", update);
+    map.on("resize", update);
+    return () => {
+      map.off("move", update);
+      map.off("resize", update);
+    };
+  }, [isLoaded, map, maxWidth, hideAbovePitch]);
+
+  if (!bar) return null;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute rounded bg-background/80 px-1.5 pb-1 pt-0.5 text-[10px] leading-3 text-foreground shadow-sm",
+        MAP_OVERLAY_Z.controls,
+        positionClasses[position],
+        position === "bottom-right" ? "bottom-8 md:bottom-8" : null,
+        mobilePanelAwarePositionClasses[position],
+        className
+      )}
+      role="img"
+      aria-label={`Scale: ${bar.label}`}
+      data-map-scale={bar.meters}
+    >
+      <span className="block tabular-nums">{bar.label}</span>
+      <span
+        className="mt-0.5 block h-1.5 border-x-2 border-b-2 border-foreground"
+        style={{ width: `${bar.pixels}px` }}
+      />
+    </div>
+  );
+}
+
+export { MapControls, MapScaleBar };

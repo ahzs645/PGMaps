@@ -15,33 +15,110 @@
  */
 
 import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
+import type { TargetPolygon } from './types'
 
 /** The species a BC interior stand is actually made of. */
-export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'aspen'
+export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'aspen' | 'birch'
 
-export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'aspen']
+export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'aspen', 'birch']
+
+/** Broadleaves draw as a rounded crown on a pale stem rather than as tiers. */
+export const isBroadleaf = (species: TreeSpeciesId) => species === 'aspen' || species === 'birch'
 
 /** Drawn silhouettes per species, so a stand is not one tree repeated. */
 export const VARIANTS_PER_SPECIES = 4
 
 /**
- * Roughly a managed SBS/ESSF landscape west of Prince George: pine-leading,
- * spruce and subalpine fir through it, a little aspen on the better sites.
- * A drawn mix, not a cruise — it changes how the stand reads, not any number.
+ * Leading species of mature stands around Prince George, by area, from the
+ * province's VRI (rank 1, treed, 60+ years and 15+ m, a 0.6° × 0.35° box on
+ * the city, queried September 2026): interior spruce 37%, trembling aspen 19%
+ * and cottonwood 4%, subalpine fir 17% and Douglas-fir 6%, paper birch 13%.
+ * Lodgepole pine barely leads a mature stand here any more — the beetle took
+ * it — so it is kept only as a trace. A drawn mix, not a cruise: it changes how
+ * the stand reads, not any number.
  */
 export const DEFAULT_SPECIES_MIX: ReadonlyArray<{ species: TreeSpeciesId; share: number }> = [
-  { species: 'pine', share: 0.42 },
-  { species: 'spruce', share: 0.28 },
-  { species: 'fir', share: 0.18 },
-  { species: 'aspen', share: 0.12 },
+  { species: 'spruce', share: 0.37 },
+  { species: 'fir', share: 0.23 },
+  { species: 'aspen', share: 0.21 },
+  { species: 'birch', share: 0.13 },
+  { species: 'pine', share: 0.06 },
 ]
 
-/** Crown width over tree height, by species. Drives the solid-cone geometry. */
+/**
+ * A mature stand around Prince George when the inventory says nothing about
+ * the ground under a stem. Medians of the same VRI query: 426 live stems/ha
+ * region-wide, 548 beside the sample valley road and 664 on Tabor Mountain's
+ * west face; crown closure 45–50%; height 21–26 m. 550 stems/ha, 45% and 25 m
+ * sit inside all three.
+ */
+export const REGIONAL_STAND = { stemsPerHa: 550, crownClosurePercent: 45, heightMeters: 25 } as const
+
+/**
+ * Crown width over tree height, by species, as drawn in a silhouette. A stem's
+ * actual crown width is set by its stand's crown closure (see `placeTrees`);
+ * these say how the species differ from each other within it, and are drawn
+ * near what that closure gives — 45% at 550 stems/ha is a 3.7 m crown on a
+ * 25 m stand, 0.15 — so a near card is not squeezed into a column.
+ */
 export const SPECIES_CROWN_RATIO: Record<TreeSpeciesId, number> = {
-  pine: 0.3,
-  spruce: 0.34,
-  fir: 0.25,
-  aspen: 0.44,
+  pine: 0.14,
+  spruce: 0.17,
+  fir: 0.12,
+  aspen: 0.22,
+  birch: 0.2,
+}
+
+/** The share-weighted mean crown ratio of a mix, so its species' widths average to the stand's. */
+function meanCrownRatio(mix: ReadonlyArray<{ species: TreeSpeciesId; share: number }>): number {
+  const total = mix.reduce((sum, entry) => sum + Math.max(0, entry.share), 0)
+  if (!(total > 0)) return SPECIES_CROWN_RATIO.spruce
+  return mix.reduce((sum, entry) => sum + Math.max(0, entry.share) * SPECIES_CROWN_RATIO[entry.species], 0) / total
+}
+
+/**
+ * Stems are drawn at `standHeight × U(0.55, 1.3)` and a crown scales with its
+ * stem, so crown area averages E[(0.55 + 0.75U)²] = 0.9025 of the stand-height
+ * crown's. Widening by 1/√0.9025 puts the mean area back where closure wants it.
+ */
+const HEIGHT_SPREAD_WIDTH = 1 / Math.sqrt(0.9025)
+
+/**
+ * `crownWidthForClosure` assumes crowns fall at random. Drawn stems sit on a
+ * jittered grid and overlap less, so the same crowns close more of the ground:
+ * measured on a 0.5 m raster, 45% asked for drew as 53%. This shrinks crown
+ * area until the drawn closure is the one asked for (see the raster test in
+ * `forest.test.ts`).
+ */
+export const GRID_CROWN_AREA = 0.8
+
+/**
+ * A stand closes its canopy as it grows. Regeneration the inventory gives no
+ * closure for is not drawn at a mature stand's, which would give 1.5 m
+ * seedlings 3.6 m crowns: closure is taken to rise with height to the
+ * regional value at this height.
+ */
+const CANOPY_CLOSES_AT_METERS = 12
+
+/**
+ * A drawn crown is at most this many times its tree's height wide. Past it a
+ * card stops reading as vegetation: without the cap, a coarse far band of
+ * young stems drew 100 m strips a metre tall.
+ */
+const MAX_CROWN_TO_HEIGHT = 4
+
+/**
+ * Crown diameter that gives a stand its recorded crown closure, drawn at a
+ * given stem density. Crowns placed at random overlap, so closure follows
+ * 1 − exp(−N·a) (N stems per m², a one crown's area) rather than N·a: 45%
+ * closure at 550 stems/ha is a 3.7 m crown, which is what a 25 m interior
+ * spruce carries. At a coarse far spacing the same closure needs a crown far
+ * wider than a tree — one drawn stem there stands for a clump.
+ */
+export function crownWidthForClosure(crownClosurePercent: number, stemsPerSquareMeter: number): number {
+  const closure = Math.min(0.9, Math.max(0.05, crownClosurePercent / 100))
+  if (!(stemsPerSquareMeter > 0)) return 0
+  return 2 * Math.sqrt(-Math.log(1 - closure) / (Math.PI * stemsPerSquareMeter))
 }
 
 export type TreeInstance = {
@@ -99,8 +176,9 @@ const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   AC: 'aspen',
   ACT: 'aspen',
   A: 'aspen',
-  EP: 'aspen',
-  E: 'aspen',
+  EP: 'birch',
+  EA: 'birch',
+  E: 'birch',
   MB: 'aspen',
   DR: 'aspen',
   W: 'aspen',
@@ -157,6 +235,13 @@ function mulberry32(seed: number): () => number {
 function seedForCell(x: number, y: number, seed: number): number {
   return (Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ seed) >>> 0
 }
+
+/**
+ * The unit cone's widest diameter: its lowest whorl has radius 0.5 + 0.06.
+ * The tree layer divides by it so a solid crown is as wide as its stem's
+ * `slenderness` says, the same as a billboard's.
+ */
+export const CONE_BASE_DIAMETER = 1.12
 
 export type ConiferOptions = {
   /** Cones stacked up the stem. Three reads as a conifer; one reads as a traffic cone. */
@@ -261,6 +346,10 @@ export type TreePlacementOptions = {
   spacingMeters?: number
   /** Mean height of the stand, in metres. */
   heightMeters?: number
+  /** Live stems per hectare where no surveyed stand says otherwise. */
+  stemsPerHa?: number
+  /** Crown closure, percent, where no surveyed stand says otherwise. */
+  crownClosurePercent?: number
   /** Hard ceiling, so a wide patch cannot stall the frame. */
   maxTrees?: number
   /** Species composition of the stand. Defaults to a BC interior mix. */
@@ -272,9 +361,41 @@ export type TreePlacementOptions = {
    * surveyed it, and a regional guess only where it has not.
    */
   inventory?: ReadonlyArray<InventoryStand>
+  /**
+   * Blocks cut but not cleared: dispersed retention and partial cuts. A stem
+   * in one survives with probability `keepFraction`, and a partial cut's
+   * residual trees stand at the height recorded for them.
+   */
+  thinnings?: ReadonlyArray<Thinning>
   seed?: number
   /** Fixed for a preview, including when it crosses a latitude band. */
   anchorLatitude?: number
+}
+
+export type Thinning = { geometry: PolygonGeometry; keepFraction: number; heightMeters?: number | null }
+
+/** Share of a partial cut drawn standing when its volume removed is not recorded yet. */
+const UNRECORDED_PARTIAL_KEEP = 0.5
+
+/**
+ * How a block's harvest is drawn, or null for a clearcut. Retention keeps its
+ * recorded share of stems at the stand's own height. A partial cut keeps the
+ * volume it did not remove, drawn as that share of stems (volume and stem
+ * count are not the same thing, but the view cannot tell them apart), at the
+ * residual height the reviewer entered.
+ */
+export function blockThinning(
+  block: Pick<TargetPolygon, 'geometry' | 'harvestSystem' | 'retentionPercent' | 'volumeRemovedPercent' | 'residualHeightMeters'>,
+): Thinning | null {
+  if (block.harvestSystem === 'retention') {
+    const keep = (block.retentionPercent ?? 0) / 100
+    return keep > 0 ? { geometry: block.geometry, keepFraction: Math.min(1, keep) } : null
+  }
+  if (block.harvestSystem === 'partial') {
+    const keep = block.volumeRemovedPercent != null ? 1 - block.volumeRemovedPercent / 100 : UNRECORDED_PARTIAL_KEEP
+    return { geometry: block.geometry, keepFraction: Math.max(0, Math.min(1, keep)), heightMeters: block.residualHeightMeters ?? null }
+  }
+  return null
 }
 
 /** A surveyed stand, reduced to what the drawing needs. */
@@ -284,6 +405,9 @@ export type InventoryStand = {
   heightMeters: number | null
   /** Fraction regenerated in a partial harvest; remaining stems use the regional mature height. */
   regenerationFraction?: number
+  /** VRI's live stems per hectare and crown closure, where it recorded them. */
+  stemsPerHa?: number | null
+  crownClosurePercent?: number | null
 }
 
 const METERS_PER_DEGREE_LAT = 111_320
@@ -304,14 +428,18 @@ export function placeTrees({
   radiusMeters,
   innerRadiusMeters = 0,
   spacingMeters = 3.2,
-  heightMeters = 28,
+  heightMeters = REGIONAL_STAND.heightMeters,
+  stemsPerHa = REGIONAL_STAND.stemsPerHa,
+  crownClosurePercent = REGIONAL_STAND.crownClosurePercent,
   maxTrees = 60_000,
   speciesMix = DEFAULT_SPECIES_MIX,
   inventory = [],
+  thinnings = [],
   seed = 1,
   anchorLatitude,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
+  const mixRatio = meanCrownRatio(speciesMix)
 
   // How many metres a degree of longitude is worth sets the grid spacing, and
   // it varies with latitude — so taken from the camera it would rescale the
@@ -344,6 +472,15 @@ export function placeTrees({
   const standBoxes = stands.map((stand) => polygonBounds(stand))
   const clearingBoxes = clearings.map((clearing) => polygonBounds(clearing))
   const inventoryBoxes = inventory.map((stand) => polygonBounds(stand.geometry))
+  const thinningBoxes = thinnings.map((thinning) => polygonBounds(thinning.geometry))
+  const thinnedAt = (lng: number, lat: number): Thinning | null => {
+    for (let index = 0; index < thinnings.length; index += 1) {
+      const box = thinningBoxes[index]
+      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) continue
+      if (pointInPolygon(thinnings[index].geometry, lng, lat)) return thinnings[index]
+    }
+    return null
+  }
   const surveyedAt = (lng: number, lat: number): InventoryStand | null => {
     for (let index = 0; index < inventory.length; index += 1) {
       const box = inventoryBoxes[index]
@@ -385,24 +522,50 @@ export function placeTrees({
       if (stands.length > 0 && !inside(stands, standBoxes, lng, lat)) continue
       if (inside(clearings, clearingBoxes, lng, lat)) continue
 
-      // A gap in a real stand is a blowdown or a wet spot, not a lawn.
-      if (random() < 0.06) continue
-
       // Where the province has surveyed this ground, draw what it recorded.
       const surveyed = inventory.length > 0 ? surveyedAt(lng, lat) : null
+
+      // Each cell holds a stem with the chance that gives the stand its stem
+      // count at this spacing. A coarse band cannot hold them all, so it keeps
+      // every cell but a few gaps (a blowdown, a wet spot) and widens the
+      // crowns below to close the canopy the same amount.
+      // A recorded 0 on ground the inventory calls treed is a gap in the
+      // record, not a bare stand, so it falls back like a missing value.
+      const standStems = surveyed?.stemsPerHa && surveyed.stemsPerHa > 0 ? surveyed.stemsPerHa : stemsPerHa
+      const keep = Math.min(0.94, (standStems * spacing * spacing) / 10_000)
+      if (random() >= keep) continue
+      const recordedClosure = surveyed?.crownClosurePercent && surveyed.crownClosurePercent > 0 ? surveyed.crownClosurePercent : null
+
+      // Its own draw, so thinning one block leaves every other stem in place.
+      const thinned = thinnings.length > 0 ? thinnedAt(lng, lat) : null
+      if (thinned && mulberry32(seedForCell(cellX, cellY, seed + 7919))() >= thinned.keepFraction) continue
+
       const species = surveyed?.species ?? speciesFromMix(random(), speciesMix)
       const fraction = surveyed?.regenerationFraction ?? 1
       const retained = fraction < 1 && random() >= fraction
-      const standHeight = retained ? heightMeters : surveyed?.heightMeters ?? heightMeters
+      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : surveyed?.heightMeters ?? heightMeters)
       if (standHeight <= 0) continue
+      // A partial cut's residuals are mature trees, only shorter: they keep the stand's closure.
+      const standClosure =
+        recordedClosure ??
+        (thinned?.heightMeters ? crownClosurePercent : crownClosurePercent * Math.min(1, standHeight / CANOPY_CLOSES_AT_METERS))
+      // The crown the stand's closure calls for at the density drawn here —
+      // before any thinning, which opens the canopy rather than shrinking it.
+      const crownWidth =
+        crownWidthForClosure(standClosure, keep / (spacing * spacing)) * HEIGHT_SPREAD_WIDTH * Math.sqrt(GRID_CROWN_AREA)
+      // Species shares the stand's width out: relative to the mix's own mean
+      // where the mix chose it, and not at all where a surveyed stand is one
+      // species throughout — its crowns are the stand's crowns.
+      const speciesShare = surveyed?.species ? 1 : SPECIES_CROWN_RATIO[species] / mixRatio
       trees.push({
         lng,
         lat,
         elevationMeters: 0,
         heightMeters: standHeight * (0.55 + random() * 0.75),
-        // Species sets the crown, with a little spread inside it — no two trees
-        // in a stand are the same shape.
-        slenderness: SPECIES_CROWN_RATIO[species] * (0.85 + random() * 0.3),
+        // Width over height, so a tall stem in the stand carries a wide crown.
+        // Species shares it out, with a little spread — no two trees in a stand
+        // are the same shape.
+        slenderness: Math.min(MAX_CROWN_TO_HEIGHT, (crownWidth / standHeight) * speciesShare * (0.85 + random() * 0.3)),
         tone: random(),
         species,
         variant: Math.floor(random() * VARIANTS_PER_SPECIES) % VARIANTS_PER_SPECIES,
@@ -412,6 +575,52 @@ export function placeTrees({
   }
 
   return trees
+}
+
+export type ViewingGap = {
+  /** Bearing from the eye to the middle of the block, degrees clockwise from north. */
+  bearingDegrees: number
+  /** Half the gap's angle: wide enough to take in the whole block, degrees. */
+  halfAngleDegrees: number
+  /** How far out from the eye the timber is left out, metres. */
+  lengthMeters: number
+}
+
+/**
+ * The wedge of drawn timber to leave out so a block can be seen from the eye:
+ * from the eye toward the block, as wide as the block looks, stopping short
+ * of it so the block's own edge trees still stand. Null when the eye is in or
+ * right at the block. The trees are illustrative; a real viewpoint is a
+ * pullout or a gap in the roadside timber, which this stands in for.
+ */
+export function viewingGapToward(
+  eye: { lng: number; lat: number },
+  block: PolygonGeometry,
+  { maxLengthMeters = 1500, marginDegrees = 3, edgeMeters = 30 } = {},
+): ViewingGap | null {
+  if (pointInPolygon(block, eye.lng, eye.lat)) return null
+  const rings = block.type === 'Polygon' ? [block.coordinates[0]] : block.coordinates.map((polygon) => polygon[0])
+  const latScale = Math.cos((eye.lat * Math.PI) / 180)
+  // Each ring without its closing vertex, which would count its first point twice.
+  const toEye = rings.flatMap((ring) => ring.slice(0, -1)).map(([lng, lat]) => {
+    const east = (lng - eye.lng) * METERS_PER_DEGREE_LAT * latScale
+    const north = (lat - eye.lat) * METERS_PER_DEGREE_LAT
+    return { east, north, distance: Math.hypot(east, north) }
+  })
+  if (!toEye.length) return null
+  const east = toEye.reduce((sum, p) => sum + p.east, 0) / toEye.length
+  const north = toEye.reduce((sum, p) => sum + p.north, 0) / toEye.length
+  const nearest = Math.min(...toEye.map((p) => p.distance))
+  if (nearest < edgeMeters * 2 || Math.hypot(east, north) < 1) return null
+  const bearing = (Math.atan2(east, north) * 180) / Math.PI
+  const spread = Math.max(
+    ...toEye.map((p) => Math.abs(((((Math.atan2(p.east, p.north) * 180) / Math.PI - bearing) % 360) + 540) % 360 - 180)),
+  )
+  return {
+    bearingDegrees: (bearing + 360) % 360,
+    halfAngleDegrees: Math.min(35, Math.max(5, spread + marginDegrees)),
+    lengthMeters: Math.min(maxLengthMeters, nearest - edgeMeters),
+  }
 }
 
 /**

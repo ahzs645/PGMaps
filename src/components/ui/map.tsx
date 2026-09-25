@@ -376,7 +376,7 @@ export {
   MapPopup,
 } from "./map-markers";
 
-export { MapControls, DEFAULT_MAP_CONTROLS } from "./map-controls";
+export { MapControls, MapScaleBar, DEFAULT_MAP_CONTROLS } from "./map-controls";
 
 export { MapRoute, MapClusterLayer } from "./map-routes";
 

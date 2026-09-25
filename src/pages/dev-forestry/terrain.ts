@@ -251,3 +251,32 @@ export class ElevationGrid implements ElevationSource {
     return this.elevationAtWorldPixel(px, py)
   }
 }
+
+/**
+ * The same mosaic, read the way MapLibre's terrain renderer reads a DEM tile.
+ *
+ * {@link ElevationGrid} puts a Terrarium sample at its pixel's centre, which is
+ * what the sightline analysis should use. MapLibre's renderer puts it at the
+ * pixel's top-left corner instead, so the ground it draws sits half a pixel
+ * away from the grid's — about 3 m at zoom 14 around Prince George, which on a
+ * 24% grade is a metre of height and on a 40% slope put the eye-level camera
+ * at, and briefly under, the drawn ground. Reading the grid half a pixel
+ * further on reproduces the drawn ground exactly.
+ *
+ * For the eye-level preview only: the camera and the tree bases have to stand
+ * on the ground that is drawn. It is still a fixed decoded mosaic, so changing
+ * rendered terrain detail does not move them. The analysis keeps the grid's
+ * own pixel-centre reading.
+ */
+export function renderedGroundSource(grid: ElevationGrid): ElevationSource {
+  const scale = DEM_TILE_SIZE * 2 ** grid.zoom
+  return {
+    elevationAt(lng: number, lat: number) {
+      const [px, py] = lngLatToWorldPixel(lng, lat, grid.zoom)
+      return grid.elevationAtWorldPixel(px + 0.5, py + 0.5)
+    },
+    elevationAtMercator(x: number, y: number) {
+      return grid.elevationAtWorldPixel(x * scale + 0.5, y * scale + 0.5)
+    },
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeAnalysis, prepareTargets } from './analysis'
+import { MIN_LEDGER_CELLS_PER_PROPOSAL, computeAnalysis, prepareTargets } from './analysis'
 import type { ElevationSource } from './terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
 import { polygonAreaMeters } from './visibility'
@@ -44,6 +44,7 @@ function analyse(targets: TargetSpec[], settings: Partial<typeof DEFAULT_ANALYSI
       harvestYear: target.harvestYear ?? null,
       clearcutPercent: target.clearcutPercent ?? null,
       siteDisturbance: target.siteDisturbance,
+      ...(target.harvestSystem ? { harvestSystem: target.harvestSystem } : {}),
     })),
     settings: {
       ...DEFAULT_ANALYSIS_SETTINGS,
@@ -542,16 +543,38 @@ describe('one active landform', () => {
       viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
       targets: [
         { id: 'land', name: 'land', role: 'landscape', geometry: LANDFORM, harvestYear: null, clearcutPercent: null },
-        { id: 'other', name: 'other', role: 'landscape', geometry: elsewhere, harvestYear: null, clearcutPercent: null },
-        { id: 'proposed', name: 'proposed', role: 'block', geometry: proposed, harvestYear: null, clearcutPercent: null },
+        {
+          id: 'other',
+          name: 'other',
+          role: 'landscape',
+          geometry: elsewhere,
+          harvestYear: null,
+          clearcutPercent: null,
+        },
+        {
+          id: 'proposed',
+          name: 'proposed',
+          role: 'block',
+          geometry: proposed,
+          harvestYear: null,
+          clearcutPercent: null,
+        },
       ],
-      settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters: 3000, maxViewDistanceMeters: 40000, sampleBudget: 400 },
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 3000,
+        maxViewDistanceMeters: 40000,
+        sampleBudget: 400,
+      },
       assessmentYear: 2026,
       activeLandformId: 'land',
     }
     const withOther = computeAnalysis(FLAT, input, TERRAIN)
     expect(withOther.activeLandformId).toBe('land')
-    expect(withOther.planimetricAlteration!.cumulativePercent).toBeCloseTo(alone.planimetricAlteration!.cumulativePercent, 10)
+    expect(withOther.planimetricAlteration!.cumulativePercent).toBeCloseTo(
+      alone.planimetricAlteration!.cumulativePercent,
+      10,
+    )
     // The inactive landform is not assessed at all.
     expect(withOther.targets.some((target) => target.targetId === 'other')).toBe(false)
   })
@@ -561,11 +584,69 @@ describe('one active landform', () => {
       viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
       targets: [
         { id: 'land', name: 'land', role: 'landscape', geometry: LANDFORM, harvestYear: null, clearcutPercent: null },
-        { id: 'other', name: 'other', role: 'landscape', geometry: elsewhere, harvestYear: null, clearcutPercent: null },
+        {
+          id: 'other',
+          name: 'other',
+          role: 'landscape',
+          geometry: elsewhere,
+          harvestYear: null,
+          clearcutPercent: null,
+        },
       ],
       settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters: 3000, maxViewDistanceMeters: 40000 },
       assessmentYear: 2026,
     }
     expect(() => computeAnalysis(FLAT, input, TERRAIN)).toThrow(/Select one active landform/)
+  })
+})
+
+describe('resolution of a small proposal', () => {
+  // About 220 m square — 5 ha — on a 4.4 km by 2.2 km landform.
+  const small = box(0.004, -0.001, 0.006, 0.001)
+  const run = (sampleBudget: number) =>
+    analyse(
+      [
+        { id: 'landform', role: 'landscape', geometry: LANDFORM },
+        { id: 'small', role: 'block', geometry: small },
+      ],
+      { sampleBudget, greenAreaConfirmed: true, existingDisturbanceConfirmed: true },
+    )
+
+  it('withholds the figure when the opening covers only a few landform cells', () => {
+    // At 400 points the landform grid is ~155 m: two or three cells land in
+    // the opening, so its share could only read in steps of a whole cell.
+    const coarse = run(400)
+    expect(coarse.quality!.underResolvedTargetIds).toEqual(['small'])
+    expect(coarse.quality!.numericalReady).toBe(false)
+    expect(coarse.quality!.warnings.join(' ')).toContain(`fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells`)
+    // And says how many points would do: ~9.7 km² × 8 cells ÷ 4.9 ha, with a margin.
+    expect(coarse.quality!.warnings.join(' ')).toMatch(/to about 2,500/)
+  })
+
+  it('measures it once the grid is fine enough, close to its true share', () => {
+    const fine = run(10000)
+    expect(fine.quality!.underResolvedTargetIds).toEqual([])
+    expect(fine.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(small), 0)
+  })
+})
+
+describe('a partial cut', () => {
+  const block = box(0.004, -0.001, 0.006, 0.001)
+  const run = (harvestSystem?: 'partial') =>
+    analyse(
+      [
+        { id: 'landform', role: 'landscape', geometry: LANDFORM },
+        { id: 'block', role: 'block', geometry: block, ...(harvestSystem ? { harvestSystem } : {}) },
+      ],
+      { sampleBudget: 10000, greenAreaConfirmed: true, existingDisturbanceConfirmed: true },
+    )
+
+  it('is seen, but not counted as cleared ground: Table 6 accounts for it instead', () => {
+    const clearcut = run()
+    const partial = run('partial')
+    expect(clearcut.perspectiveAlteration!.proposedPercent).toBeGreaterThan(0)
+    expect(partial.perspectiveAlteration!.proposedPercent).toBe(0)
+    expect(partial.targets.find((target) => target.targetId === 'block')!.visibleAreaMeters).toBeGreaterThan(0)
+    expect(partial.quality!.underResolvedTargetIds).toEqual([])
   })
 })

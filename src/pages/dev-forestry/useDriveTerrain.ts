@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadElevationGrid } from './demLoader'
-import { demTileRange, type Bounds, type ElevationSource } from './terrain'
+import { demTileRange, renderedGroundSource, type Bounds, type ElevationSource } from './terrain'
 import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
 /** A bounded, fixed DEM mosaic is loaded before growing trees. Camera movement
@@ -64,7 +64,9 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
         if (!abort.signal.aborted) {
           setLoading(false)
           setState({
-            source: missingTileCount === range.tileCount ? null : grid,
+            // The camera and tree bases stand on the ground MapLibre draws,
+            // which registers DEM samples half a pixel from the analysis grid.
+            source: missingTileCount === range.tileCount ? null : renderedGroundSource(grid),
             message: missingTileCount
               ? `${missingTileCount} terrain tiles unavailable; trees are omitted where ground is unknown.`
               : null,

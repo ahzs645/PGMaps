@@ -9,6 +9,9 @@ import { buildCanopyGrid, type CanopyStand } from './canopy'
 import { demResolutionMeters, lngLatToMercator, type Bounds, type ElevationSource } from './terrain'
 import { activeLandform, alterationWeight, canonicalInput, unionContributions } from './integrity'
 import { DEFAULT_SIGHTLINE_OPTIONS, haversineMeters, lineLengthMeters, polygonAreaMeters, polygonBounds, pointInPolygon, polygonGridSamples, sampleAlongLine, spacingForSampleBudget, terrainNormal, testSightline, apparentSolidAngle, type CorridorStation, type GroundPoint, type GridSample, type PolygonGeometry, type Vector3 } from './visibility'
+
+/** Fewest landform-grid cells a proposed opening may cover and still have its share of the landform measured. */
+export const MIN_LEDGER_CELLS_PER_PROPOSAL = 8
 import { VIEWING_ZONES, vegHeightForSlope, viewingZoneFor } from './vqo'
 import type { AlterationBreakdown, AnalysisInput, AnalysisProgress, AnalysisResult, TargetRole, TargetVisibility, InventoryEvidence } from './types'
 export const MAX_TOTAL_SIGHTLINES = 250_000
@@ -17,6 +20,8 @@ export type AnalysisContext = { vegetation?: InventoryEvidence }
 export type PreparedTarget = {
   id: string; name: string; role: TargetRole; geometry: PolygonGeometry
   spacingMeters: number; areaMeters: number; inRange: boolean; alterationWeight: number; recovered: boolean; siteDisturbance: boolean
+  /** A partial cut: seen and sampled, but not counted as cleared ground (its Table 6 equivalent is added later). */
+  partialCut?: boolean
 }
 function validate(input: AnalysisInput) {
   canonicalInput(input)
@@ -43,7 +48,8 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
     const weight = alterationWeight(target, input.assessmentYear, input.settings.greenUpAgeYears)
     return { id: target.id, name: target.name, role: target.role, geometry: target.geometry, areaMeters,
       spacingMeters: spacingForSampleBudget(target.geometry, input.settings.sampleBudget, minimum), inRange: nearest <= input.settings.maxViewDistanceMeters,
-      alterationWeight: weight, recovered: target.role === 'harvested' && !target.siteDisturbance && weight === 0, siteDisturbance: target.siteDisturbance === true }
+      alterationWeight: weight, recovered: target.role === 'harvested' && !target.siteDisturbance && weight === 0, siteDisturbance: target.siteDisturbance === true,
+      partialCut: target.role === 'block' && target.harvestSystem === 'partial' }
   })
   const tier = (t: PreparedTarget) => t.role !== 'harvested' ? 0 : t.recovered ? 2 : 1
   const cost = (t: PreparedTarget) => t.inRange ? Math.max(1, t.areaMeters / t.spacingMeters ** 2) * stations.length : 0
@@ -92,7 +98,7 @@ export function computeAnalysis(source: ElevationSource, input: AnalysisInput, t
   }
   const bounds = analysisBounds(input, stations)
   // Partial-opening fractions do not locate leave patches. Do not silently clear their entire canopy.
-  const canopy = input.settings.screeningEnabled && canopyStands.length && bounds ? buildCanopyGrid(canopyStands, bounds, prepared.filter((t) => t.role === 'block' || t.role === 'harvested' && t.alterationWeight >= 1).map((t) => t.geometry), { minCrownClosurePercent: input.settings.minCrownClosurePercent }) : null
+  const canopy = input.settings.screeningEnabled && canopyStands.length && bounds ? buildCanopyGrid(canopyStands, bounds, prepared.filter((t) => (t.role === 'block' && !t.partialCut) || t.role === 'harvested' && t.alterationWeight >= 1).map((t) => t.geometry), { minCrownClosurePercent: input.settings.minCrownClosurePercent }) : null
   const options = { ...DEFAULT_SIGHTLINE_OPTIONS, observerHeightMeters: input.settings.observerHeightMeters, targetOffsetMeters: input.settings.targetOffsetMeters, maxDistanceMeters: input.settings.maxViewDistanceMeters, stepMeters: Math.max(5, terrain.resolutionMeters * 0.9) }
   let completed = 0, lastProgress = 0, unknownSightlines = 0
   const total = grids.reduce((n, grid, i) => n + (prepared[i].inRange ? grid.length * stations.length : 0), 0)
@@ -125,7 +131,7 @@ export function computeAnalysis(source: ElevationSource, input: AnalysisInput, t
   const land = passes.find((p) => p.target.role === 'landscape')
   const inLand = land ? bounded(land.target.geometry) : () => false
   const openings = prepared.filter((t) => t.role === 'harvested' && !t.siteDisturbance && t.alterationWeight > 0).map((t) => ({ weight: t.alterationWeight, contains: bounded(t.geometry), id: t.id }))
-  const proposals = prepared.filter((t) => t.role === 'block').map((t) => ({ contains: bounded(t.geometry), id: t.id }))
+  const proposals = prepared.filter((t) => t.role === 'block' && !t.partialCut).map((t) => ({ contains: bounded(t.geometry), id: t.id }))
   const roads = prepared.filter((t) => t.siteDisturbance && t.alterationWeight > 0).map((t) => ({ contains: bounded(t.geometry), id: t.id }))
   const treed = forestedGround.map(bounded)
   // Supplied forest alterations, including access roads, remain in the assessable
@@ -198,7 +204,17 @@ export function computeAnalysis(source: ElevationSource, input: AnalysisInput, t
       alterationWeight: pass.target.alterationWeight, recovered: pass.target.recovered, siteDisturbance: pass.target.siteDisturbance, outOfRange: !pass.target.inRange,
       stations: stationPoints.map((s, index) => ({ ...s, visiblePercent: 100 * pass.visibleArea[index] / pass.target.areaMeters, unknownPercent: 100 * pass.grid.reduce((area, _, i) => area + (pass.matrix[index * n + i] === 2 ? pass.areas[i] : 0), 0) / pass.target.areaMeters })) }
   })
-  const underResolvedTargetIds = land ? passes.filter((p) => p.target.role !== 'landscape' && (p.target.role === 'block' || p.target.alterationWeight > 0) && !hits.has(p.target.id) && p.samples.some(inLand)).map((p) => p.target.id) : []
+  // A proposal's share of the landform moves in whole shared-grid cells, so one
+  // covering only a few of them reads 0% or several percent with nothing in
+  // between: a 12 ha opening on Tabor Mountain at the default budget read 0%
+  // (preservation) one run and 3.9% the next. Proposals need enough cells to be
+  // measured; existing openings keep the looser test, since the inventory is
+  // full of small old ones that would otherwise block every run.
+  const underResolvedTargetIds = land ? passes.filter((p) => {
+    if (p.target.role === 'landscape' || p.target.partialCut || !(p.target.role === 'block' || p.target.alterationWeight > 0) || !p.samples.some(inLand)) return false
+    const cells = hits.get(p.target.id) ?? 0
+    return p.target.role === 'block' ? cells < MIN_LEDGER_CELLS_PER_PROPOSAL : cells === 0
+  }).map((p) => p.target.id) : []
   let existingInventory = input.harvestInventory?.status ?? 'not-requested'
   if (land && input.harvestInventory?.bounds && !containsBounds(input.harvestInventory.bounds, polygonBounds(land.target.geometry))) existingInventory = 'partial'
   if (input.settings.existingDisturbanceConfirmed) existingInventory = 'scenario-only'
@@ -208,7 +224,13 @@ export function computeAnalysis(source: ElevationSource, input: AnalysisInput, t
   if (!existingReady) warnings.push('Existing disturbance coverage has not been confirmed. A missing inventory is not zero existing alteration.')
   if (unknownSightlines || unknownStationCount) warnings.push('Some terrain/surface sightlines are unknown. Unknown is not screened or visible; no complete worst-case result can be asserted.')
   if (terrain.missingTileCount) warnings.push(`${terrain.missingTileCount} DEM tiles did not load.`)
-  if (underResolvedTargetIds.length) warnings.push('An alteration intersects the landform but is missed by its shared grid. Increase the sample budget or assess a shorter corridor before exporting numerical fields.')
+  if (underResolvedTargetIds.length) {
+    // Points the landform needs for the smallest under-resolved proposal to
+    // cover the minimum number of cells: its area over the landform's.
+    const smallest = Math.min(...passes.filter((p) => underResolvedTargetIds.includes(p.target.id)).map((p) => Math.max(1, p.target.areaMeters)))
+    const needed = land ? Math.ceil((land.target.areaMeters * MIN_LEDGER_CELLS_PER_PROPOSAL * 1.3) / smallest / 500) * 500 : null
+    warnings.push(`An alteration covers fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells of the landform's shared grid, so its share would move in whole-cell steps. Raise the sample points per polygon${needed ? ` to about ${needed.toLocaleString('en-CA')}` : ''} (Simulation settings), or delineate a tighter landform, before exporting numerical fields.`)
+  }
   if (input.settings.screeningEnabled && (!canopy || vegetation !== 'complete')) warnings.push('Requested vegetation screening is incomplete; the numerical assessment is provisional.')
   const partialScreening = !!canopy && prepared.some((t) => t.role === 'harvested' && t.alterationWeight > 0 && t.alterationWeight < 1)
   if (partialScreening) warnings.push('Partial-opening fractions do not locate retained patches; retained canopy is not geometrically resolved.')

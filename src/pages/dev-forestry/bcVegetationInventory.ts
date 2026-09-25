@@ -41,6 +41,7 @@ const FIELDS = [
   'SPECIES_CD_1',
   'PROJ_HEIGHT_1',
   'CROWN_CLOSURE',
+  'VRI_LIVE_STEMS_PER_HA',
   'PROJ_AGE_1',
   'GEOMETRY',
 ]
@@ -66,6 +67,8 @@ export type VriStand = {
   /** Projected height of the leading species, in metres. */
   heightMeters: number | null
   crownClosurePercent: number | null
+  /** Live stems per hectare (`VRI_LIVE_STEMS_PER_HA`); draws the stand at its own density. */
+  stemsPerHa?: number | null
   ageYears: number | null
   geometry: PolygonGeometry
 }
@@ -162,6 +165,7 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
         speciesCode: trimmed(properties.SPECIES_CD_1),
         heightMeters: finiteNumber(properties.PROJ_HEIGHT_1),
         crownClosurePercent: finiteNumber(properties.CROWN_CLOSURE),
+        stemsPerHa: finiteNumber(properties.VRI_LIVE_STEMS_PER_HA),
         ageYears: finiteNumber(properties.PROJ_AGE_1),
         geometry,
       },

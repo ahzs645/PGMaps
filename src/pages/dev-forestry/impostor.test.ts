@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { TREE_SPECIES_IDS, VARIANTS_PER_SPECIES, type TreeSpeciesId } from './forest'
-import { BILLBOARD_ASPECT, TREE_SPECIES_DRAWING, atlasCell, impostorShapes } from './impostor'
+import { BILLBOARD_ASPECT, CLUMP_TREES, TREE_SPECIES_DRAWING, atlasCell, impostorClumpShapes, impostorShapes } from './impostor'
 
 /** Every point of every shape, flattened. */
 function allPoints(species: TreeSpeciesId, variant = 0) {
@@ -38,7 +38,8 @@ describe('impostorShapes', () => {
       // The card is BILLBOARD_ASPECT of the tree's height, so a crown of
       // `crownRatio` fills `crownRatio / BILLBOARD_ASPECT` of the card's width.
       const expected = TREE_SPECIES_DRAWING[species].crownRatio / BILLBOARD_ASPECT / 2
-      expect(halfWidth).toBeLessThanOrEqual(expected * 1.25)
+      // Branch tips carry a fixed 0.015 of the card, a larger share of a narrow fir.
+      expect(halfWidth).toBeLessThanOrEqual(expected * 1.3)
       expect(halfWidth).toBeGreaterThan(expected * 0.55)
     }
   })
@@ -100,13 +101,13 @@ describe('atlasCell', () => {
   const atlas = {
     columns: VARIANTS_PER_SPECIES,
     rows: TREE_SPECIES_IDS.length,
-    speciesRow: { pine: 0, spruce: 1, fir: 2, aspen: 3 } as Record<TreeSpeciesId, number>,
+    speciesRow: { pine: 0, spruce: 1, fir: 2, aspen: 3, birch: 4 } as Record<TreeSpeciesId, number>,
   }
 
   it('puts each species on its own row and each variant in its own column', () => {
     expect(atlasCell(atlas, 'pine', 0)).toEqual([0, 0])
-    expect(atlasCell(atlas, 'aspen', 0)).toEqual([0, 0.75])
-    expect(atlasCell(atlas, 'spruce', 2)).toEqual([0.5, 0.25])
+    expect(atlasCell(atlas, 'aspen', 0)).toEqual([0, 0.6])
+    expect(atlasCell(atlas, 'spruce', 2)).toEqual([0.5, 0.2])
   })
 
   it('wraps a variant outside the atlas rather than reading past it', () => {
@@ -114,3 +115,19 @@ describe('atlasCell', () => {
     expect(atlasCell(atlas, 'fir', -1)).toEqual(atlasCell(atlas, 'fir', VARIANTS_PER_SPECIES - 1))
   })
 })
+
+describe('impostorClumpShapes', () => {
+  it('draws a clump of whole trees inside the card, one of them full height', () => {
+    for (const species of TREE_SPECIES_IDS) {
+      const points = impostorClumpShapes(species, 1).flatMap((shape) => shape.points)
+      expect(points.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1)).toBe(true)
+      expect(Math.max(...points.map(([, y]) => y))).toBeCloseTo(1, 6)
+      // Spread across the card, not one tree in the middle.
+      expect(Math.min(...points.map(([x]) => x))).toBeLessThan(0.1)
+      expect(Math.max(...points.map(([x]) => x))).toBeGreaterThan(0.9)
+      // Every tree's bole is there: one per tree.
+      expect(impostorClumpShapes(species, 1).filter((shape) => shape.color === TREE_SPECIES_DRAWING[species].bark)).toHaveLength(CLUMP_TREES)
+    }
+  })
+})
+

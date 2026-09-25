@@ -472,6 +472,8 @@ type SidebarSectionProps = Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
   icon?: ElementType
   iconClassName?: string
   actions?: ReactNode
+  /** Heading level for the title. Use 3 when the section sits inside another headed block, e.g. a `StepSection`. */
+  headingLevel?: 2 | 3
   children: ReactNode
 }
 
@@ -481,6 +483,7 @@ export function SidebarSection({
   icon: Icon,
   iconClassName,
   actions,
+  headingLevel = 2,
   children,
   className,
   ...props
@@ -493,7 +496,11 @@ export function SidebarSection({
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', iconClassName)} />}
-                <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+                {headingLevel === 3 ? (
+                  <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+                ) : (
+                  <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+                )}
               </div>
               {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
             </div>

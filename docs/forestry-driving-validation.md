@@ -2,7 +2,7 @@
 
 ## Roadside cutblock comparison
 
-Use **Try sample drive** from the main setup panel. Terrain and candidate viewpoints are prepared automatically; playback becomes available when the camera ground and forest are ready. This explicitly hypothetical 11.5 ha opening sits to the right of a 1.2 km illustrative route on real Tabor-area terrain. The landform boundary is also illustrative; no real harvest proposal or verified field condition is implied.
+Use **Roadside demo drive** in step 1's *Start from* row; it opens straight into the road view (step 2). Terrain and candidate viewpoints are prepared automatically; playback becomes available when the camera ground and forest are ready. This explicitly hypothetical 11.5 ha opening sits to the right of a 1.2 km illustrative route on real Tabor-area terrain. It carries no landform: read from the terrain, its block stands on the valley floor, where there is no hillside to take a share of. No real harvest proposal or verified field condition is implied.
 
 - The preview starts at **200 m**. Play or choose **Replay approach**: the opening begins at about **350 m**, runs alongside the road until **850 m**, then roadside trees close the forward view again.
 - Choose **View opening** to pause at **600 m**, facing into the cutblock. **Before harvest** fills the proposal with the illustrative stand; **After harvest** removes only the proposal's trees and shows exposed ground and the remaining forest edge. Both buttons pause playback, preserving the eye position and viewing direction.
@@ -14,8 +14,8 @@ Live Chromium inspection confirmed the opening appearing on the right during for
 
 ## Everyday preview workflow
 
-1. Choose **Try sample drive**, or **Start with my site** and draw/import a road and cutblocks. GeoJSON and zipped shapefiles are accepted. A multi-line road import uses the longest line and says so; prepare a single continuous route when that choice is unsuitable.
-2. Select **Preview drive**. Progress and cancellation are available during preparation; failed preparation exposes **Retry preview**. This does not confirm any assessment assumptions.
+1. Choose **Roadside demo drive**, or **New site** and draw/import a road and cutblocks (step 1's *Road or viewpoint* and *Cutblocks* sections). GeoJSON and zipped shapefiles are accepted. A multi-line road import uses the longest line and says so; prepare a single continuous route when that choice is unsuitable.
+2. Select **Look from the road** (step 2). Progress and cancellation are available during preparation; failed preparation exposes **Retry**. This does not confirm any assessment assumptions.
 3. Use **Play/Pause**, driving speed, the route slider, and **Before harvest / After harvest**. Drag or use arrow keys to look around. **Hide options** collapses comparison controls while leaving route position and playback reachable. The principal controls stay in the map; on a phone, setup expands, drawing/drive collapse the sheet, and finishing/exiting restores setup.
 4. Open **Viewpoints, save & display** to choose up to three separated candidate viewpoints. They rank apparent visible ground area from the existing analysis, not tree-screened image pixels. A ground sightline can still be screened by timber.
 5. **Save viewpoint** preserves route position, target or forward direction, look offset, tree height, road clearance, and harvest phase. Up to 12 views are retained for the current scenario. The previous saved preview remains reopenable when switching sites, until another preview is saved. **Download preview** and **Open saved preview** move the geometry and views between browsers. Live terrain and inventory are reloaded; this is not an offline snapshot.

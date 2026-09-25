@@ -1,7 +1,7 @@
 /** Stable geographic forest tiles, grown progressively against a fixed DEM. */
 import { useEffect, useRef } from 'react'
 import { useMap } from '@/components/ui/map'
-import { coniferMesh, type InventoryStand, type TreeInstance } from './forest'
+import { coniferMesh, viewingGapToward, type InventoryStand, type Thinning, type TreeInstance } from './forest'
 import { buildImpostorAtlas } from './impostor'
 import { createTreeLayer, type TreeStyle } from './treeLayer'
 import { canopyRange, forestBands, forestPatches, growForestPatch } from './forestPatches'
@@ -24,6 +24,9 @@ export type ForestOverlayProps = {
   centre: { lng: number; lat: number } | null
   stands: PolygonGeometry[]
   clearings: PolygonGeometry[]
+  thinnings?: ReadonlyArray<Thinning>
+  /** A block to keep a viewing gap open toward, from wherever the eye is. */
+  gapTarget?: PolygonGeometry | null
   standHeightMeters: number
   inventory?: ReadonlyArray<InventoryStand>
   style?: TreeStyle
@@ -38,12 +41,16 @@ export function ForestOverlay(props: ForestOverlayProps) {
   const eyeRef = useRef(props.centre)
   const statusRef = useRef(props.onStatus)
   eyeRef.current = props.centre
+  // Read each frame, so the gap follows the eye without regrowing the stand.
+  const gapTargetRef = useRef(props.gapTarget ?? null)
+  gapTargetRef.current = props.gapTarget ?? null
   statusRef.current = props.onStatus
   const {
     active,
     anchorLatitude: sceneLatitude,
     stands,
     clearings,
+    thinnings,
     standHeightMeters,
     inventory,
     style = 'hybrid',
@@ -63,14 +70,16 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const anchorLatitude = sceneLatitude ?? initialEye.lat
     const bands = forestBands(farRadiusMeters)
     const atlas = style !== 'solid' ? buildImpostorAtlas() : undefined
+    // Coarse bands draw clumps of trees per card, not one stretched tree.
+    const clumpAtlas = style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined
+    const clumpBand = (i: number) => bands[i].spacing >= 20
     const distantLayers = bands.map((_, i) =>
       createTreeLayer(`${LAYER_ID}-${i}`, {
         style: style === 'solid' ? 'solid' : 'billboard',
-        atlas,
+        atlas: clumpBand(i) ? clumpAtlas : atlas,
+        clumps: style !== 'solid' && clumpBand(i),
         mesh: style === 'solid' ? coniferMesh() : undefined,
-        // Far cards represent groups of crowns, not individually inventoried stems.
-        widthScale: i === 2 ? 3.5 : i === 1 ? 1.7 : 1,
-        crossedCards: i === 0 ? (style === 'hybrid' ? 3 : 2) : undefined,
+        crossedCards: i === 0 ? (style === 'hybrid' ? 3 : 2) : i === 1 ? 2 : undefined,
         range: canopyRange(bands, i),
       }),
     )
@@ -92,11 +101,15 @@ export function ForestOverlay(props: ForestOverlayProps) {
         args: Parameters<(typeof layers)[0]['render']>[1],
       ) => {
         const eye = eyeRef.current
-        if (eye)
+        if (eye) {
+          const target = gapTargetRef.current
+          const gap = target ? viewingGapToward(eye, target) : null
           for (const layer of layers) {
             layer.setEye(eye)
+            layer.setGap(gap)
             layer.render(gl, args)
           }
+        }
       },
       // Read-only diagnostics also let browser checks catch accidental close LODs.
       get distanceRanges() {
@@ -181,7 +194,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
           growForestPatch(
             patch,
             bands[patch.band],
-            { stands, clearings, inventory, heightMeters: standHeightMeters },
+            { stands, clearings, thinnings, inventory, heightMeters: standHeightMeters },
             elevation,
             anchorLatitude,
           ),
@@ -212,6 +225,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     terrainMessage,
     stands,
     clearings,
+    thinnings,
     inventory,
     standHeightMeters,
     style,

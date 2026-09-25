@@ -6,12 +6,23 @@ import type { ForestryScene } from './scene'
 import type { AnalysisState } from './useVisibilityAnalysis'
 import type { DrawMode } from './Sidebar'
 import { previewInputError, type SavedDriveView } from './previewState'
-import { lineLengthMeters } from './visibility'
+
+const DRAFT_NOUNS: Record<Exclude<DrawMode, 'none'>, string> = {
+  spot: 'viewpoint',
+  corridor: 'road',
+  block: 'cutblock',
+  landscape: 'landform',
+}
 
 function ActionButton({ className, ...props }: ButtonProps) {
   return <Button variant="outline" size="sm" className={cn('touch:h-10', className)} {...props} />
 }
 type Props = {
+  /**
+   * `setup` is handbook step 1's half — the road and the proposal. `visit` is
+   * step 2's — preparing the eye-level view and keeping the views taken from it.
+   */
+  part: 'setup' | 'visit'
   scene: ForestryScene
   analysis: AnalysisState
   active: boolean
@@ -41,26 +52,42 @@ export function PreviewWorkflow(props: Props) {
     kind.current = value
     file.current?.click()
   }
-  const blocks = props.scene.targets.filter((t) => t.role === 'block')
   const error = previewInputError(props.scene)
   const busy = props.preparing || props.analysis.status === 'running'
   const progress = props.analysis.progress
+  if (props.part === 'setup') {
+    // Step 1's road, cutblock and landform controls live in the sidebar's own
+    // sections; this is only the tracing in progress, whichever they started.
+    if (props.drawMode === 'none') return null
+    return (
+      <section aria-label="Drawing">
+        {(
+          <div className="rounded border bg-muted p-3 text-xs" role="status">
+            <p>
+              {props.drawMode === 'spot'
+                ? 'Click the road to drop the viewpoint.'
+                : `Click the map to trace the ${DRAFT_NOUNS[props.drawMode]}. ${props.pointCount} points added — double-click or Finish to ${props.drawMode === 'corridor' ? 'end the line' : 'close the shape'}.`}
+            </p>
+            <div className="mt-2 flex gap-2">
+              {props.drawMode !== 'spot' && (
+                <ActionButton
+                  disabled={props.pointCount < (props.drawMode === 'corridor' ? 2 : 3)}
+                  onClick={props.onFinish}
+                >
+                  Finish drawing
+                </ActionButton>
+              )}
+              <ActionButton onClick={() => props.onDraw('none')}>
+                Cancel drawing
+              </ActionButton>
+            </div>
+          </div>
+        )}
+      </section>
+    )
+  }
   return (
-    <section className="space-y-4 p-4" aria-label="Drive preview setup">
-      <div>
-        <h2 className="text-base font-semibold">See the change from the road</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Choose your road and cutblocks, then compare the view before and after harvest.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <ActionButton onClick={props.onSample} disabled={busy}>
-          Try sample drive
-        </ActionButton>
-        <ActionButton onClick={props.onNew} disabled={busy || props.active}>
-          Start with my site
-        </ActionButton>
-      </div>
+    <section className="space-y-4" aria-label="Drive preview">
       <input
         ref={file}
         className="hidden"
@@ -73,58 +100,6 @@ export function PreviewWorkflow(props: Props) {
           event.target.value = ''
         }}
       />
-      <div className="rounded-lg border p-3 space-y-2">
-        <h3 className="text-sm font-semibold">1. Road</h3>
-        <p className="break-words text-xs">
-          {props.scene.viewpoint.coordinates.length > 1
-            ? `${props.scene.viewpoint.name} · ${(lineLengthMeters(props.scene.viewpoint.coordinates) / 1000).toFixed(2)} km`
-            : 'No road selected'}
-        </p>
-        <div className="flex gap-2">
-          <ActionButton disabled={busy || props.active} onClick={() => props.onDraw('corridor')}>
-            Draw road
-          </ActionButton>
-          <ActionButton disabled={busy || props.active} onClick={() => select('road')}>
-            Import road
-          </ActionButton>
-        </div>
-      </div>
-      <div className="rounded-lg border p-3 space-y-2">
-        <h3 className="text-sm font-semibold">2. Cutblocks</h3>
-        <p className="break-words text-xs">
-          {blocks.length ? blocks.map((b) => b.name).join(', ') : 'No cutblocks selected'}
-        </p>
-        <div className="flex gap-2">
-          <ActionButton disabled={busy || props.active} onClick={() => props.onDraw('block')}>
-            Draw cutblock
-          </ActionButton>
-          <ActionButton disabled={busy || props.active} onClick={() => select('blocks')}>
-            Import cutblocks
-          </ActionButton>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          GeoJSON or zipped shapefiles. Imports replace the selected road or proposed cutblocks.
-        </p>
-      </div>
-      {props.drawMode !== 'none' && (
-        <div className="rounded border bg-muted p-3 text-xs" role="status">
-          <p>
-            Click the map to trace the {props.drawMode === 'corridor' ? 'road' : 'cutblock'}. {props.pointCount} points
-            added.
-          </p>
-          <div className="mt-2 flex gap-2">
-            <ActionButton
-              disabled={props.pointCount < (props.drawMode === 'corridor' ? 2 : 3)}
-              onClick={props.onFinish}
-            >
-              Finish drawing
-            </ActionButton>
-            <ActionButton onClick={() => props.onDraw('none')}>
-              Cancel drawing
-            </ActionButton>
-          </div>
-        </div>
-      )}
       {!props.active && (
         <div className="space-y-2">
           <Button
@@ -133,7 +108,7 @@ export function PreviewWorkflow(props: Props) {
             disabled={!!error || busy || props.drawMode !== 'none'}
             onClick={props.onPreview}
           >
-            {props.analysis.status === 'error' ? 'Retry preview' : busy ? 'Preparing preview…' : 'Preview drive'}
+            {props.analysis.status === 'error' ? 'Retry' : busy ? 'Preparing the road view…' : 'Look from the road'}
           </Button>
           {error && <p className="text-xs text-muted-foreground">{error}</p>}
           {busy && (
@@ -163,9 +138,9 @@ export function PreviewWorkflow(props: Props) {
       )}
       {props.children}
       <div className="rounded-lg border p-3 text-xs space-y-2">
-        <h3 className="font-semibold text-sm">Saved comparisons</h3>
+        <h4 className="font-semibold text-sm">Saved views</h4>
         <p className="text-muted-foreground">
-          Save a viewpoint from the drive. Reopen it to compare both harvest phases from the same position.
+          Your record of each viewpoint (handbook 3.2): save a view from the drive and download its image. Reopen it to compare both harvest phases from the same spot.
         </p>
         {props.onReopenPrevious && (
           <ActionButton onClick={props.onReopenPrevious}>

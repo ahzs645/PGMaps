@@ -7,6 +7,10 @@ export interface TabOption<T extends string> {
   icon?: ElementType
   /** Count or status shown after the label. */
   badge?: ReactNode
+  /** Shown before the label in place of `icon`, e.g. a step's number or status mark. */
+  marker?: ReactNode
+  /** Accessible name when the visible label is abbreviated. */
+  ariaLabel?: string
   disabled?: boolean
 }
 
@@ -27,6 +31,10 @@ interface TabBarProps<T extends string> {
   idPrefix?: string
   /** Classes for the selected tab, e.g. a section's accent colour. */
   activeClassName?: string
+  /** Tabs share the row's width equally instead of sizing to their labels. */
+  stretch?: boolean
+  /** Marker (or icon) above the label rather than beside it, for many tabs in a narrow panel. */
+  stacked?: boolean
   /** Extra attributes per tab, e.g. `data-*` hooks tests click. */
   getTabProps?: (option: TabOption<T>) => ButtonHTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string | undefined>
   className?: string
@@ -46,6 +54,8 @@ export function TabBar<T extends string>({
   orientation = 'horizontal',
   idPrefix,
   activeClassName,
+  stretch = false,
+  stacked = false,
   getTabProps,
   className,
 }: TabBarProps<T>) {
@@ -97,12 +107,15 @@ export function TabBar<T extends string>({
             id={idPrefix ? `${idPrefix}-tab-${option.value}` : undefined}
             aria-controls={idPrefix ? `${idPrefix}-panel-${option.value}` : undefined}
             aria-selected={selected}
+            aria-label={option.ariaLabel}
             tabIndex={selected ? 0 : -1}
             disabled={option.disabled}
             data-tab-value={option.value}
             onClick={() => onChange(option.value)}
             className={cn(
               'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 touch:min-h-10',
+              stretch && 'min-w-0 flex-1 justify-center',
+              stacked && 'flex-col gap-1 text-[11px]',
               orientation === 'responsive' && 'md:justify-start',
               variant === 'pill'
                 ? cn(
@@ -120,8 +133,8 @@ export function TabBar<T extends string>({
               selected && activeClassName,
             )}
           >
-            {Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-            {option.label}
+            {option.marker ?? (Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />)}
+            <span className={cn(stretch && 'min-w-0 truncate')}>{option.label}</span>
             {option.badge != null && (
               <span className="rounded-full bg-muted px-1.5 text-[10px] leading-4 text-muted-foreground">{option.badge}</span>
             )}

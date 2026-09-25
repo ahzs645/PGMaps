@@ -36,6 +36,10 @@ type Props = {
   onExit?: () => void
   /** Starts playback from the map, where the sidebar's own control is behind the phone sheet. */
   onPlay?: () => void
+  /** Hold the view on a field photo's bearing and pitch; see `DriveOptions.fixedLook`. */
+  fixedLook?: { bearing: number; pitch: number } | null
+  /** Match a photo's lens while comparing against it; MapLibre's own default otherwise. */
+  verticalFovDegrees?: number | null
 }
 /** Look-around owns pointer gestures only while driving; the ordinary map is fully restored on exit. */
 export function DriveCamera(props: Props) {
@@ -43,7 +47,11 @@ export function DriveCamera(props: Props) {
   const controllerRef = useRef<DriveController | null>(null)
   const [status, setStatus] = useState<DriveStatus>('waiting-for-terrain')
   const [view, setView] = useState({ yaw: 0, tilt: 0 })
-  const [optionsExpanded, setOptionsExpanded] = useState(true)
+  // Folded to one bar on a phone, where the panel, caption and sheet together
+  // otherwise cover most of the road view it is there to show.
+  const [optionsExpanded, setOptionsExpanded] = useState(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches,
+  )
   // The animation frame reads the latest look and props without the effect
   // below being torn down and rebuilt, which would restart playback per render.
   const viewRef = useRef(view)
@@ -65,6 +73,16 @@ export function DriveCamera(props: Props) {
   useEffect(() => {
     controllerRef.current?.seek(propsRef.current.seekMeters)
   }, [props.seekVersion]) // reports do not trigger seeks
+  useEffect(() => {
+    if (!map || !isLoaded || !props.active || !props.verticalFovDegrees) return
+    const previous = map.getVerticalFieldOfView()
+    map.setVerticalFieldOfView(props.verticalFovDegrees)
+    map.triggerRepaint()
+    return () => {
+      map.setVerticalFieldOfView(previous)
+      map.triggerRepaint()
+    }
+  }, [map, isLoaded, props.active, props.verticalFovDegrees])
   useEffect(() => {
     if (!props.active || !map || !isLoaded || !path.length) return
     const controller = new DriveController(map as unknown as DriveMap, path, props.stations, props.elevation)
@@ -167,7 +185,7 @@ export function DriveCamera(props: Props) {
         <p className="text-xs font-semibold">Road-level preview · 1× terrain</p>
         <Button variant="outline" size="sm" className="shrink-0 touch:h-10" aria-expanded={optionsExpanded} onClick={() => setOptionsExpanded(current => !current)}>{optionsExpanded ? 'Hide options' : 'Show options'}</Button>
       </div>
-      <p className="mt-1 text-xs" role="status">
+      <p className={`mt-1 text-xs ${status === 'ready' ? 'hidden md:block' : ''}`} role="status">
         {status === 'waiting-for-terrain'
           ? 'Waiting for terrain at the camera. Playback is held.'
           : status === 'invalid-camera'
@@ -178,9 +196,11 @@ export function DriveCamera(props: Props) {
         <input aria-label="Route position" className="mt-1 block w-full accent-primary" type="range" min={0} max={props.routeLengthMeters ?? 1} step={5} value={props.seekMeters} onChange={e => props.onSeek?.(Number(e.target.value))} />
       </label>}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <Button variant="outline" size="sm" className="touch:h-10" onClick={() => setView({ yaw: 0, tilt: 0 })}>
-          Reset look
-        </Button>
+        {optionsExpanded && (
+          <Button variant="outline" size="sm" className="touch:h-10" onClick={() => setView({ yaw: 0, tilt: 0 })}>
+            Reset look
+          </Button>
+        )}
         <Button
           size="sm"
           className="font-semibold touch:h-10"
@@ -194,11 +214,11 @@ export function DriveCamera(props: Props) {
           Return to map
         </Button>
       </div>
-      {props.onSeek && <div className="mt-2 flex items-center gap-2 text-xs">
+      {props.onSeek && optionsExpanded && <div className="mt-2 flex items-center gap-2 text-xs">
         <Button variant="outline" size="sm" className="touch:h-10" disabled={props.seekMeters <= 0} onClick={() => { props.onPause?.(); props.onSeek?.(Math.max(0, props.seekMeters - 10)) }}>Back 10 m</Button>
         <Button variant="outline" size="sm" className="touch:h-10" disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)} onClick={() => { props.onPause?.(); props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10)) }}>Forward 10 m</Button>
       </div>}
-      <p className="mt-1 text-[10px] text-muted-foreground">Preview speed; posted limits are not loaded. {props.speedKmh && props.routeLengthMeters ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.` : ''}</p>
+      <p className="mt-1 text-[10px] text-muted-foreground" hidden={!optionsExpanded}>Preview speed; posted limits are not loaded. {props.speedKmh && props.routeLengthMeters ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.` : ''}</p>
       <div className="mt-2" hidden={!optionsExpanded}>{props.comparison}</div>
     </div>
   )

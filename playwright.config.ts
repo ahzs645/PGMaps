@@ -52,6 +52,9 @@ export default defineConfig({
         url: 'http://127.0.0.1:42173',
         reuseExistingServer: false,
         timeout: 120_000,
+        // The forestry field-photo tests stub the Graph API, so any token will do;
+        // a real one in .env.local is overridden rather than spent on test runs.
+        env: { VITE_MAPILLARY_TOKEN: 'MLY|e2e-stub' },
       },
   projects: [
     {

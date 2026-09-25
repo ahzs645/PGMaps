@@ -20,10 +20,14 @@ export function createRoadsideDriveScene(): ForestryScene {
     type: 'Polygon',
     coordinates: [[point(a, near), point(b, near), point(b, far), point(a, far), point(a, near)]],
   })
-  const landformId = `${ROADSIDE_DEMO_ID}-landform`
   return {
     ...scene,
-    activeLandformId: landformId,
+    // No landform. The block stands on the valley floor beside the road, and
+    // read from the terrain (`landformFromTerrain.ts`) there is no hillside
+    // around it: the 900 × 600 m box this demo used to carry was barely bigger
+    // than the block and made it read as 96.6% altered. The demo is for the
+    // road view; a percent alteration here would be a number about nothing.
+    activeLandformId: null,
     viewpoint: {
       id: ROADSIDE_DEMO_ID,
       name: 'Roadside harvest demo — illustrative route',
@@ -42,17 +46,6 @@ export function createRoadsideDriveScene(): ForestryScene {
         clearcutPercent: null,
         geometry: rectangle(DEMO_OPENING_START, DEMO_OPENING_END, 10, 240),
         source: 'Illustrative driving demo; not a recorded or proposed harvest',
-      },
-      {
-        id: landformId,
-        name: 'Demo hillside — illustrative assessment boundary',
-        role: 'landscape',
-        objectiveId: 'partial-retention',
-        vac: 'medium',
-        harvestYear: null,
-        clearcutPercent: null,
-        geometry: rectangle(150, 1050, 0, 600),
-        source: 'Illustrative driving demo; not a verified landform',
       },
     ],
   }

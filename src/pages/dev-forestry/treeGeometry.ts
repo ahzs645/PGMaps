@@ -1,4 +1,4 @@
-import type { ForestMesh, TreeSpeciesId } from './forest'
+import { isBroadleaf, type ForestMesh, type TreeSpeciesId } from './forest'
 
 /** Small generated branch clusters, shared by all nearby stems of a species.
  * No model downloads. Unit height; crown width is scaled per instance. */
@@ -42,12 +42,14 @@ export function roadsideTreeMesh(species: TreeSpeciesId): ForestMesh {
       triangle(pb, pa, [x, y, z - h * 0.3], 0)
     }
   }
-  stem([0, 0, 0], [0, 0, 1], species === 'aspen' ? 0.035 : 0.045)
-  const bottom = species === 'pine' ? 0.5 : species === 'aspen' ? 0.48 : species === 'fir' ? 0.14 : 0.2
+  const broadleaf = isBroadleaf(species)
+  stem([0, 0, 0], [0, 0, 1], broadleaf ? 0.035 : 0.045)
+  // Live crown starts where `impostor.ts` starts it, so near and far agree.
+  const bottom = species === 'pine' ? 0.5 : broadleaf ? 0.48 : species === 'fir' ? 0.25 : 0.3
   for (let whorl = 0; whorl < 7; whorl++) {
     const t = whorl / 7,
       z = bottom + (1 - bottom) * t
-    const spread = species === 'aspen' ? 0.44 * Math.sin((0.15 + t * 0.8) * Math.PI) : 0.5 * (1 - t) ** 0.85
+    const spread = broadleaf ? 0.44 * Math.sin((0.15 + t * 0.8) * Math.PI) : 0.5 * (1 - t) ** 0.85
     for (let j = 0; j < 5; j++) {
       const angle = (j * Math.PI * 2) / 5 + whorl * 2.399
       const x = Math.cos(angle) * spread * 0.65,

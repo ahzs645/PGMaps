@@ -354,7 +354,7 @@ export function ResultsPanel({
           {result.canopyCoverageFraction === null
             ? 'Bare-earth terrain only — standing timber is not modelled, so screened blocks read as visible.'
             : 'Terrain plus inventory stand height. Understorey, roadside cover, and retention inside a block are still not modelled.'}{' '}
-          This is a screening tool, not a visual impact assessment.
+          These are screening figures from sightlines; the handbook's rating is made in steps 4 and 5.
         </p>
       </div>
     </div>

@@ -4,7 +4,7 @@ export const BC_DESIGN_HANDBOOK = 'https://www2.gov.bc.ca/assets/gov/farming-nat
 
 export function LandformDesignPanel({ result, onView }: { result: AnalysisResult | null; onView: (station: number, blockId: string) => void }) {
   const review = result?.landformDesign
-  return <details className="rounded-lg border p-3 text-xs" open>
+  return <details className="rounded-lg border p-3 text-xs">
     <summary className="cursor-pointer font-medium">Landform design review</summary>
     <p className="my-2">Use <a className="underline" href={`${BC_DESIGN_HANDBOOK}#page=61`} target="_blank" rel="noreferrer">BC VIA Handbook, Appendix 5, pp. 55–56</a> to review opening shape, position and edges from representative road views.</p>
     <p className="my-2">Proposed blocks assume full harvest inside their boundaries. Historical openings use recorded harvest and recovery inputs; missing details remain assumptions. This reviews a proposal—it does not optimize harvest area or timber volume.</p>

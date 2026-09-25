@@ -86,7 +86,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
       vegetation = { status: !stands.length ? 'unavailable' : limited || missingHeights ? 'partial' : 'complete', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
       if (wantsGreenArea) forestedGround = forestedGeometries(stands)
       // Keep the same stand records for rendering even when numerical screening is off.
-      canopyStands = stands.flatMap((stand) => stand.treed && stand.heightMeters !== null && stand.heightMeters > 0 ? [{ heightMeters: stand.heightMeters, crownClosurePercent: stand.crownClosurePercent, speciesCode: stand.speciesCode, geometry: stand.geometry }] : [])
+      canopyStands = stands.flatMap((stand) => stand.treed && stand.heightMeters !== null && stand.heightMeters > 0 ? [{ heightMeters: stand.heightMeters, crownClosurePercent: stand.crownClosurePercent, speciesCode: stand.speciesCode, stemsPerHa: stand.stemsPerHa ?? null, geometry: stand.geometry }] : [])
     } catch {
       vegetation = { status: 'unavailable', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
     } finally { clearTimeout(timeout) }

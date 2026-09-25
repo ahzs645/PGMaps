@@ -16,7 +16,12 @@ export type ForestPatch = {
 }
 export function forestBands(farRadius: number): ForestBand[] {
   return [
-    { size: 256, spacing: 6, near: 0, far: 600 },
+    // 4 m holds up to 625 stems/ha, enough for the region's mature stands
+    // (VRI median 426–664), so the first 300 m is drawn stem for stem. Past
+    // it every band is coarser and widens crowns to keep the stand's canopy
+    // closure instead (`placeTrees`).
+    { size: 256, spacing: 4, near: 0, far: 300 },
+    { size: 512, spacing: 9, near: 250, far: 600 },
     { size: 1024, spacing: 24, near: 550, far: 3000 },
     { size: 2048, spacing: 80, near: 2800, far: Math.max(3500, farRadius) },
   ]
@@ -56,7 +61,7 @@ export function forestPatches(
 export function growForestPatch(
   patch: ForestPatch,
   band: ForestBand,
-  inputs: Pick<TreePlacementOptions, 'stands' | 'clearings' | 'inventory' | 'heightMeters'>,
+  inputs: Pick<TreePlacementOptions, 'stands' | 'clearings' | 'thinnings' | 'inventory' | 'heightMeters'>,
   elevation: ElevationSource,
   anchorLatitude: number,
 ): TreeInstance[] {

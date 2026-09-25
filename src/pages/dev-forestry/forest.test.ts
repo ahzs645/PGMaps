@@ -4,12 +4,16 @@ import {
   SPECIES_CROWN_RATIO,
   TREE_SPECIES_IDS,
   VARIANTS_PER_SPECIES,
+  blockThinning,
+  REGIONAL_STAND,
   bufferLine,
   coniferMesh,
+  crownWidthForClosure,
   crownColor,
   placeTrees,
   speciesFromCode,
   speciesFromMix,
+  viewingGapToward,
 } from './forest'
 import { pointInPolygon, polygonAreaMeters } from './visibility'
 
@@ -247,15 +251,15 @@ describe('speciesFromMix', () => {
       const species = speciesFromMix(index / 10_000)
       counts.set(species, (counts.get(species) ?? 0) + 1)
     }
-    // Pine-leading, aspen a minor component — the default interior mix.
-    expect(counts.get('pine')! / 10_000).toBeCloseTo(0.42, 2)
-    expect(counts.get('aspen')! / 10_000).toBeCloseTo(0.12, 2)
-    expect(new Set(counts.keys()).size).toBe(4)
+    // Spruce-leading, pine a trace since the beetle — VRI around Prince George.
+    expect(counts.get('spruce')! / 10_000).toBeCloseTo(0.37, 2)
+    expect(counts.get('pine')! / 10_000).toBeCloseTo(0.06, 2)
+    expect(new Set(counts.keys()).size).toBe(5)
   })
 
   it('handles the ends and a mix that adds to nothing', () => {
-    expect(speciesFromMix(0)).toBe('pine')
-    expect(speciesFromMix(1)).toBe('aspen')
+    expect(speciesFromMix(0)).toBe('spruce')
+    expect(speciesFromMix(1)).toBe('pine')
     expect(speciesFromMix(0.5, [])).toBe('pine')
     expect(speciesFromMix(0.5, [{ species: 'fir', share: 1 }])).toBe('fir')
   })
@@ -269,7 +273,7 @@ describe('placeTrees species', () => {
     expect(trees.every((tree) => TREE_SPECIES_IDS.includes(tree.species))).toBe(true)
     expect(trees.every((tree) => tree.variant >= 0 && tree.variant < VARIANTS_PER_SPECIES)).toBe(true)
     // A stand is mixed, not one species repeated.
-    expect(new Set(trees.map((tree) => tree.species)).size).toBe(4)
+    expect(new Set(trees.map((tree) => tree.species)).size).toBe(TREE_SPECIES_IDS.length)
   })
 
   it('crowns each species around its own width', () => {
@@ -279,7 +283,9 @@ describe('placeTrees species', () => {
     const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length
 
     expect(mean(firs.map((tree) => tree.slenderness))).toBeLessThan(mean(aspens.map((tree) => tree.slenderness)))
-    expect(mean(firs.map((tree) => tree.slenderness))).toBeCloseTo(SPECIES_CROWN_RATIO.fir, 1)
+    // Width over height stays in the ratio the silhouettes are drawn at.
+    const ratio = mean(aspens.map((tree) => tree.slenderness)) / mean(firs.map((tree) => tree.slenderness))
+    expect(ratio).toBeCloseTo(SPECIES_CROWN_RATIO.aspen / SPECIES_CROWN_RATIO.fir, 1)
   })
 
   it('follows the mix it is handed', () => {
@@ -304,7 +310,7 @@ describe('speciesFromCode', () => {
     expect(speciesFromCode('BL')).toBe('fir')
     expect(speciesFromCode('FDI')).toBe('fir')
     expect(speciesFromCode('AT')).toBe('aspen')
-    expect(speciesFromCode('EP')).toBe('aspen')
+    expect(speciesFromCode('EP')).toBe('birch')
   })
 
   it('falls back through the code to its stem and its genus', () => {
@@ -372,3 +378,125 @@ describe('crownColor', () => {
     expect(crownColor(0)[1]).toBeLessThan(crownColor(1)[1])
   })
 })
+
+describe('thinned blocks', () => {
+  const block = box(CENTRE.lng - 0.002, CENTRE.lat - 0.002, CENTRE.lng + 0.002, CENTRE.lat + 0.002)
+  const grow = (thinnings: Parameters<typeof placeTrees>[0]['thinnings']) =>
+    placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: 400, spacingMeters: 5, heightMeters: 28, thinnings })
+  const inBlock = (trees: ReturnType<typeof placeTrees>) => trees.filter((tree) => pointInPolygon(block, tree.lng, tree.lat))
+
+  it('keeps about the recorded share of stems, and leaves the rest of the stand alone', () => {
+    const full = grow([])
+    const thinned = grow([blockThinning({ geometry: block, harvestSystem: 'retention', retentionPercent: 20 })!])
+    const share = inBlock(thinned).length / inBlock(full).length
+    expect(share).toBeGreaterThan(0.15)
+    expect(share).toBeLessThan(0.25)
+    const outside = (trees: ReturnType<typeof placeTrees>) => trees.filter((tree) => !pointInPolygon(block, tree.lng, tree.lat))
+    expect(outside(thinned)).toEqual(outside(full))
+  })
+
+  it('stands a partial cut’s residuals at the height entered for them', () => {
+    const trees = inBlock(grow([blockThinning({ geometry: block, harvestSystem: 'partial', volumeRemovedPercent: 60, residualHeightMeters: 12 })!]))
+    expect(trees.length).toBeGreaterThan(50)
+    expect(Math.max(...trees.map((tree) => tree.heightMeters))).toBeLessThanOrEqual(12 * 1.3)
+  })
+
+  it('draws a clearcut, or retention of nothing, as a clearing instead', () => {
+    expect(blockThinning({ geometry: block })).toBeNull()
+    expect(blockThinning({ geometry: block, harvestSystem: 'retention', retentionPercent: 0 })).toBeNull()
+  })
+})
+
+describe('stand density and crown closure', () => {
+  /** Closure as drawn: every crown rasterised at 1/16 of the spacing (0.5 m at least) over a central square. */
+  function drawnClosure(options: Partial<Parameters<typeof placeTrees>[0]> & { spacingMeters: number }) {
+    const spacing = options.spacingMeters
+    const half = Math.max(150, spacing * 12), res = Math.max(0.5, spacing / 16)
+    const trees = placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: half * 1.6, maxTrees: 1e6, ...options })
+    const metresPerLng = 111_320 * Math.cos((53.75 * Math.PI) / 180) // the placement grid's quantised anchor
+    const n = Math.round((2 * half) / res), grid = new Uint8Array(n * n)
+    for (const tree of trees) {
+      const x = (tree.lng - CENTRE.lng) * metresPerLng + half, y = (tree.lat - CENTRE.lat) * 111_320 + half
+      const r = (tree.slenderness * tree.heightMeters) / 2
+      for (let gy = Math.max(0, Math.floor((y - r) / res)); gy <= Math.min(n - 1, Math.ceil((y + r) / res)); gy += 1)
+        for (let gx = Math.max(0, Math.floor((x - r) / res)); gx <= Math.min(n - 1, Math.ceil((x + r) / res)); gx += 1)
+          if ((gx * res + res / 2 - x) ** 2 + (gy * res + res / 2 - y) ** 2 <= r * r) grid[gy * n + gx] = 1
+    }
+    return { closure: grid.reduce((a, b) => a + b, 0) / grid.length, trees }
+  }
+
+  it('draws the regional mature stand: about 550 stems/ha at 45% closure', () => {
+    const { closure, trees } = drawnClosure({ spacingMeters: 4 })
+    const area = Math.PI * (150 * 1.6) ** 2
+    expect((trees.length / area) * 10_000).toBeGreaterThan(500)
+    expect((trees.length / area) * 10_000).toBeLessThan(600)
+    expect(closure).toBeGreaterThan(0.42)
+    expect(closure).toBeLessThan(0.48)
+  })
+
+  it('draws the same closure in every band, widening crowns rather than adding stems', () => {
+    for (const spacing of [9, 24, 80]) {
+      const { closure } = drawnClosure({ spacingMeters: spacing })
+      expect(closure, `${spacing} m`).toBeGreaterThan(0.4)
+      expect(closure, `${spacing} m`).toBeLessThan(0.5)
+    }
+    for (const target of [25, 60]) {
+      const { closure } = drawnClosure({ spacingMeters: 9, crownClosurePercent: target })
+      expect(Math.abs(closure * 100 - target), `${target}%`).toBeLessThan(4)
+    }
+  })
+
+  it('draws a surveyed stand at its own recorded density and closure, whatever its species', () => {
+    const surveyed = box(CENTRE.lng - 0.02, CENTRE.lat - 0.02, CENTRE.lng + 0.02, CENTRE.lat + 0.02)
+    for (const species of ['fir', 'aspen'] as const) {
+      const { closure, trees } = drawnClosure({
+        spacingMeters: 4,
+        inventory: [{ geometry: surveyed, species, heightMeters: 25, stemsPerHa: 300, crownClosurePercent: 30 }],
+      })
+      const perHa = (trees.length / (Math.PI * (150 * 1.6) ** 2)) * 10_000
+      expect(perHa, species).toBeGreaterThan(260)
+      expect(perHa, species).toBeLessThan(340)
+      expect(Math.abs(closure * 100 - 30), species).toBeLessThan(4)
+    }
+  })
+
+  it('gives unrecorded regeneration a young canopy, not mature crowns', () => {
+    const young = box(CENTRE.lng - 0.02, CENTRE.lat - 0.02, CENTRE.lng + 0.02, CENTRE.lat + 0.02)
+    const { closure, trees } = drawnClosure({ spacingMeters: 4, inventory: [{ geometry: young, species: 'spruce', heightMeters: 2 }] })
+    expect(closure).toBeLessThan(0.12)
+    const far = drawnClosure({ spacingMeters: 80, inventory: [{ geometry: box(CENTRE.lng - 0.1, CENTRE.lat - 0.1, CENTRE.lng + 0.1, CENTRE.lat + 0.1), species: 'spruce', heightMeters: 2 }] })
+    // No hundred-metre strips a metre tall.
+    expect(Math.max(...far.trees.map((tree) => tree.slenderness))).toBeLessThanOrEqual(4)
+    expect(Math.max(...trees.map((tree) => tree.slenderness * tree.heightMeters))).toBeLessThan(4)
+  })
+
+  it('sizes a crown from closure the way the regional numbers imply', () => {
+    // 45% at 550 stems/ha, crowns at random: about a 3.7 m crown.
+    expect(crownWidthForClosure(REGIONAL_STAND.crownClosurePercent, REGIONAL_STAND.stemsPerHa / 10_000)).toBeCloseTo(3.7, 1)
+    expect(crownWidthForClosure(45, 0)).toBe(0)
+  })
+})
+
+describe('viewing gap toward a block', () => {
+  const metresNorth = (m: number) => m / 111_320
+  const metresEast = (m: number) => m / (111_320 * Math.cos((CENTRE.lat * Math.PI) / 180))
+  // A block 200 m wide, 1 km due east of the eye.
+  const block = box(CENTRE.lng + metresEast(1000), CENTRE.lat - metresNorth(100), CENTRE.lng + metresEast(1200), CENTRE.lat + metresNorth(100))
+
+  it('points at the block, takes in its whole width, and stops short of its edge', () => {
+    const gap = viewingGapToward(CENTRE, block)!
+    expect(gap.bearingDegrees).toBeCloseTo(90, 0)
+    // The block spans atan(100/1000) ≈ 5.7° either side, plus a margin.
+    expect(gap.halfAngleDegrees).toBeGreaterThan(5.7)
+    expect(gap.halfAngleDegrees).toBeLessThan(12)
+    expect(gap.lengthMeters).toBeCloseTo(1000 - 30, -1)
+  })
+
+  it('caps how far out it reaches, and opens nothing from inside the block', () => {
+    const far = box(CENTRE.lng + metresEast(5000), CENTRE.lat - metresNorth(100), CENTRE.lng + metresEast(5200), CENTRE.lat + metresNorth(100))
+    expect(viewingGapToward(CENTRE, far)!.lengthMeters).toBe(1500)
+    const around = box(CENTRE.lng - 0.01, CENTRE.lat - 0.01, CENTRE.lng + 0.01, CENTRE.lat + 0.01)
+    expect(viewingGapToward(CENTRE, around)).toBeNull()
+  })
+})
+

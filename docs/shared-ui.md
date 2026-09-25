@@ -12,12 +12,13 @@ All live in `src/components/ui/` unless noted.
 | Need | Use |
 |---|---|
 | Sidebar frame (header, dataset info, scroll port) | `MapSidebarShell` (`map-panels.tsx`). `icon` for an icon tile; `hideTitleOnMobile` when the mobile top bar already names the section. |
-| A titled block inside it | `SidebarSection` (`title`, `icon`, `actions`) |
+| A titled block inside it | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading) |
+| Numbered steps of a procedure | `StepSection` (`step-section.tsx`): `step`, `title`, `status` (`done` / `current` / `todo`), `reference`, one-line `summary`; folds to its header and keeps its content mounted. `collapsible={false}` gives a plain heading for a step already in its own tab panel. `StepMarker` is the numbered/checked circle on its own, for tabs. For a long procedure, show one step at a time: `TabBar` with a `StepMarker` per tab, each step's panel kept mounted and `hidden` when not selected (the forestry visual-quality sidebar is the reference). |
 | Settings people set once (mode, period) | `MobileCollapsibleSection` (folds on phones only) |
 | A disclosure at every width | `CollapsibleSection collapseOn="always"` |
 | Headline numbers | `StatGroup` (`stat-group.tsx`): `variant="inline"` for a row of numbers, `variant="tiles"` with `size="sm"` (dense sidebar grid) or `size="md"` (dialogs). `StatGrid`/`StatTile` are legacy wrappers around it. |
 | Pick one of 2–4 views | `SegmentedControl` (`segmented-control.tsx`). `variant="solid"`, per-option `icon`/`activeClassName` for toolbars. |
-| Switch which panel shows | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. |
+| Switch which panel shows | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. Opt-in: `stretch` (tabs share the width), `stacked` (marker above the label, for five or so tabs in a sidebar), and per option `marker` (in place of `icon`) and `ariaLabel` (when the visible label is abbreviated). |
 | Layer / data-source on-off | `ToggleRow` (`toggle-row.tsx`), `layout="tile"` for grids. |
 | Multi-select filter chips | `FilterChipGroup variant="filled"` + `SelectAllActions` (`text-button.tsx`) in the group heading. |
 | Notes, warnings, errors, loading text | `InlineAlert` (`tone`, `title`, `loading`) |
@@ -54,6 +55,12 @@ All live in `src/components/ui/` unless noted.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
 
 ## Map overlays
+
+- Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
+  bar measured great-circle across the map's middle (so Mercator's stretch at
+  our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides
+  itself on a map pitched past 60°. Any page reporting areas or distances
+  should show one.
 
 - Legends: `MapLegendPanel` with `defaultCollapsed="mobile"` (or the same rule
   for a controlled legend: `useState(isMobileViewport)`), `LegendItem`,
