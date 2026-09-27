@@ -7699,6 +7699,96 @@
         "layerCount": 14,
         "sceneCount": 32
       }
+    },
+    {
+      "file": "bc-connected-geographies.json",
+      "revision": "07bb4ce7403b",
+      "catalog": {
+        "slug": "bc-connected-geographies",
+        "title": "How B.C.’s Geographies Connect",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Documented crosswalk · unresolved links retained",
+        "summary": "Follow census blocks between economic regions and health areas, see where the links are incomplete, and learn how to connect regional indicators without changing their meaning.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Census blocks",
+            "value": "52,387"
+          },
+          {
+            "label": "Comparisons",
+            "value": "12"
+          },
+          {
+            "label": "Unresolved blocks",
+            "value": "533"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
     }
   ]
 }
