@@ -159,6 +159,7 @@ export type ScoreBuilderAction =
   | { type: 'restoreState'; state: ScoreBuilderControlState }
 
 export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionLevel {
+  if (state.boundarySource === 'economicRegion') return 'economicRegion'
   if (state.boundarySource === 'walkabilityCommunity') return 'walkabilityCommunity'
   if (state.boundarySource === 'cityCommunity') return state.communityBoundaryLevel
   return state.boundarySource === 'bcHealth'
@@ -350,6 +351,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
     case 'setBoundarySource':
       return { ...state, boundarySource: action.source }
     case 'setRegionLevel': {
+      if (state.boundarySource === 'economicRegion') return state
       if (state.boundarySource === 'bcHealth') {
         return { ...state, healthBoundaryLevel: parseHealthBoundaryLevel(action.level) }
       }

@@ -1113,6 +1113,8 @@ export function projectRecipeBars(pkg: ProjectPackage): Array<{ label: string; v
 
 function shareBoundaryLevel(share: ScoreBuilderShareState): string {
   switch (share.boundarySource) {
+    case 'economicRegion':
+      return 'economicRegion'
     case 'bcHealth':
       return share.healthBoundaryLevel
     case 'cityCommunity':

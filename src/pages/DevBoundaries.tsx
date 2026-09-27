@@ -1,4 +1,5 @@
 import { PostalHierarchyControls } from '@/maps/boundaries/PostalHierarchyControls'
+import { migrateEconomicRegionShareState } from '@/maps/boundaries/economicRegionShareState'
 import { migratePostalShareState } from '@/maps/boundaries/postalShareState'
 import area from '@turf/area'
 import bbox from '@turf/bbox'
@@ -337,6 +338,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   bcHealth: { fill: '#0ea5e9', line: '#0369a1' },
   regionalDistrict: { fill: '#8b5cf6', line: '#6d28d9' },
   bcMunicipality: { fill: '#ec4899', line: '#be185d' },
+  economicRegion: { fill: '#d97706', line: '#92400e' },
   census: { fill: '#ef4444', line: '#b91c1c' },
   postal: { fill: '#14b8a6', line: '#0f766e' },
   watershed: { fill: '#22c55e', line: '#15803d' },
@@ -1140,7 +1142,7 @@ function DevBoundaries() {
     let cancelled = false
     decodeBoundariesShareState(token)
       .then((savedState) => {
-        const shareState = migratePostalShareState(savedState)
+        const shareState = migrateEconomicRegionShareState(migratePostalShareState(savedState))
         if (cancelled || shareState.version !== 1) return
 
         const nextActiveSources: BoundarySource[] = Array.isArray(shareState.activeSources)

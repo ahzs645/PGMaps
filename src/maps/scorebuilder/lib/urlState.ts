@@ -76,6 +76,7 @@ export function parseBoundarySource(value: string | null): BoundarySource {
     value === 'regionalDistrict' ||
     value === 'bcMunicipality' ||
     value === 'census' ||
+    value === 'economicRegion' ||
     value === 'cityCommunity' ||
     value === 'cityPG' ||
     value === 'watershed' ||

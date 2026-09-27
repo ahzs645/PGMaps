@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialScoreBuilderState,
+  getSelectedRegionLevel,
   scoreBuilderReducer,
   type ScoreBuilderControlState,
 } from './scoreBuilderReducer'
@@ -128,5 +129,18 @@ describe('scoreBuilderReducer enableDataSource', () => {
     })
 
     expect(next.selectedNetworks).toEqual(['PurpleAir', 'AQHI'])
+  })
+})
+
+
+describe('economic region boundary selection', () => {
+  it('restores economic regions independently and preserves the selected census level', () => {
+    const initial = createInitialScoreBuilderState(new URLSearchParams('src=economicRegion&level=economicRegion&w=0'))
+    expect(initial.boundarySource).toBe('economicRegion')
+    expect(getSelectedRegionLevel(initial)).toBe('economicRegion')
+    const census = scoreBuilderReducer(initial, { type: 'setBoundarySource', source: 'census' })
+    expect(getSelectedRegionLevel(census)).toBe('ct')
+    const economic = scoreBuilderReducer(census, { type: 'setBoundarySource', source: 'economicRegion' })
+    expect(getSelectedRegionLevel(economic)).toBe('economicRegion')
   })
 })

@@ -5,6 +5,7 @@ import type {
   BcRfcBoundaryLevel,
   BcerBoundaryLevel,
   CensusBoundaryLevel,
+  EconomicRegionBoundaryLevel,
   PostalBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
@@ -70,6 +71,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     value: 'postal',
     label: 'Postal boundaries',
     description: 'BC region → two-character prefixes → FSAs (2021)',
+    group: 'Administrative',
+  },
+  {
+    value: 'economicRegion',
+    label: 'Economic regions',
+    description: 'Eight BC statistical economic regions (2021)',
     group: 'Administrative',
   },
   {
@@ -196,8 +203,12 @@ export const POSTAL_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<PostalBoundaryLe
   ...createStudyAreaLevelOptions(['postalRegion', 'postalPrefix2', 'fsa'] as const),
 ]
 
+export const ECONOMIC_REGION_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<EconomicRegionBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['economicRegion'] as const),
+]
+
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['economicRegion', 'cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db'] as const),
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [
@@ -281,6 +292,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS
     case 'postal':
       return POSTAL_BOUNDARY_LEVEL_OPTIONS
+    case 'economicRegion':
+      return ECONOMIC_REGION_BOUNDARY_LEVEL_OPTIONS
     case 'census':
       return CENSUS_BOUNDARY_LEVEL_OPTIONS
     case 'cityCommunity':
