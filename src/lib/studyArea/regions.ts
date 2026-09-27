@@ -48,6 +48,7 @@ const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
 // the full-detail canada-csd province chunks; north_south comes baked in.
 const CANADA_CSD_SIMPLIFIED_PATH = '/data/census/canada-csd-simplified.geojson'
 const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
+  economicRegion: '/data/boundaries/StatCan/bc_economic_regions_2021.geojson.gz',
   cd: '/data/census/prince_george_cd.geo.json',
   csd: CANADA_CSD_SIMPLIFIED_PATH,
   northSouthCsd: CANADA_CSD_SIMPLIFIED_PATH,
@@ -135,7 +136,7 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
 const MUNICIPALITY_LEVEL_SET = new Set<MunicipalityBoundaryLevel>(['municipality'])
-const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db', 'bcDaSimplified'])
+const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['economicRegion', 'cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db', 'bcDaSimplified'])
 const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([

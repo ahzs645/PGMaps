@@ -140,7 +140,9 @@
     "e2e:headed": "playwright test --headed",
     "test": "vitest run",
     "test:watch": "vitest",
-    "data:build-ui": "node scripts/build-ui-data.mjs"
+    "data:build-ui": "node scripts/build-ui-data.mjs",
+    "economic-regions:sync": "npm --prefix vendor/bcdatamapper run economic-regions:sync -- && npm run data:sync-from-bcdatamapper",
+    "economic-regions:validate": "npm --prefix vendor/bcdatamapper run economic-regions:validate"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",

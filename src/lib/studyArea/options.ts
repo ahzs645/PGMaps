@@ -122,6 +122,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   lha: 'LHA',
   chsa: 'CHSA',
   regionalDistrict: 'Regional District',
+  economicRegion: 'BC Economic Region (2021)',
   municipality: 'Municipality',
   cd: 'Census Division',
   csd: 'Census Subdivision',
@@ -196,7 +197,7 @@ export const POSTAL_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<PostalBoundaryLe
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db'] as const),
+  ...createStudyAreaLevelOptions(['economicRegion', 'cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [
