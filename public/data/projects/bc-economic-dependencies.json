@@ -1,0 +1,428 @@
+{
+  "version": 1,
+  "slug": "bc-economic-dependencies",
+  "title": "Forestry and Economic Dependencies in B.C.",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "PGMaps · data from BC Stats",
+  "updated": "September 2026",
+  "region": "British Columbia",
+  "status": "Historical data · 2025 LAEP release",
+  "summary": "Explore forestry income dependency, economic diversity, vulnerability and employment concentration across 29 regional districts.",
+  "sourceNote": "Source: BC Stats, Local Area Economic Profiles, 2025 release. Uses published indicator CSVs, checked against the official Excel toolkit. Contains information licensed under the Open Government Licence – British Columbia. Geometry is Statistics Canada 2021 census divisions already held by BCDataMapper. Model reference years 2015/2020 correspond to 2016/2021 census cycles; employment and location quotients refer to the census year. These are historical modelled estimates, not current conditions.",
+  "details": [
+    "Click a district for its published forestry and income indicators. Suppressed or unreported values are never treated as zero.",
+    "Income dependency is the share of basic/external income, not the share of all household income or employment. Vulnerability is a relative index, not a probability. Descriptive colour bins are authored for this map.",
+    "This first project maps regional districts. Local-area geometry is deferred because the published Cassiar Corridor/Moricetown concordance does not reconcile. The suspect duplicated 2010/2015 cleaned census input files are not used to calculate any displayed indicator.",
+    "The 2015–2020 comparison uses one publication and current display boundaries. Pandemic effects and changes in other income sources affect the interpretation."
+  ],
+  "links": [
+    {
+      "label": "Official BC Stats dataset",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/local-area-economic-profiles-dataset"
+    },
+    {
+      "label": "2025 technical report",
+      "href": "https://www2.gov.bc.ca/assets/gov/data/bc-stats/laep-products/local_area_economic_profiles_2025.pdf"
+    },
+    {
+      "label": "Original custom census tables",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/084f7cab-0f47-40a7-86bf-3e112856cad6"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Regional districts",
+      "value": "29"
+    },
+    {
+      "label": "Latest model year",
+      "value": "2020"
+    },
+    {
+      "label": "Story scenes",
+      "value": "7"
+    }
+  ],
+  "layers": [
+    {
+      "id": "regional-economy",
+      "label": "Regional economic indicators",
+      "type": "boundary",
+      "checked": true
+    }
+  ],
+  "legend": [
+    {
+      "label": "Under 2%",
+      "color": "#edf8e9"
+    },
+    {
+      "label": "2 to under 5%",
+      "color": "#bae4b3"
+    },
+    {
+      "label": "5 to under 10%",
+      "color": "#74c476"
+    },
+    {
+      "label": "10 to under 20%",
+      "color": "#31a354"
+    },
+    {
+      "label": "20% or more",
+      "color": "#006d2c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Forestry income",
+      "kicker": "01 · Regional economies",
+      "title": "How much external income depends on forestry?",
+      "text": "Compare the share of each regional economy’s basic income linked to forestry and wood manufacturing in the 2020 model. Basic income enters from outside the area and supports local activity. Select a district to read its published indicators. These are historical estimates, not current conditions.",
+      "focus": "Forestry income dependency · 2020",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "BC benchmark",
+        "value": "2.2%",
+        "detail": "Forestry share of modelled basic income, 2020. Display bins are not official risk categories."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "dependency_band_2020",
+            "colors": {
+              "Under 2%": "#edf8e9",
+              "2 to under 5%": "#bae4b3",
+              "5 to under 10%": "#74c476",
+              "10 to under 20%": "#31a354",
+              "20% or more": "#006d2c",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "Prince George region",
+      "kicker": "02 · Regional economies",
+      "title": "Fraser-Fort George has a larger forestry dependency",
+      "text": "Forestry accounts for 12.4% of modelled basic income in Fraser-Fort George, compared with 2.2% across BC. The regional district includes Prince George and surrounding communities; it is not the same geography as the Prince George local area or city.",
+      "focus": "Forestry income dependency · 2020",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -122.2,
+          54.25
+        ],
+        "zoom": 5.6
+      },
+      "callout": {
+        "label": "Fraser-Fort George",
+        "value": "12.4%",
+        "detail": "2020 forestry income dependency; the separate Prince George local-area estimate is 10.5%."
+      },
+      "highlights": [
+        {
+          "layerId": "regional-economy",
+          "property": "id",
+          "values": [
+            "5953"
+          ],
+          "color": "#0f766e",
+          "dimOpacity": 0.1,
+          "label": "Fraser-Fort George"
+        }
+      ],
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "dependency_band_2020",
+            "colors": {
+              "Under 2%": "#edf8e9",
+              "2 to under 5%": "#bae4b3",
+              "5 to under 10%": "#74c476",
+              "10 to under 20%": "#31a354",
+              "20% or more": "#006d2c",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "Diversity",
+      "kicker": "03 · Regional economies",
+      "title": "A broader income base changes the picture",
+      "text": "The diversity index describes how evenly external income is spread across the model’s income sources, including government transfers and non-employment market income. Higher values mean a more even spread. It is not a count of businesses or a measure of growth.",
+      "focus": "Economic diversity · 2020",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "Regional-district range",
+        "value": "49.4–73.3",
+        "detail": "2020 published index values; the theoretical scale runs from 0 to 100."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "diversity_band",
+            "colors": {
+              "Under 50": "#f1eef6",
+              "50 to under 60": "#bdc9e1",
+              "60 to under 65": "#74a9cf",
+              "65 to under 70": "#2b8cbe",
+              "70 or more": "#045a8d",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "Vulnerability",
+      "kicker": "04 · Regional economies",
+      "title": "Forestry dependence and concentration combine",
+      "text": "The forest vulnerability index combines forestry income dependency with economic diversity and scales the result relative to other areas. Compare regional districts within this period. A score of 100 marks the top of this comparison; it does not mean a 100% chance of a downturn.",
+      "focus": "Forest vulnerability · 2020",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "Bulkley-Nechako",
+        "value": "100",
+        "detail": "Highest 2020 regional-district index. Local-area scores use a separate comparison and must not be mixed with these ranks."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "vulnerability_band",
+            "colors": {
+              "Under 10": "#ffffb2",
+              "10 to under 25": "#fecc5c",
+              "25 to under 50": "#fd8d3c",
+              "50 to under 75": "#f03b20",
+              "75 to 100": "#bd0026",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "Specialization",
+      "kicker": "05 · Regional economies",
+      "title": "Forestry employment is concentrated in the Interior",
+      "text": "The location quotient compares forestry’s share of resident employment with its share across BC. Fraser-Fort George’s 5.06 means that share is about five times the provincial share. Employment is counted by where people live, not where a mill or job is located.",
+      "focus": "Forestry employment concentration · 2021",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "Fraser-Fort George",
+        "value": "5.06×",
+        "detail": "2021 Census employment, labelled reference year 2020 in the LAEP tables."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "lq_band",
+            "colors": {
+              "Under 1×": "#f2f0f7",
+              "1 to under 2×": "#cbc9e2",
+              "2 to under 4×": "#9e9ac8",
+              "4 to under 8×": "#756bb1",
+              "8× or more": "#54278f",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "2015 baseline",
+      "kicker": "06 · Regional economies",
+      "title": "Use the same scale to look back to 2015",
+      "text": "This view uses the 2015 reference period from the same 2025 publication. The colour thresholds match the opening 2020 map. Select a district to compare both shares. The map uses the existing 2021 census-division outlines as a common display geography.",
+      "focus": "Forestry income dependency · 2015",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "Fraser-Fort George",
+        "value": "15.1%",
+        "detail": "Published forestry income dependency in the 2015 model."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "dependency_band_2015",
+            "colors": {
+              "Under 2%": "#edf8e9",
+              "2 to under 5%": "#bae4b3",
+              "5 to under 10%": "#74c476",
+              "10 to under 20%": "#31a354",
+              "20% or more": "#006d2c",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    },
+    {
+      "label": "Change",
+      "kicker": "07 · Regional economies",
+      "title": "A falling share does not by itself measure lost jobs",
+      "text": "Fraser-Fort George’s forestry dependency fell from 15.1% to 12.4%, a change of −2.7 percentage points. Shares can fall when other income sources grow. Pandemic-era transfers and employment changes affected the 2020/2021 period. Blue indicates a lower forestry share; red indicates a higher share, without assigning a good or bad outcome.",
+      "focus": "Dependency change · 2015–2020",
+      "visibleLayerIds": [
+        "regional-economy"
+      ],
+      "camera": {
+        "center": [
+          -125.8,
+          54.4
+        ],
+        "zoom": 4.3
+      },
+      "callout": {
+        "label": "Fraser-Fort George",
+        "value": "−2.7 pp",
+        "detail": "2020 minus 2015, using published rounded shares. This is not a forecast or a jobs-loss estimate."
+      },
+      "layerOverrides": {
+        "regional-economy": {
+          "category": {
+            "property": "change_band",
+            "colors": {
+              "Below −5 pp": "#2166ac",
+              "−5 to below −1 pp": "#92c5de",
+              "−1 to below +1 pp": "#f7f7f7",
+              "+1 to below +5 pp": "#f4a582",
+              "+5 pp or more": "#b2182b",
+              "Not reported": "#9ca3af"
+            },
+            "fallback": "#9ca3af"
+          }
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "Regional indicators",
+      "detail": "29 census-division joins; deterministic BCDataMapper snapshot"
+    },
+    {
+      "label": "Official source archive",
+      "detail": "12 compressed CSVs with URLs, hashes and licence metadata"
+    },
+    {
+      "label": "Source validation",
+      "detail": "Seven published tables checked against the 2025 toolkit"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "accent": "#15803d",
+    "map": {
+      "center": [
+        -125.8,
+        54.4
+      ],
+      "zoom": 4.3,
+      "minZoom": 3,
+      "maxZoom": 10,
+      "basemap": "auto"
+    },
+    "options": {
+      "layout": "panel",
+      "sceneTransition": "ease",
+      "sceneTransitionMs": 650,
+      "mobileSheet": "collapsed",
+      "mobilePeekSceneText": true
+    },
+    "layers": [
+      {
+        "id": "regional-economy",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/laep/regional-districts.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "name",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "profile_details",
+        "fillColor": "#15803d",
+        "fillOpacity": 0.77,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.95,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "dependency_band_2020",
+          "colors": {
+            "Under 2%": "#edf8e9",
+            "2 to under 5%": "#bae4b3",
+            "5 to under 10%": "#74c476",
+            "10 to under 20%": "#31a354",
+            "20% or more": "#006d2c",
+            "Not reported": "#9ca3af"
+          },
+          "fallback": "#9ca3af"
+        },
+        "attribution": "BC Stats · 2025 LAEP release · Open Government Licence–BC; boundaries: Statistics Canada 2021"
+      }
+    ],
+    "places": []
+  }
+}

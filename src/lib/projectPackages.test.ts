@@ -183,6 +183,12 @@ describe('story project packages', () => {
     expect(workspace).toMatchObject({
       options: {
         layout: 'panel',
+        sidecarVariant: 'docked',
+        storyTheme: 'paper',
+        storyCover: true,
+        chapterNavigation: true,
+        narrativeSide: 'left',
+        narrativeWidth: 'medium',
         sceneTransition: 'ease',
         sceneTransitionMs: 1150,
         mobileSheet: 'half',
@@ -200,6 +206,12 @@ describe('story project packages', () => {
     const raw = storyPackage()
     raw.workspace.options = {
       layout: 'slides',
+      sidecarVariant: 'floating',
+      storyTheme: 'ink',
+      storyCover: false,
+      chapterNavigation: false,
+      narrativeSide: 'right',
+      narrativeWidth: 'large',
       sceneTransition: 'fly',
       sceneTransitionMs: 99999,
       mobileSheet: 'collapsed',
@@ -213,6 +225,12 @@ describe('story project packages', () => {
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
         layout: 'slides',
+        sidecarVariant: 'floating',
+        storyTheme: 'ink',
+        storyCover: false,
+        chapterNavigation: false,
+        narrativeSide: 'right',
+        narrativeWidth: 'large',
         sceneTransition: 'fly',
         sceneTransitionMs: 5000,
         mobileSheet: 'collapsed',
@@ -237,6 +255,12 @@ describe('story project packages', () => {
     const raw = storyPackage()
     raw.workspace.options = {
       layout: 'carousel',
+      sidecarVariant: 'carousel',
+      storyTheme: 'rainbow',
+      storyCover: 'false',
+      chapterNavigation: 0,
+      narrativeSide: 'bottom',
+      narrativeWidth: 'huge',
       sceneTransition: 'teleport',
       mobileSheet: 'giant',
       mobilePeekSceneText: 'yes',
@@ -248,6 +272,12 @@ describe('story project packages', () => {
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
         layout: 'panel',
+        sidecarVariant: 'docked',
+        storyTheme: 'paper',
+        storyCover: true,
+        chapterNavigation: true,
+        narrativeSide: 'left',
+        narrativeWidth: 'medium',
         sceneTransition: 'ease',
         sceneTransitionMs: 1150,
         mobileSheet: 'half',
@@ -258,6 +288,74 @@ describe('story project packages', () => {
         slidesSwipeHint: 'off',
       },
     })
+  })
+
+  it('accepts every sidecar chapter presentation and retains editorial content', () => {
+    for (const presentation of ['docked', 'floating', 'slideshow']) {
+      const raw = storyPackage()
+      raw.workspace.options = { layout: 'sidecar', sidecarVariant: presentation }
+      raw.scenes[0].presentation = presentation
+      raw.scenes[0].paragraphs = ['First paragraph.', 'Second paragraph.']
+      const pkg = normalizeProjectPackage(raw)!
+      expect(pkg.workspace).toMatchObject({ options: { layout: 'sidecar', sidecarVariant: presentation } })
+      expect(pkg.scenes[0]).toMatchObject({
+        presentation,
+        text: 'A story card.',
+        paragraphs: ['First paragraph.', 'Second paragraph.'],
+      })
+    }
+  })
+
+  it('normalizes in-chapter map actions without changing scene identity or defaults', () => {
+    const raw = storyPackage()
+    raw.scenes[0].presentation = 'invalid'
+    raw.scenes[0].paragraphs = [null, 17, '', '  ', 'Valid prose.']
+    raw.scenes[0].mapActions = [
+      null,
+      { label: 'Missing layers' },
+      { label: ' ', visibleLayerIds: ['areas'] },
+      { label: 'Outline', visibleLayerIds: ['areas', 'areas', 17] },
+      { label: 'Basemap', visibleLayerIds: [], camera: { center: [-125, 54], zoom: 99, pitch: 99, bearing: 45 } },
+      { label: 'Invalid camera', visibleLayerIds: ['areas'], camera: { center: ['bad', 54], zoom: 5 } },
+    ]
+    const scene = normalizeProjectPackage(raw)!.scenes[0]
+    expect(scene.label).toBe('Start')
+    expect(scene.camera).toMatchObject({ center: [-125, 54], zoom: 5 })
+    expect(scene.presentation).toBeUndefined()
+    expect(scene.paragraphs).toEqual(['Valid prose.'])
+    expect(scene.mapActions).toEqual([
+      { label: 'Outline', visibleLayerIds: ['areas'], camera: undefined },
+      { label: 'Basemap', visibleLayerIds: [], camera: { center: [-125, 54], zoom: 22, pitch: 85, bearing: 45 } },
+      { label: 'Invalid camera', visibleLayerIds: ['areas'], camera: undefined },
+    ])
+    raw.scenes[0].mapActions = [{ label: 'bad' }]
+    expect(normalizeProjectPackage(raw)!.scenes[0].mapActions).toBeUndefined()
+  })
+
+  it('keeps usable comparison definitions and drops incomplete comparisons', () => {
+    const raw = storyPackage()
+    raw.scenes[0].comparison = {
+      leftLabel: 'Economic',
+      rightLabel: 'Health',
+      leftLayerIds: ['areas', 'areas', 19, ''],
+      rightLayerIds: ['health'],
+    }
+    expect(normalizeProjectPackage(raw)!.scenes[0].comparison).toEqual({
+      leftLabel: 'Economic',
+      rightLabel: 'Health',
+      leftLayerIds: ['areas'],
+      rightLayerIds: ['health'],
+    })
+    for (const comparison of [
+      null,
+      'invalid',
+      { leftLabel: 'Economic', rightLabel: 'Health', leftLayerIds: [], rightLayerIds: ['health'] },
+      { leftLabel: 'Economic', rightLabel: ' ', leftLayerIds: ['areas'], rightLayerIds: ['health'] },
+      { leftLabel: 'Economic', rightLabel: 'Health', leftLayerIds: ['areas'], rightLayerIds: [null] },
+    ]) {
+      raw.scenes[0].comparison = comparison
+      expect(normalizeProjectPackage(raw)!.scenes[0].comparison).toBeUndefined()
+    }
   })
 
   it('normalizes scene highlights and clamps their dim opacity', () => {
@@ -503,5 +601,34 @@ describe('buildProjectPackageFromShareState', () => {
     expect(state.weights.shadeGap).toBe(28)
     expect(state.weights.populationDensity).toBe(10)
     expect(state.methodSettings.aggregation).toBe('cumulativeBurden')
+  })
+})
+
+describe('imported editorial story document', () => {
+  it('accepts a document in place of ordinary layer sources', () => {
+    const raw = storyPackage()
+    raw.workspace.layers = []
+    raw.workspace.document = { schema: 'arcgis-story-document-v1', data: '/data/projects/example/prague/story.json' }
+    const workspace = normalizeProjectPackage(raw)?.workspace
+    expect(workspace?.type).toBe('story-map')
+    if (workspace?.type === 'story-map')
+      expect(workspace.document?.data).toBe('/data/projects/example/prague/story.json')
+  })
+  it.each(['pgmaps', 'pgmaps-dark', 'source', 'unsupported'])('normalizes imported basemap %s', (basemap) => {
+    const raw = storyPackage()
+    raw.workspace.document = { schema: 'arcgis-story-document-v1', data: '/data/story.json', basemap }
+    const workspace = normalizeProjectPackage(raw)?.workspace
+    expect(workspace?.type === 'story-map' && workspace.document?.basemap).toBe(
+      basemap === 'pgmaps' || basemap === 'pgmaps-dark' ? basemap : 'source',
+    )
+  })
+  it.each([
+    { schema: 'arbitrary-html', data: '/data/story.json' },
+    { schema: 'arcgis-story-document-v1', data: 'javascript:alert(1)' },
+    { schema: 'arcgis-story-document-v1', data: 'http://example.org/story.json' },
+  ])('rejects an unsupported or unsafe document: %j', (document) => {
+    const raw = storyPackage()
+    raw.workspace.document = document
+    expect(normalizeProjectPackage(raw)?.workspace).toBeUndefined()
   })
 })

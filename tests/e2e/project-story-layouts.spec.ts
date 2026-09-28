@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const STORIES = [
+  { layout: 'panel', slug: 'example-docked', scenes: 4 },
+  { layout: 'scrolly', slug: 'example-scrolly', scenes: 4 },
+  { layout: 'slides', slug: 'example-slides', scenes: 4, firstTitle: 'One place, several maps' },
+  { layout: 'slides', slug: 'example-comparison', scenes: 4, firstTitle: 'Economic' },
+  { layout: 'slides', slug: 'example-relationships', scenes: 3, firstTitle: 'Northern Health' },
+  { layout: 'slides', slug: 'example-hierarchy', scenes: 6, firstTitle: 'Cariboo' },
   { layout: 'panel', slug: 'where-is-north-bc', scenes: 9 },
   { layout: 'panel', slug: 'canada-administrative-divisions', scenes: 11 },
   { layout: 'scrolly', slug: 'bc-population-distribution', scenes: 4 },

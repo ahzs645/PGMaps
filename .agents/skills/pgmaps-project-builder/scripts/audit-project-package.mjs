@@ -1,9 +1,11 @@
 #!/usr/bin/env node
+import { validateImportedStory } from '../../../../src/maps/project-story/editorial/model/validateImport.mjs'
 /* global process, console, URL */
 
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { validateEditorialDocument } from '../../../../src/maps/project-story/editorial/model/validate.mjs'
 
 const args = process.argv.slice(2)
 const draftMode = args.includes('--draft')
@@ -295,6 +297,74 @@ if (project.workspace?.type === 'map-explorer') {
   mode = project.workspace.schema ?? 'story-map (missing schema)'
   if (project.workspace.schema !== 'story-map-v1') errors.push('workspace.schema must be story-map-v1')
   const workspace = project.workspace
+  const document = workspace.document
+  if (document !== undefined) {
+    if (document.basemap !== undefined && !['source', 'pgmaps-dark', 'pgmaps'].includes(document.basemap))
+      errors.push('workspace.document.basemap must be source, pgmaps-dark or pgmaps')
+    if (!['arcgis-story-document-v1', 'pgmaps-editorial-v1'].includes(document?.schema))
+      errors.push('workspace.document.schema must be arcgis-story-document-v1 or pgmaps-editorial-v1')
+    if (typeof document?.data !== 'string' || !(document.data.startsWith('/data/') || isHttpsUrl(document.data)))
+      errors.push('workspace.document.data must be a /data/ path or HTTPS URL')
+    else if (document.data.startsWith('/data/')) {
+      const documentPath = resolve(repoRoot, 'public', '.' + document.data)
+      try {
+        const graph = JSON.parse(readFileSync(documentPath, 'utf8'))
+        if (document.schema === 'pgmaps-editorial-v1') {
+          errors.push(...validateEditorialDocument(graph))
+          const checkFiles = (value) => {
+            if(Array.isArray(value)) { value.forEach(checkFiles); return }
+            if(!value || typeof value !== 'object') return
+            for(const [key,child] of Object.entries(value)) {
+              if(['src','poster','video','data'].includes(key) && typeof child === 'string' && child.startsWith('/data/') && !existsSync(resolve(repoRoot,'public','.'+child))) errors.push(`Native story file missing: ${child}`)
+              checkFiles(child)
+            }
+          }
+          checkFiles(graph)
+        } else {
+          errors.push(...validateImportedStory(graph))
+          if (
+            typeof graph.root !== 'string' ||
+            !graph.nodes?.[graph.root] ||
+            !graph.resources ||
+            !Array.isArray(graph.actions)
+          )
+            errors.push('Editorial document requires root, nodes, resources and actions')
+          const nodeTypes = new Set([
+            'story',
+            'storycover',
+            'navigation',
+            'text',
+            'image',
+            'video',
+            'separator',
+            'button',
+            'carousel',
+            'immersive',
+            'immersive-slide',
+            'immersive-narrative-panel',
+            'webmap',
+            'swipe',
+            'tour',
+            'tour-map',
+            'credits',
+            'attribution',
+          ])
+          for (const [id, node] of Object.entries(graph.nodes ?? {})) {
+            if (!nodeTypes.has(node.type)) errors.push(`Editorial node ${id} uses unsupported type ${node.type}`)
+            for (const child of node.children ?? [])
+              if (!graph.nodes[child]) errors.push(`Editorial node ${id} references missing child ${child}`)
+          }
+          for (const resource of Object.values(graph.resources ?? {})) {
+            const url = resource.data?.url
+            if (url?.startsWith('/data/') && !existsSync(resolve(repoRoot, 'public', '.' + url)))
+              errors.push(`Editorial media missing: ${url}`)
+          }
+        }
+      } catch (error) {
+        errors.push(`Cannot read editorial document: ${error.message}`)
+      }
+    }
+  }
   const map = workspace.map
   const center = map?.center
   if (
@@ -323,7 +393,11 @@ if (project.workspace?.type === 'map-explorer') {
   if (workspace.options !== undefined) {
     const options = workspace.options
     const allowedOptions = {
-      layout: ['panel', 'scrolly', 'slides'],
+      layout: ['panel', 'scrolly', 'slides', 'sidecar'],
+      sidecarVariant: ['docked', 'floating', 'slideshow'],
+      storyTheme: ['paper', 'ink'],
+      narrativeSide: ['left', 'right'],
+      narrativeWidth: ['medium', 'large'],
       sceneTransition: ['ease', 'fly', 'jump'],
       mobileSheet: ['collapsed', 'half', 'full'],
       legendCollapsed: ['auto', 'always', 'never'],
@@ -345,7 +419,7 @@ if (project.workspace?.type === 'map-explorer') {
     ) {
       errors.push('workspace.options.sceneTransitionMs must be between 0 and 5000')
     }
-    for (const key of ['mobilePeekSceneText', 'mobilePeekTicker']) {
+    for (const key of ['mobilePeekSceneText', 'mobilePeekTicker', 'storyCover', 'chapterNavigation']) {
       if (options[key] !== undefined && typeof options[key] !== 'boolean') {
         errors.push(`workspace.options.${key} must be boolean when provided`)
       }
@@ -364,8 +438,8 @@ if (project.workspace?.type === 'map-explorer') {
   }
 
   const storyLayerIds = new Set()
-  if (!Array.isArray(workspace.layers) || workspace.layers.length === 0) {
-    errors.push('workspace.layers must contain at least one layer')
+  if (!Array.isArray(workspace.layers) || (workspace.layers.length === 0 && !document)) {
+    errors.push('workspace.layers must contain at least one layer unless an editorial document supplies its maps')
   } else {
     workspace.layers.forEach((layer, index) => {
       const scope = `workspace.layers[${index}]`
@@ -393,17 +467,34 @@ if (project.workspace?.type === 'map-explorer') {
       }
       if (layer?.format === 'climate-grid') {
         const c = layer.climate
-        const valid = c && typeof c.product === 'string' && c.product.trim() &&
-          /^\d{4}-\d{4}$/.test(c.horizon ?? '') && [null, 'p10', 'p50', 'p90'].includes(c.percentile) &&
+        const valid =
+          c &&
+          typeof c.product === 'string' &&
+          c.product.trim() &&
+          /^\d{4}-\d{4}$/.test(c.horizon ?? '') &&
+          [null, 'p10', 'p50', 'p90'].includes(c.percentile) &&
           ['annual', 'spring', 'summer', 'autumn', 'winter'].includes(c.season) &&
           ['absolute', 'source-delta'].includes(c.measure) &&
           (c.measure === 'absolute' ? c.baseline === null : /^\d{4}-\d{4}$/.test(c.baseline ?? '')) &&
-          Array.isArray(c.domain) && c.domain.length === 2 && c.domain.every(Number.isFinite) && c.domain[0] < c.domain[1] &&
-          Array.isArray(c.colors) && c.colors.length >= 2 && c.colors.length <= 9 && c.colors.every(color => /^#[\da-f]{6}$/i.test(color)) &&
-          (c.breaks === undefined || Array.isArray(c.breaks) && c.breaks.length === c.colors.length - 1 && c.breaks.every((edge, index) => Number.isFinite(edge) && (index === 0 || edge > c.breaks[index - 1]))) &&
-          typeof c.units === 'string' && c.units.trim() &&
-          (c.minZoom === undefined || Number.isFinite(c.minZoom) && c.minZoom >= 0 && c.minZoom <= 22)
-        if (!valid) errors.push(`${scope}.climate must specify an exact band selection, units, fixed increasing domain and 2–9 hex colours`)
+          Array.isArray(c.domain) &&
+          c.domain.length === 2 &&
+          c.domain.every(Number.isFinite) &&
+          c.domain[0] < c.domain[1] &&
+          Array.isArray(c.colors) &&
+          c.colors.length >= 2 &&
+          c.colors.length <= 9 &&
+          c.colors.every((color) => /^#[\da-f]{6}$/i.test(color)) &&
+          (c.breaks === undefined ||
+            (Array.isArray(c.breaks) &&
+              c.breaks.length === c.colors.length - 1 &&
+              c.breaks.every((edge, index) => Number.isFinite(edge) && (index === 0 || edge > c.breaks[index - 1])))) &&
+          typeof c.units === 'string' &&
+          c.units.trim() &&
+          (c.minZoom === undefined || (Number.isFinite(c.minZoom) && c.minZoom >= 0 && c.minZoom <= 22))
+        if (!valid)
+          errors.push(
+            `${scope}.climate must specify an exact band selection, units, fixed increasing domain and 2–9 hex colours`,
+          )
       }
       for (const key of ['fillOpacity', 'lineOpacity']) {
         if (typeof layer?.[key] !== 'number' || !Number.isFinite(layer[key]) || layer[key] < 0 || layer[key] > 1) {
@@ -447,6 +538,71 @@ if (project.workspace?.type === 'map-explorer') {
     project.scenes.forEach((scene, index) => {
       const scope = `package.scenes[${index}]`
       for (const key of ['label', 'title', 'text', 'focus']) requireString(scene, key, scope)
+      if (scene?.presentation !== undefined && !['docked', 'floating', 'slideshow'].includes(scene.presentation)) {
+        errors.push(`${scope}.presentation must be docked, floating, or slideshow`)
+      }
+      if (
+        scene?.paragraphs !== undefined &&
+        (!Array.isArray(scene.paragraphs) || scene.paragraphs.some((p) => typeof p !== 'string' || !p.trim()))
+      ) {
+        errors.push(`${scope}.paragraphs must be an array of non-empty strings`)
+      }
+      if (scene?.mapActions !== undefined) {
+        if (!Array.isArray(scene.mapActions) || !scene.mapActions.length)
+          errors.push(`${scope}.mapActions must be a non-empty array`)
+        else
+          scene.mapActions.forEach((action, actionIndex) => {
+            const actionScope = `${scope}.mapActions[${actionIndex}]`
+            requireString(action, 'label', actionScope)
+            if (!Array.isArray(action?.visibleLayerIds)) errors.push(`${actionScope}.visibleLayerIds must be an array`)
+            else
+              for (const id of action.visibleLayerIds) {
+                if (typeof id !== 'string' || !storyLayerIds.has(id))
+                  errors.push(`${actionScope}.visibleLayerIds references unknown story layer ${String(id)}`)
+              }
+            if (action?.camera !== undefined) {
+              const camera = action.camera
+              if (
+                !Array.isArray(camera?.center) ||
+                camera.center.length !== 2 ||
+                !camera.center.every(Number.isFinite) ||
+                !Number.isFinite(camera?.zoom) ||
+                camera.zoom < 0 ||
+                camera.zoom > 22 ||
+                (camera.pitch !== undefined &&
+                  (!Number.isFinite(camera.pitch) || camera.pitch < 0 || camera.pitch > 85)) ||
+                (camera.bearing !== undefined && !Number.isFinite(camera.bearing))
+              ) {
+                errors.push(
+                  `${actionScope}.camera must have finite center, zoom 0–22, and optional pitch 0–85 and finite bearing`,
+                )
+              }
+            }
+          })
+      }
+      if (scene?.comparison !== undefined) {
+        const comparison = scene.comparison
+        requireString(comparison, 'leftLabel', `${scope}.comparison`)
+        requireString(comparison, 'rightLabel', `${scope}.comparison`)
+        if (scene.mapActions !== undefined) errors.push(`${scope} cannot combine comparison and mapActions`)
+        for (const key of ['leftLayerIds', 'rightLayerIds']) {
+          if (!Array.isArray(comparison?.[key]) || !comparison[key].length) {
+            errors.push(`${scope}.comparison.${key} must be a non-empty array`)
+          } else
+            for (const id of comparison[key]) {
+              if (typeof id !== 'string' || !storyLayerIds.has(id))
+                errors.push(`${scope}.comparison.${key} references unknown story layer ${String(id)}`)
+              else if (!scene.visibleLayerIds?.includes(id))
+                errors.push(`${scope}.comparison.${key} layer ${id} must also appear in visibleLayerIds`)
+              if (
+                Array.isArray(workspace.layers) &&
+                workspace.layers.some((layer) => layer.id === id && layer.format === 'climate-grid')
+              ) {
+                errors.push(`${scope}.comparison.${key} cannot include climate-grid layers`)
+              }
+            }
+        }
+      }
       if (!Array.isArray(scene?.visibleLayerIds)) {
         errors.push(`${scope}.visibleLayerIds must be an array`)
       } else {
@@ -455,6 +611,22 @@ if (project.workspace?.type === 'map-explorer') {
             errors.push(`${scope}.visibleLayerIds references unknown story layer ${String(layerId)}`)
           }
         }
+      }
+      if (scene?.interaction !== undefined) {
+        const block = scene.interaction
+        if (!['choices', 'bars', 'hierarchy'].includes(block?.type)) errors.push(`${scope}.interaction.type is invalid`)
+        requireString(block, 'title', `${scope}.interaction`)
+        if (!Array.isArray(block?.items) || block.items.length === 0)
+          errors.push(`${scope}.interaction.items must be non-empty`)
+        else
+          for (const item of block.items) {
+            requireString(item, 'label', `${scope}.interaction item`)
+            const targets = project.scenes.filter((s) => s.label === item?.sceneLabel)
+            if (targets.length !== 1)
+              errors.push(`${scope}.interaction target must resolve to exactly one scene: ${item?.sceneLabel}`)
+            if (block.type === 'bars' && (!Number.isFinite(item?.share) || item.share < 0 || item.share > 1))
+              errors.push(`${scope}.interaction share must be between 0 and 1`)
+          }
       }
       if (scene?.placeIds !== undefined) {
         if (!Array.isArray(scene.placeIds)) {

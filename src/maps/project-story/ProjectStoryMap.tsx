@@ -6,6 +6,8 @@ import { storySourceKey } from './storySources'
 import { useStorySources } from './useStorySources'
 import { StorySourceInfo } from './StorySourceInfo'
 import { SceneCard } from './SceneCard'
+import { SidecarStory } from './layouts/SidecarStory'
+import { StoryComparison } from './StoryComparison'
 import { SceneStepButton, SceneStepper } from './SceneStepper'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -157,6 +159,9 @@ function StoryNarrative({
               className="scroll-m-4"
             >
               <SceneCard
+                onNavigate={onSelectScene}
+                sceneLabels={scenes.map((item) => item.label)}
+                activeLabel={scenes[activeSceneIndex]?.label}
                 variant="panel"
                 scene={scene}
                 index={index}
@@ -282,6 +287,9 @@ function ScrollyStory({
                 )}
               >
                 <SceneCard
+                  onNavigate={onSelectScene}
+                  sceneLabels={scenes.map((item) => item.label)}
+                  activeLabel={scenes[activeSceneIndex]?.label}
                   variant="overlay"
                   scene={scene}
                   index={index}
@@ -399,7 +407,11 @@ function SlidesStory({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
+      if (
+        event.defaultPrevented ||
+        target?.closest('input, textarea, select, button, a, [contenteditable], [role=dialog], .maplibregl-map')
+      )
+        return
       if (event.key === 'ArrowRight') onStepScene(1)
       if (event.key === 'ArrowLeft') onStepScene(-1)
     }
@@ -504,6 +516,9 @@ function SlidesStory({
               {scenes.map((slide, index) => (
                 <SceneCard
                   key={`${slide.label}-${index}`}
+                  onNavigate={onSelectScene}
+                  sceneLabels={scenes.map((item) => item.label)}
+                  activeLabel={scenes[activeSceneIndex]?.label}
                   variant="slide"
                   scene={slide}
                   index={index}
@@ -575,6 +590,13 @@ export function ProjectStoryMap({
   const options = config.options
   const isMobile = useIsMobile()
   const [exploringMap, setExploringMap] = useState(false)
+  const exploringMapRef = useRef(false)
+  useEffect(() => {
+    exploringMapRef.current = exploringMap
+  }, [exploringMap])
+  const [mapActionActive, setMapActionActive] = useState(false)
+  const actionCameraRef = useRef<ProjectSceneDef['camera']>(undefined)
+  const resizeHandlerRef = useRef<(() => void) | null>(null)
 
   const mapRef = useRef<MapLibreGL.Map | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -628,7 +650,8 @@ export function ProjectStoryMap({
 
   const sceneCamera = useCallback(
     (map: MapLibreGL.Map | null | undefined, index: number) => {
-      const camera = scenes[index]?.camera
+      const camera =
+        (index === activeSceneIndexRef.current ? actionCameraRef.current : undefined) ?? scenes[index]?.camera
       if (!camera) return null
       const offset =
         map && options.cameraFit === 'auto' ? paneZoomOffset(map.getContainer().getBoundingClientRect()) : 0
@@ -644,11 +667,22 @@ export function ProjectStoryMap({
 
   const attachMap = useCallback(
     (instance: MapLibreGL.Map | null) => {
+      if (mapRef.current && resizeHandlerRef.current) mapRef.current.off('resize', resizeHandlerRef.current)
       mapRef.current = instance
       if (!instance) return
+      const fitResizedPane = () => {
+        if (options.layout !== 'sidecar' || options.cameraFit !== 'auto' || exploringMapRef.current) return
+        const fitted = sceneCamera(instance, activeSceneIndexRef.current)
+        if (fitted) {
+          allowZoomFloor(instance, fitted.zoom)
+          instance.jumpTo(fitted)
+        }
+      }
+      resizeHandlerRef.current = fitResizedPane
+      instance.on('resize', fitResizedPane)
       // Scrolly hands the wheel to the story; a map that also zoomed on wheel
       // would fight it. Every other layout keeps the standard behaviour.
-      if (options.layout === 'scrolly') instance.scrollZoom.disable()
+      if (options.layout === 'scrolly' || options.layout === 'sidecar') instance.scrollZoom.disable()
       else instance.scrollZoom.enable()
       // The opening camera is a plain prop, set before the pane had a size.
       // Re-fit it now that one exists, so scene 1 is framed like every scene
@@ -659,7 +693,7 @@ export function ProjectStoryMap({
         instance.jumpTo(opening)
       }
     },
-    [options.layout, sceneCamera],
+    [options.layout, options.cameraFit, sceneCamera],
   )
 
   // NB: `Map` here is the map component, so use a record rather than a global Map.
@@ -748,7 +782,8 @@ export function ProjectStoryMap({
     return MAP_STYLES
   }, [config.map.basemap])
 
-  const sceneOverridden = activeScene ? !sameLayerSet(visibleLayerIds, activeScene.visibleLayerIds) : false
+  const sceneOverridden =
+    mapActionActive || (activeScene ? !sameLayerSet(visibleLayerIds, activeScene.visibleLayerIds) : false)
 
   const applyScene = useCallback(
     (index: number, { force = false } = {}) => {
@@ -760,6 +795,8 @@ export function ProjectStoryMap({
       if (index !== activeSceneIndexRef.current) setReadDirection(index > activeSceneIndexRef.current ? 1 : -1)
       activeSceneIndexRef.current = index
       setActiveSceneIndex(index)
+      actionCameraRef.current = undefined
+      setMapActionActive(false)
       setVisibleLayerIds(new Set(scene.visibleLayerIds))
       setSelectedFeature(null)
 
@@ -792,21 +829,56 @@ export function ProjectStoryMap({
   // Scrolls only the narrative container. scrollIntoView would also scroll
   // every scrollable ancestor, which on mobile drags the page itself while the
   // sheet is collapsed and wrecks the fixed map layout.
-  const scrollCardIntoCenter = useCallback((index: number, behavior: ScrollBehavior) => {
-    const root = scrollRef.current
-    const card = cardRefs.current[index]
-    if (!root || !card) return
-    const rootRect = root.getBoundingClientRect()
-    const cardRect = card.getBoundingClientRect()
-    const top = cardRect.top - rootRect.top + root.scrollTop - (root.clientHeight - cardRect.height) / 2
-    root.scrollTo({ top: Math.max(0, top), behavior })
-  }, [])
+  const scrollCardToReadingLine = useCallback(
+    (index: number, behavior: ScrollBehavior) => {
+      const root = scrollRef.current
+      const card = cardRefs.current[index]
+      if (!root || !card) return
+      const rootRect = root.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      // Put the card midpoint on the same reading line used by pickIndex.
+      // Centering in the pane puts short cards below that line and can cause a
+      // completed button-driven scroll to select the preceding chapter.
+      const top =
+        cardRect.top -
+        rootRect.top +
+        root.scrollTop +
+        (options.layout === 'sidecar'
+          ? -root.clientHeight * 0.1
+          : cardRect.height / 2 - root.clientHeight * READING_LINE_FRACTION)
+      root.scrollTo({ top: Math.max(0, top), behavior })
+    },
+    [options.layout],
+  )
+
+  const applyMapAction = useCallback(
+    (action: NonNullable<ProjectSceneDef['mapActions']>[number]) => {
+      setVisibleLayerIds(new Set(action.visibleLayerIds.filter((id) => config.layers.some((layer) => layer.id === id))))
+      setSelectedFeature(null)
+      setMapActionActive(true)
+      if (!action.camera) return
+      actionCameraRef.current = action.camera
+      const map = mapRef.current
+      const camera = sceneCamera(map, activeSceneIndexRef.current)
+      if (!map || !camera) return
+      allowZoomFloor(map, camera.zoom)
+      if (prefersReducedMotion() || options.sceneTransition === 'jump') map.jumpTo(camera)
+      else map.easeTo({ ...camera, duration: options.sceneTransitionMs })
+    },
+    [config.layers, sceneCamera, options.sceneTransition, options.sceneTransitionMs],
+  )
 
   // Scroll position drives the active scene: the card under the reading line
   // wins. A single trigger line keeps the mapping deterministic for cards of
   // any height — intersection-ratio thresholds can never fire for cards taller
   // than the observed band, and flip-flop at card boundaries.
   useEffect(() => {
+    if (
+      options.layout === 'sidecar' &&
+      options.sidecarVariant === 'slideshow' &&
+      !scenes.some((scene) => scene.presentation)
+    )
+      return
     const root = scrollRef.current
     if (!root) return
     let frame = 0
@@ -850,7 +922,7 @@ export function ProjectStoryMap({
       // wherever the aborted scroll happened to stop.
       if (pickIndex() !== target) {
         programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
-        scrollCardIntoCenter(target, 'auto')
+        scrollCardToReadingLine(target, 'auto')
         return
       }
       pendingSceneRef.current = null
@@ -877,7 +949,7 @@ export function ProjectStoryMap({
       if (frame) cancelAnimationFrame(frame)
       window.clearTimeout(settleTimer)
     }
-  }, [applyScene, scrollCardIntoCenter])
+  }, [applyScene, scrollCardToReadingLine, options.layout, options.sidecarVariant, scenes])
 
   const goToScene = useCallback(
     (index: number) => {
@@ -886,9 +958,9 @@ export function ProjectStoryMap({
       pendingSceneRef.current = clamped
       programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
       applyScene(clamped, { force: true })
-      scrollCardIntoCenter(clamped, smooth ? 'smooth' : 'auto')
+      scrollCardToReadingLine(clamped, smooth ? 'smooth' : 'auto')
     },
-    [applyScene, scenes.length, scrollCardIntoCenter],
+    [applyScene, scenes.length, scrollCardToReadingLine],
   )
 
   // Step from the ref, not render state: two quick clicks can both fire
@@ -917,7 +989,17 @@ export function ProjectStoryMap({
   })
 
   const mapCanvas = (
-    <>
+    <StoryComparison
+      enabled={Boolean(activeScene?.comparison)}
+      primaryMapRef={mapRef}
+      resolvedLayers={resolvedLayers.filter(
+        (resolved) =>
+          visibleLayerIds.has(resolved.layer.id) && activeScene?.comparison?.rightLayerIds.includes(resolved.layer.id),
+      )}
+      sources={sources}
+      styles={mapStyles}
+      labels={{ left: activeScene?.comparison?.leftLabel ?? '', right: activeScene?.comparison?.rightLabel ?? '' }}
+    >
       <Map
         ref={attachMap}
         className="h-full w-full"
@@ -956,7 +1038,12 @@ export function ProjectStoryMap({
           </Suspense>
         )}
         {resolvedLayers
-          .filter((resolved) => visibleLayerIds.has(resolved.layer.id) && resolved.layer.format !== 'climate-grid')
+          .filter(
+            (resolved) =>
+              visibleLayerIds.has(resolved.layer.id) &&
+              resolved.layer.format !== 'climate-grid' &&
+              (!activeScene?.comparison || activeScene.comparison.leftLayerIds.includes(resolved.layer.id)),
+          )
           .map((resolved) => {
             const sourceKey = JSON.stringify([storySourceKey(resolved.layer), resolved.layer.idProperty])
             const uniqueSource =
@@ -997,8 +1084,8 @@ export function ProjectStoryMap({
                   visible={visibleLayerIds.has(resolved.layer.id)}
                   filter={resolved.filter as never}
                   selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
-                  onFeatureClick={selectFeature}
-                  hoverHtml={hoverHtml}
+                  onFeatureClick={activeScene?.comparison ? undefined : selectFeature}
+                  hoverHtml={activeScene?.comparison ? undefined : hoverHtml}
                 />
               )
             }
@@ -1019,8 +1106,8 @@ export function ProjectStoryMap({
                   visible={visibleLayerIds.has(resolved.layer.id)}
                   filter={resolved.filter}
                   selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
-                  onFeatureClick={selectFeature}
-                  hoverHtml={hoverHtml}
+                  onFeatureClick={activeScene?.comparison ? undefined : selectFeature}
+                  hoverHtml={activeScene?.comparison ? undefined : hoverHtml}
                 />
               )
             }
@@ -1041,8 +1128,8 @@ export function ProjectStoryMap({
                 filter={resolved.filter as never}
                 fadeMs={LAYER_FADE_MS}
                 selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
-                onFeatureClick={selectFeature}
-                hoverHtml={hoverHtml}
+                onFeatureClick={activeScene?.comparison ? undefined : selectFeature}
+                hoverHtml={activeScene?.comparison ? undefined : hoverHtml}
               />
             )
           })}
@@ -1069,7 +1156,7 @@ export function ProjectStoryMap({
           </MapMarker>
         ))}
       </Map>
-    </>
+    </StoryComparison>
   )
 
   const mapChrome = (
@@ -1143,7 +1230,7 @@ export function ProjectStoryMap({
         // so the legend moves to the opposite corner there.
         className={cn(
           'story-map-legend pointer-events-auto',
-          options.layout === 'slides' &&
+          (options.layout === 'slides' || options.layout === 'sidecar') &&
             'flex max-h-[calc(100%-8rem)] flex-col max-md:left-3 max-md:right-auto md:max-h-[calc(100%-4rem)] [&>div:first-child]:shrink-0',
           // Scrolly's card lane spans a phone's full width, so the bottom
           // corners are card territory; the legend takes the top corner the
@@ -1155,12 +1242,15 @@ export function ProjectStoryMap({
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
         defaultCollapsed={options.legendCollapsed === 'auto' ? 'mobile' : options.legendCollapsed === 'always'}
-        contentClassName={cn('space-y-3', options.layout === 'slides' && 'min-h-0 overflow-y-auto')}
+        contentClassName={cn(
+          'space-y-3',
+          (options.layout === 'slides' || options.layout === 'sidecar') && 'min-h-0 overflow-y-auto',
+        )}
         actions={
           sceneOverridden ? (
             <button
               type="button"
-              onClick={() => activeScene && setVisibleLayerIds(new Set(activeScene.visibleLayerIds))}
+              onClick={() => applyScene(activeSceneIndex, { force: true })}
               className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <RotateCcw className="h-3 w-3" />
@@ -1233,6 +1323,29 @@ export function ProjectStoryMap({
       </MapLegendPanel>
     </>
   )
+
+  if (options.layout === 'sidecar') {
+    return (
+      <SidecarStory
+        project={project}
+        scenes={scenes}
+        activeSceneIndex={activeSceneIndex}
+        accent={accent}
+        options={options}
+        onBack={onBack}
+        onSelectScene={goToScene}
+        onStepScene={stepScene}
+        scrollRef={scrollRef}
+        cardRefs={cardRefs}
+        exploringMap={exploringMap}
+        onExploreMap={setExploringMap}
+        onMapAction={applyMapAction}
+        chrome={mapChrome}
+      >
+        {mapCanvas}
+      </SidecarStory>
+    )
+  }
 
   if (options.layout === 'scrolly') {
     return (

@@ -1,0 +1,99 @@
+{
+  "operationalLayers": [
+    {
+      "id": "18216a0eea5-layer-11",
+      "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+      "url": "https://tiles.arcgis.com/tiles/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3/MapServer",
+      "itemId": "645f210930e149a3ad47c847d2e59e89",
+      "layerType": "ArcGISTiledMapServiceLayer"
+    },
+    {
+      "id": "1822ab41598-layer-4",
+      "title": "UAP_Storymapa_HistorickaMestskaStruktura",
+      "url": "https://tiles.arcgis.com/tiles/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_HistorickaMestskaStruktura/MapServer",
+      "maxScale": 64040.831473,
+      "itemId": "a49363367e374c39b8c92ffdcadb6e45",
+      "layerType": "ArcGISTiledMapServiceLayer",
+      "effect": [
+        {
+          "scale": 288895.277144,
+          "value": [
+            {
+              "type": "bloom",
+              "radius": 0,
+              "strength": 0.9,
+              "threshold": 0.55
+            }
+          ]
+        },
+        {
+          "scale": 72223.819286,
+          "value": [
+            {
+              "type": "bloom",
+              "radius": 0,
+              "strength": 1.8,
+              "threshold": 0.55
+            }
+          ]
+        },
+        {
+          "scale": 18055.9548215,
+          "value": [
+            {
+              "type": "bloom",
+              "radius": 0,
+              "strength": 3.6,
+              "threshold": 0.55
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "VectorTile_4717",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Base",
+        "visibility": true,
+        "itemId": "5e9b3685f4c24d8781073dd928ebda50",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/5e9b3685f4c24d8781073dd928ebda50/resources/styles/root.json"
+      },
+      {
+        "id": "VectorTile_9547",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Reference",
+        "visibility": true,
+        "itemId": "747cb7a5329c478cbe6981076cc879c5",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/747cb7a5329c478cbe6981076cc879c5/resources/styles/root.json",
+        "isReference": true
+      }
+    ],
+    "title": "Dark Gray Canvas"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "10.2",
+  "initialState": {
+    "viewpoint": {
+      "targetGeometry": {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": 1591395.8072609447,
+        "ymin": 6438992.833753315,
+        "xmax": 1631678.1211671785,
+        "ymax": 6473580.589052311
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "version": "2.25"
+}

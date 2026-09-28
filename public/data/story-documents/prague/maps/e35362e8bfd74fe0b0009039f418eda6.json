@@ -1,0 +1,76 @@
+{
+  "operationalLayers": [
+    {
+      "id": "mapove_podklady_archiv_4825",
+      "opacity": 1,
+      "title": "mapove_podklady_archiv",
+      "url": "https://gs-pub.praha.eu/arcgis/rest/services/arch/mapove_podklady_archiv/MapServer",
+      "visibility": true,
+      "layerType": "ArcGISMapServiceLayer",
+      "visibleLayers": [
+        2011,
+        2003,
+        1002,
+        2005,
+        1014,
+        2008,
+        1005,
+        7,
+        1008,
+        1011
+      ]
+    },
+    {
+      "id": "1828d38e57b-layer-4",
+      "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817596_WFL1",
+      "url": "https://services5.arcgis.com/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817596_WFL1/FeatureServer/1",
+      "itemId": "91f2c0ca5a7e4be79aefef30a42e958f",
+      "layerType": "ArcGISFeatureLayer"
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "VectorTile_4717",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Base",
+        "visibility": true,
+        "itemId": "5e9b3685f4c24d8781073dd928ebda50",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/5e9b3685f4c24d8781073dd928ebda50/resources/styles/root.json"
+      },
+      {
+        "id": "VectorTile_9547",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Reference",
+        "visibility": true,
+        "itemId": "747cb7a5329c478cbe6981076cc879c5",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/747cb7a5329c478cbe6981076cc879c5/resources/styles/root.json",
+        "isReference": true
+      }
+    ],
+    "title": "Dark Gray Canvas"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "10.2",
+  "initialState": {
+    "viewpoint": {
+      "targetGeometry": {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": 1598574.3523289037,
+        "ymin": 6456651.273180441,
+        "xmax": 1612313.9081631459,
+        "ymax": 6465298.21200519
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "version": "2.25"
+}

@@ -10,7 +10,8 @@ import {
   summarizeCollections,
 } from './projectCollections'
 
-const packages = readdirSync('public/data/projects')
+const packages = readdirSync('public/data/projects', { recursive: true })
+  .map(String)
   .filter((name) => name.endsWith('.json') && name !== 'index.json')
   .map((name) => JSON.parse(readFileSync(`public/data/projects/${name}`, 'utf8')) as ProjectPackage)
 
@@ -53,7 +54,7 @@ describe('project collections', () => {
     expect(summarizeCollections(packages, match)).toMatchObject([{ count: 1, total: 20 }])
     expect(summarizeCollections([], [])).toEqual([])
     expect(summarizeCollections(packages, [])).toEqual([])
-    expect(collectionMembers(PROJECT_COLLECTIONS[0], match)).toEqual(match)
+    expect(collectionMembers(getProjectCollection('bc-climate-health')!, match)).toEqual(match)
   })
 
   it('uses shareable folder URLs and treats unknown folders explicitly', () => {

@@ -1,0 +1,62 @@
+{
+  "operationalLayers": [
+    {
+      "id": "181143d6556-layer-11",
+      "title": "arch_plan_juttner_1816",
+      "url": "https://gp.iprpraha.cz/imgs/rest/services/arch/arch_plan_juttner_1816/ImageServer",
+      "layerType": "ArcGISTiledImageServiceLayer"
+    },
+    {
+      "id": "1828c2a8479-layer-5",
+      "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10_WFL1",
+      "url": "https://services5.arcgis.com/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10_WFL1/FeatureServer/1",
+      "itemId": "9e7ba95549674d9083008bf09bb50df0",
+      "layerType": "ArcGISFeatureLayer"
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "VectorTile_4717",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Base",
+        "visibility": true,
+        "itemId": "5e9b3685f4c24d8781073dd928ebda50",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/5e9b3685f4c24d8781073dd928ebda50/resources/styles/root.json"
+      },
+      {
+        "id": "VectorTile_9547",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Reference",
+        "visibility": true,
+        "itemId": "747cb7a5329c478cbe6981076cc879c5",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/747cb7a5329c478cbe6981076cc879c5/resources/styles/root.json",
+        "isReference": true
+      }
+    ],
+    "title": "Dark Gray Canvas"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "10.2",
+  "initialState": {
+    "viewpoint": {
+      "rotation": 359.9999037180771,
+      "targetGeometry": {
+        "spatialReference": {
+          "wkid": 102100
+        },
+        "xmin": 1602964.7055604644,
+        "ymin": 6459111.592754279,
+        "xmax": 1607999.9947987436,
+        "ymax": 6463435.0621666545
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "version": "2.25"
+}

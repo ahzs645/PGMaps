@@ -7701,6 +7701,72 @@
       }
     },
     {
+      "file": "bc-economic-dependencies.json",
+      "revision": "52bbaeee96ea",
+      "catalog": {
+        "slug": "bc-economic-dependencies",
+        "title": "Forestry and Economic Dependencies in B.C.",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps · data from BC Stats",
+        "updated": "September 2026",
+        "region": "British Columbia",
+        "status": "Historical data · 2025 LAEP release",
+        "summary": "Explore forestry income dependency, economic diversity, vulnerability and employment concentration across 29 regional districts.",
+        "sourceNote": "Source: BC Stats, Local Area Economic Profiles, 2025 release. Uses published indicator CSVs, checked against the official Excel toolkit. Contains information licensed under the Open Government Licence – British Columbia. Geometry is Statistics Canada 2021 census divisions already held by BCDataMapper. Model reference years 2015/2020 correspond to 2016/2021 census cycles; employment and location quotients refer to the census year. These are historical modelled estimates, not current conditions.",
+        "details": [
+          "Click a district for its published forestry and income indicators. Suppressed or unreported values are never treated as zero.",
+          "Income dependency is the share of basic/external income, not the share of all household income or employment. Vulnerability is a relative index, not a probability. Descriptive colour bins are authored for this map.",
+          "This first project maps regional districts. Local-area geometry is deferred because the published Cassiar Corridor/Moricetown concordance does not reconcile. The suspect duplicated 2010/2015 cleaned census input files are not used to calculate any displayed indicator.",
+          "The 2015–2020 comparison uses one publication and current display boundaries. Pandemic effects and changes in other income sources affect the interpretation."
+        ],
+        "links": [
+          {
+            "label": "Official BC Stats dataset",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/local-area-economic-profiles-dataset"
+          },
+          {
+            "label": "2025 technical report",
+            "href": "https://www2.gov.bc.ca/assets/gov/data/bc-stats/laep-products/local_area_economic_profiles_2025.pdf"
+          },
+          {
+            "label": "Original custom census tables",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/084f7cab-0f47-40a7-86bf-3e112856cad6"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Regional districts",
+            "value": "29"
+          },
+          {
+            "label": "Latest model year",
+            "value": "2020"
+          },
+          {
+            "label": "Story scenes",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Regional indicators",
+            "detail": "29 census-division joins; deterministic BCDataMapper snapshot"
+          },
+          {
+            "label": "Official source archive",
+            "detail": "12 compressed CSVs with URLs, hashes and licence metadata"
+          },
+          {
+            "label": "Source validation",
+            "detail": "Seven published tables checked against the 2025 toolkit"
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 7
+      }
+    },
+    {
       "file": "bc-connected-geographies.json",
       "revision": "07bb4ce7403b",
       "catalog": {
@@ -7788,6 +7854,1014 @@
         ],
         "layerCount": 6,
         "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/comparison.json",
+      "revision": "731bf2adb6be",
+      "catalog": {
+        "slug": "example-comparison",
+        "title": "04 · Boundary comparison",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "Switch Economic, Census, Health and Overlap at a common extent. Named buttons work on desktop and touch screens without a drag gesture.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "Switch Economic, Census, Health and Overlap at a common extent. Named buttons work on desktop and touch screens without a drag gesture.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "4"
+          },
+          {
+            "label": "Layout",
+            "value": "slides"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "example/docked.json",
+      "revision": "fb02078ef887",
+      "catalog": {
+        "slug": "example-docked",
+        "title": "01 · Docked narrative",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "Read beside the map on desktop. On a phone, use Previous/Next in the map-first peek or expand the sheet to read all chapters.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "Read beside the map on desktop. On a phone, use Previous/Next in the map-first peek or expand the sheet to read all chapters.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "4"
+          },
+          {
+            "label": "Layout",
+            "value": "panel"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "example/hierarchy.json",
+      "revision": "5b5f7f242c07",
+      "catalog": {
+        "slug": "example-hierarchy",
+        "title": "06 · Linked hierarchy",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "Tap the economic/census and health paths to highlight each geography. Two separate columns preserve the distinction between membership and a crosswalk.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "Tap the economic/census and health paths to highlight each geography. Two separate columns preserve the distinction between membership and a crosswalk.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "6"
+          },
+          {
+            "label": "Layout",
+            "value": "slides"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/relationships.json",
+      "revision": "c9bb8a2c40f4",
+      "catalog": {
+        "slug": "example-relationships",
+        "title": "05 · Map + relationship bars",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "Select a population-share row to update the map. Exact counts remain beside the bars, with an explicit denominator and coverage note.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "Select a population-share row to update the map. Exact counts remain beside the bars, with an explicit denominator and coverage note.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "3"
+          },
+          {
+            "label": "Layout",
+            "value": "slides"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "example/scrolly.json",
+      "revision": "a9e669a35782",
+      "catalog": {
+        "slug": "example-scrolly",
+        "title": "03 · Scroll-driven story",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "Scroll to reveal each boundary system. On a phone, Explore map pauses reading and Read story returns to your place.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "Scroll to reveal each boundary system. On a phone, Explore map pauses reading and Read story returns to your place.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "4"
+          },
+          {
+            "label": "Layout",
+            "value": "scrolly"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "example/slides.json",
+      "revision": "c1e6759c8639",
+      "catalog": {
+        "slug": "example-slides",
+        "title": "02 · Guided slides",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Interaction example",
+        "summary": "A deliberate four-step tour: use arrows or chapter dots, or swipe the narrative on a phone. The map remains available above the story.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "A deliberate four-step tour: use arrows or chapter dots, or swipe the narrative on a phone. The map remains available above the story.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "4"
+          },
+          {
+            "label": "Layout",
+            "value": "slides"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "example/sidecar-docked.json",
+      "revision": "06315b5c4633",
+      "catalog": {
+        "slug": "example-sidecar-docked",
+        "title": "07 · StoryMaps — docked",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Editorial interaction example",
+        "summary": "Follow census blocks between economic regions and health areas, see where the links are incomplete, and learn how to connect regional indicators without changing their meaning.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "The same connected-geographies story presented with the docked editorial layout. This is a PGMaps implementation inspired by the supplied StoryMaps reference, using our own boundary sources and narrative.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "6"
+          },
+          {
+            "label": "Presentation",
+            "value": "docked"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/sidecar-floating.json",
+      "revision": "932235ea3f45",
+      "catalog": {
+        "slug": "example-sidecar-floating",
+        "title": "08 · StoryMaps — floating",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Editorial interaction example",
+        "summary": "Follow census blocks between economic regions and health areas, see where the links are incomplete, and learn how to connect regional indicators without changing their meaning.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "The same connected-geographies story presented with the floating editorial layout. This is a PGMaps implementation inspired by the supplied StoryMaps reference, using our own boundary sources and narrative.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "6"
+          },
+          {
+            "label": "Presentation",
+            "value": "floating"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/sidecar-mixed.json",
+      "revision": "d24ca2ded117",
+      "catalog": {
+        "slug": "example-sidecar-mixed",
+        "title": "10 · StoryMaps — mixed",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Editorial interaction example",
+        "summary": "Follow census blocks between economic regions and health areas, see where the links are incomplete, and learn how to connect regional indicators without changing their meaning.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "The same connected-geographies story presented with the mixed editorial layout. This is a PGMaps implementation inspired by the supplied StoryMaps reference, using our own boundary sources and narrative.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "6"
+          },
+          {
+            "label": "Presentation",
+            "value": "mixed"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/sidecar-slideshow.json",
+      "revision": "42fb762020e3",
+      "catalog": {
+        "slug": "example-sidecar-slideshow",
+        "title": "09 · StoryMaps — guided",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-09-27",
+        "region": "British Columbia",
+        "status": "Editorial interaction example",
+        "summary": "Follow census blocks between economic regions and health areas, see where the links are incomplete, and learn how to connect regional indicators without changing their meaning.",
+        "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+        "details": [
+          "The same connected-geographies story presented with the slideshow editorial layout. This is a PGMaps implementation inspired by the supplied StoryMaps reference, using our own boundary sources and narrative.",
+          "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+          "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+          "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+          "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+        ],
+        "links": [
+          {
+            "label": "All interaction examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Read the crosswalk and dashboard joining guide",
+            "href": "/data/boundaries/GeographyBridge/methodology.md"
+          },
+          {
+            "label": "Download geography relationships (CSV gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+          },
+          {
+            "label": "Download geography relationships (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+          },
+          {
+            "label": "Download block-level ID bridge (JSON gzip)",
+            "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+          },
+          {
+            "label": "Coverage and provenance manifest",
+            "href": "/data/boundaries/GeographyBridge/manifest.json"
+          },
+          {
+            "label": "Dashboard dataset registry",
+            "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+          },
+          {
+            "label": "Vacancy pilot with geography links",
+            "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+          },
+          {
+            "label": "Explore boundary layers",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "State of the North dashboard",
+            "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "6"
+          },
+          {
+            "label": "Presentation",
+            "value": "slideshow"
+          }
+        ],
+        "files": [
+          {
+            "label": "BC geography bridge",
+            "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+          },
+          {
+            "label": "State of the North joining registry",
+            "detail": "41 model entities and seven reviewed extraction pilots"
+          },
+          {
+            "label": "Existing boundary snapshots",
+            "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+          }
+        ],
+        "layerCount": 6,
+        "sceneCount": 6
+      }
+    },
+    {
+      "file": "example/prague.json",
+      "revision": "7c4c4b47c62b",
+      "catalog": {
+        "slug": "example-prague",
+        "title": "The Diverse Prague",
+        "kind": "map-story",
+        "theme": "slate",
+        "owner": "Institute of Planning and Development (IPR Prague); local reconstruction by PGMaps",
+        "updated": "Imported from supplied capture 2026-09-27",
+        "region": "Prague, Czechia",
+        "status": "Local reference recreation",
+        "summary": "Prague is a city of diversity – cultural, architectural, urban.",
+        "sourceNote": "Reconstructed from the user-supplied desktop capture of The Diverse Prague. Original text, media, analysis and credits belong to IPR Prague and its credited authors. Map services remain live external dependencies; this is a local recreation, not an IPR publication.",
+        "details": [
+          "Preserves the original story sequence, text, video cover, photographs, diagrams, map layers, comparisons and numbered photo tours.",
+          "Uses PGMaps navigation and reusable story components. MapLibre renders original thematic layers over the shared PGMaps basemap that follows light/dark mode; its local style uses CARTO vector tiles.",
+          "The accompanying mobile capture was empty. Responsive behavior is checked against the current public story.",
+          "Imported data excludes account credentials, telemetry and the original application code.",
+          "Four of the 19 captured WebMap definitions use unavailable original map services. The same failures are present in the supplied capture; no historical imagery is substituted."
+        ],
+        "links": [
+          {
+            "label": "Original story",
+            "href": "https://storymaps.arcgis.com/stories/3ed83ef359d346618510764c6222ac01"
+          },
+          {
+            "label": "All examples",
+            "href": "/dev/projects?collection=example"
+          },
+          {
+            "label": "Import provenance",
+            "href": "/data/story-documents/prague/manifest.json"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Chapters",
+            "value": "7"
+          },
+          {
+            "label": "Immersive slides",
+            "value": "18"
+          },
+          {
+            "label": "Photo tours",
+            "value": "4"
+          }
+        ],
+        "files": [
+          {
+            "label": "Editorial document",
+            "detail": "Original authored story graph with local media references"
+          },
+          {
+            "label": "Import provenance",
+            "detail": "Source identity, media inventory and capture completeness"
+          }
+        ],
+        "layerCount": 0,
+        "sceneCount": 7
+      }
+    },
+    {
+      "file": "example/native-editorial.json",
+      "revision": "db82b8e17f44",
+      "catalog": {
+        "slug": "example-native-editorial",
+        "title": "12 · Native editorial toolkit",
+        "kind": "map-story",
+        "theme": "slate",
+        "owner": "PGMaps",
+        "updated": "Component example authored 2026-09-27",
+        "region": "British Columbia",
+        "status": "Component demonstration",
+        "summary": "A native PGMaps story assembled from JSON. Follow the maps, explore the categories, and reuse the same building blocks.",
+        "sourceNote": "Statistics Canada 2021 economic region boundaries; original PGMaps illustrative media and dot data. Dot counts are teaching data, not population estimates.",
+        "details": [
+          "Native JSON composition with shared map, sidecar, tour, carousel, hierarchy and dot-diagram components.",
+          "The hierarchy shows BC economic-region membership only, not health-authority crosswalks."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Chapters",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Native editorial JSON",
+            "detail": "Reusable content and presentation blocks"
+          }
+        ],
+        "layerCount": 0,
+        "sceneCount": 5
       }
     }
   ]

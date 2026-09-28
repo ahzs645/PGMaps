@@ -2,6 +2,10 @@
 
 Use this mode when a scene sequence drives map state and narrative.
 
+For component selection, full editorial composition, or diagram capabilities,
+read [story-components.md](story-components.md). It identifies which patterns
+are available through scene JSON, imported documents, or React composition.
+
 Read `docs/project-map-stories.md` completely before changing the renderer,
 especially **Changing the renderer**. That document is authoritative for the
 scene/layer schema and every `workspace.options` field.
@@ -17,6 +21,14 @@ Preserve these non-obvious invariants:
 
 Do not reproduce the story contract in this skill reference; keeping the full
 schema in one repository document prevents drift.
+
+For editorial covers, named chapter navigation, docked/floating/slideshow
+sidecars, in-chapter map actions, or synchronized map reveals, use the
+**Editorial sidecars** section of `docs/project-map-stories.md`. These are
+capabilities of `story-map-v1`, not new project types. Presentation lives in
+`src/maps/project-story/layouts/SidecarStory.tsx`; comparison rendering lives in
+`StoryComparison.tsx`. Reuse scene and source definitions across style examples
+and keep their boundary vintages and crosswalk limitations unchanged.
 
 ## Story verification loop
 
@@ -48,3 +60,10 @@ directions, scene state and map state agree, each affected layout passes desktop
 and mobile checks, the map canvas fits its container without layout jumps, and
 the console has no new warning or error. A missing/CORS-blocked data source is an
 unverified external dependency, not a visual pass.
+
+For a faithful reconstruction of a supplied complete StoryMaps document, use
+**Imported editorial documents** in the story contract. `workspace.document`
+selects the source adapter; its assets belong under `public/data/story-documents`,
+not inside the recursively indexed project package directory. Preserve original
+content and credits when the user requests the actual source story. This differs
+from using the same interaction patterns with a new dataset.

@@ -18,7 +18,7 @@ All live in `src/components/ui/` unless noted.
 | A disclosure at every width | `CollapsibleSection collapseOn="always"` |
 | Headline numbers | `StatGroup` (`stat-group.tsx`): `variant="inline"` for a row of numbers, `variant="tiles"` with `size="sm"` (dense sidebar grid) or `size="md"` (dialogs). `StatGrid`/`StatTile` are legacy wrappers around it. |
 | Pick one of 2–4 views | `SegmentedControl` (`segmented-control.tsx`). `variant="solid"`, per-option `icon`/`activeClassName` for toolbars. |
-| Switch which panel shows | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. Opt-in: `stretch` (tabs share the width), `stacked` (marker above the label, for five or so tabs in a sidebar), and per option `marker` (in place of `icon`) and `ariaLabel` (when the visible label is abbreviated). |
+| Switch which panel shows | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. Opt-in: `stretch` (tabs share the width without a nested scroll area; long labels truncate), `stacked` (marker above the label, for five or so tabs in a sidebar), and per option `marker` (in place of `icon`) and `ariaLabel` (when the visible label is abbreviated). Default label-sized tabs can scroll horizontally. Keep underline borders inside the row: negative bottom margins create vertical overflow in a horizontal scroll port. |
 | Layer / data-source on-off | `ToggleRow` (`toggle-row.tsx`), `layout="tile"` for grids. |
 | Multi-select filter chips | `FilterChipGroup variant="filled"` + `SelectAllActions` (`text-button.tsx`) in the group heading. |
 | Notes, warnings, errors, loading text | `InlineAlert` (`tone`, `title`, `loading`) |
@@ -56,6 +56,34 @@ All live in `src/components/ui/` unless noted.
 
 ## Map overlays
 
+- Comparisons: `MapSwipe` (`map-swipe.tsx`) takes full-size `left` and `right`
+  React slots, labels, and an optional `onPositionChange(percent)` callback.
+  It reveals the right surface with a clipped divider; the caller owns camera
+  synchronization. Pointer capture supports mouse/touch dragging, with Home/End,
+  arrows and Page Up/Down for keyboard use. The divider updates CSS once per
+  animation frame without rendering its map children on every pointer move.
+
+- Loading: shared `Map` keeps its standard loader by default. Set
+  `showLoadingOverlay={false}` for embedded editorial maps to omit it entirely,
+  including the initial load. This leaves map readiness and errors intact;
+  the caller supplies accessible progress text.
+
+- Categorical raster polygons: `MapCategoricalRaster` (`map-categorical-raster.tsx`)
+  loads `categorical-raster-polygons-v1` native blocks for the viewport and renders
+  pickable deck.gl polygons. Supply a colour function, pick/status callbacks and
+  attribution; numeric values stay in feature properties. The reusable source
+  converter is documented in `vendor/bcdatamapper/datascrapers/lib/categorical-raster.md`.
+  It also accepts `categorical-raster-pyramid-v1` for zoom-dependent display
+  overviews, retaining the previous level until replacement coverage is ready.
+  Pick callbacks include `overview: true` for generalized grids; label those
+  results accordingly instead of describing them as exact cell values.
+  Polygon fetch/decode/triangulation runs in a two-worker pool with transferable
+  binary geometry; retain Float64 positions and use binary feature indices for
+  picking. Newly prepared blocks wait for camera movement to finish. Recently
+  drawn blocks remain as hidden, non-pickable deck.gl layers (up to 48 inactive
+  blocks), so cached levels can switch during a gesture without GPU uploads.
+  New block requests wait for the settled viewport; cached views remain usable.
+
 - Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
   bar measured great-circle across the map's middle (so Mercator's stretch at
   our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides
@@ -86,3 +114,16 @@ the mouse layout. The shared controls above already do.
   `MONTH_SHORT_NAMES`. Pass `DEFAULT_LOCALE` to any direct `toLocaleString`.
 - `color.ts`: `hexToRgba`, `readableTextColor`, `colorForKey`.
 - `download.ts`: `downloadBlob`, `downloadText`.
+
+## Story diagrams and editorial reading
+
+`RadialHierarchy` and `CategoryDotDiagram` in `src/components/ui/diagrams` take
+structured data, category colors, a selected category and an `onSelect`
+callback. They do not fetch data or control a map. The hierarchy includes a
+keyboard-operable nested list; dots preserve authored normalized coordinates
+and label measured versus illustrative input. Layout and sample selection live
+in `src/lib/diagrams/storyDiagrams.ts`.
+
+`EditorialShell` is shared by native and imported stories and owns project
+navigation, viewport measurement and chapter navigation. See the
+[native editorial contract](native-editorial-stories.md) for JSON invocation.

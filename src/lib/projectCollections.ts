@@ -10,6 +10,26 @@ export interface ProjectCollection {
 
 export const PROJECT_COLLECTIONS: readonly ProjectCollection[] = [
   {
+    slug: 'example',
+    title: 'example',
+    description:
+      'Compare story-map designs on desktop and mobile: six focused interaction demos and four editorial presentations of the same geography story, a recreation of The Diverse Prague, and a native editorial toolkit.',
+    projectSlugs: [
+      'example-docked',
+      'example-slides',
+      'example-scrolly',
+      'example-comparison',
+      'example-relationships',
+      'example-hierarchy',
+      'example-sidecar-docked',
+      'example-sidecar-floating',
+      'example-sidecar-slideshow',
+      'example-sidecar-mixed',
+      'example-prague',
+      'example-native-editorial',
+    ],
+  },
+  {
     slug: 'bc-climate-health',
     title: 'B.C. Climate & Health',
     description:
@@ -49,6 +69,16 @@ export function getCollectionForProject(slug: string) {
 
 export function collectionHref(slug: string) {
   return `/dev/projects?collection=${encodeURIComponent(slug)}`
+}
+
+/** A stable parent destination, including direct links and refreshed projects. */
+export function projectCatalogDestination(projectSlug: string | null | undefined) {
+  const collection = projectSlug ? getCollectionForProject(projectSlug) : undefined
+  return {
+    href: collection ? collectionHref(collection.slug) : '/dev/projects',
+    label: collection ? `Back to ${collection.title}` : 'All projects',
+    ariaLabel: collection ? `Back to ${collection.title}` : 'Back to all projects',
+  }
 }
 
 export function collectionMembers(collection: ProjectCollection, projects: readonly ProjectPackage[]) {

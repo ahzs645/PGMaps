@@ -19,6 +19,10 @@ data contract and interaction cannot be expressed by an existing one.
 - For `workspace.type: "story-map"`, read
   [references/map-story.md](references/map-story.md) and the repository's full
   `docs/project-map-stories.md` contract before changing the renderer.
+- For choosing reusable story presentations, Prague-style editorial composition,
+  or data-driven story diagrams, also read
+  [references/story-components.md](references/story-components.md). It separates
+  native scene, native editorial, and imported-document capabilities.
 - For `kind: "index-preset"` and `lab` recipes, read
   [references/index-preset.md](references/index-preset.md).
 

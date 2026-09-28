@@ -1,11 +1,14 @@
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useParams } from 'react-router-dom'
+import { projectCatalogDestination } from '@/lib/projectCollections'
 
 /**
- * "All projects" — the way back to the catalog from every project renderer
- * (workspace, story layouts, map explorer), so the label and look match.
+ * Return to the project’s catalog folder, or the catalog for ungrouped projects.
  */
 export function ProjectBackButton({ onBack, className }: { onBack: () => void; className?: string }) {
+  const { projectSlug } = useParams<{ projectSlug?: string }>()
+  const destination = projectCatalogDestination(projectSlug)
   return (
     <button
       type="button"
@@ -16,7 +19,7 @@ export function ProjectBackButton({ onBack, className }: { onBack: () => void; c
       )}
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-      All projects
+      {destination.label}
     </button>
   )
 }

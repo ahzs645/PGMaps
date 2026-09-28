@@ -1,0 +1,47 @@
+{
+  "operationalLayers": [
+    {
+      "id": "1828d437c70-layer-2",
+      "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all_WFL1",
+      "url": "https://services5.arcgis.com/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all_WFL1/FeatureServer/1",
+      "visibility": true,
+      "itemId": "8c61aba29e274d1e8fcdc91e340044a2",
+      "layerType": "ArcGISFeatureLayer"
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "ortofoto_wm_9014",
+        "opacity": 1,
+        "title": "ortofoto_wm",
+        "url": "https://ags.cuzk.cz/arcgis/rest/services/ortofoto_wm/MapServer",
+        "visibility": true,
+        "layerType": "ArcGISTiledMapServiceLayer"
+      }
+    ],
+    "title": "Ortofotomapa České republiky (Web Mercator)"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "10.2",
+  "initialState": {
+    "viewpoint": {
+      "rotation": 359.9986244999816,
+      "targetGeometry": {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": 1599201.1104144172,
+        "ymin": 6457023.242054688,
+        "xmax": 1612940.6662486594,
+        "ymax": 6465670.180879436
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "version": "2.25"
+}

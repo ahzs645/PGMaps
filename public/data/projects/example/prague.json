@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "slug": "example-prague",
+  "title": "The Diverse Prague",
+  "kind": "map-story",
+  "theme": "slate",
+  "owner": "Institute of Planning and Development (IPR Prague); local reconstruction by PGMaps",
+  "updated": "Imported from supplied capture 2026-09-27",
+  "region": "Prague, Czechia",
+  "status": "Local reference recreation",
+  "summary": "Prague is a city of diversity \u2013 cultural, architectural, urban.",
+  "sourceNote": "Reconstructed from the user-supplied desktop capture of The Diverse Prague. Original text, media, analysis and credits belong to IPR Prague and its credited authors. Map services remain live external dependencies; this is a local recreation, not an IPR publication.",
+  "details": [
+    "Preserves the original story sequence, text, video cover, photographs, diagrams, map layers, comparisons and numbered photo tours.",
+    "Uses PGMaps navigation and reusable story components. MapLibre renders original thematic layers over the shared PGMaps basemap that follows light/dark mode; its local style uses CARTO vector tiles.",
+    "The accompanying mobile capture was empty. Responsive behavior is checked against the current public story.",
+    "Imported data excludes account credentials, telemetry and the original application code.",
+    "Four of the 19 captured WebMap definitions use unavailable original map services. The same failures are present in the supplied capture; no historical imagery is substituted."
+  ],
+  "links": [
+    {
+      "label": "Original story",
+      "href": "https://storymaps.arcgis.com/stories/3ed83ef359d346618510764c6222ac01"
+    },
+    {
+      "label": "All examples",
+      "href": "/dev/projects?collection=example"
+    },
+    {
+      "label": "Import provenance",
+      "href": "/data/story-documents/prague/manifest.json"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Chapters",
+      "value": "7"
+    },
+    {
+      "label": "Immersive slides",
+      "value": "18"
+    },
+    {
+      "label": "Photo tours",
+      "value": "4"
+    }
+  ],
+  "layers": [],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "What is urban diversity?",
+      "title": "What is urban diversity?",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Urban patterns of Prague",
+      "title": "Urban patterns of Prague",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Description of individual branches of the taxonomic tree",
+      "title": "Description of individual branches of the taxonomic tree",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "What do they capture?",
+      "title": "What do they capture?",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Diversity of urban structure",
+      "title": "Diversity of urban structure",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Three different views of the city",
+      "title": "Three different views of the city",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Author team",
+      "title": "Author team",
+      "text": "Original chapter from The Diverse Prague, Institute of Planning and Development (IPR Prague).",
+      "focus": "Prague",
+      "visibleLayerIds": []
+    }
+  ],
+  "files": [
+    {
+      "label": "Editorial document",
+      "detail": "Original authored story graph with local media references"
+    },
+    {
+      "label": "Import provenance",
+      "detail": "Source identity, media inventory and capture completeness"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "document": {
+      "schema": "arcgis-story-document-v1",
+      "data": "/data/story-documents/prague/story.json",
+      "basemap": "pgmaps"
+    },
+    "map": {
+      "center": [
+        14.42,
+        50.08
+      ],
+      "zoom": 11,
+      "minZoom": 0,
+      "maxZoom": 22,
+      "basemap": "dark"
+    },
+    "options": {},
+    "layers": [],
+    "places": []
+  }
+}

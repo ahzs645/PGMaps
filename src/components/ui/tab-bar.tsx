@@ -31,7 +31,7 @@ interface TabBarProps<T extends string> {
   idPrefix?: string
   /** Classes for the selected tab, e.g. a section's accent colour. */
   activeClassName?: string
-  /** Tabs share the row's width equally instead of sizing to their labels. */
+  /** Tabs share the row's width equally without a nested scroll area; long labels truncate. */
   stretch?: boolean
   /** Marker (or icon) above the label rather than beside it, for many tabs in a narrow panel. */
   stacked?: boolean
@@ -89,7 +89,8 @@ export function TabBar<T extends string>({
       aria-orientation={orientation === 'responsive' ? undefined : 'horizontal'}
       onKeyDown={onKeyDown}
       className={cn(
-        'flex gap-1 overflow-x-auto',
+        'flex gap-1',
+        stretch ? 'overflow-visible' : 'overflow-x-auto',
         orientation === 'responsive' && 'md:flex-col md:overflow-visible',
         variant === 'pill' ? 'rounded-lg bg-secondary p-1' : 'border-b border-border',
         className,
@@ -125,7 +126,7 @@ export function TabBar<T extends string>({
                       : 'text-muted-foreground hover:text-foreground',
                   )
                 : cn(
-                    '-mb-px border-b-2 px-3 py-2',
+                    'border-b-2 px-3 py-2',
                     selected
                       ? 'border-primary text-foreground'
                       : 'border-transparent text-muted-foreground hover:text-foreground',

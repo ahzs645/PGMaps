@@ -1,0 +1,360 @@
+{
+  "version": 1,
+  "slug": "example-scrolly",
+  "title": "03 · Scroll-driven story",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "PGMaps",
+  "updated": "2026-09-27",
+  "region": "British Columbia",
+  "status": "Interaction example",
+  "summary": "Scroll to reveal each boundary system. On a phone, Explore map pauses reading and Read story returns to your place.",
+  "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+  "details": [
+    "Scroll to reveal each boundary system. On a phone, Explore map pauses reading and Read story returns to your place.",
+    "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+    "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+    "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+    "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+  ],
+  "links": [
+    {
+      "label": "All interaction examples",
+      "href": "/dev/projects?collection=example"
+    },
+    {
+      "label": "Read the crosswalk and dashboard joining guide",
+      "href": "/data/boundaries/GeographyBridge/methodology.md"
+    },
+    {
+      "label": "Download geography relationships (CSV gzip)",
+      "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+    },
+    {
+      "label": "Download geography relationships (JSON gzip)",
+      "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+    },
+    {
+      "label": "Download block-level ID bridge (JSON gzip)",
+      "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+    },
+    {
+      "label": "Coverage and provenance manifest",
+      "href": "/data/boundaries/GeographyBridge/manifest.json"
+    },
+    {
+      "label": "Dashboard dataset registry",
+      "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+    },
+    {
+      "label": "Vacancy pilot with geography links",
+      "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+    },
+    {
+      "label": "Explore boundary layers",
+      "href": "/dev/boundaries"
+    },
+    {
+      "label": "State of the North dashboard",
+      "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Scenes",
+      "value": "4"
+    },
+    {
+      "label": "Layout",
+      "value": "scrolly"
+    }
+  ],
+  "layers": [
+    {
+      "id": "economic-regions",
+      "label": "Economic regions and health links",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "census-divisions",
+      "label": "Census divisions",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "health-authorities",
+      "label": "Health authorities",
+      "type": "boundary",
+      "checked": false
+    }
+  ],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "One place, several maps",
+      "title": "One place, several maps",
+      "text": "Follow Prince George through economic, census and health boundaries. Each map answers a different question.",
+      "focus": "One place, several maps",
+      "visibleLayerIds": [
+        "economic-regions"
+      ],
+      "camera": {
+        "center": [
+          -125.6,
+          54.5
+        ],
+        "zoom": 4.35
+      },
+      "highlights": [],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ]
+    },
+    {
+      "label": "The economic region",
+      "title": "The economic region",
+      "text": "Cariboo economic region includes Prince George and Williams Lake. Select a polygon to inspect its existing health-link profile.",
+      "focus": "The economic region",
+      "visibleLayerIds": [
+        "economic-regions"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ]
+    },
+    {
+      "label": "The census path",
+      "title": "The census path",
+      "text": "Fraser-Fort George is a census division within Cariboo economic region. Names and codes preserve the membership relationship.",
+      "focus": "The census path",
+      "visibleLayerIds": [
+        "economic-regions",
+        "census-divisions"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        },
+        {
+          "layerId": "census-divisions",
+          "property": "boundaryCode",
+          "values": [
+            "5953"
+          ],
+          "label": "Fraser-Fort George",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ]
+    },
+    {
+      "label": "A separate health system",
+      "title": "A separate health system",
+      "text": "Northern Health overlaps Cariboo. It is not a parent of that economic region. The block crosswalk connects these systems; health polygon vintage is not established as 2021.",
+      "focus": "A separate health system",
+      "visibleLayerIds": [
+        "economic-regions",
+        "health-authorities"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        },
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_CODE",
+          "values": [
+            "5"
+          ],
+          "label": "Northern Health",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "BC geography bridge",
+      "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+    },
+    {
+      "label": "State of the North joining registry",
+      "detail": "41 model entities and seven reviewed extraction pilots"
+    },
+    {
+      "label": "Existing boundary snapshots",
+      "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "accent": "#0d9488",
+    "options": {
+      "layout": "scrolly",
+      "sceneTransition": "ease",
+      "sceneTransitionMs": 500,
+      "legendCollapsed": "auto",
+      "cameraFit": "auto",
+      "mobileSheet": "collapsed",
+      "mobilePeekSceneText": true,
+      "slidesSwipeHint": "pane"
+    },
+    "map": {
+      "center": [
+        -125.6,
+        54.5
+      ],
+      "zoom": 4.35,
+      "minZoom": 3,
+      "maxZoom": 13,
+      "basemap": "light"
+    },
+    "places": [
+      {
+        "id": "prince-george",
+        "label": "Prince George",
+        "coordinates": [
+          -122.7497,
+          53.9171
+        ],
+        "note": "CSD 5953023 → CD 5953 → ER 5950; health block path → LHA 524 → HSDA 52 → HA 5.",
+        "color": "#047857"
+      },
+      {
+        "id": "williams-lake",
+        "label": "Williams Lake",
+        "coordinates": [
+          -122.1417,
+          52.129
+        ],
+        "note": "A city in Cariboo economic region and Interior Health; a different health authority from Prince George.",
+        "color": "#b45309"
+      }
+    ],
+    "layers": [
+      {
+        "id": "economic-regions",
+        "data": "/data/boundaries/StatCan/bc_economic_regions_2021.geojson.gz",
+        "idProperty": "ERUID",
+        "labelProperty": "ERNAME",
+        "selectionTitleProperty": "economicRegionName",
+        "selectionDetailProperty": "profile",
+        "attributes": {
+          "data": "/data/boundaries/GeographyBridge/economic-region-profiles.json",
+          "boundaryProperty": "ERUID",
+          "attributeProperty": "economicRegionCode"
+        },
+        "fillColor": "#d97706",
+        "fillOpacity": 0.28,
+        "lineColor": "#92400e",
+        "lineOpacity": 1,
+        "lineWidth": 2,
+        "attribution": "Statistics Canada 2021; BCDataMapper ID-based bridge",
+        "category": {
+          "property": "linkCategory",
+          "colors": {
+            "One health authority": "#0d9488",
+            "Multiple health authorities": "#d97706",
+            "Incomplete health links": "#a855f7"
+          },
+          "fallback": "#64748b"
+        }
+      },
+      {
+        "id": "census-divisions",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "idProperty": "boundaryCode",
+        "labelProperty": "boundaryName",
+        "fillColor": "#3b82f6",
+        "fillOpacity": 0.06,
+        "lineColor": "#2563eb",
+        "lineOpacity": 1,
+        "lineWidth": 1.5,
+        "attribution": "Statistics Canada 2021 census division display boundaries"
+      },
+      {
+        "id": "health-authorities",
+        "data": "/data/boundaries/BCMoH/simplified/health_authorities.json",
+        "idProperty": "HLTH_AUTHORITY_CODE",
+        "labelProperty": "HLTH_AUTHORITY_NAME",
+        "fillColor": "#047857",
+        "fillOpacity": 0.23,
+        "lineColor": "#0f172a",
+        "lineOpacity": 0.96,
+        "lineWidth": 2,
+        "category": {
+          "property": "HLTH_AUTHORITY_NAME",
+          "colors": {
+            "Northern": "#047857",
+            "Interior": "#d97706",
+            "Fraser": "#7c3aed",
+            "Vancouver Coastal": "#0284c7",
+            "Vancouver Island": "#be123c"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "B.C. Ministry of Health"
+      }
+    ]
+  }
+}

@@ -89,6 +89,12 @@ optional; omitted fields keep the defaults shown here:
 {
   "options": {
     "layout": "panel",
+    "sidecarVariant": "docked",
+    "storyTheme": "paper",
+    "storyCover": true,
+    "chapterNavigation": true,
+    "narrativeSide": "left",
+    "narrativeWidth": "medium",
     "sceneTransition": "ease",
     "sceneTransitionMs": 1150,
     "mobileSheet": "half",
@@ -123,7 +129,25 @@ optional; omitted fields keep the defaults shown here:
     screen, so no slide is cut off and stepping never resizes the map; on a
     short screen it stops at 58% and the slide scrolls, with a fade at its foot
     marking the overflow.
+  - `"sidecar"` — an editorial story with a cover, named chapter navigation,
+    and map chapters presented as docked prose, floating prose, or a slideshow.
+    It reuses the same scene, source, camera, legend, and interaction contract.
+    See [Editorial sidecars](#editorial-sidecars) for the reusable invocation.
   The mobile-sheet options below apply only to `"panel"`.
+- `sidecarVariant` — the default presentation for `sidecar`: `"docked"`,
+  `"floating"`, or `"slideshow"`. A scene's optional `presentation` overrides
+  this choice for mixed stories. Other layouts ignore it.
+- `storyTheme` — the sidecar's editorial palette: `"paper"` (default) or
+  `"ink"`. This styles story content; `workspace.map.basemap` independently
+  controls the map. Other layouts keep their existing app theme.
+- `storyCover` — show a sidecar cover using the project title, summary, and
+  opening map. Defaults to `true`; set `false` to start with chapters.
+- `chapterNavigation` — show the named sidecar chapter navigation. Defaults
+  to `true`.
+- `narrativeSide` — sidecar desktop narrative placement: `"left"` (default)
+  or `"right"`. Mobile keeps the map above readable prose.
+- `narrativeWidth` — sidecar desktop narrative width: `"medium"` (default)
+  or `"large"`.
 - `sceneTransition` — camera motion between scenes: `"ease"` (straight
   interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
   Readers with reduced motion enabled always get an instant jump.
@@ -180,6 +204,107 @@ button and the panel sidebar's separate source-note/JSON buttons. The icon has
 an accessible label, supports keyboard activation, and receives focus again when
 the dialog closes.
 Slide legends scroll within the available map pane instead of clipping above it.
+
+## Editorial sidecars
+
+Use the existing `story-map-v1` workspace and opt in to the sidecar layout:
+
+```json
+{
+  "options": {
+    "layout": "sidecar",
+    "sidecarVariant": "docked",
+    "storyTheme": "paper",
+    "storyCover": true,
+    "chapterNavigation": true,
+    "narrativeSide": "left",
+    "narrativeWidth": "medium"
+  }
+}
+```
+
+This is a presentation capability, not a separate dataset or project type.
+Reuse a story's exact `scenes`, `layers`, and source URLs to compare its styles.
+The cover uses authored project metadata and the opening map; it does not require
+third-party photography or a copied StoryMaps website. Paper and ink provide
+bounded, reusable visual styles instead of allowing arbitrary CSS in packages.
+
+Docked chapters put editorial prose beside the map on desktop. Floating chapters
+place prose over a broad map. Slideshow stories advance discretely through the
+same scene sequence. On a phone, narrative and map have separate reading areas
+and an explicit map exploration control. Reading and exploration retain the
+map instance and reading position. The existing `panel`, `scrolly`, and `slides`
+layouts remain available and retain their own behavior.
+
+For a mixed story, set `presentation` on individual scenes. Keep `text` as the
+introductory paragraph and optionally add `paragraphs` for editorial detail:
+
+```json
+{
+  "presentation": "floating",
+  "text": "Economic regions and health authorities answer different questions.",
+  "paragraphs": [
+    "Their boundaries overlap without belonging to a single shared hierarchy.",
+    "A crosswalk records the intersections and the denominator used for each share."
+  ]
+}
+```
+
+Presentation and paragraphs affect sidecars only. A missing presentation uses
+the story's `sidecarVariant`. The parser drops unsupported presentation values
+and non-string or empty paragraphs. Text is rendered as text, never raw HTML.
+
+### In-chapter map actions
+
+Sidecar scenes can offer additional views without changing the chapter:
+
+```json
+{
+  "mapActions": [
+    { "label": "Economic regions", "visibleLayerIds": ["economic-regions"] },
+    {
+      "label": "Health authorities",
+      "visibleLayerIds": ["health-authorities"],
+      "camera": { "center": [-123.5, 54], "zoom": 5.2 }
+    }
+  ]
+}
+```
+
+Each action replaces the visible layer set. An empty set intentionally shows
+only the basemap. A supplied camera uses the ordinary story camera fitting and
+reduced-motion behavior; omitting it preserves the current camera. Navigating
+to another chapter or resetting the scene restores authored scene state.
+These actions differ from `interaction.items[].sceneLabel`, which navigates to
+another scene. Scene highlights and style overrides remain those of the chapter.
+Action layer IDs must exist in `workspace.layers`. Invalid actions are dropped;
+valid action cameras clamp zoom to 0–22 and pitch to 0–85. The package audit
+rejects out-of-range authored cameras instead of silently accepting them.
+
+### Synchronized map comparison
+
+A scene can reveal two synchronized maps with a comparison slider:
+
+```json
+{
+  "visibleLayerIds": ["economic-regions", "health-authorities"],
+  "comparison": {
+    "leftLabel": "Economic regions",
+    "leftLayerIds": ["economic-regions"],
+    "rightLabel": "Health authorities",
+    "rightLayerIds": ["health-authorities"]
+  }
+}
+```
+
+Both sides use the same camera and scene styles. Each side requires at least
+one layer and a readable label; every referenced layer must also appear in the
+scene's `visibleLayerIds`. GeoJSON and PMTiles are supported; native climate-grid
+layers are not. Comparison scenes cannot also declare `mapActions`. This keeps
+the two authored layer sets explicit. A reveal does not imply that boundaries
+nest, align, or share a vintage: retain source dates and crosswalk limitations in
+the chapter text. Popups are disabled while comparing so the revealed side does
+not misleadingly pick an obscured feature from the other map.
 
 ## GeoJSON layers
 
@@ -435,12 +560,15 @@ change can substitute for a suitable source representation.
 
 ## Changing the renderer
 
-`src/maps/project-story/ProjectStoryMap.tsx` renders every layout; the pure
-parts (paint resolution, legend derivation, camera fitting) live beside it in
-`storyScene.ts`, which is where new logic belongs if it can be unit tested
-without a browser.
+`src/maps/project-story/ProjectStoryMap.tsx` owns scene selection, map state,
+source loading, and composition. The legacy layouts remain there; editorial
+presentation lives in `layouts/SidecarStory.tsx`, and the synchronized comparison
+surface lives in `StoryComparison.tsx`. Keep new editorial UI in the layout
+component rather than expanding the map orchestrator. The pure parts (paint
+resolution, legend derivation, camera fitting) live beside it in `storyScene.ts`,
+which is where new logic belongs if it can be unit tested without a browser.
 
-Adding a `workspace.options` field means four edits, in this order:
+Adding a `workspace.options` field requires coordinated contract edits:
 
 1. `ProjectStoryOptionsDef` in `src/lib/projectPackages.ts` — the field and a
    comment saying what it is for.
@@ -450,6 +578,9 @@ Adding a `workspace.options` field means four edits, in this order:
    `toMatchObject`, so a field left out of them is silently untested. Add it to
    all three: defaults, valid values, and unknown-value fallback.
 4. A bullet under [Story options](#story-options) above.
+5. The allowed option values in
+   `.agents/skills/pgmaps-project-builder/scripts/audit-project-package.mjs`,
+   along with the owning renderer behavior and an example package.
 
 Three renderer invariants are load-bearing and easy to undo by accident:
 
@@ -521,3 +652,287 @@ unverified; they are not passing checks.
 The mobile scrolly Explore map mode must preserve the card scroller and map
 instances; do not unmount them to switch modes. Slide changes reset only the
 narrative scroll position, preserving the longest-slide grid measurement.
+
+Sidecar verification additionally covers the cover start action, named chapter
+navigation, docked/floating/slideshow presentations, both editorial themes,
+in-chapter map actions and reset, and phone reading/exploration. Mixed
+presentations still use one map instance; size changes re-fit the active camera
+to the available pane. A comparison chapter must keep both cameras synchronized
+while panning, zooming, advancing chapters, and resizing. Exercise its pointer
+and keyboard reveal controls at desktop and phone widths. Verify that leaving
+comparison restores the ordinary scene map and that comparison data uses the
+same active-source loading path rather than a second eager fetch.
+
+## Scene interaction examples
+
+The **example** catalog folder (`/dev/projects?collection=example`) contains twelve
+packages in `public/data/projects/example`: docked narrative, guided slides,
+scroll-driven story, boundary comparison, relationship bars and linked hierarchy,
+plus four editorial sidecars (docked, floating, slideshow and mixed), and the
+complete imported Prague editorial story and the native editorial toolkit.
+Regenerate the sidecars with `node scripts/generate-sidecar-examples.mjs`.
+Regenerate their app-owned presentation with `node scripts/generate-story-examples.mjs`
+and then `npm run projects:index`. The generator reuses the connected-geographies
+package and reads the existing scraper-owned relationship snapshot for the three
+Cariboo population shares; it does not copy or modify those source datasets.
+
+A scene can optionally include an `interaction` block:
+
+```json
+{
+  "interaction": {
+    "type": "choices",
+    "title": "Compare boundaries",
+    "description": "Switch views at the same authored extent.",
+    "items": [
+      { "label": "Economic", "sceneLabel": "Economic" },
+      { "label": "Health", "sceneLabel": "Health" }
+    ]
+  }
+}
+```
+
+`sceneLabel` refers to a unique scene label within the package. A selection uses
+normal scene navigation, including camera, legend, highlights and visible layers.
+Use identical cameras for an A/B comparison. Manual pan/zoom is reset to that
+scene's authored view when switching; this is not synchronized dual-map mode.
+`choices` renders named buttons; `bars` renders selectable labelled shares (each
+item requires `share` in [0,1] and may include a `detail` count string); `hierarchy`
+renders ordered paths in columns, grouped by the optional item `group`.
+Hierarchy arrows express authored membership, never an inferred crosswalk.
+For bars, describe the denominator, year, coverage and meaning in the block copy.
+Only relationships with valid scene targets render; package audit rejects missing
+or ambiguous targets. Invalid block types, items and shares are discarded by the
+parser. No block means no change to existing story cards.
+
+`SceneInteraction.tsx` owns these controls. Non-slide cards with interactive
+content use a separate scene-selection button, avoiding nested buttons. Slides
+continue stacking all scene cards for stable pane sizing. Story arrow shortcuts
+ignore focused controls, editable content, dialogs and maps so widget/map keys
+are not also interpreted as chapter navigation.
+
+## Native editorial documents
+
+For JSON-authored covers, prose, galleries, map sidecars, comparisons, tours and
+data-driven hierarchy/dot diagrams, set `workspace.document.schema` to
+`"pgmaps-editorial-v1"`. The [native editorial contract](native-editorial-stories.md)
+defines blocks, registries, map/view bindings and typed actions. The working
+example is `example-native-editorial` in the example folder. This extends
+`story-map-v1`; it does not replace scene packages or the imported-document path.
+
+## Imported editorial documents
+
+To reconstruct a complete authored StoryMaps document—including its original
+cover, prose, images, sidecars, comparisons, tours and credits—use the optional
+`workspace.document` adapter inside `story-map-v1`:
+
+```json
+{
+  "type": "story-map",
+  "schema": "story-map-v1",
+  "document": {
+    "schema": "arcgis-story-document-v1",
+    "data": "/data/story-documents/prague/story.json"
+  },
+  "map": { "center": [14.42, 50.08], "zoom": 11, "minZoom": 0, "maxZoom": 22 },
+  "layers": [],
+  "places": []
+}
+```
+
+The document adapter supplies its own maps and reading sequence, so ordinary
+workspace layers may be empty. Top-level scenes remain catalog chapter
+summaries. `ProjectWorkspace` selects `editorial/EditorialStory.tsx` for these
+packages; it does not mount the ordinary scene renderer. The editorial renderer
+uses the imported graph's layout and theme, rather than the ordinary story
+options. It fills the project content area below the unchanged PGMaps navigation.
+A compact project toolbar uses the shared `ProjectBackButton` to return to the
+containing folder and a project title button to return to the cover. Publisher
+identity stays in the cover byline and credits; it does not replace app chrome.
+Editorial backgrounds, text, chapter navigation, floating cards, tour controls,
+loading notices and credits follow the app theme. Authored text colors are
+darkened as needed for contrast on the light reading surface. Photos, videos,
+colored map data and original diagrams retain their colors; transparent diagrams
+keep a dark mat and the cover keeps white text over its shaded imagery.
+The story must never make the app navigation inert or install a fixed viewport
+overlay for normal reading.
+
+`example-prague` is a reconstruction of **The Diverse Prague** from the supplied
+capture. Source text, illustrations, photographs, video, fonts, original map
+symbolization and author credits are retained. The story is rendered by PGMaps;
+it does not embed the original StoryMaps application. Captured WebMap definitions are source data interpreted by the MapLibre adapter;
+the ArcGIS Maps SDK is not loaded. The original maps retain their live remote
+services, so the imported document is not an offline tile archive. Failed maps
+must show a loading/error state.
+
+Import a supplied capture with:
+
+```sh
+node scripts/import-storymap-har.mjs '<capture.har>' '<story-item-id>' public/data/story-documents/<name>
+```
+
+`--fetch-missing` optionally retrieves referenced public media missing from the
+capture. The importer extracts content and resources, never the original app's
+JavaScript, account headers, cookies or analytics configuration. It records a
+manifest with source URLs, asset hashes and missing-resource notes. Import only
+content the task calls for, retain original credits, and keep provenance beside
+its files. The supplied Prague mobile capture was empty; mobile verification
+uses the original public story and responsive browser checks.
+
+Documents/assets live under `public/data/story-documents`, an app-owned directory
+preserved during scraper sync. Keep them outside `public/data/projects`, whose
+recursive indexer treats every JSON file as a project package. Register only the
+wrapper package and regenerate the catalog as usual.
+
+The native graph's supported nodes include story, storycover, navigation, text,
+image, video, separator, button, carousel, immersive, immersive-slide,
+immersive-narrative-panel, webmap, swipe, tour, tour-map, credits and attribution.
+Rich text is converted to allowed React elements; executable HTML, arbitrary
+styles, scripts and unsafe URL schemes must never enter the DOM. Inline map
+actions update the current map's authored viewpoint and layer visibility. Source
+feature popups retain their authored title substitutions, visible field order,
+labels and numeric formats. `nativeFeaturePopups.tsx` renders the shared
+`MapPopupCard` and `KeyValueRows` inside a MapLibre popup; it requests the selected
+feature's details lazily by object ID, rather than adding every attribute to all
+viewport geometry requests. Values are React text, never executable source HTML.
+Changing selection, closing a popup or leaving the map aborts the detail request.
+
+Verify imported resource completeness and source preservation separately from
+visual fidelity. Exercise every immersive slide and numbered tour stop in both
+directions, inline actions, image expansion/carousels and map swipe, at desktop
+and phone widths. A captured map definition alone does not prove its remote
+service is available or rendered correctly.
+
+### Reusable editorial components
+
+For a section-by-section inventory, available authoring routes, and remaining
+gaps, see the [story presentation reuse audit](story-component-reuse-audit.md).
+
+`editorial/EditorialStory.tsx` adapts the imported node graph to content props.
+The presentation components under `editorial/components/` know nothing about
+Prague, ArcGIS resource IDs, or a particular map engine:
+
+- `StoryCover`: `title`, `summary`, `byline`, optional `video` and `poster` URLs.
+  An image-only cover uses the poster without playback controls; video honors
+  reduced motion and has a play/pause button.
+- `StoryChapterNavigation`: `{ id, label }[]`, `active`, and `onSelect`.
+- `StoryCarousel`: ordered React media `items`, with bounded previous/next controls.
+- `StorySidecar`: `{ id, content, media }[]`, a `scrollRoot` ref, `variant`
+  (`docked` or `floating`), `side` (`left`, `right`, or `center` for floating
+  illustrated sequences), and `width`
+  (`medium` or `large`). Media and prose are React slots; map rendering remains
+  the caller's responsibility. Centered floating sequences keep the card and
+  uncropped illustration centered across the pane; imported documents opt in
+  with `narrativePanelPosition: "center"`.
+- `StoryTour`: `{ id, media, content }[]`, a `scrollRoot` ref and
+  `renderMap(activeIndex, selectIndex)`. Scroll, arrows, numbered controls and
+  map selections share the same reading position.
+- `ExpandableMedia`: a stable media child with expansion, Escape and keyboard
+  focus handling. Expansion preserves the map rather than mounting a second one.
+- `useReadingSection`: the shared scroll activation rule for sidecars and tours.
+- `useStoryFonts`: optional imported font files from `theme.localFonts`, loaded
+  only while that document is mounted and scoped to editorial typography. No
+  component hardcodes a project's asset path.
+
+For example, another PGMaps feature can compose an editorial sequence directly:
+
+```tsx
+import { StoryCover, StorySidecar } from '@/maps/project-story/editorial/components'
+import '@/maps/project-story/editorial/EditorialStory.css'
+
+const scrollRoot = useRef<HTMLDivElement>(null)
+return (
+  <div ref={scrollRoot} className="editorial-story">
+    <StoryCover title="A changing landscape" poster="/data/my-story/cover.jpg"
+      byline="Source organization" />
+    <StorySidecar id="landscape" scrollRoot={scrollRoot} variant="docked"
+      slides={[
+        { id: 'before', content: <p>The earlier landscape.</p>, media: earlierMap },
+        { id: 'after', content: <p>The later landscape.</p>, media: laterMap },
+      ]} />
+  </div>
+)
+```
+
+Give the scroll container a bounded height through a flex parent. The package
+renderer measures that height into `--editorial-viewport`, so covers and sticky
+maps fit the space left after PGMaps navigation and project controls. Direct
+compositions should likewise set that CSS variable to their viewport height.
+Desktop keeps docked/floating media alongside prose; phones retain a sticky
+210-pixel media pane above the active narrative. Never calculate these panels
+from the full window height after adding app chrome.
+
+Comparison listeners and asynchronous map work must stop before a MapLibre map
+is destroyed. Rapid traversal and leaving comparison are part of the editorial
+browser regression test. Check PGMaps desktop links and the phone menu as well
+as all story chapters: preserving reading flow must not disable navigation.
+
+Imported comparisons use the shared `MapSwipe` reveal. Only its divider captures
+drag input; the rest of the map remains pannable. The visible handle and capture
+area share the same position, and the divider updates CSS without rerendering
+the map trees. The passive map mirrors camera movement, but its feature queries
+read the primary viewport and subscribe to the primary's `moveend`: mirrored
+`jumpTo` calls emit their own `moveend` every frame and must never trigger data
+requests. Desktop and phone browser tests assert no queries while dragging the
+divider or panning, one refresh per feature layer when the pan ends, matched
+cameras, and touch dragging without scrolling the story.
+
+### Shared editorial basemap
+
+Set `workspace.document.basemap` to `"pgmaps"` to replace the imported
+basemap with PGMaps cartography that follows the app light/dark toggle.
+`"pgmaps-dark"` keeps the basemap charcoal regardless of the app theme. The default `"source"` preserves the source
+basemap. This affects basemap layers only: thematic polygons, historic imagery,
+class breaks, visibility, credits and popup definitions remain original.
+`public/map-styles/story-charcoal.json` is the reusable app-owned MapLibre style:
+edit its land, water, road and label paint to tune future stories. It uses the
+same CARTO vector tile service as other PGMaps maps, with OpenStreetMap/CARTO
+attribution and hosted fonts. It is not a self-hosted or offline tile archive.
+Shared source/layer IDs allow MapLibre to retain the basemap across chapter style
+diffs; labels are composed above thematic layers. Failed thematic services still
+produce a source warning. Prague opts into the automatic `"pgmaps"` mode.
+`useEditorialBasemapTheme.ts` applies the light paint palette to the shared
+layer IDs; theme changes retain the canvas, camera and loaded thematic features
+without refetching geometry. The local JSON supplies the original dark paints.
+
+### Imported map adapter
+
+`editorial/adapters/arcgisWebMap.ts` translates source data into a MapLibre style;
+`EditorialMap.tsx` mounts the shared PGMaps `Map` and marker components. ArcGIS is
+the source format and service protocol, not an additional JavaScript map engine.
+The adapter preserves source layer order, visibility, opacity and attribution.
+It supports Web Mercator cached raster layers, MapServer/ImageServer exports,
+vector basemap styles and polygon FeatureServer layers with supported simple,
+unique-value or class-break fills. Feature queries are paginated for the visible
+map area and draw progressively, with a loading indicator until all pages arrive;
+the first 2,000-feature page draws immediately, followed by bounded groups of
+three concurrent pages in object-ID order. Cancellation prevents stale viewport
+results from publishing and failures retain an explicit partial-data warning;
+source class colors and break thresholds remain authored data.
+
+When zooming or panning a populated feature map, keep its previous geometry
+until the replacement viewport finishes; only the initial empty view publishes
+partial batches. The compact progress indicator identifies the detail update.
+Movement aborts obsolete work immediately and queries start after 150 ms of
+settled movement. Completed viewport results are cached per mounted editorial
+map, with at most four entries, 60,000 features and 500,000 coordinate positions
+(the limits apply across entries, not per entry). Oversized views still render
+but are not cached. Reuse requires matching service, filter and fields, enclosing
+bounds and equal or finer geometry precision; a coarser cached preview can remain
+visible while finer data loads. Caches release with their story component.
+Failed refreshes explicitly identify retained previous-view geometry.
+
+Consecutive map slides retain one MapLibre canvas. Fetch the next document while
+keeping the current style visible, then apply it through the shared map's style
+diff. Editorial maps disable the shared map's loading overlay, including on
+initial mount; an initial screen-reader status and compact update indicators
+report progress without covering the map. Do not clear the document between branches or
+key the map by resource ID: both recreate the canvas and flash the loader during
+scrolling. A delayed-response browser test checks canvas identity and authored
+layers through all seven Prague branches in both directions on desktop and phone.
+
+Unsupported source projections, symbols or layer types must produce an explicit
+source warning rather than an invented replacement. Original unavailable
+services remain unavailable; importing their definitions cannot recover missing
+imagery. The adapter's unit tests and actual source-rendering browser tests are
+separate from content integrity checks.

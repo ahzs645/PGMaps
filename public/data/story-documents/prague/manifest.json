@@ -1,0 +1,933 @@
+{
+  "sourceItemId": "3ed83ef359d346618510764c6222ac01",
+  "sourceUrl": "https://storymaps.arcgis.com/stories/3ed83ef359d346618510764c6222ac01",
+  "captureStarted": "2026-09-27T23:38:22.705Z",
+  "media": [
+    {
+      "resource": "r-aO38DX",
+      "type": "video",
+      "filename": "7UEkGjht7JLFN8XTy-D87.mp4",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/7UEkGjht7JLFN8XTy-D87.mp4",
+      "url": "/data/story-documents/prague/assets/7UEkGjht7JLFN8XTy-D87.mp4",
+      "origin": "capture",
+      "bytes": 14862950,
+      "sha256": "a7b866e057cc9582d586f8ca649490c6ae6bcb8e8e9b1a0e0da68327639d230b"
+    },
+    {
+      "resource": "r-sYSgwG",
+      "type": "image",
+      "filename": "6KERlR1wn3WdwlQzVjdWu.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/6KERlR1wn3WdwlQzVjdWu.jpeg",
+      "originalDimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "url": "/data/story-documents/prague/assets/6KERlR1wn3WdwlQzVjdWu.jpeg",
+      "origin": "capture",
+      "bytes": 1354313,
+      "sha256": "fc0845cfd0dd56195acd9abc8d66a4001c90c63c87a0d248ccd8cd0c28d23783",
+      "capturedDimensions": {
+        "width": 1920,
+        "height": 1080
+      }
+    },
+    {
+      "resource": "r-G0HNQX",
+      "type": "image",
+      "filename": "i8Fg60dHkEjaxl1hp0hbe.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/i8Fg60dHkEjaxl1hp0hbe.jpeg",
+      "originalDimensions": {
+        "width": 4500,
+        "height": 3000
+      },
+      "url": "/data/story-documents/prague/assets/i8Fg60dHkEjaxl1hp0hbe.jpeg",
+      "origin": "capture",
+      "bytes": 57353,
+      "sha256": "d53bef63537c3971ac88f01d2c04a90d7eb96c9480750c5193e94d15ec1acb18",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 400
+      }
+    },
+    {
+      "resource": "r-45ATUw",
+      "type": "image",
+      "filename": "FJN21r184rMJ1ZMsgfGUx.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/FJN21r184rMJ1ZMsgfGUx.jpeg",
+      "originalDimensions": {
+        "width": 7000,
+        "height": 4669
+      },
+      "url": "/data/story-documents/prague/assets/FJN21r184rMJ1ZMsgfGUx.jpeg",
+      "origin": "capture",
+      "bytes": 4642647,
+      "sha256": "3f68344af283a70bd3cb7ea57d92acc4647f21dd76b67413325f817411518c2d",
+      "capturedDimensions": {
+        "width": 7000,
+        "height": 4669
+      }
+    },
+    {
+      "resource": "r-sJqVX6",
+      "type": "image",
+      "filename": "ZcSJQsKPSYFhXexgIuH86.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/ZcSJQsKPSYFhXexgIuH86.jpeg",
+      "originalDimensions": {
+        "width": 6687,
+        "height": 4458
+      },
+      "url": "/data/story-documents/prague/assets/ZcSJQsKPSYFhXexgIuH86.jpeg",
+      "origin": "capture",
+      "bytes": 2050467,
+      "sha256": "cb47be73b9056d57e30ec6a3d7062e0da0b3bc8e6b96874f116aeec205878779",
+      "capturedDimensions": {
+        "width": 6687,
+        "height": 4458
+      }
+    },
+    {
+      "resource": "r-vrcZ9y",
+      "type": "image",
+      "filename": "O4voEcQup0rMjg3XLNt9r.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/O4voEcQup0rMjg3XLNt9r.jpeg",
+      "originalDimensions": {
+        "width": 6720,
+        "height": 4480
+      },
+      "url": "/data/story-documents/prague/assets/O4voEcQup0rMjg3XLNt9r.jpeg",
+      "origin": "capture",
+      "bytes": 1783619,
+      "sha256": "2dc367a9e112bdaac019308960b99269c2c5bbb3f61eb6338d99e6898a921c01",
+      "capturedDimensions": {
+        "width": 6720,
+        "height": 4480
+      }
+    },
+    {
+      "resource": "r-IPCbm5",
+      "type": "image",
+      "filename": "uUzwsTiPuLKTbcmEJbX0I.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/uUzwsTiPuLKTbcmEJbX0I.jpeg",
+      "originalDimensions": {
+        "width": 8000,
+        "height": 4500
+      },
+      "url": "/data/story-documents/prague/assets/uUzwsTiPuLKTbcmEJbX0I.jpeg",
+      "origin": "capture",
+      "bytes": 1773840,
+      "sha256": "9aa2218f3db2fcbc50e50f02479b4b8608eeb6d94d85924ecaab9dd5ce9cdb38",
+      "capturedDimensions": {
+        "width": 8000,
+        "height": 4500
+      }
+    },
+    {
+      "resource": "r-pAXLIc",
+      "type": "image",
+      "filename": "ts6NGUpXVleWRpi-yAZ18.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/ts6NGUpXVleWRpi-yAZ18.png",
+      "originalDimensions": {
+        "width": 2072,
+        "height": 2251
+      },
+      "url": "/data/story-documents/prague/assets/ts6NGUpXVleWRpi-yAZ18.png",
+      "origin": "capture",
+      "bytes": 90290,
+      "sha256": "ae82d1561f0f9ba3d018671c339815d8480c210c1daa97a7a713e38d5fdf3919",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-UzYyEv",
+      "type": "image",
+      "filename": "Ufmb5c5Su0u4mC1d6B0Ff.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/Ufmb5c5Su0u4mC1d6B0Ff.png",
+      "originalDimensions": {
+        "width": 2072,
+        "height": 2251
+      },
+      "url": "/data/story-documents/prague/assets/Ufmb5c5Su0u4mC1d6B0Ff.png",
+      "origin": "capture",
+      "bytes": 85724,
+      "sha256": "eeb6196dbf3ab810640b600f917db066abbf3c9ffd9df194e259594626b2e2f7",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-fwPeoO",
+      "type": "image",
+      "filename": "K0qd_kY44ZrWMnBObLvDl.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/K0qd_kY44ZrWMnBObLvDl.png",
+      "originalDimensions": {
+        "width": 2072,
+        "height": 2251
+      },
+      "url": "/data/story-documents/prague/assets/K0qd_kY44ZrWMnBObLvDl.png",
+      "origin": "capture",
+      "bytes": 91509,
+      "sha256": "1f4283943377ebc936fcfb360dd04479d48299f0abd0cd66cd7841a25267c2b6",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-RYxNfg",
+      "type": "image",
+      "filename": "SqGz9-2tx-sh4KAlE3IIk.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/SqGz9-2tx-sh4KAlE3IIk.png",
+      "originalDimensions": {
+        "width": 4144,
+        "height": 4501
+      },
+      "url": "/data/story-documents/prague/assets/SqGz9-2tx-sh4KAlE3IIk.png",
+      "origin": "capture",
+      "bytes": 98612,
+      "sha256": "593bb33bc82de78b975bea65b950218d271b7f46c22736339187a07c254ac49b",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-nQjZWf",
+      "type": "image",
+      "filename": "_VDjts2HDd5aOJZ9TMB2B.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/_VDjts2HDd5aOJZ9TMB2B.png",
+      "originalDimensions": {
+        "width": 4144,
+        "height": 4501
+      },
+      "url": "/data/story-documents/prague/assets/_VDjts2HDd5aOJZ9TMB2B.png",
+      "origin": "capture",
+      "bytes": 91390,
+      "sha256": "dd8ca767eab744b21ec3c0e3846ea01f048c0bed9aa47b8aa86107ef489ce31e",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-IqG0bx",
+      "type": "image",
+      "filename": "qFnDHlg43RFpsbCIJl0jh.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/qFnDHlg43RFpsbCIJl0jh.png",
+      "originalDimensions": {
+        "width": 4144,
+        "height": 4501
+      },
+      "url": "/data/story-documents/prague/assets/qFnDHlg43RFpsbCIJl0jh.png",
+      "origin": "capture",
+      "bytes": 92189,
+      "sha256": "5576da4a04feca058d563858dd626156194da95ad2901d449766ac2ca8d94ab1",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-Kqci2L",
+      "type": "image",
+      "filename": "CQYfDf_rkm2uMbYE03Xhj.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/CQYfDf_rkm2uMbYE03Xhj.png",
+      "originalDimensions": {
+        "width": 4144,
+        "height": 4501
+      },
+      "url": "/data/story-documents/prague/assets/CQYfDf_rkm2uMbYE03Xhj.png",
+      "origin": "capture",
+      "bytes": 92881,
+      "sha256": "f3d11e8a97db187e96f00f492e3673747959b33abf2846a357a4469861e88b0b",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "resource": "r-Wrdqw5",
+      "type": "image",
+      "filename": "-OcAdL_cg5iA9A7IseyIL.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/-OcAdL_cg5iA9A7IseyIL.png",
+      "originalDimensions": {
+        "width": 2481,
+        "height": 1755
+      },
+      "url": "/data/story-documents/prague/assets/-OcAdL_cg5iA9A7IseyIL.png",
+      "origin": "capture",
+      "bytes": 30257,
+      "sha256": "a06b05de13e55bf5c73cc836e5a791e03ff12d88af9bf5769f46c58d63d8c0dd",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1698
+      }
+    },
+    {
+      "resource": "r-bLwNpC",
+      "type": "image",
+      "filename": "fYs6LDk6BBcJAfy-BZPsX.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/fYs6LDk6BBcJAfy-BZPsX.png",
+      "originalDimensions": {
+        "width": 2481,
+        "height": 1754
+      },
+      "url": "/data/story-documents/prague/assets/fYs6LDk6BBcJAfy-BZPsX.png",
+      "origin": "capture",
+      "bytes": 126493,
+      "sha256": "b74f17d2e50d81f425186d3da87fc2e9233cf3764392c8046b1f5a4719df4003",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1697
+      }
+    },
+    {
+      "resource": "r-way9Qs",
+      "type": "image",
+      "filename": "1PgWkIz7Z0mt5OgkuE4j0.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/1PgWkIz7Z0mt5OgkuE4j0.png",
+      "originalDimensions": {
+        "width": 2481,
+        "height": 1754
+      },
+      "url": "/data/story-documents/prague/assets/1PgWkIz7Z0mt5OgkuE4j0.png",
+      "origin": "capture",
+      "bytes": 518086,
+      "sha256": "27fc2b27cfbd69923f9b42903f83051d63bce5b0eedf80c33b633313c372c03a",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1697
+      }
+    },
+    {
+      "resource": "r-JL3UE7",
+      "type": "image",
+      "filename": "jpd6WK3OsQ1HSls6LDo5E.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/jpd6WK3OsQ1HSls6LDo5E.png",
+      "originalDimensions": {
+        "width": 4961,
+        "height": 3508
+      },
+      "url": "/data/story-documents/prague/assets/jpd6WK3OsQ1HSls6LDo5E.png",
+      "origin": "capture",
+      "bytes": 49376,
+      "sha256": "68b204e428f776fc463588155bdb085629deea021d0c140788afd54b6cb099ae",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1697
+      }
+    },
+    {
+      "resource": "r-0m9m5p",
+      "type": "image",
+      "filename": "e61q_FP1EVKCyDm0wWr-p.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/e61q_FP1EVKCyDm0wWr-p.png",
+      "originalDimensions": {
+        "width": 4961,
+        "height": 3508
+      },
+      "url": "/data/story-documents/prague/assets/e61q_FP1EVKCyDm0wWr-p.png",
+      "origin": "capture",
+      "bytes": 48763,
+      "sha256": "665a08d043f05abd61fc0067f8a69c84e4373532204755bb6535b00bb81508a2",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1697
+      }
+    },
+    {
+      "resource": "r-2QCFZD",
+      "type": "image",
+      "filename": "hfF8EOJWWGmliz-qPbiZJ.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/hfF8EOJWWGmliz-qPbiZJ.png",
+      "originalDimensions": {
+        "width": 4961,
+        "height": 3508
+      },
+      "url": "/data/story-documents/prague/assets/hfF8EOJWWGmliz-qPbiZJ.png",
+      "origin": "capture",
+      "bytes": 48314,
+      "sha256": "fbc6995e6abf0e1f82668a0af62ed35526cf1b8697824d6d33beca79fd4457e2",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1697
+      }
+    },
+    {
+      "resource": "r-TlbUhV",
+      "type": "image",
+      "filename": "WRCuAJzHZs3UAbPPenruB.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/WRCuAJzHZs3UAbPPenruB.png",
+      "originalDimensions": {
+        "width": 2481,
+        "height": 1755
+      },
+      "url": "/data/story-documents/prague/assets/WRCuAJzHZs3UAbPPenruB.png",
+      "origin": "capture",
+      "bytes": 351702,
+      "sha256": "96c358db522ddd9d2acc8d8c1370b653738f441124823dda1b406fa701e73062",
+      "capturedDimensions": {
+        "width": 2400,
+        "height": 1698
+      }
+    },
+    {
+      "resource": "r-8LH07W",
+      "type": "image",
+      "filename": "V1GJJhbvACqyp0ftHl4AT.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/V1GJJhbvACqyp0ftHl4AT.png",
+      "originalDimensions": {
+        "width": 451,
+        "height": 451
+      },
+      "url": "/data/story-documents/prague/assets/V1GJJhbvACqyp0ftHl4AT.png",
+      "origin": "capture",
+      "bytes": 119173,
+      "sha256": "cc6e24667df04c970370c22d98f3ee0cdeb700674efe2e1189d1cd2e8ac871d3",
+      "capturedDimensions": {
+        "width": 451,
+        "height": 451
+      }
+    },
+    {
+      "resource": "r-ep11lT",
+      "type": "image",
+      "filename": "OUNWafO5urLbsTujGMXLU.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/OUNWafO5urLbsTujGMXLU.png",
+      "originalDimensions": {
+        "width": 1046,
+        "height": 38
+      },
+      "url": "/data/story-documents/prague/assets/OUNWafO5urLbsTujGMXLU.png",
+      "origin": "capture",
+      "bytes": 4944,
+      "sha256": "66f78a93b4863fb1b1ad22270a279bed6de3225e9fc9ab2a909ec71f35b4a5da",
+      "capturedDimensions": {
+        "width": 1046,
+        "height": 38
+      }
+    },
+    {
+      "resource": "r-vHZhd4",
+      "type": "image",
+      "filename": "tIVFQcBMvoy_AAZYtzsDI.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/tIVFQcBMvoy_AAZYtzsDI.jpeg",
+      "originalDimensions": {
+        "width": 4500,
+        "height": 2099
+      },
+      "url": "/data/story-documents/prague/assets/tIVFQcBMvoy_AAZYtzsDI.jpeg",
+      "origin": "capture",
+      "bytes": 46085,
+      "sha256": "a0b607956d845b59daf99f474b1dc253c943aa531f518391cea4cdf92534efb2",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 280
+      }
+    },
+    {
+      "resource": "r-G5J1lG",
+      "type": "image",
+      "filename": "pTtY0xGG7HYIi-3XfyXSo.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/pTtY0xGG7HYIi-3XfyXSo.jpeg",
+      "originalDimensions": {
+        "width": 6500,
+        "height": 4333
+      },
+      "url": "/data/story-documents/prague/assets/pTtY0xGG7HYIi-3XfyXSo.jpeg",
+      "origin": "capture",
+      "bytes": 4323536,
+      "sha256": "470d9d3b50ecc2e3992381c7594fa92b80d72f6fce2210f9f10f697b26aad2ac",
+      "capturedDimensions": {
+        "width": 6500,
+        "height": 4333
+      }
+    },
+    {
+      "resource": "r-H76Gfi",
+      "type": "image",
+      "filename": "cp_vLRrTPAEWjkUb6jOJg.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/cp_vLRrTPAEWjkUb6jOJg.jpeg",
+      "originalDimensions": {
+        "width": 4608,
+        "height": 3456
+      },
+      "url": "/data/story-documents/prague/assets/cp_vLRrTPAEWjkUb6jOJg.jpeg",
+      "origin": "capture",
+      "bytes": 46786,
+      "sha256": "c31f0e824d06c90f3de8d25c2a23eadb9a754470c9b1f9e379cc2f6d92ac79ac",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 450
+      }
+    },
+    {
+      "resource": "r-6peVNt",
+      "type": "image",
+      "filename": "6PrpmFT49XiCSRsVjmfbf.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/6PrpmFT49XiCSRsVjmfbf.jpeg",
+      "originalDimensions": {
+        "width": 1024,
+        "height": 682
+      },
+      "url": "/data/story-documents/prague/assets/6PrpmFT49XiCSRsVjmfbf.jpeg",
+      "origin": "capture",
+      "bytes": 32440,
+      "sha256": "8595aeeb3fa5128f3e428ab141d02fe22110f29c651d064a52d9ab9ab8fc8a37",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 400
+      }
+    },
+    {
+      "resource": "r-m1rEtJ",
+      "type": "image",
+      "filename": "vaB_ToYl7ankwuV_7yFk4.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/vaB_ToYl7ankwuV_7yFk4.jpeg",
+      "originalDimensions": {
+        "width": 750,
+        "height": 1000
+      },
+      "url": "/data/story-documents/prague/assets/vaB_ToYl7ankwuV_7yFk4.jpeg",
+      "origin": "capture",
+      "bytes": 110386,
+      "sha256": "7cdc14471472735f72f68be49c1ada29c4161f83a384f9cdf7e9442f1229a282",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 800
+      }
+    },
+    {
+      "resource": "r-otynrC",
+      "type": "image",
+      "filename": "9wJaC4N9CszotKi7GT8RN.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/9wJaC4N9CszotKi7GT8RN.jpeg",
+      "originalDimensions": {
+        "width": 1500,
+        "height": 1052
+      },
+      "url": "/data/story-documents/prague/assets/9wJaC4N9CszotKi7GT8RN.jpeg",
+      "origin": "capture",
+      "bytes": 44133,
+      "sha256": "6e2106a473caa03bb45b433869b8ecad35fa9fd0ba9689131cc2b9b61a0708a0",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 421
+      }
+    },
+    {
+      "resource": "r-ndqNTZ",
+      "type": "image",
+      "filename": "zBEP3A1MRbTqUyZ8WXmeH.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/zBEP3A1MRbTqUyZ8WXmeH.png",
+      "originalDimensions": {
+        "width": 451,
+        "height": 451
+      },
+      "url": "/data/story-documents/prague/assets/zBEP3A1MRbTqUyZ8WXmeH.png",
+      "origin": "capture",
+      "bytes": 119446,
+      "sha256": "9883d41fbe4f31bea6ce47c34974850b78e53877bb09e0cf472075e7aecb7d9d",
+      "capturedDimensions": {
+        "width": 451,
+        "height": 451
+      }
+    },
+    {
+      "resource": "r-DzaKE1",
+      "type": "image",
+      "filename": "MscPHzvQUwbaVuOou0TFS.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/MscPHzvQUwbaVuOou0TFS.png",
+      "originalDimensions": {
+        "width": 1046,
+        "height": 34
+      },
+      "url": "/data/story-documents/prague/assets/MscPHzvQUwbaVuOou0TFS.png",
+      "origin": "capture",
+      "bytes": 6022,
+      "sha256": "465cc8eaa41e22e82a48d8955e778d81d93fcee0ce13a7763f6ba943f5f16b48",
+      "capturedDimensions": {
+        "width": 1046,
+        "height": 34
+      }
+    },
+    {
+      "resource": "r-xPsdQX",
+      "type": "image",
+      "filename": "lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+      "originalDimensions": {
+        "width": 6598,
+        "height": 4399
+      },
+      "url": "/data/story-documents/prague/assets/lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+      "origin": "capture",
+      "bytes": 3804160,
+      "sha256": "3f3b54787663d04d13b01e17594e6ad9960f879f8e7383a13cffb2bd642bbd6b",
+      "capturedDimensions": {
+        "width": 6598,
+        "height": 4399
+      }
+    },
+    {
+      "resource": "r-KGvJsl",
+      "type": "image",
+      "filename": "bnfJTyXhMzHIsABquRDLf.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/bnfJTyXhMzHIsABquRDLf.jpeg",
+      "originalDimensions": {
+        "width": 2592,
+        "height": 1728
+      },
+      "url": "/data/story-documents/prague/assets/bnfJTyXhMzHIsABquRDLf.jpeg",
+      "origin": "capture",
+      "bytes": 47780,
+      "sha256": "be4aadff9c3b3fd12418417c06939a61ee4ae867b8c5d498bf761b316c92670a",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 400
+      }
+    },
+    {
+      "resource": "r-mtFcyr",
+      "type": "image",
+      "filename": "_uQ4Z2Br4RiLUNF48Mzrm.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/_uQ4Z2Br4RiLUNF48Mzrm.jpeg",
+      "originalDimensions": {
+        "width": 4288,
+        "height": 2848
+      },
+      "url": "/data/story-documents/prague/assets/_uQ4Z2Br4RiLUNF48Mzrm.jpeg",
+      "origin": "capture",
+      "bytes": 57753,
+      "sha256": "f18850494f97560c9cbec52351bf46232d718b09319348fe940faa41bb8cc3f4",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 399
+      }
+    },
+    {
+      "resource": "r-MMUwHm",
+      "type": "image",
+      "filename": "LlHnIjkEqI1ShBq3HdAIk.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/LlHnIjkEqI1ShBq3HdAIk.png",
+      "originalDimensions": {
+        "width": 451,
+        "height": 451
+      },
+      "url": "/data/story-documents/prague/assets/LlHnIjkEqI1ShBq3HdAIk.png",
+      "origin": "capture",
+      "bytes": 122227,
+      "sha256": "58c3934221e1de6f2e870feea6909751385a10f1a5c4cef257f1767380bc9d87",
+      "capturedDimensions": {
+        "width": 451,
+        "height": 451
+      }
+    },
+    {
+      "resource": "r-9kkq3w",
+      "type": "image",
+      "filename": "OsK_vpTXVOM_0MBhOYU4D.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/OsK_vpTXVOM_0MBhOYU4D.png",
+      "originalDimensions": {
+        "width": 1046,
+        "height": 61
+      },
+      "url": "/data/story-documents/prague/assets/OsK_vpTXVOM_0MBhOYU4D.png",
+      "origin": "capture",
+      "bytes": 9317,
+      "sha256": "bc2cad9c5bf867286c1b54bfc886b0ed82598a8e03a9c5b52d9b715f67c17bb0",
+      "capturedDimensions": {
+        "width": 1046,
+        "height": 61
+      }
+    },
+    {
+      "resource": "r-c4NCHT",
+      "type": "image",
+      "filename": "yjaAKtum6RAAvBvXw-rbZ.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/yjaAKtum6RAAvBvXw-rbZ.jpeg",
+      "originalDimensions": {
+        "width": 6644,
+        "height": 4429
+      },
+      "url": "/data/story-documents/prague/assets/yjaAKtum6RAAvBvXw-rbZ.jpeg",
+      "origin": "capture",
+      "bytes": 3235305,
+      "sha256": "91c835340d8292a2f68f8cff5dfb374b3944f3010cc1e8ee2c8e521f20cf42f1",
+      "capturedDimensions": {
+        "width": 6644,
+        "height": 4429
+      }
+    },
+    {
+      "resource": "r-lLQSeW",
+      "type": "image",
+      "filename": "q5WSQIeSSfL5yR-182ikw.jpeg",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/q5WSQIeSSfL5yR-182ikw.jpeg",
+      "originalDimensions": {
+        "width": 4048,
+        "height": 3032
+      },
+      "url": "/data/story-documents/prague/assets/q5WSQIeSSfL5yR-182ikw.jpeg",
+      "origin": "capture",
+      "bytes": 58872,
+      "sha256": "e7eed9fbfde87a95d3d877b1c8077defcbf77082b0880629711f9c07ecb3fc28",
+      "capturedDimensions": {
+        "width": 600,
+        "height": 449
+      }
+    },
+    {
+      "resource": "r-ECiIct",
+      "type": "image",
+      "filename": "ddA2Y61d8U6wMygbsDBJM.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/115d21d3c6ed4f0595bc615a6236534b/resources/ddA2Y61d8U6wMygbsDBJM.png",
+      "originalDimensions": {
+        "width": 144,
+        "height": 86
+      },
+      "url": "/data/story-documents/prague/assets/ddA2Y61d8U6wMygbsDBJM.png",
+      "origin": "capture",
+      "bytes": 1690,
+      "sha256": "d3edabbfb68eb19c0fae8b8aae39964ba9031233d3efec95776f008720def869",
+      "capturedDimensions": {
+        "width": 144,
+        "height": 86
+      }
+    },
+    {
+      "resource": "r-wtPu1b",
+      "type": "image",
+      "filename": "AAJnmUGGc3tkGrlOJ8Hxk.png",
+      "sourceUrl": "https://www.arcgis.com/sharing/rest/content/items/3ed83ef359d346618510764c6222ac01/resources/AAJnmUGGc3tkGrlOJ8Hxk.png",
+      "originalDimensions": {
+        "width": 1667,
+        "height": 1042
+      },
+      "url": "/data/story-documents/prague/assets/AAJnmUGGc3tkGrlOJ8Hxk.png",
+      "origin": "public-resource",
+      "bytes": 2919034,
+      "sha256": "59e31b948c69028e9d208e4210f96b52c0ad0fde4cfebc001a670f15583b325d",
+      "capturedDimensions": {
+        "width": 1667,
+        "height": 1042
+      }
+    }
+  ],
+  "fonts": [
+    {
+      "filename": "noto-sans-v12-latin-700.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-700.woff2",
+      "bytes": 16180,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-700.woff2"
+    },
+    {
+      "filename": "noto-sans-v12-latin-regular.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-regular.woff2",
+      "bytes": 16056,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-regular.woff2"
+    },
+    {
+      "filename": "noto-sans-v12-latin-italic.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-italic.woff2",
+      "bytes": 15312,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-italic.woff2"
+    },
+    {
+      "filename": "noto-sans-v12-latin-700italic.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-700italic.woff2",
+      "bytes": 16260,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-700italic.woff2"
+    },
+    {
+      "filename": "noto-sans-v12-latin-ext-regular.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-ext-regular.woff2",
+      "bytes": 40840,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-ext-regular.woff2"
+    },
+    {
+      "filename": "noto-sans-v12-latin-ext-700.woff2",
+      "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-ext-700.woff2",
+      "bytes": 41180,
+      "sourceUrl": "https://storymaps.arcgis.com/static/storymaps-website-common/fonts/Noto_Sans/noto-sans-v12-latin-ext-700.woff2"
+    }
+  ],
+  "webmaps": [
+    {
+      "resource": "r-8hmenC",
+      "itemId": "76c6af0d4f9d47979c540a2ebfc40b0f",
+      "url": "/data/story-documents/prague/maps/76c6af0d4f9d47979c540a2ebfc40b0f.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-c9d652628c4847ae8dd19c62996b670f",
+      "itemId": "c9d652628c4847ae8dd19c62996b670f",
+      "url": "/data/story-documents/prague/maps/c9d652628c4847ae8dd19c62996b670f.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-ba3a2ac114384e97a2407b90069727de",
+      "itemId": "ba3a2ac114384e97a2407b90069727de",
+      "url": "/data/story-documents/prague/maps/ba3a2ac114384e97a2407b90069727de.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-b0ecbadedb494127aa001f76a68e54fc",
+      "itemId": "b0ecbadedb494127aa001f76a68e54fc",
+      "url": "/data/story-documents/prague/maps/b0ecbadedb494127aa001f76a68e54fc.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-b918fd8045d64bc3a214c4f3176ef4d3",
+      "itemId": "b918fd8045d64bc3a214c4f3176ef4d3",
+      "url": "/data/story-documents/prague/maps/b918fd8045d64bc3a214c4f3176ef4d3.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-7043527634934fb6b0b77695639fd2a1",
+      "itemId": "7043527634934fb6b0b77695639fd2a1",
+      "url": "/data/story-documents/prague/maps/7043527634934fb6b0b77695639fd2a1.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-c7017f7251c14f2eb08c0f0766d4887d",
+      "itemId": "c7017f7251c14f2eb08c0f0766d4887d",
+      "url": "/data/story-documents/prague/maps/c7017f7251c14f2eb08c0f0766d4887d.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-a8d3e7486db54e5cb1cb93aed1156c51",
+      "itemId": "a8d3e7486db54e5cb1cb93aed1156c51",
+      "url": "/data/story-documents/prague/maps/a8d3e7486db54e5cb1cb93aed1156c51.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-cd71f36d3ad442f79daae02a0bf9a23f",
+      "itemId": "cd71f36d3ad442f79daae02a0bf9a23f",
+      "url": "/data/story-documents/prague/maps/cd71f36d3ad442f79daae02a0bf9a23f.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-7457dd56becd4c44981042acbbc0aedb",
+      "itemId": "7457dd56becd4c44981042acbbc0aedb",
+      "url": "/data/story-documents/prague/maps/7457dd56becd4c44981042acbbc0aedb.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-ade8c8c9e4c74a9982e838e76164f139",
+      "itemId": "ade8c8c9e4c74a9982e838e76164f139",
+      "url": "/data/story-documents/prague/maps/ade8c8c9e4c74a9982e838e76164f139.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-fe0cfc6fbd3a4298bae5203453068c98",
+      "itemId": "fe0cfc6fbd3a4298bae5203453068c98",
+      "url": "/data/story-documents/prague/maps/fe0cfc6fbd3a4298bae5203453068c98.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-e35362e8bfd74fe0b0009039f418eda6",
+      "itemId": "e35362e8bfd74fe0b0009039f418eda6",
+      "url": "/data/story-documents/prague/maps/e35362e8bfd74fe0b0009039f418eda6.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-ae6410da99c4460eb2db4dcaac5d95a1",
+      "itemId": "ae6410da99c4460eb2db4dcaac5d95a1",
+      "url": "/data/story-documents/prague/maps/ae6410da99c4460eb2db4dcaac5d95a1.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-5775c229988844fca165d29c0e5a104d",
+      "itemId": "5775c229988844fca165d29c0e5a104d",
+      "url": "/data/story-documents/prague/maps/5775c229988844fca165d29c0e5a104d.json",
+      "layerCount": 2
+    },
+    {
+      "resource": "r-f7855f008ebd45e3882afb0b642b73fb",
+      "itemId": "f7855f008ebd45e3882afb0b642b73fb",
+      "url": "/data/story-documents/prague/maps/f7855f008ebd45e3882afb0b642b73fb.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-fJqoAM",
+      "itemId": "1e679b95db3e4710855af2ca7fe5bbf9",
+      "url": "/data/story-documents/prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-KX70hB",
+      "itemId": "dfb5afe9125d42cba2e1c31b2de2581e",
+      "url": "/data/story-documents/prague/maps/dfb5afe9125d42cba2e1c31b2de2581e.json",
+      "layerCount": 1
+    },
+    {
+      "resource": "r-NKzjwa",
+      "itemId": "288a9f02b20e41819cbee773cff7aff0",
+      "url": "/data/story-documents/prague/maps/288a9f02b20e41819cbee773cff7aff0.json",
+      "layerCount": 1
+    }
+  ],
+  "omissions": [],
+  "sourceAvailability": {
+    "unavailableServices": [
+      {
+        "url": "https://ags.cuzk.cz/arcgis/rest/services/ortofoto_wm/MapServer",
+        "httpStatus": 200,
+        "affectedItemIds": [
+          "76c6af0d4f9d47979c540a2ebfc40b0f"
+        ],
+        "serviceCode": 404,
+        "message": "Service not found",
+        "capturedAt": "2026-09-27T23:38:26.450Z"
+      },
+      {
+        "url": "https://gs-pub.praha.eu/arcgis/rest/services/arch/mapove_podklady_archiv/MapServer",
+        "httpStatus": 200,
+        "affectedItemIds": [
+          "ade8c8c9e4c74a9982e838e76164f139",
+          "e35362e8bfd74fe0b0009039f418eda6"
+        ],
+        "serviceCode": 500,
+        "message": "Service arch/mapove_podklady_archiv/MapServer not started ",
+        "capturedAt": "2026-09-27T23:38:36.922Z"
+      },
+      {
+        "url": "https://gp.iprpraha.cz/imgs/rest/services/arch/arch_plan_juttner_1816/ImageServer",
+        "httpStatus": 404,
+        "affectedItemIds": [
+          "cd71f36d3ad442f79daae02a0bf9a23f"
+        ],
+        "serviceCode": null,
+        "message": "No successful response body captured",
+        "capturedAt": "2026-09-27T23:38:37.045Z"
+      }
+    ]
+  },
+  "actionInventory": {
+    "retainedCount": 15,
+    "activeCount": 7,
+    "staleCount": 8,
+    "activeActionIds": [
+      "a-YbZ3qH",
+      "a-hNCnTy",
+      "a-YNJomL",
+      "a-4vfaQv",
+      "a-ulxjHV",
+      "a-BI41UH",
+      "a-P0BCfl"
+    ],
+    "staleActionIds": [
+      "a-k4kcJu",
+      "a-2Yg7Q4",
+      "a-SE3Iup",
+      "a-ygDK0Q",
+      "a-V1eVwV",
+      "a-BWaikd",
+      "a-eX7mnL",
+      "a-hny1dX"
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "slug": "example-native-editorial",
+  "title": "12 · Native editorial toolkit",
+  "kind": "map-story",
+  "theme": "slate",
+  "owner": "PGMaps",
+  "updated": "Component example authored 2026-09-27",
+  "region": "British Columbia",
+  "status": "Component demonstration",
+  "summary": "A native PGMaps story assembled from JSON. Follow the maps, explore the categories, and reuse the same building blocks.",
+  "sourceNote": "Statistics Canada 2021 economic region boundaries; original PGMaps illustrative media and dot data. Dot counts are teaching data, not population estimates.",
+  "details": [
+    "Native JSON composition with shared map, sidecar, tour, carousel, hierarchy and dot-diagram components.",
+    "The hierarchy shows BC economic-region membership only, not health-authority crosswalks."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Chapters",
+      "value": "5"
+    }
+  ],
+  "layers": [],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "A story built from blocks",
+      "title": "A story built from blocks",
+      "text": "Native editorial component demonstration.",
+      "focus": "British Columbia",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "One map, several views",
+      "title": "One map, several views",
+      "text": "Native editorial component demonstration.",
+      "focus": "British Columbia",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Categories that connect",
+      "title": "Categories that connect",
+      "text": "Native editorial component demonstration.",
+      "focus": "British Columbia",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "A guided journey",
+      "title": "A guided journey",
+      "text": "Native editorial component demonstration.",
+      "focus": "British Columbia",
+      "visibleLayerIds": []
+    },
+    {
+      "label": "Media and credits",
+      "title": "Media and credits",
+      "text": "Native editorial component demonstration.",
+      "focus": "British Columbia",
+      "visibleLayerIds": []
+    }
+  ],
+  "files": [
+    {
+      "label": "Native editorial JSON",
+      "detail": "Reusable content and presentation blocks"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "document": {
+      "schema": "pgmaps-editorial-v1",
+      "data": "/data/story-documents/native-example/story.json"
+    },
+    "map": {
+      "center": [
+        -125,
+        54
+      ],
+      "zoom": 5,
+      "minZoom": 0,
+      "maxZoom": 22,
+      "basemap": "auto"
+    },
+    "options": {},
+    "layers": [],
+    "places": []
+  }
+}

@@ -1,0 +1,410 @@
+{
+  "version": 1,
+  "slug": "example-relationships",
+  "title": "05 · Map + relationship bars",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "PGMaps",
+  "updated": "2026-09-27",
+  "region": "British Columbia",
+  "status": "Interaction example",
+  "summary": "Select a population-share row to update the map. Exact counts remain beside the bars, with an explicit denominator and coverage note.",
+  "sourceNote": "Statistics Canada 2021 SGC membership; existing Ministry/BCCDC 2021 DB–CHSA crosswalk; BCMoH boundary snapshots; NDIT/MNP State of the North inventory (model refresh 2026-04-30). Health polygon vintage is not established as 2021. Crosswalk population covers its source DB universe, with 36 extra population records excluded by the upstream crosswalk. No dashboard rates are reallocated.",
+  "details": [
+    "Select a population-share row to update the map. Exact counts remain beside the bars, with an explicit denominator and coverage note.",
+    "The ID-based bridge retains one row per source census block and checks the official CSD/CD/economic-region memberships. It produces ER, CD and CSD comparisons with CHSA, LHA, HSDA and HA, including null parent groups.",
+    "Population shares are descriptive fractions of covered 2021 residents. They are not universally valid allocation weights for jobs, capacity, production, housing prices or rates. Medians cannot be aggregated by averaging.",
+    "The 533 unresolved blocks retain CHSA 2210 and null parents. Different CHSA code sets are documented in the manifest; no centroid assignment, code-prefix guess or silent replacement repairs them.",
+    "The dashboard registry describes every inspected entity and reviews seven pilot datasets. Only the vacancy pilot has explicit geography links in this release; its Northern B.C. group remains unverified. Other datasets require the work described in the joining guide."
+  ],
+  "links": [
+    {
+      "label": "All interaction examples",
+      "href": "/dev/projects?collection=example"
+    },
+    {
+      "label": "Read the crosswalk and dashboard joining guide",
+      "href": "/data/boundaries/GeographyBridge/methodology.md"
+    },
+    {
+      "label": "Download geography relationships (CSV gzip)",
+      "href": "/data/boundaries/GeographyBridge/relationships.csv.gz"
+    },
+    {
+      "label": "Download geography relationships (JSON gzip)",
+      "href": "/data/boundaries/GeographyBridge/relationships.json.gz"
+    },
+    {
+      "label": "Download block-level ID bridge (JSON gzip)",
+      "href": "/data/boundaries/GeographyBridge/blocks.json.gz"
+    },
+    {
+      "label": "Coverage and provenance manifest",
+      "href": "/data/boundaries/GeographyBridge/manifest.json"
+    },
+    {
+      "label": "Dashboard dataset registry",
+      "href": "/data/boundaries/GeographyBridge/dashboard-registry.json"
+    },
+    {
+      "label": "Vacancy pilot with geography links",
+      "href": "/data/boundaries/GeographyBridge/job-vacancies-linked.json.gz"
+    },
+    {
+      "label": "Explore boundary layers",
+      "href": "/dev/boundaries"
+    },
+    {
+      "label": "State of the North dashboard",
+      "href": "https://www.northerndevelopment.bc.ca/state-of-the-north/"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Scenes",
+      "value": "3"
+    },
+    {
+      "label": "Layout",
+      "value": "slides"
+    }
+  ],
+  "layers": [
+    {
+      "id": "economic-regions",
+      "label": "Economic regions and health links",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "health-authorities",
+      "label": "Health authorities",
+      "type": "boundary",
+      "checked": true
+    }
+  ],
+  "legend": [],
+  "scenes": [
+    {
+      "label": "Northern Health",
+      "title": "Northern Health",
+      "text": "120,184 covered Cariboo residents link to Northern Health. The map highlights the whole authority for context, not a clipped intersection.",
+      "focus": "Northern Health",
+      "visibleLayerIds": [
+        "economic-regions",
+        "health-authorities"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        },
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_CODE",
+          "values": [
+            "5"
+          ],
+          "label": "Northern",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "layerOverrides": {
+        "economic-regions": {
+          "fillOpacity": 0.04
+        }
+      },
+      "interaction": {
+        "type": "bars",
+        "title": "Cariboo → health authorities",
+        "description": "Share of 159,910 covered 2021 Cariboo residents. Select a row to highlight its authority. Cariboo has 0 unresolved residents; other regions can have gaps. These are not job-allocation weights.",
+        "items": [
+          {
+            "label": "Northern",
+            "sceneLabel": "Northern Health",
+            "share": 0.7515727596773185,
+            "detail": "120,184 residents · 2,307 blocks"
+          },
+          {
+            "label": "Interior",
+            "sceneLabel": "Interior Health",
+            "share": 0.2449815521230692,
+            "detail": "39,175 residents · 1,339 blocks"
+          },
+          {
+            "label": "Vancouver Coastal",
+            "sceneLabel": "Vancouver Coastal Health",
+            "share": 0.0034456881996122817,
+            "detail": "551 residents · 94 blocks"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Interior Health",
+      "title": "Interior Health",
+      "text": "39,175 covered Cariboo residents link to Interior Health. The map highlights the whole authority for context, not a clipped intersection.",
+      "focus": "Interior Health",
+      "visibleLayerIds": [
+        "economic-regions",
+        "health-authorities"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        },
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_CODE",
+          "values": [
+            "1"
+          ],
+          "label": "Interior",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "layerOverrides": {
+        "economic-regions": {
+          "fillOpacity": 0.04
+        }
+      },
+      "interaction": {
+        "type": "bars",
+        "title": "Cariboo → health authorities",
+        "description": "Share of 159,910 covered 2021 Cariboo residents. Select a row to highlight its authority. Cariboo has 0 unresolved residents; other regions can have gaps. These are not job-allocation weights.",
+        "items": [
+          {
+            "label": "Northern",
+            "sceneLabel": "Northern Health",
+            "share": 0.7515727596773185,
+            "detail": "120,184 residents · 2,307 blocks"
+          },
+          {
+            "label": "Interior",
+            "sceneLabel": "Interior Health",
+            "share": 0.2449815521230692,
+            "detail": "39,175 residents · 1,339 blocks"
+          },
+          {
+            "label": "Vancouver Coastal",
+            "sceneLabel": "Vancouver Coastal Health",
+            "share": 0.0034456881996122817,
+            "detail": "551 residents · 94 blocks"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Vancouver Coastal Health",
+      "title": "Vancouver Coastal Health",
+      "text": "551 covered Cariboo residents link to Vancouver Coastal Health. The map highlights the whole authority for context, not a clipped intersection.",
+      "focus": "Vancouver Coastal Health",
+      "visibleLayerIds": [
+        "economic-regions",
+        "health-authorities"
+      ],
+      "camera": {
+        "center": [
+          -123,
+          53.3
+        ],
+        "zoom": 5.35
+      },
+      "highlights": [
+        {
+          "layerId": "economic-regions",
+          "property": "ERUID",
+          "values": [
+            "5950"
+          ],
+          "label": "Cariboo economic region",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        },
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_CODE",
+          "values": [
+            "3"
+          ],
+          "label": "Vancouver Coastal",
+          "color": "#e76f00",
+          "dimOpacity": 0.025
+        }
+      ],
+      "layerOverrides": {
+        "economic-regions": {
+          "fillOpacity": 0.04
+        }
+      },
+      "interaction": {
+        "type": "bars",
+        "title": "Cariboo → health authorities",
+        "description": "Share of 159,910 covered 2021 Cariboo residents. Select a row to highlight its authority. Cariboo has 0 unresolved residents; other regions can have gaps. These are not job-allocation weights.",
+        "items": [
+          {
+            "label": "Northern",
+            "sceneLabel": "Northern Health",
+            "share": 0.7515727596773185,
+            "detail": "120,184 residents · 2,307 blocks"
+          },
+          {
+            "label": "Interior",
+            "sceneLabel": "Interior Health",
+            "share": 0.2449815521230692,
+            "detail": "39,175 residents · 1,339 blocks"
+          },
+          {
+            "label": "Vancouver Coastal",
+            "sceneLabel": "Vancouver Coastal Health",
+            "share": 0.0034456881996122817,
+            "detail": "551 residents · 94 blocks"
+          }
+        ]
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "BC geography bridge",
+      "detail": "Deterministic block records, 12 comparison tables, coverage manifest and methodology"
+    },
+    {
+      "label": "State of the North joining registry",
+      "detail": "41 model entities and seven reviewed extraction pilots"
+    },
+    {
+      "label": "Existing boundary snapshots",
+      "detail": "2021 economic and census boundaries; repository health boundaries used as context"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "accent": "#0d9488",
+    "options": {
+      "layout": "slides",
+      "sceneTransition": "ease",
+      "sceneTransitionMs": 500,
+      "legendCollapsed": "auto",
+      "cameraFit": "auto",
+      "mobileSheet": "collapsed",
+      "mobilePeekSceneText": true,
+      "slidesSwipeHint": "off"
+    },
+    "map": {
+      "center": [
+        -125.6,
+        54.5
+      ],
+      "zoom": 4.35,
+      "minZoom": 3,
+      "maxZoom": 13,
+      "basemap": "light"
+    },
+    "places": [
+      {
+        "id": "prince-george",
+        "label": "Prince George",
+        "coordinates": [
+          -122.7497,
+          53.9171
+        ],
+        "note": "CSD 5953023 → CD 5953 → ER 5950; health block path → LHA 524 → HSDA 52 → HA 5.",
+        "color": "#047857"
+      },
+      {
+        "id": "williams-lake",
+        "label": "Williams Lake",
+        "coordinates": [
+          -122.1417,
+          52.129
+        ],
+        "note": "A city in Cariboo economic region and Interior Health; a different health authority from Prince George.",
+        "color": "#b45309"
+      }
+    ],
+    "layers": [
+      {
+        "id": "economic-regions",
+        "data": "/data/boundaries/StatCan/bc_economic_regions_2021.geojson.gz",
+        "idProperty": "ERUID",
+        "labelProperty": "ERNAME",
+        "selectionTitleProperty": "economicRegionName",
+        "selectionDetailProperty": "profile",
+        "attributes": {
+          "data": "/data/boundaries/GeographyBridge/economic-region-profiles.json",
+          "boundaryProperty": "ERUID",
+          "attributeProperty": "economicRegionCode"
+        },
+        "fillColor": "#d97706",
+        "fillOpacity": 0.28,
+        "lineColor": "#92400e",
+        "lineOpacity": 1,
+        "lineWidth": 2,
+        "attribution": "Statistics Canada 2021; BCDataMapper ID-based bridge",
+        "category": {
+          "property": "linkCategory",
+          "colors": {
+            "One health authority": "#0d9488",
+            "Multiple health authorities": "#d97706",
+            "Incomplete health links": "#a855f7"
+          },
+          "fallback": "#64748b"
+        }
+      },
+      {
+        "id": "health-authorities",
+        "data": "/data/boundaries/BCMoH/simplified/health_authorities.json",
+        "idProperty": "HLTH_AUTHORITY_CODE",
+        "labelProperty": "HLTH_AUTHORITY_NAME",
+        "fillColor": "#047857",
+        "fillOpacity": 0.23,
+        "lineColor": "#0f172a",
+        "lineOpacity": 0.96,
+        "lineWidth": 2,
+        "category": {
+          "property": "HLTH_AUTHORITY_NAME",
+          "colors": {
+            "Northern": "#047857",
+            "Interior": "#d97706",
+            "Fraser": "#7c3aed",
+            "Vancouver Coastal": "#0284c7",
+            "Vancouver Island": "#be123c"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "B.C. Ministry of Health"
+      }
+    ]
+  }
+}

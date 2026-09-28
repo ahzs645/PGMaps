@@ -1,0 +1,4966 @@
+{
+  "root": "n-aBqtHV",
+  "nodes": {
+    "n-Av47YZ": {
+      "type": "video",
+      "data": {
+        "video": "r-aO38DX",
+        "thumbnail": "r-sYSgwG"
+      }
+    },
+    "n-02Mwzw": {
+      "type": "storycover",
+      "data": {
+        "type": "full",
+        "title": "The Diverse Prague",
+        "summary": "Prague is a city of diversity – cultural, architectural, urban. ",
+        "byline": "Institute of Planning and Development (IPR Prague)",
+        "titlePanelPosition": "end"
+      },
+      "children": [
+        "n-Av47YZ"
+      ]
+    },
+    "n-TWGRS6": {
+      "type": "navigation",
+      "data": {
+        "links": [
+          {
+            "nodeId": "n-RBb6bb",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-uh0mWT",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-DgdGjX",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-d7fnhK",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-8XJFqG",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-kZrPv9",
+            "linkType": "story-heading"
+          },
+          {
+            "nodeId": "n-PNp9SQ",
+            "linkType": "credits-heading"
+          }
+        ]
+      },
+      "config": {
+        "isHidden": false
+      }
+    },
+    "n-0Bznf1": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<a href=\"https://storymaps.arcgis.com/stories/12bf3e7625cd45519200eac7aa09916e\" rel=\"noopener noreferrer\" target=\"_blank\">EN/<strong>CZ</strong></a>"
+      }
+    },
+    "n-1ImJb1": {
+      "type": "separator"
+    },
+    "n-lVvZ2D": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "Prague is not just a bridge and a castle, just as it is not just the Old Town, Vinohrady and housing estates. It consists of a plethora of unique places whose interrelationships create the city as we know it today. Let's look at Prague through the eye of an urbanist or an urban planner and try to unravel its urban diversity.",
+        "textAlignment": "start"
+      }
+    },
+    "n-RBb6bb": {
+      "type": "text",
+      "data": {
+        "text": "What is urban diversity? ",
+        "type": "h2"
+      }
+    },
+    "n-wo5E4s": {
+      "type": "text",
+      "data": {
+        "text": "Every city is made up of many urban patterns or types of development, which differ from each other in terms of how the street network is designed or how buildings look and are distributed in space. Urban patterns and their form correspond to the period, purpose and social consensus within which they were created. What is interesting, however, is that these\nstructures can be found and described in the city.",
+        "type": "paragraph"
+      }
+    },
+    "n-rMhEp0": {
+      "type": "text",
+      "data": {
+        "text": "<em>The variety of structures makes Prague what it is, a city of layers and cultural richness. </em>",
+        "type": "quote"
+      }
+    },
+    "n-Dl1OFM": {
+      "type": "text",
+      "data": {
+        "text": "The form and composition of the urban patterns affect its inhabitants on a daily basis, from the permeability of the city allowing for comfortable movement on foot to the capacity and accessibility of housing. Without a deeper understanding of how Prague looks and functions today, we cannot plan well for how it should look and function in the future. Understanding its urban structure can be the first step.",
+        "type": "paragraph"
+      }
+    },
+    "n-wDbI1F": {
+      "type": "text",
+      "data": {
+        "text": "<em>Urban patterns can be found in many ways. We\nlook at them through data.  </em>",
+        "type": "quote"
+      }
+    },
+    "n-fEIjL5": {
+      "type": "text",
+      "data": {
+        "text": "To understand how a city is laid out, we measure everything from the size and shape of buildings and their distance, to the connectivity of streets and other metrics that describe the built environment. As a result, the data tells us how many “basic” types of urban structures Prague has and where they are. “Basic” because we can always look deeper and\ndistinguish further differences within pattern, as we will show below.",
+        "type": "paragraph"
+      }
+    },
+    "n-ezbgzS": {
+      "type": "text",
+      "data": {
+        "text": "Prague has a lot of patterns, but the basic ones are 19. That sounds like a big number when you think about what the different city districts look like and how similar some of them are. So which ones are they? We can take a look at a few examples (if you're interested in more, we recommend looking at the map on its own or peeking at the  <a href=\"https://uap.iprpraha.cz/#/texty/314808/315428\" rel=\"noopener noreferrer\" target=\"_blank\">Prague 2020 Planning analytical material.</a>",
+        "type": "paragraph"
+      }
+    },
+    "n-vaxiS1": {
+      "type": "image",
+      "data": {
+        "image": "r-G0HNQX",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-gcrwiA": {
+      "type": "carousel",
+      "children": [
+        "n-vaxiS1"
+      ]
+    },
+    "n-3yKUbx": {
+      "type": "text",
+      "data": {
+        "text": "Old Town",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-BmW4kb": {
+      "type": "text",
+      "data": {
+        "text": "The medieval core of Prague, which today is divided into the Old Town, New Town and Lesser Town of Prague, is very unique in its character. The beginnings of its current structure date back to the 13th century, and despite the fact that New Town, for example, was subject to planning to some extent, it is largely organic. This means that its form was not drawn before it was built, but evolved and grew spontaneously along the natural roads. We can see this to this day - the streets undulate, the blocks are unpredictably large and very free-form, and the courtyards are often used for development.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-DZuE1W": {
+      "type": "text",
+      "data": {
+        "text": "At the same time, the structure is a structure designed ideally for pedestrians, the primary mode of transportation at the time it was built. This is evidenced by both the high connectivity of the streets and the high density of people and activities so\nthat everything is easily accessible. This also made historic Prague very compact and therefore fortifiable and defensible.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-epKII9": {
+      "type": "image",
+      "data": {
+        "image": "r-45ATUw",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-nQUEhd": {
+      "type": "carousel",
+      "children": [
+        "n-epKII9"
+      ]
+    },
+    "n-05zOjE": {
+      "type": "text",
+      "data": {
+        "text": "Vinohrady",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-kMmTBy": {
+      "type": "text",
+      "data": {
+        "text": "Vinohrady are very different and subject to a plan. However, the plan only determined the basic structure, not the architecture or the buildings. The plan predetermined the street network and thus the size of the blocks or the location of public spaces such as squares. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-pFJB7R": {
+      "type": "text",
+      "data": {
+        "text": "The result is a homogeneous development from the turn of the 19th and 20th centuries, which in its time was again mainly served on foot, but from 1897 also by tram. As in the previous case, this resulted in a district that is still comfortable for pedestrians today. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-nnUBU0": {
+      "type": "text",
+      "data": {
+        "text": "A major difference from the medieval core is the use of the courtyard blocks. Where the medieval development needed stables, workshops and other spaces, the new bourgeois development often left gardens. But the logic of the layout of the space is\nshared, we still have clearly defined streets, and tall houses standing close\ntogether on the edge of the plot, forming enclosed blocks.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-AMVAXr": {
+      "type": "image",
+      "data": {
+        "image": "r-sJqVX6",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-0eYRTq": {
+      "type": "carousel",
+      "children": [
+        "n-AMVAXr"
+      ]
+    },
+    "n-jDKfK5": {
+      "type": "text",
+      "data": {
+        "text": "Starý Spořilov ",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-G1jlqW": {
+      "type": "text",
+      "data": {
+        "text": "The industrial age brought with it the inhospitability of neighbourhoods full of factories and small apartments for large families. Garden cities like Starý Spořilov are a response to this. Where the Vinohrady stands as a solid impenetrable wall of development, predominantly family housing offers space, trees, parks and\ngardens. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-DMIa3V": {
+      "type": "text",
+      "data": {
+        "text": "Most garden cities are subject to planning to a similar level of detail as the previous case, i.e., the street network and rules for the placement of buildings, not so much the buildings themselves (although this also varied).",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-H7i3lL": {
+      "type": "text",
+      "data": {
+        "text": "Garden cities (or rather garden residential districts, to be precise) still have defined streets and a clear distinction between public and private, but the boundaries of plots are now more defined by fences than by the buildings themselves.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-6iGqgb": {
+      "type": "image",
+      "data": {
+        "image": "r-vrcZ9y",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-kSy2G2": {
+      "type": "carousel",
+      "children": [
+        "n-6iGqgb"
+      ]
+    },
+    "n-0qkzzv": {
+      "type": "text",
+      "data": {
+        "text": "Sídliště Lužiny",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-miraKV": {
+      "type": "text",
+      "data": {
+        "text": "Housing estates are also subject to the plan, but in a slightly different way. Housing development during the communist period was planned from the structure of the roads (yes, more roads\nthan streets) to the kitchen facilities and often the population. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-6CHwUL": {
+      "type": "text",
+      "data": {
+        "text": "The dense block town was dismissed as unsanitary and so planners designed neighbourhoods to the modern standards of the time. The result is a denial of the traditional relationship between street, plot, and building, but also a change of scale related both to architects' inability to come to terms with human perceptions of space and the emerging dominance of the automobile. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-lLRgvG": {
+      "type": "text",
+      "data": {
+        "text": "This has created places that are dramatically different. The whole area has a very loose structure, the hierarchy of streets is virtually absent, and services that would normally be on the main streets are concentrated in shopping centres. The natural movement through the street, which normally ensures that shops have enough customers, is replaced by a direct route to the nearest metro station.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-F6l2IR": {
+      "type": "tour-map",
+      "data": {
+        "geometries": {
+          "a7ffffde-99dd-48f2-9a7a-3822ef820365": {
+            "id": "a7ffffde-99dd-48f2-9a7a-3822ef820365",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.420200000000024,
+                "lat": 50.08685000000002
+              }
+            ],
+            "scale": 9028
+          },
+          "7f119c00-d1f9-4b46-85b8-667dc7ccb5d3": {
+            "id": "7f119c00-d1f9-4b46-85b8-667dc7ccb5d3",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.479105092620998,
+                "lat": 50.0440258596298
+              }
+            ],
+            "scale": 9028
+          },
+          "a55acc05-d4fe-456a-a4c7-e7f7346b6c88": {
+            "id": "a55acc05-d4fe-456a-a4c7-e7f7346b6c88",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.332130000000063,
+                "lat": 50.044350000000065
+              }
+            ],
+            "scale": 9028
+          },
+          "b804e218-1794-4280-b7df-fe82dac77bb6": {
+            "id": "b804e218-1794-4280-b7df-fe82dac77bb6",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.438286852111586,
+                "lat": 50.07243457781001
+              }
+            ]
+          }
+        },
+        "mode": "2d",
+        "basemap": {
+          "type": "resource",
+          "value": "r-8hmenC"
+        },
+        "defaultScale": 5000,
+        "locate": true
+      }
+    },
+    "n-9efetM": {
+      "type": "tour",
+      "data": {
+        "type": "guided-tour",
+        "subtype": "map-focused",
+        "narrativePanelPosition": "start",
+        "places": [
+          {
+            "id": "n-Hiqmaa",
+            "featureId": "a7ffffde-99dd-48f2-9a7a-3822ef820365",
+            "contents": [
+              "n-BmW4kb",
+              "n-DZuE1W"
+            ],
+            "media": "n-gcrwiA",
+            "title": "n-3yKUbx"
+          },
+          {
+            "id": "n-IVQYSN",
+            "featureId": "b804e218-1794-4280-b7df-fe82dac77bb6",
+            "contents": [
+              "n-kMmTBy",
+              "n-pFJB7R",
+              "n-nnUBU0"
+            ],
+            "media": "n-nQUEhd",
+            "title": "n-05zOjE"
+          },
+          {
+            "id": "n-OC27hc",
+            "featureId": "7f119c00-d1f9-4b46-85b8-667dc7ccb5d3",
+            "contents": [
+              "n-G1jlqW",
+              "n-DMIa3V",
+              "n-H7i3lL"
+            ],
+            "media": "n-0eYRTq",
+            "title": "n-jDKfK5"
+          },
+          {
+            "id": "n-MvuQW2",
+            "featureId": "a55acc05-d4fe-456a-a4c7-e7f7346b6c88",
+            "contents": [
+              "n-miraKV",
+              "n-6CHwUL",
+              "n-lLRgvG"
+            ],
+            "media": "n-kSy2G2",
+            "title": "n-0qkzzv"
+          }
+        ],
+        "narrativePanelSize": "small",
+        "map": "n-F6l2IR",
+        "accentColor": "accentColor1"
+      }
+    },
+    "n-y0xFuF": {
+      "type": "separator"
+    },
+    "n-uh0mWT": {
+      "type": "text",
+      "data": {
+        "type": "h2",
+        "text": "Urban patterns of Prague"
+      }
+    },
+    "n-pQDk3p": {
+      "type": "text",
+      "data": {
+        "type": "quote",
+        "text": "<em>But even urban patterns do not exist in a vacuum. </em>"
+      }
+    },
+    "n-RYii0r": {
+      "type": "text",
+      "data": {
+        "text": "They are similar other and form natural groups that create a hierarchy, as we can see in the picture below. From this we can choose which detail we want to work with or feel free\nto go deeper as in the case of the historic centre. The simplest view of the composition of Prague will offer us a division into 7 groups bringing together our 19 basic urban types.",
+        "type": "paragraph"
+      }
+    },
+    "n-VXKet3": {
+      "type": "separator"
+    },
+    "n-8qIngY": {
+      "type": "image",
+      "data": {
+        "image": "r-IPCbm5"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-MGl5mF": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<strong>Circular taxonomic tree.</strong> It is often used in biology, where it depicts the evolutionary relationships between different biological species. It can also represent the relationships between individual taxonomic units."
+      }
+    },
+    "n-LTzav8": {
+      "type": "separator"
+    },
+    "n-DgdGjX": {
+      "type": "text",
+      "data": {
+        "type": "h2",
+        "text": "Description of individual branches of the taxonomic tree"
+      }
+    },
+    "n-cOUlUW": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": ""
+      }
+    },
+    "n-CsXU9R": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Outer ring of housing estates</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-qQlpDt": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-YbZ3qH\"><em>structures </em><span class=\"sm-text-color-23A960\"><em><strong>12</strong></em></span><em> + </em><span class=\"sm-text-color-AED299\"><em><strong>13</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Y1n7rS": {
+      "type": "text",
+      "data": {
+        "text": "A ring of post-war housing estates built mainly on the outskirts of the former town. The housing estates are synonymous with\nmany large, prefabricated buildings that more or less stand freely in the green. They are associated with an unpredictable street network and a complex answer to the question of what a street on a housing estate actually is. In Prague, housing estates were built according to different urban plans, but in the end we can identify two types, mostly reflecting their size.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-loqtYP": {
+      "type": "image",
+      "data": {
+        "image": "r-pAXLIc"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-L2iZ6b": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "position": "start",
+        "size": "small",
+        "panelStyle": "transparent-with-dark-color"
+      },
+      "children": [
+        "n-CsXU9R",
+        "n-qQlpDt",
+        "n-Y1n7rS",
+        "n-loqtYP"
+      ]
+    },
+    "n-Dj1K2X": {
+      "type": "webmap",
+      "data": {
+        "map": "r-c9d652628c4847ae8dd19c62996b670f",
+        "caption": "UAP_SidlistniPrstenec",
+        "timeSlider": false
+      }
+    },
+    "n-nnjXbI": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-L2iZ6b",
+        "n-Dj1K2X"
+      ]
+    },
+    "n-j7NTNH": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Inner periphery</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-feV1dR": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-hNCnTy\"><em>structures </em><span class=\"sm-text-color-FFF4AB\"><em><strong>14</strong></em></span><em> + </em><span class=\"sm-text-color-FFE800\"><em><strong>7</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-XMQVbS": {
+      "type": "text",
+      "data": {
+        "text": "The periphery doesn't have to be just on the outskirts of towns and cities, we often find places that have a very similar character inside. They consist of small-scale industry and a variety of other functions in a structure that is largely chaotic and rarely responds to surrounding development. Prague has two types of such places, differing only in small ways.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-LjAiAl": {
+      "type": "image",
+      "data": {
+        "image": "r-UzYyEv"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-mwhhWv": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "position": "start",
+        "size": "small",
+        "panelStyle": "transparent-with-dark-color"
+      },
+      "children": [
+        "n-j7NTNH",
+        "n-feV1dR",
+        "n-XMQVbS",
+        "n-LjAiAl"
+      ]
+    },
+    "n-f7sWIn": {
+      "type": "webmap",
+      "data": {
+        "map": "r-ba3a2ac114384e97a2407b90069727de",
+        "caption": "UAP_VnitrniPeriferie",
+        "timeSlider": false
+      }
+    },
+    "n-9MbZyP": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-mwhhWv",
+        "n-f7sWIn"
+      ]
+    },
+    "n-FJIwdM": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Industry and commerce</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-7ipjNq": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-YNJomL\"><em>structures </em><span class=\"sm-text-color-6C66AA\"><em><strong>11</strong></em></span><em> + </em><span class=\"sm-text-color-47266C\"><em><strong>0</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-AgggEH": {
+      "type": "text",
+      "data": {
+        "text": "Even Prague has places that can be described as service places. These are industrial areas, large shopping zones or airports. There are not many of them, but their structure is very specific, especially because of the large scale of individual buildings and the distances between them. Two types fall into this group; the first is composed mainly of smaller buildings and the second of larger ones.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-JXSKBp": {
+      "type": "image",
+      "data": {
+        "image": "r-fwPeoO"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-H555xb": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-FJIwdM",
+        "n-7ipjNq",
+        "n-AgggEH",
+        "n-JXSKBp"
+      ]
+    },
+    "n-gE652S": {
+      "type": "webmap",
+      "data": {
+        "caption": "UAP_PrumyslKomerce",
+        "map": "r-b0ecbadedb494127aa001f76a68e54fc",
+        "timeSlider": false,
+        "mapLayers": [
+          {
+            "id": "18216e4cdab-layer-13",
+            "title": "UAP_Storymapa_PrumyslKomerce",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1562961.2327388139,
+          "ymin": 6428960.473790852,
+          "xmax": 1660112.6956893099,
+          "ymax": 6483612.949014774
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140619,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140619,
+            "y": 6456286.711402813
+          }
+        }
+      }
+    },
+    "n-bXLwQT": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-H555xb",
+        "n-gE652S"
+      ]
+    },
+    "n-wRHyCJ": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Historical city structure</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-u3ea2I": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-4vfaQv\"><em>structures </em><span class=\"sm-text-color-C89EBF\"><em><strong>17</strong></em></span><em> + </em><span class=\"sm-text-color-F4A9C2\"><em><strong>10</strong></em></span><em> + </em><span class=\"sm-text-color-F9D5CF\"><em><strong>8</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-u3dZ0s": {
+      "type": "text",
+      "data": {
+        "text": "The entire wider centre of Prague was built in the pre-war era, before the development of the automobile. This brings with it\na human scale. After all, it was expected that everyone would move around the city mostly on foot. The construction that followed in the second half of the 20th century no longer has these parameters. This is one of the reasons why the medieval and industrial city meet in one group of urban patterns. In the\ncontext of the whole city, they are simply very similar.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-tUg7T5": {
+      "type": "image",
+      "data": {
+        "image": "r-RYxNfg"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Pz3t2o": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-wRHyCJ",
+        "n-u3ea2I",
+        "n-u3dZ0s",
+        "n-tUg7T5"
+      ]
+    },
+    "n-shC9nN": {
+      "type": "webmap",
+      "data": {
+        "map": "r-b918fd8045d64bc3a214c4f3176ef4d3",
+        "caption": "UAP_HistorickaMestskaStruktura",
+        "timeSlider": false
+      }
+    },
+    "n-gNcPkk": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-Pz3t2o",
+        "n-shC9nN"
+      ]
+    },
+    "n-9rH2YH": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Edges</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-MLRf4R": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-ulxjHV\"><em>structures </em><span class=\"sm-text-color-79C2A5\"><em><strong>2</strong></em></span><em> + </em><span class=\"sm-text-color-00A1A4\"><em><strong>3</strong></em></span><em> + </em><span class=\"sm-text-color-AAD7C7\"><em><strong>16</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-QA3zbK": {
+      "type": "text",
+      "data": {
+        "text": "There are plenty of edges in Prague, and they don't necessarily have to be on its outer boundary. Even within it, we can find\nplaces that are on the edge, whether it is towards one of the hills or between different types of patterns. Edges are often specific, borrowing the basic building blocks from the places they adjoin, but changing and bending their rules to suit their particular needs. Depending on where they are located and what they are adjacent to, they can be divided into 3 types of structures.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-VvTDxt": {
+      "type": "image",
+      "data": {
+        "image": "r-nQjZWf"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-p1IgyY": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-9rH2YH",
+        "n-MLRf4R",
+        "n-QA3zbK",
+        "n-VvTDxt"
+      ]
+    },
+    "n-xc2rp0": {
+      "type": "webmap",
+      "data": {
+        "map": "r-7043527634934fb6b0b77695639fd2a1",
+        "caption": "UAP_Okraje",
+        "timeSlider": false
+      }
+    },
+    "n-q7EFWm": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-p1IgyY",
+        "n-xc2rp0"
+      ]
+    },
+    "n-ZfmDMD": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Places for housing</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-rzAYz1": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-BI41UH\"><em>structures </em><span class=\"sm-text-color-CFCFCF\"><em><strong>4</strong></em></span><em> + </em><span class=\"sm-text-color-636362\"><em><strong>5</strong></em></span><em> + </em><span class=\"sm-text-color-ECECEC\"><em><strong>6</strong></em></span><em> + </em><span class=\"sm-text-color-9C9B9B\"><em><strong>9</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-r4UrQM": {
+      "type": "text",
+      "data": {
+        "text": "More than a third of Prague is covered by a diverse mix of four types of urban housing patterns, ranging from family houses with large gardens to denser developments that are far from\nhousing estates. These are places that often provide only a fraction of what one needs on a daily basis, and are thus more likely to be the places one returns to only at night.  ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-PrvgPP": {
+      "type": "image",
+      "data": {
+        "image": "r-IqG0bx"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-KXzdxd": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-ZfmDMD",
+        "n-rzAYz1",
+        "n-r4UrQM",
+        "n-PrvgPP"
+      ]
+    },
+    "n-AtqgBj": {
+      "type": "webmap",
+      "data": {
+        "map": "r-c7017f7251c14f2eb08c0f0766d4887d",
+        "caption": "UAP_MistaKbydleni",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.2963012771,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268466,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140619,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140619,
+            "y": 6456286.711402813
+          }
+        }
+      }
+    },
+    "n-O5RyFg": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-KXzdxd",
+        "n-AtqgBj"
+      ]
+    },
+    "n-OwUGGn": {
+      "type": "text",
+      "data": {
+        "text": "<strong>Diverse fillers</strong>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-3DLCzS": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "<span data-action-type=\"map-action\" id=\"a-P0BCfl\"><em>structures </em><span class=\"sm-text-color-A5D9E8\"><em><strong>1</strong></em></span><em> + </em><span class=\"sm-text-color-0080C3\"><em><strong>15</strong></em></span><em> + </em><span class=\"sm-text-color-C8E7F3\"><em><strong>18</strong></em></span></span>"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-aYWJLs": {
+      "type": "text",
+      "data": {
+        "text": "Some places in the city behave as if they are filling residual space. In some situations this is the case, in other, paradoxically, the pattern acting as a fill was created before its surroundings. But they do have one character in common - they are diverse: they\nmix small and large buildings and are generally quite different from their surroundings. The three types of structures that fall here differ in character, i.e. how the infill looks, whether it is small or large, organized more or less so.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-V6mTaC": {
+      "type": "image",
+      "data": {
+        "image": "r-Kqci2L"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-YiZNF4": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-OwUGGn",
+        "n-3DLCzS",
+        "n-aYWJLs",
+        "n-V6mTaC"
+      ]
+    },
+    "n-BDdmBg": {
+      "type": "webmap",
+      "data": {
+        "map": "r-a8d3e7486db54e5cb1cb93aed1156c51",
+        "caption": "UAP_RuzneVyplne",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.2963012771,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268466,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140619,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140619,
+            "y": 6456286.711402813
+          }
+        }
+      }
+    },
+    "n-5PZUCB": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-YiZNF4",
+        "n-BDdmBg"
+      ]
+    },
+    "n-pcY7hL": {
+      "type": "immersive",
+      "data": {
+        "type": "sidecar",
+        "subtype": "docked-panel",
+        "narrativePanelPosition": "start",
+        "narrativePanelSize": "medium"
+      },
+      "children": [
+        "n-nnjXbI",
+        "n-9MbZyP",
+        "n-bXLwQT",
+        "n-gNcPkk",
+        "n-q7EFWm",
+        "n-O5RyFg",
+        "n-5PZUCB"
+      ]
+    },
+    "n-0Alfax": {
+      "type": "separator"
+    },
+    "n-d7fnhK": {
+      "type": "text",
+      "data": {
+        "type": "h2",
+        "text": "What do they capture?"
+      }
+    },
+    "n-KCqjVk": {
+      "type": "text",
+      "data": {
+        "type": "quote",
+        "text": "<em>What do these structures capture besides the way they are built? </em>"
+      }
+    },
+    "n-gJztiL": {
+      "type": "text",
+      "data": {
+        "text": "A lot of things, like the history and the changing approach to the city. Let's look at a few phases of Prague's development and see how the different types of urban structures relate\nto them.",
+        "type": "paragraph"
+      }
+    },
+    "n-ZLMBWo": {
+      "type": "text",
+      "data": {
+        "text": "1816",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-DCXHsx": {
+      "type": "text",
+      "data": {
+        "text": "In 1816 Prague was much smaller than today. Interestingly, <span class=\"sm-text-color-F5A9C3\"><strong>the structure of the city at that time</strong></span> <span class=\"sm-text-color-F5A9C3\"><strong>(10)</strong></span> did not differ significantly in its individual districts. The whole of the buildings of that time are part of a single type today. Of course, we could distinguish between the Old Town and the New Town, divided by the line of the original walls (today's Národní, Na Příkopě, Revoluční Street) or the Lesser Town, but from the point of view of the whole city it is not a big difference. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Lorss3": {
+      "type": "text",
+      "data": {
+        "text": "Interestingly, the historic Jewish town, shown in the northern part of the archival map, is not part of the same structure as its surroundings. This is because it was sanitized at the turn of the 19th and 20th centuries, i.e. rebuilt according to a different model - that of\nVinohrady.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-XO9D5P": {
+      "type": "text",
+      "data": {
+        "text": "We can therefore say that history goes hand in hand with the way it was built in a given period.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-pHFlvD": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-ZLMBWo",
+        "n-DCXHsx",
+        "n-Lorss3",
+        "n-XO9D5P"
+      ]
+    },
+    "n-QP4Nxf": {
+      "type": "webmap",
+      "data": {
+        "map": "r-cd71f36d3ad442f79daae02a0bf9a23f",
+        "caption": "1816_darkbase",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1602422.2981559045,
+          "ymin": 6459310.63378782,
+          "xmax": 1609148.756644991,
+          "ymax": 6463094.2666879315
+        },
+        "center": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "x": 1605482.350179604,
+          "y": 6461273.327460468
+        },
+        "zoom": 14,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 18055.9548215,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605785.5274004478,
+            "y": 6461202.450237876
+          }
+        }
+      }
+    },
+    "n-XtlCNI": {
+      "type": "webmap",
+      "data": {
+        "map": "r-7457dd56becd4c44981042acbbc0aedb",
+        "caption": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1602422.2981559045,
+          "ymin": 6459310.63378782,
+          "xmax": 1609148.756644991,
+          "ymax": 6463094.2666879315
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1605785.5274004478,
+          "y": 6461202.450237876
+        },
+        "zoom": 14,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 18055.9548215,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605785.5274004478,
+            "y": 6461202.450237876
+          }
+        }
+      }
+    },
+    "n-s1Gg2s": {
+      "type": "swipe",
+      "data": {
+        "contents": {
+          "0": "n-QP4Nxf",
+          "1": "n-XtlCNI"
+        }
+      }
+    },
+    "n-BoVn6I": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-pHFlvD",
+        "n-s1Gg2s"
+      ]
+    },
+    "n-tCzwNt": {
+      "type": "text",
+      "data": {
+        "text": "1924",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Hp62vH": {
+      "type": "text",
+      "data": {
+        "text": "The end of the 19th and the beginning of the 20th century is a period of industrialisation and compact block development. New districts were created around the historic city, consisting of two types of patterns. The first depicts a very regular block development reflecting the original plan, which strives for <span class=\"sm-text-color-C79EC0\"><strong>a regular grid of streets</strong></span><span class=\"sm-text-color-(17)\"><strong> </strong></span><span class=\"sm-text-color-C79EC0\"><strong>(17)</strong></span>. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-TKLExV": {
+      "type": "text",
+      "data": {
+        "text": "But even this ends somewhere, whether it is due to the terrain or the continuity with other patterns. This transition is then depicted as <span class=\"sm-text-color-F9D6D2\"><strong>a pattern of its own </strong></span><span class=\"sm-text-color-F9D6D2\"><strong>(8)</strong></span>, which in many ways resembles the previous one, but breaks its rules in order to adapt to its surroundings. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Ualukl": {
+      "type": "text",
+      "data": {
+        "text": "In the hierarchy described above, all construction before 1920 is within a single group. This again suggests the extent to which the urban structure is tied to the changes in society over time.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-1ky4b6": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-scipMd": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": ""
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-6HOijO": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-tCzwNt",
+        "n-Hp62vH",
+        "n-TKLExV",
+        "n-Ualukl",
+        "n-1ky4b6",
+        "n-scipMd"
+      ]
+    },
+    "n-UmNEDF": {
+      "type": "webmap",
+      "data": {
+        "map": "r-ade8c8c9e4c74a9982e838e76164f139",
+        "caption": "1920_graybase",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "xmin": 1599849.5284964682,
+          "ymin": 6457457.756807161,
+          "xmax": 1613302.4454746412,
+          "ymax": 6465025.022607383
+        },
+        "center": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "x": 1606575.9869855547,
+          "y": 6461241.389707272
+        },
+        "zoom": 13,
+        "viewpoint": {
+          "rotation": 359.9920747044165,
+          "scale": 36111.909643,
+          "targetGeometry": {
+            "spatialReference": {
+              "wkid": 102100
+            },
+            "x": 1606575.9869855547,
+            "y": 6461241.389707272
+          }
+        }
+      }
+    },
+    "n-90fyQf": {
+      "type": "webmap",
+      "data": {
+        "map": "r-fe0cfc6fbd3a4298bae5203453068c98",
+        "caption": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "xmin": 1599849.5284964682,
+          "ymin": 6457457.756807161,
+          "xmax": 1613302.4454746412,
+          "ymax": 6465025.022607383
+        },
+        "viewpoint": {
+          "rotation": 359.9920747044165,
+          "scale": 36111.909643,
+          "targetGeometry": {
+            "spatialReference": {
+              "wkid": 102100
+            },
+            "x": 1606575.9869855547,
+            "y": 6461241.389707272
+          }
+        }
+      }
+    },
+    "n-ovjkVB": {
+      "type": "swipe",
+      "data": {
+        "contents": {
+          "0": "n-UmNEDF",
+          "1": "n-90fyQf"
+        }
+      }
+    },
+    "n-nExvVk": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-6HOijO",
+        "n-ovjkVB"
+      ]
+    },
+    "n-AGqbGc": {
+      "type": "text",
+      "data": {
+        "text": "1938 ",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-fNocy8": {
+      "type": "text",
+      "data": {
+        "text": "The interwar construction is a period of villa districts and garden cities, and this is no different in Prague. Neighbourhoods such as the aforementioned <span class=\"sm-text-color-ececec\"><strong>Starý Spořilov (6)</strong></span>, <span class=\"sm-text-color-636362\"><strong>Ořechovka (5)</strong></span> or <span class=\"sm-text-color-9c9b9b\"><strong>Hanspaulka (9)</strong></span> were created. The city continues to expand into the countryside and its density decreases. The new residential development accommodates far fewer people than the structures that existed before. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-kJOtoO": {
+      "type": "text",
+      "data": {
+        "text": "We can also notice that, with few exceptions, the new neighbourhoods are not built in direct continuity with the older block structure, but keep their distance. The resulting space is now filled, but often with buildings whose qualities do not reach the same level as those built before the Second World War.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-GWRGxR": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": ""
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-buLjVB": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-AGqbGc",
+        "n-fNocy8",
+        "n-kJOtoO",
+        "n-GWRGxR"
+      ]
+    },
+    "n-aLvxpS": {
+      "type": "webmap",
+      "data": {
+        "map": "r-e35362e8bfd74fe0b0009039f418eda6",
+        "caption": "1938_graybase",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1591991.2132678519,
+          "ymin": 6453407.4767925935,
+          "xmax": 1618897.0472241978,
+          "ymax": 6468542.008393037
+        },
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605444.1302460248,
+            "y": 6460974.742592815
+          }
+        }
+      }
+    },
+    "n-yQ0ppQ": {
+      "type": "webmap",
+      "data": {
+        "map": "r-ae6410da99c4460eb2db4dcaac5d95a1",
+        "caption": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817596",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1591991.2132678519,
+          "ymin": 6453407.4767925935,
+          "xmax": 1618897.0472241978,
+          "ymax": 6468542.008393037
+        },
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605444.1302460248,
+            "y": 6460974.742592815
+          }
+        }
+      }
+    },
+    "n-SUnnDy": {
+      "type": "swipe",
+      "data": {
+        "contents": {
+          "0": "n-aLvxpS",
+          "1": "n-yQ0ppQ"
+        }
+      }
+    },
+    "n-iIeE6e": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-buLjVB",
+        "n-SUnnDy"
+      ]
+    },
+    "n-JGSRtK": {
+      "type": "text",
+      "data": {
+        "text": "1966",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-lRSiO3": {
+      "type": "text",
+      "data": {
+        "text": "The construction of the second half of the 20th century was already fully in the hands of central planning, which gradually dictated two rings of neighbourhoods in Prague designed mainly for housing according to the then modern standards. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-EjgP3f": {
+      "type": "text",
+      "data": {
+        "text": "The first ring filled\nvacant or redeveloped sites adjacent to existing buildings. This is how, for example, the <span class=\"sm-text-color-aed299\"><strong>Jarov</strong></span> or <span class=\"sm-text-color-aed299\"><strong>Invalidovna (13)</strong></span> housing estates came into being. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-Iuirsy": {
+      "type": "text",
+      "data": {
+        "text": "The second ring was much grander and included the largest housing estates in Prague such as <span class=\"sm-text-color-23A960\"><strong>Jižní Město</strong></span>, <span class=\"sm-text-color-23a960\"><strong>Lužiny (12)</strong></span>, <span class=\"sm-text-color-aed299\"><strong>Bohnice</strong></span>, or <span class=\"sm-text-color-AED299\"><strong>Střížkov (13)</strong></span>. This was planned outside the city on \"greenfield\" land, only in some places having to deal with existing villages. The result is sometimes very surprising contrasts when next to an eight-storey block of flats there is an old cemetery and a few family\nhouses.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-j6WQbk": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed"
+      },
+      "children": [
+        "n-JGSRtK",
+        "n-lRSiO3",
+        "n-EjgP3f",
+        "n-Iuirsy"
+      ]
+    },
+    "n-p0hvnX": {
+      "type": "webmap",
+      "data": {
+        "caption": "TaxonomickyUsporadaneUrbVzorce_ort1966",
+        "map": "r-5775c229988844fca165d29c0e5a104d",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1583317.2739090987,
+          "ymin": 6443401.41511519,
+          "xmax": 1633039.5608085387,
+          "ymax": 6471377.367467527
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1608178.4173588187,
+          "y": 6457389.3912913585
+        },
+        "zoom": 11,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 144447.638572,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1608178.4173588187,
+            "y": 6457389.3912913585
+          }
+        }
+      }
+    },
+    "n-a8UtlE": {
+      "type": "webmap",
+      "data": {
+        "map": "r-f7855f008ebd45e3882afb0b642b73fb",
+        "caption": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all",
+        "timeSlider": false,
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1583317.2739090987,
+          "ymin": 6443401.41511519,
+          "xmax": 1633039.5608085387,
+          "ymax": 6471377.367467527
+        },
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 144447.638572,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1608178.4173588187,
+            "y": 6457389.3912913585
+          }
+        }
+      }
+    },
+    "n-CfWtxX": {
+      "type": "swipe",
+      "data": {
+        "contents": {
+          "0": "n-p0hvnX",
+          "1": "n-a8UtlE"
+        }
+      }
+    },
+    "n-Njglgb": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-j6WQbk",
+        "n-CfWtxX"
+      ]
+    },
+    "n-JXRUzL": {
+      "type": "immersive",
+      "data": {
+        "type": "sidecar",
+        "subtype": "docked-panel",
+        "narrativePanelPosition": "end",
+        "narrativePanelSize": "large"
+      },
+      "children": [
+        "n-BoVn6I",
+        "n-nExvVk",
+        "n-iIeE6e",
+        "n-Njglgb"
+      ]
+    },
+    "n-PYbHyr": {
+      "type": "separator"
+    },
+    "n-8XJFqG": {
+      "type": "text",
+      "data": {
+        "type": "h2",
+        "text": "Diversity of urban structure"
+      }
+    },
+    "n-xvdk1O": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "While the period of a pattern’s creation is one of the most defining aspects of its form, it is not only history that we can read in urban structures."
+      }
+    },
+    "n-KPHPf1": {
+      "type": "text",
+      "data": {
+        "type": "quote",
+        "text": "<em>The way the types of urban patterns are put together\ncreates unique places, with varying degrees of diversity. </em>"
+      }
+    },
+    "n-e1vzaG": {
+      "type": "text",
+      "data": {
+        "text": "And here again we can borrow an analogy from nature, this time from ecology. Species diversity in a given place (biodiversity) can be described mathematically. Let's illustrate this with the example of coloured dots representing different types of urban structures.",
+        "type": "paragraph"
+      }
+    },
+    "n-4P53BK": {
+      "type": "text",
+      "data": {
+        "text": "Assume five types, i.e. five colours. ",
+        "type": "paragraph",
+        "textAlignment": "center"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-uD18SD": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "small"
+      },
+      "children": [
+        "n-4P53BK"
+      ]
+    },
+    "n-AN9stS": {
+      "type": "image",
+      "data": {
+        "image": "r-Wrdqw5"
+      }
+    },
+    "n-RUVOao": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-uD18SD",
+        "n-AN9stS"
+      ]
+    },
+    "n-mCi5jX": {
+      "type": "text",
+      "data": {
+        "text": "Next, we have three circles, and we want to know the diversity of each of them. In each circle we have a total of 15 dots, where each dot has one of the five colours.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-F1Dab8": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-mCi5jX"
+      ]
+    },
+    "n-ioXpIc": {
+      "type": "image",
+      "data": {
+        "image": "r-bLwNpC"
+      }
+    },
+    "n-bMeb1v": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-F1Dab8",
+        "n-ioXpIc"
+      ]
+    },
+    "n-phNUfc": {
+      "type": "text",
+      "data": {
+        "text": "We measure the diversity using the so-called <strong>Simpson index</strong>, which captures the probability that if we randomly pick a dot twice in a row, they both have the same colour. Thus, the lower the value we get, the more diverse the circle is.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-pFYJ8z": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-phNUfc"
+      ]
+    },
+    "n-wlwWyx": {
+      "type": "image",
+      "data": {
+        "image": "r-way9Qs"
+      }
+    },
+    "n-RyPy2v": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-pFYJ8z",
+        "n-wlwWyx"
+      ]
+    },
+    "n-OFhc67": {
+      "type": "text",
+      "data": {
+        "text": "In the first circle we have 3 dots of each colour. So the probability that we randomly pick a dot twice in a row and they both have the same colour is exactly 20%.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-VuTYCc": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-OFhc67"
+      ]
+    },
+    "n-4vB9yY": {
+      "type": "image",
+      "data": {
+        "image": "r-JL3UE7"
+      }
+    },
+    "n-W858Ct": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-VuTYCc",
+        "n-4vB9yY"
+      ]
+    },
+    "n-olHTK7": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-7mKaoj": {
+      "type": "text",
+      "data": {
+        "text": "In the second circle, we have only three colours and the probability of hitting the same colour twice is about 44%.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-uE875S": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-olHTK7",
+        "n-7mKaoj"
+      ]
+    },
+    "n-fDm2iM": {
+      "type": "image",
+      "data": {
+        "image": "r-0m9m5p"
+      }
+    },
+    "n-TfDBdK": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-uE875S",
+        "n-fDm2iM"
+      ]
+    },
+    "n-bWxdb7": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-rbmhyO": {
+      "type": "text",
+      "data": {
+        "text": "The last circle has only light blue dots, so the probability is 100%. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-zWNi6M": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-bWxdb7",
+        "n-rbmhyO"
+      ]
+    },
+    "n-7DslXM": {
+      "type": "image",
+      "data": {
+        "image": "r-2QCFZD"
+      }
+    },
+    "n-pJ3wTP": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-zWNi6M",
+        "n-7DslXM"
+      ]
+    },
+    "n-zehuLy": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": " If we have a large number of such dots and we are interested in the diversity in one spot, we can draw another circle around it and measure the <strong>Simpson index</strong> in it."
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-EcpPnX": {
+      "type": "immersive-narrative-panel",
+      "data": {
+        "panelStyle": "themed",
+        "position": "center",
+        "size": "large"
+      },
+      "children": [
+        "n-zehuLy"
+      ]
+    },
+    "n-Xrsgvn": {
+      "type": "image",
+      "data": {
+        "image": "r-TlbUhV"
+      }
+    },
+    "n-hsp0ii": {
+      "type": "immersive-slide",
+      "data": {
+        "transition": "fade"
+      },
+      "children": [
+        "n-EcpPnX",
+        "n-Xrsgvn"
+      ]
+    },
+    "n-WQCHkO": {
+      "type": "immersive",
+      "data": {
+        "type": "sidecar",
+        "subtype": "floating-panel",
+        "narrativePanelPosition": "center",
+        "narrativePanelSize": "large"
+      },
+      "children": [
+        "n-RUVOao",
+        "n-bMeb1v",
+        "n-RyPy2v",
+        "n-W858Ct",
+        "n-TfDBdK",
+        "n-pJ3wTP",
+        "n-hsp0ii"
+      ]
+    },
+    "n-k0jzpq": {
+      "type": "separator"
+    },
+    "n-kZrPv9": {
+      "type": "text",
+      "data": {
+        "type": "h2",
+        "text": "Three different views of the city"
+      }
+    },
+    "n-vAgg71": {
+      "type": "text",
+      "data": {
+        "text": "<em>How we perceive diversity when we move through the city?</em>",
+        "type": "quote"
+      }
+    },
+    "n-F0lNSa": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "In exactly the same way, we can describe the diversity of urban structure from the\nperspective of a person moving through the city. We draw a similar circle around each building in the city and measure how diverse its surroundings are, or how likely it is that two random buildings in its surroundings belong to the same type of urban form."
+      }
+    },
+    "n-28346T": {
+      "type": "text",
+      "data": {
+        "text": "We perceive diversity differently when we walk, ride a bike or tram, or drive. Simply\nbecause we encounter a varied number of patterns. However, it should be noted\nthat sometimes diversity is positive, that is when quality places are encountered, and sometimes less so, that is when peripheral and chaotic places are encountered.",
+        "type": "paragraph"
+      }
+    },
+    "n-AXJ1YS": {
+      "type": "separator"
+    },
+    "n-sXQGhg": {
+      "type": "text",
+      "data": {
+        "type": "large-paragraph",
+        "text": "Pedestrian’s perspective",
+        "textAlignment": "start"
+      }
+    },
+    "n-WmY6Vb": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "Imagine you are walking through the city. In some places, it seems like you're walking through the same neighbourhood for 5, 10, even 15 minutes. This means that the neighbourhood is very homogeneous, with very little variety in urban structures. Simply put, there is always the same pattern, or a few similar ones. "
+      }
+    },
+    "n-riTAfa": {
+      "type": "image",
+      "data": {
+        "image": "r-8LH07W",
+        "isExpandable": true,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-vuYiOy": {
+      "type": "image",
+      "data": {
+        "image": "r-ep11lT"
+      }
+    },
+    "n-xzHnGB": {
+      "type": "image",
+      "data": {
+        "image": "r-vHZhd4",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-OTXLUW": {
+      "type": "carousel",
+      "children": [
+        "n-xzHnGB"
+      ]
+    },
+    "n-2ddJBg": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-5vU6CM": {
+      "type": "text",
+      "data": {
+        "text": "In Prague, for example, a walk through the <strong>Old Town</strong> looks like this – every house and every street are different, but it's still the same principle, the same buildings, the same city.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-jAd9Zx": {
+      "type": "image",
+      "data": {
+        "image": "r-G5J1lG",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-EQqzHg": {
+      "type": "carousel",
+      "children": [
+        "n-jAd9Zx"
+      ]
+    },
+    "n-SnOjkf": {
+      "type": "text",
+      "data": {
+        "text": " It's also very similar just walking past the Museum to Vinohrady. Repeating blocks, here and there a square or a park, but you know it's still the same place.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-l32wee": {
+      "type": "image",
+      "data": {
+        "image": "r-H76Gfi",
+        "isExpandable": false,
+        "attribution": "<a href=\"https://www.shutterstock.com/g/Ioannis7\" rel=\"noopener noreferrer\" target=\"_blank\">Ioannis7</a>/shutterstock"
+      }
+    },
+    "n-uMQ5Ff": {
+      "type": "carousel",
+      "children": [
+        "n-l32wee"
+      ]
+    },
+    "n-g1rhh8": {
+      "type": "text",
+      "data": {
+        "text": "But it's not only historical structures that have this character. A walk around the\nJižní Město will have a similarly undifferentiated effect on you. Although its scale and character are vastly different (and we explained why in the first\npart of this article), the feeling of homogeneity will be the same. And we can\ngo further.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-dQtXSf": {
+      "type": "image",
+      "data": {
+        "image": "r-6peVNt",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-blyKjy": {
+      "type": "carousel",
+      "children": [
+        "n-dQtXSf"
+      ]
+    },
+    "n-1DKfbY": {
+      "type": "text",
+      "data": {
+        "text": "If you try\nto walk through the Malešice-Štěrboholy industrial zone - not that it would be a\nbeautiful walk - the feeling will come back to you. This place is different,\nvery heterogeneous when you look at the individual buildings, small next to\nbig, thick next to thin, but together they form one big homogeneous urban pattern.\nAnd that's how it ends up resembling the Old Town’s diversity.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-2r9zfL": {
+      "type": "image",
+      "data": {
+        "image": "r-m1rEtJ",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-jPzHBF": {
+      "type": "carousel",
+      "children": [
+        "n-2r9zfL"
+      ]
+    },
+    "n-tb4AiQ": {
+      "type": "text",
+      "data": {
+        "text": "Other places, on the other hand, have a high\ndiversity, which means that if we walk around, for example with a stroller, we\nwill very quickly encounter several different types of urban structures. One of\nthese is, for example, Braník, where a small patch of historic block housing\nstands alongside villas, apartment blocks and open blocks. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-W8TGpE": {
+      "type": "image",
+      "data": {
+        "image": "r-otynrC",
+        "isExpandable": false,
+        "attribution": "Archive IPR Prague |  1931"
+      }
+    },
+    "n-PHu7rK": {
+      "type": "carousel",
+      "children": [
+        "n-W8TGpE"
+      ]
+    },
+    "n-RDLrXQ": {
+      "type": "text",
+      "data": {
+        "text": "Another\ntypical example is Bulovka, where a small area contains Vinohrady-like blocks,\nlarge hospital pavilions, large villas and traditional suburban housing along\nthe roads to the north-east. Both Braník and Bulovka are then perceived by\npedestrians as diverse places - one does not have to walk far to experience\nseveral types of structures.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-UmCJjf": {
+      "type": "tour-map",
+      "data": {
+        "geometries": {
+          "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42": {
+            "id": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.424372113439473,
+                "lat": 50.08561655894323
+              }
+            ]
+          },
+          "05956af2-b01a-47ad-aee9-0854a20da62b": {
+            "id": "05956af2-b01a-47ad-aee9-0854a20da62b",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.438019192907454,
+                "lat": 50.076638885859744
+              }
+            ]
+          },
+          "fb225182-6d31-49b3-ae3e-b7a8d478b466": {
+            "id": "fb225182-6d31-49b3-ae3e-b7a8d478b466",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.51884282012946,
+                "lat": 50.02897846207493
+              }
+            ]
+          },
+          "b31e4b27-9775-4dba-96d3-411329199a87": {
+            "id": "b31e4b27-9775-4dba-96d3-411329199a87",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.530103190613287,
+                "lat": 50.077190689291115
+              }
+            ]
+          },
+          "abeb42d9-c6a3-4077-be88-a341926665e1": {
+            "id": "abeb42d9-c6a3-4077-be88-a341926665e1",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.472328594170941,
+                "lat": 50.118530112406
+              }
+            ]
+          },
+          "23567c75-a0da-4ee5-9d1e-21905cc33508": {
+            "id": "23567c75-a0da-4ee5-9d1e-21905cc33508",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.416201158752466,
+                "lat": 50.03761603636309
+              }
+            ]
+          }
+        },
+        "mode": "2d",
+        "basemap": {
+          "type": "resource",
+          "value": "r-fJqoAM"
+        },
+        "defaultScale": 40000,
+        "locate": true
+      }
+    },
+    "n-Or5kxQ": {
+      "type": "tour",
+      "data": {
+        "type": "guided-tour",
+        "subtype": "map-focused",
+        "narrativePanelPosition": "start",
+        "places": [
+          {
+            "id": "n-onTnDt",
+            "featureId": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "contents": [
+              "n-5vU6CM"
+            ],
+            "media": "n-OTXLUW",
+            "title": "n-2ddJBg"
+          },
+          {
+            "id": "n-uxfOz8",
+            "featureId": "05956af2-b01a-47ad-aee9-0854a20da62b",
+            "contents": [
+              "n-SnOjkf"
+            ],
+            "media": "n-EQqzHg"
+          },
+          {
+            "id": "n-WoYNMU",
+            "featureId": "fb225182-6d31-49b3-ae3e-b7a8d478b466",
+            "contents": [
+              "n-g1rhh8"
+            ],
+            "media": "n-uMQ5Ff"
+          },
+          {
+            "id": "n-OfUy4S",
+            "featureId": "b31e4b27-9775-4dba-96d3-411329199a87",
+            "contents": [
+              "n-1DKfbY"
+            ],
+            "media": "n-blyKjy"
+          },
+          {
+            "id": "n-HVLNcp",
+            "featureId": "23567c75-a0da-4ee5-9d1e-21905cc33508",
+            "contents": [
+              "n-tb4AiQ"
+            ],
+            "media": "n-jPzHBF"
+          },
+          {
+            "id": "n-pU1Uu8",
+            "featureId": "abeb42d9-c6a3-4077-be88-a341926665e1",
+            "contents": [
+              "n-RDLrXQ"
+            ],
+            "media": "n-PHu7rK"
+          }
+        ],
+        "narrativePanelSize": "small",
+        "accentColor": "accentColor1",
+        "map": "n-UmCJjf"
+      }
+    },
+    "n-bmwBzj": {
+      "type": "separator"
+    },
+    "n-2j762r": {
+      "type": "text",
+      "data": {
+        "type": "large-paragraph",
+        "text": "Cyclist’s perspective"
+      }
+    },
+    "n-xFOB9d": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "We have more speed and range on the bike, which changes our perception of what is diverse. One doesn't perceive distance as much as time. And if we move faster, we see more in the same amount of time."
+      }
+    },
+    "n-3Ji7UX": {
+      "type": "text",
+      "data": {
+        "text": "For a cyclist, a small neighbourhood is no longer enough to perceive it uniformly, but he or she necessarily needs a larger one. ",
+        "type": "paragraph"
+      }
+    },
+    "n-PsgUnf": {
+      "type": "image",
+      "data": {
+        "image": "r-ndqNTZ",
+        "isExpandable": true,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-FAXQ8u": {
+      "type": "image",
+      "data": {
+        "image": "r-DzaKE1"
+      }
+    },
+    "n-Vu7Igt": {
+      "type": "image",
+      "data": {
+        "image": "r-xPsdQX",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-wDeJSS": {
+      "type": "carousel",
+      "children": [
+        "n-Vu7Igt"
+      ]
+    },
+    "n-rDlCqs": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-jtK5bG": {
+      "type": "text",
+      "data": {
+        "text": "Both <strong>Old Town</strong> and <strong>Vinohrady</strong> still hold their own. Even cyclists perceive them as homogeneous.<span class=\"sm-text-color-ee0707\"> </span>",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-ea27ww": {
+      "type": "image",
+      "data": {
+        "image": "r-KGvJsl",
+        "isExpandable": false,
+        "attribution": "<a href=\"https://www.shutterstock.com/cs/g/LexUniverse\" rel=\"noopener noreferrer\" target=\"_blank\">Lex Universe/</a>shutterstock"
+      }
+    },
+    "n-ZUKvdT": {
+      "type": "carousel",
+      "children": [
+        "n-ea27ww"
+      ]
+    },
+    "n-DoJomy": {
+      "type": "text",
+      "data": {
+        "text": "Similarly, peripheral family developments such as those in <strong>Klánovice</strong> or <strong>Újezd nad Lesy</strong> are in a similar position. Even on a bicycle we will consider them as one, relatively homogeneous place.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-xxfH5t": {
+      "type": "image",
+      "data": {
+        "image": "r-mtFcyr",
+        "isExpandable": false,
+        "attribution": "<a href=\"https://www.shutterstock.com/cs/g/Philip+Armitage\" rel=\"noopener noreferrer\" target=\"_blank\">Philip Armitage/</a>shutterstock"
+      }
+    },
+    "n-pZRelY": {
+      "type": "carousel",
+      "children": [
+        "n-xxfH5t"
+      ]
+    },
+    "n-O4gmnE": {
+      "type": "text",
+      "data": {
+        "text": "Conversely, our perception of the diversity of Prague is opening up and we are beginning to notice places like <strong>Kavalírka</strong> or <strong>Letňany</strong>, which are composed\nof relatively large areas of different types of patterns. Together, these form\nplaces that we can describe as diverse.",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-AM5kHU": {
+      "type": "tour-map",
+      "data": {
+        "geometries": {
+          "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42": {
+            "id": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.421196377965748,
+                "lat": 50.08746145525912
+              }
+            ]
+          },
+          "8c98273d-0e55-4ac3-b229-76975090339c": {
+            "id": "8c98273d-0e55-4ac3-b229-76975090339c",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.669340000000034,
+                "lat": 50.09588000000008
+              }
+            ]
+          },
+          "cb279c05-df22-4525-b7ec-704e00840079": {
+            "id": "cb279c05-df22-4525-b7ec-704e00840079",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.514140000000054,
+                "lat": 50.135530000000074
+              }
+            ]
+          }
+        },
+        "mode": "2d",
+        "basemap": {
+          "type": "resource",
+          "value": "r-KX70hB"
+        },
+        "defaultScale": 40000
+      }
+    },
+    "n-VsipbN": {
+      "type": "tour",
+      "data": {
+        "type": "guided-tour",
+        "subtype": "map-focused",
+        "narrativePanelPosition": "start",
+        "places": [
+          {
+            "id": "n-HbDxrx",
+            "featureId": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "contents": [
+              "n-jtK5bG"
+            ],
+            "media": "n-wDeJSS",
+            "title": "n-rDlCqs"
+          },
+          {
+            "id": "n-p8Dtoi",
+            "featureId": "8c98273d-0e55-4ac3-b229-76975090339c",
+            "contents": [
+              "n-DoJomy"
+            ],
+            "media": "n-ZUKvdT"
+          },
+          {
+            "id": "n-lQPmko",
+            "featureId": "cb279c05-df22-4525-b7ec-704e00840079",
+            "contents": [
+              "n-O4gmnE"
+            ],
+            "media": "n-pZRelY"
+          }
+        ],
+        "narrativePanelSize": "small",
+        "accentColor": "accentColor1",
+        "map": "n-AM5kHU"
+      }
+    },
+    "n-MMFCqz": {
+      "type": "separator"
+    },
+    "n-Zqh3fW": {
+      "type": "text",
+      "data": {
+        "type": "large-paragraph",
+        "text": "Driver’s perspective",
+        "textAlignment": "start"
+      }
+    },
+    "n-S3JBOx": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "Driving by car offers the largest radius. Driving a car offers the highest speed and radius of movement around the city. Diversity will thus appear different."
+      }
+    },
+    "n-N7Dn24": {
+      "type": "image",
+      "data": {
+        "image": "r-MMUwHm",
+        "isExpandable": true,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-41g0V9": {
+      "type": "image",
+      "data": {
+        "image": "r-9kkq3w"
+      }
+    },
+    "n-eQ80pM": {
+      "type": "image",
+      "data": {
+        "image": "r-c4NCHT",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-xNTiGE": {
+      "type": "carousel",
+      "children": [
+        "n-eQ80pM"
+      ]
+    },
+    "n-1NET5j": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "h3"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-li8TNL": {
+      "type": "text",
+      "data": {
+        "text": "Only the centre and villages in the east of\nPrague remain seemingly homogeneous. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-8Ep1YV": {
+      "type": "image",
+      "data": {
+        "image": "r-lLQSeW",
+        "isExpandable": false,
+        "attribution": "Institute of Planning and Development"
+      }
+    },
+    "n-mgOJwx": {
+      "type": "carousel",
+      "children": [
+        "n-8Ep1YV"
+      ]
+    },
+    "n-u3FWji": {
+      "type": "text",
+      "data": {
+        "text": "However, the northern part of the city, stretching from Podbaba to Letňany, is one of the most diverse parts of Prague, where block development mixes with housing estates, industrial zones, residential districts and apartment and family housing of various parameters and character. ",
+        "type": "paragraph"
+      },
+      "config": {
+        "size": "wide"
+      }
+    },
+    "n-IM8e8O": {
+      "type": "tour-map",
+      "data": {
+        "geometries": {
+          "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42": {
+            "id": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.427805340978436,
+                "lat": 50.08371651687045
+              }
+            ],
+            "scale": 72224
+          },
+          "be53e729-fdf6-49e4-b195-fd2430a2fa3b": {
+            "id": "be53e729-fdf6-49e4-b195-fd2430a2fa3b",
+            "type": "POINT_NUMBERED_TOUR",
+            "nodes": [
+              {
+                "long": 14.389353192541002,
+                "lat": 50.106732244849404
+              }
+            ],
+            "scale": 72224
+          }
+        },
+        "mode": "2d",
+        "basemap": {
+          "type": "resource",
+          "value": "r-NKzjwa"
+        },
+        "defaultScale": 40000,
+        "locate": true
+      }
+    },
+    "n-KKi8wX": {
+      "type": "tour",
+      "data": {
+        "type": "guided-tour",
+        "subtype": "map-focused",
+        "narrativePanelPosition": "start",
+        "places": [
+          {
+            "id": "n-eOAZYX",
+            "featureId": "0d5bfc56-09ce-4f9f-a5c2-9c30905e3e42",
+            "contents": [
+              "n-li8TNL"
+            ],
+            "media": "n-xNTiGE",
+            "title": "n-1NET5j"
+          },
+          {
+            "id": "n-BkW2aK",
+            "featureId": "be53e729-fdf6-49e4-b195-fd2430a2fa3b",
+            "contents": [
+              "n-u3FWji"
+            ],
+            "media": "n-mgOJwx"
+          }
+        ],
+        "narrativePanelSize": "small",
+        "accentColor": "accentColor1",
+        "map": "n-IM8e8O"
+      }
+    },
+    "n-nfyTsq": {
+      "type": "separator"
+    },
+    "n-2r9r2r": {
+      "type": "text",
+      "data": {
+        "type": "paragraph",
+        "text": "Whether the diversity of these places is indicative of their higher or lower quality is left to the reader's discretion. Our answer would be simple, and not very useful \"It depends on the definition of quality, and that is very variable.\""
+      }
+    },
+    "n-1ybW4q": {
+      "type": "text",
+      "data": {
+        "text": "<em>Prague is not just one city. It has many characters made up of different types of urban patterns. It's not just a bridge and\na castle, it's a city of diversity. </em>",
+        "type": "quote",
+        "textAlignment": "start"
+      }
+    },
+    "n-mCoyHK": {
+      "type": "text",
+      "data": {
+        "text": "A city that is made up of many types of buildings. But it's not just what it looks like that matters, but how it's put together. All types of structures meet and interact in often very\noriginal ways. There are few places in Prague that could be considered homogeneous. Is this good or bad? It depends on what kind of city we want to live in. And each of us can influence that.",
+        "type": "paragraph"
+      }
+    },
+    "n-yoR4Y7": {
+      "type": "separator"
+    },
+    "n-FGJEab": {
+      "type": "button",
+      "data": {
+        "text": "EN / CZ",
+        "link": "https://storymaps.arcgis.com/stories/12bf3e7625cd45519200eac7aa09916e"
+      }
+    },
+    "n-30J4kk": {
+      "type": "text",
+      "data": {
+        "text": "",
+        "type": "paragraph"
+      }
+    },
+    "n-3Culmj": {
+      "type": "text",
+      "data": {
+        "text": "<li><a href=\"https://iprpraha.cz/\" rel=\"noopener noreferrer\" target=\"_blank\"><strong>Institute of Planning</strong> and Development</a></li>",
+        "type": "bullet-list"
+      }
+    },
+    "n-Nlei8R": {
+      "type": "text",
+      "data": {
+        "text": "<li><a href=\"https://uap.iprpraha.cz/#/\" rel=\"noopener noreferrer\" target=\"_blank\"> Prague 2020 Planning analytical material</a></li>",
+        "type": "bullet-list"
+      }
+    },
+    "n-PNp9SQ": {
+      "type": "text",
+      "data": {
+        "text": "Author team",
+        "type": "h4"
+      }
+    },
+    "n-3XUxx7": {
+      "type": "text",
+      "data": {
+        "text": "Published: 08/202. The analysis of the measurable structural characteristics of the development was created for the Prague 2020 Planning analytical material. <a href=\"https://uap@iprpraha.cz\" rel=\"noopener noreferrer\" target=\"_blank\">Do you have questions? Contact us via <strong>uap@iprpraha.cz .</strong></a>",
+        "type": "paragraph"
+      }
+    },
+    "n-HwTaCH": {
+      "type": "attribution",
+      "data": {
+        "content": "<strong>Expert guarantee of texts and analysis</strong>",
+        "attribution": "Martin Fleischmann, MSc., Ph.D. "
+      }
+    },
+    "n-7Z1KTH": {
+      "type": "attribution",
+      "data": {
+        "content": "",
+        "attribution": "Ing. arch. Zdeňka Havlová, Ph.D."
+      }
+    },
+    "n-knHisE": {
+      "type": "attribution",
+      "data": {
+        "content": "<strong>Storymap building</strong>",
+        "attribution": "Ing. arch. Alena Zmeškalová"
+      }
+    },
+    "n-CX1LTf": {
+      "type": "attribution",
+      "data": {
+        "content": "",
+        "attribution": "Ing.  Jakub Hrubý"
+      }
+    },
+    "n-ic3NiT": {
+      "type": "credits",
+      "children": [
+        "n-PNp9SQ",
+        "n-3XUxx7",
+        "n-HwTaCH",
+        "n-7Z1KTH",
+        "n-knHisE",
+        "n-CX1LTf"
+      ]
+    },
+    "n-aBqtHV": {
+      "type": "story",
+      "data": {
+        "storyTheme": "r-HKQWTX",
+        "metaSettings": {
+          "imageResourceId": "r-wtPu1b"
+        }
+      },
+      "config": {
+        "coverDate": "none",
+        "isSocialIconsHidden": false,
+        "storyLocale": "en-gb"
+      },
+      "children": [
+        "n-02Mwzw",
+        "n-TWGRS6",
+        "n-0Bznf1",
+        "n-1ImJb1",
+        "n-lVvZ2D",
+        "n-RBb6bb",
+        "n-wo5E4s",
+        "n-rMhEp0",
+        "n-Dl1OFM",
+        "n-wDbI1F",
+        "n-fEIjL5",
+        "n-ezbgzS",
+        "n-9efetM",
+        "n-y0xFuF",
+        "n-uh0mWT",
+        "n-pQDk3p",
+        "n-RYii0r",
+        "n-VXKet3",
+        "n-8qIngY",
+        "n-MGl5mF",
+        "n-LTzav8",
+        "n-DgdGjX",
+        "n-cOUlUW",
+        "n-pcY7hL",
+        "n-0Alfax",
+        "n-d7fnhK",
+        "n-KCqjVk",
+        "n-gJztiL",
+        "n-JXRUzL",
+        "n-PYbHyr",
+        "n-8XJFqG",
+        "n-xvdk1O",
+        "n-KPHPf1",
+        "n-e1vzaG",
+        "n-WQCHkO",
+        "n-k0jzpq",
+        "n-kZrPv9",
+        "n-vAgg71",
+        "n-F0lNSa",
+        "n-28346T",
+        "n-AXJ1YS",
+        "n-sXQGhg",
+        "n-WmY6Vb",
+        "n-riTAfa",
+        "n-vuYiOy",
+        "n-Or5kxQ",
+        "n-bmwBzj",
+        "n-2j762r",
+        "n-xFOB9d",
+        "n-3Ji7UX",
+        "n-PsgUnf",
+        "n-FAXQ8u",
+        "n-VsipbN",
+        "n-MMFCqz",
+        "n-Zqh3fW",
+        "n-S3JBOx",
+        "n-N7Dn24",
+        "n-41g0V9",
+        "n-KKi8wX",
+        "n-nfyTsq",
+        "n-2r9r2r",
+        "n-1ybW4q",
+        "n-mCoyHK",
+        "n-yoR4Y7",
+        "n-FGJEab",
+        "n-30J4kk",
+        "n-3Culmj",
+        "n-Nlei8R",
+        "n-ic3NiT"
+      ]
+    }
+  },
+  "resources": {
+    "r-aO38DX": {
+      "type": "video",
+      "data": {
+        "resourceId": "7UEkGjht7JLFN8XTy-D87.mp4",
+        "provider": "item-resource",
+        "url": "/data/story-documents/prague/assets/7UEkGjht7JLFN8XTy-D87.mp4"
+      }
+    },
+    "r-sYSgwG": {
+      "type": "image",
+      "data": {
+        "resourceId": "6KERlR1wn3WdwlQzVjdWu.jpeg",
+        "provider": "item-resource",
+        "height": 1080,
+        "width": 1920,
+        "url": "/data/story-documents/prague/assets/6KERlR1wn3WdwlQzVjdWu.jpeg"
+      }
+    },
+    "r-G0HNQX": {
+      "type": "image",
+      "data": {
+        "resourceId": "i8Fg60dHkEjaxl1hp0hbe.jpeg",
+        "provider": "item-resource",
+        "height": 3000,
+        "width": 4500,
+        "url": "/data/story-documents/prague/assets/i8Fg60dHkEjaxl1hp0hbe.jpeg"
+      }
+    },
+    "r-45ATUw": {
+      "type": "image",
+      "data": {
+        "resourceId": "FJN21r184rMJ1ZMsgfGUx.jpeg",
+        "provider": "item-resource",
+        "height": 4669,
+        "width": 7000,
+        "url": "/data/story-documents/prague/assets/FJN21r184rMJ1ZMsgfGUx.jpeg"
+      }
+    },
+    "r-sJqVX6": {
+      "type": "image",
+      "data": {
+        "resourceId": "ZcSJQsKPSYFhXexgIuH86.jpeg",
+        "provider": "item-resource",
+        "height": 4458,
+        "width": 6687,
+        "url": "/data/story-documents/prague/assets/ZcSJQsKPSYFhXexgIuH86.jpeg"
+      }
+    },
+    "r-vrcZ9y": {
+      "type": "image",
+      "data": {
+        "resourceId": "O4voEcQup0rMjg3XLNt9r.jpeg",
+        "provider": "item-resource",
+        "height": 4480,
+        "width": 6720,
+        "url": "/data/story-documents/prague/assets/O4voEcQup0rMjg3XLNt9r.jpeg"
+      }
+    },
+    "r-8hmenC": {
+      "type": "webmap",
+      "data": {
+        "type": "minimal",
+        "itemType": "Web Map",
+        "itemId": "76c6af0d4f9d47979c540a2ebfc40b0f",
+        "webmapUrl": "/data/story-documents/prague/maps/76c6af0d4f9d47979c540a2ebfc40b0f.json"
+      }
+    },
+    "r-IPCbm5": {
+      "type": "image",
+      "data": {
+        "resourceId": "uUzwsTiPuLKTbcmEJbX0I.jpeg",
+        "provider": "item-resource",
+        "height": 4500,
+        "width": 8000,
+        "url": "/data/story-documents/prague/assets/uUzwsTiPuLKTbcmEJbX0I.jpeg"
+      }
+    },
+    "r-pAXLIc": {
+      "type": "image",
+      "data": {
+        "resourceId": "ts6NGUpXVleWRpi-yAZ18.png",
+        "provider": "item-resource",
+        "height": 2251,
+        "width": 2072,
+        "url": "/data/story-documents/prague/assets/ts6NGUpXVleWRpi-yAZ18.png"
+      }
+    },
+    "r-c9d652628c4847ae8dd19c62996b670f": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.296301277,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268464,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140616,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140616,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "18216a02f01-layer-2",
+            "title": "UAP_Storymapa_SidlistniPrstenec",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "c9d652628c4847ae8dd19c62996b670f",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/c9d652628c4847ae8dd19c62996b670f.json"
+      }
+    },
+    "r-UzYyEv": {
+      "type": "image",
+      "data": {
+        "resourceId": "Ufmb5c5Su0u4mC1d6B0Ff.png",
+        "provider": "item-resource",
+        "height": 2251,
+        "width": 2072,
+        "url": "/data/story-documents/prague/assets/Ufmb5c5Su0u4mC1d6B0Ff.png"
+      }
+    },
+    "r-ba3a2ac114384e97a2407b90069727de": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.296301277,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268464,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140616,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140616,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "18216c418bf-layer-12",
+            "title": "UAP_Storymapa_VnitrniPeriferie",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "ba3a2ac114384e97a2407b90069727de",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/ba3a2ac114384e97a2407b90069727de.json"
+      }
+    },
+    "r-fwPeoO": {
+      "type": "image",
+      "data": {
+        "resourceId": "K0qd_kY44ZrWMnBObLvDl.png",
+        "provider": "item-resource",
+        "height": 2251,
+        "width": 2072,
+        "url": "/data/story-documents/prague/assets/K0qd_kY44ZrWMnBObLvDl.png"
+      }
+    },
+    "r-b0ecbadedb494127aa001f76a68e54fc": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1503913.6283885855,
+          "ymin": 6395748.5850009825,
+          "xmax": 1719160.3000395382,
+          "ymax": 6516824.837804643
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140619,
+          "y": 6456286.711402813
+        },
+        "zoom": 9,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 577790.5542885,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140619,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "18216e4cdab-layer-13",
+            "title": "UAP_Storymapa_PrumyslKomerce",
+            "visible": true
+          },
+          {
+            "id": "182c998cf36-layer-4",
+            "title": "UAP_Storymapa_PrumyslKomerce",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "b0ecbadedb494127aa001f76a68e54fc",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/b0ecbadedb494127aa001f76a68e54fc.json"
+      }
+    },
+    "r-RYxNfg": {
+      "type": "image",
+      "data": {
+        "resourceId": "SqGz9-2tx-sh4KAlE3IIk.png",
+        "provider": "item-resource",
+        "height": 4501,
+        "width": 4144,
+        "url": "/data/story-documents/prague/assets/SqGz9-2tx-sh4KAlE3IIk.png"
+      }
+    },
+    "r-b918fd8045d64bc3a214c4f3176ef4d3": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.296301277,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268464,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140616,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140616,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1822ab41598-layer-4",
+            "title": "UAP_Storymapa_HistorickaMestskaStruktura",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "b918fd8045d64bc3a214c4f3176ef4d3",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/b918fd8045d64bc3a214c4f3176ef4d3.json"
+      }
+    },
+    "r-nQjZWf": {
+      "type": "image",
+      "data": {
+        "resourceId": "_VDjts2HDd5aOJZ9TMB2B.png",
+        "provider": "item-resource",
+        "height": 4501,
+        "width": 4144,
+        "url": "/data/story-documents/prague/assets/_VDjts2HDd5aOJZ9TMB2B.png"
+      }
+    },
+    "r-7043527634934fb6b0b77695639fd2a1": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.296301277,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268464,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140616,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140616,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1822ab98262-layer-5",
+            "title": "UAP_Storymapa_Okraje",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "7043527634934fb6b0b77695639fd2a1",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/7043527634934fb6b0b77695639fd2a1.json"
+      }
+    },
+    "r-IqG0bx": {
+      "type": "image",
+      "data": {
+        "resourceId": "qFnDHlg43RFpsbCIJl0jh.png",
+        "provider": "item-resource",
+        "height": 4501,
+        "width": 4144,
+        "url": "/data/story-documents/prague/assets/qFnDHlg43RFpsbCIJl0jh.png"
+      }
+    },
+    "r-c7017f7251c14f2eb08c0f0766d4887d": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1503913.6283885855,
+          "ymin": 6395748.5850009825,
+          "xmax": 1719160.3000395382,
+          "ymax": 6516824.837804643
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140619,
+          "y": 6456286.711402813
+        },
+        "zoom": 9,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 577790.5542885,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140619,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1822abbb061-layer-4",
+            "title": "UAP_Storymapa_MistoKbydleni",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "c7017f7251c14f2eb08c0f0766d4887d",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/c7017f7251c14f2eb08c0f0766d4887d.json"
+      }
+    },
+    "r-Kqci2L": {
+      "type": "image",
+      "data": {
+        "resourceId": "CQYfDf_rkm2uMbYE03Xhj.png",
+        "provider": "item-resource",
+        "height": 4501,
+        "width": 4144,
+        "url": "/data/story-documents/prague/assets/CQYfDf_rkm2uMbYE03Xhj.png"
+      }
+    },
+    "r-a8d3e7486db54e5cb1cb93aed1156c51": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1557725.296301277,
+          "ymin": 6426017.648201872,
+          "xmax": 1665348.6321268464,
+          "ymax": 6486555.774603754
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1611536.9642140616,
+          "y": 6456286.711402813
+        },
+        "zoom": 10,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 288895.2771445,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1611536.9642140616,
+            "y": 6456286.711402813
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1822ac380ec-layer-4",
+            "title": "UAP_Storymapa_RuzneVyplne",
+            "visible": true
+          },
+          {
+            "id": "18216a0eea5-layer-11",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+            "visible": true
+          }
+        ],
+        "itemId": "a8d3e7486db54e5cb1cb93aed1156c51",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/a8d3e7486db54e5cb1cb93aed1156c51.json"
+      }
+    },
+    "r-cd71f36d3ad442f79daae02a0bf9a23f": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "xmin": 1598755.8916905175,
+          "ymin": 6457489.6945603555,
+          "xmax": 1612208.8086686905,
+          "ymax": 6465056.960360578
+        },
+        "center": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "x": 1605482.350179604,
+          "y": 6461273.327460467
+        },
+        "zoom": 13,
+        "viewpoint": {
+          "rotation": 359.9999037180771,
+          "scale": 36111.909643,
+          "targetGeometry": {
+            "spatialReference": {
+              "wkid": 102100
+            },
+            "x": 1605482.350179604,
+            "y": 6461273.327460467
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1828c2a8479-layer-5",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10_WFL1",
+            "visible": true
+          },
+          {
+            "id": "181143d6556-layer-11",
+            "title": "arch_plan_juttner_1816",
+            "visible": true
+          }
+        ],
+        "itemId": "cd71f36d3ad442f79daae02a0bf9a23f",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/cd71f36d3ad442f79daae02a0bf9a23f.json"
+      }
+    },
+    "r-7457dd56becd4c44981042acbbc0aedb": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1599059.068911361,
+          "ymin": 6457418.817337764,
+          "xmax": 1612511.985889534,
+          "ymax": 6464986.083137987
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1605785.5274004475,
+          "y": 6461202.450237876
+        },
+        "zoom": 13,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 36111.909643,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605785.5274004475,
+            "y": 6461202.450237876
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "11af49981fc94838b8f18239f72d327d",
+            "title": "buildings",
+            "visible": true
+          }
+        ],
+        "itemId": "7457dd56becd4c44981042acbbc0aedb",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/7457dd56becd4c44981042acbbc0aedb.json"
+      }
+    },
+    "r-ade8c8c9e4c74a9982e838e76164f139": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "xmin": 1498952.6511600784,
+          "ymin": 6400703.2633054415,
+          "xmax": 1714199.322811031,
+          "ymax": 6521779.516109102
+        },
+        "center": {
+          "spatialReference": {
+            "wkid": 102100
+          },
+          "x": 1606575.9869855547,
+          "y": 6461241.389707272
+        },
+        "zoom": 9,
+        "viewpoint": {
+          "rotation": 359.9920747044165,
+          "scale": 577790.5542885,
+          "targetGeometry": {
+            "spatialReference": {
+              "wkid": 102100
+            },
+            "x": 1606575.9869855547,
+            "y": 6461241.389707272
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1828d350f25-layer-4",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817_WFL1",
+            "visible": true
+          },
+          {
+            "id": "mapove_podklady_archiv_4825",
+            "title": "mapove_podklady_archiv",
+            "visible": true
+          }
+        ],
+        "itemId": "ade8c8c9e4c74a9982e838e76164f139",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/ade8c8c9e4c74a9982e838e76164f139.json"
+      }
+    },
+    "r-fe0cfc6fbd3a4298bae5203453068c98": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1599059.068911361,
+          "ymin": 6457418.817337764,
+          "xmax": 1612511.985889534,
+          "ymax": 6464986.083137987
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1605785.5274004475,
+          "y": 6461202.450237876
+        },
+        "zoom": 13,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 36111.909643,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605785.5274004475,
+            "y": 6461202.450237876
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "130667172dce409cadfe39839ced540d",
+            "title": "buildings",
+            "visible": true
+          }
+        ],
+        "itemId": "fe0cfc6fbd3a4298bae5203453068c98",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/fe0cfc6fbd3a4298bae5203453068c98.json"
+      }
+    },
+    "r-e35362e8bfd74fe0b0009039f418eda6": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1591991.2132678519,
+          "ymin": 6453407.4767925935,
+          "xmax": 1618897.0472241978,
+          "ymax": 6468542.008393037
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1605444.1302460248,
+          "y": 6460974.742592815
+        },
+        "zoom": 12,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605444.1302460248,
+            "y": 6460974.742592815
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1828d38e57b-layer-4",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_10817596_WFL1",
+            "visible": true
+          },
+          {
+            "id": "mapove_podklady_archiv_4825",
+            "title": "mapove_podklady_archiv",
+            "visible": true
+          }
+        ],
+        "itemId": "e35362e8bfd74fe0b0009039f418eda6",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/e35362e8bfd74fe0b0009039f418eda6.json"
+      }
+    },
+    "r-ae6410da99c4460eb2db4dcaac5d95a1": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1592516.213758101,
+          "ymin": 6453693.015782026,
+          "xmax": 1619422.047714447,
+          "ymax": 6468827.547382469
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1605969.130736274,
+          "y": 6461260.2815822475
+        },
+        "zoom": 12,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1605969.130736274,
+            "y": 6461260.2815822475
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "315c1459500246bcbf788e77459cb98d",
+            "title": "buildings",
+            "visible": true
+          }
+        ],
+        "itemId": "ae6410da99c4460eb2db4dcaac5d95a1",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/ae6410da99c4460eb2db4dcaac5d95a1.json"
+      }
+    },
+    "r-5775c229988844fca165d29c0e5a104d": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1603585.3992836543,
+          "ymin": 6450853.000705992,
+          "xmax": 1630491.2332400002,
+          "ymax": 6465987.5323064355
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1617038.3162618272,
+          "y": 6458420.266506214
+        },
+        "zoom": 12,
+        "viewpoint": {
+          "rotation": 359.9980648969174,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1617038.3162618272,
+            "y": 6458420.266506214
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "1828d3b9393-layer-4",
+            "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all_WFL1",
+            "visible": true
+          },
+          {
+            "id": "1826df6956f-layer-6",
+            "title": "UAP_Storymapa__ort_1966",
+            "visible": true
+          }
+        ],
+        "itemId": "5775c229988844fca165d29c0e5a104d",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/5775c229988844fca165d29c0e5a104d.json"
+      }
+    },
+    "r-f7855f008ebd45e3882afb0b642b73fb": {
+      "type": "webmap",
+      "data": {
+        "extent": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "xmin": 1593273.1968432285,
+          "ymin": 6452994.262164969,
+          "xmax": 1620179.0307995745,
+          "ymax": 6468128.793765413
+        },
+        "center": {
+          "spatialReference": {
+            "latestWkid": 3857,
+            "wkid": 102100
+          },
+          "x": 1606726.1138214015,
+          "y": 6460561.527965191
+        },
+        "zoom": 12,
+        "viewpoint": {
+          "rotation": 0,
+          "scale": 72223.819286,
+          "targetGeometry": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "x": 1606726.1138214015,
+            "y": 6460561.527965191
+          }
+        },
+        "mapLayers": [
+          {
+            "id": "400bfa4e90794811bff298b5ee124048",
+            "title": "buildings",
+            "visible": true
+          }
+        ],
+        "itemId": "f7855f008ebd45e3882afb0b642b73fb",
+        "itemType": "Web Map",
+        "type": "default",
+        "webmapUrl": "/data/story-documents/prague/maps/f7855f008ebd45e3882afb0b642b73fb.json"
+      }
+    },
+    "r-Wrdqw5": {
+      "type": "image",
+      "data": {
+        "resourceId": "-OcAdL_cg5iA9A7IseyIL.png",
+        "provider": "item-resource",
+        "height": 1755,
+        "width": 2481,
+        "url": "/data/story-documents/prague/assets/-OcAdL_cg5iA9A7IseyIL.png"
+      }
+    },
+    "r-bLwNpC": {
+      "type": "image",
+      "data": {
+        "resourceId": "fYs6LDk6BBcJAfy-BZPsX.png",
+        "provider": "item-resource",
+        "height": 1754,
+        "width": 2481,
+        "url": "/data/story-documents/prague/assets/fYs6LDk6BBcJAfy-BZPsX.png"
+      }
+    },
+    "r-way9Qs": {
+      "type": "image",
+      "data": {
+        "resourceId": "1PgWkIz7Z0mt5OgkuE4j0.png",
+        "provider": "item-resource",
+        "height": 1754,
+        "width": 2481,
+        "url": "/data/story-documents/prague/assets/1PgWkIz7Z0mt5OgkuE4j0.png"
+      }
+    },
+    "r-JL3UE7": {
+      "type": "image",
+      "data": {
+        "resourceId": "jpd6WK3OsQ1HSls6LDo5E.png",
+        "provider": "item-resource",
+        "height": 3508,
+        "width": 4961,
+        "url": "/data/story-documents/prague/assets/jpd6WK3OsQ1HSls6LDo5E.png"
+      }
+    },
+    "r-0m9m5p": {
+      "type": "image",
+      "data": {
+        "resourceId": "e61q_FP1EVKCyDm0wWr-p.png",
+        "provider": "item-resource",
+        "height": 3508,
+        "width": 4961,
+        "url": "/data/story-documents/prague/assets/e61q_FP1EVKCyDm0wWr-p.png"
+      }
+    },
+    "r-2QCFZD": {
+      "type": "image",
+      "data": {
+        "resourceId": "hfF8EOJWWGmliz-qPbiZJ.png",
+        "provider": "item-resource",
+        "height": 3508,
+        "width": 4961,
+        "url": "/data/story-documents/prague/assets/hfF8EOJWWGmliz-qPbiZJ.png"
+      }
+    },
+    "r-TlbUhV": {
+      "type": "image",
+      "data": {
+        "resourceId": "WRCuAJzHZs3UAbPPenruB.png",
+        "provider": "item-resource",
+        "height": 1755,
+        "width": 2481,
+        "url": "/data/story-documents/prague/assets/WRCuAJzHZs3UAbPPenruB.png"
+      }
+    },
+    "r-8LH07W": {
+      "type": "image",
+      "data": {
+        "resourceId": "V1GJJhbvACqyp0ftHl4AT.png",
+        "provider": "item-resource",
+        "height": 451,
+        "width": 451,
+        "url": "/data/story-documents/prague/assets/V1GJJhbvACqyp0ftHl4AT.png"
+      }
+    },
+    "r-ep11lT": {
+      "type": "image",
+      "data": {
+        "resourceId": "OUNWafO5urLbsTujGMXLU.png",
+        "provider": "item-resource",
+        "height": 38,
+        "width": 1046,
+        "url": "/data/story-documents/prague/assets/OUNWafO5urLbsTujGMXLU.png"
+      }
+    },
+    "r-vHZhd4": {
+      "type": "image",
+      "data": {
+        "resourceId": "tIVFQcBMvoy_AAZYtzsDI.jpeg",
+        "provider": "item-resource",
+        "height": 2099,
+        "width": 4500,
+        "url": "/data/story-documents/prague/assets/tIVFQcBMvoy_AAZYtzsDI.jpeg"
+      }
+    },
+    "r-G5J1lG": {
+      "type": "image",
+      "data": {
+        "resourceId": "pTtY0xGG7HYIi-3XfyXSo.jpeg",
+        "provider": "item-resource",
+        "height": 4333,
+        "width": 6500,
+        "url": "/data/story-documents/prague/assets/pTtY0xGG7HYIi-3XfyXSo.jpeg"
+      }
+    },
+    "r-H76Gfi": {
+      "type": "image",
+      "data": {
+        "resourceId": "cp_vLRrTPAEWjkUb6jOJg.jpeg",
+        "provider": "item-resource",
+        "height": 3456,
+        "width": 4608,
+        "url": "/data/story-documents/prague/assets/cp_vLRrTPAEWjkUb6jOJg.jpeg"
+      }
+    },
+    "r-6peVNt": {
+      "type": "image",
+      "data": {
+        "resourceId": "6PrpmFT49XiCSRsVjmfbf.jpeg",
+        "provider": "item-resource",
+        "height": 682,
+        "width": 1024,
+        "url": "/data/story-documents/prague/assets/6PrpmFT49XiCSRsVjmfbf.jpeg"
+      }
+    },
+    "r-m1rEtJ": {
+      "type": "image",
+      "data": {
+        "resourceId": "vaB_ToYl7ankwuV_7yFk4.jpeg",
+        "provider": "item-resource",
+        "height": 1000,
+        "width": 750,
+        "url": "/data/story-documents/prague/assets/vaB_ToYl7ankwuV_7yFk4.jpeg"
+      }
+    },
+    "r-otynrC": {
+      "type": "image",
+      "data": {
+        "resourceId": "9wJaC4N9CszotKi7GT8RN.jpeg",
+        "provider": "item-resource",
+        "height": 1052,
+        "width": 1500,
+        "url": "/data/story-documents/prague/assets/9wJaC4N9CszotKi7GT8RN.jpeg"
+      }
+    },
+    "r-fJqoAM": {
+      "type": "webmap",
+      "data": {
+        "type": "minimal",
+        "itemType": "Web Map",
+        "itemId": "1e679b95db3e4710855af2ca7fe5bbf9",
+        "webmapUrl": "/data/story-documents/prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json"
+      }
+    },
+    "r-ndqNTZ": {
+      "type": "image",
+      "data": {
+        "resourceId": "zBEP3A1MRbTqUyZ8WXmeH.png",
+        "provider": "item-resource",
+        "height": 451,
+        "width": 451,
+        "url": "/data/story-documents/prague/assets/zBEP3A1MRbTqUyZ8WXmeH.png"
+      }
+    },
+    "r-DzaKE1": {
+      "type": "image",
+      "data": {
+        "resourceId": "MscPHzvQUwbaVuOou0TFS.png",
+        "provider": "item-resource",
+        "height": 34,
+        "width": 1046,
+        "url": "/data/story-documents/prague/assets/MscPHzvQUwbaVuOou0TFS.png"
+      }
+    },
+    "r-xPsdQX": {
+      "type": "image",
+      "data": {
+        "resourceId": "lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+        "provider": "item-resource",
+        "height": 4399,
+        "width": 6598,
+        "url": "/data/story-documents/prague/assets/lfsHRpqz8eAaZG5Pe-yJV.jpeg"
+      }
+    },
+    "r-KGvJsl": {
+      "type": "image",
+      "data": {
+        "resourceId": "bnfJTyXhMzHIsABquRDLf.jpeg",
+        "provider": "item-resource",
+        "height": 1728,
+        "width": 2592,
+        "url": "/data/story-documents/prague/assets/bnfJTyXhMzHIsABquRDLf.jpeg"
+      }
+    },
+    "r-mtFcyr": {
+      "type": "image",
+      "data": {
+        "resourceId": "_uQ4Z2Br4RiLUNF48Mzrm.jpeg",
+        "provider": "item-resource",
+        "height": 2848,
+        "width": 4288,
+        "url": "/data/story-documents/prague/assets/_uQ4Z2Br4RiLUNF48Mzrm.jpeg"
+      }
+    },
+    "r-KX70hB": {
+      "type": "webmap",
+      "data": {
+        "type": "minimal",
+        "itemType": "Web Map",
+        "itemId": "dfb5afe9125d42cba2e1c31b2de2581e",
+        "webmapUrl": "/data/story-documents/prague/maps/dfb5afe9125d42cba2e1c31b2de2581e.json"
+      }
+    },
+    "r-MMUwHm": {
+      "type": "image",
+      "data": {
+        "resourceId": "LlHnIjkEqI1ShBq3HdAIk.png",
+        "provider": "item-resource",
+        "height": 451,
+        "width": 451,
+        "url": "/data/story-documents/prague/assets/LlHnIjkEqI1ShBq3HdAIk.png"
+      }
+    },
+    "r-9kkq3w": {
+      "type": "image",
+      "data": {
+        "resourceId": "OsK_vpTXVOM_0MBhOYU4D.png",
+        "provider": "item-resource",
+        "height": 61,
+        "width": 1046,
+        "url": "/data/story-documents/prague/assets/OsK_vpTXVOM_0MBhOYU4D.png"
+      }
+    },
+    "r-c4NCHT": {
+      "type": "image",
+      "data": {
+        "resourceId": "yjaAKtum6RAAvBvXw-rbZ.jpeg",
+        "provider": "item-resource",
+        "height": 4429,
+        "width": 6644,
+        "url": "/data/story-documents/prague/assets/yjaAKtum6RAAvBvXw-rbZ.jpeg"
+      }
+    },
+    "r-lLQSeW": {
+      "type": "image",
+      "data": {
+        "resourceId": "q5WSQIeSSfL5yR-182ikw.jpeg",
+        "provider": "item-resource",
+        "height": 3032,
+        "width": 4048,
+        "url": "/data/story-documents/prague/assets/q5WSQIeSSfL5yR-182ikw.jpeg"
+      }
+    },
+    "r-NKzjwa": {
+      "type": "webmap",
+      "data": {
+        "type": "minimal",
+        "itemType": "Web Map",
+        "itemId": "288a9f02b20e41819cbee773cff7aff0",
+        "webmapUrl": "/data/story-documents/prague/maps/288a9f02b20e41819cbee773cff7aff0.json"
+      }
+    },
+    "r-HKQWTX": {
+      "type": "story-theme",
+      "data": {
+        "themeId": "summit",
+        "themeBaseVariableOverrides": {},
+        "themeItemId": "115d21d3c6ed4f0595bc615a6236534b",
+        "theme": {
+          "title": "UAP_Dark",
+          "baseThemeId": "summit",
+          "variables": {
+            "headerFooterBackgroundColor": "#000000",
+            "backgroundColor": "#000000",
+            "titleFontId": "notoSans",
+            "titleColor": "#FFFFFF",
+            "bodyFontId": "r-AUSivJ",
+            "bodyColor": "#FFFFFF",
+            "themeColor1": "#ffffff",
+            "themeColor2": "#ffffff",
+            "themeColor3": "#ffffff",
+            "borderRadius": 9999,
+            "bodyMutedColor": "#FFFFFF",
+            "basemapPrimary": "humanGeographyLight",
+            "basemapAlt": "lightGrayCanvas",
+            "basemapImagery": "worldImagery",
+            "titleColorDark": "#002625",
+            "bodyColorDark": "#002625",
+            "titleColorLight": "#ffffff",
+            "bodyColorLight": "#ffffff",
+            "blockQuoteStyle": "line-left",
+            "linkStyle": "solid-underline",
+            "blockQuoteAlignment": "start",
+            "separatorAlignment": "full",
+            "buttonColor": "#ffffff"
+          },
+          "logo": {
+            "resource": "r-ECiIct",
+            "link": "https://uap.iprpraha.cz/#/",
+            "alt": "Územně analytické podklady hl. m. Prahy 2020"
+          },
+          "bodyFont": {
+            "resource": "r-AUSivJ"
+          },
+          "resources": {
+            "r-ECiIct": {
+              "type": "image",
+              "data": {
+                "provider": "item-resource",
+                "resourceId": "ddA2Y61d8U6wMygbsDBJM.png",
+                "height": 86,
+                "width": 144,
+                "url": "/data/story-documents/prague/assets/ddA2Y61d8U6wMygbsDBJM.png"
+              }
+            },
+            "r-AUSivJ": {
+              "type": "font",
+              "data": {
+                "displayName": "Noto Sans",
+                "family": "'Noto Sans', sans-serif",
+                "variants": [
+                  "regular",
+                  "italic",
+                  "700",
+                  "700italic"
+                ],
+                "weight": {
+                  "normal": 400,
+                  "bold": 700
+                },
+                "variableDefaults": {
+                  "titleWeight": "bold",
+                  "bodyWeight": "normal",
+                  "fontSizeScale": "minorThird",
+                  "fontSizeBase": 16
+                },
+                "provider": "google"
+              }
+            }
+          },
+          "fontFamily": "Noto Sans",
+          "localFonts": [
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-700.woff2",
+              "weight": "700",
+              "style": "normal",
+              "unicodeRange": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+            },
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-regular.woff2",
+              "weight": "400",
+              "style": "normal",
+              "unicodeRange": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+            },
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-italic.woff2",
+              "weight": "400",
+              "style": "italic",
+              "unicodeRange": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+            },
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-700italic.woff2",
+              "weight": "700",
+              "style": "italic",
+              "unicodeRange": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+            },
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-ext-regular.woff2",
+              "weight": "400",
+              "style": "normal",
+              "unicodeRange": "U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF"
+            },
+            {
+              "url": "/data/story-documents/prague/assets/noto-sans-v12-latin-ext-700.woff2",
+              "weight": "700",
+              "style": "normal",
+              "unicodeRange": "U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF"
+            }
+          ]
+        }
+      }
+    },
+    "r-wtPu1b": {
+      "type": "image",
+      "data": {
+        "resourceId": "AAJnmUGGc3tkGrlOJ8Hxk.png",
+        "provider": "item-resource",
+        "height": 1042,
+        "width": 1667,
+        "url": "/data/story-documents/prague/assets/AAJnmUGGc3tkGrlOJ8Hxk.png"
+      }
+    }
+  },
+  "actions": [
+    {
+      "origin": "n-qQlpDt",
+      "trigger": "InlineAction_Apply",
+      "target": "n-AuqWAb",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-k4kcJu",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1613442.2210418992,
+            "ymin": 6449401.791767133,
+            "xmax": 1619652.7295900616,
+            "ymax": 6452894.0084969085
+          },
+          "mapLayers": [
+            {
+              "id": "18216a02f01-layer-2",
+              "title": "UAP_Storymapa_SidlistniPrstenec",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1616547.4753159804,
+              "y": 6451147.900132021
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-qQlpDt",
+      "trigger": "InlineAction_Apply",
+      "target": "n-Dj1K2X",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-YbZ3qH",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1604091.6692187486,
+            "ymin": 6445228.721783518,
+            "xmax": 1628303.0979280456,
+            "ymax": 6458853.622075331
+          },
+          "mapLayers": [
+            {
+              "id": "18216a02f01-layer-2",
+              "title": "UAP_Storymapa_SidlistniPrstenec",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1616197.383573397,
+              "y": 6452041.171929425
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-feV1dR",
+      "trigger": "InlineAction_Apply",
+      "target": "n-K4mGA0",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-2Yg7Q4",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1611967.4491983128,
+            "ymin": 6462289.343459952,
+            "xmax": 1618130.184603797,
+            "ymax": 6465757.6736183865
+          },
+          "mapLayers": [
+            {
+              "id": "18216c418bf-layer-12",
+              "title": "UAP_Storymapa_VnitrniPeriferie",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1615048.816901055,
+              "y": 6464023.508539169
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-feV1dR",
+      "trigger": "InlineAction_Apply",
+      "target": "n-f7sWIn",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-hNCnTy",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1602873.0062072405,
+            "ymin": 6456439.734750468,
+            "xmax": 1627103.5441736088,
+            "ymax": 6470064.635042282
+          },
+          "mapLayers": [
+            {
+              "id": "18216c418bf-layer-12",
+              "title": "UAP_Storymapa_VnitrniPeriferie",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1614988.2751904246,
+              "y": 6463252.184896375
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-7ipjNq",
+      "trigger": "InlineAction_Apply",
+      "target": "n-8kcgP0",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-SE3Iup",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1614494.648445995,
+            "ymin": 6457282.718107266,
+            "xmax": 1620657.3838514793,
+            "ymax": 6460751.048265701
+          },
+          "mapLayers": [
+            {
+              "id": "18216e4cdab-layer-13",
+              "title": "UAP_Storymapa_PrumyslKomerce",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1617576.0161487372,
+              "y": 6459016.883186484
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-7ipjNq",
+      "trigger": "InlineAction_Apply",
+      "target": "n-gE652S",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-YNJomL",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1605852.333463048,
+            "ymin": 6451815.7424124265,
+            "xmax": 1630140.1992006302,
+            "ymax": 6465478.861218383
+          },
+          "mapLayers": [
+            {
+              "id": "18216e4cdab-layer-13",
+              "title": "UAP_Storymapa_PrumyslKomerce",
+              "visible": true
+            },
+            {
+              "id": "182c998cf36-layer-4",
+              "title": "UAP_Storymapa_PrumyslKomerce",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1617996.2663318391,
+              "y": 6458647.301815405
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-u3ea2I",
+      "trigger": "InlineAction_Apply",
+      "target": "n-sPT1Y4",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-ygDK0Q",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1603850.045801923,
+            "ymin": 6457921.086726305,
+            "xmax": 1609902.902979247,
+            "ymax": 6461327.311799259
+          },
+          "mapLayers": [
+            {
+              "id": "1822ab41598-layer-4",
+              "title": "UAP_Storymapa_HistorickaMestskaStruktura",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1606876.474390585,
+              "y": 6459624.199262782
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-u3ea2I",
+      "trigger": "InlineAction_Apply",
+      "target": "n-shC9nN",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-4vfaQv",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1594756.7971394158,
+            "ymin": 6453321.492153213,
+            "xmax": 1618968.2258487127,
+            "ymax": 6466946.392445027
+          },
+          "mapLayers": [
+            {
+              "id": "1822ab41598-layer-4",
+              "title": "UAP_Storymapa_HistorickaMestskaStruktura",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1606862.5114940642,
+              "y": 6460133.94229912
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-MLRf4R",
+      "trigger": "InlineAction_Apply",
+      "target": "n-BLUxaT",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-V1eVwV",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1607559.2944259297,
+            "ymin": 6466002.100424152,
+            "xmax": 1610595.2776432114,
+            "ymax": 6467709.990274943
+          },
+          "mapLayers": [
+            {
+              "id": "1822ab98262-layer-5",
+              "title": "UAP_Storymapa_Okraje",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 9027.977411,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1609077.2860345705,
+              "y": 6466856.045349548
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-MLRf4R",
+      "trigger": "InlineAction_Apply",
+      "target": "n-xc2rp0",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-ulxjHV",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1591278.9123524383,
+            "ymin": 6450216.237879127,
+            "xmax": 1615490.3410617353,
+            "ymax": 6463841.138170941
+          },
+          "mapLayers": [
+            {
+              "id": "1822ab98262-layer-5",
+              "title": "UAP_Storymapa_Okraje",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1603384.6267070868,
+              "y": 6457028.688025034
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-rzAYz1",
+      "trigger": "InlineAction_Apply",
+      "target": "n-5clluE",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-BWaikd",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1610288.0739421032,
+            "ymin": 6457467.0179342525,
+            "xmax": 1616345.7084336954,
+            "ymax": 6460873.243007206
+          },
+          "mapLayers": [
+            {
+              "id": "1822abbb061-layer-4",
+              "title": "UAP_Storymapa_MistoKbydleni",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1613316.8911878993,
+              "y": 6459170.130470729
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-rzAYz1",
+      "trigger": "InlineAction_Apply",
+      "target": "n-YOiPLY",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-eX7mnL",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1589415.7597879816,
+            "ymin": 6455251.527117417,
+            "xmax": 1613627.1884972786,
+            "ymax": 6468876.427409231
+          },
+          "mapLayers": [
+            {
+              "id": "1822abbb061-layer-4",
+              "title": "UAP_Storymapa_MistoKbydleni",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1601521.4741426301,
+              "y": 6462063.977263324
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-rzAYz1",
+      "trigger": "InlineAction_Apply",
+      "target": "n-AtqgBj",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-BI41UH",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1589473.0875592,
+            "ymin": 6453799.223579998,
+            "xmax": 1613684.5162684969,
+            "ymax": 6467424.123871812
+          },
+          "mapLayers": [
+            {
+              "id": "1822abbb061-layer-4",
+              "title": "UAP_Storymapa_MistoKbydleni",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1601578.8019138484,
+              "y": 6460611.673725905
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-3DLCzS",
+      "trigger": "InlineAction_Apply",
+      "target": "n-PjUjEO",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-hny1dX",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1607241.565704403,
+            "ymin": 6452678.506836115,
+            "xmax": 1613404.3011098872,
+            "ymax": 6456146.83699455
+          },
+          "mapLayers": [
+            {
+              "id": "1822ac380ec-layer-4",
+              "title": "UAP_Storymapa_RuzneVyplne",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 18055.9548215,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1610322.933407145,
+              "y": 6454412.671915333
+            }
+          }
+        }
+      }
+    },
+    {
+      "origin": "n-3DLCzS",
+      "trigger": "InlineAction_Apply",
+      "target": "n-BDdmBg",
+      "event": "WebMap_UpdateData",
+      "data": {
+        "actionId": "a-P0BCfl",
+        "mapData": {
+          "extent": {
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            },
+            "xmin": 1596662.4976590686,
+            "ymin": 6448968.015235575,
+            "xmax": 1620893.0356254368,
+            "ymax": 6462592.915527388
+          },
+          "mapLayers": [
+            {
+              "id": "1822ac380ec-layer-4",
+              "title": "UAP_Storymapa_RuzneVyplne",
+              "visible": true
+            },
+            {
+              "id": "18216a0eea5-layer-11",
+              "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_3",
+              "visible": true
+            }
+          ],
+          "viewpoint": {
+            "rotation": 0,
+            "scale": 72223.819286,
+            "targetGeometry": {
+              "spatialReference": {
+                "latestWkid": 3857,
+                "wkid": 102100
+              },
+              "x": 1608777.7666422527,
+              "y": 6455780.465381482
+            }
+          }
+        }
+      }
+    }
+  ],
+  "source": {
+    "itemId": "3ed83ef359d346618510764c6222ac01",
+    "url": "https://storymaps.arcgis.com/stories/3ed83ef359d346618510764c6222ac01",
+    "title": "The Diverse Prague",
+    "publisher": "Institute of Planning and Development (IPR Prague)",
+    "importFormat": "storymaps-har-v1",
+    "captureStarted": "2026-09-27T23:38:22.705Z",
+    "manifestUrl": "/data/story-documents/prague/manifest.json",
+    "note": "Content and credited media imported from the user-supplied capture for reference recreation. Original publisher retains rights. Mapping services remain live dependencies."
+  }
+}

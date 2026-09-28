@@ -1,6 +1,7 @@
 import { ProjectFolderCard, ProjectFolderRow } from '@/components/projects/ProjectFolderEntries'
 import {
   collectionMembers,
+  projectCatalogDestination,
   getCollectionForProject,
   getProjectCollection,
   summarizeCollections,
@@ -912,7 +913,7 @@ export default function DevProjects() {
   }
 
   function backToCatalog() {
-    navigate('/dev/projects')
+    navigate(projectCatalogDestination(projectSlug).href)
   }
 
   function leaveCollection() {

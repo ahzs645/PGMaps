@@ -1,3 +1,4 @@
+import NativeEditorialStory from '@/maps/project-story/editorial/NativeEditorialStory'
 import {
   BookOpen,
   Check,
@@ -46,6 +47,7 @@ import { cn } from '@/lib/utils'
 const ProjectMapExplorer = lazy(() =>
   import('@/maps/project-explorer/ProjectMapExplorer').then((m) => ({ default: m.ProjectMapExplorer })),
 )
+const EditorialStory = lazy(() => import('@/maps/project-story/editorial/EditorialStory'))
 const ProjectStoryMap = lazy(() =>
   import('@/maps/project-story/ProjectStoryMap').then((m) => ({ default: m.ProjectStoryMap })),
 )
@@ -772,7 +774,15 @@ function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPacka
   if (workspace.type === 'story-map') {
     return (
       <div className="h-[100dvh] bg-background md:h-[calc(100vh-3.5rem)]">
-        <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
+        {workspace.document ? (
+          workspace.document.schema === 'pgmaps-editorial-v1' ? (
+            <NativeEditorialStory project={project} onBack={onBack} documentUrl={workspace.document.data} />
+          ) : (
+            <EditorialStory project={project} onBack={onBack} documentUrl={workspace.document.data} />
+          )
+        ) : (
+          <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
+        )}
       </div>
     )
   }

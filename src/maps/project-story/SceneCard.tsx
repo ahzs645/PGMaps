@@ -1,3 +1,4 @@
+import { SceneInteraction } from './SceneInteraction'
 import { MapPin } from 'lucide-react'
 import type { ProjectSceneDef } from '@/lib/projectPackages'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,9 @@ export function SceneCard({
   accent,
   variant,
   onSelect,
+  onNavigate,
+  sceneLabels = [],
+  activeLabel,
 }: {
   scene: ProjectSceneDef
   index: number
@@ -60,23 +64,38 @@ export function SceneCard({
   variant: SceneCardVariant
   /** Selects the scene; `panel` and `overlay` cards are buttons. */
   onSelect?: () => void
+  onNavigate?: (index: number) => void
+  sceneLabels?: string[]
+  activeLabel?: string
 }) {
   const body = (
     <>
       <h2 className={cn('font-bold leading-snug text-foreground', titleClasses[variant])}>{scene.title}</h2>
       <p className={cn('mt-2 text-muted-foreground', textClasses[variant])}>{scene.text}</p>
+      {scene.interaction && onNavigate && (
+        <SceneInteraction
+          block={scene.interaction}
+          sceneLabels={sceneLabels}
+          activeLabel={activeLabel ?? scene.label}
+          onNavigate={onNavigate}
+        />
+      )}
       {scene.callout && <SceneCallout callout={scene.callout} variant={variant} />}
     </>
   )
 
   if (variant === 'slide') {
     return (
-      <div aria-hidden={!active} className={cn('col-start-1 row-start-1 text-center', !active && 'invisible')}>
+      <div
+        data-active-scene={active}
+        aria-hidden={!active}
+        className={cn('col-start-1 row-start-1 text-center', !active && 'invisible')}
+      >
         <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
           {scene.kicker ?? scene.label}
         </div>
         {body}
-        {scene.focus && (
+        {scene.focus && !scene.interaction && (
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
             <span>{scene.focus}</span>
@@ -85,6 +104,21 @@ export function SceneCard({
       </div>
     )
   }
+
+  if (scene.interaction)
+    return (
+      <section data-active-scene={active} className="w-full rounded-lg border bg-background/95 p-4 text-left shadow-sm">
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-current={active ? 'step' : undefined}
+          className="min-h-11 text-xs font-semibold text-primary"
+        >
+          {scene.kicker ?? scene.label}
+        </button>
+        {body}
+      </section>
+    )
 
   return (
     <button

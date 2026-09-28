@@ -1,0 +1,64 @@
+{
+  "operationalLayers": [
+    {
+      "id": "1826df6956f-layer-6",
+      "title": "UAP_Storymapa__ort_1966",
+      "url": "https://tiles.arcgis.com/tiles/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa__ort_1966/MapServer",
+      "itemId": "ecc95d2e808e43f794e660bbb578c752",
+      "layerType": "ArcGISTiledMapServiceLayer"
+    },
+    {
+      "id": "1828d3b9393-layer-4",
+      "title": "UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all_WFL1",
+      "url": "https://services5.arcgis.com/SBTXIEUGWbqzUecw/arcgis/rest/services/UAP_Storymapa_TaxonomickyUsporadaneUrbanniVzorce_all_WFL1/FeatureServer/1",
+      "itemId": "8c61aba29e274d1e8fcdc91e340044a2",
+      "layerType": "ArcGISFeatureLayer"
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "VectorTile_4717",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Base",
+        "visibility": true,
+        "itemId": "5e9b3685f4c24d8781073dd928ebda50",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/5e9b3685f4c24d8781073dd928ebda50/resources/styles/root.json"
+      },
+      {
+        "id": "VectorTile_9547",
+        "opacity": 1,
+        "title": "Dark Gray Canvas Reference",
+        "visibility": true,
+        "itemId": "747cb7a5329c478cbe6981076cc879c5",
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://www.arcgis.com/sharing/rest/content/items/747cb7a5329c478cbe6981076cc879c5/resources/styles/root.json",
+        "isReference": true
+      }
+    ],
+    "title": "Dark Gray Canvas"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "10.2",
+  "initialState": {
+    "viewpoint": {
+      "rotation": 359.9980648969174,
+      "targetGeometry": {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": 1612003.027023548,
+        "ymin": 6454096.797093839,
+        "xmax": 1622073.6055001065,
+        "ymax": 6462743.735918588
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "version": "2.25"
+}

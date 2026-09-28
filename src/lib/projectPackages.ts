@@ -58,6 +58,20 @@ export interface ProjectSceneLayerOverrideDef {
   category?: ProjectStoryCategoryDef
 }
 
+export interface ProjectSceneInteractionDef {
+  type: 'choices' | 'bars' | 'hierarchy'
+  title: string
+  description?: string
+  items: Array<{
+    label: string
+    sceneLabel: string
+    group?: string
+    /** Share of the explicitly described denominator, from 0 to 1. */
+    share?: number
+    detail?: string
+  }>
+}
+
 export interface ProjectSceneDef {
   label: string
   title: string
@@ -65,6 +79,24 @@ export interface ProjectSceneDef {
   focus: string
   visibleLayerIds: string[]
   kicker?: string
+  interaction?: ProjectSceneInteractionDef
+  /** Optional sidecar presentation for a chapter in a mixed editorial story. */
+  presentation?: 'docked' | 'floating' | 'slideshow'
+  /** Editorial paragraphs after the scene's introductory text. */
+  paragraphs?: string[]
+  /** Optional views within this chapter; selecting one does not advance the story. */
+  mapActions?: Array<{
+    label: string
+    visibleLayerIds: string[]
+    camera?: ProjectSceneDef['camera']
+  }>
+  /** Two synchronized maps revealed by a slider within this chapter. */
+  comparison?: {
+    leftLayerIds: string[]
+    rightLayerIds: string[]
+    leftLabel: string
+    rightLabel: string
+  }
   camera?: {
     center: [number, number]
     zoom: number
@@ -282,7 +314,19 @@ export interface ProjectStoryOptionsDef {
    * replicates KnightLab StoryMapJS: map on top, slide pane below, arrow/swipe
    * navigation.
    */
-  layout: 'panel' | 'scrolly' | 'slides'
+  layout: 'panel' | 'scrolly' | 'slides' | 'sidecar'
+  /** Default chapter presentation in the editorial sidecar layout. */
+  sidecarVariant: 'docked' | 'floating' | 'slideshow'
+  /** Editorial story palette; map styling remains authored separately. */
+  storyTheme: 'paper' | 'ink'
+  /** Show the editorial cover before the chapters. */
+  storyCover: boolean
+  /** Show named chapter navigation in the editorial layout. */
+  chapterNavigation: boolean
+  /** Side of the map occupied by the desktop editorial narrative. */
+  narrativeSide: 'left' | 'right'
+  /** Width of the desktop editorial narrative. */
+  narrativeWidth: 'medium' | 'large'
   /** Camera motion between scenes. Reduced-motion readers always jump. */
   sceneTransition: 'ease' | 'fly' | 'jump'
   /** Duration of ease/fly camera transitions, in milliseconds. */
@@ -317,6 +361,12 @@ export interface ProjectStoryOptionsDef {
 export interface ProjectStoryWorkspaceDef {
   type: 'story-map'
   schema: 'story-map-v1'
+  /** Imported editorial document; its own graph supplies maps and narrative. */
+  document?: {
+    schema: 'arcgis-story-document-v1' | 'pgmaps-editorial-v1'
+    data: string
+    basemap?: 'source' | 'pgmaps-dark' | 'pgmaps'
+  }
   map: {
     center: [number, number]
     zoom: number
@@ -475,6 +525,34 @@ function normalizeSceneCallout(value: unknown): ProjectSceneDef['callout'] {
   }
 }
 
+function normalizeSceneInteraction(value: unknown): ProjectSceneInteractionDef | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const block = value as Record<string, unknown>
+  if (!['choices', 'bars', 'hierarchy'].includes(String(block.type)) || typeof block.title !== 'string')
+    return undefined
+  const items: ProjectSceneInteractionDef['items'] = []
+  for (const raw of Array.isArray(block.items) ? block.items : []) {
+    if (!raw || typeof raw !== 'object') continue
+    const item = raw as Record<string, unknown>
+    if (typeof item.label !== 'string' || typeof item.sceneLabel !== 'string') continue
+    if (block.type === 'bars' && (!isFiniteNumber(item.share) || item.share < 0 || item.share > 1)) continue
+    items.push({
+      label: item.label,
+      sceneLabel: item.sceneLabel,
+      group: typeof item.group === 'string' ? item.group : undefined,
+      detail: typeof item.detail === 'string' ? item.detail : undefined,
+      share: isFiniteNumber(item.share) && item.share >= 0 && item.share <= 1 ? item.share : undefined,
+    })
+  }
+  if (!items.length) return undefined
+  return {
+    type: block.type as ProjectSceneInteractionDef['type'],
+    title: block.title,
+    description: typeof block.description === 'string' ? block.description : undefined,
+    items,
+  }
+}
+
 function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
   if (!isSceneDef(value)) return null
   const camera = value.camera
@@ -491,6 +569,17 @@ function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
     layerOverrides: normalizeSceneLayerOverrides((value as { layerOverrides?: unknown }).layerOverrides),
     legend: sceneLegend.length > 0 ? sceneLegend : undefined,
     callout: normalizeSceneCallout((value as { callout?: unknown }).callout),
+    interaction: normalizeSceneInteraction((value as { interaction?: unknown }).interaction),
+    presentation: ['docked', 'floating', 'slideshow'].includes(value.presentation ?? '')
+      ? value.presentation
+      : undefined,
+    paragraphs: Array.isArray(value.paragraphs)
+      ? value.paragraphs.filter(
+          (paragraph): paragraph is string => typeof paragraph === 'string' && paragraph.trim().length > 0,
+        )
+      : undefined,
+    mapActions: normalizeSceneMapActions(value.mapActions),
+    comparison: normalizeSceneComparison(value.comparison),
     camera: hasCamera
       ? {
           center: camera!.center,
@@ -505,6 +594,51 @@ function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
   }
 }
 
+function normalizeSceneMapActions(value: unknown): ProjectSceneDef['mapActions'] {
+  if (!Array.isArray(value)) return undefined
+  const actions: NonNullable<ProjectSceneDef['mapActions']> = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const raw = item as Record<string, unknown>
+    if (typeof raw.label !== 'string' || !raw.label.trim() || !Array.isArray(raw.visibleLayerIds)) continue
+    const camera = raw.camera as Record<string, unknown> | undefined
+    actions.push({
+      label: raw.label,
+      visibleLayerIds: [...new Set(raw.visibleLayerIds.filter((id): id is string => typeof id === 'string'))],
+      camera:
+        camera && isCoordinatePair(camera.center) && isFiniteNumber(camera.zoom)
+          ? {
+              center: camera.center,
+              zoom: Math.max(0, Math.min(22, camera.zoom)),
+              bearing: isFiniteNumber(camera.bearing) ? camera.bearing : undefined,
+              pitch: isFiniteNumber(camera.pitch) ? Math.max(0, Math.min(85, camera.pitch)) : undefined,
+            }
+          : undefined,
+    })
+  }
+  return actions.length > 0 ? actions : undefined
+}
+
+function normalizeSceneComparison(value: unknown): ProjectSceneDef['comparison'] {
+  if (!value || typeof value !== 'object') return undefined
+  const raw = value as Record<string, unknown>
+  if (
+    typeof raw.leftLabel !== 'string' ||
+    !raw.leftLabel.trim() ||
+    typeof raw.rightLabel !== 'string' ||
+    !raw.rightLabel.trim()
+  )
+    return undefined
+  const ids = (value: unknown) =>
+    Array.isArray(value)
+      ? [...new Set(value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0))]
+      : []
+  const leftLayerIds = ids(raw.leftLayerIds)
+  const rightLayerIds = ids(raw.rightLayerIds)
+  if (!leftLayerIds.length || !rightLayerIds.length) return undefined
+  return { leftLayerIds, rightLayerIds, leftLabel: raw.leftLabel, rightLabel: raw.rightLabel }
+}
+
 function isCoordinatePair(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length === 2 && isFiniteNumber(value[0]) && isFiniteNumber(value[1])
 }
@@ -516,7 +650,14 @@ function isProjectDataUrl(value: unknown): value is string {
 function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
   const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
   return {
-    layout: raw.layout === 'scrolly' || raw.layout === 'slides' ? raw.layout : 'panel',
+    layout: raw.layout === 'scrolly' || raw.layout === 'slides' || raw.layout === 'sidecar' ? raw.layout : 'panel',
+    sidecarVariant:
+      raw.sidecarVariant === 'floating' || raw.sidecarVariant === 'slideshow' ? raw.sidecarVariant : 'docked',
+    storyTheme: raw.storyTheme === 'ink' ? 'ink' : 'paper',
+    storyCover: raw.storyCover !== false,
+    chapterNavigation: raw.chapterNavigation !== false,
+    narrativeSide: raw.narrativeSide === 'right' ? 'right' : 'left',
+    narrativeWidth: raw.narrativeWidth === 'large' ? 'large' : 'medium',
     sceneTransition: raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
     sceneTransitionMs: isFiniteNumber(raw.sceneTransitionMs)
       ? Math.max(0, Math.min(5000, Math.round(raw.sceneTransitionMs)))
@@ -597,7 +738,23 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     const place = item as Partial<ProjectStoryPlaceDef>
     return typeof place?.id === 'string' && typeof place.label === 'string' && isCoordinatePair(place.coordinates)
   })
-  if (layers.length === 0) return undefined
+  const rawDocument = value.document as Record<string, unknown> | undefined
+  const document =
+    ['arcgis-story-document-v1', 'pgmaps-editorial-v1'].includes(String(rawDocument?.schema)) &&
+    isProjectDataUrl(rawDocument?.data)
+      ? {
+          schema: rawDocument!.schema as 'arcgis-story-document-v1' | 'pgmaps-editorial-v1',
+          data: rawDocument!.data as string,
+          basemap:
+            rawDocument!.basemap === 'pgmaps'
+              ? ('pgmaps' as const)
+              : rawDocument!.basemap === 'pgmaps-dark'
+                ? ('pgmaps-dark' as const)
+                : ('source' as const),
+        }
+      : undefined
+  if (rawDocument !== undefined && !document) return undefined
+  if (layers.length === 0 && !document) return undefined
 
   const basemap = map.basemap
   return {
@@ -612,6 +769,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     },
     accent: typeof value.accent === 'string' ? value.accent : '#0e7490',
     options: normalizeStoryOptions(value.options),
+    document,
     layers,
     places,
   }

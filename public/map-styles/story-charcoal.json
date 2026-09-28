@@ -1,0 +1,169 @@
+{
+  "version": 8,
+  "name": "PGMaps Story Charcoal",
+  "metadata": {
+    "pgmaps:description": "App-owned charcoal cartography over the same CARTO vector tiles used by PGMaps. Not an offline basemap."
+  },
+  "glyphs": "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
+  "sources": {
+    "pgmaps-carto": {
+      "type": "vector",
+      "url": "https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json",
+      "attribution": "\u00a9 OpenStreetMap contributors \u00a9 CARTO"
+    }
+  },
+  "layers": [
+    {
+      "id": "pgmaps-story-background",
+      "type": "background",
+      "paint": {
+        "background-color": "#343737"
+      }
+    },
+    {
+      "id": "pgmaps-story-parks",
+      "type": "fill",
+      "source": "pgmaps-carto",
+      "source-layer": "park",
+      "paint": {
+        "fill-color": "#303735"
+      }
+    },
+    {
+      "id": "pgmaps-story-water",
+      "type": "fill",
+      "source": "pgmaps-carto",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#1d2426"
+      }
+    },
+    {
+      "id": "pgmaps-story-waterways",
+      "type": "line",
+      "source": "pgmaps-carto",
+      "source-layer": "waterway",
+      "paint": {
+        "line-color": "#1d2426",
+        "line-width": 1
+      }
+    },
+    {
+      "id": "pgmaps-story-roads",
+      "type": "line",
+      "source": "pgmaps-carto",
+      "source-layer": "transportation",
+      "paint": {
+        "line-color": "#4b4e4e",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0.4,
+          14,
+          1.5,
+          18,
+          5
+        ]
+      }
+    },
+    {
+      "id": "pgmaps-story-buildings",
+      "type": "fill",
+      "source": "pgmaps-carto",
+      "source-layer": "building",
+      "paint": {
+        "fill-color": "#303232",
+        "fill-outline-color": "#484b4b"
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "pgmaps-story-boundaries",
+      "type": "line",
+      "source": "pgmaps-carto",
+      "source-layer": "boundary",
+      "paint": {
+        "line-color": "#636767",
+        "line-width": 0.6,
+        "line-dasharray": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "id": "pgmaps-story-road-labels",
+      "type": "symbol",
+      "source": "pgmaps-carto",
+      "source-layer": "transportation_name",
+      "paint": {
+        "text-color": "#b9bdbd",
+        "text-halo-color": "#303333",
+        "text-halo-width": 1
+      },
+      "minzoom": 13,
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name_en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Open Sans Regular"
+        ],
+        "text-size": 11
+      }
+    },
+    {
+      "id": "pgmaps-story-place-labels",
+      "type": "symbol",
+      "source": "pgmaps-carto",
+      "source-layer": "place",
+      "paint": {
+        "text-color": "#b9bdbd",
+        "text-halo-color": "#303333",
+        "text-halo-width": 1
+      },
+      "minzoom": 3,
+      "layout": {
+        "symbol-placement": "point",
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name_en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Open Sans Regular"
+        ],
+        "text-size": 14
+      }
+    }
+  ]
+}
