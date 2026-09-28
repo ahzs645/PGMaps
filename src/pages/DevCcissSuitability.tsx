@@ -3,7 +3,7 @@ import type { GeoTIFF } from 'geotiff'
 import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout, MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
-import { InlineAlert, MapSidebarShell, MapSwatch, SidebarSection } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, MapSidebarShell, MapSwatch, SidebarSection } from '@/components/ui/map-panels'
 import {
   MapCategoricalRaster,
   type CategoricalRasterPick,
@@ -45,13 +45,13 @@ const INITIAL_POINT: [number, number] =
 const INITIAL_ZOOM = query.has('z') && Number.isFinite(queryZoom) && queryZoom >= 4 && queryZoom <= 20 ? queryZoom : 5.5
 type RenderSource = 'tiles' | 'native' | 'vector' | 'trace'
 const INITIAL_RENDER_SOURCE: RenderSource =
-  query.get('render') === 'trace'
-    ? 'trace'
+  query.get('render') === 'tiles'
+    ? 'tiles'
     : query.get('render') === 'vector'
       ? 'vector'
       : query.get('render') === 'native'
         ? 'native'
-        : 'tiles'
+        : 'trace'
 const SOURCE = 'https://thebeczone.ca/shiny/cciss/'
 const selectClass = 'mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-sm'
 const REFERENCE_BGC = '/data/cciss/reference-bgc-1961-1990.tif'
@@ -289,6 +289,7 @@ export default function DevCcissSuitability() {
   const polygonLayer = numericLayer && (renderSource === 'vector' || renderSource === 'trace')
 
   useEffect(() => {
+    if (renderSource !== 'tiles') return
     const controller = new AbortController()
     fetch(`https://tileserver.thebeczone.ca/data/${tileId}.json`, { signal: controller.signal })
       .then((response) => setTileStatus({ id: tileId, available: response.ok }))
@@ -296,7 +297,7 @@ export default function DevCcissSuitability() {
         if (!controller.signal.aborted) setTileStatus({ id: tileId, available: false })
       })
     return () => controller.abort()
-  }, [tileId])
+  }, [tileId, renderSource])
 
   const tileAvailable = tileStatus?.id === tileId ? tileStatus.available : null
 
@@ -304,11 +305,11 @@ export default function DevCcissSuitability() {
     <MapSectionLayout
       desktopSidebarWidth={410}
       mobilePeekTitle="CCISS spatial"
-      mobilePeekSubtitle="Public tiles and numeric raster lookup"
+      mobilePeekSubtitle="Tile trace and numeric reference lookup"
       sidebar={
         <MapSidebarShell
           title="CCISS spatial"
-          subtitle="Public CCISS layers · numeric reference lookup"
+          subtitle="Tile trace · numeric reference lookup"
           className={MAP_SIDEBAR_CLASS}
         >
           <SidebarSection title="Analysis">
@@ -321,7 +322,9 @@ export default function DevCcissSuitability() {
               Calculate species suitability at the selected point and explore regional trends using the older numeric
               dataset.
             </p>
-            {analysisOpen && <LegacyAnalysisDialog point={point} onClose={() => setAnalysisOpen(false)} />}
+            {analysisOpen && (
+              <LegacyAnalysisDialog point={point} onPointChange={setPoint} onClose={() => setAnalysisOpen(false)} />
+            )}
           </SidebarSection>
           <SidebarSection title="Map layer">
             <label className="block text-sm">
@@ -450,27 +453,72 @@ export default function DevCcissSuitability() {
                 )}
               </>
             )}
-            <p className="mt-2 break-all text-xs text-muted-foreground">CCISS tile set: {tileId}</p>
-            {numericLayer && (
-              <div className="mt-3">
-                <p className="mb-1 text-sm">Compare map sources</p>
-                <SegmentedControl<RenderSource>
-                  label="Compare map sources"
-                  value={renderSource}
-                  onChange={(value) => {
-                    setRenderSource(value)
+            <div className="mt-3">
+              <p className="mb-1 text-sm">Map source</p>
+              <SegmentedControl<RenderSource>
+                label="Map source"
+                value={renderSource}
+                onChange={(value) => {
+                  setRenderSource(value)
+                  setVectorPick(null)
+                }}
+                variant="solid"
+                options={[
+                  { value: 'trace', label: 'Tile trace', disabled: !numericLayer },
+                  { value: 'vector', label: 'Numeric vector', disabled: !numericLayer || Boolean(suitabilityFile) },
+                ]}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tile trace is the default. Numeric vector preserves the downloaded GeoTIFF’s cell boundaries and codes.
+                The location and zoom stay in place as you switch.
+              </p>
+            </div>
+            {!numericLayer && renderSource !== 'tiles' && (
+              <InlineAlert title="No prepared overlay for this selection">
+                Trace and numeric views currently cover mapped 1961–1990 Pl/C4 only. Choose original CCISS tiles under
+                Comparison options to view this selection, or{' '}
+                <button
+                  className="underline"
+                  onClick={() => {
+                    setSelection(DEFAULT_SELECTION)
                     setVectorPick(null)
                   }}
-                  variant="solid"
-                  options={[
-                    { value: 'tiles', label: 'CCISS tiles' },
-                    { value: 'native', label: 'Numeric GeoTIFF', disabled: !suitabilityRaster.image },
-                    { value: 'vector', label: 'Vector', disabled: Boolean(suitabilityFile) },
-                    { value: 'trace', label: 'Tile trace' },
-                  ]}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">The location and zoom stay in place as you switch.</p>
-              </div>
+                >
+                  return to Pl/C4
+                </button>
+                .
+              </InlineAlert>
+            )}
+            <CollapsibleSection
+              label="Comparison options"
+              collapseOn="always"
+              className="mt-3"
+              defaultOpen={INITIAL_RENDER_SOURCE === 'tiles' || INITIAL_RENDER_SOURCE === 'native'}
+            >
+              <SegmentedControl<RenderSource>
+                label="Other map sources"
+                value={renderSource}
+                onChange={(value) => {
+                  setRenderSource(value)
+                  setVectorPick(null)
+                }}
+                options={[
+                  { value: 'tiles', label: 'Original CCISS tiles' },
+                  { value: 'native', label: 'Direct GeoTIFF', disabled: !numericLayer || !suitabilityRaster.image },
+                ]}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Direct GeoTIFF draws the numeric raster and supports local uploads. Original tiles are only loaded when
+                selected.
+              </p>
+              <p className="mt-2 break-all text-xs text-muted-foreground">CCISS tile set: {tileId}</p>
+            </CollapsibleSection>
+            {renderSource === 'tiles' && <p className="mt-2 text-xs">Showing original CCISS tiles.</p>}
+            {suitabilityFile && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                A local GeoTIFF is selected. Use Direct GeoTIFF in Comparison options to render it; the prepared numeric
+                vector belongs to the hosted download.
+              </p>
             )}
             {polygonLayer && (
               <div className="mt-2 space-y-2">
@@ -529,7 +577,7 @@ export default function DevCcissSuitability() {
                   : 'Loading the numeric GeoTIFF…'}
               </p>
             )}
-            {tileAvailable === false && !(numericLayer && renderSource !== 'tiles') && (
+            {tileAvailable === false && renderSource === 'tiles' && (
               <p role="alert" className="mt-2 text-sm text-destructive">
                 This tile set is unavailable from the CCISS server.
               </p>
@@ -568,8 +616,8 @@ export default function DevCcissSuitability() {
               </div>
             ) : (
               <p className="mt-3 rounded-md border p-3 text-sm text-muted-foreground">
-                Numeric lookup currently covers mapped 1961–1990 suitability for Pl on C4. The other visible layers are
-                image tiles.
+                Numeric lookup currently covers mapped 1961–1990 suitability for Pl on C4. Other selections are
+                available through original CCISS image tiles in Comparison options.
               </p>
             )}
           </SidebarSection>
@@ -705,7 +753,7 @@ export default function DevCcissSuitability() {
       }
     >
       <Map center={INITIAL_POINT} zoom={INITIAL_ZOOM}>
-        <SyncMapUrl renderSource={numericLayer ? renderSource : 'tiles'} traceMethod={traceMethod} />
+        <SyncMapUrl renderSource={renderSource} traceMethod={traceMethod} />
         {polygonLayer ? (
           <MapCategoricalRaster
             manifestUrl={
@@ -727,6 +775,7 @@ export default function DevCcissSuitability() {
         ) : numericLayer && renderSource === 'native' ? (
           suitabilityRaster.image && <NativeSuitabilityLayer key={tileId} image={suitabilityRaster.image} />
         ) : (
+          renderSource === 'tiles' &&
           tileAvailable && (
             <MapRasterLayer
               key={tileId}

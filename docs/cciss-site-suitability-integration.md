@@ -50,6 +50,24 @@ ignored `public/data/cciss`. A deployment still requires committing/pushing the
 submodule snapshot before updating the parent pointer. It does not yet run the
 site-series calculator.
 
+### Default map source
+
+The dev page opens with **Tile trace → Grid cells** (`render=trace`), using the
+full-province reconstruction and its zoom-dependent overviews. **Numeric vector**
+is the primary alternative: it preserves the downloaded numeric raster's cell
+boundaries and codes and supports polygon picking. The GeoTIFF remains the
+numeric lookup source; tracing public image colours never supplies calculations.
+
+**Comparison options** hides the original CCISS tiles and direct GeoTIFF renderer
+until expanded. Original tile metadata and images are requested only after an
+explicit tile selection. Existing `render=tiles` and `render=native` links still
+work. Direct GeoTIFF remains available for local uploads, which disable the
+precomputed numeric vector. Neither representation adds source resolution.
+
+Prepared trace/vector coverage is currently mapped 1961–1990 Pl/C4. Selecting
+another layer shows an unavailable-overlay notice with a return action; it does
+not silently enable original tiles. Those remain an explicit comparison choice.
+
 ### Reusable polygon conversion and deck.gl comparison
 
 The **Vector** option (`render=vector`) uses the same approach as AQMap's native
@@ -69,7 +87,7 @@ in memory alongside 32 recently used offscreen blocks. Camera movement updates
 the queue every 120 ms without restarting still-needed requests. Completed blocks
 draw each animation frame, with explicit progress or incomplete-coverage status. Colour and picking use `properties.value`;
 the panel independently reads the corresponding TIFF cell for comparison.
-All three view options retain the camera. The vector snapshot is disabled after
+All view options retain the camera. The vector snapshot is disabled after
 loading a different local TIFF so it cannot silently represent the wrong file.
 
 Both Numeric GeoTIFF and Vector derive from the historical download. The public
@@ -148,8 +166,9 @@ the modelled tiles, versus 3 with the mapped tiles, classifying WebP colours to
 the nearest legend colour. The three residual differences are Moderate in the
 download and High in the mapped tiles. This is a local diagnostic sample, not
 a province-wide accuracy estimate or proof of exact equivalence. The pilot
-now defaults to the mapped tiles for the GeoTIFF comparison and keeps the
-modelled tiles available as a separate map choice.
+uses the mapped historical selection for comparison and keeps the modelled
+selection available through the original tiles. The default renderer is now
+the grid trace described above.
 
 The zoomed comparison around 53.9100, -122.7460 reveals another residual:
 the downloaded raster's cell (column 5339, row 2192) is `10` (High), covering

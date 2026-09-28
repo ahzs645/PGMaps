@@ -3,8 +3,9 @@
 ## Available implementation
 
 Open `/dev/forestry/cciss-suitability`, select a point, then **Open legacy analysis**.
-The browser loads a 36 KB compressed lookup table, the selected regional summary,
-and two numeric GeoTIFFs on demand. It retains these resources during the page
+The browser loads a 36 KB compressed lookup table, the BC species list, the selected regional summary,
+and all 32 numeric GeoTIFFs for the point comparison (about 9 MB of raster files).
+Four readers bound the initial download/decode workload. It retains these resources during the page
 session. No Shiny server, report import, R installation or credentials are needed.
 
 Implemented in TypeScript:
@@ -17,7 +18,13 @@ Implemented in TypeScript:
 - Regional model runs are kept separate. No made-up ensemble or weighting.
 - Missing ratings stay unknown; code 4 is explicitly unsuitable. Missing/zero
   denominators produce no ratio. Counts are grid cells, never labelled hectares.
-- Download a JSON report with location, model/run, period, scenario and results.
+- Compare all six available model runs and five model periods for 29 species.
+- View the observed 2001–2020 raster separately from model projections for that period.
+- Explore BGC/site-series changes by model and period, and shared species silvics.
+- Enter coordinates directly or use a selected map point.
+- Download JSON and printable HTML with location, site condition, all available
+  model/run/period results, selected regional ratios, source and provisional limits.
+  JSON also carries the source manifest and sampled raster-cell details.
 
 This is an adaptation of **Development/OLD/spatial_app**, not a port of the current
 site-series calculator. The modal's point estimate and named-region summary have
@@ -190,3 +197,31 @@ stubbed; the actual analysis/reference files are served locally.
 TypeScript and focused ESLint checks pass. This is source-formula verification;
 R/Shiny was not executed, and a complete current Shiny real-site parity test still
 requires an authentic version-matched input/output bundle.
+
+
+## Expanded comparison workflow
+
+The legacy dialog now has Species, Model comparison, BGC changes, Regional outlook,
+Silvics and Report pages. It needs no Shiny result file or running Shiny service.
+Each climate run remains separate; no synthetic ensemble probabilities or current
+Shiny establishment/maturation ratings are inferred from these legacy rasters.
+
+A new coordinate rebuilds the point comparison and returns its controls to the
+default selections. The TIFF resources remain cached during the page session.
+Changing a species, period, model or site condition uses the already sampled
+values. A failed TIFF request blocks the comparison and has a Retry action; it is
+not treated as a nodata cell. Outside/unknown point results remain unknown while
+named-region summaries are still available. Regional rows are filtered to the
+selected actual run/scenario, excluding ensembleMean summary rows.
+
+The silvics page uses the independently versioned public ccissr references; these
+are clearly labelled and do not alter the legacy suitability calculations.
+
+Verification for this extension: 15 tests across legacy lookup, comparison and
+Shiny-summary modules pass; all 30 lodgepole-pine model/period values at the
+Prince George test point match independent rasterio samples and table lookups.
+Browser checks cover the complete no-CSV workflow, both exports, model and BGC
+matrices, regional ratios, silvics, coordinate changes, unknown locations, cache
+reuse (32 TIFF requests across point changes), and recovery from a failed TIFF.
+The imported-Shiny report flow remains covered after extracting shared silvics.
+No deployment, R2 upload or maintainer message is included in this extension.
