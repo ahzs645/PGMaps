@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { createPortal } from 'react-dom'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useMatch } from 'react-router-dom'
+import { projectCatalogDestination } from '@/lib/projectCollections'
 import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -74,6 +75,8 @@ export function Navbar() {
   const isProjectPage = location.pathname.startsWith('/dev/projects/') || (
     location.pathname === '/dev/projects' && locationParams.has('project')
   )
+  const projectRoute = useMatch('/dev/projects/:projectSlug')
+  const projectBack = projectCatalogDestination(projectRoute?.params.projectSlug ?? locationParams.get('project'))
   const showProjectBackButton = isProjectPage
   const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
 
@@ -306,9 +309,9 @@ export function Navbar() {
         <div className="flex min-w-0 flex-1 items-center gap-2.5 xl:gap-6">
           {showProjectBackButton && (
             <Link
-              to="/dev/projects"
-              aria-label="Back to all projects"
-              title="Back to all projects"
+              to={projectBack.href}
+              aria-label={projectBack.ariaLabel}
+              title={projectBack.ariaLabel}
               onClick={closeMobileMenu}
               className={cn(
                 'pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors md:hidden',

@@ -18,6 +18,7 @@ const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default:
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
+const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
 const DevClimateVulnerability = lazy(() => import('@/pages/DevClimateVulnerability'))
 const DevEarlyLearning = lazy(() => import('@/pages/DevEarlyLearning'))
@@ -31,6 +32,7 @@ const DevWait = lazy(() => import('@/pages/DevWait'))
 const DevWaitSpecialist = lazy(() => import('@/pages/DevWaitSpecialist'))
 const DevFallout = lazy(() => import('@/pages/DevFallout'))
 const DevForestryVisuals = lazy(() => import('@/pages/DevForestryVisuals'))
+const DevCcissSuitability = lazy(() => import('@/pages/DevCcissSuitability'))
 const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
@@ -86,6 +88,7 @@ function App() {
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
+            <Route path="/dev/color-palettes" element={<DevColorPalettes />} />
             <Route path="/dev/boundaries" element={<DevBoundaries />} />
             <Route path="/dev/climate-vulnerability" element={<DevClimateVulnerability />} />
             <Route path="/dev/early-learning" element={<DevEarlyLearning />} />
@@ -101,6 +104,7 @@ function App() {
             <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
             <Route path="/dev/fallout" element={<DevFallout />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
+            <Route path="/dev/forestry/cciss-suitability" element={<DevCcissSuitability />} />
             <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />

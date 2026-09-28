@@ -66,6 +66,7 @@ public/data/boundaries/
 public/data/boundary-search/
 public/data/cell-coverage/
 public/data/census/
+public/data/cciss/
 public/data/canada-admin/
 /build/canada-admin-pmtiles/
 /build/bc-outdoors-pmtiles/
@@ -146,3 +147,6 @@ public/data/ui/
 
 # Generated from the bcdatamapper VLI snapshot.
 public/data/forest/visual-inventory/
+
+# Generated from BCDataMapper's BC Stats LAEP snapshots.
+public/data/bc/laep/

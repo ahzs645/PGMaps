@@ -23,6 +23,14 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'Colour palettes',
+    description: 'Palette inventory, page usage, light/dark previews and dynamic colour ranges and class breaks.',
+    href: '/dev/color-palettes',
+    icon: Palette,
+    color: 'bg-violet-600',
+    label: '/dev/color-palettes',
+  },
+  {
     title: 'Climate vulnerability',
     description: 'MHCCA input explorer, 80-variable source audit, and index reproducibility checks using shared FSA boundaries.',
     href: '/dev/climate-vulnerability',
@@ -145,6 +153,14 @@ const devEntries: DevEntry[] = [
     icon: TreePine,
     color: 'bg-emerald-700',
     label: '/dev/forestry/visual-quality',
+  },
+  {
+    title: 'CCISS suitability',
+    description: 'Inspect CCISS historical suitability tiles and exact numeric GeoTIFF cells for a selected BC location.',
+    href: '/dev/forestry/cciss-suitability',
+    icon: TreePine,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/cciss-suitability',
   },
   {
     title: 'Fallout Sites',

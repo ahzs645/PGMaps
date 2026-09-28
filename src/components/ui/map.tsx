@@ -80,6 +80,8 @@ type MapProps = {
   loading?: boolean;
   /** Loading animation to show: the ASCII "globe" (default) or "spinner". */
   loader?: MapLoaderVariant;
+  /** Render the loading overlay. Disable for embedded story maps that load unobtrusively. */
+  showLoadingOverlay?: boolean;
   /** Show the loading indicator during style swaps after the initial map load. */
   showStyleLoadingOverlay?: boolean;
   /** Keep the current WebGL backing buffer while a surrounding layout is being interactively resized. */
@@ -110,6 +112,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     controls,
     loading = false,
     loader,
+    showLoadingOverlay = true,
     showStyleLoadingOverlay = true,
     deferResize = false,
     ...props
@@ -352,7 +355,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
           pointerStartRef.current = null;
         }}
       >
-        <MapLoader visible={isLoading} variant={loader} />
+        {showLoadingOverlay && <MapLoader visible={isLoading} variant={loader} />}
         {/* SSR-safe: children render only when map is loaded on client */}
         {mapInstance && (controls === undefined ? DEFAULT_MAP_CONTROLS : controls)}
         {mapInstance && children}

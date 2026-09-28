@@ -12,6 +12,7 @@ const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EAR
 
 const appOwnedDataPaths = [
   'projects',
+  'story-documents',
   // Stable demo/AQMap fallback snapshots owned by PGMaps.
   'smoke',
   'walkability/heatmap/factor_masks.json',
@@ -24,6 +25,8 @@ const contentMappings = [
 ]
 
 const pathMappings = [
+  ['datascrapers/bc/cciss/output', 'cciss'],
+  ['datascrapers/bc/laep/output', 'bc/laep'],
   ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],
   ['datascrapers/bc/forest-map-sources/output/visual-inventory', 'forest/visual-inventory'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],

@@ -874,6 +874,8 @@ type MapRasterLayerProps = {
   minZoom?: number
   /** Maximum zoom level for tile requests (default: 22) */
   maxZoom?: number
+  /** Use nearest for classified rasters so class boundaries stay sharp when tiles are enlarged. */
+  resampling?: 'linear' | 'nearest'
   /** Attribution text shown in map corner */
   attribution?: string
   /** Insert this layer before another layer ID (default: added on top) */
@@ -887,6 +889,7 @@ function MapRasterLayer({
   visible = true,
   minZoom = 0,
   maxZoom = 22,
+  resampling = 'linear',
   attribution,
   beforeId,
 }: MapRasterLayerProps) {
@@ -915,6 +918,7 @@ function MapRasterLayer({
         source: sourceId,
         paint: {
           'raster-opacity': opacity,
+          'raster-resampling': resampling,
         },
       },
       beforeId,
@@ -936,6 +940,11 @@ function MapRasterLayer({
     if (!isLoaded || !map || !map.getLayer(layerId)) return
     map.setPaintProperty(layerId, 'raster-opacity', opacity)
   }, [opacity, isLoaded, map, layerId])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !map.getLayer(layerId)) return
+    map.setPaintProperty(layerId, 'raster-resampling', resampling)
+  }, [resampling, isLoaded, map, layerId])
 
   // Update visibility
   useEffect(() => {
