@@ -1,5 +1,5 @@
 /** Stable geographic forest tiles, grown progressively against a fixed DEM. */
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useMap } from '@/components/ui/map'
 import { coniferMesh, viewingGapToward, type InventoryStand, type Thinning, type TreeInstance } from './forest'
 import { buildImpostorAtlas } from './impostor'
@@ -9,7 +9,11 @@ import { haversineMeters, type PolygonGeometry } from './visibility'
 import type { ElevationSource } from './terrain'
 
 export type ForestStatus = {
+  configuration?: ForestConfiguration
   ready?: boolean
+  nearbyReady?: boolean
+  totalPatches?: number
+  reusedPatches?: number
   treeCount: number
   trianglesPerTree: number
   error: string | null
@@ -18,20 +22,23 @@ export type ForestStatus = {
   coverageMeters?: number
   inventoryStandCount?: number
 }
-export type ForestOverlayProps = {
-  active: boolean
+export type ForestConfiguration = {
   anchorLatitude?: number
-  centre: { lng: number; lat: number } | null
   stands: PolygonGeometry[]
   clearings: PolygonGeometry[]
   thinnings?: ReadonlyArray<Thinning>
-  /** A block to keep a viewing gap open toward, from wherever the eye is. */
-  gapTarget?: PolygonGeometry | null
   standHeightMeters: number
   inventory?: ReadonlyArray<InventoryStand>
   style?: TreeStyle
   farRadiusMeters?: number
   elevation: ElevationSource | null
+}
+export type ForestOverlayProps = {
+  active: boolean
+  configuration: ForestConfiguration
+  centre: { lng: number; lat: number } | null
+  /** A block to keep a viewing gap open toward, from wherever the eye is. */
+  gapTarget?: PolygonGeometry | null
   terrainMessage?: string | null
   onStatus?: (status: ForestStatus) => void
 }
@@ -45,8 +52,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
   const gapTargetRef = useRef(props.gapTarget ?? null)
   gapTargetRef.current = props.gapTarget ?? null
   statusRef.current = props.onStatus
+  const { active, configuration, terrainMessage } = props
   const {
-    active,
     anchorLatitude: sceneLatitude,
     stands,
     clearings,
@@ -56,22 +63,24 @@ export function ForestOverlay(props: ForestOverlayProps) {
     style = 'hybrid',
     farRadiusMeters = 3500,
     elevation,
-    terrainMessage,
-  } = props
+  } = configuration
+  // Placement and readiness share an identity. A source/geometry change must
+  // invalidate readiness during render, before the replacement effect runs.
+  const patches = useMemo(() => ({ configuration, tiles: new Map<string, TreeInstance[]>() }), [configuration]).tiles
+  const atlas = useMemo(() => style !== 'solid' ? buildImpostorAtlas() : undefined, [style])
+  const clumpAtlas = useMemo(() => style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined, [style])
   useEffect(() => {
     if (!active || !isLoaded || !map) return
     if (!elevation) {
-      statusRef.current?.({ treeCount: 0, trianglesPerTree: 0, error: terrainMessage ?? 'Loading preview terrain…' })
+      statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: terrainMessage ?? 'Loading preview terrain…' })
       return
     }
-    statusRef.current?.({ treeCount: 0, trianglesPerTree: 0, error: null, ready: false })
+    statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: null, ready: false })
     const initialEye = eyeRef.current
     if (!initialEye) return
     const anchorLatitude = sceneLatitude ?? initialEye.lat
     const bands = forestBands(farRadiusMeters)
-    const atlas = style !== 'solid' ? buildImpostorAtlas() : undefined
     // Coarse bands draw clumps of trees per card, not one stretched tree.
-    const clumpAtlas = style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined
     const clumpBand = (i: number) => bands[i].spacing >= 20
     const distantLayers = bands.map((_, i) =>
       createTreeLayer(`${LAYER_ID}-${i}`, {
@@ -124,6 +133,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
       get nearTreeCount() {
         return nearCount
       },
+      get reusedPatches() { return reusedPatches },
       get patchCount() {
         return patchCount
       },
@@ -135,7 +145,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
       },
     }
     map.addLayer(wrapper as never)
-    const cache = new Map<string, TreeInstance[]>()
+    const cache = patches
     const uploadedKeys = bands.map(() => '')
     let lastEye = initialEye,
       disposed = false,
@@ -143,6 +153,9 @@ export function ForestOverlay(props: ForestOverlayProps) {
       dirty = true,
       lastUpload = -Infinity
     let wanted = forestPatches(initialEye, bands, anchorLatitude)
+    const wantedKeys = new Set(wanted.map(patch => patch.key))
+    for (const key of cache.keys()) if (!wantedKeys.has(key)) cache.delete(key)
+    const reusedPatches = cache.size
     const upload = () => {
       const grouped: TreeInstance[][] = bands.map(() => [])
       for (const patch of wanted) grouped[patch.band].push(...(cache.get(patch.key) ?? []))
@@ -163,8 +176,12 @@ export function ForestOverlay(props: ForestOverlayProps) {
       patchCount = cache.size
       const triangles = layers.reduce((sum, layer) => sum + layer.treeCount * layer.trianglesPerTree, 0)
       statusRef.current?.({
+        configuration,
         treeCount: count,
         ready: cache.size === wanted.length,
+        nearbyReady: wanted.filter(patch => patch.band <= 1).every(patch => cache.has(patch.key)),
+        totalPatches: wanted.length,
+        reusedPatches,
         nearTreeCount: nearCount,
         patchCount,
         coverageMeters: farRadiusMeters,
@@ -214,10 +231,15 @@ export function ForestOverlay(props: ForestOverlayProps) {
       disposed = true
       cancelAnimationFrame(frame)
       if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID)
-      cache.clear()
+      statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: null, ready: false })
+      // Keep this configuration's CPU placements for reopening; GPU layers are released.
     }
   }, [
     active,
+    configuration,
+    patches,
+    atlas,
+    clumpAtlas,
     sceneLatitude,
     isLoaded,
     map,

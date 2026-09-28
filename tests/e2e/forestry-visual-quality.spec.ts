@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -244,6 +244,7 @@ async function readMapState(page: Page) {
                   distanceRanges: number[][]
                   renderLayerCount: number
                   treeCount: number
+                  reusedPatches: number
                   nearTreeCount: number
                   coverageMeters: number
                   error: string | null
@@ -256,6 +257,7 @@ async function readMapState(page: Page) {
             hillshade: Boolean(map.getLayer?.('forestry-hillshade')),
             treeLayer: Boolean(map.getLayer?.('forestry-trees')),
             treeCount: tree?.implementation?.treeCount ?? 0,
+            reusedPatches: tree?.implementation?.reusedPatches ?? 0,
             nearTreeCount: tree?.implementation?.nearTreeCount ?? 0,
             forestError: tree?.implementation?.error ?? null,
             forestDistanceRanges: tree?.implementation?.distanceRanges,
@@ -1021,6 +1023,67 @@ test.describe('forestry visual quality', () => {
     await expect(page.locator('[data-via-step="rate"]')).toHaveAttribute('aria-selected', 'false')
   })
 
+  test('opens a preliminary forest before a slow source, applies updates on pause, and reuses the prepared view', async ({ page }) => {
+    test.setTimeout(120_000)
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    const requests: string[] = []
+    page.on('request', request => {
+      if (/MapServer\/(4|20|27)\/query/.test(request.url())) requests.push(request.url())
+    })
+    await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/20/query**', async route => {
+      await held
+      await route.fulfill({ json: { features: [inventoryFeature({
+        OBJECTID: 3, ACTIVITY_TREATMENT_UNIT_ID: 3, ATU_COMPLETION_DATE: Date.UTC(2021, 5, 1),
+        SILV_TREE_SPECIES_CODE: 'SX', NUMBER_PLANTED: 10000,
+      }, 0)] } })
+    })
+    await page.goto(PAGE_PATH)
+    await showStep(page, 'identify')
+    const firstStart = Date.now()
+    await page.getByRole('button', { name: 'Roadside demo drive', exact: true }).click()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls).toBeVisible()
+    const firstViewMs = Date.now() - firstStart
+    try {
+      await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 15000 })
+      const playableMs = Date.now() - firstStart
+      await expect(controls.getByText(/Preliminary forest/)).toBeVisible()
+      expect((await readMapState(page))?.terrain).toBe(true)
+      expect((await readMapState(page))?.treeCount).toBeGreaterThan(0)
+      await controls.getByText('Viewpoints, save & display', { exact: true }).click()
+      await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeDisabled()
+      await controls.getByLabel('Driving speed').selectOption('5')
+      await controls.getByRole('button', { name: 'Play', exact: true }).click()
+      release()
+      await expect(controls.getByText('New forest records are ready. Pause to apply them.')).toBeVisible()
+      await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+      await expect(controls.getByText(/1 planting estimates/)).toBeVisible()
+      await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 30000 })
+      const requestCount = requests.length
+      const treesBefore = (await readMapState(page))?.treeCount
+      expect(treesBefore).toBeGreaterThan(0)
+      await controls.getByRole('button', { name: 'Return to map' }).click()
+      const reopenStart = Date.now()
+      await page.getByRole('button', { name: 'Look from the road', exact: true }).click()
+      await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled()
+      const reopenMs = Date.now() - reopenStart
+      expect(requests).toHaveLength(requestCount)
+      const reopened = await readMapState(page)
+      expect(reopened?.terrain).toBe(true)
+      expect(reopened?.treeCount).toBe(treesBefore)
+      expect(reopened?.reusedPatches).toBeGreaterThan(0)
+      expect(reopened?.forestError).toBeNull()
+      const timingsPath = test.info().outputPath('preview-timings.json')
+      await writeFile(timingsPath, JSON.stringify({ firstViewMs, playableMs, reopenMs, forestRequests: requests.length, reusedPatches: reopened?.reusedPatches }, null, 2))
+      await test.info().attach('preview-timings.json', { path: timingsPath, contentType: 'application/json' })
+      await page.screenshot({ path: test.info().outputPath('preview-reused.png') })
+    } finally { release() }
+  })
+
   test('loads existing forest automatically and recovers a missing planting source', async ({ page }) => {
     test.setTimeout(180_000)
     await stubBasemap(page)
@@ -1079,6 +1142,8 @@ test.describe('forestry visual quality', () => {
     ).toBeVisible({ timeout: 60000 })
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
     expect(requests.filter((url) => url.includes('/20/'))).toHaveLength(2)
+    expect(requests.filter((url) => url.includes('/4/'))).toHaveLength(1)
+    expect(requests.filter((url) => url.includes('/27/'))).toHaveLength(1)
     await controls.getByLabel('Project older heights to visual year', { exact: true }).uncheck()
     await expect(
       controls.getByText('1 recorded heights · 0 projected heights · 1 planting estimates · 1 harvest-age estimates', {

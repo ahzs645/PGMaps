@@ -896,7 +896,8 @@ function DevForestryVisuals() {
   }, [cameraEye, drive.active, driveStationIndex, result])
 
   const previewPolygons = useMemo(() => scene.targets.map(target => target.geometry), [scene.targets])
-  const previewTerrain = useDriveTerrain(drive.active, scene.viewpoint.coordinates, previewPolygons)
+  const preparePreview = drive.active || !!pendingPreview || !!result
+  const previewTerrain = useDriveTerrain(preparePreview, scene.viewpoint.coordinates, previewPolygons)
   // A street-level field photo to line the road view up with (handbook 3.2, 3.3.4).
   const fieldPhoto = useFieldPhoto({ scene, result, ground: previewTerrain.source, eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.6 })
   // The comparison holds the view on the photo's pose, so it ends when the
@@ -913,7 +914,7 @@ function DevForestryVisuals() {
       treeHeightMeters: drive.treeHeightMeters, roadClearWidthMeters: drive.roadClearWidthMeters, harvestPhase: 'before',
     })
   }
-  const liveForest = useForestHistory(drive.active && drive.existingForest, scene.viewpoint.coordinates, previewPolygons)
+  const liveForest = useForestHistory(preparePreview && drive.existingForest, scene.viewpoint.coordinates, previewPolygons, drive.playing)
   const visualYear = scene.assessmentYear ?? new Date().getFullYear()
   const regrowth = useMemo(() => {
     const supplied: ForestHistoryRecord[] = scene.targets.filter(t => t.role === 'harvested' && !t.siteDisturbance).map(t => ({ id: `scene-${t.id}`, kind: 'harvest', geometry: t.geometry, year: t.harvestYear, clearcutPercent: t.clearcutPercent, heightMeters: null, speciesCode: null }))
@@ -976,6 +977,19 @@ function DevForestryVisuals() {
         : null
     return [...openings, ...basemap.water, ...(corridor ? [corridor] : [])]
   }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, basemap.water])
+
+  const forestConfiguration = useMemo(() => ({
+    anchorLatitude: scene.viewpoint.coordinates[0]?.[1],
+    stands: forestStands,
+    clearings: forestClearings,
+    thinnings: forestThinnings,
+    standHeightMeters: drive.treeHeightMeters,
+    inventory: forestInventory,
+    style: drive.quality === 'fast' ? 'billboard' as const : drive.quality === 'detailed' ? 'hybrid' as const : drive.treeStyle,
+    elevation: previewTerrain.source,
+    farRadiusMeters: previewTerrain.radius,
+  }), [scene.viewpoint.coordinates, forestStands, forestClearings, forestThinnings, drive.treeHeightMeters, forestInventory, drive.quality, drive.treeStyle, previewTerrain.source, previewTerrain.radius])
+  const currentForestStatus = forestStatus?.configuration === forestConfiguration ? forestStatus : null
 
   // Harvested ground in the road view: bare soil under a clearcut; under
   // retention or a partial cut, disturbed but still vegetated forest floor.
@@ -1088,7 +1102,7 @@ function DevForestryVisuals() {
 
   const stops = useMemo(() => candidateDriveViews(result, drive.lookAtTargetId ?? selectedTargetId), [result, drive.lookAtTargetId, selectedTargetId])
   const currentExposure = (result?.targets.find(t => t.targetId === (drive.lookAtTargetId ?? selectedTargetId) && t.role === 'block') ?? result?.targets.find(t => t.role === 'block'))?.stations[driveStationIndex]
-  const canSaveView = drive.active && !liveForest.loading && cameraStatus === 'ready' && !!forestStatus?.ready && !forestStatus.error
+  const canSaveView = drive.active && !liveForest.loading && !liveForest.pendingUpdate && cameraStatus === 'ready' && !!currentForestStatus?.ready && !currentForestStatus.error
   const saveView = () => {
     if (!canSaveView) return
     if (savedViews.length >= 12) { setPreviewMessage('Twelve comparisons are saved. Remove one or download this preview before starting another.'); return }
@@ -1257,19 +1271,11 @@ function DevForestryVisuals() {
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
         />
         <ForestOverlay
-          active={drive.active && drive.forest && !liveForest.loading}
-          anchorLatitude={scene.viewpoint.coordinates[0]?.[1]}
+          active={drive.active && drive.forest}
+          configuration={forestConfiguration}
           centre={driveEye}
-          stands={forestStands}
-          clearings={forestClearings}
-          thinnings={forestThinnings}
           gapTarget={drive.viewingGap && drive.lookAtTargetId ? scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null : null}
-          standHeightMeters={drive.treeHeightMeters}
-          inventory={forestInventory}
-          style={drive.quality === 'fast' ? 'billboard' : drive.quality === 'detailed' ? 'hybrid' : drive.treeStyle}
-          elevation={previewTerrain.source}
           terrainMessage={previewTerrain.message}
-          farRadiusMeters={previewTerrain.radius}
           onStatus={setForestStatus}
         />
         <MapFillLayer data={forestGround.floor} fillColor="#3a4f35" fillOpacity={0.82} lineWidth={0} visible={drive.active && drive.forest} />
@@ -1432,14 +1438,15 @@ function DevForestryVisuals() {
             onLookChange={look => { cameraLook.current = look }}
             onStatusChange={setCameraStatus}
             onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
-            forestReady={!drive.forest || (!liveForest.loading && !!forestStatus?.ready)}
+            forestReady={!drive.forest || !!currentForestStatus?.nearbyReady}
             routeLengthMeters={result.corridorLengthMeters}
             onSeek={distance => updateDrive({ positionMeters: distance, playing: false })}
             speedKmh={drive.speedKmh}
             onSpeedChange={speedKmh => updateDrive({ speedKmh })}
             comparison={
               <div className="space-y-2" aria-label="Harvest comparison">
-                {liveForest.loading && <p role="status" className="text-xs">Loading existing forest along the route…</p>}
+                {liveForest.loading && <p role="status" className="text-xs">Preliminary forest — existing records are loading. You can explore; saving waits for loading to finish.</p>}
+                {liveForest.pendingUpdate && !liveForest.loading && <p role="status" className="text-xs">New forest records are ready. Pause to apply them.</p>}
                 {!!liveForest.data?.issues.length && <p className="text-xs">Existing forest data are incomplete. See Viewpoints, save & display to retry.</p>}
                 <SegmentedControl
                   label="Harvest phase"
@@ -1480,7 +1487,7 @@ function DevForestryVisuals() {
                     {lowFrameRate && drive.quality === 'auto' && <p className="text-[11px]">Frame rate is low. Pause to inspect, or choose Faster before replaying.</p>}
                   </div>
                 </details>
-                {(previewTerrain.loading || previewTerrain.message || !forestStatus?.ready) && <div className="text-[11px]" role="status">{previewTerrain.loading ? `Loading terrain · ${previewTerrain.progress}%` : previewTerrain.message ?? forestStatus?.error ?? 'Drawing forest…'}{!previewTerrain.loading && previewTerrain.message && <button className="ml-2 underline" onClick={previewTerrain.retry}>Retry terrain</button>}</div>}
+                {(previewTerrain.loading || previewTerrain.message || !currentForestStatus?.ready) && <div className="text-[11px]" role="status">{previewTerrain.loading ? `Loading terrain · ${previewTerrain.progress}%` : previewTerrain.message ?? currentForestStatus?.error ?? `Preparing forest${currentForestStatus?.totalPatches ? ` · ${Math.round(100 * (currentForestStatus.patchCount ?? 0) / currentForestStatus.totalPatches)}%` : '…'}${currentForestStatus?.nearbyReady ? ' · nearby view ready' : ''}`}{!previewTerrain.loading && previewTerrain.message && <button className="ml-2 underline" onClick={previewTerrain.retry}>Retry terrain</button>}</div>}
                 {previewMessage && <p className="text-[11px]" role="status">{previewMessage}</p>}
               </div>
             }

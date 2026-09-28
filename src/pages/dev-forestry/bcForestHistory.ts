@@ -85,33 +85,77 @@ export type ForestHistoryData = {
   issues: string[]
   retrievedAt: string
   bounds: Bounds
+  /** Sources still loading; these are not evidence of an empty forest. */
+  pendingSources?: HistoryKind[]
 }
-export async function fetchForestHistory(requested: Bounds, signal: AbortSignal): Promise<ForestHistoryData> {
-  const bounds = clampQueryBounds(requested)
-  const kinds = Object.keys(FOREST_HISTORY_SOURCES) as HistoryKind[]
-  const responses = await Promise.allSettled(
-    kinds.map(async (kind) => {
-      const response = await fetch(forestHistoryQueryUrl(kind, bounds), { signal })
-      if (!response.ok) throw new Error(`${kind} service returned ${response.status}`)
-      const payload = await response.json()
-      if (payload.error) throw new Error(`${kind} service: ${payload.error.message ?? 'query failed'}`)
-      if (!Array.isArray(payload.features)) throw new Error(`${kind} service returned no feature collection`)
-      return {
-        records: parseForestHistory(payload, kind),
-        limited: payload.exceededTransferLimit === true || payload.features.length >= 1000,
+type SourceResult = { records: ForestHistoryRecord[]; issue?: string; time: number }
+type LoadOptions = { onUpdate?: (data: ForestHistoryData) => void; retryFailed?: boolean }
+const SOURCE_NAMES: Record<HistoryKind, string> = { harvest: 'Harvest records', planting: 'Planting records', height: 'Forest-cover records' }
+
+/** Independent source caches: an unavailable planting service must not throw
+ * away downloaded harvest/height records. Errors have a short retry backoff. */
+export function createForestHistoryLoader() {
+  const cache = new Map<string, SourceResult>()
+  return async (requested: Bounds, signal: AbortSignal, options: LoadOptions = {}): Promise<ForestHistoryData> => {
+    const bounds = clampQueryBounds(requested)
+    const kinds = Object.keys(FOREST_HISTORY_SOURCES) as HistoryKind[]
+    const results = new Map<HistoryKind, SourceResult>()
+    const pending = new Set(kinds)
+    const snapshot = (): ForestHistoryData => ({
+      bounds,
+      retrievedAt: new Date().toISOString(),
+      records: kinds.flatMap(kind => results.get(kind)?.records ?? []),
+      issues: [
+        ...(requested.some((n, i) => Math.abs(n - bounds[i]) > 1e-8) ? ['The route area exceeds the lookup limit; coverage is partial.'] : []),
+        ...kinds.flatMap(kind => results.get(kind)?.issue ? [results.get(kind)!.issue!] : []),
+      ],
+      pendingSources: [...pending],
+    })
+    for (const kind of kinds) {
+      const url = forestHistoryQueryUrl(kind, bounds)
+      const cached = cache.get(url)
+      if (cached && Date.now() - cached.time < (cached.issue ? 30000 : 300000) && !(options.retryFailed && cached.issue)) {
+        results.set(kind, cached)
+        pending.delete(kind)
+        cache.delete(url)
+        cache.set(url, cached)
       }
-    }),
-  )
-  const issues = requested.some((n, i) => Math.abs(n - bounds[i]) > 1e-8)
-    ? ['The route area exceeds the lookup limit; coverage is partial.']
-    : []
-  const records: ForestHistoryRecord[] = []
-  responses.forEach((response, i) => {
-    if (response.status === 'rejected') issues.push(`${kinds[i]} unavailable: ${String(response.reason)}`)
-    else {
-      records.push(...response.value.records)
-      if (response.value.limited) issues.push(`${kinds[i]} reached 1,000 records; coverage is partial.`)
     }
-  })
-  return { records, issues, bounds, retrievedAt: new Date().toISOString() }
+    if (!signal.aborted) options.onUpdate?.(snapshot())
+    await Promise.all([...pending].map(async kind => {
+      const url = forestHistoryQueryUrl(kind, bounds)
+      const abort = new AbortController()
+      const cancel = () => abort.abort()
+      signal.addEventListener('abort', cancel, { once: true })
+      if (signal.aborted) abort.abort()
+      let timedOut = false
+      const timeout = setTimeout(() => { timedOut = true; abort.abort() }, 20000)
+      let result: SourceResult
+      try {
+        const response = await fetch(url, { signal: abort.signal })
+        if (!response.ok) throw new Error(`service returned ${response.status}`)
+        const payload = await response.json()
+        if (payload.error || !Array.isArray(payload.features)) throw new Error('service returned an invalid response')
+        result = {
+          records: parseForestHistory(payload, kind), time: Date.now(),
+          issue: payload.exceededTransferLimit === true || payload.features.length >= 1000
+            ? `${kind} reached 1,000 records; coverage is partial.` : undefined,
+        }
+      } catch {
+        result = { records: [], time: Date.now(), issue: `${kind} unavailable: ${SOURCE_NAMES[kind]} ${timedOut ? 'took too long to respond' : 'could not be loaded'}. Other available records are retained; retry this source when ready.` }
+      } finally {
+        clearTimeout(timeout)
+        signal.removeEventListener('abort', cancel)
+      }
+      if (signal.aborted) return
+      cache.set(url, result)
+      while (cache.size > 12) cache.delete(cache.keys().next().value!)
+      results.set(kind, result)
+      pending.delete(kind)
+      options.onUpdate?.(snapshot())
+    }))
+    if (signal.aborted) throw new DOMException('Forest loading cancelled', 'AbortError')
+    return snapshot()
+  }
 }
+export const fetchForestHistory = createForestHistoryLoader()

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadElevationGrid } from './demLoader'
-import { demTileRange, renderedGroundSource, type Bounds, type ElevationSource } from './terrain'
+import { loadPreviewTerrain } from './previewTerrainCache'
+import { demTileRange, type Bounds, type ElevationSource } from './terrain'
 import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
 /** A bounded, fixed DEM mosaic is loaded before growing trees. Camera movement
@@ -33,7 +33,7 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     )
     return { bounds, radius: Math.min(20000, radius) }
   }, [road, polygons])
-  const [state, setState] = useState<{ source: ElevationSource | null; message: string | null }>({
+  const [state, setState] = useState<{ extent?: typeof extent; source: ElevationSource | null; message: string | null }>({
     source: null,
     message: null,
   })
@@ -59,14 +59,15 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     }
     setLoading(true)
     setState({ source: null, message: 'Loading terrain along the road and assessment hillside…' })
-    loadElevationGrid({ range, signal: abort.signal, concurrency: 4, onProgress: (completed, total) => { if (!abort.signal.aborted) setProgress(Math.round(100 * completed / total)) } })
-      .then(({ grid, missingTileCount }) => {
+    loadPreviewTerrain({ range, signal: abort.signal, concurrency: 4, onProgress: (completed, total) => { if (!abort.signal.aborted) setProgress(Math.round(100 * completed / total)) } }, attempt > 0)
+      .then(({ source, missingTileCount }) => {
         if (!abort.signal.aborted) {
           setLoading(false)
           setState({
+            extent,
             // The camera and tree bases stand on the ground MapLibre draws,
             // which registers DEM samples half a pixel from the analysis grid.
-            source: missingTileCount === range.tileCount ? null : renderedGroundSource(grid),
+            source,
             message: missingTileCount
               ? `${missingTileCount} terrain tiles unavailable; trees are omitted where ground is unknown.`
               : null,
@@ -81,5 +82,5 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
       })
     return () => abort.abort()
   }, [active, extent, attempt])
-  return { ...state, progress, loading, retry, radius: extent?.radius ?? 3500 }
+  return { ...state, source: state.extent === extent ? state.source : null, progress, loading, retry, radius: extent?.radius ?? 3500 }
 }
