@@ -198,3 +198,11 @@ only converting an actual export will establish compressed browser-package size.
 Next required external input remains the bounded version-matched pilot export
 described above. The converter/client calculation cannot be completed or verified
 for new current-model sites from map imagery or aggregate legacy outputs alone.
+
+## Follow-up: parallel public-data search
+
+See [the three-agent search audit](cciss-data-search.md) for stronger official
+report evidence that public spatial products expose only representative members,
+the upstream BC_HexGrid/model repository checks, and a newly identified
+100.46 MB historical 2019 research archive. None supplied the current matching
+prediction arrays and site grid.
