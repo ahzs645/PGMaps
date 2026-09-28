@@ -67,9 +67,22 @@ jobs:
         if: steps.data-cache.outputs.cache-hit != 'true'
         run: npm run indigenous:copy
 
-      - name: Build MSP facilities dataset
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: npm run health:msp-facilities
+      # Refresh MSP data in bcdatamapper and publish its snapshot separately.
+      # Deployments must not depend on live ArcGIS/geocoder availability.
+      - name: Verify committed MSP facilities snapshot
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          const source = readFileSync('vendor/bcdatamapper/datascrapers/health/msp-facilities/output/msp-facilities.geojson', 'utf8')
+          const deployed = readFileSync('public/data/health/msp-facilities.geojson', 'utf8')
+          assert.equal(deployed, source, 'Deployed MSP data must match the committed scraper snapshot')
+          const data = JSON.parse(deployed)
+          assert.equal(data.type, 'FeatureCollection')
+          assert.ok(Array.isArray(data.features) && data.features.length > 0, 'MSP snapshot must contain facilities')
+          assert.equal(data.features.length, data.metadata.matchedFacilities)
+          console.log(`Verified ${data.features.length} committed MSP facilities`)
+          NODE
 
       - run: npm run build
         env:
