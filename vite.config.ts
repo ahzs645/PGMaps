@@ -105,5 +105,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
+    // Network snapshots contain thousands of static tiles served by middleware.
+    watch: { ignored: ['**/vendor/bcdatamapper/datascrapers/network/*/output/**'] },
   },
 })

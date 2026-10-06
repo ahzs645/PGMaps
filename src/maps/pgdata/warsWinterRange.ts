@@ -26,7 +26,7 @@ export type {
   WinterRangePoint,
   WinterRangeProperties,
 } from './warsWinterRangeCore'
-import { escapeHtml } from '@/lib/escapeHtml'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 
 /**
  * Legal Ungulate Winter Range (UWR) polygons, synced from bcdatamapper's BC
@@ -73,11 +73,6 @@ export function formatWinterRangeHectares(hectares: number): string {
   return Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString()} ha` : ''
 }
 
-/**
- * `.mapcn-tooltip` strips the MapLibre popup's own chrome, so the tooltip has to
- * bring its own popover card the way the boundary and network layers do —
- * returning bare markup renders as unstyled text floating on the basemap.
- */
 export function winterRangeTooltipHtml(properties: Record<string, unknown>): string {
   const normalized = 'speciesLabel' in properties
     ? properties
@@ -86,14 +81,12 @@ export function winterRangeTooltipHtml(properties: Record<string, unknown>): str
   const label = String(normalized.label ?? 'Ungulate winter range')
   const harvestCode = String(normalized.harvestCode ?? '').trim()
   const size = formatWinterRangeHectares(Number(normalized.hectares))
-  return `
-    <div class="min-w-44 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-      <div class="font-semibold leading-5">${escapeHtml(species)} winter range</div>
-      <div class="mt-1 text-muted-foreground">${escapeHtml(label)}</div>
-      ${harvestCode ? `<div class="mt-1 text-muted-foreground">${escapeHtml(harvestCode.toLowerCase())}</div>` : ''}
-      ${size ? `<div class="mt-2 font-semibold">${escapeHtml(size)}</div>` : ''}
-    </div>
-  `
+  return mapTooltipHtml({
+    title: `${species} winter range`,
+    subtitle: label,
+    lines: [harvestCode.toLowerCase()],
+    footer: size,
+  })
 }
 
 export function useWarsWinterRange(

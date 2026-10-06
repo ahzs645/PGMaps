@@ -6,7 +6,7 @@ import { fetchJson } from '@/lib/fetchJson'
 import { formatBytes, formatNumber } from '@/lib/format'
 import { formatDate, useJsonManifest } from './shared'
 import { formatVectorStatus } from './miscDataUtils'
-import { escapeHtml } from '@/lib/escapeHtml'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 
 interface NetworkAvailabilityDataset {
   id: string
@@ -81,13 +81,11 @@ const CRTC_WIRELESS_COVERAGE_GEOJSON_URL = '/data/network-availability/crtc-wire
 export function networkAvailabilityTooltipHtml(properties: Record<string, unknown>): string {
   const technology = String(properties.technology ?? properties.title ?? 'Network coverage')
   const year = String(properties.year ?? properties.Year ?? '2024')
-  return `
-    <div class="min-w-36 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-      <div class="font-semibold">Network availability</div>
-      <div class="mt-1 text-muted-foreground">${escapeHtml(technology)} coverage</div>
-      <div class="text-muted-foreground">Year ${escapeHtml(year)}</div>
-    </div>
-  `
+  return mapTooltipHtml({
+    title: 'Network availability',
+    subtitle: `${technology} coverage`,
+    lines: [`Year ${year}`],
+  })
 }
 
 export function useNetworkAvailabilityLayer(enabled: boolean, version?: string | null) {

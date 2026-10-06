@@ -5,7 +5,7 @@ import { MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapOverlay, MapSidebarShell } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { escapeHtml } from '@/lib/escapeHtml'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { fetchJson } from '@/lib/fetchJson'
 
 const BASE = 'https://data.map.ahmad.sh/bc/parcelmap/v1/'
@@ -66,7 +66,10 @@ function ParcelMap({ manifest, selected, onSelect }: { manifest: ParcelManifest;
         const numericId = Number(id)
         if (Number.isFinite(numericId) && lngLat) onSelect({ id: numericId, properties, lng: lngLat.lng, lat: lngLat.lat })
       }}
-      hoverHtml={(properties) => `<strong>${escapeHtml(property(properties, 'OWNER_TYPE'))}</strong><br>PID ${escapeHtml(property(properties, 'PID'))}`}
+      hoverHtml={(properties) => mapTooltipHtml({
+        title: property(properties, 'OWNER_TYPE'),
+        rows: [['PID', property(properties, 'PID')]],
+      })}
     />
     <MapOverlay position="top-left" className="top-16 flex gap-2 p-2 md:top-3">
       <button className={BUTTON} onClick={() => { onSelect(null); map?.flyTo({ center: [-122.75, 53.915], zoom: 10 }) }}>Prince George</button>

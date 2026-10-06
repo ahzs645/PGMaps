@@ -6,7 +6,7 @@ const sources = new WeakMap<
 >()
 
 /** A map-local source lease. Layers release their own paint before releasing it. */
-export function retainGeoJsonSource(map: MapLibreGL.Map, id: string, promoteId?: string) {
+export function retainGeoJsonSource(map: MapLibreGL.Map, id: string, promoteId?: string, tolerance?: number) {
   let registry = sources.get(map)
   if (!registry) {
     registry = new Map()
@@ -21,6 +21,7 @@ export function retainGeoJsonSource(map: MapLibreGL.Map, id: string, promoteId?:
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
         ...(promoteId ? { promoteId } : {}),
+        ...(tolerance !== undefined ? { tolerance } : {}),
       })
   }
   entry.owners++

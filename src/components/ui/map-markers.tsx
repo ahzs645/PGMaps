@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { MapTooltipCard } from "./map-tooltip-card";
 import { dispatchMobileMapFeatureClick, useMap } from "./map-context";
 
 type MarkerContextValue = {
@@ -355,14 +356,9 @@ function MarkerTooltip({
   }
 
   return createPortal(
-    <div
-      className={cn(
-        "rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
-        className
-      )}
-    >
+    <MapTooltipCard className={cn("px-2 py-1 shadow-md animate-in fade-in-0 zoom-in-95", className)}>
       {children}
-    </div>,
+    </MapTooltipCard>,
     container
   );
 }

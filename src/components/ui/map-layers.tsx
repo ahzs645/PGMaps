@@ -687,6 +687,11 @@ function MapCircleLayer({
 type MapLineLayerProps = {
   /** GeoJSON FeatureCollection data */
   data: GeoJSON.FeatureCollection
+  /** Stable map-local shared source key. */
+  sourceKey?: string
+  /** Optional GeoJSON tiling simplification tolerance; 0 preserves source vertices. */
+  sourceTolerance?: number
+  hoverHtml?: (properties: Record<string, unknown>) => string | null
   /** Line color — static string or MapLibre expression */
   color: string | StyleExpression
   /** Line width (default: 2.2) — number or MapLibre expression (e.g. zoom interpolation) */
@@ -717,6 +722,9 @@ type MapLineLayerProps = {
 
 function MapLineLayer({
   data,
+  sourceKey,
+  sourceTolerance,
+  hoverHtml,
   color,
   width = 2.2,
   offset = 0,
@@ -733,7 +741,7 @@ function MapLineLayer({
 }: MapLineLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
-  const sourceId = `line-src-${uid}`
+  const sourceId = sourceKey ? `line-shared-${sourceKey}` : `line-src-${uid}`
   const layerId = `line-layer-${uid}`
   const selectedLayerId = `line-sel-${uid}`
 
@@ -741,6 +749,8 @@ function MapLineLayer({
   onClickRef.current = onFeatureClick
   const idPropRef = useRef(idProperty)
   idPropRef.current = idProperty
+  const hoverHtmlRef = useRef(hoverHtml)
+  hoverHtmlRef.current = hoverHtml
 
   const resolvedSelectionWidth =
     selectionWidth ?? (typeof width === 'number' ? Math.max(width + 2, width * 1.8) : width)
@@ -749,10 +759,7 @@ function MapLineLayer({
   useEffect(() => {
     if (!isLoaded || !map) return
 
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    })
+    retainGeoJsonSource(map, sourceId, undefined, sourceTolerance)
 
     map.addLayer({
       id: layerId,
@@ -810,22 +817,35 @@ function MapLineLayer({
 
     const handleMouseLeave = () => {
       map.getCanvas().style.cursor = ''
+      popup?.remove()
     }
+    const popup = hoverHtmlRef.current ? new MapLibreGLRuntime.Popup({ closeButton: false, closeOnClick: false, className: 'mapcn-tooltip pointer-events-none', offset: 12 }) : null
+    const handleHover = (event: MapLibreGL.MapLayerMouseEvent) => {
+      if (!popup || !event.features?.[0]) return
+      const html = hoverHtmlRef.current?.(event.features[0].properties ?? {})
+      if (!html) { popup.remove(); return }
+      popup.setLngLat(event.lngLat).setHTML(html).addTo(map)
+    }
+    const detachDismiss = popup ? attachPointerDismiss(map, () => popup.remove()) : undefined
 
     map.on('click', layerId, handleClick as never)
     map.on('mouseenter', layerId, handleMouseEnter)
     map.on('mouseleave', layerId, handleMouseLeave)
+    if (popup) map.on('mousemove', layerId, handleHover)
 
     return () => {
       try {
         map.off('click', layerId, handleClick as never)
         map.off('mouseenter', layerId, handleMouseEnter)
         map.off('mouseleave', layerId, handleMouseLeave)
+        if (popup) map.off('mousemove', layerId, handleHover)
+        detachDismiss?.()
+        popup?.remove()
 
         if (!map.getStyle()) return
         if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
         if (map.getLayer(layerId)) map.removeLayer(layerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
+        releaseGeoJsonSource(map, sourceId)
       } catch {
         // ignore
       }
@@ -836,8 +856,7 @@ function MapLineLayer({
   // Update source data
   useEffect(() => {
     if (!isLoaded || !map) return
-    const source = map.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
-    source?.setData(data)
+    updateGeoJsonSource(map, sourceId, data)
   }, [data, isLoaded, map, sourceId])
 
   // Update visibility

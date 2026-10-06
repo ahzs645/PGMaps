@@ -84,6 +84,35 @@ All live in `src/components/ui/` unless noted.
   blocks), so cached levels can switch during a gesture without GPU uploads.
   New block requests wait for the settled viewport; cached views remain usable.
 
+- Image box grids: `createRasterGridLayer` (`map-raster-grid.ts`) composes
+  a pickable `TileLayer` into an existing deck.gl overlay. Supply XYZ
+  `sourceZoom` (one level or `{ min, max }` saved bounds), `tileUrl`, explicit RGB/class `palette`, `cellPixels`, and
+  `colorForValue`; optional outlines, hover/click callbacks and tile errors.
+  By default it keeps one box per source pixel (`cellPixels=1`), original RGBA
+  bytes and no outlines. `pngPixels.ts` decodes 8-bit RGBA PNG directly, avoiding
+  canvas colour conversion and alpha rounding. Classification serves picking
+  only; uncertain colours retain their original appearance. Set the same
+  `opacity` as the source image to compare; nearest texture filtering on a
+  source bitmap compares pixels without introducing interpolated edge colours.
+  Larger boxes explicitly opt out of source preservation, infer one class per
+  box from its interior, and keep mixed evidence uncertain. `rasterClassGrid.ts` owns classification,
+  voting and shared global pixel edges. `GRID_NO_DATA` means transparent image
+  evidence; a failed fetch has no verified class. Class labels are inferred
+  display classes on the source Web Mercator grid; box size adds no
+  source detail. Boxes never dissolve into larger shapes. A source range follows
+  the same native tile selection as the source image; it does not resample one
+  zoom into another. Requests stay within the viewport, with six requests at once
+  and a cache cap of four tiles for original pixels, rising to 32 for larger boxes
+  (visible tiles are retained). See `/dev/networks` for every raster band, automatic
+  levels, fixed-level comparison, native CRTC/TELUS layers and shared tooltips.
+
+- Native road lines: `MapLineLayer` accepts `sourceKey` for map-local source
+  sharing, `sourceTolerance={0}` to disable GeoJSON tiling simplification, and
+  `hoverHtml` for themed pointer-dismissed tooltips. Identical data references
+  are indexed once; the final owner releases the source. Large CRTC road
+  collections use this worker-tiled renderer with their original GeoJSON.
+  The raster comparison mode does not alter native vector data.
+
 - Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
   bar measured great-circle across the map's middle (so Mercator's stretch at
   our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides
@@ -97,6 +126,12 @@ All live in `src/components/ui/` unless noted.
   legend read.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
   `KeyValueRows` inside.
+- Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;
+  `mapTooltipHtml({ title, subtitle, lines, rows, footer })` for layer `hoverHtml`
+  and imperative MapLibre/deck.gl popups. Pass plain text; the helper escapes
+  all content and skips empty rows (keeping zero). Both share the themed surface,
+  padding, border, shadow and wrapping. `.mapcn-tooltip` removes MapLibre's own
+  chrome, so bare HTML there has no card. `MarkerTooltip` uses this surface too.
 - Phone peek text: `mobilePeekTitle` / `mobilePeekSubtitle` on
   `MapSectionLayout`, parts separated with ` · `.
 

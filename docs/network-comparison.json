@@ -1,0 +1,3351 @@
+{
+  "date": "2026-10-06",
+  "scope": "All files in the five saved Network archives in the shared Drive folder; no live-provider refresh.",
+  "rasters": {
+    "files": 169687,
+    "pixels": 11120607232,
+    "bands": 16,
+    "bandLevels": 121,
+    "changedFiles": 0,
+    "changedSourceFiles": 0,
+    "decodeErrors": 0,
+    "maxCoordinateErrorMetres": 2.60770320892334e-8,
+    "levels": [
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 4,
+        "files": 7,
+        "pixels": 458752,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G",
+        "visualTile": "4/3/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 5,
+        "files": 18,
+        "pixels": 1179648,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell 5G",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 6,
+        "files": 43,
+        "pixels": 2818048,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G",
+        "visualTile": "6/16/22",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 7,
+        "files": 101,
+        "pixels": 6619136,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell 5G",
+        "visualTile": "7/27/38",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 8,
+        "files": 307,
+        "pixels": 20119552,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell 5G",
+        "visualTile": "8/52/82",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 9,
+        "files": 974,
+        "pixels": 63832064,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell 5G",
+        "visualTile": "9/168/178",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g",
+        "zoom": 10,
+        "files": 3194,
+        "pixels": 209321984,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Bell 5G",
+        "visualTile": "10/198/315",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 4,
+        "files": 6,
+        "pixels": 393216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+",
+        "visualTile": "4/3/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 5,
+        "files": 14,
+        "pixels": 917504,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 6,
+        "files": 30,
+        "pixels": 1966080,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+",
+        "visualTile": "6/15/22",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 7,
+        "files": 72,
+        "pixels": 4718592,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+",
+        "visualTile": "7/26/40",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 8,
+        "files": 180,
+        "pixels": 11796480,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell 5G+",
+        "visualTile": "8/52/82",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 9,
+        "files": 450,
+        "pixels": 29491200,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell 5G+",
+        "visualTile": "9/162/179",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus",
+        "zoom": 10,
+        "files": 1023,
+        "pixels": 67043328,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Bell 5G+",
+        "visualTile": "10/210/338",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 4,
+        "files": 1,
+        "pixels": 65536,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "4/4/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 5,
+        "files": 1,
+        "pixels": 65536,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-10,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "5/8/11",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 6,
+        "files": 1,
+        "pixels": 65536,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-10,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "6/17/23",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 7,
+        "files": 3,
+        "pixels": 196608,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "7/35/47",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 8,
+        "files": 3,
+        "pixels": 196608,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "8/71/94",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 9,
+        "files": 6,
+        "pixels": 393216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "9/143/187",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "5g-plus-advanced",
+        "zoom": 10,
+        "files": 20,
+        "pixels": 1310720,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell 5G+ Advanced",
+        "visualTile": "10/286/374",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 4,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "4/4/4",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 5,
+        "files": 25,
+        "pixels": 1638400,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "5/6/8",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 6,
+        "files": 58,
+        "pixels": 3801088,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "6/17/19",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 7,
+        "files": 150,
+        "pixels": 9830400,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "7/27/43",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 8,
+        "files": 418,
+        "pixels": 27394048,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "8/53/81",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 9,
+        "files": 1296,
+        "pixels": 84934656,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "9/163/184",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "hspa",
+        "zoom": 10,
+        "files": 4196,
+        "pixels": 274989056,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell HSPA+",
+        "visualTile": "10/205/337",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 4,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE",
+        "visualTile": "4/4/4",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 5,
+        "files": 25,
+        "pixels": 1638400,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 6,
+        "files": 62,
+        "pixels": 4063232,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE",
+        "visualTile": "6/17/17",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 7,
+        "files": 164,
+        "pixels": 10747904,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell LTE",
+        "visualTile": "7/29/40",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 8,
+        "files": 476,
+        "pixels": 31195136,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE",
+        "visualTile": "8/56/80",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 9,
+        "files": 1522,
+        "pixels": 99745792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE",
+        "visualTile": "9/160/166",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte",
+        "zoom": 10,
+        "files": 5107,
+        "pixels": 334692352,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE",
+        "visualTile": "10/210/347",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 4,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "4/4/4",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 5,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 6,
+        "files": 53,
+        "pixels": 3473408,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "6/15/22",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 7,
+        "files": 136,
+        "pixels": 8912896,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "7/29/40",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 8,
+        "files": 401,
+        "pixels": 26279936,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "8/56/80",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 9,
+        "files": 1236,
+        "pixels": 81002496,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "9/159/175",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-advanced",
+        "zoom": 10,
+        "files": 3974,
+        "pixels": 260440064,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE Advanced",
+        "visualTile": "10/213/320",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 4,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "4/4/4",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 5,
+        "files": 25,
+        "pixels": 1638400,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 6,
+        "files": 60,
+        "pixels": 3932160,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "6/17/17",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 7,
+        "files": 161,
+        "pixels": 10551296,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 3.725290298461914e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "7/29/40",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 8,
+        "files": 475,
+        "pixels": 31129600,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "8/56/81",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 9,
+        "files": 1540,
+        "pixels": 100925440,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "9/160/176",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "bell",
+        "layer": "lte-m",
+        "zoom": 10,
+        "files": 5231,
+        "pixels": 342818816,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Bell LTE-M",
+        "visualTile": "10/211/351",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers HSPA+",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 32,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers HSPA+",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 5,
+        "files": 66,
+        "pixels": 4325376,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "5/6/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 6,
+        "files": 196,
+        "pixels": 12845056,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "6/17/12",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 7,
+        "files": 587,
+        "pixels": 38469632,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "7/31/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 8,
+        "files": 1667,
+        "pixels": 109248512,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "8/63/53",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 9,
+        "files": 4483,
+        "pixels": 293797888,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "9/143/164",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "3g",
+        "zoom": 10,
+        "files": 11918,
+        "pixels": 781058048,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers HSPA+",
+        "visualTile": "10/251/348",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers 4G LTE",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 28,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers 4G LTE",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 5,
+        "files": 66,
+        "pixels": 4325376,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "5/6/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 6,
+        "files": 196,
+        "pixels": 12845056,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "6/17/12",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 7,
+        "files": 592,
+        "pixels": 38797312,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "7/31/44",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 8,
+        "files": 1698,
+        "pixels": 111280128,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "8/63/41",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 9,
+        "files": 4657,
+        "pixels": 305201152,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "9/143/169",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g",
+        "zoom": 10,
+        "files": 12756,
+        "pixels": 835977216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers 4G LTE",
+        "visualTile": "10/247/133",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 28,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 5,
+        "files": 66,
+        "pixels": 4325376,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "5/6/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 6,
+        "files": 196,
+        "pixels": 12845056,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "6/17/12",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 7,
+        "files": 592,
+        "pixels": 38797312,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "7/31/44",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 8,
+        "files": 1698,
+        "pixels": 111280128,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "8/63/41",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 9,
+        "files": 4658,
+        "pixels": 305266688,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "9/143/170",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g",
+        "zoom": 10,
+        "files": 12763,
+        "pixels": 836435968,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers combined LTE / 5G / 5G+",
+        "visualTile": "10/247/128",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 3,
+        "files": 2,
+        "pixels": 131072,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "3/2/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 4,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 4,
+        "files": 6,
+        "pixels": 393216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "4/3/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 5,
+        "files": 16,
+        "pixels": 1048576,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 6,
+        "files": 37,
+        "pixels": 2424832,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "6/16/21",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 7,
+        "files": 97,
+        "pixels": 6356992,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "7/28/42",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 8,
+        "files": 290,
+        "pixels": 19005440,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "8/53/86",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 9,
+        "files": 870,
+        "pixels": 57016320,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "9/168/183",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 16,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "4g5g-only",
+        "zoom": 10,
+        "files": 2789,
+        "pixels": 182779904,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Rogers 5G/5G+ only",
+        "visualTile": "10/199/339",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 3,
+        "files": 2,
+        "pixels": 131072,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "3/2/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 4,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 4,
+        "files": 6,
+        "pixels": 393216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "4/3/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 5,
+        "files": 16,
+        "pixels": 1048576,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 6,
+        "files": 37,
+        "pixels": 2424832,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "6/16/21",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 7,
+        "files": 97,
+        "pixels": 6356992,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "7/28/42",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 8,
+        "files": 290,
+        "pixels": 19005440,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "8/53/86",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 9,
+        "files": 870,
+        "pixels": 57016320,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "9/168/183",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 16,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-only",
+        "zoom": 10,
+        "files": 2789,
+        "pixels": 182779904,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Rogers 5G only (derived)",
+        "visualTile": "10/199/339",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 3,
+        "files": 2,
+        "pixels": 131072,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "3/2/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 4,
+        "files": 6,
+        "pixels": 393216,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "4/3/5",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 5,
+        "files": 16,
+        "pixels": 1048576,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "5/6/10",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 6,
+        "files": 33,
+        "pixels": 2162688,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "6/17/21",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 7,
+        "files": 82,
+        "pixels": 5373952,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.7939677238464355e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "7/26/41",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 8,
+        "files": 218,
+        "pixels": 14286848,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "8/52/83",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 9,
+        "files": 542,
+        "pixels": 35520512,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 5.587935447692871e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "9/70/163",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "5g-plus-only",
+        "zoom": 10,
+        "files": 1384,
+        "pixels": 90701824,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 4.6566128730773926e-9,
+        "label": "Rogers 5G+ only (derived)",
+        "visualTile": "10/213/345",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers All + Satellite",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 12,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers All + Satellite",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 5,
+        "files": 68,
+        "pixels": 4456448,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "5/6/8",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 6,
+        "files": 213,
+        "pixels": 13959168,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "6/17/13",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 7,
+        "files": 678,
+        "pixels": 44433408,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "7/31/28",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 8,
+        "files": 2057,
+        "pixels": 134807552,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "8/63/41",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 9,
+        "files": 6234,
+        "pixels": 408551424,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "9/146/131",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "comp_sat",
+        "zoom": 10,
+        "files": 19475,
+        "pixels": 1276313600,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers All + Satellite",
+        "visualTile": "10/255/319",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers LTE-M",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 24,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers LTE-M",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 5,
+        "files": 66,
+        "pixels": 4325376,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "5/6/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 6,
+        "files": 195,
+        "pixels": 12779520,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "6/17/12",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 7,
+        "files": 590,
+        "pixels": 38666240,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "7/31/44",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 8,
+        "files": 1681,
+        "pixels": 110166016,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "8/63/38",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 9,
+        "files": 4602,
+        "pixels": 301596672,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "9/143/86",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "ltem",
+        "zoom": 10,
+        "files": 12590,
+        "pixels": 825098240,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers LTE-M",
+        "visualTile": "10/245/236",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 3,
+        "files": 8,
+        "pixels": 524288,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 9.313225746154785e-9,
+        "label": "Rogers NB-IoT",
+        "visualTile": "3/1/2",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 24,
+        "maxScreenshotChannelDifference": 1
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 4,
+        "files": 22,
+        "pixels": 1441792,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 7.450580596923828e-9,
+        "label": "Rogers NB-IoT",
+        "visualTile": "4/4/0",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 5,
+        "files": 66,
+        "pixels": 4325376,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.1175870895385742e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "5/6/9",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 6,
+        "files": 192,
+        "pixels": 12582912,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.30385160446167e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "6/17/14",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 7,
+        "files": 571,
+        "pixels": 37421056,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "7/32/15",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 8,
+        "files": 1616,
+        "pixels": 105906176,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.2351741790771484e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "8/63/69",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 9,
+        "files": 4342,
+        "pixels": 284557312,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 1.862645149230957e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "9/145/28",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      },
+      {
+        "provider": "rogers",
+        "layer": "nbiot",
+        "zoom": 10,
+        "files": 11620,
+        "pixels": 761528320,
+        "changedFiles": 0,
+        "sourceFileMismatches": 0,
+        "decodeErrors": 0,
+        "maxCoordinateErrorMetres": 2.60770320892334e-8,
+        "label": "Rogers NB-IoT",
+        "visualTile": "10/252/276",
+        "screenshotPixels": 262144,
+        "changedScreenshotPixels": 0,
+        "maxScreenshotChannelDifference": 0
+      }
+    ]
+  },
+  "rendered": {
+    "cases": 121,
+    "exactCases": 111,
+    "roundedCases": 10,
+    "changedPixels": 188,
+    "screenshotPixels": 31719424,
+    "maxChannelDifference": 1,
+    "browserErrors": []
+  },
+  "native": {
+    "telus": [
+      {
+        "layer": "telus-5g",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 11093,
+        "points": 71503,
+        "geometryTypes": {
+          "3": 11093
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 13205,
+        "points": 154277,
+        "geometryTypes": {
+          "3": 13205
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g",
+        "zoom": 2,
+        "tiles": 2,
+        "features": 14858,
+        "points": 385593,
+        "geometryTypes": {
+          "3": 14858
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g",
+        "zoom": 3,
+        "tiles": 3,
+        "features": 15899,
+        "points": 940113,
+        "geometryTypes": {
+          "3": 15899
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g",
+        "zoom": 4,
+        "tiles": 8,
+        "features": 16628,
+        "points": 2068994,
+        "geometryTypes": {
+          "3": 16628
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g",
+        "zoom": 5,
+        "tiles": 21,
+        "features": 15877,
+        "points": 4403206,
+        "geometryTypes": {
+          "3": 15877
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 2098,
+        "points": 12450,
+        "geometryTypes": {
+          "3": 2098
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 2721,
+        "points": 26806,
+        "geometryTypes": {
+          "3": 2721
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 2,
+        "tiles": 2,
+        "features": 3125,
+        "points": 62118,
+        "geometryTypes": {
+          "3": 3125
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 3,
+        "tiles": 2,
+        "features": 3392,
+        "points": 144523,
+        "geometryTypes": {
+          "3": 3392
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 4,
+        "tiles": 6,
+        "features": 3570,
+        "points": 325217,
+        "geometryTypes": {
+          "3": 3570
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-5g-3500",
+        "zoom": 5,
+        "tiles": 16,
+        "features": 3684,
+        "points": 768869,
+        "geometryTypes": {
+          "3": 3684
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 20294,
+        "points": 123740,
+        "geometryTypes": {
+          "3": 20294
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 22172,
+        "points": 211602,
+        "geometryTypes": {
+          "3": 22172
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 2,
+        "tiles": 4,
+        "features": 23284,
+        "points": 410694,
+        "geometryTypes": {
+          "3": 23284
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 3,
+        "tiles": 6,
+        "features": 23897,
+        "points": 790462,
+        "geometryTypes": {
+          "3": 23897
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 4,
+        "tiles": 15,
+        "features": 24445,
+        "points": 1353577,
+        "geometryTypes": {
+          "3": 24445
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-hspa",
+        "zoom": 5,
+        "tiles": 42,
+        "features": 24791,
+        "points": 2250029,
+        "geometryTypes": {
+          "3": 24791
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 24520,
+        "points": 149351,
+        "geometryTypes": {
+          "3": 24520
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 27202,
+        "points": 262797,
+        "geometryTypes": {
+          "3": 27202
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 2,
+        "tiles": 4,
+        "features": 29015,
+        "points": 524987,
+        "geometryTypes": {
+          "3": 29015
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 3,
+        "tiles": 6,
+        "features": 29997,
+        "points": 1022433,
+        "geometryTypes": {
+          "3": 29997
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 4,
+        "tiles": 15,
+        "features": 30727,
+        "points": 1760873,
+        "geometryTypes": {
+          "3": 30727
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 5,
+        "tiles": 40,
+        "features": 31223,
+        "points": 2931669,
+        "geometryTypes": {
+          "3": 31223
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte",
+        "zoom": 6,
+        "tiles": 31,
+        "features": 11016,
+        "points": 1253047,
+        "geometryTypes": {
+          "3": 11016
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 16557,
+        "points": 103338,
+        "geometryTypes": {
+          "3": 16557
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 18897,
+        "points": 198008,
+        "geometryTypes": {
+          "3": 18897
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 2,
+        "tiles": 4,
+        "features": 20291,
+        "points": 417163,
+        "geometryTypes": {
+          "3": 20291
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 3,
+        "tiles": 5,
+        "features": 21061,
+        "points": 820954,
+        "geometryTypes": {
+          "3": 21061
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 4,
+        "tiles": 12,
+        "features": 21617,
+        "points": 1349560,
+        "geometryTypes": {
+          "3": 21617
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-advanced",
+        "zoom": 5,
+        "tiles": 31,
+        "features": 21957,
+        "points": 2008263,
+        "geometryTypes": {
+          "3": 21957
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 0,
+        "tiles": 1,
+        "features": 26214,
+        "points": 155785,
+        "geometryTypes": {
+          "3": 26214
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 1,
+        "tiles": 1,
+        "features": 28682,
+        "points": 258354,
+        "geometryTypes": {
+          "3": 28682
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 2,
+        "tiles": 4,
+        "features": 30263,
+        "points": 493805,
+        "geometryTypes": {
+          "3": 30263
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 3,
+        "tiles": 6,
+        "features": 31159,
+        "points": 935446,
+        "geometryTypes": {
+          "3": 31159
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 4,
+        "tiles": 15,
+        "features": 31847,
+        "points": 1561592,
+        "geometryTypes": {
+          "3": 31847
+        },
+        "badCoordinates": 0
+      },
+      {
+        "layer": "telus-lte-m",
+        "zoom": 5,
+        "tiles": 40,
+        "features": 32377,
+        "points": 2435753,
+        "geometryTypes": {
+          "3": 32377
+        },
+        "badCoordinates": 0
+      }
+    ],
+    "crtc": [
+      {
+        "file": "crtc-5g-coverage-current.geojson.gz",
+        "sha256": "6ad4fb56587f8f92697405fc90f37ebde3f2f790c5a27cf780fcebf39782986c",
+        "features": 1,
+        "coordinates": 89916,
+        "geometryTypes": {
+          "MultiPolygon": 1
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-am-contours-day.geojson.gz",
+        "sha256": "442bf3b58ecd071603f700628fbf140525fdbe5855d3fb07b2a7e654a27e7b99",
+        "features": 176,
+        "coordinates": 63536,
+        "geometryTypes": {
+          "Polygon": 176
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-am-contours-night.geojson.gz",
+        "sha256": "ea0b86ab68c1ae94de888f64aee1718299804e6950985bed502f073c9079f79b",
+        "features": 175,
+        "coordinates": 63175,
+        "geometryTypes": {
+          "Polygon": 175
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-am-radio-stations.geojson.gz",
+        "sha256": "0bc541d6bbae5fff04bff6e0432710160f8af393be62577323a9d11a3bd7979a",
+        "features": 176,
+        "coordinates": 176,
+        "geometryTypes": {
+          "Point": 176
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-broadcasting-distribution-undertakings.geojson.gz",
+        "sha256": "f8db638454888de6803a60ab8ac80627a0f401d1a37ac3013a25bc61c083c19f",
+        "features": 349,
+        "coordinates": 349,
+        "geometryTypes": {
+          "Point": 349
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-dtv-contours.geojson.gz",
+        "sha256": "313d887e749fc3e2a0a883f8f455695a161055fd7f52047ff26fcf9e283d349a",
+        "features": 210,
+        "coordinates": 75810,
+        "geometryTypes": {
+          "Polygon": 210
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-dtv-stations.geojson.gz",
+        "sha256": "494292ac359491170b7aacde9db330cff66a5dd3fcfe243aecca0ed2a244dcad",
+        "features": 210,
+        "coordinates": 210,
+        "geometryTypes": {
+          "Point": 210
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-fm-contours.geojson.gz",
+        "sha256": "6b61695449f360e2523d5980c7cad856c607046c3a616f6c58441d893419ba75",
+        "features": 2019,
+        "coordinates": 728535,
+        "geometryTypes": {
+          "Polygon": 2019
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-fm-radio-stations.geojson.gz",
+        "sha256": "3bffe6727cbff55fb14fa2379e5d5ff7b682b518ec85c1b9bc405d146cfc1add",
+        "features": 2023,
+        "coordinates": 2023,
+        "geometryTypes": {
+          "Point": 2023
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-lte-coverage-current.geojson.gz",
+        "sha256": "1b464198aaa9fd8bd97ab3e54dde2512823867119c18f39cf44988a8cf219e34",
+        "features": 1,
+        "coordinates": 143953,
+        "geometryTypes": {
+          "MultiPolygon": 1
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-major-roads-with-lte-5g.geojson.gz",
+        "sha256": "cb0de7f635075b7d9539be9a1ef97285bc8b72ead8dcbffd956c112b86e90393",
+        "features": 157175,
+        "coordinates": 1134290,
+        "geometryTypes": {
+          "LineString": 156359,
+          "MultiLineString": 816
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-major-roads-without-lte-5g.geojson.gz",
+        "sha256": "40a8dc9396a20acdf76624ac79217d2fcc730af42e1687bb02f3f7514b4aebee",
+        "features": 6527,
+        "coordinates": 150642,
+        "geometryTypes": {
+          "LineString": 5867,
+          "MultiLineString": 660
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-tv-contours.geojson.gz",
+        "sha256": "e1bde71f2f61ad70405a488a4d6dcee6881f486ca7f45882001c98b1558d3965",
+        "features": 28,
+        "coordinates": 10108,
+        "geometryTypes": {
+          "Polygon": 28
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-tv-stations.geojson.gz",
+        "sha256": "ed4f958621118a128793bef556cb3b0d355bcd02b208d2f939aab8852fb946b4",
+        "features": 28,
+        "coordinates": 28,
+        "geometryTypes": {
+          "Point": 28
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      },
+      {
+        "file": "crtc-wireless-coverage-current.geojson.gz",
+        "sha256": "5d50693c260ceabfc53c64034634ab24c110dc019bc9cad25d255afeb3fd8a3b",
+        "features": 2,
+        "coordinates": 233869,
+        "geometryTypes": {
+          "MultiPolygon": 2
+        },
+        "badCoordinates": 0,
+        "nullGeometries": 0
+      }
+    ],
+    "browser": {
+      "crtc": [
+        {
+          "id": "crtc-wireless-coverage-current",
+          "features": 2,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-5g-coverage-current",
+          "features": 1,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-lte-coverage-current",
+          "features": 1,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-major-roads-with-lte-5g",
+          "features": 157175,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true,
+          "sourceTolerance": 0
+        },
+        {
+          "id": "crtc-major-roads-without-lte-5g",
+          "features": 6527,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true,
+          "sourceTolerance": 0
+        },
+        {
+          "id": "crtc-broadcasting-distribution-undertakings",
+          "features": 349,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-dtv-contours",
+          "features": 210,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-tv-contours",
+          "features": 28,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-fm-contours",
+          "features": 2019,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-am-contours-night",
+          "features": 175,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-am-contours-day",
+          "features": 176,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-dtv-stations",
+          "features": 210,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-tv-stations",
+          "features": 28,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-fm-radio-stations",
+          "features": 2023,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        },
+        {
+          "id": "crtc-am-radio-stations",
+          "features": 176,
+          "sourceMatchesArchive": true,
+          "gridMatchesArchive": true
+        }
+      ],
+      "telus": [
+        {
+          "layer": "telus-5g",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 11093,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 11093,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 13205,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 13205,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 4062,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 4062,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 11503,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 11503,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 4414,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 4414,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 4522,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 4522,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 2098,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 2098,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 2721,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 2721,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 1398,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 1398,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 1873,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 1873,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 571,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 571,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-5g-3500",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 1089,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 1089,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 20294,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 20294,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 22172,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 22172,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 9213,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 9213,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 13690,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 13690,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 5646,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 5646,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-hspa",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 3853,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 3853,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 24520,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 24520,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 27202,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 27202,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 9912,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 9912,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 19120,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 19120,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 8211,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 8211,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 5131,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 5131,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte",
+          "z": 6,
+          "x": 10,
+          "y": 21,
+          "before": {
+            "features": 1307,
+            "sourceZoom": 6,
+            "sourceMin": 6,
+            "sourceMax": 6
+          },
+          "after": {
+            "features": 1307,
+            "sourceZoom": 6,
+            "sourceMin": 6,
+            "sourceMax": 6
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 16557,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 16557,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 18897,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 18897,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 7205,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 7205,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 13556,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 13556,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 6797,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 6797,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-advanced",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 4192,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 4192,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 0,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 26214,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "after": {
+            "features": 26214,
+            "sourceZoom": 0,
+            "sourceMin": 0,
+            "sourceMax": 0
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 1,
+          "x": 0,
+          "y": 0,
+          "before": {
+            "features": 28682,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "after": {
+            "features": 28682,
+            "sourceZoom": 1,
+            "sourceMin": 1,
+            "sourceMax": 1
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 2,
+          "x": 1,
+          "y": 1,
+          "before": {
+            "features": 10410,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "after": {
+            "features": 10410,
+            "sourceZoom": 2,
+            "sourceMin": 2,
+            "sourceMax": 2
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 3,
+          "x": 1,
+          "y": 2,
+          "before": {
+            "features": 19739,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "after": {
+            "features": 19739,
+            "sourceZoom": 3,
+            "sourceMin": 3,
+            "sourceMax": 3
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 4,
+          "x": 3,
+          "y": 5,
+          "before": {
+            "features": 8308,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "after": {
+            "features": 8308,
+            "sourceZoom": 4,
+            "sourceMin": 4,
+            "sourceMax": 4
+          },
+          "unchanged": true
+        },
+        {
+          "layer": "telus-lte-m",
+          "z": 5,
+          "x": 5,
+          "y": 10,
+          "before": {
+            "features": 5295,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "after": {
+            "features": 5295,
+            "sourceZoom": 5,
+            "sourceMin": 5,
+            "sourceMax": 5
+          },
+          "unchanged": true
+        }
+      ],
+      "errors": []
+    }
+  },
+  "otherArchiveFiles": {
+    "files": 415,
+    "mismatches": [],
+    "jsonErrors": [],
+    "backupTiles": 352,
+    "backupTileMismatches": []
+  },
+  "references": "Videotron LTE and Freedom nationwide/extended LTE are links only, with no saved imagery. TELUS tar backups duplicate the same 352 vector tiles. Seven legacy Bell polygon files are validated source/debug artifacts and omit levels 9–10."
+}
