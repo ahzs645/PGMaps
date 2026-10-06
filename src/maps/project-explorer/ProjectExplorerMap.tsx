@@ -1,22 +1,25 @@
 import { useMemo } from 'react'
 
-import { Map, MapControls, MapPopup } from '@/components/ui/map'
+import { Map, MapControls, MapPopup, MapScaleBar } from '@/components/ui/map'
 import { MapPieClusterLayer } from '@/components/ui/map-layers'
 import { Timeline } from '@/components/ui/timeline'
 import type { ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
 
 import type { ResearchRecordsAdapterData } from './adapters/useResearchRecordsAdapter'
-import { LocationPopupFeature } from './features/LocationPopupFeature'
+import { LocationPopupFeature, LocationCameraFocus } from './features/LocationPopupFeature'
+import { AggregateBoundaryMapFeature, type AggregateBoundaryState } from './features/AggregateBoundaryFeature'
 import { MapLegendFeature } from './features/MapLegendFeature'
 
 export function ProjectExplorerMap({
   config,
   data,
+  boundary,
   timelineMode,
   onExitTimeline,
 }: {
   config: ProjectMapExplorerWorkspaceDef
   data: ResearchRecordsAdapterData
+  boundary: AggregateBoundaryState
   timelineMode: boolean
   onExitTimeline: () => void
 }) {
@@ -24,6 +27,7 @@ export function ProjectExplorerMap({
   const timelineFeature = config.features.find((feature) => feature.type === 'timeline')
   const legendFeature = config.features.find((feature) => feature.type === 'map-legend')
   const popupFeature = config.features.find((feature) => feature.type === 'location-popup')
+  const boundaryFeature = config.features.find((feature) => feature.type === 'aggregate-boundary')
   const decadeValues = useMemo(() => data.decades.map((item) => item.decade), [data.decades])
   const firstDecade = decadeValues[0] ?? new Date().getFullYear()
   const lastDecade = decadeValues[decadeValues.length - 1] ?? firstDecade
@@ -56,6 +60,15 @@ export function ProjectExplorerMap({
       maxZoom={config.map.maxZoom}
       controls={<MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass showFullscreen />}
     >
+      <LocationCameraFocus location={selectedLocation} />
+      <MapScaleBar position="bottom-left" />
+      {boundaryFeature && (
+        <AggregateBoundaryMapFeature
+          feature={boundaryFeature}
+          state={boundary}
+          count={data.regionalOnlySubmissions.length}
+        />
+      )}
       <MapPieClusterLayer
         data={activeGeoJSON}
         bandColors={pieBandColors}
@@ -63,7 +76,7 @@ export function ProjectExplorerMap({
         preAggregated
         pointLabelProperty="name"
         expandOverlappingPoints
-        onPointClick={(properties) => setSelectedLocationId(String(properties.id))}
+        onPointClick={(properties) => data.focusLocation(String(properties.id))}
       />
       {legendFeature?.type === 'map-legend' ? (
         <MapLegendFeature config={config} feature={legendFeature} counts={legendCounts} elevated={timelineMode} />

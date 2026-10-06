@@ -10,12 +10,14 @@ import { RankedListFeature } from './features/RankedListFeature'
 import { SearchFeature } from './features/SearchFeature'
 import { SummaryStatsFeature } from './features/SummaryStatsFeature'
 import { TimelineFeature } from './features/TimelineFeature'
+import { AggregateBoundaryFeature, type AggregateBoundaryState } from './features/AggregateBoundaryFeature'
 
 export function ProjectExplorerSidebar({
   title,
   onBack,
   config,
   data,
+  boundary,
   timelineMode,
   onToggleTimeline,
 }: {
@@ -23,6 +25,7 @@ export function ProjectExplorerSidebar({
   onBack: () => void
   config: ProjectMapExplorerWorkspaceDef
   data: ResearchRecordsAdapterData
+  boundary: AggregateBoundaryState
   timelineMode: boolean
   onToggleTimeline: () => void
 }) {
@@ -38,14 +41,19 @@ export function ProjectExplorerSidebar({
     toggleResourceType,
     searchQuery,
     setSearchQuery,
-    filteredLocations,
-    setSelectedLocationId,
+    availableLocations,
     clearFilters,
   } = data
   const [showRegionalDialog, setShowRegionalDialog] = useState(false)
-  const hasFilters = selectedDecade !== null || selectedTypes.size > 0 || searchQuery !== ''
+  const hasFilters =
+    selectedDecade !== null ||
+    selectedTypes.size > 0 ||
+    searchQuery !== '' ||
+    data.locationFilterId !== null ||
+    data.excludedLocationIds.size > 0
   const summaryFeature = config.features.find((feature) => feature.type === 'summary-stats')
   const aggregateFeature = config.features.find((feature) => feature.type === 'aggregate-records')
+  const boundaryFeature = config.features.find((feature) => feature.type === 'aggregate-boundary')
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -66,7 +74,7 @@ export function ProjectExplorerSidebar({
         />
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]" data-explorer-sidebar-scroll>
         {config.features.map((feature, index) => {
           const key = `${feature.type}-${index}`
           switch (feature.type) {
@@ -98,8 +106,26 @@ export function ProjectExplorerSidebar({
                   onToggle={toggleResourceType}
                 />
               )
+            case 'aggregate-boundary':
+              return (
+                <AggregateBoundaryFeature
+                  key={key}
+                  feature={feature}
+                  state={boundary}
+                  records={
+                    aggregateFeature ? (
+                      <AggregateRecordsFeature
+                        feature={aggregateFeature}
+                        count={regionalOnlySubmissions.length}
+                        onOpen={() => setShowRegionalDialog(true)}
+                        embedded
+                      />
+                    ) : undefined
+                  }
+                />
+              )
             case 'aggregate-records':
-              if (regionalOnlySubmissions.length === 0) return null
+              if (boundaryFeature || regionalOnlySubmissions.length === 0) return null
               return (
                 <AggregateRecordsFeature
                   key={key}
@@ -115,9 +141,12 @@ export function ProjectExplorerSidebar({
                 <RankedListFeature
                   key={key}
                   feature={feature}
-                  locations={filteredLocations}
+                  locations={availableLocations}
                   locationPlural={config.labels.locationPlural}
-                  onSelect={setSelectedLocationId}
+                  onSelect={data.focusLocation}
+                  selectedId={data.locationFilterId}
+                  excludedIds={data.excludedLocationIds}
+                  onExclude={data.toggleExcludedLocation}
                 />
               )
           }

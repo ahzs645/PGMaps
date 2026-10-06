@@ -29,6 +29,7 @@ Read only the references for features being used or changed:
 - [timeline](map-explorer-features/timeline.md)
 - [category-filter](map-explorer-features/category-filter.md)
 - [aggregate-records](map-explorer-features/aggregate-records.md)
+- [aggregate-boundary](map-explorer-features/aggregate-boundary.md)
 - [search](map-explorer-features/search.md)
 - [ranked-list](map-explorer-features/ranked-list.md)
 - [map-legend](map-explorer-features/map-legend.md)

@@ -9,6 +9,7 @@ import { useResearchExplorerWebMCP } from '@/lib/projectWebMCP'
 import { useResearchRecordsAdapter } from './adapters/useResearchRecordsAdapter'
 import { ProjectExplorerMap } from './ProjectExplorerMap'
 import { ProjectExplorerSidebar } from './ProjectExplorerSidebar'
+import { useAggregateBoundary } from './features/AggregateBoundaryFeature'
 
 export function ProjectMapExplorer({
   title,
@@ -21,6 +22,7 @@ export function ProjectMapExplorer({
 }) {
   const [timelineMode, setTimelineMode] = useState(false)
   const data = useResearchRecordsAdapter(config, timelineMode)
+  const boundary = useAggregateBoundary(config.features.find((feature) => feature.type === 'aggregate-boundary'))
   useResearchExplorerWebMCP({ title, data })
 
   if (data.loading) {
@@ -61,6 +63,7 @@ export function ProjectMapExplorer({
           onBack={onBack}
           config={config}
           data={data}
+          boundary={boundary}
           timelineMode={timelineMode}
           onToggleTimeline={() => {
             data.setSelectedLocationId(null)
@@ -84,6 +87,7 @@ export function ProjectMapExplorer({
       <ProjectExplorerMap
         config={config}
         data={data}
+        boundary={boundary}
         timelineMode={timelineMode}
         onExitTimeline={() => {
           data.setSelectedLocationId(null)

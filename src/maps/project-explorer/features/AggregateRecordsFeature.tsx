@@ -16,13 +16,15 @@ export function AggregateRecordsFeature({
   feature,
   count,
   onOpen,
+  embedded = false,
 }: {
   feature: ExplorerFeature<'aggregate-records'>
   count: number
   onOpen: () => void
+  embedded?: boolean
 }) {
   return (
-    <section className="border-b border-border p-3">
+    <section className={embedded ? undefined : 'border-b border-border p-3'}>
       <button
         type="button"
         onClick={onOpen}

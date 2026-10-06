@@ -121,6 +121,10 @@ const featureRegistry = {
     component: 'src/maps/project-explorer/features/AggregateRecordsFeature.tsx',
     reference: '.agents/skills/pgmaps-project-builder/references/map-explorer-features/aggregate-records.md',
   },
+  'aggregate-boundary': {
+    component: 'src/maps/project-explorer/features/AggregateBoundaryFeature.tsx',
+    reference: '.agents/skills/pgmaps-project-builder/references/map-explorer-features/aggregate-boundary.md',
+  },
   search: {
     component: 'src/maps/project-explorer/features/SearchFeature.tsx',
     reference: '.agents/skills/pgmaps-project-builder/references/map-explorer-features/search.md',
@@ -263,6 +267,10 @@ if (project.workspace?.type === 'map-explorer') {
           validateTemplate(feature.triggerTemplate, `${scope}.triggerTemplate`)
           requireString(feature, 'modalTitle', scope)
           validateTemplate(feature.modalDescription, `${scope}.modalDescription`)
+          break
+        case 'aggregate-boundary':
+          for (const key of ['title', 'data', 'idProperty', 'featureId', 'description']) requireString(feature, key, scope)
+          if (!(typeof feature.data === 'string' && feature.data.startsWith('/data/')) && !isHttpsUrl(feature.data)) errors.push(`${scope}.data must be a /data/ path or HTTPS URL`)
           break
         case 'search': {
           requireString(feature, 'placeholder', scope)

@@ -30,7 +30,7 @@ export function CategoryFilterFeature({
               value={count.toLocaleString()}
               active={active}
               onClick={() => onToggle(category)}
-              className="rounded px-2 py-1"
+              className="rounded px-2 py-1.5 text-xs md:px-2"
             />
           )
         })}

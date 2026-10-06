@@ -86,12 +86,13 @@ remove that capability.
   the chosen bucket drives the sidebar's decade; closing playback restores the
   previous static decade filter. Bucket histograms span the source decade range
   and include zero-result buckets.
-- `category-filter`: category totals and filtering.
+- `category-filter`: category totals and filtering, sized consistently with location rows.
+- `aggregate-boundary`: an opt-in polygon overlay for aggregate-only records, with adjustable shading and a live count anchored on the polygon. `data` is a GeoJSON collection URL (`/data/` or HTTPS, gzip supported); `idProperty` and `featureId` select the exact boundary; `title` and `description` identify its provenance and the scope of the count. Counts follow all filters and describe aggregate tags, not spatial containment. Boundary loading is lazy, with retry on failure.
 - `aggregate-records`: opens records assigned only to configured aggregate
   locations. Text supports a `{count}` placeholder.
 - `search`: searches any configured combination of title, author, and tags.
 - `ranked-list`: ranked mapped locations with a configurable page size (`limit`).
-  Page controls expose all matching locations without mounting an unbounded list.
+  Page controls expose all matching locations without mounting an unbounded list. Click filters records to that location and focuses the camera; clicking again clears it. Right-click or the visible exclude control removes any record tagged to that location (including multi-location records); restore reverses it. Facet counts respect search, categories, and decade while remaining available to switch or restore location filters. Location filters also apply to timeline buckets and aggregate counts. Sidebar scrollbars reserve a stable gutter.
 - `map-legend`: shared map legend using the configured categories; collapsed by
   default on phones. Map controls use the shared shell's mobile offsets.
 - `location-popup`: mapped-location detail with a configurable category limit.
@@ -136,3 +137,9 @@ Aggregate-record dialogs use bounded 20-record pages. Keep paging and filtering
 in their owning feature/adapter; do not truncate records silently or make the
 map compositor manage list pagination. The shared pagination hook resets on
 filter changes and clamps the page when a result set shrinks.
+
+When `aggregate-records` and `aggregate-boundary` are both configured, their
+sidebar controls share one section named for the boundary: a publications button
+with the count, the boundary toggle, provenance note, and shading slider. The
+count is not repeated on the toggle. The publications button remains available
+at zero results; turning the boundary on or off does not open the dialog.

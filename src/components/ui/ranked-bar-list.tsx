@@ -13,12 +13,18 @@ export function RankedBarList({
   limit,
   emptyMessage = 'No results',
   onSelect,
+  onExclude,
+  selectedId,
+  excludedIds,
   className,
 }: {
   items: RankedBarListItem[]
   limit?: number
   emptyMessage?: ReactNode
   onSelect?: (item: RankedBarListItem) => void
+  onExclude?: (item: RankedBarListItem) => void
+  selectedId?: string | null
+  excludedIds?: ReadonlySet<string>
   className?: string
 }) {
   const visibleItems = limit == null ? items : items.slice(0, limit)
@@ -49,14 +55,40 @@ export function RankedBarList({
         )
 
         return onSelect ? (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item)}
-            className="group flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted"
-          >
-            {content}
-          </button>
+          <div key={item.id} className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onSelect(item)}
+              onContextMenu={
+                onExclude
+                  ? (event) => {
+                      event.preventDefault()
+                      onExclude(item)
+                    }
+                  : undefined
+              }
+              aria-pressed={selectedId === undefined ? undefined : selectedId === item.id}
+              title={onExclude ? 'Click to filter and focus; right-click to exclude or restore' : undefined}
+              className={cn(
+                'group flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted touch:min-h-10',
+                selectedId === item.id && 'bg-primary/10 ring-1 ring-inset ring-primary/30',
+                excludedIds?.has(item.id) && 'text-muted-foreground line-through',
+              )}
+            >
+              {content}
+            </button>
+            {onExclude && (
+              <button
+                type="button"
+                onClick={() => onExclude(item)}
+                aria-label={`${excludedIds?.has(item.id) ? 'Restore' : 'Exclude'} ${typeof item.label === 'string' ? item.label : item.id}`}
+                title={excludedIds?.has(item.id) ? 'Restore location' : 'Exclude location'}
+                className="shrink-0 rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted touch:min-h-10"
+              >
+                {excludedIds?.has(item.id) ? '↶' : '−'}
+              </button>
+            )}
+          </div>
         ) : (
           <div key={item.id} className="group flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs">
             {content}

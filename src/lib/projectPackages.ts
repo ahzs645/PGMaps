@@ -203,6 +203,14 @@ export type ProjectExplorerFeatureDef =
     }
   | { type: 'category-filter'; title: string }
   | {
+      type: 'aggregate-boundary'
+      title: string
+      data: string
+      idProperty: string
+      featureId: string
+      description: string
+    }
+  | {
       type: 'aggregate-records'
       triggerTemplate: string
       modalTitle: string
@@ -861,6 +869,16 @@ function normalizeExplorerFeature(value: unknown): ProjectExplorerFeatureDef | n
       }
     case 'category-filter':
       return { type: 'category-filter', title: asString(candidate.title, 'Categories') }
+    case 'aggregate-boundary':
+      if (!isProjectDataUrl(candidate.data) || !asString(candidate.featureId).trim()) return null
+      return {
+        type: 'aggregate-boundary',
+        title: asString(candidate.title, 'Regional boundary'),
+        data: candidate.data,
+        idProperty: asString(candidate.idProperty, 'id'),
+        featureId: asString(candidate.featureId),
+        description: asString(candidate.description),
+      }
     case 'aggregate-records':
       return {
         type: 'aggregate-records',

@@ -1,4 +1,19 @@
 import type { ExplorerFeature } from './featureTypes'
+import { useEffect } from 'react'
+import { useMap } from '@/components/ui/map'
+import type { ResearchRecordsLocation } from '../adapters/researchRecordsTypes'
+
+export function LocationCameraFocus({ location }: { location: ResearchRecordsLocation | null }) {
+  const { map, isLoaded } = useMap()
+  const longitude = location?.coordinates?.lon
+  const latitude = location?.coordinates?.lat
+  const id = location?.id
+  useEffect(() => {
+    if (!map || !isLoaded || longitude === undefined || latitude === undefined) return
+    map.easeTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 8), duration: 600 })
+  }, [map, isLoaded, id, longitude, latitude])
+  return null
+}
 
 export function LocationPopupFeature({
   feature,

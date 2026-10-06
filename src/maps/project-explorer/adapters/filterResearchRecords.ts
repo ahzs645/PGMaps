@@ -6,12 +6,16 @@ export function filterResearchRecords(
   types: Set<string>,
   fields: Array<'title' | 'author' | 'tags'>,
   decade: number | null = null,
+  locationId: string | null = null,
+  excludedLocationIds: ReadonlySet<string> = new Set(),
 ) {
   const normalized = query.trim().toLowerCase()
   return records.filter(
     (record) =>
       (decade === null || record.decade === decade) &&
       (types.size === 0 || types.has(record.resourceTypeMain)) &&
+      (locationId === null || record.locationIds.includes(locationId)) &&
+      !record.locationIds.some((id) => excludedLocationIds.has(id)) &&
       (!normalized ||
         fields.some((field) =>
           field === 'tags'

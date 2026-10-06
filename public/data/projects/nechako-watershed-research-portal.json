@@ -229,6 +229,14 @@
         "modalDescription": "{count} publications tagged to the watershed without a specific location"
       },
       {
+        "type": "aggregate-boundary",
+        "title": "Nechako River",
+        "data": "/data/boundaries/BCFWA/named_watersheds_stream_order_8_50m.geojson.gz",
+        "idProperty": "boundaryCode",
+        "featureId": "8886",
+        "description": "FWA named watershed 8886 · Stream order 8 · 47,258 km². Regional-only tags may refer to broader areas; the count is not a spatial match."
+      },
+      {
         "type": "search",
         "placeholder": "Search titles, authors, tags…",
         "fields": ["title", "author", "tags"]

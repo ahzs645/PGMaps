@@ -42,3 +42,9 @@ declare module '@turf/helpers' {
     features: GeoJSON.Feature<GeoJSON.Point>[]
   ): GeoJSON.FeatureCollection<GeoJSON.Point>
 }
+
+declare module '@turf/point-on-feature' {
+  export default function pointOnFeature(
+    feature: GeoJSON.FeatureCollection | GeoJSON.Feature,
+  ): GeoJSON.Feature<GeoJSON.Point>
+}

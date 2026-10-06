@@ -28,6 +28,8 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const [locationFilterId, setLocationFilterId] = useState<string | null>(null)
+  const [excludedLocationIds, setExcludedLocationIds] = useState<Set<string>>(new Set())
   const resourceTypeColors = useMemo(
     () => Object.fromEntries(config.data.categories.map((type) => [type.id, type.color])),
     [config.data.categories],
@@ -77,8 +79,17 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
   }, [config.data.baseUrl, config.data.files, reloadKey])
 
   const matchingSubmissions = useMemo(
-    () => filterResearchRecords(submissions, searchQuery, selectedTypes, searchFields),
-    [submissions, searchQuery, selectedTypes, searchFields],
+    () =>
+      filterResearchRecords(
+        submissions,
+        searchQuery,
+        selectedTypes,
+        searchFields,
+        null,
+        locationFilterId,
+        excludedLocationIds,
+      ),
+    [submissions, searchQuery, selectedTypes, searchFields, locationFilterId, excludedLocationIds],
   )
   const filteredDecades = useMemo(
     () => summarizeResearchDecades(matchingSubmissions, decades),
@@ -170,11 +181,68 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
 
   const allResourceTypes = useMemo(() => {
     const types = new Map<string, number>()
-    for (const record of filterResearchRecords(submissions, searchQuery, new Set(), searchFields, effectiveDecade)) {
+    for (const record of filterResearchRecords(
+      submissions,
+      searchQuery,
+      new Set(),
+      searchFields,
+      effectiveDecade,
+      locationFilterId,
+      excludedLocationIds,
+    )) {
       types.set(record.resourceTypeMain, (types.get(record.resourceTypeMain) ?? 0) + 1)
     }
     return [...types.entries()].sort((a, b) => b[1] - a[1])
-  }, [searchFields, searchQuery, effectiveDecade, submissions])
+  }, [searchFields, searchQuery, effectiveDecade, submissions, locationFilterId, excludedLocationIds])
+
+  // Keep the location facet available while filtering or excluding locations.
+  const availableLocations = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const record of filterResearchRecords(
+      submissions,
+      searchQuery,
+      selectedTypes,
+      searchFields,
+      effectiveDecade,
+    )) {
+      for (const id of record.locationIds) counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    return locations
+      .filter(
+        (location) =>
+          !regionalLocationIds.has(location.id) &&
+          (counts.has(location.id) || excludedLocationIds.has(location.id) || location.id === locationFilterId),
+      )
+      .map((location) => ({ ...location, filteredCount: counts.get(location.id) ?? 0 }))
+      .sort((a, b) => b.filteredCount - a.filteredCount)
+  }, [
+    submissions,
+    searchQuery,
+    selectedTypes,
+    searchFields,
+    effectiveDecade,
+    locations,
+    regionalLocationIds,
+    excludedLocationIds,
+    locationFilterId,
+  ])
+
+  const focusLocation = useCallback((id: string) => {
+    setLocationFilterId((current) => (current === id ? null : id))
+    setSelectedLocationId(id)
+    setExcludedLocationIds((current) => new Set([...current].filter((excluded) => excluded !== id)))
+  }, [])
+
+  const toggleExcludedLocation = useCallback((id: string) => {
+    setExcludedLocationIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setLocationFilterId((current) => (current === id ? null : current))
+    setSelectedLocationId((current) => (current === id ? null : current))
+  }, [])
 
   const selectedLocation = useMemo(
     () => filteredLocations.find((location) => location.id === selectedLocationId) ?? null,
@@ -194,6 +262,9 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     setSelectedDecade(null)
     setSelectedTypes(new Set())
     setSearchQuery('')
+    setLocationFilterId(null)
+    setExcludedLocationIds(new Set())
+    setSelectedLocationId(null)
   }, [])
 
   return {
@@ -209,6 +280,11 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
     },
     filteredSubmissions,
     filteredLocations,
+    availableLocations,
+    locationFilterId,
+    excludedLocationIds,
+    focusLocation,
+    toggleExcludedLocation,
     locationGeoJSON,
     filteredStats,
     allResourceTypes,

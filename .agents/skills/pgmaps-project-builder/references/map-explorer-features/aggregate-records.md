@@ -19,3 +19,5 @@ aggregate-only from `workspace.data.aggregateLocationIds`. The feature owns its
 trigger and dialog; the shared dialog shell owns modal behavior.
 
 The dialog pages records in groups of 20 through the shared pagination control.
+With `aggregate-boundary`, the sidebar embeds the trigger in the boundary section
+so related controls share one heading and the count is shown only once.
