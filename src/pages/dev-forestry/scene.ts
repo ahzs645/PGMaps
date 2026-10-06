@@ -6,6 +6,9 @@
 
 import { geometryBounds, type BBox } from '@/lib/geo'
 import type { InventoryEvidence } from './types'
+import type { AssessmentMask, LocalRaster } from './types'
+import { parseMasks } from './assessmentMasks'
+import { parseRasters } from './localRaster'
 import type { FormMetadata } from './pdf/fs1252'
 import { parseViaReview, type ViaReview } from './via'
 
@@ -32,6 +35,8 @@ import {
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
 export type ForestryScene = {
+  masks?: AssessmentMask[]
+  localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
   harvestInventory?: InventoryEvidence
@@ -265,6 +270,7 @@ export function samplesToGeoJson(
         properties: {
           id: `${target.targetId}-${index}`,
           targetId: target.targetId,
+          sampleIndex: index,
           visible,
           distanceMeters: target.visibleDistances[index],
         },
@@ -346,6 +352,8 @@ export function stationsToGeoJson(result: AnalysisResult | null): GeoJSON.Featur
 }
 
 type SerializedScene = {
+  masks?: AssessmentMask[]
+  localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
   harvestInventory?: InventoryEvidence
@@ -446,6 +454,7 @@ export function parseScene(input: unknown): ForestryScene | null {
               typeof target.residualHeightMeters === 'number' && target.residualHeightMeters > 0 && target.residualHeightMeters < 100
                 ? target.residualHeightMeters
                 : null,
+            plannedHarvestYear: typeof target.plannedHarvestYear === 'number' && Number.isInteger(target.plannedHarvestYear) && target.plannedHarvestYear >= 1900 && target.plannedHarvestYear <= 2200 ? target.plannedHarvestYear : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -457,6 +466,8 @@ export function parseScene(input: unknown): ForestryScene | null {
     typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
   return {
+    masks: parseMasks(raw.masks),
+    localRasters: parseRasters(raw.localRasters),
     viewpoint: {
       id: typeof raw.viewpoint?.id === 'string' ? raw.viewpoint.id : base.viewpoint.id,
       name: typeof raw.viewpoint?.name === 'string' ? raw.viewpoint.name : base.viewpoint.name,

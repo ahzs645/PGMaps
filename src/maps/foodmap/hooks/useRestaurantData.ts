@@ -77,7 +77,7 @@ export function useRestaurantData(enabled = true) {
           google_place_id: geocodedLocation?.google_place_id,
           google_location_type: geocodedLocation?.google_location_type,
           google_partial_match: geocodedLocation?.google_partial_match,
-          establishment_type: classifications[r.name] || r.facility_type || 'Restaurant'
+          establishment_type: classifications[r.name] || r.facility_type || 'Unknown'
         }
       })
       setRestaurants(merged)

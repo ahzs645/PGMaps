@@ -3,6 +3,7 @@ import type { HeatmapDataset } from '@/components/HeatmapMashupLayer'
 import { useAirQualityData } from '@/maps/airquality'
 import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
+import type { CensusHierarchyLevel } from '@/maps/census/types'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
@@ -28,6 +29,14 @@ import {
 import type { ExplorerDatasetId, ExplorerItem } from '../types'
 import { useExplorerGeoJson } from './useExplorerGeoJson'
 
+const CENSUS_DATASETS: Record<CensusHierarchyLevel, ExplorerDatasetId> = {
+  da: 'censusDa',
+  ct: 'censusCt',
+  csd: 'censusCsd',
+  cd: 'censusCd',
+  db: 'censusDb',
+}
+
 /**
  * Load every explorer dataset (lazily, based on which datasets are active)
  * and convert the raw records into ranked ExplorerItems plus heatmap inputs.
@@ -40,12 +49,13 @@ export function useExplorerItems(
   const activeDatasetSet = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
   const parksDataEnabled =
     activeDatasetSet.has('parks') || activeDatasetSet.has('trails') || activeDatasetSet.has('parkAmenities')
-  const censusDataEnabled =
-    activeDatasetSet.has('censusDa') ||
-    activeDatasetSet.has('censusCt') ||
-    activeDatasetSet.has('censusCsd') ||
-    activeDatasetSet.has('censusCd') ||
-    activeDatasetSet.has('censusDb')
+  const censusLevels = useMemo(
+    () =>
+      (Object.keys(CENSUS_DATASETS) as CensusHierarchyLevel[]).filter((level) =>
+        activeDatasetSet.has(CENSUS_DATASETS[level]),
+      ),
+    [activeDatasetSet],
+  )
 
   const {
     monitors,
@@ -58,7 +68,7 @@ export function useExplorerItems(
     error: restaurantsError,
   } = useRestaurantData(activeDatasetSet.has('restaurants'))
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData([], parksDataEnabled)
-  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
+  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusLevels)
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(activeDatasetSet.has('crime'))
   const {
     stops: transitStops,

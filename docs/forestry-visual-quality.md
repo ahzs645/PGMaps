@@ -844,7 +844,8 @@ province-wide), so official viewpoints have to be placed by hand.
 ## Scenes
 
 The scene — viewpoint, polygons, settings, thresholds, and the reviewer's VIA record — is saved to
-`localStorage` under `pgmaps.forestry-visual-quality.v1` and exports as JSON.
+IndexedDB and exports as JSON. `localStorage` under `pgmaps.forestry-visual-quality.v1`
+remains a migration and fallback copy for scenes that fit its quota.
 The page opens on a worked example east of Prince George: a valley road looking
 across at Tabor Mountain, with one block on the face the road sees and one just
 over the height of land that it never does.
@@ -852,3 +853,97 @@ over the height of land that it never does.
 Imported shapefiles are reprojected through their `.prj` by shpjs. BC planning
 data usually arrives in BC Albers; without the projection file its coordinates
 land in the ocean off Africa, and the import reports the features as skipped.
+
+## Assessment workspace tools
+
+The existing five steps now contain a bounded, device-local assessment workspace.
+The additions use the [2022 BC Visual Impact Assessment Handbook](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/visual-resource-mgmt/visual_impact_assessment_handbook.pdf)
+as the workflow reference. They assist scenario comparison and evidence collection;
+none establishes a completed field visit or verified VQO achievement.
+
+- **Step 2 — field records:** record a sampled station or the current road/spot as a
+  significant viewpoint and document its significance. Import a reference photo,
+  simulation, topographic map or design image. JPEG EXIF supplies suggestions for
+  location, date, focal length and true heading; missing values remain unknown.
+  Verify the camera, link the attachment to its viewpoint, annotate the image and
+  record alignment review. Proposal ground points projected over the photo are
+  alignment aids, including hidden samples, not photographic alteration measurement.
+  Camera elevation must use the analysis terrain's vertical reference. Crops,
+  panoramas, magnetic headings and uncertain altitude need manual calibration.
+  Stored images are resized to at most 1600 pixels on the longer side; keep originals.
+- **Step 3 — masks and sources:** import classified polygons, or copy an outline
+  drawn with the existing map controls. Natural non-green areas leave numerator
+  and denominator; private land and permanent non-forestry disturbance remain in
+  the assessable land base but contribute no forestry alteration. Retained patches
+  remain green, are excluded from cleared canopy and alteration, and suppress a
+  second Table 5 retention credit. Clearings, thinning and cut-surface fill in the
+  drive also exclude retained/private/permanent polygons; natural non-green masks
+  remove illustrative trees in both phases. Road clearance remains explicit.
+  Natural exclusion takes precedence on overlap. A partial cut entirely covered by
+  retained or excluded ground contributes no Table 6 equivalent.
+  These classifications require reviewer evidence, not an automatic ownership
+  inference. A mask intersecting the active landform but represented by fewer than
+  eight shared-grid cells makes the result provisional.
+- **Step 3 — alternatives:** save named designs, update or apply them, and compare
+  them at the current sampled station (the assessment station outside a drive).
+  An alternative supplies its proposed blocks and retained patches; the current
+  scene supplies the common landform, existing openings, other masks, sources and
+  settings. Applying a different design invalidates the current numerical run.
+- **Step 3 — matrix:** select recorded viewpoints and reviewed landforms. Each
+  viewpoint/landform pair is a separate job with its own denominator, worst station
+  and pending reviewer judgments. Results are never pooled across landforms.
+- **Step 3 — diagnostics:** sensitivity jobs compare baseline, finer sampling,
+  closer stations, eye height plus/minus 0.5 m and screening on/off. An imported
+  terrain source adds an AWS-terrain comparison. These are assumption comparisons,
+  not confidence intervals. Click a map sample or select a target/sample/station
+  to trace the same terrain/canopy test, curvature and clearance used by analysis.
+  Unknown raster cells appear as profile gaps. Trace reruns the saved scene with
+  currently available inventory; an inventory change can change the answer.
+- **Step 3 — recovery:** enter planned harvest dates and assessment years. Future
+  blocks are omitted; in their harvest year they are proposals; afterward they
+  become existing openings. An optional sourced, non-decreasing height–age curve
+  determines green-up against each block's area-weighted slope threshold. It is
+  interpolated within its recorded ages, never extrapolated. Outside the curve,
+  the explicitly stated green-up-age assumption applies. Screening retains current
+  canopy assumptions: this is alteration accounting, not a future stand simulator.
+  Prior-year partial cuts are rejected until a supported recovery model exists.
+- **Step 5 — review and export:** open a saved run, complete its judgments in step 4,
+  then record/update the reviewed assessment in step 5. Opening reruns the snapshot
+  and leaves the stored result intact until the reviewer records an update. Record
+  newly changed numerical inputs separately. Export a native VIA evidence PDF or
+  printable HTML, plus workspace JSON containing the current draft, saved designs,
+  independent results, source rasters/hashes, reviewer entries and resized images.
+  The checklist flags missing maps, reference/simulation pairs, design evidence,
+  camera review, completed assessments and rationale. It checks presence, not
+  adequacy. The historical FS1252 effectiveness-evaluation export remains separate.
+
+Batches run sequentially in one cancellable worker, at most 12 independent jobs,
+with the existing sightline limit applied to each job. A completed batch replaces
+its prior result set; export important records first. Editing numerical scene
+inputs or starting the ordinary analysis cancels a tool batch. The workspace holds
+at most 12 design alternatives, 12 viewpoints, 12 results and 24 images (50
+annotations each). Browser IndexedDB stores the workspace and large current scenes;
+backup exports remain necessary before clearing site data. Field records work
+without a Mapillary token; loading inventory and AWS terrain still needs a connection.
+
+Local sources are cropped, single-band, unrotated GeoTIFFs: at most 64 MB and
+1,048,576 native cells per raster, one bare-earth DEM and one canopy-height model.
+Supported coordinates are EPSG:4326, 3857, 3005, NAD83 UTM 7–11 and WGS84 UTM 7–11.
+Provide metre-valued heights and record the vertical reference and acquisition
+information. Original pixel centres, no-data and native resolution are preserved;
+no automatic resampling or vertical-datum conversion is applied. Interpolation
+requires four valid neighboring cells; outside coverage remains unknown, without
+fallback to another elevation source. Raster cells, metadata and original-file
+SHA-256 travel in scene/workspace exports. Workspace JSON deduplicates shared
+rasters into a validated `localRasterPool`; scene `localRasterRefs` are resolved
+on import. Standalone scene exports keep their inline rasters. Workspaces are
+limited to 100 MB on the wire. They change numerical analysis only;
+MapLibre ground and illustrative trees still use the existing preview sources.
+The canopy-height surface is an opaque screen, not foliage-transmission modelling.
+
+The pure modules `assessmentMasks.ts`, `localRaster.ts`, `assessmentTools.ts`,
+`sightlineProfile.ts` and `assessmentMaskGeometry.ts` contain no DOM or network access. Browser file adapters live
+in `toolImports.ts`; workspace persistence in `toolsStorage.ts` and
+`usePersistentScene.ts`; jobs in `useToolRunner.ts`; presentation in the tool panels
+and `useAssessmentTools.tsx`; evidence exporters in `toolEvidence.ts`. All panels
+stay within the sidebar's mounted step slots and its shared scroll container.

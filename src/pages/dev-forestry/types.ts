@@ -23,7 +23,17 @@ export type TargetPolygon = {
   /** Partial cut: share of volume removed, percent, and the mean height of the trees left. */
   volumeRemovedPercent?: number | null
   residualHeightMeters?: number | null
+  /** Optional planned date; used by the explicit scheduling runner, not ordinary VIA runs. */
+  plannedHarvestYear?: number | null
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; source: string; inventoryUnitId?: string | null
+}
+export type AssessmentMaskKind = 'natural' | 'private' | 'permanent' | 'retained'
+export type AssessmentMask = { id: string; name: string; kind: AssessmentMaskKind; geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; source: string }
+/** A cropped, native-resolution, north-up raster. Null cells remain unknown. Heights are metres. */
+export type LocalRaster = {
+  id: string; name: string; kind: 'terrain' | 'canopy'; epsg: number
+  origin: [number, number]; pixelSize: [number, number]; width: number; height: number
+  values: Array<number | null>; acquired: string; verticalReference: string; sha256: string
 }
 export type Availability = 'complete' | 'partial' | 'unavailable' | 'not-requested' | 'scenario-only'
 export type InventoryEvidence = {
@@ -48,6 +58,8 @@ export type AnalysisInput = {
   targets: Array<Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry' | 'harvestYear' | 'clearcutPercent' | 'siteDisturbance' | 'recoveryPercent' | 'harvestSystem'>>
   settings: AnalysisSettings; assessmentYear: number; activeLandformId?: string | null
   harvestInventory?: InventoryEvidence
+  masks?: AssessmentMask[]
+  localRasters?: LocalRaster[]
 }
 export type StationResult = { lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number; visiblePercent: number; unknownPercent?: number }
 export type TargetVisibility = {
@@ -71,6 +83,8 @@ export type AnalysisQuality = {
   largestGroundCellPercent: number | null; numericalReady: boolean; warnings: string[]
 }
 export type AnalysisResult = {
+  sightlineProfile?: import('./sightlineProfile').SightlineProfile
+  sourceNotes?: string[]
   landformDesign?: import('./landformDesign').LandformDesignReview | null
   settings: AnalysisSettings
   stations: Array<{ lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number }>
@@ -90,7 +104,7 @@ export type ReverseInput = {
   roads: Array<{ id: string; name: string; roadClass: string | null; coordinates: Array<[number, number]> }>
   settings: AnalysisSettings
 }
-export type AnalysisWorkerRequest = { type: 'analyze'; requestId: number; input: AnalysisInput } | { type: 'reverse'; requestId: number; input: ReverseInput }
+export type AnalysisWorkerRequest = { type: 'analyze'; requestId: number; input: AnalysisInput; inspection?: { targetId: string; sampleIndex: number; stationIndex: number } } | { type: 'reverse'; requestId: number; input: ReverseInput }
 export type AnalysisWorkerResponse =
   | { type: 'progress'; requestId: number; progress: AnalysisProgress }
   | { type: 'result'; requestId: number; result: AnalysisResult }

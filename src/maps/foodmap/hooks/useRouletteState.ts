@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { haversineKm } from '@/lib/geo'
 import { getHazardRating } from '../hazard'
+import { DINING_CATEGORIES, DINING_EXCEPTIONS, diningCategory, selectDiningRestaurants, type DiningCategory, type DiningExceptionName } from '../dining'
 import type { Restaurant, HazardRating, SourceLocation, SpinnerMode, RouletteRestaurant } from '../types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -64,8 +65,22 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export function useRouletteState(allRestaurants: Restaurant[]) {
-  // Filter toggle - when false, use all restaurants
+  // The optional distance/safety filters never bypass dining eligibility.
   const [useFilters, setUseFilters] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<DiningCategory[]>([...DINING_CATEGORIES])
+  const [selectedExceptions, setSelectedExceptions] = useState<DiningExceptionName[]>([])
+  const availableExceptions = useMemo(() => DINING_EXCEPTIONS.filter((item) => allRestaurants.some((r) => r.name === item.name)), [allRestaurants])
+  const diningRestaurants = useMemo(() => selectDiningRestaurants(allRestaurants, DINING_CATEGORIES, selectedExceptions), [allRestaurants, selectedExceptions])
+  const categoryCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        DINING_CATEGORIES.map((category) => [
+          category,
+          diningRestaurants.filter((r) => diningCategory(r, selectedExceptions) === category).length,
+        ]),
+      ) as Record<DiningCategory, number>,
+    [diningRestaurants, selectedExceptions],
+  )
 
   // Location state
   const [sourceLocation, setSourceLocation] = useState<SourceLocation | null>(null)
@@ -92,41 +107,66 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
 
   // Computed: filtered restaurants for roulette
   const eligibleRestaurants = useMemo<RouletteRestaurant[]>(() => {
+    const selectedRestaurants = selectDiningRestaurants(diningRestaurants, selectedCategories, selectedExceptions)
     if (!useFilters) {
-      return allRestaurants.map(r => ({
+      return selectedRestaurants.map((r) => ({
         ...r,
         distanceKm: null,
-        rouletteViolationCount: countViolationsInPeriod(r, 12)
+        rouletteViolationCount: countViolationsInPeriod(r, 12),
       }))
     }
 
-    return allRestaurants.filter(r => {
-      if (sourceLocation && (!r.latitude || !r.longitude)) return false
+    return selectedRestaurants
+      .filter((r) => {
+        if (sourceLocation && (!r.latitude || !r.longitude)) return false
 
-      if (sourceLocation && maxDistance > 0) {
-        const distance = calculateDistance(sourceLocation, r)
-        if (distance === null || distance > maxDistance) return false
-      }
+        if (sourceLocation && maxDistance > 0) {
+          const distance = calculateDistance(sourceLocation, r)
+          if (distance === null || distance > maxDistance) return false
+        }
 
-      const rating = getHazardRating(r)
-      if (excludedHazardRatings.includes(rating)) return false
+        const rating = getHazardRating(r)
+        if (excludedHazardRatings.includes(rating)) return false
 
-      if (maxViolations !== null) {
-        const violations = countViolationsInPeriod(r, violationTimePeriod)
-        if (violations > maxViolations) return false
-      }
+        if (maxViolations !== null) {
+          const violations = countViolationsInPeriod(r, violationTimePeriod)
+          if (violations > maxViolations) return false
+        }
 
-      return true
-    }).map(r => {
-      const distance = sourceLocation ? calculateDistance(sourceLocation, r) : null
-      const violationCount = countViolationsInPeriod(r, violationTimePeriod)
-      return {
-        ...r,
-        distanceKm: distance,
-        rouletteViolationCount: violationCount
-      }
-    })
-  }, [allRestaurants, useFilters, sourceLocation, maxDistance, excludedHazardRatings, maxViolations, violationTimePeriod])
+        return true
+      })
+      .map((r) => {
+        const distance = sourceLocation ? calculateDistance(sourceLocation, r) : null
+        const violationCount = countViolationsInPeriod(r, violationTimePeriod)
+        return {
+          ...r,
+          distanceKm: distance,
+          rouletteViolationCount: violationCount,
+        }
+      })
+  }, [
+    diningRestaurants,
+    selectedCategories,
+    selectedExceptions,
+    useFilters,
+    sourceLocation,
+    maxDistance,
+    excludedHazardRatings,
+    maxViolations,
+    violationTimePeriod,
+  ])
+
+  const toggleCategory = useCallback((category: DiningCategory) => {
+    setSelectedCategories((previous) =>
+      previous.includes(category) ? previous.filter((value) => value !== category) : [...previous, category],
+    )
+  }, [])
+
+  const toggleException = useCallback((name: DiningExceptionName) => {
+    setSelectedExceptions((previous) => previous.includes(name)
+      ? previous.filter((value) => value !== name)
+      : [...previous, name])
+  }, [])
 
   const setSourceFromGeolocation = useCallback((position: SourceLocation) => {
     if (position) {
@@ -210,6 +250,8 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
 
   const resetFilters = useCallback(() => {
     setUseFilters(false)
+    setSelectedCategories([...DINING_CATEGORIES])
+    setSelectedExceptions([])
     setSourceLocation(null)
     setLocationMode('none')
     setMaxDistance(5)
@@ -225,6 +267,14 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
   }, [])
 
   return {
+    availableExceptions,
+    selectedExceptions,
+    toggleException,
+    selectedCategories,
+    setSelectedCategories,
+    toggleCategory,
+    categoryCounts,
+    nonDiningCount: allRestaurants.length - diningRestaurants.length,
     useFilters,
     setUseFilters,
     sourceLocation,

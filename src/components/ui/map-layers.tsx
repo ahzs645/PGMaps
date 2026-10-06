@@ -8,6 +8,7 @@ import MapLibreGLRuntime from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { dispatchMobileMapFeatureClick } from './map-context'
 import { attachPointerDismiss } from './map-pointer'
+import { observeMarkerSource, sameMarkerPosition } from './map-marker-reconciliation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
@@ -1655,6 +1656,8 @@ function MapPieClusterLayer({
         const id = isCluster
           ? `cluster-${props.cluster_id}`
           : `point-${String(props.id ?? feature.id ?? (feature.geometry as GeoJSON.Point).coordinates.join(','))}`
+        // querySourceFeatures can return a cluster from more than one tile.
+        if (newMarkers[id]) continue
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
         const clusterId = isCluster ? Number(props.cluster_id) : null
         const pointCount = isCluster ? Number(props.point_count) || 0 : 1
@@ -1694,12 +1697,14 @@ function MapPieClusterLayer({
           // MapLibre may reuse a cluster id after setData(). Reconcile the DOM
           // marker as well as its click metadata so a data/filter change is
           // visible immediately, without waiting for a zoom to mint new ids.
+          if (!sameMarkerPosition(markerState.clickState.coordinates, coordinates)) {
+            markerState.marker.setLngLat(coordinates)
+          }
           markerState.clickState.coordinates = coordinates
           markerState.clickState.clusterId = clusterId
           markerState.clickState.pointCount = pointCount
           markerState.clickState.isCluster = isCluster
           markerState.clickState.properties = props
-          markerState.marker.setLngLat(coordinates)
           if (markerState.renderKey !== renderKey) {
             updateDonutElement(markerState.element, donutProps, bandColors, showCount, centerStyle)
             markerState.renderKey = renderKey
@@ -1716,11 +1721,6 @@ function MapPieClusterLayer({
         delete markers[id]
       }
       markersOnScreen = newMarkers
-    }
-
-    const handleRender = () => {
-      if (cancelled || !currentMap.isSourceLoaded(sourceId)) return
-      updateMarkers()
     }
 
     if (!currentMap.getSource(sourceId)) {
@@ -1774,16 +1774,15 @@ function MapPieClusterLayer({
         },
       })
     }
-    currentMap.on('render', handleRender)
+    const stopReconciliation = observeMarkerSource(currentMap, sourceId, updateMarkers)
     currentMap.on('click', pointLayerId, handlePointClick)
     currentMap.on('mouseenter', pointLayerId, handlePointEnter)
     currentMap.on('mouseleave', pointLayerId, handlePointLeave)
     currentMap.on('movestart', clearExpandedCluster)
-    if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
 
     return () => {
       cancelled = true
-      currentMap.off('render', handleRender)
+      stopReconciliation()
       currentMap.off('click', pointLayerId, handlePointClick)
       currentMap.off('mouseenter', pointLayerId, handlePointEnter)
       currentMap.off('mouseleave', pointLayerId, handlePointLeave)

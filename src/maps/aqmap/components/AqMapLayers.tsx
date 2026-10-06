@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
+import { observeMarkerSource, sameMarkerPosition } from '@/components/ui/map-marker-reconciliation'
 import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import maplibregl from 'maplibre-gl'
@@ -1262,8 +1263,10 @@ export function AqMonitorLayer({
     const currentMap = map
     let cancelled = false
     const pointLayerId = 'aqmap-monitor-ring-point'
-    const markers: Record<string, maplibregl.Marker> = {}
-    let markersOnScreen: Record<string, maplibregl.Marker> = {}
+    type RingMarker = { marker: maplibregl.Marker; coordinates: [number, number] }
+    const markers: Record<string, RingMarker> = {}
+    let markersOnScreen: Record<string, RingMarker> = {}
+    let stopReconciliation: (() => void) | undefined
 
     const handlePointClick = (event: maplibregl.MapMouseEvent) => {
       const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
@@ -1288,15 +1291,16 @@ export function AqMonitorLayer({
     }
 
     const updateMarkers = () => {
-      const newMarkers: Record<string, maplibregl.Marker> = {}
+      const newMarkers: Record<string, RingMarker> = {}
       const sourceFeatures = currentMap.querySourceFeatures(sourceId)
       for (const feature of sourceFeatures) {
         const props = feature.properties as Record<string, unknown> | null
         if (!props || !props.cluster) continue
         const id = `cluster-${props.cluster_id}`
-        let marker = markers[id]
-        if (!marker) {
-          const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+        if (newMarkers[id]) continue
+        const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+        let state = markers[id]
+        if (!state) {
           const clusterId = props.cluster_id as number
           const element = createRingDonutElement(props, ringStyle, darkBasemap)
           element.addEventListener('click', (domEvent) => {
@@ -1305,23 +1309,24 @@ export function AqMonitorLayer({
             if (!source) return
             dispatchMobileMapFeatureClick()
             void source.getClusterExpansionZoom(clusterId).then((zoom) => {
-              currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
+              if (!cancelled) currentMap.easeTo({ center: state.coordinates, zoom, duration: 450 })
             })
           })
-          marker = markers[id] = new maplibregl.Marker({ element }).setLngLat(coordinates)
+          state = markers[id] = { marker: new maplibregl.Marker({ element }).setLngLat(coordinates), coordinates }
+        } else if (!sameMarkerPosition(state.coordinates, coordinates)) {
+          state.marker.setLngLat(coordinates)
+          state.coordinates = coordinates
         }
-        newMarkers[id] = marker
-        if (!markersOnScreen[id]) marker.addTo(currentMap)
+        newMarkers[id] = state
+        if (!markersOnScreen[id]) state.marker.addTo(currentMap)
       }
       for (const id of Object.keys(markersOnScreen)) {
-        if (!newMarkers[id]) markersOnScreen[id].remove()
+        if (!newMarkers[id]) {
+          markersOnScreen[id].marker.remove()
+          delete markers[id]
+        }
       }
       markersOnScreen = newMarkers
-    }
-
-    const handleRender = () => {
-      if (cancelled || !currentMap.isSourceLoaded(sourceId)) return
-      updateMarkers()
     }
 
     async function setup() {
@@ -1360,23 +1365,21 @@ export function AqMonitorLayer({
         })
       }
 
-      currentMap.on('render', handleRender)
+      stopReconciliation = observeMarkerSource(currentMap, sourceId, updateMarkers)
       currentMap.on('click', pointLayerId, handlePointClick)
       currentMap.on('mousemove', pointLayerId, handlePointMove)
       currentMap.on('mouseleave', pointLayerId, handlePointLeave)
-      if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
     }
 
     void setup()
 
     return () => {
       cancelled = true
-      currentMap.off('render', handleRender)
+      stopReconciliation?.()
       currentMap.off('click', pointLayerId, handlePointClick)
       currentMap.off('mousemove', pointLayerId, handlePointMove)
       currentMap.off('mouseleave', pointLayerId, handlePointLeave)
-      Object.values(markersOnScreen).forEach((marker) => marker.remove())
-      Object.values(markers).forEach((marker) => marker.remove())
+      Object.values(markers).forEach(({ marker }) => marker.remove())
       markersOnScreen = {}
       try {
         currentMap.getCanvas().style.cursor = ''

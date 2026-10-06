@@ -17,6 +17,10 @@ import {
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
 import { queryVisualInventorySnapshot } from './dev-forestry/visualInventorySnapshot'
+import { usePersistentScene } from './dev-forestry/usePersistentScene'
+import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
+import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
+import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
 import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
 import { TerrainLandformFinder, type TerrainCandidate } from './dev-forestry/TerrainLandformFinder'
@@ -60,7 +64,6 @@ import {
   sceneBounds,
   serializeScene,
   stationsToGeoJson,
-  storeScene,
   targetBounds,
   targetsToGeoJson,
   type ForestryScene,
@@ -177,7 +180,7 @@ function loadInitialScene(): ForestryScene {
 
 function DevForestryVisuals() {
   const mapRef = useRef<MapRef>(null)
-  const [scene, setScene] = useState<ForestryScene>(loadInitialScene)
+  const { scene, setScene, warning: sceneStorageWarning } = usePersistentScene(loadInitialScene)
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   const [draftCoordinates, setDraftCoordinates] = useState<Array<[number, number]>>([])
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(
@@ -220,8 +223,8 @@ function DevForestryVisuals() {
 
   const analysis = useVisibilityAnalysis()
   const rawResult = analysis.state.result
-  const key = sceneFingerprint(scene)
-  const isStale = !!rawResult && (!key || runSnapshotRef.current?.key !== key || !resultMatchesInput(rawResult, buildSceneInput(scene)))
+  const key = useMemo(() => sceneFingerprint(scene), [scene])
+  const isStale = useMemo(() => !!rawResult && (!key || runSnapshotRef.current?.key !== key || !resultMatchesInput(rawResult, buildSceneInput(scene))), [rawResult, key, scene])
   const result = isStale ? null : rawResult
   const savedViews = saved.key === key ? saved.views : []
   // Handbook step 2 is done once the road has been looked at from eye level,
@@ -280,9 +283,6 @@ function DevForestryVisuals() {
     map.fitBounds(bounds, { padding: FIT_PADDING, duration: 700, maxZoom })
   }, [])
 
-  useEffect(() => {
-    storeScene(scene)
-  }, [scene])
 
   const sceneRef = useRef(scene)
   useEffect(() => {
@@ -945,16 +945,24 @@ function DevForestryVisuals() {
     [regrowth.stands, inventory.stands, result?.renderStands],
   )
 
+  const clipAlteration = useMemo(() => assessmentAlterationClipper(scene.masks ?? []), [scene.masks])
+  const previewBlockCollection = useMemo(() => targetsToGeoJson(scene.targets.flatMap(target => {
+    if (target.role !== 'block') return []
+    const geometry=clipAlteration(target.geometry)
+    return geometry ? [{...target,geometry}] : []
+  }), 'block'), [scene.targets, clipAlteration])
+
   // Retention and partial-cut blocks are thinned in the road view, not cleared.
   const forestThinnings = useMemo(
     () =>
       drive.harvestPhase === 'after'
         ? scene.targets.flatMap((target) => {
             const thinning = target.role === 'block' ? blockThinning(target) : null
-            return thinning ? [thinning] : []
+            const geometry=thinning ? clipAlteration(thinning.geometry) : null
+            return thinning && geometry ? [{...thinning,geometry}] : []
           })
         : [],
-    [drive.harvestPhase, scene.targets],
+    [drive.harvestPhase, scene.targets, clipAlteration],
   )
 
   // Ground actually cut: the block after harvest, and disturbance still counting.
@@ -962,8 +970,8 @@ function DevForestryVisuals() {
     () =>
       scene.targets
         .filter((target) => (target.role === 'block' && drive.harvestPhase === 'after' && !blockThinning(target)) || (target.role === 'harvested' && target.siteDisturbance && alterationWeight(target, result?.inputSnapshot?.assessmentYear ?? scene.assessmentYear ?? new Date().getFullYear(), scene.settings.greenUpAgeYears) >= 1))
-        .map((target) => target.geometry),
-    [drive.harvestPhase, scene.targets, scene.assessmentYear, scene.settings.greenUpAgeYears, result],
+        .flatMap((target) => { const geometry=clipAlteration(target.geometry); return geometry ? [geometry] : [] }),
+    [drive.harvestPhase, scene.targets, scene.assessmentYear, scene.settings.greenUpAgeYears, result, clipAlteration],
   )
 
   const forestClearings = useMemo(() => {
@@ -975,8 +983,8 @@ function DevForestryVisuals() {
       scene.viewpoint.mode === 'corridor'
         ? bufferLine(scene.viewpoint.coordinates, drive.roadClearWidthMeters / 2)
         : null
-    return [...openings, ...basemap.water, ...(corridor ? [corridor] : [])]
-  }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, basemap.water])
+    return [...openings, ...basemap.water, ...(scene.masks ?? []).filter(m=>m.kind==='natural').map(m=>m.geometry), ...(corridor ? [corridor] : [])]
+  }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, scene.masks, basemap.water])
 
   const forestConfiguration = useMemo(() => ({
     anchorLatitude: scene.viewpoint.coordinates[0]?.[1],
@@ -1147,13 +1155,24 @@ function DevForestryVisuals() {
     onPreview: () => openPreview(), onCancel: cancelPreview, onSample: () => handleLoadSample(true, true), onNew: handleClearScene,
     onImport: importPreviewGeometry, onDraw: handleDrawModeChange, drawMode, pointCount: draftCoordinates.length, onFinish: finishDraft,
     onReopenPrevious: saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined,
-    message: previewMessage ?? importMessage, views: savedViews, onRestore: openPreview, onExport: exportPreview, storageWarning,
+    message: previewMessage ?? importMessage, views: savedViews, onRestore: openPreview, onExport: exportPreview, storageWarning: sceneStorageWarning ?? storageWarning,
     onRemoveView: (id: string) => setSaved({ key, views: savedViews.filter(v => v.id !== id) }),
   }
   const assessmentProps = {
     scene, onChange: setScene, result, stale: isStale,
     snapshot: result ? runSnapshotRef.current?.scene ?? null : null,
     currentStation: driveStationIndex,
+  }
+  const tools = useAssessmentTools({
+    scene, result,
+    currentStation: drive.active ? driveStationIndex : result?.assessmentStationIndex ?? 0,
+    onChange: (next) => { setScene(next); setDrive(current => ({...current,active:false,playing:false})) }, onRun: runForScene,
+    onImportScene: (next) => { analysis.reset(); runSnapshotRef.current=null; setPendingPreview(null); setScene(next); setDrive(current => ({...current,active:false,playing:false})); fitBounds(sceneBounds(next)) },
+    analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
+  })
+  const maskCollection: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: (scene.masks ?? []).map(mask => ({ type: 'Feature', id: mask.id, geometry: mask.geometry, properties: { id: mask.id, name: mask.name, kind: mask.kind } })),
   }
   const sidebar = (
     <Sidebar
@@ -1190,11 +1209,11 @@ function DevForestryVisuals() {
           </div>
         )
       }
-      visit={<PreviewWorkflow part="visit" {...previewProps} />}
-      landformScope={<AssessmentPanel part="scope" {...assessmentProps} />}
-      designReview={<LandformDesignPanel result={result} onView={(station, blockId) => updateDrive({ active: true, playing: false, lookAtTargetId: blockId, positionMeters: result?.stations[station].distanceAlongMeters ?? 0 })} />}
+      visit={<><PreviewWorkflow part="visit" {...previewProps} />{tools.field}</>}
+      landformScope={<><AssessmentPanel part="scope" {...assessmentProps} /><ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} /></>}
+      designReview={<><LandformDesignPanel result={result} onView={(station, blockId) => updateDrive({ active: true, playing: false, lookAtTargetId: blockId, positionMeters: result?.stations[station].distanceAlongMeters ?? 0 })} />{tools.design}</>}
       fieldPhoto={<FieldPhotoPanel photo={fieldPhoto} canLineUp={!!fieldPhoto.image && !!fieldPhoto.onRoad && fieldPhoto.onRoad.offsetMeters <= 60 && !previewInputError(scene)} onLineUp={() => lineUpPhoto()} />}
-      report={<AssessmentPanel part="report" {...assessmentProps} viaReview={viaAssessment ? fs1252ReviewFromVia(viaAssessment, scene.viaReview) : null} />}
+      report={<><AssessmentPanel part="report" {...assessmentProps} viaReview={viaAssessment ? fs1252ReviewFromVia(viaAssessment, scene.viaReview) : null} />{tools.report}</>}
       scene={scene}
       onViewpointChange={setViewpoint}
       onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
@@ -1207,7 +1226,7 @@ function DevForestryVisuals() {
       onSnapToRoad={handleSnapToRoad}
       snapMessage={snapMessage}
       analysis={{ ...analysis.state, result }}
-      onRun={handleRun}
+      onRun={() => { tools.cancel(); handleRun() }}
       onCancel={cancelPreview}
       reverse={analysis.reverseState}
       onRunReverse={handleRunReverse}
@@ -1342,7 +1361,7 @@ function DevForestryVisuals() {
           hoverHtml={targetHoverHtml}
         />
         <MapFillLayer
-          data={blockCollection}
+          data={drive.active && drive.harvestPhase === 'after' && !drive.showAnalysis ? previewBlockCollection : blockCollection}
           visible={!drive.active || drive.harvestPhase === 'after' || drive.showAnalysis}
           fillColor={drive.active && !drive.showAnalysis ? harvestedGroundColor : ROLE_COLORS.block}
           fillOpacity={drive.active ? 0.85 : 0.3}
@@ -1356,9 +1375,13 @@ function DevForestryVisuals() {
           hoverHtml={targetHoverHtml}
         />
 
+        <MapFillLayer data={maskCollection} visible={!drive.active || drive.showAnalysis}
+          fillColor={['match', ['get', 'kind'], 'natural', '#64748b', 'private', '#a855f7', 'permanent', '#eab308', '#16a34a']}
+          fillOpacity={0.15} lineColor="#475569" lineWidth={1} />
         {/* Sample points carry the answer: red is ground the road can see. */}
         <MapCircleLayer
           data={sampleCollection}
+          onFeatureClick={(_id, _event, properties) => tools.inspect(String(properties.targetId), Number(properties.sampleIndex), drive.active ? driveStationIndex : result?.assessmentStationIndex ?? 0)}
           visible={!drive.active || (drive.showAnalysis && drive.harvestPhase === 'after')}
           color={['case', ['==', ['get', 'visible'], 2], '#71717a', ['==', ['get', 'visible'], 1], VISIBLE_COLOR, SCREENED_COLOR]}
           radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}

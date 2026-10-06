@@ -1,6 +1,69 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Food Map', () => {
+  test('roulette keeps non-dining premises out even when optional filters are disabled', async ({ page }) => {
+    const categories: Record<string, string> = {
+      'Pizza place': 'Restaurant',
+      'Coffee place': 'Coffee Shop',
+      'Evangelical Free Church': 'Community Kitchen',
+      'PG Civic Centre - CG 60667': 'Concession',
+      'Meal program': 'Social Services',
+      '7-Eleven Food Store #37259': 'Restaurant',
+      'Costco Food Court': 'Concession',
+    }
+    const premises = Object.keys(categories).map((name, index) => ({
+      name,
+      address: 'Prince George',
+      latitude: 53.91 + index * 0.001,
+      longitude: -122.75,
+      facility_type: 'Restaurant',
+      hazard_rating: 'Low',
+      details_url: `https://example.test/premise/${index}`,
+      inspections: [],
+    }))
+    await page.route('**/data/restaurants.json', (route) => route.fulfill({ json: premises }))
+    await page.route('**/data/restaurant-classifications.json', (route) => route.fulfill({ json: categories }))
+    await page.route('**/data/restaurant-location-overrides.json', (route) => route.fulfill({ json: {} }))
+    await page.route('**/data/ui/restaurant-locations.json', (route) => route.fulfill({ json: {} }))
+    await page.goto('/foodmap', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('7 establishments', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Restaurant roulette', exact: true }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Restaurant Roulette' })
+    const dining = dialog.getByRole('region', { name: 'Dining categories' })
+    await expect(dialog.getByText('2 available', { exact: true })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Use filters', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    await expect(dining.getByText(/5 other inspected premises excluded/)).toBeVisible()
+    const costco = dialog.getByRole('button', { name: 'Include Costco Food Court', exact: true })
+    await expect(costco).toHaveAttribute('aria-pressed', 'false')
+    await expect(costco).toContainText('Concession → Restaurant')
+    await costco.click()
+    await expect(costco).toHaveAttribute('aria-pressed', 'true')
+    await expect(dialog.getByText('3 available', { exact: true })).toBeVisible()
+    await expect(dining.getByText(/4 other inspected premises excluded/)).toBeVisible()
+    await dining.getByRole('button', { name: 'None', exact: true }).click()
+    await expect(dialog.getByText('0 available', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('No restaurants match your filters')).toBeVisible()
+    await dining.getByRole('button', { name: 'Restaurant 2', exact: true }).click()
+    await expect(dialog.getByText('2 available', { exact: true })).toBeVisible()
+
+    await dialog.getByRole('button', { name: 'Use filters', exact: true }).click()
+    await expect(dialog.getByText('2 available', { exact: true })).toBeVisible()
+    await dialog.getByRole('button', { name: 'Use filters', exact: true }).click()
+    await expect(dialog.getByText('2 available', { exact: true })).toBeVisible()
+    await dining.getByRole('button', { name: 'All', exact: true }).click()
+    await expect(dialog.getByText('3 available', { exact: true })).toBeVisible()
+    const store = dialog.getByRole('button', { name: 'Include 7-Eleven Food Store #37259', exact: true })
+    await store.click()
+    await expect(dialog.getByText('4 available', { exact: true })).toBeVisible()
+    await store.click()
+    await costco.click()
+    await expect(dialog.getByText('2 available', { exact: true })).toBeVisible()
+  })
+
   test('loads and displays food establishments', async ({ page }) => {
     await page.goto('/foodmap', { waitUntil: 'domcontentloaded' })
 

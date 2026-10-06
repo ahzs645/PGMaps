@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useFetchAll } from '@/hooks/useFetchData'
+import { useFetchData } from '@/hooks/useFetchData'
 import { geometryBounds, type BBox } from '@/lib/geo'
 import type { CensusBounds, CensusHierarchyLevel, CensusUnit } from '../types'
 
@@ -19,18 +19,10 @@ const LEVEL_FILES: Record<CensusHierarchyLevel, string> = {
   csd: '/data/census/prince_george_csd.geo.json',
   ct: '/data/census/prince_george_ct.geo.json',
   da: '/data/census/prince_george_da.geo.json',
-  db: '/data/census/prince_george_db.geo.json'
+  db: '/data/census/prince_george_db.geo.json',
 }
 
-function emptyUnitsByLevel(): Record<CensusHierarchyLevel, CensusUnit[]> {
-  return {
-    cd: [],
-    csd: [],
-    ct: [],
-    da: [],
-    db: []
-  }
-}
+const EMPTY_UNITS: CensusUnit[] = []
 
 function parseNumber(value: unknown): number | null {
   if (value == null) return null
@@ -76,7 +68,7 @@ function readUnit(feature: RawGeoFeature, fallbackLevel: CensusHierarchyLevel): 
     parentCsdId: parseString(properties.parentCsdId),
     parentCtId: parseString(properties.parentCtId),
     parentDaId: parseString(properties.parentDaId),
-    geometry
+    geometry,
   }
 }
 
@@ -100,45 +92,50 @@ function computeBounds(units: CensusUnit[]): CensusBounds | null {
   return { minLng: merged[0], minLat: merged[1], maxLng: merged[2], maxLat: merged[3] }
 }
 
-function getPrimaryBounds(
-  boundsByLevel: Record<CensusHierarchyLevel, CensusBounds | null>
-): CensusBounds | null {
+function getPrimaryBounds(boundsByLevel: Record<CensusHierarchyLevel, CensusBounds | null>): CensusBounds | null {
   return boundsByLevel.csd || boundsByLevel.da || boundsByLevel.ct || boundsByLevel.db || boundsByLevel.cd || null
 }
 
-const LEVEL_ENTRIES = Object.entries(LEVEL_FILES) as Array<[CensusHierarchyLevel, string]>
-const LEVEL_URLS = LEVEL_ENTRIES.map(([, file]) => file)
+export function readCensusLevel(json: RawGeoResponse, level: CensusHierarchyLevel) {
+  const units = (json.features ?? [])
+    .map((feature) => readUnit(feature, level))
+    .filter((unit): unit is CensusUnit => unit !== null)
+    .sort((a, b) => a.id.localeCompare(b.id))
+  return { units, bounds: computeBounds(units) }
+}
 
-export function useCensusData(enabled = true) {
-  const { data, loading, error } = useFetchAll<CensusUnit[]>(LEVEL_URLS, {
-    enabled,
-    transform: (json, index) =>
-      ((json as RawGeoResponse).features || [])
-        .map((feature) => readUnit(feature, LEVEL_ENTRIES[index][0]))
-        .filter((unit): unit is CensusUnit => unit !== null)
-        .sort((a, b) => a.id.localeCompare(b.id)),
-  })
+function useCensusLevel(level: CensusHierarchyLevel, enabled: boolean) {
+  const { data, loading, error } = useFetchData<RawGeoResponse>(LEVEL_FILES[level], { enabled })
+  const parsed = useMemo(
+    () => (data ? readCensusLevel(data, level) : { units: EMPTY_UNITS, bounds: null }),
+    [data, level],
+  )
+  return { ...parsed, loading, error }
+}
 
-  const unitsByLevel = useMemo(() => {
-    const next = emptyUnitsByLevel()
-    if (!data) return next
-    LEVEL_ENTRIES.forEach(([level], index) => {
-      next[level] = data[index] ?? []
-    })
-    return next
-  }, [data])
-
-  const boundsByLevel = useMemo(() => {
-    return {
-      cd: computeBounds(unitsByLevel.cd),
-      csd: computeBounds(unitsByLevel.csd),
-      ct: computeBounds(unitsByLevel.ct),
-      da: computeBounds(unitsByLevel.da),
-      db: computeBounds(unitsByLevel.db)
-    } satisfies Record<CensusHierarchyLevel, CensusBounds | null>
-  }, [unitsByLevel])
-
-  const bounds = useMemo(() => getPrimaryBounds(boundsByLevel), [boundsByLevel])
-
-  return { unitsByLevel, boundsByLevel, bounds, loading, error }
+/** Fetch and normalize only the levels needed by this consumer. */
+export function useCensusData(levels: readonly CensusHierarchyLevel[], enabled = true) {
+  // Fixed hook order; enabling a second level preserves the first level's data.
+  const cd = useCensusLevel('cd', enabled && levels.includes('cd'))
+  const csd = useCensusLevel('csd', enabled && levels.includes('csd'))
+  const ct = useCensusLevel('ct', enabled && levels.includes('ct'))
+  const da = useCensusLevel('da', enabled && levels.includes('da'))
+  const db = useCensusLevel('db', enabled && levels.includes('db'))
+  const unitsByLevel = useMemo(
+    () => ({ cd: cd.units, csd: csd.units, ct: ct.units, da: da.units, db: db.units }),
+    [cd.units, csd.units, ct.units, da.units, db.units],
+  )
+  const boundsByLevel = useMemo(
+    () => ({ cd: cd.bounds, csd: csd.bounds, ct: ct.bounds, da: da.bounds, db: db.bounds }),
+    [cd.bounds, csd.bounds, ct.bounds, da.bounds, db.bounds],
+  )
+  const bounds = getPrimaryBounds(boundsByLevel)
+  const states = [cd, csd, ct, da, db]
+  return {
+    unitsByLevel,
+    boundsByLevel,
+    bounds,
+    loading: states.some((state) => state.loading),
+    error: states.find((state) => state.error)?.error ?? null,
+  }
 }

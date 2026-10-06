@@ -26,6 +26,7 @@ import type { FormReview } from './pdf/fs1252'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import { designDistanceScore, visibleProposalCentre } from './vqe'
 import { haversineMeters } from './visibility'
+import { assessmentMaskSampler } from './assessmentMasks'
 import {
   DEFAULT_VISUAL_QUALITY_THRESHOLDS,
   partialCutEquivalentPercent,
@@ -467,7 +468,12 @@ export type PartialCutEntry = {
   equivalentPercent: number | null
 }
 
-export function partialCutEntries(blocks: ReadonlyArray<BlockHarvest>, result: AnalysisResult | null): PartialCutEntry[] {
+export function partialCutEntries(
+  blocks: ReadonlyArray<BlockHarvest>,
+  result: AnalysisResult | null,
+): PartialCutEntry[] {
+  const masks = result?.inputSnapshot?.masks ?? []
+  const sampleMask = assessmentMaskSampler(masks)
   return blocks
     .filter((block) => block.harvestSystem === 'partial')
     .map((block) => {
@@ -476,13 +482,27 @@ export function partialCutEntries(blocks: ReadonlyArray<BlockHarvest>, result: A
         block.volumeRemovedPercent != null && block.residualHeightMeters != null
           ? partialCutEquivalentPercent(block.volumeRemovedPercent, block.residualHeightMeters)
           : null
+      // Raw target visibility includes retained and excluded ground. Table 6
+      // applies only when the run sees ground where this partial cut occurs.
+      const visible =
+        !!target &&
+        target.visibleAreaMeters > 0 &&
+        (!masks.length ||
+          Array.from(target.anyVisible).some((status, i) => {
+            if (status !== 1) return false
+            const mask = sampleMask(target.positions[i * 2], target.positions[i * 2 + 1])
+            return !mask.excludeGreen && !mask.excludeAlteration && !mask.retained
+          }))
       return {
         id: block.id,
         name: block.name,
-        visible: !!target && target.visibleAreaMeters > 0,
+        visible,
         // Under 10% removed the table does not start: it reads as no alteration.
         equivalentPercent:
-          equivalent ?? (block.volumeRemovedPercent != null && block.volumeRemovedPercent < 10 && block.residualHeightMeters != null ? 0 : null),
+          equivalent ??
+          (block.volumeRemovedPercent != null && block.volumeRemovedPercent < 10 && block.residualHeightMeters != null
+            ? 0
+            : null),
       }
     })
 }
@@ -689,7 +709,10 @@ export function assessVia(input: {
     clearedPercent !== null && !partialsMissing
       ? clearedPercent + partialCuts.reduce((sum, cut) => sum + (cut.visible ? (cut.equivalentPercent ?? 0) : 0), 0)
       : null
-  const retentionMeasured = measuredRetention(blocks, (id) => input.result?.targets.find((t) => t.targetId === id)?.areaMeters ?? null)
+  const retentionMeasured = measuredRetention(
+    blocks,
+    (id) => input.result?.targets.find((t) => t.targetId === id)?.areaMeters ?? null,
+  )
   const ocular = ocularClass(review.ocular)
 
   const measured = measuredDesignRatings(input.result)
@@ -707,7 +730,7 @@ export function assessVia(input: {
   const roads = review.roads ?? null
   const retentionLevel = review.retention ?? retentionMeasured?.level ?? null
   const retentionFactor =
-    review.retentionNetted === true
+    review.retentionNetted === true || input.result?.inputSnapshot?.masks?.some((m) => m.kind === 'retained')
       ? 0
       : retentionLevel
         ? (RETENTION_LEVELS.find((level) => level.id === retentionLevel)?.factor ?? null)

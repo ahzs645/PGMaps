@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync, gzipSync } from 'node:zlib'
+import { beginDataBuild, mapLimit } from './lib/incremental-data.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const dataRoot = join(root, 'public', 'data')
@@ -202,15 +203,16 @@ async function recordsFromFile({ source, level, path, codeKeys, nameKeys }) {
 }
 
 async function censusDaRecords() {
-  const manifest = await readJson('census/bc-da-simplified/manifest.json')
-  const chunks = manifest.levels?.find((level) => level.id === 'overview')?.chunks ?? manifest.chunks ?? []
-  const collections = await Promise.all(chunks.map((chunk) => readJson(`census/bc-da-simplified/${chunk.path}`)))
-  return collections.flatMap((collection) => (collection.features ?? []).map((feature) => {
-    const properties = feature.properties ?? {}
-    const code = firstValue(properties, ['boundaryCode', 'DAUID', 'id'])
-    const name = firstValue(properties, ['boundaryName', 'name'], `DA ${code}`)
-    return makeRecord({ source: 'census', level: 'da', code, name, feature })
-  }).filter(Boolean))
+  const batches = await mapLimit(censusChunks, 2, async (chunk) => {
+    const collection = await readJson(`census/bc-da-simplified/${chunk.path}`)
+    return (collection.features ?? []).map((feature) => {
+      const properties = feature.properties ?? {}
+      const code = firstValue(properties, ['boundaryCode', 'DAUID', 'id'])
+      const name = firstValue(properties, ['boundaryName', 'name'], `DA ${code}`)
+      return makeRecord({ source: 'census', level: 'da', code, name, feature })
+    }).filter(Boolean)
+  })
+  return batches.flat()
 }
 
 async function drainageRecords() {
@@ -316,7 +318,22 @@ const FILE_SOURCES = [
   { source: 'nrAdmin', level: 'nrDistrict', path: 'boundaries/BCNR/nr_districts.geojson', codeKeys: ['boundaryCode', 'OBJECTID'], nameKeys: ['boundaryName', 'DISTRICT_NAME'] },
 ]
 
-const batches = await Promise.all(FILE_SOURCES.map(recordsFromFile))
+const censusManifest = await readJson('census/bc-da-simplified/manifest.json')
+const censusChunks = censusManifest.levels?.find((level) => level.id === 'overview')?.chunks ?? censusManifest.chunks ?? []
+const build = beginDataBuild(root, 'boundary-search', [
+  fileURLToPath(import.meta.url),
+  ...FILE_SOURCES.map((source) => join(dataRoot, source.path)),
+  join(dataRoot, 'census/bc-da-simplified/manifest.json'),
+  ...censusChunks.map((chunk) => join(dataRoot, 'census/bc-da-simplified', chunk.path)),
+  join(dataRoot, 'boundaries/BCDrainage/drainage_basins.geojson'),
+  join(dataRoot, 'boundaries/BCWildfire/fire_zones.geojson'),
+], [join(outputDirectory, 'catalog.json.gz'), join(outputDirectory, 'manifest.json')], process.argv.includes('--force'))
+if (!build.needsBuild) {
+  console.log('Boundary search index is unchanged.')
+  process.exit(0)
+}
+
+const batches = await mapLimit(FILE_SOURCES, 2, recordsFromFile)
 const records = [
   ...batches.flat(),
   ...await censusDaRecords(),
@@ -359,5 +376,7 @@ await Promise.all([
   writeFile(join(outputDirectory, 'catalog.json.gz'), compressed),
   writeFile(join(outputDirectory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`),
 ])
+
+build.complete()
 
 console.log(`Generated ${records.length.toLocaleString()} searchable boundaries (${(compressed.length / 1024 / 1024).toFixed(2)} MiB gzip, revision ${revision}).`)

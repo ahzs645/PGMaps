@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
+import { beginDataBuild } from './lib/incremental-data.mjs'
 
 // Application read models, rebuilt from canonical snapshots after data:sync.
 // Never modify or duplicate the source archives in the PGMaps repository.
@@ -81,7 +82,7 @@ export function searchRows(kind, data) {
   throw new Error(`Unknown search source: ${kind}`)
 }
 
-export async function buildUiData(root) {
+export async function buildUiData(root, { force = false } = {}) {
   const output = resolve(root, 'public/data/ui')
   await mkdir(resolve(output, 'search'), { recursive: true })
   const read = async (path) => JSON.parse(await readFile(resolve(root, path), 'utf8'))
@@ -91,21 +92,23 @@ export async function buildUiData(root) {
     await writeFile(resolve(output, path), bytes)
     console.log(`${path}: ${Buffer.byteLength(bytes).toLocaleString()} bytes`)
   }
-  await write(
-    'restaurant-locations.json',
-    restaurantLocations(await read('public/data/geocoding/geocoded_locations.json')),
-  )
   const sources = {
+    locations: 'public/data/geocoding/geocoded_locations.json',
     restaurants: 'public/data/restaurants.json',
     parks: 'vendor/bcdatamapper/datascrapers/citypg/source/public_gis/parks.json',
     properties: 'public/data/bc-assessment/parcels.geojson',
     census: 'public/data/census/variables/catalog.json',
   }
   for (const [kind, path] of Object.entries(sources)) {
-    await write(`search/${kind}.json.gz`, searchRows(kind, await read(path)))
+    const outputPath = kind === 'locations' ? 'restaurant-locations.json' : `search/${kind}.json.gz`
+    const build = beginDataBuild(root, `ui-${kind}`, [resolve(root, path), fileURLToPath(import.meta.url)], [resolve(output, outputPath)], force)
+    if (!build.needsBuild) { console.log(`${outputPath}: unchanged`); continue }
+    const json = await read(path)
+    await write(outputPath, kind === 'locations' ? restaurantLocations(json) : searchRows(kind, json))
+    build.complete()
   }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await buildUiData(resolve(dirname(fileURLToPath(import.meta.url)), '..'))
+  await buildUiData(resolve(dirname(fileURLToPath(import.meta.url)), '..'), { force: process.argv.includes('--force') })
 }

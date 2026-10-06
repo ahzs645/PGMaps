@@ -1,5 +1,9 @@
 import { useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { FilterChipGroup } from '@/components/ui/map-panels'
+import { SelectAllActions } from '@/components/ui/text-button'
+import { ToggleRow } from '@/components/ui/toggle-row'
+import { DINING_CATEGORIES } from '../../dining'
 import { RouletteFilters } from './RouletteFilters'
 import { RouletteWheel } from './RouletteWheel'
 import { RouletteResult } from './RouletteResult'
@@ -21,6 +25,14 @@ export function RouletteModal({
   onSelectOnMap
 }: RouletteModalProps) {
   const {
+    availableExceptions,
+    selectedExceptions,
+    toggleException,
+    selectedCategories,
+    setSelectedCategories,
+    toggleCategory,
+    categoryCounts,
+    nonDiningCount,
     useFilters,
     setUseFilters,
     sourceLocation,
@@ -129,6 +141,67 @@ export function RouletteModal({
         <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4">
           {/* Filters & Wheel Options */}
           <div className="space-y-3 rounded-xl border border-border bg-muted/50 p-3">
+            <section aria-label="Dining categories" className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Dining categories</h3>
+                <SelectAllActions
+                  onAll={() => {
+                    resetSpin()
+                    setSelectedCategories([...DINING_CATEGORIES])
+                  }}
+                  onNone={() => {
+                    resetSpin()
+                    setSelectedCategories([])
+                  }}
+                  allSelected={isSpinning || selectedCategories.length === DINING_CATEGORIES.length}
+                  noneSelected={isSpinning || selectedCategories.length === 0}
+                />
+              </div>
+              <FilterChipGroup
+                variant="filled"
+                showDot={false}
+                items={DINING_CATEGORIES.map((category) => ({
+                  value: category,
+                  label: category,
+                  count: categoryCounts[category],
+                  disabled: isSpinning,
+                }))}
+                selectedValues={selectedCategories}
+                onToggle={(category) => {
+                  resetSpin()
+                  toggleCategory(category)
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                {nonDiningCount.toLocaleString('en-CA')} other inspected premises excluded, including community and
+                institutional kitchens, stores and venue concessions.
+              </p>
+            </section>
+            {availableExceptions.length > 0 && (
+              <section aria-label="Individual exceptions" className="space-y-2">
+                <h3 className="text-sm font-semibold">Individual exceptions</h3>
+                <p className="text-xs text-muted-foreground">
+                  Optional places outside the default dining list. Included places also follow your selected categories and filters.
+                </p>
+                {availableExceptions.map((item) => {
+                  const restaurant = restaurants.find((r) => r.name === item.name)!
+                  const sourceCategory = restaurant.establishment_type || restaurant.facility_type
+                  const active = selectedExceptions.includes(item.name)
+                  return (
+                    <ToggleRow
+                      key={item.name}
+                      label={item.name}
+                      aria-label={`Include ${item.name}`}
+                      description={sourceCategory === item.category ? sourceCategory : `${sourceCategory} → ${item.category}`}
+                      active={active}
+                      trailing={active ? 'Included' : 'Excluded'}
+                      disabled={isSpinning}
+                      onClick={() => { resetSpin(); toggleException(item.name) }}
+                    />
+                  )
+                })}
+              </section>
+            )}
             {/* Use Filters + Options on one line */}
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               {/* Filter Toggle */}

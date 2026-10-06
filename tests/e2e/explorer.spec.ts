@@ -5,7 +5,7 @@ test.describe('Explorer Section', () => {
     await page.goto('/explorer', { waitUntil: 'domcontentloaded' })
 
     // Should show explorer sidebar with dataset options
-    await expect(page.getByRole('heading', { name: 'Active Layers' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Datasets', exact: true })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('button', { name: /Property Crime/ })).toBeVisible()
   })
 

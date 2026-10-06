@@ -2,7 +2,7 @@
 // project from canonical bcdatamapper sources.
 //
 // The derived files live under gitignored public/data paths and are rebuilt
-// after every bcdatamapper data sync.
+// when the selected bcdatamapper inputs or derived outputs change.
 
 /* global process */
 
@@ -10,6 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { beginDataBuild } from './lib/incremental-data.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const watershedSourceDirectory = path.join(root, 'vendor/bcdatamapper/datascrapers/bc/boundaries/output/BCFWA')
@@ -24,6 +25,15 @@ const watershedSelections = [
   { namedWatershedId: 11541, name: 'Fraser River', streamOrder: 10 },
   { namedWatershedId: 8886, name: 'Nechako River', streamOrder: 8 },
 ]
+
+const build = beginDataBuild(root, 'echoscreen-data', [
+  fileURLToPath(import.meta.url), hospitalSourcePath,
+  ...watershedSelections.map((selection) => path.join(watershedSourceDirectory, `named_watersheds_stream_order_${selection.streamOrder}_50m.geojson.gz`)),
+], [watershedOutputPath, hospitalOutputPath], process.argv.includes('--force'))
+if (!build.needsBuild) {
+  console.log('[echoscreen-data] unchanged')
+  process.exit(0)
+}
 
 function writeCollection(outputPath, collection) {
   mkdirSync(path.dirname(outputPath), { recursive: true })
@@ -141,3 +151,5 @@ writeCollection(hospitalOutputPath, hospitalResult)
 process.stdout.write(
   `[echoscreen-data] wrote ${path.relative(root, hospitalOutputPath)}: ${hospitalFeatures.length} hospital points\n`,
 )
+
+build.complete()

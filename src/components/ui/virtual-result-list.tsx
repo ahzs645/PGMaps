@@ -23,7 +23,9 @@ export function VirtualResultList<T>({ items, getKey, estimateSize, label, child
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement,
-    getItemKey: (index) => getKey(items[index]),
+    // A queued ResizeObserver entry can refer to a removed row after filtering.
+    // Active keys are strings; negative numbers safely identify those stale indexes.
+    getItemKey: (index) => (index >= 0 && index < items.length ? getKey(items[index]) : -Math.abs(index) - 1),
     estimateSize: () => estimateSize,
     scrollMargin,
     overscan: 5,

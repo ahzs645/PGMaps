@@ -10,6 +10,8 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
     settings:scene.settings,assessmentYear:scene.assessmentYear ?? new Date().getFullYear(),
     activeLandformId:scene.activeLandformId ?? (forms.length===1?forms[0].id:null),
     harvestInventory:scene.harvestInventory,
+    ...(scene.masks?.length ? { masks: scene.masks } : {}),
+    ...(scene.localRasters?.length ? { localRasters: scene.localRasters } : {}),
   }
 }
 /** This also binds the report labels, objectives and thresholds to the run. */
@@ -27,6 +29,7 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
       delete kept.retentionPercent
       delete kept.volumeRemovedPercent
       delete kept.residualHeightMeters
+      delete kept.plannedHarvestYear
       if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
       return kept
     })

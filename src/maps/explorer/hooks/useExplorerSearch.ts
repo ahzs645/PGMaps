@@ -1,13 +1,6 @@
 import { useEffect, useMemo } from 'react'
-import { EXPLORER_DATASETS } from '../constants'
-import type {
-  ExplorerDatasetId,
-  ExplorerDatasetStat,
-  ExplorerGeometryType,
-  ExplorerItem,
-  SpatialFilter,
-} from '../types'
-import { boundsIntersect } from '../utils'
+import { indexExplorerItems, sortExplorerRows, filterExplorerRows } from '../explorerData'
+import type { ExplorerDatasetId, ExplorerGeometryType, ExplorerItem, SpatialFilter } from '../types'
 import type { SortMode } from './useExplorerFilters'
 
 interface UseExplorerSearchOptions {
@@ -38,36 +31,13 @@ export function useExplorerSearch({
   const geometrySet = useMemo(() => new Set(geometryFilters), [geometryFilters])
   const datasetSet = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
 
-  const datasetStats = useMemo<ExplorerDatasetStat[]>(() => {
-    return EXPLORER_DATASETS.map((dataset) => {
-      const datasetItems = allItems.filter((item) => item.datasetId === dataset.id)
-      const count = datasetItems.length
-      const relevanceValues = datasetItems.map((item) => item.relevance)
-      const averageRelevance = relevanceValues.length
-        ? relevanceValues.reduce((sum, value) => sum + value, 0) / relevanceValues.length
-        : 0
-      const maxRelevance = relevanceValues.length ? Math.max(...relevanceValues) : 0
-      return { dataset, count, averageRelevance, maxRelevance }
-    })
-  }, [allItems])
-
-  const filteredItems = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    const filtered = allItems.filter((item) => {
-      if (!geometrySet.has(item.geometryType)) return false
-      if (!datasetSet.has(item.datasetId)) return false
-      // Spatial filter
-      if (spatialFilter && !boundsIntersect(item.bounds, spatialFilter)) return false
-      // Text search
-      if (query && ![item.name, item.subtitle, item.summary].join(' ').toLowerCase().includes(query)) return false
-      return true
-    })
-    filtered.sort((a, b) => {
-      if (sortMode === 'name') return a.name.localeCompare(b.name) || b.relevance - a.relevance
-      return b.relevance - a.relevance || a.name.localeCompare(b.name)
-    })
-    return filtered
-  }, [allItems, datasetSet, geometrySet, searchQuery, sortMode, spatialFilter])
+  const index = useMemo(() => indexExplorerItems(allItems), [allItems])
+  const sortedRows = useMemo(() => sortExplorerRows(index.rows, sortMode), [index, sortMode])
+  const filteredItems = useMemo(
+    () => filterExplorerRows(sortedRows, searchQuery, datasetSet, geometrySet, spatialFilter),
+    [sortedRows, datasetSet, geometrySet, searchQuery, spatialFilter],
+  )
+  const datasetStats = index.datasetStats
 
   const selectedItem = useMemo(() => {
     if (!selectedItemId) return null

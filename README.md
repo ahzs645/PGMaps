@@ -70,6 +70,10 @@ GitHub Pages uses the clean variant before rebuilding generated datasets, so the
 npm run data:sync-from-bcdatamapper:clean
 ```
 
+Local runs reuse unchanged copies, UI datasets, EchoScreen layers, raster tiles and the boundary search index. Their input/output fingerprints live in the ignored `.vite/pgmaps-data` directory; changed inputs or missing/edited outputs regenerate automatically. Use `npm run data:build-ui -- --force` or `npm run boundaries:search-index -- --force` to explicitly rebuild those derived datasets. The clean sync still assembles a fresh deployment tree while preserving app-owned data.
+
+The PM2.5 raster tile archive remains in `vendor/bcdatamapper`; deployment includes the extracted tiles.
+
 The scraper inventory is documented in [vendor/bcdatamapper/README.md](vendor/bcdatamapper/README.md).
 
 ## Application updates and project catalog

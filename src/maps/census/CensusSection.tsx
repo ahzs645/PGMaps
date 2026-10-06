@@ -32,9 +32,9 @@ const idCodec: UrlCodec<string | null> = {
 
 export default function CensusSection() {
   const isMobileViewport = useIsMobile()
-  const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
   const [selectedHierarchy] = useUrlState('level', levelCodec)
+  const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData([selectedHierarchy])
   const [selectedMetric, setSelectedMetric] = useUrlState('metric', metricCodec)
   const [searchQuery, setSearchQuery] = useUrlState('q', queryCodec)
   const [selectedUnitId, setSelectedUnitId] = useUrlState('unit', idCodec)

@@ -3,11 +3,13 @@ import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { beginDataBuild, createIncrementalCopier } from './lib/incremental-data.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const vendorRoot = join(root, 'vendor', 'bcdatamapper')
 const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
+const copier = createIncrementalCopier(root)
 const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EARLY_LEARNING === '1'
 
 const appOwnedDataPaths = [
@@ -234,6 +236,8 @@ const skippedSourcePaths = new Set([
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/tms-site-report-pdfs',
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/utv-segment-report-pdfs',
   'datascrapers/census/output/bcenviroscreen-census-lha/raw',
+  // Rebuild inputs remain in bcdatamapper; only the derived application data ships.
+  'datascrapers/eccc/output/modelled-pm25-raster-tiles.tar.gz',
 ])
 
 const skippedSourcePrefixes = [
@@ -286,17 +290,10 @@ function copyPath(sourceRelative, targetRelative) {
   }
 
   mkdirSync(dirname(destination), { recursive: true })
-  cpSync(source, destination, {
-    recursive: true,
-    force: true,
-    errorOnExist: false,
-    filter: (sourcePath) => {
-      const relativeSource = relative(vendorRoot, sourcePath)
-      return (
-        !skippedSourcePaths.has(relativeSource) &&
-        !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
-      )
-    },
+  copier.copy(source, destination, (sourcePath) => {
+    const relativeSource = relative(vendorRoot, sourcePath)
+    return !skippedSourcePaths.has(relativeSource)
+      && !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
   })
 }
 
@@ -338,6 +335,9 @@ copyPath(
   'datascrapers/environmental-burden/bcenviroscreen/release-snapshot',
   'environmental-burden/bc-enviro-screen/release',
 )
+
+const copyCounts = copier.complete()
+console.log(`[data] copied ${copyCounts.copied} files; reused ${copyCounts.skipped} unchanged files`)
 
 if (!includeRestrictedEarlyLearning) {
   for (const [, targetRelative] of restrictedEarlyLearningMappings) {
@@ -381,14 +381,21 @@ for (const stalePath of staleOpenLitterMapPaths) {
   rmSync(join(target, 'open-litter-map', stalePath), { recursive: true, force: true })
 }
 
-const pm25RasterArchive = join(target, 'aqmap', 'modelled-pm25-raster-tiles.tar.gz')
+// The tile archive is a build input, not a second deployment copy of the tiles.
+const pm25RasterArchive = join(vendorRoot, 'datascrapers/eccc/output/modelled-pm25-raster-tiles.tar.gz')
 const pm25RasterTiles = join(target, 'aqmap', 'modelled-pm25-raster-tiles')
 if (existsSync(pm25RasterArchive)) {
-  rmSync(pm25RasterTiles, { recursive: true, force: true })
-  mkdirSync(pm25RasterTiles, { recursive: true })
-  execFileSync('tar', ['-xzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
+  const tilesBuild = beginDataBuild(root, 'pm25-tiles', [pm25RasterArchive], [pm25RasterTiles], clean)
+  if (tilesBuild.needsBuild) {
+    rmSync(pm25RasterTiles, { recursive: true, force: true })
+    mkdirSync(pm25RasterTiles, { recursive: true })
+    execFileSync('tar', ['-xzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
+    tilesBuild.complete()
+  }
 }
-
+for (const staleInput of [
+  'aqmap/modelled-pm25-raster-tiles.tar.gz',
+]) rmSync(join(target, staleInput), { force: true })
 restorePreservedCleanPaths()
 
 console.log(`[data] assembled bcdatamapper scraper outputs -> ${relative(root, target)}`)

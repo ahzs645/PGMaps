@@ -55,7 +55,7 @@ export function useScoreBuilderDatasets({
     loading: loadingRestaurants,
     error: restaurantsError,
   } = useRestaurantData(enabledSourceSet.has('restaurants'))
-  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
+  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(['da'], censusDataEnabled)
   const {
     regions,
     loading: loadingRegions,
