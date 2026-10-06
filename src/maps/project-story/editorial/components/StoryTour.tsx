@@ -49,6 +49,8 @@ export function StoryTour({
         {stops.map((stop, index) => (
           <section
             key={stop.id}
+            id={stop.id}
+            data-story-section
             ref={(element) => {
               refs.current[index] = element
             }}

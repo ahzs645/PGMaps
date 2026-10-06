@@ -126,7 +126,7 @@
       "maxZoom": 22,
       "basemap": "dark"
     },
-    "options": {},
+    "options": { "sectionUrl": true },
     "layers": [],
     "places": []
   }

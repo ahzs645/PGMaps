@@ -24,6 +24,16 @@ export function validateImportedStory(graph) {
   ])
   if (!nodes || typeof graph.root !== 'string' || nodes[graph.root]?.type !== 'story' || !graph.resources)
     return ['Imported story requires its story root, nodes and resources']
+  for (const [id, resource] of Object.entries(graph.resources)) {
+    const delivery = resource?.data?.deliveryUrl
+    if (
+      delivery !== undefined &&
+      (!['image', 'video'].includes(resource.type) ||
+        typeof delivery !== 'string' ||
+        !/^(\/data\/story-documents\/|https:\/\/)/.test(delivery))
+    )
+      errors.push(`${id}: deliveryUrl must be local story media or HTTPS image/video media`)
+  }
   for (const [id, n] of Object.entries(nodes)) {
     if (!n || !known.has(n.type)) {
       errors.push(`${id}: unsupported node type ${n?.type}`)

@@ -13,6 +13,28 @@ const fixture = () => ({
 })
 
 describe('imported story capabilities', () => {
+  it('accepts delivery media only for image/video resources at local or HTTPS URLs', () => {
+    for (const deliveryUrl of [
+      '/data/story-documents/prague/assets/delivery/photo.webp',
+      'https://cdn.example/photo.webp',
+    ]) {
+      const graph = { ...fixture(), resources: { photo: { type: 'image', data: { deliveryUrl } } } }
+      expect(validateImportedStory(graph)).toEqual([])
+    }
+    for (const deliveryUrl of ['javascript:alert(1)', '//cdn.example/photo.webp', '/other/photo.webp', 12]) {
+      const graph = { ...fixture(), resources: { photo: { type: 'image', data: { deliveryUrl } } } }
+      expect(validateImportedStory(graph).join(' ')).toMatch(/deliveryUrl/)
+    }
+    expect(
+      validateImportedStory({
+        ...fixture(),
+        resources: {
+          map: { type: 'webmap', data: { deliveryUrl: 'https://cdn.example/photo.webp' } },
+        },
+      }).join(' '),
+    ).toMatch(/deliveryUrl/)
+  })
+
   it('accepts cover video but rejects standalone body video', () => {
     const graph = fixture()
     expect(validateImportedStory(graph)).toEqual([])

@@ -427,7 +427,7 @@ if (project.workspace?.type === 'map-explorer') {
     ) {
       errors.push('workspace.options.sceneTransitionMs must be between 0 and 5000')
     }
-    for (const key of ['mobilePeekSceneText', 'mobilePeekTicker', 'storyCover', 'chapterNavigation']) {
+    for (const key of ['mobilePeekSceneText', 'mobilePeekTicker', 'storyCover', 'chapterNavigation', 'sectionUrl']) {
       if (options[key] !== undefined && typeof options[key] !== 'boolean') {
         errors.push(`workspace.options.${key} must be boolean when provided`)
       }

@@ -17,6 +17,17 @@ const lightPaint: Record<string, Record<string, string>> = {
   'place-labels': { 'text-color': '#3c4846', 'text-halo-color': '#f4f5f2' },
 }
 
+/** Theme the incoming style before setStyle can paint a charcoal frame. */
+export function editorialStyleForTheme(style: MapLibreGL.StyleSpecification, theme: string | undefined) {
+  if (theme === 'dark') return style
+  const themed = structuredClone(style)
+  for (const [name, paint] of Object.entries(lightPaint)) {
+    const layer = themed.layers.find((layer) => layer.id === `pgmaps-story-${name}`)
+    if (layer) layer.paint = { ...layer.paint, ...paint } as typeof layer.paint
+  }
+  return themed
+}
+
 export function useEditorialBasemapTheme(
   map: MapLibreGL.Map | null,
   document: NativeWebMap | null,

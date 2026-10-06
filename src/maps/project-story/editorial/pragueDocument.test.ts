@@ -15,7 +15,7 @@ type CapturedNode = {
     places?: unknown[]
   }
 }
-type CapturedResource = { type: string; data: { url?: string; webmapUrl?: string } }
+type CapturedResource = { type: string; data: { url?: string; deliveryUrl?: string; webmapUrl?: string } }
 const nodes = Object.values(document.nodes) as CapturedNode[]
 const resources = Object.values(document.resources) as CapturedResource[]
 const nodesOfType = (type: string) => nodes.filter((node) => node.type === type)
@@ -107,6 +107,33 @@ describe('imported Prague reference integrity', () => {
       const map = JSON.parse(readFileSync(`public${resource.data.webmapUrl}`, 'utf8'))
       expect(Array.isArray(map.operationalLayers)).toBe(true)
       inspectForCredentials(map)
+    }
+  })
+
+  it('serves smaller versioned media while preserving the original snapshot inventory', () => {
+    const delivery = JSON.parse(readFileSync(`${folder}/delivery.json`, 'utf8'))
+    expect(delivery.media).toHaveLength(9)
+    let sourceBytes = 0
+    let deliveryBytes = 0
+    for (const item of delivery.media) {
+      const resource = document.resources[item.resource]
+      expect(resource.data.url).toBe(item.sourceUrl)
+      expect(resource.data.deliveryUrl).toBe(item.url)
+      const original = readFileSync(`public${item.sourceUrl}`)
+      const optimized = readFileSync(`public${item.url}`)
+      expect(original.length).toBe(item.sourceBytes)
+      expect(createHash('sha256').update(original).digest('hex')).toBe(item.sourceSha256)
+      expect(optimized.length).toBe(item.bytes)
+      expect(createHash('sha256').update(optimized).digest('hex')).toBe(item.sha256)
+      expect(item.url).toContain(item.sha256.slice(0, 12))
+      expect(item.width).toBeLessThanOrEqual(item.type === 'video' ? 1280 : 1920)
+      expect(item.bytes).toBeLessThan(item.sourceBytes)
+      sourceBytes += item.sourceBytes
+      deliveryBytes += item.bytes
+    }
+    expect(deliveryBytes).toBeLessThan(sourceBytes * 0.25)
+    for (const resource of resources.filter((resource) => /\.(png|svg)$/i.test(resource.data.url ?? ''))) {
+      expect(resource.data.deliveryUrl).toBeUndefined()
     }
   })
 

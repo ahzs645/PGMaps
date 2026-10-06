@@ -146,6 +146,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     }),
     [styles]
   );
+  const requestedStyle = resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
 
   useImperativeHandle(ref, () => mapInstance as MapLibreGL.Map, [mapInstance]);
 
@@ -177,7 +178,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     });
 
-    const styleDataHandler = () => {
+    const styleLoadHandler = () => {
       clearStyleTimeout();
       // Delay to ensure style is fully processed before allowing layer operations
       // This is a workaround to avoid race conditions with the style loading
@@ -210,7 +211,9 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     };
 
     map.on("load", loadHandler);
-    map.on("styledata", styleDataHandler);
+    // styledata also fires for edits to the old style while a replacement URL
+    // is downloading. Only the new style's load event can restore child layers.
+    map.on("style.load", styleLoadHandler);
     map.on("move", handleMove);
     map.on("click", handleUserMapInteraction);
     map.on("movestart", handleUserMapInteraction);
@@ -224,7 +227,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     return () => {
       clearStyleTimeout();
       map.off("load", loadHandler);
-      map.off("styledata", styleDataHandler);
+      map.off("style.load", styleLoadHandler);
       map.off("move", handleMove);
       map.off("click", handleUserMapInteraction);
       map.off("movestart", handleUserMapInteraction);
@@ -303,10 +306,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   }, [mapInstance, isControlled, viewport]);
 
   useEffect(() => {
-    if (!mapInstance || !resolvedTheme) return;
-
-    const newStyle =
-      resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
+    if (!mapInstance) return;
+    const newStyle = requestedStyle;
 
     if (currentStyleRef.current === newStyle) return;
 
@@ -314,8 +315,25 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     currentStyleRef.current = newStyle;
     setIsStyleLoaded(false);
 
-    mapInstance.setStyle(newStyle, { diff: true });
-  }, [mapInstance, resolvedTheme, mapStyles, clearStyleTimeout]);
+    let cancelled = false;
+    mapInstance.setStyle(newStyle, {
+      diff: true,
+      transformStyle: (previous, next) => {
+        if (currentStyleRef.current !== newStyle) return previous ?? next;
+        // A structurally identical style diff emits no style.load. This runs
+        // after the requested JSON arrives, including that no-op case.
+        queueMicrotask(() => {
+          // Preserve style.load's projection setup when it already fired.
+          if (cancelled || currentStyleRef.current !== newStyle || styleTimeoutRef.current) return;
+          styleTimeoutRef.current = setTimeout(() => setIsStyleLoaded(true), 150);
+        });
+        return next;
+      },
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapInstance, requestedStyle, clearStyleTimeout]);
 
   const isLoading = !isLoaded || (showStyleLoadingOverlay && !isStyleLoaded) || loading;
 

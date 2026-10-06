@@ -155,3 +155,63 @@ for (const width of [1440, 390])
     expect(await page.getByTestId('editorial-story').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true)
     expect(errors).toEqual([])
   })
+
+for (const [width, sameStyle] of [
+  [1440, false],
+  [390, false],
+  [1440, true],
+] as const)
+  test(`native layers survive a delayed ${sameStyle ? 'identical' : 'changed'} theme style at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.addInitScript(() => localStorage.setItem('theme', 'light'))
+    let requested = false
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('https://basemaps.cartocdn.com/gl/**/style.json', async (route) => {
+      const dark = route.request().url().includes('dark-matter')
+      if (dark) {
+        requested = true
+        await pending
+      }
+      await route.fulfill({
+        json: {
+          version: 8,
+          sources: {},
+          layers: [
+            {
+              id: 'background',
+              type: 'background',
+              paint: {
+                'background-color': dark && !sameStyle ? '#17212b' : '#f4f5f2',
+              },
+            },
+          ],
+        },
+      })
+    })
+    await page.goto('/dev/projects/example-native-editorial')
+    const linked = page.locator('#linked-map')
+    await linked.scrollIntoViewIfNeeded()
+    const map = linked.getByTestId('native-story-map')
+    await expect.poll(async () => (await inspectMap(map))?.features ?? 0).toBeGreaterThan(0)
+    const canvas = await linked.locator('canvas').elementHandle()
+    if (width < 768) await page.getByRole('button', { name: 'Main menu', exact: true }).click()
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect.poll(() => requested).toBe(true)
+    // Old styledata events must not reattach layers before the new JSON arrives.
+    await page.waitForTimeout(450)
+    expect((await inspectMap(map))?.features ?? 0).toBe(0)
+    release()
+    await linked.scrollIntoViewIfNeeded()
+    await expect.poll(async () => (await inspectMap(map))?.features ?? 0).toBeGreaterThan(0)
+    expect(await canvas?.evaluate((element) => element.isConnected)).toBe(true)
+    if (width < 768) await page.getByRole('button', { name: 'Main menu', exact: true }).click()
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect.poll(async () => (await inspectMap(map))?.features ?? 0).toBeGreaterThan(0)
+    expect(await canvas?.evaluate((element) => element.isConnected)).toBe(true)
+  })

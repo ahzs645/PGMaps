@@ -15,13 +15,35 @@ export function StoryCover({
   poster?: string
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const host = useRef<HTMLElement>(null)
+  const [visible, setVisible] = useState(true)
   const [playing, setPlaying] = useState(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   useEffect(() => {
-    if (playing) void videoRef.current?.play().catch(() => setPlaying(false))
+    if (playing && visible)
+      void videoRef.current?.play().catch((error) => {
+        // Scrolling away can pause an outstanding play request. Preserve the
+        // reader's preference so returning to the cover can resume playback.
+        if (error.name !== 'AbortError') setPlaying(false)
+      })
     else videoRef.current?.pause()
-  }, [playing])
+  }, [playing, visible])
+  useEffect(() => {
+    if (!host.current) return
+    let onScreen = true
+    const update = () => setVisible(onScreen && !document.hidden)
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting
+      update()
+    })
+    observer.observe(host.current)
+    document.addEventListener('visibilitychange', update)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', update)
+    }
+  }, [])
   return (
-    <section className="editorial-cover" data-testid="editorial-cover">
+    <section ref={host} className="editorial-cover" data-testid="editorial-cover">
       {video ? (
         <video ref={videoRef} src={video} poster={poster} muted loop playsInline preload="metadata" />
       ) : poster ? (

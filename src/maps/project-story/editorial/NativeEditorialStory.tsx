@@ -11,6 +11,7 @@ import { NativeStoryMap } from './NativeStoryMap'
 import { parseEditorialDocument } from './model/validate.mjs'
 import type { NativeEditorialDocument, Block, CopyBlock, Media, Inline, ComparisonMedia } from './model/types'
 import './NativeEditorialStory.css'
+import { StoryImage } from './components/StoryImage'
 interface Runtime {
   doc: NativeEditorialDocument
   selected: string | null
@@ -180,7 +181,7 @@ function Comparison({ media }: { media: ComparisonMedia }) {
 function MediaContent({ media, targetId }: { media: Media; targetId: string }) {
   const { doc, selected, select } = useRuntime()
   if (media.type === 'image') {
-    const img = <img src={media.src} alt={media.alt} loading="lazy" />
+    const img = <StoryImage src={media.src} alt={media.alt} />
     return (
       <figure className="editorial-image">
         {media.expandable ? <ExpandableMedia>{img}</ExpandableMedia> : img}
@@ -263,6 +264,7 @@ function ContentBlock({ block }: { block: Block }) {
         width={block.width}
         slides={block.steps.map((s) => ({
           id: s.id,
+          imageUrl: s.media.type === 'image' ? s.media.src : undefined,
           content: <CopyList blocks={s.content} />,
           media: <MediaSlot media={s.media} targetId={block.id} />,
         }))}
@@ -346,13 +348,14 @@ export default function NativeEditorialStory({
         title={project.title}
         onBack={onBack}
         scrollRoot={root}
+        sectionUrl={project.workspace?.type === 'story-map' && project.workspace.options.sectionUrl}
         chapters={chapters}
         cover={doc.cover && <StoryCover {...doc.cover} />}
       >
         <div className="native-editorial" data-testid="native-editorial" data-selected-category={selected ?? ''}>
           {doc.chapters.map((c) => (
             <section key={c.id} className="native-chapter">
-              <h2 id={c.id} className="editorial-text editorial-h2">
+              <h2 id={c.id} className="editorial-text editorial-h2" data-story-section>
                 {c.title}
               </h2>
               {c.blocks.map((b) => (

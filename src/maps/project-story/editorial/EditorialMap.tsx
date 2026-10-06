@@ -1,12 +1,13 @@
 import type MapLibreGL from 'maplibre-gl'
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTheme } from 'next-themes'
 import { Map as NativeMap } from '@/components/ui/map'
 import { MapSwipe } from '@/components/ui/map-swipe'
 import { MapMarker, MarkerContent } from '@/components/ui/map-markers'
 import { EditorialBasemapContext, EDITORIAL_BASEMAP_STYLE, type EditorialBasemap } from './editorialBasemap'
 import { FeatureViewportCache } from './adapters/featureViewportCache'
 import { loadFeaturePages } from './adapters/featurePages'
-import { useEditorialBasemapTheme } from './useEditorialBasemapTheme'
+import { editorialStyleForTheme, useEditorialBasemapTheme } from './useEditorialBasemapTheme'
 import { useNativeFeaturePopups } from './nativeFeaturePopups'
 import {
   authoredCamera,
@@ -75,6 +76,14 @@ function loadDocument(url: string, basemap: EditorialBasemap) {
   documentCache.set(key, result)
   return result
 }
+/** Reuse the normal definition cache without mounting a speculative canvas. */
+export function warmEditorialMap(resource: ArcgisRecord, basemap: EditorialBasemap) {
+  const url =
+    typeof resource.webmapUrl === 'string'
+      ? resource.webmapUrl
+      : `https://www.arcgis.com/sharing/rest/content/items/${resource.itemId}/data?f=json`
+  void loadDocument(url, basemap).catch(() => {})
+}
 function moveToAuthored(map: MapLibreGL.Map, settings: ArcgisRecord, animate: boolean) {
   const camera = authoredCamera(settings)
   const duration = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 650 : 0
@@ -88,12 +97,18 @@ function moveToAuthored(map: MapLibreGL.Map, settings: ArcgisRecord, animate: bo
 export function EditorialMap(props: EditorialMapProps) {
   const { resource, override, tourPoints, activeTourPoint, onSelectTourPoint, passive = false } = props
   const basemap = useContext(EditorialBasemapContext)
+  const { resolvedTheme } = useTheme()
+  const theme = useRef(resolvedTheme)
   const host = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreGL.Map | null>(null)
   const callbacks = useRef(props)
-  callbacks.current = props
+  useLayoutEffect(() => {
+    theme.current = resolvedTheme
+    callbacks.current = props
+  }, [resolvedTheme, props])
   const [nearby, setNearby] = useState(false)
   const [document, setDocument] = useState<NativeWebMap | null>(null)
+  const [styles, setStyles] = useState<{ light: MapLibreGL.StyleSpecification; dark: MapLibreGL.StyleSpecification }>()
   const [documentUrl, setDocumentUrl] = useState('')
   const [documentRevision, setDocumentRevision] = useState(0)
   const [map, setMap] = useState<MapLibreGL.Map | null>(null)
@@ -124,7 +139,6 @@ export function EditorialMap(props: EditorialMapProps) {
   const settingsKey = JSON.stringify({ ...resource, ...override })
   const pointsKey = JSON.stringify(tourPoints ?? [])
   const initialCamera = document ? authoredCamera({ ...document.initial, ...resource, ...override }) : undefined
-  const styles = useMemo(() => (document ? { light: document.style, dark: document.style } : undefined), [document])
   const receiveMap = useCallback((next: MapLibreGL.Map | null) => {
     if (mapRef.current && mapRef.current !== next) {
       retiredMaps.add(mapRef.current)
@@ -157,6 +171,8 @@ export function EditorialMap(props: EditorialMapProps) {
     void loadDocument(webmapUrl, basemap)
       .then((data) => {
         if (cancelled) return
+        const style = basemap === 'pgmaps' ? editorialStyleForTheme(data.style, theme.current) : data.style
+        setStyles({ light: style, dark: style })
         setDocument(data)
         setDocumentUrl(documentKey)
         setDocumentRevision((value) => value + 1)

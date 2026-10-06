@@ -331,6 +331,8 @@ export interface ProjectStoryOptionsDef {
   storyCover: boolean
   /** Show named chapter navigation in the editorial layout. */
   chapterNavigation: boolean
+  /** Editorial documents only: track and restore chapter/panel URL fragments. */
+  sectionUrl: boolean
   /** Side of the map occupied by the desktop editorial narrative. */
   narrativeSide: 'left' | 'right'
   /** Width of the desktop editorial narrative. */
@@ -664,6 +666,7 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
     storyTheme: raw.storyTheme === 'ink' ? 'ink' : 'paper',
     storyCover: raw.storyCover !== false,
     chapterNavigation: raw.chapterNavigation !== false,
+    sectionUrl: raw.sectionUrl === true,
     narrativeSide: raw.narrativeSide === 'right' ? 'right' : 'left',
     narrativeWidth: raw.narrativeWidth === 'large' ? 'large' : 'medium',
     sceneTransition: raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',

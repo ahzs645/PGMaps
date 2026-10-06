@@ -28,8 +28,9 @@ The reusable editorial components are exported from
 instances, the PGMaps navbar and the shared project-folder back button.
 
 Native sidecars and imported editorial documents have different authoring and
-theme contracts. Do not add ordinary `workspace.options` fields expecting them
-to control an imported graph. `EditorialMap` consumes supported WebMap resources;
+theme contracts. Ordinary `workspace.options` fields do not control an imported
+graph; `sectionUrl` is an explicit shared-shell exception, opt-in for both
+document schemas. `EditorialMap` consumes supported WebMap resources;
 use native story layers or a shared PGMaps map for other data.
 
 ## Native editorial authoring

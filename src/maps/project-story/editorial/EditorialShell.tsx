@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
 import { StoryChapterNavigation } from './components/StoryChapterNavigation'
+import { useSectionUrl } from './components/useSectionUrl'
 import './EditorialStory.css'
 export function EditorialShell({
   title,
@@ -9,6 +10,7 @@ export function EditorialShell({
   chapters,
   cover,
   children,
+  sectionUrl = false,
 }: {
   title: string
   onBack: () => void
@@ -16,7 +18,9 @@ export function EditorialShell({
   chapters: { id: string; label: string }[]
   cover?: ReactNode
   children: ReactNode
+  sectionUrl?: boolean
 }) {
+  useSectionUrl(scrollRoot, sectionUrl, chapters.map((chapter) => chapter.id))
   const [chapter, setChapter] = useState('')
   useEffect(() => {
     const root = scrollRoot.current

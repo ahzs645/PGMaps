@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: public/data
-          key: ${{ runner.os }}-pgmaps-data-v1-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', 'package.json', 'package-lock.json', 'public/data/projects/**', 'public/data/smoke/**', 'public/data/walkability/heatmap/factor_masks.json') }}
+          key: ${{ runner.os }}-pgmaps-data-v1-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', 'package.json', 'package-lock.json', 'public/data/projects/**', 'public/data/story-documents/**', 'public/data/smoke/**', 'public/data/walkability/heatmap/factor_masks.json') }}
 
       - name: Install data-generation dependencies
         if: steps.data-cache.outputs.cache-hit != 'true'

@@ -1,0 +1,119 @@
+{
+  "recipe": {
+    "photoMaxWidth": 1920,
+    "photoQuality": 88,
+    "videoMaxWidth": 1280,
+    "videoCrf": 26,
+    "version": 1
+  },
+  "media": [
+    {
+      "resource": "r-aO38DX",
+      "type": "video",
+      "sourceUrl": "/data/story-documents/prague/assets/7UEkGjht7JLFN8XTy-D87.mp4",
+      "sourceBytes": 14862950,
+      "sourceSha256": "a7b866e057cc9582d586f8ca649490c6ae6bcb8e8e9b1a0e0da68327639d230b",
+      "url": "/data/story-documents/prague/assets/delivery/7UEkGjht7JLFN8XTy-D87-a2e1d4307a05.mp4",
+      "bytes": 1638806,
+      "sha256": "a2e1d4307a05f4cfecc1a1d75d8ecedefed57bef753c6a646507a0ddb16d4497",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "resource": "r-sYSgwG",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/6KERlR1wn3WdwlQzVjdWu.jpeg",
+      "sourceBytes": 1354313,
+      "sourceSha256": "fc0845cfd0dd56195acd9abc8d66a4001c90c63c87a0d248ccd8cd0c28d23783",
+      "url": "/data/story-documents/prague/assets/delivery/6KERlR1wn3WdwlQzVjdWu-35720476ae3a.webp",
+      "bytes": 628182,
+      "sha256": "35720476ae3acdb9fdd1e5eefcfcf3b2803a17aa9c9ec34347a07a759ce54593",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "resource": "r-45ATUw",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/FJN21r184rMJ1ZMsgfGUx.jpeg",
+      "sourceBytes": 4642647,
+      "sourceSha256": "3f68344af283a70bd3cb7ea57d92acc4647f21dd76b67413325f817411518c2d",
+      "url": "/data/story-documents/prague/assets/delivery/FJN21r184rMJ1ZMsgfGUx-e5817e27eb06.webp",
+      "bytes": 832898,
+      "sha256": "e5817e27eb064f1f12af908c91a31ecfb2f9ad9ab19d46db0346c4104a9ad863",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "resource": "r-sJqVX6",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/ZcSJQsKPSYFhXexgIuH86.jpeg",
+      "sourceBytes": 2050467,
+      "sourceSha256": "cb47be73b9056d57e30ec6a3d7062e0da0b3bc8e6b96874f116aeec205878779",
+      "url": "/data/story-documents/prague/assets/delivery/ZcSJQsKPSYFhXexgIuH86-0b66fdf95e5d.webp",
+      "bytes": 534244,
+      "sha256": "0b66fdf95e5d88cfe7cbfa362eacf619cbd16c727630e28763f8f876b3bef7ef",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "resource": "r-vrcZ9y",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/O4voEcQup0rMjg3XLNt9r.jpeg",
+      "sourceBytes": 1783619,
+      "sourceSha256": "2dc367a9e112bdaac019308960b99269c2c5bbb3f61eb6338d99e6898a921c01",
+      "url": "/data/story-documents/prague/assets/delivery/O4voEcQup0rMjg3XLNt9r-540f26226478.webp",
+      "bytes": 459394,
+      "sha256": "540f262264780990b6859d3ff3695e8ef669eca7a56ace354efc382717f57d29",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "resource": "r-IPCbm5",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/uUzwsTiPuLKTbcmEJbX0I.jpeg",
+      "sourceBytes": 1773840,
+      "sourceSha256": "9aa2218f3db2fcbc50e50f02479b4b8608eeb6d94d85924ecaab9dd5ce9cdb38",
+      "url": "/data/story-documents/prague/assets/delivery/uUzwsTiPuLKTbcmEJbX0I-6084e3bae4f5.webp",
+      "bytes": 65726,
+      "sha256": "6084e3bae4f5bed90527181ce1856dd993cb7b20d064c965b43f9cdd9485dcd4",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "resource": "r-G5J1lG",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/pTtY0xGG7HYIi-3XfyXSo.jpeg",
+      "sourceBytes": 4323536,
+      "sourceSha256": "470d9d3b50ecc2e3992381c7594fa92b80d72f6fce2210f9f10f697b26aad2ac",
+      "url": "/data/story-documents/prague/assets/delivery/pTtY0xGG7HYIi-3XfyXSo-755d613f8185.webp",
+      "bytes": 425154,
+      "sha256": "755d613f81859b29e9ae9beab34e4e432883c0e9fe3705e29430cb50bccf4d3f",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "resource": "r-xPsdQX",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+      "sourceBytes": 3804160,
+      "sourceSha256": "3f3b54787663d04d13b01e17594e6ad9960f879f8e7383a13cffb2bd642bbd6b",
+      "url": "/data/story-documents/prague/assets/delivery/lfsHRpqz8eAaZG5Pe-yJV-b182e49f6c17.webp",
+      "bytes": 813226,
+      "sha256": "b182e49f6c1771c4ff151b9d43015a0b7a313bd68a1041494dab46a0c5677802",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "resource": "r-c4NCHT",
+      "type": "image",
+      "sourceUrl": "/data/story-documents/prague/assets/yjaAKtum6RAAvBvXw-rbZ.jpeg",
+      "sourceBytes": 3235305,
+      "sourceSha256": "91c835340d8292a2f68f8cff5dfb374b3944f3010cc1e8ee2c8e521f20cf42f1",
+      "url": "/data/story-documents/prague/assets/delivery/yjaAKtum6RAAvBvXw-rbZ-91dc04c241f3.webp",
+      "bytes": 763856,
+      "sha256": "91dc04c241f31fa6fcef68edbd670a675f49e1452869ea9b896139406756a5d2",
+      "width": 1920,
+      "height": 1280
+    }
+  ]
+}

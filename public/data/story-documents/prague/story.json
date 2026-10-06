@@ -2972,7 +2972,8 @@
       "data": {
         "resourceId": "7UEkGjht7JLFN8XTy-D87.mp4",
         "provider": "item-resource",
-        "url": "/data/story-documents/prague/assets/7UEkGjht7JLFN8XTy-D87.mp4"
+        "url": "/data/story-documents/prague/assets/7UEkGjht7JLFN8XTy-D87.mp4",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/7UEkGjht7JLFN8XTy-D87-a2e1d4307a05.mp4"
       }
     },
     "r-sYSgwG": {
@@ -2982,7 +2983,8 @@
         "provider": "item-resource",
         "height": 1080,
         "width": 1920,
-        "url": "/data/story-documents/prague/assets/6KERlR1wn3WdwlQzVjdWu.jpeg"
+        "url": "/data/story-documents/prague/assets/6KERlR1wn3WdwlQzVjdWu.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/6KERlR1wn3WdwlQzVjdWu-35720476ae3a.webp"
       }
     },
     "r-G0HNQX": {
@@ -3002,7 +3004,8 @@
         "provider": "item-resource",
         "height": 4669,
         "width": 7000,
-        "url": "/data/story-documents/prague/assets/FJN21r184rMJ1ZMsgfGUx.jpeg"
+        "url": "/data/story-documents/prague/assets/FJN21r184rMJ1ZMsgfGUx.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/FJN21r184rMJ1ZMsgfGUx-e5817e27eb06.webp"
       }
     },
     "r-sJqVX6": {
@@ -3012,7 +3015,8 @@
         "provider": "item-resource",
         "height": 4458,
         "width": 6687,
-        "url": "/data/story-documents/prague/assets/ZcSJQsKPSYFhXexgIuH86.jpeg"
+        "url": "/data/story-documents/prague/assets/ZcSJQsKPSYFhXexgIuH86.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/ZcSJQsKPSYFhXexgIuH86-0b66fdf95e5d.webp"
       }
     },
     "r-vrcZ9y": {
@@ -3022,7 +3026,8 @@
         "provider": "item-resource",
         "height": 4480,
         "width": 6720,
-        "url": "/data/story-documents/prague/assets/O4voEcQup0rMjg3XLNt9r.jpeg"
+        "url": "/data/story-documents/prague/assets/O4voEcQup0rMjg3XLNt9r.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/O4voEcQup0rMjg3XLNt9r-540f26226478.webp"
       }
     },
     "r-8hmenC": {
@@ -3041,7 +3046,8 @@
         "provider": "item-resource",
         "height": 4500,
         "width": 8000,
-        "url": "/data/story-documents/prague/assets/uUzwsTiPuLKTbcmEJbX0I.jpeg"
+        "url": "/data/story-documents/prague/assets/uUzwsTiPuLKTbcmEJbX0I.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/uUzwsTiPuLKTbcmEJbX0I-6084e3bae4f5.webp"
       }
     },
     "r-pAXLIc": {
@@ -3980,7 +3986,8 @@
         "provider": "item-resource",
         "height": 4333,
         "width": 6500,
-        "url": "/data/story-documents/prague/assets/pTtY0xGG7HYIi-3XfyXSo.jpeg"
+        "url": "/data/story-documents/prague/assets/pTtY0xGG7HYIi-3XfyXSo.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/pTtY0xGG7HYIi-3XfyXSo-755d613f8185.webp"
       }
     },
     "r-H76Gfi": {
@@ -4059,7 +4066,8 @@
         "provider": "item-resource",
         "height": 4399,
         "width": 6598,
-        "url": "/data/story-documents/prague/assets/lfsHRpqz8eAaZG5Pe-yJV.jpeg"
+        "url": "/data/story-documents/prague/assets/lfsHRpqz8eAaZG5Pe-yJV.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/lfsHRpqz8eAaZG5Pe-yJV-b182e49f6c17.webp"
       }
     },
     "r-KGvJsl": {
@@ -4118,7 +4126,8 @@
         "provider": "item-resource",
         "height": 4429,
         "width": 6644,
-        "url": "/data/story-documents/prague/assets/yjaAKtum6RAAvBvXw-rbZ.jpeg"
+        "url": "/data/story-documents/prague/assets/yjaAKtum6RAAvBvXw-rbZ.jpeg",
+        "deliveryUrl": "/data/story-documents/prague/assets/delivery/yjaAKtum6RAAvBvXw-rbZ-91dc04c241f3.webp"
       }
     },
     "r-lLQSeW": {

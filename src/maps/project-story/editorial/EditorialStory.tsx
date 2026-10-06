@@ -2,10 +2,11 @@ import { validateImportedStory } from './model/validateImport.mjs'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from 'react'
 import type { ProjectPackage } from '@/lib/projectPackages'
 import { EditorialBasemapContext } from './editorialBasemap'
-import { EditorialMap, EditorialSwipe } from './EditorialMap'
+import { EditorialMap, EditorialSwipe, warmEditorialMap } from './EditorialMap'
 import { SafeRichText, safeLink } from './SafeRichText'
 import { EditorialShell } from './EditorialShell'
 import { StoryCover } from './components/StoryCover'
+import { StoryImage as DecodedStoryImage } from './components/StoryImage'
 import { StoryCarousel } from './components/StoryCarousel'
 import { StorySidecar } from './components/StorySidecar'
 import { StoryTour } from './components/StoryTour'
@@ -34,7 +35,7 @@ interface ContextValue {
 }
 function readDocument(value: unknown): StoryDocument {
   const capabilityErrors = validateImportedStory(value)
-  if (capabilityErrors.length) throw new Error(capabilityErrors.join("; "))
+  if (capabilityErrors.length) throw new Error(capabilityErrors.join('; '))
   const graph = record(value)
   const nodes = record(graph.nodes),
     resources = record(graph.resources)
@@ -85,7 +86,8 @@ function node(document: StoryDocument, id: unknown): StoryNode {
   return document.nodes[text(id)] ?? { type: 'missing' }
 }
 function resourceUrl(document: StoryDocument, id: unknown): string | undefined {
-  return safeLink(resource(document, id).url)
+  const data = resource(document, id)
+  return safeLink(data.deliveryUrl) ?? safeLink(data.url)
 }
 
 function StoryImage({ storyNode }: { storyNode: StoryNode }) {
@@ -94,7 +96,7 @@ function StoryImage({ storyNode }: { storyNode: StoryNode }) {
   const src = resourceUrl(document, data.image)
   const metadata = resource(document, data.image)
   const content = (
-    <img
+    <DecodedStoryImage
       src={src}
       loading="lazy"
       width={typeof metadata.width === 'number' ? metadata.width : undefined}
@@ -153,11 +155,24 @@ function SwipeBlock({ id }: { id: string }) {
 
 function Immersive({ id, storyNode }: { id: string; storyNode: StoryNode }) {
   const { document, scrollRoot } = useStory()
+  const basemap = useContext(EditorialBasemapContext)
   const slides = (storyNode.children ?? []).map((id) => {
     const slide = node(document, id)
     const panel = slide.children?.find((id) => node(document, id).type === 'immersive-narrative-panel')
     const media = slide.children?.find((id) => node(document, id).type !== 'immersive-narrative-panel')
-    return { id, content: panel && <StoryBlock id={panel} />, media: media && <StoryBlock id={media} /> }
+    return {
+      id,
+      content: panel && <StoryBlock id={panel} />,
+      media: media && <StoryBlock id={media} />,
+      preload:
+        media && node(document, media).type === 'webmap'
+          ? () => warmEditorialMap(resource(document, node(document, media).data?.map), basemap)
+          : undefined,
+      imageUrl:
+        media && node(document, media).type === 'image'
+          ? resourceUrl(document, node(document, media).data?.image)
+          : undefined,
+    }
   })
   return (
     <StorySidecar
@@ -266,7 +281,12 @@ function StoryBlock({ id }: { id: string }) {
     case 'text': {
       const rich = <SafeRichText html={text(data.text)} onAction={onAction} />
       const props = { id, className: `editorial-text editorial-${text(data.type)}` }
-      if (data.type === 'h2') return <h2 {...props}>{rich}</h2>
+      if (data.type === 'h2')
+        return (
+          <h2 {...props} data-story-section>
+            {rich}
+          </h2>
+        )
       if (data.type === 'h3') return <h3 {...props}>{rich}</h3>
       if (data.type === 'h4') return <h4 {...props}>{rich}</h4>
       if (data.type === 'quote') return <blockquote {...props}>{rich}</blockquote>
@@ -383,6 +403,7 @@ export default function EditorialStory({
           title={project.title}
           onBack={onBack}
           scrollRoot={scrollRoot}
+          sectionUrl={project.workspace?.type === 'story-map' && project.workspace.options.sectionUrl}
           chapters={links.map((link) => ({
             id: text(link.nodeId),
             label: plain(node(document, link.nodeId).data?.text),

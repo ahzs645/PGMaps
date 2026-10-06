@@ -93,3 +93,18 @@ batches; no diversity values or classifications are recomputed.
 The app theme now also controls story prose, cards, navigation, and map paint.
 Original media keeps its source colors; theme changes preserve reading position
 and loaded map data.
+
+## Delivery copies
+
+`story.json` retains every source resource URL and adds `data.deliveryUrl` to
+eight JPEG photos and the muted cover video. The browser serves content-hashed
+1920-pixel WebP photos and a 1280×720 H.264 video with its MP4 index at the front.
+These nine assets total 6,161,486 bytes instead of 37,830,837 (84% less); the video
+alone is 1,638,806 bytes instead of 14,862,950. The 40 captured media files and
+`manifest.json` remain intact; PNG/SVG diagrams retain their exact source pixels.
+Publisher attribution is unchanged.
+
+Regenerate with `node scripts/optimize-story-media.mjs public/data/story-documents/prague`
+(requires ffmpeg and ffprobe). `delivery.json` records source/delivery hashes,
+sizes, dimensions and the encoding recipe, and matching verified copies are
+reused on repeat runs. Ordinary builds serve checked-in copies without encoding.

@@ -96,8 +96,8 @@ for (const viewport of [
 
 // Inspect the actual MapLibre instance; a ready container alone does not prove
 // that the authored layers and camera reached the native renderer.
-async function nativeMapState(locator: Locator) {
-  return locator.evaluate((element) => {
+async function nativeMapState(locator: Locator, observePaint = false) {
+  return locator.evaluate((element, observePaint) => {
     const key = Object.keys(element).find((key) => key.startsWith('__reactFiber$'))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let fiber = key ? (element as any)[key] : null
@@ -106,8 +106,18 @@ async function nativeMapState(locator: Locator) {
       for (let index = 0; hook && index < 40; index++, hook = hook.next) {
         const candidate = hook.memoizedState?.current ?? hook.memoizedState
         if (candidate && typeof candidate.getZoom === 'function' && typeof candidate.getStyle === 'function') {
+          if (observePaint && !candidate.testBackgroundColors) {
+            candidate.testBackgroundColors = []
+            candidate.on('render', () => {
+              if (candidate.getLayer('pgmaps-story-background'))
+                candidate.testBackgroundColors.push(
+                  candidate.getPaintProperty('pgmaps-story-background', 'background-color'),
+                )
+            })
+          }
           const center = candidate.getCenter()
           return {
+            backgroundColors: candidate.testBackgroundColors as string[] | undefined,
             zoom: candidate.getZoom() as number,
             center: [center.lng, center.lat] as [number, number],
             sourceCounts: Object.fromEntries(
@@ -133,7 +143,7 @@ async function nativeMapState(locator: Locator) {
       }
     }
     return null
-  })
+  }, observePaint)
 }
 
 async function verifyOriginalText(page: Page) {
@@ -495,6 +505,7 @@ for (const viewport of [
     await expect(map.getByText('Loading original map…', { exact: true })).toHaveClass('sr-only')
     releaseTiles()
     await expect(map).toHaveAttribute('data-state', 'ready')
+    await nativeMapState(map, true)
     const canvas = await map.locator('canvas.maplibregl-canvas').elementHandle()
     expect(canvas).not.toBeNull()
     await slides.nth(1).evaluate((element) => element.scrollIntoView({ block: 'start' }))
@@ -520,6 +531,8 @@ for (const viewport of [
           .toContain(`editorial-source-${layer.id}`)
       }
     }
+    expect((await nativeMapState(map))?.backgroundColors).toContain('#f4f5f2')
+    expect((await nativeMapState(map))?.backgroundColors).not.toContain('#343737')
     expect(exceptions).toEqual([])
   })
 }

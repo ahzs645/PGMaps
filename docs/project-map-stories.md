@@ -93,6 +93,7 @@ optional; omitted fields keep the defaults shown here:
     "storyTheme": "paper",
     "storyCover": true,
     "chapterNavigation": true,
+    "sectionUrl": false,
     "narrativeSide": "left",
     "narrativeWidth": "medium",
     "sceneTransition": "ease",
@@ -144,6 +145,12 @@ optional; omitted fields keep the defaults shown here:
   opening map. Defaults to `true`; set `false` to start with chapters.
 - `chapterNavigation` — show the named sidecar chapter navigation. Defaults
   to `true`.
+- `sectionUrl` — editorial documents (`arcgis-story-document-v1` and
+  `pgmaps-editorial-v1`) only: set `true` to keep the current chapter, sidecar
+  step or tour stop in the URL fragment and restore it when that link opens.
+  Scrolling replaces the current history entry, preserving query parameters
+  and the Back button. Returning to the cover removes the fragment. Defaults
+  to `false`; disabling it leaves the URL alone. Prague enables it as an example.
 - `narrativeSide` — sidecar desktop narrative placement: `"left"` (default)
   or `"right"`. Mobile keeps the map above readable prose.
 - `narrativeWidth` — sidecar desktop narrative width: `"medium"` (default)
@@ -745,7 +752,8 @@ workspace layers may be empty. Top-level scenes remain catalog chapter
 summaries. `ProjectWorkspace` selects `editorial/EditorialStory.tsx` for these
 packages; it does not mount the ordinary scene renderer. The editorial renderer
 uses the imported graph's layout and theme, rather than the ordinary story
-options. It fills the project content area below the unchanged PGMaps navigation.
+options, except the shared `sectionUrl` reading-link option. It fills the project
+content area below the unchanged PGMaps navigation.
 A compact project toolbar uses the shared `ProjectBackButton` to return to the
 containing folder and a project title button to return to the cover. Publisher
 identity stays in the cover byline and credits; it does not replace app chrome.
@@ -783,6 +791,23 @@ Documents/assets live under `public/data/story-documents`, an app-owned director
 preserved during scraper sync. Keep them outside `public/data/projects`, whose
 recursive indexer treats every JSON file as a project package. Register only the
 wrapper package and regenerate the catalog as usual.
+
+An imported image/video resource can specify optional `data.deliveryUrl` (local
+`/data/story-documents/…` media or an HTTPS URL). The renderer uses it in preference
+to `data.url`; omitting it uses the captured original. Keep the original URL and
+capture manifest intact. Delivery assets must exist when publishing; this is
+not a runtime retry mechanism. Create content-hashed WebP photos and a muted
+H.264 cover with the explicit authoring command below (requires `ffmpeg` and
+`ffprobe`, neither is required for ordinary builds):
+
+```sh
+node scripts/optimize-story-media.mjs public/data/story-documents/prague
+```
+
+`delivery.json` records the encoding recipe, original and delivery hashes, sizes,
+and dimensions. Repeat runs reuse matching, verified copies. Only JPEG photos
+are converted; diagrams remain exact originals. Reimporting a story requires
+rerunning this command and reapplying project presentation preferences.
 
 The native graph's supported nodes include story, storycover, navigation, text,
 image, video, separator, button, carousel, immersive, immersive-slide,
@@ -930,6 +955,64 @@ report progress without covering the map. Do not clear the document between bran
 key the map by resource ID: both recreate the canvas and flash the loader during
 scrolling. A delayed-response browser test checks canvas identity and authored
 layers through all seven Prague branches in both directions on desktop and phone.
+
+Incoming PGMaps styles are prepared in the current app palette before the style
+diff, avoiding reliance on a later theme repaint to correct a charcoal frame.
+Subsequent imported-map theme toggles remain paint-only and do not reload
+map definitions, features or the camera. Native maps restore child layers only
+after the requested style has arrived, including an identical style diff; old
+`styledata` events must never prematurely mark a pending replacement ready.
+
+Nearby sidecars decode their current and adjacent images and warm one next
+imported map definition through the existing definition cache, without mounting
+extra canvases or fetching speculative feature geometry. Speculation is skipped
+in hidden tabs and reported data-saver/2G/3G connections. `StoryImage` retains the
+previous decoded image until the current replacement decodes, and ignores late
+responses for skipped slides. Inline images activate within 600 px of the view;
+preserve authored image dimensions so their loading does not move the prose.
+The cover video pauses offscreen and in hidden tabs, retaining the reader's
+play/pause preference. The image and video behaviors also apply to native editorial
+documents.
+
+### Browser and hosting cache setup
+
+The current GitHub Pages deployment serves Prague assets with
+`Cache-Control: max-age=600` (observed October 6, 2026). Existing browser HTTP
+caching helps repeat visits, while the map definition and bounded feature-view
+caches avoid repeated work within a visit. Preloading and decoding help the
+first scroll; extending a cache lifetime alone cannot improve a cold download.
+Prague now serves eight 1920-pixel WebP photo copies and a muted 1280×720 H.264
+cover-video copy: 37,830,837 original bytes become 6,161,486 delivery bytes (84%
+less). The cover alone falls from 14,862,950 to 1,638,806 bytes. PNG/SVG diagrams,
+source snapshots, source hashes and publisher credits remain unchanged. Phone
+specific image sizes and field measurements of LCP/INP are useful next steps.
+
+The deployment data-cache key includes `public/data/story-documents/**`, so
+restoring generated deployment data cannot roll back a newer checked-in story
+or its delivery manifest.
+
+GitHub Pages does not provide per-path custom response-header configuration.
+If a configurable CDN is added, use the following policies with versioned assets:
+
+| Resource | Suggested response header |
+| --- | --- |
+| Content-hashed JS/CSS and immutable versioned media | `Cache-Control: public, max-age=31536000, immutable` |
+| Mutable story/map JSON at stable URLs | `Cache-Control: public, max-age=300, stale-while-revalidate=86400`, plus ETag |
+| HTML and the mutable project catalog | `Cache-Control: no-cache`, plus ETag |
+
+Never mark the current mutable story JSON or unversioned image paths immutable.
+Publish a new asset URL whenever its contents change. External ArcGIS services
+retain their own cache and availability policies. A service worker is not needed
+for the current loading fixes; add one only with a defined offline and update
+invalidation contract.
+
+To verify, open the canonical Prague route with cache disabled and a throttled
+connection, then traverse branches and illustration steps in both directions.
+Check decoded image swaps, stable canvas identity, light-mode background paint,
+and current section URLs. Repeat with cache enabled, at phone width, and with
+data saver enabled. `editorial-loading.spec.ts` holds a replacement image response
+to verify retention, stale-response protection, opt-out, and URL reload/Back
+behavior; `project-editorial.spec.ts` checks actual map paint during branch swaps.
 
 Unsupported source projections, symbols or layer types must produce an explicit
 source warning rather than an invented replacement. Original unavailable
