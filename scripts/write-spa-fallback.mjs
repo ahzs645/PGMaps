@@ -27,6 +27,7 @@ const spaRoutes = [
   'dev/acknowledgement',
   'dev/health/msp',
   'dev/networks',
+  'dev/transit',
   'dev/projects',
   'dev/aqmap',
   'dev/aqmap/main',

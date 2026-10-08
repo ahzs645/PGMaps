@@ -84,6 +84,12 @@ jobs:
           console.log(`Verified ${data.features.length} committed MSP facilities`)
           NODE
 
+      - name: Verify transit coverage and routing
+        run: |
+          python3 vendor/bcdatamapper/datascrapers/transit/test-travel-time.py
+          python3 vendor/bcdatamapper/datascrapers/transit/audit-travel-time.py --strict --report "$RUNNER_TEMP/transit-coverage-audit.json"
+          npx vitest run src/pages/dev-transit/
+
       - run: npm run build
         env:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'

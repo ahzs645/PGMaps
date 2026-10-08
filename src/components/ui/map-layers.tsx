@@ -491,6 +491,8 @@ type MapCircleLayerProps = {
     properties: Record<string, unknown>,
   ) => void
   hoverHtml?: (properties: Record<string, unknown>) => string | null
+  /** Disable and dismiss hover cards while an external interaction is active. */
+  hoverEnabled?: boolean
   filter?: StyleExpression
 }
 
@@ -509,6 +511,7 @@ function MapCircleLayer({
   visible = true,
   onFeatureClick,
   hoverHtml,
+  hoverEnabled = true,
   filter,
 }: MapCircleLayerProps) {
   const { map, isLoaded } = useMap()
@@ -521,6 +524,12 @@ function MapCircleLayer({
   const idPropRef = useRef(idProperty)
   const filterRef = useRef(filter)
   const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
+  const hoverEnabledRef = useRef(hoverEnabled)
+
+  useEffect(() => {
+    hoverEnabledRef.current = hoverEnabled
+    if (!hoverEnabled) tooltipRef.current?.remove()
+  }, [hoverEnabled])
 
   onClickRef.current = onFeatureClick
   hoverHtmlRef.current = hoverHtml
@@ -582,12 +591,18 @@ function MapCircleLayer({
       )
     }
     const handleMouseEnter = () => {
+      if (!hoverEnabledRef.current || map.isMoving()) return
       map.getCanvas().style.cursor = 'pointer'
     }
     const handleMouseMove = (event: unknown) => {
       const e = event as {
         features?: Array<{ properties?: Record<string, unknown> }>
         lngLat?: MapLibreGL.LngLatLike
+        originalEvent?: MouseEvent
+      }
+      if (!hoverEnabledRef.current || e.originalEvent?.buttons || map.isMoving()) {
+        removeTooltip()
+        return
       }
       const properties = e.features?.[0]?.properties
       const html = properties ? hoverHtmlRef.current?.(properties) : null
@@ -614,6 +629,7 @@ function MapCircleLayer({
     map.on('mouseenter', layerId, handleMouseEnter)
     map.on('mousemove', layerId, handleMouseMove as never)
     map.on('mouseleave', layerId, handleMouseLeave)
+    map.on('movestart', removeTooltip)
     const detachPointerDismiss = attachPointerDismiss(map, removeTooltip)
 
     const releaseOrder = registerMapLayerOrder(map, [layerId, selectedLayerId], layerOrder)
@@ -625,6 +641,7 @@ function MapCircleLayer({
         map.off('mouseenter', layerId, handleMouseEnter)
         map.off('mousemove', layerId, handleMouseMove as never)
         map.off('mouseleave', layerId, handleMouseLeave)
+        map.off('movestart', removeTooltip)
         detachPointerDismiss()
         removeTooltip()
         tooltipRef.current = null

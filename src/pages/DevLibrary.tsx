@@ -122,6 +122,14 @@ const devEntries: DevEntry[] = [
     label: '/dev/health/msp',
   },
   {
+    title: 'Transit Travel Times',
+    description: 'Prince George travel-time colours and contours from a movable starting point, with scheduled bus journeys, walking comparison, address search and shareable views.',
+    href: '/dev/transit',
+    icon: Clock3,
+    color: 'bg-emerald-700',
+    label: '/dev/transit',
+  },
+  {
     title: 'Network Coverage',
     description: 'deck.gl comparison map for local TELUS MVT snapshots and Bell polygonized PNG coverage layers.',
     href: '/dev/networks',

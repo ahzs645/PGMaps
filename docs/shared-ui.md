@@ -56,6 +56,11 @@ All live in `src/components/ui/` unless noted.
 
 ## Map overlays
 
+- `MapCircleLayer` accepts `hoverEnabled={false}` to dismiss and suspend hover
+  cards during marker dragging or another external interaction. Normal hovering
+  resumes when enabled; cards also stay dismissed while the map is moving or a
+  pointer button is held.
+
 - Comparisons: `MapSwipe` (`map-swipe.tsx`) takes full-size `left` and `right`
   React slots, labels, and an optional `onPositionChange(percent)` callback.
   It reveals the right surface with a clipped divider; the caller owns camera

@@ -54,6 +54,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/dev/fallout': 'Fallout',
   '/dev/acknowledgement': 'Acknowledgement',
   '/dev/networks': 'Networks',
+  '/dev/transit': 'Travel Times',
   '/dev/aqmap': 'AQ Map',
   '/dev/aqmap/main': 'AQ Map',
   '/dev/aqmap/ring': 'AQ Map',

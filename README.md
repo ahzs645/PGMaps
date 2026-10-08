@@ -87,3 +87,11 @@ See [BC Data Catalogue and ArcGIS Live Usage](docs/bc-data-live-usage.md) for gu
 ## Walkability generated assets
 
 The walkability equation builder uses committed bit-packed factor masks so arbitrary weights and supported option changes can update quickly in the browser. See [Walkability Factor Masks](docs/walkability-factor-masks.md) for the build command, committed asset policy, and why this project-level note lives in `docs/`.
+
+## Transit travel times
+
+`/dev/transit` combines BC Transit schedules and City of Prince George street/path
+data with a live travel-time heatmap, draggable origins, journey details and
+shared views. See the [map guide](docs/dev-transit.md) and
+[pipeline and city-adaptation guide](docs/transit-pipeline.md) for source ownership,
+rebuilding, coverage checks and the configuration refactor needed for other cities.

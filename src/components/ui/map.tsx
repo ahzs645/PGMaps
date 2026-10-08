@@ -123,8 +123,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const [mapInstance, setMapInstance] = useState<MapLibreGL.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
-  const { resolvedTheme: providerTheme } = useTheme();
-  const resolvedTheme = themeProp ?? (providerTheme === "dark" ? "dark" : "light");
+  const { resolvedTheme: providerTheme, forcedTheme } = useTheme();
+  const resolvedTheme = themeProp ?? ((forcedTheme ?? providerTheme) === "dark" ? "dark" : "light");
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const internalUpdateRef = useRef(false);
