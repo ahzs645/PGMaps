@@ -17,6 +17,8 @@ const spaRoutes = [
   'misc',
   'bc-assessment',
   'dev',
+  'dev/flatten',
+  'dev/flatten/pg',
   'dev/boundaries',
   'dev/design',
   'dev/interact',

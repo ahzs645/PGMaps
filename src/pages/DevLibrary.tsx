@@ -23,6 +23,22 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'Flatten PG',
+    description: 'Prince George walking and cycling routes, with live dragging, elevation estimates, shortest-to-flattest trade-offs, loops and GPX export.',
+    href: '/dev/flatten/pg',
+    icon: MapPinned,
+    color: 'bg-emerald-600',
+    label: '/dev/flatten/pg',
+  },
+  {
+    title: 'Flatten SF',
+    description: 'Walking and cycling routes across San Francisco, with a shortest-to-flattest slider, loops, elevation profiles and GPX export.',
+    href: '/dev/flatten',
+    icon: MapPinned,
+    color: 'bg-emerald-600',
+    label: '/dev/flatten',
+  },
+  {
     title: 'Colour palettes',
     description: 'Palette inventory, page usage, light/dark previews and dynamic colour ranges and class breaks.',
     href: '/dev/color-palettes',

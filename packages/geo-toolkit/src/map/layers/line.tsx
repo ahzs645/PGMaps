@@ -8,6 +8,8 @@ import type MapLibreGL from 'maplibre-gl'
 import MapLibreGLRuntime from 'maplibre-gl'
 
 export type MapLineLayerProps = {
+  /** Disable feature hit testing for lines used only as visual context. */
+  interactive?: boolean
   /** GeoJSON FeatureCollection data */
   data: GeoJSON.FeatureCollection
   /** Stable map-local shared source key. */
@@ -44,6 +46,7 @@ export type MapLineLayerProps = {
 }
 
 export function MapLineLayer({
+  interactive = true,
   data,
   sourceKey,
   sourceTolerance,
@@ -161,10 +164,12 @@ export function MapLineLayer({
     }
     const detachDismiss = popup ? attachPointerDismiss(map, () => popup.remove()) : undefined
 
-    map.on('click', layerId, handleClick as never)
-    map.on('mouseenter', layerId, handleMouseEnter)
-    map.on('mouseleave', layerId, handleMouseLeave)
-    if (popup) map.on('mousemove', layerId, handleHover)
+    if (interactive) {
+      map.on('click', layerId, handleClick as never)
+      map.on('mouseenter', layerId, handleMouseEnter)
+      map.on('mouseleave', layerId, handleMouseLeave)
+      if (popup) map.on('mousemove', layerId, handleHover)
+    }
 
     return () => {
       try {
@@ -184,7 +189,7 @@ export function MapLineLayer({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, map])
+  }, [isLoaded, map, interactive])
 
   // Update source data
   useEffect(() => {

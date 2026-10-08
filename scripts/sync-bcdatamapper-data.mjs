@@ -15,6 +15,9 @@ const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EAR
 const appOwnedDataPaths = [
   'projects',
   'story-documents',
+  // User-supplied Flatten SF graph and hillshade, owned by this dev page.
+  'flatten-sf',
+  'flatten-pg',
   // Stable demo/AQMap fallback snapshots owned by PGMaps.
   'smoke',
   'walkability/heatmap/factor_masks.json',

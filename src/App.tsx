@@ -37,6 +37,7 @@ const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
+const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
 const DevProjects = lazy(() => import('@/pages/DevProjects'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then((m) => ({ default: m.AqMapSection })))
@@ -110,6 +111,8 @@ function App() {
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />
             <Route path="/dev/transit" element={<DevTransit />} />
+            <Route path="/dev/flatten" element={<DevFlatten key="sf" />} />
+            <Route path="/dev/flatten/pg" element={<DevFlatten key="pg" cityId="pg" />} />
             <Route path="/dev/outdoors" element={<DevOutdoors />} />
             <Route path="/dev/projects" element={<DevProjects />} />
             <Route path="/dev/projects/:projectSlug" element={<DevProjects />} />

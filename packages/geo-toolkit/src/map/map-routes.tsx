@@ -18,6 +18,8 @@ type MapRouteProps = {
   width?: number
   /** Line opacity from 0 to 1 (default: 0.8) */
   opacity?: number
+  /** Crossfade opacity changes without rebuilding geometry each frame. */
+  opacityTransitionMs?: number
   /** Dash pattern [dash length, gap length] for dashed lines */
   dashArray?: [number, number]
   /** Callback when the route line is clicked */
@@ -36,6 +38,7 @@ function MapRoute({
   color = '#4285F4',
   width = 3,
   opacity = 0.8,
+  opacityTransitionMs,
   dashArray,
   onClick,
   onMouseEnter,
@@ -70,6 +73,7 @@ function MapRoute({
         'line-color': color,
         'line-width': width,
         'line-opacity': opacity,
+        ...(opacityTransitionMs !== undefined && { 'line-opacity-transition': { duration: opacityTransitionMs } }),
         ...(dashArray && { 'line-dasharray': dashArray }),
       },
     })
@@ -104,11 +108,14 @@ function MapRoute({
 
     map.setPaintProperty(layerId, 'line-color', color)
     map.setPaintProperty(layerId, 'line-width', width)
+    if (opacityTransitionMs !== undefined) {
+      map.setPaintProperty(layerId, 'line-opacity-transition', { duration: opacityTransitionMs })
+    }
     map.setPaintProperty(layerId, 'line-opacity', opacity)
     if (dashArray) {
       map.setPaintProperty(layerId, 'line-dasharray', dashArray)
     }
-  }, [isLoaded, map, layerId, color, width, opacity, dashArray])
+  }, [isLoaded, map, layerId, color, width, opacity, opacityTransitionMs, dashArray])
 
   // Handle click and hover events
   useEffect(() => {

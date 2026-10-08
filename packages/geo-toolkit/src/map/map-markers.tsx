@@ -59,6 +59,7 @@ function MapMarker({
   ...markerOptions
 }: MapMarkerProps) {
   const { map } = useMap()
+  const draggingRef = useRef(false)
 
   const callbacksRef = useRef({
     onClick,
@@ -99,6 +100,7 @@ function MapMarker({
     markerInstance.getElement()?.addEventListener('mouseleave', handleMouseLeave)
 
     const handleDragStart = () => {
+      draggingRef.current = true
       const lngLat = markerInstance.getLngLat()
       callbacksRef.current.onDragStart?.({ lng: lngLat.lng, lat: lngLat.lat })
     }
@@ -107,6 +109,7 @@ function MapMarker({
       callbacksRef.current.onDrag?.({ lng: lngLat.lng, lat: lngLat.lat })
     }
     const handleDragEnd = () => {
+      draggingRef.current = false
       const lngLat = markerInstance.getLngLat()
       callbacksRef.current.onDragEnd?.({ lng: lngLat.lng, lat: lngLat.lat })
     }
@@ -126,13 +129,15 @@ function MapMarker({
     marker.addTo(map)
 
     return () => {
+      draggingRef.current = false
       marker.remove()
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map])
 
-  if (marker.getLngLat().lng !== longitude || marker.getLngLat().lat !== latitude) {
+  // MapLibre owns live coordinates until the drag ends, across parent renders.
+  if (!draggingRef.current && (marker.getLngLat().lng !== longitude || marker.getLngLat().lat !== latitude)) {
     marker.setLngLat([longitude, latitude])
   }
   if (marker.isDraggable() !== draggable) {
@@ -146,14 +151,17 @@ function MapMarker({
     marker.setOffset(newOffset)
   }
 
-  if (marker.getRotation() !== markerOptions.rotation) {
-    marker.setRotation(markerOptions.rotation ?? 0)
+  const rotation = markerOptions.rotation ?? 0
+  if (marker.getRotation() !== rotation) {
+    marker.setRotation(rotation)
   }
-  if (marker.getRotationAlignment() !== markerOptions.rotationAlignment) {
-    marker.setRotationAlignment(markerOptions.rotationAlignment ?? 'auto')
+  const rotationAlignment = markerOptions.rotationAlignment ?? 'auto'
+  if (marker.getRotationAlignment() !== rotationAlignment) {
+    marker.setRotationAlignment(rotationAlignment)
   }
-  if (marker.getPitchAlignment() !== markerOptions.pitchAlignment) {
-    marker.setPitchAlignment(markerOptions.pitchAlignment ?? 'auto')
+  const pitchAlignment = markerOptions.pitchAlignment ?? 'auto'
+  if (marker.getPitchAlignment() !== pitchAlignment) {
+    marker.setPitchAlignment(pitchAlignment)
   }
 
   return <MarkerContext.Provider value={{ marker, map }}>{children}</MarkerContext.Provider>
