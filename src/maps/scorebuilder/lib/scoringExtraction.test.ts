@@ -67,7 +67,14 @@ describe('Index Lab calculation extraction', () => {
             normalization,
             aggregation,
             missingData,
-            results: scored.map((entry) => [entry.region.id, entry.score, entry.rank, entry.dataCoverageScore]),
+            // Math.pow/exp can differ in their final bits between V8 versions.
+            // Keep ten decimal places, far beyond displayed score precision.
+            results: scored.map((entry) => [
+              entry.region.id,
+              Number(entry.score.toFixed(10)),
+              entry.rank,
+              entry.dataCoverageScore,
+            ]),
           })
         }
       }
