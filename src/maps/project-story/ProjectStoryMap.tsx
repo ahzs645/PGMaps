@@ -1,3 +1,6 @@
+import { useTheme } from 'next-themes'
+import { WorkspaceProvider } from '@pgmaps/geo-toolkit/workspace/workspace-context'
+import { useSceneStoryController } from '@pgmaps/geo-toolkit/stories/useSceneStoryController'
 import { ArrowDown, BookOpen, ChevronLeft, ChevronRight, Hand, Layers, RotateCcw } from 'lucide-react'
 import type MapLibreGL from 'maplibre-gl'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -576,7 +579,7 @@ function SlidesStory({
 /* Story map                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export function ProjectStoryMap({
+function StoryMapRuntime({
   project,
   config,
   onBack,
@@ -606,11 +609,11 @@ export function ProjectStoryMap({
   const pendingSceneRef = useRef<number | null>(null)
   const activeSceneIndexRef = useRef(0)
 
-  const [activeSceneIndex, setActiveSceneIndex] = useState(0)
-  const [visibleLayerIds, setVisibleLayerIds] = useState(
-    () =>
-      new Set(scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id)),
-  )
+  const sceneController = useSceneStoryController(scenes, config.layers, {
+    accent,
+    initialLayerIds: project.layers.filter((layer) => layer.checked).map((layer) => layer.id),
+  })
+  const { activeSceneIndex, visibleLayerIds, selectScene, setVisibleLayers, setLayerVisibility } = sceneController
   const [sidebarWidth, setSidebarWidth] = useState(380)
   const [selectedFeature, setSelectedFeature] = useState<{
     layerId: string
@@ -794,10 +797,9 @@ export function ProjectStoryMap({
       if (!force && index === activeSceneIndexRef.current) return
       if (index !== activeSceneIndexRef.current) setReadDirection(index > activeSceneIndexRef.current ? 1 : -1)
       activeSceneIndexRef.current = index
-      setActiveSceneIndex(index)
+      selectScene(index, true)
       actionCameraRef.current = undefined
       setMapActionActive(false)
-      setVisibleLayerIds(new Set(scene.visibleLayerIds))
       setSelectedFeature(null)
 
       const map = mapRef.current
@@ -823,7 +825,7 @@ export function ProjectStoryMap({
       else if (sceneTransition === 'fly') map.flyTo({ ...camera, duration: sceneTransitionMs })
       else map.easeTo({ ...camera, duration: sceneTransitionMs })
     },
-    [options, sceneCamera, scenes],
+    [options, sceneCamera, scenes, selectScene],
   )
 
   // Scrolls only the narrative container. scrollIntoView would also scroll
@@ -853,7 +855,7 @@ export function ProjectStoryMap({
 
   const applyMapAction = useCallback(
     (action: NonNullable<ProjectSceneDef['mapActions']>[number]) => {
-      setVisibleLayerIds(new Set(action.visibleLayerIds.filter((id) => config.layers.some((layer) => layer.id === id))))
+      setVisibleLayers(action.visibleLayerIds.filter((id) => config.layers.some((layer) => layer.id === id)))
       setSelectedFeature(null)
       setMapActionActive(true)
       if (!action.camera) return
@@ -865,7 +867,7 @@ export function ProjectStoryMap({
       if (prefersReducedMotion() || options.sceneTransition === 'jump') map.jumpTo(camera)
       else map.easeTo({ ...camera, duration: options.sceneTransitionMs })
     },
-    [config.layers, sceneCamera, options.sceneTransition, options.sceneTransitionMs],
+    [config.layers, sceneCamera, options.sceneTransition, options.sceneTransitionMs, setVisibleLayers],
   )
 
   // Scroll position drives the active scene: the card under the reading line
@@ -966,17 +968,6 @@ export function ProjectStoryMap({
   // Step from the ref, not render state: two quick clicks can both fire
   // before the re-render from the first one commits.
   const stepScene = useCallback((direction: number) => goToScene(activeSceneIndexRef.current + direction), [goToScene])
-
-  const setLayerVisibility = useCallback((layerId: string, action: 'show' | 'hide' | 'toggle') => {
-    setVisibleLayerIds((current) => {
-      const next = new Set(current)
-      if (action === 'show') next.add(layerId)
-      else if (action === 'hide') next.delete(layerId)
-      else if (next.has(layerId)) next.delete(layerId)
-      else next.add(layerId)
-      return next
-    })
-  }, [])
 
   const toggleLayer = useCallback((layerId: string) => setLayerVisibility(layerId, 'toggle'), [setLayerVisibility])
 
@@ -1457,5 +1448,31 @@ export function ProjectStoryMap({
       {mapCanvas}
       {mapChrome}
     </MapSectionLayout>
+  )
+}
+
+/** Host chrome and viewport presentation for the extracted alternate story layouts. */
+export function ProjectStoryMap(props: {
+  project: ProjectPackage
+  config: ProjectStoryWorkspaceDef
+  onBack: () => void
+}) {
+  const { resolvedTheme } = useTheme()
+  if (props.config.options.layout === 'panel') return <StoryMapRuntime {...props} />
+  return (
+    <WorkspaceProvider
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      eventTarget={typeof window === 'undefined' ? undefined : window}
+      placement="viewport"
+      responsive="viewport"
+      toolbar={
+        typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('[data-map-mobile-toolbar="true"]')
+      }
+      onDialogOpenChange={(hidden) =>
+        window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden } }))
+      }
+    >
+      <StoryMapRuntime {...props} />
+    </WorkspaceProvider>
   )
 }

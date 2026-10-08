@@ -6,9 +6,9 @@
   "scripts": {
     "remediation:sync": "npm --prefix vendor/bcdatamapper run remediation:sync --",
     "boundaries:fsa": "npm --prefix vendor/bcdatamapper run boundaries:fsa -- && npm run data:sync-from-bcdatamapper",
-    "predev": "node scripts/ensure-vendor-json-url.mjs && npm run projects:build && npm run census:canada-csd-simplified -- --if-missing && npm run data:sync-from-bcdatamapper && npm run census:north-south-dissolved -- --if-missing && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
+    "predev": "npm run toolkit:build && node scripts/ensure-vendor-json-url.mjs && npm run projects:build && npm run census:canada-csd-simplified -- --if-missing && npm run data:sync-from-bcdatamapper && npm run census:north-south-dissolved -- --if-missing && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
     "dev": "vite",
-    "prebuild": "npm --prefix vendor/json-url run build && npm run projects:build && npm run census:canada-csd-simplified -- --if-missing && npm run data:sync-from-bcdatamapper && npm run census:north-south-dissolved -- --if-missing && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
+    "prebuild": "npm run toolkit:build && npm --prefix vendor/json-url run build && npm run projects:build && npm run census:canada-csd-simplified -- --if-missing && npm run data:sync-from-bcdatamapper && npm run census:north-south-dissolved -- --if-missing && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
     "build": "tsc -b && vite build && node scripts/write-spa-fallback.mjs",
     "boundaries:search-index": "node scripts/generate-boundary-search-index.mjs",
     "aqmap:forecast-zones": "node scripts/build-aqmap-forecast-zones.mjs",
@@ -133,16 +133,28 @@
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
     "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",
     "walkability:build-factor-masks": "node scripts/build-walkability-factor-masks.mjs",
-    "lint": "eslint src/",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "lint": "eslint src/ packages/geo-toolkit/src examples/toolkit-consumer/src scripts/toolkit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\" \"examples/toolkit-consumer/{src,tests}/**/*.{ts,tsx,css}\" \"scripts/toolkit/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\" \"examples/toolkit-consumer/{src,tests}/**/*.{ts,tsx,css}\" \"scripts/toolkit/*.mjs\"",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "test": "vitest run",
     "test:watch": "vitest",
     "data:build-ui": "node scripts/build-ui-data.mjs",
     "economic-regions:sync": "npm --prefix vendor/bcdatamapper run economic-regions:sync -- && npm run data:sync-from-bcdatamapper",
-    "economic-regions:validate": "npm --prefix vendor/bcdatamapper run economic-regions:validate"
+    "economic-regions:validate": "npm --prefix vendor/bcdatamapper run economic-regions:validate",
+    "toolkit:build": "npm run build --workspace @pgmaps/geo-toolkit",
+    "toolkit:check": "node scripts/toolkit/check-boundaries.mjs",
+    "toolkit:test": "vitest run packages/geo-toolkit src/lib/scoring src/lib/calculations src/lib/paletteScale.test.ts src/lib/color.test.ts src/lib/rasterClassGrid.test.ts src/lib/pngPixels.test.ts src/maps/scorebuilder/lib/scoring.test.ts src/maps/scorebuilder/lib/scoringExtraction.test.ts src/maps/scorebuilder/lib/metricRecipes.test.ts",
+    "toolkit:example": "npm run toolkit:build && npm run dev --workspace @pgmaps/toolkit-consumer",
+    "toolkit:example:build": "npm run toolkit:build && npm run build --workspace @pgmaps/toolkit-consumer",
+    "toolkit:example:test": "npm run toolkit:build && npm run test:browser --workspace @pgmaps/toolkit-consumer",
+    "toolkit:pack:check": "npm run toolkit:build && node scripts/toolkit/check-packed-consumer.mjs",
+    "toolkit:watch": "npm run watch --workspace @pgmaps/geo-toolkit",
+    "toolkit:lint": "eslint packages/geo-toolkit/src packages/geo-toolkit/scripts packages/geo-toolkit/tests packages/geo-toolkit/tailwind.config.js examples/toolkit-consumer/src examples/toolkit-consumer/tests scripts/toolkit",
+    "toolkit:format:check": "prettier --check \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\" \"examples/toolkit-consumer/{src,tests}/**/*.{ts,tsx,css}\" \"scripts/toolkit/*.mjs\"",
+    "toolkit:watch:check": "node scripts/toolkit/check-watch.mjs",
+    "toolkit:nested:test": "npm run toolkit:build && node scripts/toolkit/check-nested-workspace.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",
@@ -184,7 +196,8 @@
     "react-router-dom": "^6.22.0",
     "recharts": "^3.8.1",
     "shpjs": "^6.2.0",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "@pgmaps/geo-toolkit": "file:packages/geo-toolkit"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -204,6 +217,11 @@
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.58.1",
     "vite": "^8.0.3",
-    "vitest": "^4.1.8"
-  }
+    "vitest": "^4.1.8",
+    "tsx": "^4.20.0"
+  },
+  "workspaces": [
+    "packages/geo-toolkit",
+    "examples/toolkit-consumer"
+  ]
 }

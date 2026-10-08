@@ -49,6 +49,10 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 ## Shared UI
 
 - `docs/shared-ui.md` lists the shared sidebar, list, dialog, legend and formatting building blocks. Use them before hand-rolling markup; when a page needs something they cannot express, add an opt-in prop to the shared piece instead of copying it.
+- Shared toolkit implementations now live in `packages/geo-toolkit`; the existing application paths are compatibility exports or PG Maps adapters. Read `docs/toolkit-extraction.md` before changing package boundaries. Keep the package free of imports back into PG Maps, application aliases, data preparation and domain defaults.
+- Build the toolkit with `npm run toolkit:build` before running PG Maps against changed package source. Vite consumes compiled exports; TypeScript/Vitest use local source for checks. The independent consumer in `examples/toolkit-consumer` must build through the package exports.
+- Keep `npm run toolkit:watch` running alongside Vite for live package edits; a failed build retains the last valid exports until the source is corrected.
+- Keep calculation normalization separate from display classification, use resolved scales for legends, and preserve source grid resolution, missing values and uncertainty. Each independent workspace owns its interaction events/card stack; legacy window coordination belongs only in application adapters.
 
 ## Project packages
 

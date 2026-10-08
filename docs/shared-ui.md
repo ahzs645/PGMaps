@@ -5,7 +5,11 @@ pieces below. Reach for these before hand-rolling markup; when a page needs
 something they cannot express, add an opt-in prop here rather than copying
 the markup, so every page that adopts it later gets the same behaviour.
 
-All live in `src/components/ui/` unless noted.
+Application imports remain in `src/components/ui/` unless noted. Shared
+implementations now live in `packages/geo-toolkit/src/ui`, `map` and `workspace`;
+the application paths provide compatibility exports and PG Maps integrations.
+Add generic behavior in the package and host-specific behavior in the adapter.
+See [toolkit extraction](toolkit-extraction.md) for ownership and checks.
 
 ## Sidebars
 

@@ -1,0 +1,176 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #173b3f;
+  background: #f5f6f2;
+  line-height: 1.55;
+}
+body {
+  margin: 0;
+}
+* {
+  box-sizing: border-box;
+}
+main {
+  width: min(1200px, 100%);
+  margin: auto;
+  padding: 36px 24px;
+}
+.page-intro {
+  max-width: 740px;
+  margin: 20px 0 48px;
+}
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1.12;
+  margin: 18px 0;
+}
+h2 {
+  font-size: 1.7rem;
+  margin-bottom: 8px;
+}
+.example-section {
+  margin-bottom: 52px;
+}
+.workspace-frame {
+  height: 460px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #d3dfd8;
+  margin-top: 18px;
+  position: relative;
+}
+.workspace-frame.is-compact {
+  max-width: 420px;
+}
+.example-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-title-label {
+  display: block;
+  margin: 16px 0;
+}
+.project-title-label input {
+  display: block;
+  width: min(100%, 600px);
+  margin-top: 6px;
+  border: 1px solid #a0b7b0;
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+}
+.import-project {
+  font-size: 0.85rem;
+}
+.import-project input {
+  display: block;
+  max-width: 230px;
+}
+.project-frame {
+  height: 520px;
+}
+.habitat-theme .geo-toolkit {
+  --background: 208 37% 15%;
+  --foreground: 160 20% 95%;
+  --muted: 205 20% 23%;
+  --muted-foreground: 180 10% 80%;
+  --border: 204 18% 31%;
+  --accent: 204 20% 26%;
+  --accent-foreground: 160 20% 95%;
+}
+.sidebar-copy,
+.detail-copy {
+  padding: 16px;
+}
+.sidebar-copy > p,
+.detail-copy p {
+  font-size: 0.85rem;
+}
+.sidebar-copy label {
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+.sidebar-copy input {
+  width: 100%;
+  margin: 14px 0 0;
+  accent-color: #168d80;
+}
+.district-list {
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+.district-list button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  padding: 10px 8px;
+  border-radius: 6px;
+}
+.district-list button[aria-pressed='true'] {
+  background: #d2e7df;
+}
+.inspect-button {
+  color: #fff;
+  background: #1b655c;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.donut-preview {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 22px;
+}
+.donut-preview svg {
+  width: 110px;
+  height: 110px;
+}
+.example-section.editorial-story {
+  padding: 24px;
+  border: 1px solid #d3dfd8;
+  border-radius: 18px;
+  overflow: visible;
+}
+.editorial-frame {
+  height: 720px;
+  overflow: hidden;
+  border: 1px solid #d3dfd8;
+  border-radius: 18px;
+}
+.editorial-map-adapter {
+  position: relative;
+  height: 100%;
+}
+.story-method {
+  padding: 24px;
+  min-height: 400px;
+}
+.story-diagram svg {
+  max-height: 400px;
+}
+footer {
+  padding: 20px 0;
+  color: #526f6f;
+  font-size: 0.85rem;
+}
+@media (max-width: 767px) {
+  main {
+    padding: 20px 12px;
+  }
+  .workspace-frame {
+    height: 470px;
+  }
+  .example-section.editorial-story {
+    padding: 16px;
+  }
+}

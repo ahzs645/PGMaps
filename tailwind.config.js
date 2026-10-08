@@ -6,6 +6,8 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    // The host uses its Button adapter outside map workspaces as well.
+    "./node_modules/@pgmaps/geo-toolkit/dist/ui/button.js",
   ],
   theme: {
     extend: {

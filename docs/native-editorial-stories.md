@@ -12,6 +12,23 @@ and its wrapper is
 [`example/native-editorial.json`](../public/data/projects/example/native-editorial.json).
 Regenerate its app-owned content with `node scripts/generate-native-editorial-example.mjs`.
 
+## Reusable package ownership
+
+The portable document types and validator, editorial presentation components,
+radial hierarchy/category-dot visualizations and pure scene helpers now live in
+[`packages/geo-toolkit/src/stories`](../packages/geo-toolkit/src/stories/README.md).
+PGMaps' original module paths are compatibility exports consuming
+`@pgmaps/geo-toolkit`; they do not maintain a second implementation. The
+`pgmaps-editorial-v1` schema and validation behavior are unchanged.
+
+A different website can compose those components with its own content, data,
+map/media slots and navigation callbacks. Import
+`@pgmaps/geo-toolkit/stories/styles.css`, use a bounded `.editorial-story` scroll
+root and measure `--editorial-viewport`. The PGMaps app retains its catalog,
+project navigation, native map orchestration and source-specific adapters.
+Native scene and native editorial limitations below still apply; extraction does
+not add a visual editor, new document blocks or climate-grid editorial support.
+
 ## Package and document
 
 Set `workspace.document` in an ordinary story package:
@@ -46,19 +63,19 @@ node .agents/skills/pgmaps-project-builder/scripts/audit-project-package.mjs pub
 
 ## Blocks and media
 
-| Type | Required fields beyond `id` / `type` | Behavior |
-| --- | --- | --- |
-| `paragraph`, `heading`, `quote` | `text: Inline[]` | Semantic prose; `heading` renders an h3 under the chapter's h2 |
-| `list` | `items: Inline[][]` | Bulleted content |
-| `separator` | None | Reading break |
-| `image` | `src`, `alt` | Optional `caption`, `credit`, `expandable` |
-| `carousel` | `items: ImageMedia[]` | Previous/next image controls |
-| `map` | `mapId`, `viewId` | Native PGMaps map and legend |
-| `comparison` | `mapId`, `leftViewId`, `rightViewId`, `leftLabel`, `rightLabel` | Two synchronized views; shared source loading and reveal slider |
-| `diagram` | `diagramId` | Optional `stepId` selects a dot-diagram step |
-| `sidecar` | `presentation`, `steps` | `docked` / `floating`; `side` left/right/center and `width` medium/large; center is floating-only |
-| `tour` | `mapId`, `stops` | Numbered map/photo stops, scroll and arrow selection |
-| `credits` | `text: Inline[]` | Source and author text |
+| Type                            | Required fields beyond `id` / `type`                            | Behavior                                                                                          |
+| ------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `paragraph`, `heading`, `quote` | `text: Inline[]`                                                | Semantic prose; `heading` renders an h3 under the chapter's h2                                    |
+| `list`                          | `items: Inline[][]`                                             | Bulleted content                                                                                  |
+| `separator`                     | None                                                            | Reading break                                                                                     |
+| `image`                         | `src`, `alt`                                                    | Optional `caption`, `credit`, `expandable`                                                        |
+| `carousel`                      | `items: ImageMedia[]`                                           | Previous/next image controls                                                                      |
+| `map`                           | `mapId`, `viewId`                                               | Native PGMaps map and legend                                                                      |
+| `comparison`                    | `mapId`, `leftViewId`, `rightViewId`, `leftLabel`, `rightLabel` | Two synchronized views; shared source loading and reveal slider                                   |
+| `diagram`                       | `diagramId`                                                     | Optional `stepId` selects a dot-diagram step                                                      |
+| `sidecar`                       | `presentation`, `steps`                                         | `docked` / `floating`; `side` left/right/center and `width` medium/large; center is floating-only |
+| `tour`                          | `mapId`, `stops`                                                | Numbered map/photo stops, scroll and arrow selection                                              |
+| `credits`                       | `text: Inline[]`                                                | Source and author text                                                                            |
 
 `cover` accepts `title`, optional `summary`, `byline`, `poster`, `video`. A poster
 creates an image cover; video adds reduced-motion-aware playback controls.

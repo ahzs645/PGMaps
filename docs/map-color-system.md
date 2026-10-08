@@ -4,6 +4,14 @@ The review page is `/dev/color-palettes`, linked from `/dev`. It inventories
 authored palettes, source colour groups, CSS theme roles and the used shades of
 Tailwind's installed palette. Existing map pages are not recoloured by this lab.
 
+Shared scales/colors now live in `packages/geo-toolkit/src/scales`, and shared
+map palettes in `packages/geo-toolkit/src/map/map-styles.ts`. Existing application
+paths are compatibility exports. The audit follows those exports and scans the
+package sources, preserving palette ownership and explicit member references.
+`createScaleLegend` and the shared `ScaleLegend` use the resolved numeric scale;
+adopting that contract across remaining application-specific legends is still
+an incremental migration.
+
 The light/dark filter separates **Same / single palette**, **Different light &
 dark**, and **Needs theme review**. Explicit sibling `.light`/`.dark` or CSS
 theme-role definitions are paired and compared in authored order; both entries

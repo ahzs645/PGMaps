@@ -11,7 +11,7 @@ test.describe('Score Builder model stability (desktop)', () => {
     await expect(page.locator('[data-score-builder-results-preview="true"]')).toBeVisible({ timeout: 20_000 })
   })
 
-  test('invalid weight drafts do not remove a metric or reset the auto palette', async ({ page }) => {
+  test('invalid drafts preserve the model and valid edits use its existing custom palette', async ({ page }) => {
     await expect(page.getByText('Benefit score')).toBeVisible()
     // Weights are edited in the chip's in-place popover.
     await page.locator('[data-score-builder-term-label="parkAreaRatio"]').click()
@@ -32,10 +32,12 @@ test.describe('Score Builder model stability (desktop)', () => {
     await parkAreaWeight.fill('27')
     await expect(parkAreaWeight).toHaveValue('27')
     await expect(parkAreaWeight).toHaveCount(1)
-    await expect(page.getByText('Benefit score')).toBeVisible()
+    // At the census-tract level, a customized equation no longer matches the
+    // community example; the original application uses its composite palette.
+    await expect(page.getByText('Composite score')).toBeVisible()
   })
 
-  test('slider center touch does not remove a metric or reset the auto palette', async ({ page }) => {
+  test('slider keyboard edits preserve metric membership and use the custom palette', async ({ page }) => {
     await expect(page.getByText('Benefit score')).toBeVisible()
     // Weights are edited in the chip's in-place popover.
     await page.locator('[data-score-builder-term-label="parkAreaRatio"]').click()
@@ -54,6 +56,6 @@ test.describe('Score Builder model stability (desktop)', () => {
 
     await expect(parkAreaWeight).toHaveCount(1)
     await expect(parkAreaWeight).toHaveValue('1')
-    await expect(page.getByText('Benefit score')).toBeVisible()
+    await expect(page.getByText('Composite score')).toBeVisible()
   })
 })

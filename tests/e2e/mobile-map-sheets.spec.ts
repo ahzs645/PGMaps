@@ -115,6 +115,17 @@ test.describe('mobile map sidebars', () => {
 
     const card = page.locator('[aria-label="Selected feature"]')
     await expect(card).toBeVisible({ timeout: 30_000 })
+    const pageHeight = await page.evaluate(() => {
+      const main = document.querySelector('main')
+      return {
+        mainHeight: main?.clientHeight ?? 0,
+        mainScrollHeight: main?.scrollHeight ?? 0,
+        documentHeight: document.documentElement.scrollHeight,
+        viewportHeight: window.innerHeight,
+      }
+    })
+    expect(pageHeight.mainScrollHeight).toBeLessThanOrEqual(pageHeight.mainHeight + 1)
+    expect(pageHeight.documentHeight).toBeLessThanOrEqual(pageHeight.viewportHeight + 1)
 
     await page.getByRole('button', { name: 'Close feature card' }).click()
     await expect(card).toBeHidden({ timeout: 5_000 })
@@ -138,9 +149,23 @@ test.describe('mobile map sidebars', () => {
     await expect(peek).not.toContainText('Tap to show selected feature')
   })
 
-  test('mobile BC Assessment deep-linked property card can be dismissed', async ({ page }) => {
+  test('mobile BC Assessment preserves a pending deep link and its property card can be dismissed', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/bc-assessment?property=D0000SJZAC', { waitUntil: 'domcontentloaded' })
+    // Hold the dataset until the sidebar has mounted so URL synchronization runs
+    // against an unresolved selection, rather than relying on the response speed.
+    let releaseParcels!: () => void
+    const parcelsReady = new Promise<void>((resolve) => { releaseParcels = resolve })
+    await page.route('**/data/bc-assessment/parcels.geojson', async (route) => {
+      await parcelsReady
+      await route.continue()
+    })
+    try {
+      await page.goto('/bc-assessment?property=D0000SJZAC', { waitUntil: 'domcontentloaded' })
+      await expect(page.getByText('Loading assessment data...', { exact: true })).toBeVisible()
+      await expect(page).toHaveURL(/property=D0000SJZAC/)
+    } finally {
+      releaseParcels()
+    }
 
     const card = page.locator('[aria-label="Selected feature"]')
     await expect(card).toBeVisible({ timeout: 30_000 })

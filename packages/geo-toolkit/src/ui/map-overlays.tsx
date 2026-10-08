@@ -1,0 +1,58 @@
+import type { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react'
+import { cn } from '../utils.js'
+import { MAP_OVERLAY_ROOT_STYLE, MAP_OVERLAY_Z } from './map-overlay.js'
+
+type MapOverlayRootProps = ComponentPropsWithoutRef<'div'> & {
+  initializeVariables?: boolean
+}
+
+export function MapOverlayRoot({ className, style, initializeVariables = true, ...props }: MapOverlayRootProps) {
+  return (
+    <div
+      data-map-layout-root="true"
+      className={cn('relative h-full w-full', className)}
+      style={{ ...(initializeVariables ? MAP_OVERLAY_ROOT_STYLE : null), ...style } as CSSProperties}
+      {...props}
+    />
+  )
+}
+
+type FloatingPanelPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+const floatingPanelPositionClasses: Record<FloatingPanelPosition, string> = {
+  'top-left': 'left-3 top-3',
+  'top-right': 'right-3 top-3',
+  'bottom-left':
+    'left-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] workspace-desktop:bottom-3',
+  'bottom-right':
+    'right-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] workspace-desktop:bottom-3',
+}
+
+type MapFloatingPanelProps = ComponentPropsWithoutRef<'div'> & {
+  position?: FloatingPanelPosition
+  z?: keyof typeof MAP_OVERLAY_Z
+  reserveLegendSpace?: boolean
+  children: ReactNode
+}
+
+export function MapFloatingPanel({
+  position = 'bottom-left',
+  z = 'controls',
+  reserveLegendSpace = true,
+  className,
+  children,
+  ...props
+}: MapFloatingPanelProps) {
+  const positionClass =
+    !reserveLegendSpace && position === 'bottom-left'
+      ? 'left-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] workspace-desktop:bottom-3'
+      : !reserveLegendSpace && position === 'bottom-right'
+        ? 'right-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] workspace-desktop:bottom-3'
+        : floatingPanelPositionClasses[position]
+
+  return (
+    <div className={cn('absolute', MAP_OVERLAY_Z[z], positionClass, className)} {...props}>
+      {children}
+    </div>
+  )
+}

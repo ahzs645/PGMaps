@@ -1,9 +1,11 @@
-import { useEffect, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useState, type ReactNode, type RefObject, type ComponentProps } from 'react'
+import { useTheme } from 'next-themes'
+import { WorkspaceProvider, useWorkspace } from '@pgmaps/geo-toolkit/workspace/workspace-context'
 import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
 import { StoryChapterNavigation } from './components/StoryChapterNavigation'
 import { useSectionUrl } from './components/useSectionUrl'
 import './EditorialStory.css'
-export function EditorialShell({
+function EditorialShellContent({
   title,
   onBack,
   scrollRoot,
@@ -20,7 +22,12 @@ export function EditorialShell({
   children: ReactNode
   sectionUrl?: boolean
 }) {
-  useSectionUrl(scrollRoot, sectionUrl, chapters.map((chapter) => chapter.id))
+  const workspace = useWorkspace()
+  useSectionUrl(
+    scrollRoot,
+    sectionUrl,
+    chapters.map((chapter) => chapter.id),
+  )
   const [chapter, setChapter] = useState('')
   useEffect(() => {
     const root = scrollRoot.current
@@ -61,11 +68,40 @@ export function EditorialShell({
           {title}
         </button>
       </div>
-      <div ref={scrollRoot} className="editorial-story" data-testid="editorial-story" aria-label={title}>
+      <div
+        ref={scrollRoot}
+        className="editorial-story"
+        data-theme={workspace?.theme}
+        data-testid="editorial-story"
+        aria-label={title}
+      >
         {cover}
         <StoryChapterNavigation chapters={chapters} active={chapter} onSelect={scroll} />
         {children}
       </div>
     </div>
+  )
+}
+
+/** Imported documents enter outside SharedMapLayout; retain the application's viewport presentation. */
+export function EditorialShell(props: ComponentProps<typeof EditorialShellContent>) {
+  const workspace = useWorkspace()
+  const { resolvedTheme } = useTheme()
+  if (workspace) return <EditorialShellContent {...props} />
+  return (
+    <WorkspaceProvider
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      eventTarget={typeof window === 'undefined' ? undefined : window}
+      placement="viewport"
+      responsive="viewport"
+      toolbar={
+        typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('[data-map-mobile-toolbar="true"]')
+      }
+      onDialogOpenChange={(hidden) =>
+        window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden } }))
+      }
+    >
+      <EditorialShellContent {...props} />
+    </WorkspaceProvider>
   )
 }

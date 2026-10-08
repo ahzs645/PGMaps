@@ -1,47 +1,25 @@
-"use client";
-
-import type MapLibreGL from "maplibre-gl";
-import { createContext, useContext } from "react";
-
+// Compatibility adapter for legacy application-owned feature renderers.
+export * from "@pgmaps/geo-toolkit/map/map-context";
 import {
-  MOBILE_MAP_BLANK_CLICK_EVENT,
+  dispatchMobileMapFeatureClick as dispatchFeatureClick,
+  dispatchMobileMapBlankClick as dispatchBlankClick,
+  dispatchMobileMapInteraction as dispatchInteraction,
+} from "@pgmaps/geo-toolkit/map/map-context";
+import type MapLibreGL from "maplibre-gl";
+import {
   MOBILE_MAP_FEATURE_CLICK_EVENT,
+  MOBILE_MAP_BLANK_CLICK_EVENT,
   MOBILE_MAP_INTERACTION_EVENT,
-} from "./mobile-feature-card";
-
-type MapContextValue = {
-  map: MapLibreGL.Map | null;
-  isLoaded: boolean;
-};
-
-const MapContext = createContext<MapContextValue | null>(null);
-
-function useMap() {
-  const context = useContext(MapContext);
-  if (!context) {
-    throw new Error("useMap must be used within a Map component");
-  }
-  return context;
+} from "@pgmaps/geo-toolkit/workspace/workspace-events";
+export function dispatchMobileMapFeatureClick(map?: MapLibreGL.Map | null) {
+  if (map) dispatchFeatureClick(map);
+  else window.dispatchEvent(new CustomEvent(MOBILE_MAP_FEATURE_CLICK_EVENT));
 }
-
-function dispatchMobileMapInteraction(type: "click" | "gesture" = "gesture") {
-  window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, { detail: { type } }));
+export function dispatchMobileMapBlankClick(map?: MapLibreGL.Map | null) {
+  if (map) dispatchBlankClick(map);
+  else window.dispatchEvent(new CustomEvent(MOBILE_MAP_BLANK_CLICK_EVENT));
 }
-
-function dispatchMobileMapBlankClick() {
-  window.dispatchEvent(new CustomEvent(MOBILE_MAP_BLANK_CLICK_EVENT));
+export function dispatchMobileMapInteraction(type: "click" | "gesture" = "gesture", map?: MapLibreGL.Map | null) {
+  if (map) dispatchInteraction(type, map);
+  else window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, { detail: { type } }));
 }
-
-function dispatchMobileMapFeatureClick() {
-  window.dispatchEvent(new CustomEvent(MOBILE_MAP_FEATURE_CLICK_EVENT));
-}
-
-export {
-  MapContext,
-  useMap,
-  dispatchMobileMapInteraction,
-  dispatchMobileMapBlankClick,
-  dispatchMobileMapFeatureClick,
-};
-
-export type { MapContextValue };

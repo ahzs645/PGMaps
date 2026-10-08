@@ -1,0 +1,155 @@
+{
+  "name": "@pgmaps/geo-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable geographic calculations, scales, visualizations, map workspaces and story components.",
+  "files": [
+    "dist",
+    "README.md",
+    "API.md",
+    "RELEASING.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./calculations": {
+      "types": "./dist/calculations/index.d.ts",
+      "default": "./dist/calculations/index.js"
+    },
+    "./index-lab": {
+      "types": "./dist/index-lab/index.d.ts",
+      "default": "./dist/index-lab/index.js"
+    },
+    "./scales": {
+      "types": "./dist/scales/index.d.ts",
+      "default": "./dist/scales/index.js"
+    },
+    "./grids": {
+      "types": "./dist/grids/index.d.ts",
+      "default": "./dist/grids/index.js"
+    },
+    "./visualizations": {
+      "types": "./dist/visualizations/index.d.ts",
+      "default": "./dist/visualizations/index.js"
+    },
+    "./map": {
+      "types": "./dist/map/index.d.ts",
+      "default": "./dist/map/index.js"
+    },
+    "./workspace": {
+      "types": "./dist/workspace/index.d.ts",
+      "default": "./dist/workspace/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
+    },
+    "./stories": {
+      "types": "./dist/stories/index.d.ts",
+      "default": "./dist/stories/index.js"
+    },
+    "./projects": {
+      "types": "./dist/projects/index.d.ts",
+      "default": "./dist/projects/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./*.css": "./dist/*.css",
+    "./*.mjs": {
+      "types": "./dist/*.d.mts",
+      "default": "./dist/*.mjs"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    },
+    "./stories/components": {
+      "types": "./dist/stories/components/index.d.ts",
+      "default": "./dist/stories/components/index.js"
+    },
+    "./index-lab/react": {
+      "types": "./dist/index-lab/react.d.ts",
+      "default": "./dist/index-lab/react.js"
+    },
+    "./projects/react": {
+      "types": "./dist/projects/react.d.ts",
+      "default": "./dist/projects/react.js"
+    }
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "watch": "node ./scripts/watch.mjs"
+  },
+  "dependencies": {
+    "@types/geojson": "^7946.0.16",
+    "clsx": "^2.1.0",
+    "d3": "^7.9.0",
+    "fast-png": "^6.4.0",
+    "lucide-react": "^0.562.0",
+    "pmtiles": "^4.4.1",
+    "tailwind-merge": "^2.2.0",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@tanstack/react-virtual": "^3.13.22",
+    "@turf/boolean-point-in-polygon": "^6.5.0",
+    "@turf/helpers": "^6.5.0",
+    "@radix-ui/react-slider": "^1.3.6",
+    "class-variance-authority": "^0.7.1",
+    "@radix-ui/react-slot": "^1.2.4"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1 || ^19.0.0",
+    "react-dom": "^18.3.1 || ^19.0.0",
+    "maplibre-gl": "^5.15.0",
+    "@deck.gl/core": "^9.3.4",
+    "@deck.gl/geo-layers": "^9.3.4",
+    "@deck.gl/layers": "^9.3.4",
+    "@deck.gl/mapbox": "^9.3.4"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "maplibre-gl": {
+      "optional": true
+    },
+    "@deck.gl/core": {
+      "optional": true
+    },
+    "@deck.gl/geo-layers": {
+      "optional": true
+    },
+    "@deck.gl/layers": {
+      "optional": true
+    },
+    "@deck.gl/mapbox": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.8",
+    "maplibre-gl": "^5.15.0",
+    "@deck.gl/core": "^9.3.4",
+    "@deck.gl/geo-layers": "^9.3.4",
+    "@deck.gl/layers": "^9.3.4",
+    "@deck.gl/mapbox": "^9.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "postcss": "^8.5.6"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

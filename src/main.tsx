@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { ThemeProvider } from 'next-themes'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import '@pgmaps/geo-toolkit/styles.css'
 import './index.css'
 
 // The service worker caches aggressively, so it stays production-only; in dev

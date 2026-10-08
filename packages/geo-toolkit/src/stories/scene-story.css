@@ -1,0 +1,186 @@
+.scene-story {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+.scene-story-header {
+  flex: 0 0 auto;
+  padding: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.scene-story-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.scene-story-header p {
+  margin: 8px 0;
+  font-size: 13px;
+}
+.scene-story-chapters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.scene-story-chapters button {
+  flex-shrink: 0;
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
+.scene-story-chapters button[aria-current] {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+.scene-story-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.scene-story-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+.scene-story-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.scene-story-narrative {
+  min-height: 0;
+  overflow: auto;
+}
+.scene-story-reading {
+  flex: 1;
+  padding: 12px;
+}
+.scene-story-card {
+  margin-bottom: 16px;
+}
+.scene-story-reading::after {
+  content: '';
+  display: block;
+  height: 35vh;
+}
+.scene-story-chrome {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  pointer-events: none;
+}
+.scene-story-chrome > * {
+  pointer-events: auto;
+}
+.scene-story-layout-slides .scene-story-body {
+  flex-direction: column;
+}
+.scene-story-layout-slides .scene-story-map {
+  height: auto;
+}
+.scene-story-slides {
+  flex: 0 1 auto;
+  max-height: 58%;
+  display: grid;
+  padding: 16px;
+}
+.scene-story-slide {
+  grid-area: 1 / 1;
+}
+.scene-story-layout-scrolly .scene-story-map {
+  position: absolute;
+  inset: 0;
+}
+.scene-story-layout-scrolly .scene-story-reading {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  max-width: 480px;
+}
+.scene-story-layout-scrolly .scene-story-card {
+  pointer-events: auto;
+  margin-bottom: 55vh;
+}
+.scene-story-layout-sidecar .scene-story-reading {
+  flex: 0 0 40%;
+  order: -1;
+}
+.scene-story-layout-sidecar .scene-story-card {
+  min-height: 85%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@container geo-reading (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="container"]) to (.geo-toolkit) {
+    .scene-story-layout-sidecar .scene-story-body {
+      flex-direction: column;
+    }
+    .scene-story-layout-sidecar .scene-story-reading {
+      flex: 1;
+      order: 0;
+    }
+    .scene-story-layout-sidecar .scene-story-map {
+      height: 40%;
+      flex: 0 0 40%;
+    }
+    .scene-story-layout-scrolly .scene-story-reading {
+      max-width: 100%;
+    }
+  }
+}
+@media (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="viewport"]) to (.geo-toolkit) {
+    .scene-story-layout-sidecar .scene-story-body {
+      flex-direction: column;
+    }
+    .scene-story-layout-sidecar .scene-story-reading {
+      flex: 1;
+      order: 0;
+    }
+    .scene-story-layout-sidecar .scene-story-map {
+      height: 40%;
+      flex: 0 0 40%;
+    }
+    .scene-story-layout-scrolly .scene-story-reading {
+      max-width: 100%;
+    }
+  }
+}
+.scene-story-explore {
+  position: absolute;
+  z-index: 3;
+  bottom: 12px;
+  right: 12px;
+  padding: 10px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+}
+.scene-story.is-exploring .scene-story-reading {
+  visibility: hidden;
+  pointer-events: none;
+}
+@container geo-reading (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="container"]) to (.geo-toolkit) {
+    .scene-story-layout-scrolly .scene-story-reading {
+      pointer-events: auto;
+    }
+  }
+}
+@media (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="viewport"]) to (.geo-toolkit) {
+    .scene-story-layout-scrolly .scene-story-reading {
+      pointer-events: auto;
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { IndexLabResultCard } from '@pgmaps/geo-toolkit/index-lab/react'
 import { useMemo, useState } from 'react'
 import { Download, Image as ImageIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -315,64 +316,63 @@ export function RegionsTab({
             // Drivers and confidence intervals render only for the selected row to keep the list scannable.
             const topDrivers = selected ? getScoreDrivers(entry, weights, 2) : []
             return (
-              <div
+              <IndexLabResultCard
                 key={entry.region.id}
-                className={cn(
-                  'rounded-lg border border-border bg-background p-2 transition-colors',
-                  selected && 'border-cyan-300 bg-cyan-50 dark:border-cyan-900 dark:bg-cyan-950/35',
-                  pinned && !selected && 'border-amber-300/60 dark:border-amber-900/60',
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button onClick={() => onRegionSelect(entry.region.id)} className="min-w-0 flex-1 text-left">
-                    <div className="line-clamp-1 text-sm font-medium text-foreground">
-                      #{entry.rank} {entry.region.name}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="line-clamp-1">
-                        Code {entry.region.code}
-                        {topWeightedMetric && (
-                          <>
-                            {' | '}
-                            {getMetricLabel(topWeightedMetric)}{' '}
-                            {formatMetricValue(topWeightedMetric, entry.metrics[topWeightedMetric] ?? 0, true)}
-                          </>
-                        )}
-                      </span>
-                      {entry.dataCoverageScore < 0.6 && <Badge tone="warning">Thin data</Badge>}
-                    </div>
-                    {selected && (
-                      <>
-                        {topDrivers.length > 0 && (
-                          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                            Top:{' '}
-                            {topDrivers
-                              .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
-                              .join(', ')}{' '}
-                            pts
-                          </div>
-                        )}
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
-                          {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
-                        </div>
-                      </>
-                    )}
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
-                      {formatScore(entry.score)}
+                result={{
+                  id: entry.region.id,
+                  label: entry.region.name,
+                  score: entry.score,
+                  rank: entry.rank,
+                  dataCoverageScore: entry.dataCoverageScore,
+                }}
+                selected={selected}
+                highlighted={pinned}
+                onSelect={() => onRegionSelect(entry.region.id)}
+                scoreLabel={formatScore(entry.score)}
+                subtitle={
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="line-clamp-1">
+                      Code {entry.region.code}
+                      {topWeightedMetric && (
+                        <>
+                          {' | '}
+                          {getMetricLabel(topWeightedMetric)}{' '}
+                          {formatMetricValue(topWeightedMetric, entry.metrics[topWeightedMetric] ?? 0, true)}
+                        </>
+                      )}
                     </span>
-                    <button
-                      data-score-builder-region-insight={entry.region.id}
-                      onClick={() => onOpenRegionInsight(entry.region.id)}
-                      className="rounded border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Insight
-                    </button>
+                    {entry.dataCoverageScore < 0.6 && <Badge tone="warning">Thin data</Badge>}
                   </div>
-                </div>
-              </div>
+                }
+                details={
+                  selected && (
+                    <>
+                      {topDrivers.length > 0 && (
+                        <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                          Top:{' '}
+                          {topDrivers
+                            .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
+                            .join(', ')}{' '}
+                          pts
+                        </div>
+                      )}
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {entry.rankConfidence} · rank #{entry.rankInterval[0]}-{entry.rankInterval[1]} · score{' '}
+                        {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
+                      </div>
+                    </>
+                  )
+                }
+                actions={
+                  <button
+                    data-score-builder-region-insight={entry.region.id}
+                    onClick={() => onOpenRegionInsight(entry.region.id)}
+                    className="rounded border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Insight
+                  </button>
+                }
+              />
             )
           })}
           {remainingRows > 0 && (

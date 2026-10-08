@@ -1,3 +1,4 @@
+import { setMetricWeight } from '@pgmaps/geo-toolkit/index-lab/state'
 import type {
   BoundaryLevel,
   BoundarySource,
@@ -386,7 +387,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       const next: ScoreBuilderControlState = {
         ...state,
         activeExampleKey: null,
-        weights: { ...state.weights, [action.metric]: action.value },
+        weights: setMetricWeight(state.weights, action.metric, action.value),
       }
       // Source activation follows the equation: a metric that starts counting turns
       // its source on, and the last one to leave turns it back off.
@@ -398,7 +399,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       let next: ScoreBuilderControlState = {
         ...state,
         activeExampleKey: null,
-        weights: { ...state.weights, [action.metric]: action.value },
+        weights: setMetricWeight(state.weights, action.metric, action.value),
       }
       const definition = activeMetricDefinitionsFor(state).find((entry) => entry.key === action.metric)
       const source = definition ? metricToDataSource(definition.category) : null

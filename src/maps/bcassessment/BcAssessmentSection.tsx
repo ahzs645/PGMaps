@@ -143,8 +143,9 @@ export default function BcAssessmentSection() {
     return filteredProperties.find((property) => property.id === visibleSelectedProperty.id) ?? visibleSelectedProperty
   }, [filteredProperties, visibleSelectedProperty])
 
-  // Sync filters to URL for shareable links
-  useUrlParamSync({
+  // A deep-linked property cannot resolve until its parcel records arrive.
+  // Preserve the selection parameter while loading, as the parks section does.
+  useUrlParamSync(propertySelection.pending ? null : {
     q: searchQuery.trim(),
     metric: colorMetric === 'totalAssessed' ? null : colorMetric,
     boundary: boundaryLevel === 'none' ? null : boundaryLevel,

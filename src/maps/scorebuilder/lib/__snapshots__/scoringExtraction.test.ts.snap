@@ -1,0 +1,806 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Index Lab calculation extraction > preserves the pre-extraction scores, ranking, and coverage across every standard calculation mode 1`] = `
+[
+  {
+    "aggregation": "additive",
+    "missingData": "zero",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        87.5,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        30,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        23.125,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "neutral",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        87.5,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        23.125,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "zero",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        85.58849297048525,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        9.853930749425162,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        3.981071705534972,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "neutral",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        85.58849297048525,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        49.99999999999999,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        9.853930749425162,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "zero",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Alpha",
+        89.64214570007952,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        46.29100498862757,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "neutral",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Alpha",
+        89.64214570007952,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Bravo",
+        46.29100498862757,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "zero",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "neutral",
+    "normalization": "minMax",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "zero",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        70,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        43.333333333333336,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        36.66666666666667,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "neutral",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        70,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        43.333333333333336,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "zero",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        67.9327591338269,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        37.84587084024136,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        27.0109432782127,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "neutral",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        67.9327591338269,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        49.99999999999999,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        37.84587084024136,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "zero",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Alpha",
+        70.42952122737638,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        60.749289629395584,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        37.26779962499649,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "neutral",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Alpha",
+        70.42952122737638,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        60.749289629395584,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "zero",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "neutral",
+    "normalization": "percentile",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "zero",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        87.5,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        30,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        23.125,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "neutral",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        87.5,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        23.125,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "zero",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        85.58849297048525,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        9.853930749425162,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        3.981071705534972,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "neutral",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        85.58849297048525,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        49.99999999999999,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        9.853930749425162,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "zero",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Alpha",
+        89.64214570007952,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        46.29100498862757,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "neutral",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Alpha",
+        89.64214570007952,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Bravo",
+        46.29100498862757,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "zero",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "neutral",
+    "normalization": "winsorizedMinMax",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "zero",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        65.76945523956785,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        43.39998878239458,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        40.830555978037566,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "additive",
+    "missingData": "neutral",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        65.76945523956785,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        40.830555978037566,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "zero",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        65.10870356046777,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        41.13300177411062,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        39.195607673464785,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "geometric",
+    "missingData": "neutral",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        65.10870356046777,
+        1,
+        1,
+      ],
+      [
+        "Charlie",
+        49.99999999999999,
+        2,
+        0,
+      ],
+      [
+        "Alpha",
+        39.195607673464785,
+        3,
+        1,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "zero",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Alpha",
+        64.87522562394147,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        53.69779074606191,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        46.90216543505817,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "cumulativeBurden",
+    "missingData": "neutral",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Alpha",
+        64.87522562394147,
+        1,
+        1,
+      ],
+      [
+        "Bravo",
+        53.69779074606191,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        50,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "zero",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+  {
+    "aggregation": "accessThreshold",
+    "missingData": "neutral",
+    "normalization": "zScore",
+    "results": [
+      [
+        "Bravo",
+        100,
+        1,
+        1,
+      ],
+      [
+        "Alpha",
+        0,
+        2,
+        1,
+      ],
+      [
+        "Charlie",
+        0,
+        3,
+        0,
+      ],
+    ],
+  },
+]
+`;

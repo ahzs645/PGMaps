@@ -82,9 +82,7 @@ export function getDataSourceLabel(source: ScoreDataSource): string {
   return source
 }
 
-export function clampWeight(value: number): number {
-  return Math.max(-100, Math.min(100, Math.round(value)))
-}
+export { clampWeight, getWeightIntent } from '@pgmaps/geo-toolkit/index-lab/state'
 
 export function getDefaultMetricWeight(metric: ScoreMetricKey): number {
   if (
@@ -99,11 +97,6 @@ export function getDefaultMetricWeight(metric: ScoreMetricKey): number {
     return -35
   }
   return 35
-}
-
-export function getWeightIntent(value: number): string {
-  if (value === 0) return 'Disabled'
-  return value > 0 ? 'Prefer high' : 'Prefer low'
 }
 
 export function getCategoryTone(category: string): string {

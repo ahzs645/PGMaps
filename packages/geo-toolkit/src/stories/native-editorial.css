@@ -1,0 +1,126 @@
+.editorial-document-root {
+  height: 100%;
+}
+.native-block {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+.native-block-map,
+.native-block-comparison {
+  height: 600px;
+}
+.native-media-region {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+}
+.native-story-map {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  min-height: 210px;
+}
+.native-map-placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: var(--editorial-surface);
+  color: var(--editorial-muted);
+}
+.native-map-status {
+  position: absolute;
+  bottom: 35px;
+  left: 12px;
+  background: var(--editorial-bg);
+  padding: 8px;
+  font-size: 12px;
+}
+.native-map-legend {
+  position: absolute;
+  bottom: 35px;
+  right: 12px;
+  max-width: 220px;
+  background: var(--editorial-bg);
+  color: var(--editorial-fg);
+  padding: 10px;
+  font-size: 12px;
+}
+.native-map-legend span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.native-tour-marker {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--editorial-bg);
+  color: var(--editorial-fg);
+  border: 2px solid currentColor;
+}
+.native-tour-marker[aria-pressed='true'] {
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+}
+.native-chapter > .editorial-text {
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.native-editorial .editorial-immersive-media .editorial-image {
+  height: 100%;
+}
+.native-editorial .editorial-immersive-media .editorial-image img {
+  height: 100%;
+  object-fit: contain;
+}
+.native-editorial .editorial-tour-map > .editorial-expandable {
+  height: 100%;
+}
+@container geo-reading (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="container"]) to (.geo-toolkit) {
+    .native-block-map,
+    .native-block-comparison {
+      height: 430px;
+      padding: 0;
+    }
+    .native-block {
+      padding: 0 12px;
+    }
+    .native-chapter > .editorial-text {
+      margin-left: 24px;
+      margin-right: 24px;
+    }
+    .native-editorial .editorial-immersive-media:has(.story-diagram) {
+      height: 300px;
+    }
+    .native-editorial .editorial-immersive:has(.story-diagram) .editorial-slide {
+      scroll-margin-top: 300px;
+    }
+  }
+}
+@media (max-width: 700px) {
+  @scope (.geo-toolkit[data-workspace-responsive="viewport"]) to (.geo-toolkit) {
+    .native-block-map,
+    .native-block-comparison {
+      height: 430px;
+      padding: 0;
+    }
+    .native-block {
+      padding: 0 12px;
+    }
+    .native-chapter > .editorial-text {
+      margin-left: 24px;
+      margin-right: 24px;
+    }
+    .native-editorial .editorial-immersive-media:has(.story-diagram) {
+      height: 300px;
+    }
+    .native-editorial .editorial-immersive:has(.story-diagram) .editorial-slide {
+      scroll-margin-top: 300px;
+    }
+  }
+}

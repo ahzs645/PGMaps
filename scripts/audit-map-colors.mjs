@@ -10,7 +10,9 @@ import tailwindColors from 'tailwindcss/colors.js'
 const root = path.resolve(import.meta.dirname, '..')
 const out = path.join(root, 'tmp/color-audit')
 fs.mkdirSync(out, { recursive: true })
-const files = execFileSync('rg', ['--files', 'src', 'public/data/projects'], { cwd: root, encoding: 'utf8' })
+const toolkitSource = 'packages/geo-toolkit/src'
+const sourceRoots = ['src', toolkitSource]
+const files = execFileSync('rg', ['--files', ...sourceRoots, 'public/data/projects'], { cwd: root, encoding: 'utf8' })
   .trim()
   .split('\n')
   .filter(
@@ -129,8 +131,8 @@ function extract(file, variable, split = false) {
   if (!found) throw new Error(`Missing variable ${variable}`)
 }
 for (const args of [
-  ['src/components/ui/map-styles.ts', 'COLOR_SCALES', true],
-  ['src/components/ui/map-styles.ts', 'HEATMAP_COLOR_RAMPS', true],
+  [`${toolkitSource}/map/map-styles.ts`, 'COLOR_SCALES', true],
+  [`${toolkitSource}/map/map-styles.ts`, 'HEATMAP_COLOR_RAMPS', true],
   ['src/maps/scorebuilder/constants/palettes.ts', 'SCORE_PALETTE_PROFILES', true],
   ['src/maps/foodmap/risk.ts', 'RISK_BAND_COLORS', true],
   ['src/maps/bcassessment/constants.ts', 'CATEGORY_COLORS'],
@@ -146,7 +148,7 @@ for (const args of [
 // curated groups above. No source module is executed by this audit.
 const isColor = (n) => n && ts.isStringLiteralLike(n) && /^(#[\da-f]{3,8}|rgba?\([^()]*\))$/i.test(n.text)
 for (const [file, ast] of parsed) {
-  if (!file.startsWith('src/')) continue
+  if (!sourceRoots.some((prefix) => file.startsWith(prefix + '/'))) continue
   function visit(node, trail = '') {
     let name = trail
     if (ts.isVariableDeclaration(node) || ts.isPropertyAssignment(node))
@@ -255,15 +257,39 @@ for (const [family, usage] of [...utilityFamilies].sort()) {
 function resolveImport(file, specifier) {
   const target = specifier.startsWith('@/')
     ? 'src/' + specifier.slice(2)
-    : specifier.startsWith('.')
-      ? path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
-      : null
+    : specifier === '@pgmaps/geo-toolkit' || specifier.startsWith('@pgmaps/geo-toolkit/')
+      ? toolkitSource + specifier.slice('@pgmaps/geo-toolkit'.length)
+      : specifier.startsWith('.')
+        ? path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
+        : null
   if (!target) return null
   return (
-    [target, ...['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.tsx'].map((ext) => target + ext)].find((f) =>
-      parsed.has(f),
-    ) ?? null
+    [
+      target,
+      ...['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.tsx'].map((ext) => target.replace(/\.jsx?$/, '') + ext),
+    ].find((f) => parsed.has(f)) ?? null
   )
+}
+
+/** Follow named/star compatibility reexports without treating all imports as evidence. */
+function exportsSymbolFrom(file, symbol, target, seen = new Set()) {
+  if (file === target) return true
+  const key = `${file}::${symbol}`
+  if (seen.has(key)) return false
+  seen.add(key)
+  const ast = parsed.get(file)
+  if (!ast) return false
+  return ast.statements.filter(ts.isExportDeclaration).some((node) => {
+    if (!node.moduleSpecifier || !ts.isStringLiteral(node.moduleSpecifier)) return false
+    const dep = resolveImport(file, node.moduleSpecifier.text)
+    if (!dep) return false
+    if (!node.exportClause) return exportsSymbolFrom(dep, symbol, target, seen)
+    if (!ts.isNamedExports(node.exportClause)) return false
+    return node.exportClause.elements.some(
+      (entry) =>
+        entry.name.text === symbol && exportsSymbolFrom(dep, (entry.propertyName ?? entry.name).text, target, seen),
+    )
+  })
 }
 const imports = new Map()
 for (const [file, ast] of parsed) {
@@ -351,10 +377,14 @@ for (const p of palettes) {
     for (const [file, ast] of parsed) {
       if (file === p.file) continue
       const localNames = ast.statements.filter(ts.isImportDeclaration).flatMap((n) => {
-        if (!ts.isStringLiteral(n.moduleSpecifier) || resolveImport(file, n.moduleSpecifier.text) !== p.file) return []
+        if (!ts.isStringLiteral(n.moduleSpecifier)) return []
+        const dep = resolveImport(file, n.moduleSpecifier.text)
+        if (!dep) return []
         const bindings = n.importClause?.namedBindings
         return bindings && ts.isNamedImports(bindings)
-          ? bindings.elements.filter((e) => (e.propertyName ?? e.name).text === symbol).map((e) => e.name.text)
+          ? bindings.elements
+              .filter((e) => (e.propertyName ?? e.name).text === symbol && exportsSymbolFrom(dep, symbol, p.file))
+              .map((e) => e.name.text)
           : []
       })
       if (!localNames.length) continue
@@ -420,7 +450,7 @@ const inventory = Object.values(
     return acc
   }, {}),
 ).sort((a, b) => b.occurrences - a.occurrences || a.color.localeCompare(b.color))
-const groups = ['src/', 'public/data/projects/'].map((prefix) => {
+const groups = [...sourceRoots.map((prefix) => prefix + '/'), 'public/data/projects/'].map((prefix) => {
   const rows = occurrences.filter((o) => o.file.startsWith(prefix))
   return {
     prefix,
@@ -432,7 +462,7 @@ const groups = ['src/', 'public/data/projects/'].map((prefix) => {
 })
 const report = {
   scope:
-    'Static colour literals in JS/TS string nodes, project JSON and CSS; tests and generated project index excluded. Includes dev pages and uncommitted work. Does not establish runtime use. Short hex expanded; RGB/HSL equivalent spellings are not merged. Named CSS colours, numeric RGB arrays, computed expressions, external tiles, images and generated data outside project packages are not exhaustively captured.',
+    'Static colour literals in app and geo-toolkit JS/TS string nodes, project JSON and CSS; tests and generated project index excluded. Includes dev pages and uncommitted work. Package imports and compatibility reexports preserve source ownership. Does not establish runtime use. Short hex expanded; RGB/HSL equivalent spellings are not merged. Named CSS colours, numeric RGB arrays, computed expressions, external tiles, images and generated data outside project packages are not exhaustively captured.',
   groups,
   distinctLiterals: inventory.length,
   tailwind: {

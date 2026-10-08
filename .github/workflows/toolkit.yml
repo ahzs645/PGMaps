@@ -1,0 +1,45 @@
+name: Verify geographic toolkit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolkit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      # Toolkit verification must work without scraper data or submodules.
+      - uses: actions/checkout@v4
+      - name: Initialize the application npm dependency
+        run: git submodule update --init vendor/json-url
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:check
+      - run: npm run toolkit:lint
+      - run: npm run toolkit:format:check
+      - run: npm run toolkit:test
+      - run: npm run toolkit:example:build
+      - run: npm run toolkit:watch:check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run toolkit:nested:test
+      - run: npm run toolkit:example:test
+      - run: npm run toolkit:pack:check -- --browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: toolkit-browser-reports
+          path: |
+            examples/toolkit-consumer/test-results
+            examples/toolkit-consumer/playwright-report
