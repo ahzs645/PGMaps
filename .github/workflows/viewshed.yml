@@ -1,0 +1,51 @@
+name: Verify terrain viewshed
+
+on:
+  pull_request:
+    paths:
+      - 'src/pages/DevViewshed.tsx'
+      - 'src/pages/dev-viewshed/**'
+      - 'src/pages/dev-forestry/**'
+      - 'tests/e2e/viewshed.spec.ts'
+      - '.github/workflows/viewshed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: viewshed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --depth 1 vendor/json-url vendor/bcdatamapper
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Check application types
+        run: npx tsc -b
+      - name: Check viewshed and shared terrain geometry
+        run: npx vitest run src/pages/dev-viewshed/analysis.test.ts src/pages/dev-forestry/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
+      - name: Build browser and worker bundles
+        run: npx vite build
+      - run: npx playwright install --with-deps chromium
+      - name: Check MapLibre integration
+        run: |
+          npx vite --host 127.0.0.1 --port 42173 --strictPort > viewshed-vite.log 2>&1 &
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/viewshed.spec.ts --workers=1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: viewshed-browser-results
+          path: |
+            test-results
+            playwright-report
+            viewshed-vite.log
