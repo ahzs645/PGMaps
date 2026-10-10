@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
 
 test.use({ serviceWorkers: 'block' })
+// Several terrain/camera changes render through SwiftShader in CI.
+test.setTimeout(90000)
 const bytes = new Uint8Array(256 * 256 * 3)
 for (let i = 0; i < bytes.length; i += 3) { bytes[i] = 129; bytes[i + 1] = 244 }
 // Terrarium: 129*256 + 244 - 32768 = 500 metres.

@@ -48,4 +48,4 @@ jobs:
           path: |
             test-results
             playwright-report
-            /tmp/viewshed-vite.log
+            viewshed-vite.log
