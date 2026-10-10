@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { Map, MapControls, MapMarker, MarkerContent, MapScaleBar, useMap } from '@/components/ui/map'
 import { TerrainSupport } from '../dev-forestry/TerrainSupport'
@@ -15,6 +15,15 @@ type Props = {
 }
 function Scene({ observer, onObserver, result, terrain, onReady, recenter }: Props) {
   const { map, isLoaded } = useMap()
+  const lastDragUpdate = useRef(-Infinity)
+  const updateDrag = (point: GeoPoint) => {
+    const now = performance.now()
+    // Keep the native marker smooth while giving cached analysis time to finish
+    // during a continuous drag rather than resetting the debounce every frame.
+    if (now - lastDragUpdate.current < 400) return
+    lastDragUpdate.current = now
+    onObserver(point)
+  }
   useEffect(() => { onReady(map); return () => onReady(null) }, [map, onReady])
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -57,7 +66,8 @@ function Scene({ observer, onObserver, result, terrain, onReady, recenter }: Pro
   return <>
     <TerrainSupport terrain={terrain} />
     <MapMarker longitude={observer.lng} latitude={observer.lat} draggable
-      onDrag={onObserver} onDragEnd={onObserver}>
+      onDragStart={() => { lastDragUpdate.current = -Infinity }}
+      onDrag={updateDrag} onDragEnd={onObserver}>
       <MarkerContent><button type="button" aria-label="Move viewshed observer"
         title="Drag the observer, or use arrow keys to move 100 m"
         onKeyDown={(event) => {

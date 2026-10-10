@@ -51,7 +51,17 @@ test('dev entry opens a real coverage layer and observer changes update it', asy
   expect(initial.result!.unknown).toBe(0)
   await page.getByRole('button', { name: '3D terrain' }).click()
   await expect.poll(async () => (await read(page))?.map.terrain).toBe(true)
-  // Marker keyboard movement uses the same observer update as dragging.
+  const marker = page.getByRole('button', { name: 'Move viewshed observer' })
+  const box = (await marker.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2, { steps: 5 })
+  await page.waitForTimeout(450)
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => (await read(page))?.observer.lng).toBeGreaterThan(initial.observer.lng)
+  await expect.poll(async () => (await read(page))?.loading, { timeout: 30000 }).toBe(false)
+  // Keyboard movement is available alongside pointer dragging.
   await page.getByRole('button', { name: 'Move viewshed observer' }).focus()
   await page.keyboard.press('ArrowRight')
   await expect.poll(async () => (await read(page))?.observer.lng).toBeGreaterThan(initial.observer.lng)

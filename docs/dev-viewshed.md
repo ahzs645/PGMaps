@@ -29,7 +29,9 @@ sampled centres, including unknown samples, rather than surveyed ground area.
 Both output cell spacing and DEM grid pixel spacing are displayed. Grid spacing
 does not establish the source survey's resolution or vertical accuracy.
 
-The worker coalesces changes for 120 ms, cancels obsolete fetches and yields
+Continuous marker dragging submits observer updates at most every 400 ms,
+while the native marker follows the pointer on every frame. The worker coalesces
+changes for 120 ms, cancels obsolete fetches and yields
 every four rows to stop obsolete calculations. Complete DEM mosaics are cached
 (two mosaics, maximum 64 tiles each); partial mosaics are not cached.
 The radius is bounded to 0.25–10 km. A request requiring more than 64 tiles
