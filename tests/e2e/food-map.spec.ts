@@ -1,6 +1,55 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Food Map', () => {
+  for (const width of [1280, 390]) {
+    test(`opens inspection reports after selecting a list result at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      await page.route('**/data/restaurants.json', (route) => route.fulfill({ json: [{
+        name: 'Inspection test cafe',
+        address: '123 Test Street',
+        city: 'Prince George',
+        latitude: 53.91,
+        longitude: -122.75,
+        facility_type: 'Restaurant',
+        hazard_rating: 'Low',
+        details_url: 'https://example.test/premise/cafe',
+        inspections: [{
+          date: '18-Mar-2024',
+          type: 'Routine',
+          hazard_rating: 'Low',
+          critical_violations_count: 1,
+          non_critical_violations_count: 0,
+          violations: [{
+            code: '201',
+            description: 'Food protected from contamination',
+            observation: 'Inspection report observation',
+            corrective_action: 'Inspection report corrective action',
+          }],
+        }],
+      }] }))
+      for (const file of ['restaurant-classifications.json', 'restaurant-location-overrides.json', 'ui/restaurant-locations.json']) {
+        await page.route(`**/data/${file}`, (route) => route.fulfill({ json: {} }))
+      }
+      await page.route('https://basemaps.cartocdn.com/**/style.json', (route) => route.fulfill({
+        json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef2f6' } }] },
+      }))
+      await page.goto('/foodmap?date=2026-10-01', { waitUntil: 'domcontentloaded' })
+      if (width < 768) await page.locator('[data-map-mobile-sheet-handle]').press('End')
+      await page.getByRole('list', { name: 'Establishments' }).getByRole('button', { name: /^Inspection test cafe/ }).click()
+
+      const history = page.getByRole('button', { name: 'Inspection history', exact: true })
+      await expect(history).toHaveCount(1)
+      await expect(history).toBeVisible()
+      await expect(history).toBeInViewport()
+      await history.click()
+      const dialog = page.getByRole('dialog', { name: 'Inspection test cafe' })
+      await expect(dialog.getByText('All inspection history', { exact: true })).toBeVisible()
+      await expect(dialog.getByText('Inspection report observation', { exact: false })).toBeVisible()
+      await expect(dialog.getByText('Inspection report corrective action', { exact: false })).toBeVisible()
+      await expect(dialog.getByRole('link', { name: 'View on HealthSpace' })).toHaveAttribute('href', 'https://example.test/premise/cafe')
+    })
+  }
+
   test('roulette keeps non-dining premises out even when optional filters are disabled', async ({ page }) => {
     const categories: Record<string, string> = {
       'Pizza place': 'Restaurant',
