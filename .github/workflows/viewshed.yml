@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: git submodule update --init vendor/json-url
+      - run: git submodule update --init --depth 1 vendor/json-url vendor/bcdatamapper
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,7 +39,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Check MapLibre integration
         run: |
-          npx vite --host 127.0.0.1 --port 42173 --strictPort > /tmp/viewshed-vite.log 2>&1 &
+          npx vite --host 127.0.0.1 --port 42173 --strictPort > viewshed-vite.log 2>&1 &
           PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/viewshed.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
