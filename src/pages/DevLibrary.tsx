@@ -23,6 +23,14 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'Viewshed',
+    description: 'Live BC terrain visibility from a draggable observer, with height and range controls, 3D relief and local LiDAR DEM import.',
+    href: '/dev/viewshed',
+    icon: MapPinned,
+    color: 'bg-sky-600',
+    label: '/dev/viewshed',
+  },
+  {
     title: 'Flatten PG',
     description: 'Prince George walking and cycling routes, with live dragging, elevation estimates, shortest-to-flattest trade-offs, loops and GPX export.',
     href: '/dev/flatten/pg',

@@ -95,3 +95,10 @@ data with a live travel-time heatmap, draggable origins, journey details and
 shared views. See the [map guide](docs/dev-transit.md) and
 [pipeline and city-adaptation guide](docs/transit-pipeline.md) for source ownership,
 rebuilding, coverage checks and the configuration refactor needed for other cities.
+
+## Terrain viewshed
+
+`/dev/viewshed` adds live terrain visibility from a movable observer to the Dev
+Library, using MapLibre and the existing PGMaps terrain/sightline code. It runs
+on key-free overview tiles or a locally imported BC DEM. See the
+[viewshed guide and BC terrain sources](docs/dev-viewshed.md).
