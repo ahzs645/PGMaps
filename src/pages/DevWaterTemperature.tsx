@@ -148,7 +148,7 @@ export default function DevWaterTemperature() {
   const extent: DateRange = allDates.length ? [allDates[0], allDates[allDates.length - 1]] : null
   const activeRange = range ?? extent
   const sourceDate = data.config.updated?.slice(0, 10)
-  const sourceDetails = `Local UNBC snapshot${sourceDate ? ` · updated ${sourceDate}` : ' · update date unavailable'}.${data.config.airYear ? ` Daymet air temperatures available through ${data.config.airYear}.` : ''} Development preview of the source checkout.`
+  const sourceDetails = `${import.meta.env.DEV ? 'Local UNBC snapshot' : 'UNBC snapshot from ahzs645/unbcwatertemp-viz on GitHub'}${sourceDate ? ` · updated ${sourceDate}` : ' · update date unavailable'}.${data.config.airYear ? ` Daymet air temperatures available through ${data.config.airYear}.` : ''}`
 
   const changeRange = (next: DateRange) => {
     if (!next || next[0] <= next[1]) setRange(next)

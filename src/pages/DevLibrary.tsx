@@ -22,14 +22,14 @@ type DevEntry = {
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
 
 const devEntries: DevEntry[] = [
-  ...(import.meta.env.DEV ? [{
+  {
     title: 'Water temperature',
-    description: 'UNBC station comparison with linked temperature, seasonality and air/water plots over the local snapshot.',
+    description: 'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
     href: '/dev/water-temperature',
     icon: CircleDot,
     color: 'bg-sky-600',
     label: '/dev/water-temperature',
-  }] : []),
+  },
   {
     title: 'Flatten PG',
     description: 'Prince George walking and cycling routes, with live dragging, elevation estimates, shortest-to-flattest trade-offs, loops and GPX export.',

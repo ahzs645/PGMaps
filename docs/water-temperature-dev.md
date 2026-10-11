@@ -60,15 +60,23 @@ Hover resolves the nearest observation within 12px and shows its station, date
 and temperatures; filtering or resizing invalidates the old hover. Recharts
 still draws the axes/grid, while the toolkit’s `XYPlot` handles interaction.
 
-## Local data
+## Data sources
 
 The Vite development middleware reads the existing sibling checkout at
 `../unbcwatertemp-viz/public/data`. Set `PGMAPS_WATER_TEMP_DATA_DIR` before starting
 Vite to use another snapshot directory. It serves only `stations.json`,
 `config.json` and named station JSON files under `data/`.
 
-No source files are copied into PGMaps or its production build. The endpoint is
-development-only; this page needs a deployable data transport before publication.
+The page is listed in the live `/dev` library as well as the local library.
+Production loads `stations.json`, `config.json` and each selected station's
+observations directly from the reference repository's public
+[`main/public/data`](https://github.com/ahzs645/unbcwatertemp-viz/tree/main/public/data)
+snapshot through `raw.githubusercontent.com`. It follows the repository's main
+branch, so published data updates appear without rebuilding PGMaps. Station
+files are fetched on selection and cached for the current page session.
+
+No source files are copied into PGMaps or its production build. The local
+middleware endpoint remains development-only.
 The source config's update date and Daymet availability are available on the
 header's information icon. Calculation notes live on the mode controls' hover
 text so the dashboard reserves its space for plots. The frontend neither runs

@@ -8,10 +8,15 @@ import {
   type Station,
 } from './data'
 
-const BASE = '/__dev_water_temp/'
+const BASE = import.meta.env.DEV
+  ? '/__dev_water_temp/'
+  : 'https://raw.githubusercontent.com/ahzs645/unbcwatertemp-viz/main/public/data/'
 async function readJson(file: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(`${BASE}${file}`, { signal })
-  if (!response.ok) throw new Error(`Could not load ${file}. Check the local UNBC snapshot directory.`)
+  if (!response.ok)
+    throw new Error(
+      `Could not load ${file}. ${import.meta.env.DEV ? 'Check the local UNBC snapshot directory.' : 'The reference repository snapshot is unavailable. Try again shortly.'}`,
+    )
   return response.json()
 }
 
