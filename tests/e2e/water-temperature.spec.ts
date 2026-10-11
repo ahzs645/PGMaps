@@ -51,6 +51,17 @@ async function dragZoom(page: Page, region: Locator) {
   await page.mouse.up()
 }
 
+async function inspectCurve(page: Page, curve: Locator, fraction: number) {
+  await curve.scrollIntoViewIfNeeded()
+  const point = await curve.evaluate((element, fraction) => {
+    const path = element as SVGPathElement
+    const at = path.getPointAtLength(path.getTotalLength() * fraction)
+    const matrix = path.getScreenCTM()!
+    return { x: matrix.a * at.x + matrix.c * at.y + matrix.e, y: matrix.b * at.x + matrix.d * at.y + matrix.f }
+  }, fraction)
+  await page.mouse.move(point.x, point.y)
+}
+
 test('map and station list share selection, with a four-station limit and stable colours', async ({ page }) => {
   const errors: string[] = []
   const requestedStyles = new Set<string>()
@@ -104,10 +115,14 @@ test('map and station list share selection, with a four-station limit and stable
       '#377eb8',
     )
   }
-  await expect.poll(() => [...requestedStyles].sort()).toEqual([
-    'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-    'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  ].sort())
+  await expect
+    .poll(() => [...requestedStyles].sort())
+    .toEqual(
+      [
+        'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+        'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      ].sort(),
+    )
   await selectStation(page, 'C')
   await selectStation(page, 'D')
   await selectStation(page, 'E')
@@ -159,6 +174,67 @@ test('date range links charts and CSV, and aggregation and seasonality controls 
   await page.getByRole('button', { name: 'Reset filters', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Select station / })).toHaveCount(5)
   await page.getByRole('button', { name: 'Close station browser', exact: true }).click()
+})
+
+test('edge tooltips stay inside charts and years hover emphasizes one original year', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await prepare(page)
+  const years = [2022, 2023].flatMap((year) =>
+    Array.from({ length: 365 }, (_, day) => ({
+      date: new Date(Date.UTC(year, 0, day + 1)).toISOString().slice(0, 10),
+      temp_c: year === 2022 ? 5 : 14,
+      airtemp_c: year === 2022 ? 10 : 20,
+    })),
+  )
+  await page.route('**/__dev_water_temp/data/A.json', (route) => route.fulfill({ json: years }))
+  await selectStation(page, 'A')
+  await expect(page.getByTestId('range-summary')).toContainText('730 water observations')
+  const timeline = page.getByRole('region', { name: 'Water temperature over time', exact: true })
+  await expect(timeline.locator('.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')).toHaveText([
+    '0',
+    '5',
+    '10',
+    '15',
+  ])
+  await expect(timeline.locator('.recharts-label')).toContainText('Water °C')
+  for (const fraction of [0.01, 0.99]) {
+    await inspectCurve(
+      page,
+      timeline.locator('.recharts-line-curve:not(.recharts-brush .recharts-line-curve)').first(),
+      fraction,
+    )
+    const tooltip = timeline.locator('.recharts-default-tooltip')
+    await expect(tooltip).toBeVisible()
+    const card = await tooltip.boundingBox()
+    const chart = await timeline.locator('.recharts-wrapper').first().boundingBox()
+    expect(card!.x).toBeGreaterThanOrEqual(chart!.x - 1)
+    expect(card!.x + card!.width).toBeLessThanOrEqual(chart!.x + chart!.width + 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  const season = page.getByRole('region', { name: 'Seasonality', exact: true })
+  await expect(season.getByRole('button', { name: 'Mean & range', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await season.getByRole('button', { name: 'Years', exact: true }).click()
+  const curves = season.locator('.recharts-line-curve')
+  await expect(curves).toHaveCount(2)
+  for (const index of [0, 1]) {
+    await inspectCurve(page, curves.nth(index), index === 0 ? 0.02 : 0.98)
+    await expect(season.getByRole('tooltip')).toContainText(`A · ${2022 + index}`)
+    await expect(curves.nth(index)).toHaveAttribute('stroke-opacity', '1')
+    await expect(curves.nth(index)).toHaveAttribute('stroke-width', '2.5')
+    await expect(curves.nth(1 - index)).toHaveAttribute('stroke-opacity', '0.15')
+    const card = await season.getByRole('tooltip').boundingBox()
+    const chart = await season.getByTestId('xy-plot').boundingBox()
+    expect(card!.x).toBeGreaterThanOrEqual(chart!.x - 1)
+    expect(card!.x + card!.width).toBeLessThanOrEqual(chart!.x + chart!.width + 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  await page.mouse.move(0, 0)
+  await expect(curves.first()).toHaveAttribute('stroke-opacity', '0.8')
+  await expect(curves.last()).toHaveAttribute('stroke-opacity', '0.8')
+  await expect(season.getByRole('tooltip')).toHaveCount(0)
 })
 
 test('failed observations retry, mobile controls fit, and selection survives resizing', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { ticks } from 'd3'
 import {
   ChartViewport,
   TimeSeriesChart,
@@ -47,6 +48,22 @@ export function TimeChart({
   height?: number
 }) {
   const points = useMemo(() => rows.map(({ time, ...values }) => ({ ...values, x: time })), [rows])
+  const yDomain = useMemo(() => {
+    let min = 0,
+      max = 0
+    const start = range ? timestamp(range[0]) : -Infinity
+    const end = range ? timestamp(range[1]) : Infinity
+    for (const row of rows) {
+      if (row.time < start || row.time > end) continue
+      for (const item of series) {
+        const value = row[item.station.station_id]
+        if (typeof value !== 'number' || !Number.isFinite(value)) continue
+        min = Math.min(min, value)
+        max = Math.max(max, value)
+      }
+    }
+    return [Math.floor(min / 5) * 5, Math.max(5, Math.ceil(max / 5) * 5)] as const
+  }, [rows, series, range])
   return (
     <TimeSeriesChart
       rows={points}
@@ -60,7 +77,13 @@ export function TimeChart({
       height={height}
       label={`Water temperature time series for ${series.length} stations; drag the chart or navigator to filter all plots`}
       xAxis={{ format: dateTick }}
-      yAxis={{ label: '°C' }}
+      yDomain={yDomain}
+      yAxis={{
+        label: 'Water °C',
+        width: 72,
+        format: temperatureTick,
+        ticks: ticks(yDomain[0], yDomain[1], Math.max(2, Math.min(4, Math.floor((height - 76) / 30)))),
+      }}
       formatTooltipX={dateLabel}
       formatNavigatorX={isoDate}
       formatValue={(value) => `${value.toFixed(1)} °C`}
@@ -131,6 +154,7 @@ export function SeasonChart({
   return (
     <LineBandChart
       series={lines}
+      highlightOnHover={individual}
       height={height}
       extent={extent}
       label={

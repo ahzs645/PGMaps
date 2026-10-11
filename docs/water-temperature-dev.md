@@ -52,6 +52,13 @@ Reset zoom appears inside the plot only after zooming. Focus a plot and press
 `+` to zoom or `Home` to reset. Seasonality shows one nearby series in its tooltip,
 with the observed range or the original individual-year date. Year grouping and
 seasonal summaries are cached until the input series changes.
+Mean & range remains the default. In Years mode, hovering near a line emphasizes
+that station/year and dims the others; the tooltip uses that year's original
+observation. Moving away, changing the data or zooming clears the emphasis.
+Tooltip content wraps and stays inside each measured chart, including narrow
+and fullscreen views. The timeline's vertical Water °C axis starts at zero when
+readings are nonnegative, preserves below-zero readings and uses rounded bounds
+and readable ticks for the visible date range.
 
 The scatter uses the reference's 2px points and density-dependent opacity,
 independently scaled air/water axes, and a clipped 1:1 line. A single high-DPI
