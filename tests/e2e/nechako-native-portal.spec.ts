@@ -11,10 +11,14 @@ const sharedBoundary = JSON.parse(
 const nechakoFeature = sharedBoundary.features.find(
   (feature: GeoJSON.Feature) => feature.properties?.namedWatershedId === 8886,
 )
+test.use({ actionTimeout: 30_000 })
 
 for (const width of [1440, 390]) {
   test(`native portal preserves its map through tools and windows at ${width}px`, async ({ page }) => {
-    test.setTimeout(120_000)
+    // This flow opens two WebGL maps and exercises imports, drawing and persistence.
+    // Software rendering on the CI runner needs a larger total budget; individual
+    // actions and assertions keep their own short deadlines.
+    test.setTimeout(240_000)
     await page.setViewportSize({ width, height: width === 390 ? 844 : 960 })
     const errors: string[] = []
     const unexpectedReads: string[] = []
