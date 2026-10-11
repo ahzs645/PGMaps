@@ -32,6 +32,8 @@ The new workbench rendered the live Watershed Context map and returned actual at
 
 ### Validation and limits
 
+The completed local pass passed 30 focused unit tests, six browser tests, five GDAL tests (including 23 format/geometry round trips) and five isolated PHP CORS tests, plus TypeScript, lint, production build and the existing project audit. The public workbench remains clean in a normal live browser. A separate original-portal iframe check exposed PHP warnings in `getStartupContent.php` that break ExtJS JSON decoding; its interface can embed, but that does not establish reliable account/workflow embedding. See the server runbook and separate original-portal evidence.
+
 Validation includes focused transport/expression tests; desktop and phone browser tests for layers, inherited metadata, inspection, opacity, legends, removal, tab state, search errors/retries, paging, format refresh, project checks, all/unmapped research filtering and dialogs; TypeScript; lint on new integration files; the production Vite bundle; and the existing Nechako project's structural audit. Stubbed interaction tests are kept separate from live CORS/rendering evidence. No portal account, publishing, editing, private file or administrative operation was exercised.
 
 The build used the pinned sibling repositories to initialize the previously empty submodules and built their existing library outputs. It did not regenerate all scraper snapshots or change submodule pins. Deployment still needs the repository's normal recursive-submodule/data build pipeline and SPA fallback configured for real client routes.

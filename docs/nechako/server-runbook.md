@@ -31,6 +31,12 @@ Acceptance browser cases from the actual deployed PGMaps origin, without route i
 - Registration/permission errors remain visible JSON errors with correct CORS headers.
 - Login, expiry, logout and a second user's isolation are verified. JSON request bodies remain a separate acceptance check.
 
+### Original portal embedding and startup JSON
+
+A normal cross-site iframe from the local PGMaps origin could load the portal interface; the portal root did not advertise X-Frame-Options or CSP frame-ancestors. However `rest/portal/admin/getStartupContent.php` returned PHP HTML warnings before its JSON: undefined `configuration` and access to a null value, both reported at line 8. ExtJS then raised an invalid-JSON client exception; the default-project registration error was also visible. Embedding is not a completed substitute for the workbench or portal login.
+
+Inspect that endpoint's configuration/session initialization and server logs. Keep production warnings out of REST JSON (`display_errors=Off`, `log_errors=On`) and fix the missing value rather than only suppressing its warning. Test a normal top-level portal visit separately from an iframe, and inspect cookie SameSite/Secure behavior without exporting session values. A frame's presence does not prove protected login or third-party cookies work. Evidence: `portal-embedding.json`, `portal-embedded.png`, and the separate `portal-top-level-startup.json` follow-up. PGMaps continues to offer a top-level portal link; no broken iframe integration was added.
+
 ## 3. Repair QGIS sources
 
 Two EchoScreen layers advertised by capabilities return `LayerNotDefined` for GetMap: `Cancer rank - Sensitive Population` and `COPD rank - Sensitive Population`. In the corresponding `.qgs` project, check the published WMS layer names, short names, grouping and duplicate names against capabilities and server logs. Reload the project/cache and verify the **exact advertised name** at regional and full extents. Do not mask failures by replacing source names in PGMaps without correcting capabilities.
@@ -50,7 +56,7 @@ npx vite --host 127.0.0.1 --port 42173 --strictPort
 
 Vite proxies `/api/nechako` to the loopback service on port 42174. GeoJSON import/export needs no server. Other GIS imports and exports show an explicit unavailable-service error if the service is absent. Uploaded files are held in temporary directories and deleted after each operation; originals remain in the browser. The service accepts files, not remote URLs or portal credentials.
 
-Limits: 20 MB source files combined, 16 sidecars, 200 archive entries, 60 MB expanded archive, 50 dataset layers, 100,000 features per layer, 30 MB converted output, 45 seconds per GDAL subprocess and 180 seconds browser deadline. Archive traversal, symlinks, duplicate basenames and XML document types/entities are rejected. Driver conversions can lose styling or target-format fields; retain original files. Shapefile mixed geometry or incompatible GPX polygons can fail explicitly; separate homogeneous layers before export.
+Limits: 20 MB source files combined, 16 sidecars, 200 archive entries, 60 MB expanded archive, 50 dataset layers, 100,000 features per layer, 30 MB converted output, 45 seconds per GDAL subprocess, 120 seconds per converted dataset and 180 seconds browser deadline. Archive traversal, symlinks, duplicate basenames and XML document types/entities are rejected. Driver conversions can lose styling or target-format fields; retain original files. Shapefile mixed geometry or incompatible GPX polygons can fail explicitly; separate homogeneous layers before export.
 
 The Python HTTP server is **development only**. Production needs a same-origin authenticated/rate-limited job endpoint backed by isolated GDAL workers, OS memory/CPU/time/process limits, bounded job concurrency, blocked worker outbound networking, accepted driver review, private temporary storage and logs that exclude uploaded contents. Do not expose the loopback dev server with permissive CORS. No production converter deployment was attempted here.
 

@@ -25,8 +25,11 @@ SUFFIXES = {'.json', '.geojson', '.shp', '.gml', '.gpx', '.kml', '.kmz', '.db', 
 ENV = {**os.environ, 'OGR_SKIP': 'VRT LIBKML', 'GML_SKIP_RESOLVE_ELEMS': 'ALL', 'GDAL_HTTP_TIMEOUT': '5', 'CPL_TMPDIR': tempfile.gettempdir()}
 
 
-def run(arguments):
-    result = subprocess.run(arguments, capture_output=True, timeout=45, env=ENV, check=False)
+def run(arguments, deadline=None):
+    timeout = min(45, max(0.1, deadline - time.monotonic())) if deadline else 45
+    if deadline and time.monotonic() >= deadline:
+        raise ValueError('Conversion exceeded the 120 second dataset time limit.')
+    result = subprocess.run(arguments, capture_output=True, timeout=timeout, env=ENV, check=False)
     if result.returncode:
         raise ValueError(result.stderr.decode(errors='replace')[-2000:] or 'GDAL could not read this file.')
     return result.stdout.decode(errors='replace')
@@ -135,6 +138,7 @@ def export_dataset(payload):
 
 
 def convert(payload):
+    deadline = time.monotonic() + 120
     with tempfile.TemporaryDirectory(prefix='nechako-convert-') as name:
         directory = pathlib.Path(name)
         files = write_inputs(directory, payload.get('files'))
@@ -153,11 +157,13 @@ def convert(payload):
             if path.suffix.lower() in {'.gml', '.gpx', '.kml', '.json', '.geojson'}:
                 if re.search(br'<!\s*(DOCTYPE|ENTITY)', path.read_bytes(), re.IGNORECASE):
                     raise ValueError('External XML entities and document types are not accepted.')
-            info = run(['ogrinfo', '-ro', '-so', '-al', str(path)])
+            info = run(['ogrinfo', '-ro', '-so', '-al', str(path)], deadline)
             layers = re.findall(r'^Layer name: (.+)$', info, re.MULTILINE)
             if not layers or len(layers) > 50:
                 raise ValueError('No readable layers, or more than 50 layers in one dataset.')
             for layer in layers:
+                if len(outputs) >= 50:
+                    raise ValueError('Import at most 50 dataset layers at a time.')
                 if layer.startswith('-'):
                     raise ValueError('Layer names starting with a dash are not accepted.')
                 output = directory / f'converted-{len(outputs)}.geojson'
@@ -167,7 +173,7 @@ def convert(payload):
                     if not isinstance(source_crs, str) or not re.fullmatch(r'EPSG:\d{4,6}', source_crs):
                         raise ValueError('Source CRS must be an EPSG code.')
                     arguments[1:1] = ['-s_srs', source_crs]
-                run(arguments)
+                run(arguments, deadline)
                 if output.stat().st_size > MAX_OUTPUT:
                     raise ValueError('Converted layer exceeds 30 MB. Split the source.')
                 data = json.loads(output.read_text())
