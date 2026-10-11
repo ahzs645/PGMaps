@@ -24,11 +24,12 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 const devEntries: DevEntry[] = [
   {
     title: 'Viewshed',
-    description: 'Live BC terrain visibility from a draggable observer, with height and range controls, 3D relief and local LiDAR DEM import.',
+    description: 'Drag an observer across 3D terrain, compare seated and standing visibility, check the sun against ridges, or import a local DEM.',
     href: '/dev/viewshed',
     icon: MapPinned,
-    color: 'bg-sky-600',
+    color: 'bg-rose-600',
     label: '/dev/viewshed',
+    subpages: [{ label: 'Local DEM tools', href: '/dev/viewshed/terrain' }],
   },
   {
     title: 'Nechako portal',

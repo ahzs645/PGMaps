@@ -1,6 +1,7 @@
 # Terrain viewshed development tool
 
-Open **Dev Library → Viewshed**, at `/dev/viewshed`. This is a standalone MapLibre
+Open **Dev Library → Viewshed → Local DEM tools**, at `/dev/viewshed/terrain`.
+The red-overlay and sun-planning view is documented in [viewshed.md](viewshed.md). This is a standalone MapLibre
 GL JS terrain visibility experiment, using PGMaps' shared map and sidebar.
 Drag the blue observer or tap the map; change observer height, target height,
 radius or terrain detail. Arrow keys on the focused marker move it 100 m.

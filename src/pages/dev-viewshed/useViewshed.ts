@@ -1,43 +1,85 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ViewshedInput, ViewshedResult, WorkerResponse } from './analysis'
+import type { ViewshedResult, ViewshedSettings } from './model'
 
-type RunState = { input: ViewshedInput; result?: ViewshedResult; error?: string; progress?: string }
-export function useViewshed(input: ViewshedInput, revision: number) {
-  const worker = useRef<Worker | null>(null)
-  const sequence = useRef(0)
-  const [state, setState] = useState<RunState | null>(null)
+type Job = { key: string; settings: ViewshedSettings; preview: boolean }
+
+export function useViewshed(settings: ViewshedSettings, retry: number, dragging = false) {
+  const desired = useRef<Job | null>(null)
+  const pump = useRef<() => void>(() => {})
+  const key = JSON.stringify({ settings, retry, preview: dragging })
+  const [state, setState] = useState<{ key: string; result: ViewshedResult | null; message: string; error: boolean }>({
+    key: '',
+    result: null,
+    message: 'Loading terrain…',
+    error: false,
+  })
+
   useEffect(() => {
-    try { worker.current = new Worker(new URL('./viewshed.worker.ts', import.meta.url), { type: 'module' }) }
-    catch (error) { setState({ input, error: error instanceof Error ? error.message : 'Terrain worker could not start.' }) }
-    return () => { worker.current?.terminate(); worker.current = null }
-    // The worker lives for the page lifetime; requests are handled by the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  useEffect(() => {
-    const instance = worker.current
-    if (!instance) return
-    const id = ++sequence.current
-    instance.postMessage({ type: 'cancel' })
-    setState({ input, progress: 'Updating viewshed…' })
-    const onMessage = ({ data }: MessageEvent<WorkerResponse>) => {
-      if (data.id !== id) return
-      if (data.type === 'result') setState({ input, result: data.result })
-      else if (data.type === 'error') setState({ input, error: data.message })
-      else setState({ input, progress: data.message })
+    const instance = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module' })
+    let active: Job | null = null
+    let completedKey = ''
+    let requestId = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // Coalesce movement while a calculation is running, then calculate the newest position.
+    // Publishing completed previews avoids starving the overlay during a continuous drag.
+    pump.current = () => {
+      const job = desired.current
+      if (active || !job || job.key === completedKey) return
+      active = job
+      instance.postMessage({ requestId: ++requestId, settings: job.settings, preview: job.preview })
     }
-    const onError = () => setState({ input, error: 'Terrain worker failed. Reload the page to retry.' })
-    instance.addEventListener('message', onMessage)
-    instance.addEventListener('error', onError)
-    // Coalesce fast slider/drag events. An existing run is cancelled immediately.
-    const timer = setTimeout(() => instance.postMessage({ type: 'run', id, input }), 120)
+    instance.onmessage = (event) => {
+      const data = event.data
+      if (!active || data.requestId !== requestId) return
+      if (data.type === 'progress') {
+        setState((old) => ({ ...old, message: `Loading terrain ${data.completed}/${data.total}…`, error: false }))
+        return
+      }
+      const job = active
+      completedKey = job.key
+      active = null
+      if (data.type === 'result')
+        setState({
+          key: job.key,
+          result: data.result,
+          message: job.preview ? 'Updating visibility…' : 'Viewshed ready',
+          error: false,
+        })
+      else setState((old) => ({ ...old, key: job.key, message: data.message, error: true }))
+      timer = setTimeout(() => pump.current(), 60)
+    }
+    instance.onerror = () => {
+      active = null
+      setState((old) => ({
+        ...old,
+        message: 'The terrain worker could not start. Reload the page to try again.',
+        error: true,
+      }))
+    }
     return () => {
       clearTimeout(timer)
-      instance.removeEventListener('message', onMessage)
-      instance.removeEventListener('error', onError)
-      instance.postMessage({ type: 'cancel' })
+      instance.terminate()
+      pump.current = () => {}
     }
-  }, [input, revision])
-  // Hide old coverage as soon as its observer or settings change.
-  const current = state?.input === input ? state : null
-  return { result: current?.result ?? null, error: current?.error ?? null, progress: current?.progress ?? 'Updating viewshed…', loading: !current?.result && !current?.error }
+  }, [])
+
+  useEffect(() => {
+    desired.current = { key, settings: JSON.parse(key).settings, preview: dragging }
+    pump.current()
+  }, [key, dragging])
+
+  const current = state.key === key && !dragging && !state.error
+  return {
+    ...state,
+    message: state.error
+      ? state.message
+      : current
+        ? state.message
+        : state.message.startsWith('Loading terrain ')
+          ? state.message
+          : 'Updating visibility…',
+    // Keep the footprint displayed during updates; only current detailed results feed statistics and sun planning.
+    overlayResult: state.result,
+    result: current ? state.result : null,
+  }
 }
