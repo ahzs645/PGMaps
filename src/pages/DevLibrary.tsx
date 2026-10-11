@@ -31,6 +31,15 @@ const devEntries: DevEntry[] = [
     label: '/dev/viewshed',
   },
   {
+    title: 'Nechako portal',
+    description: 'Portal maps and search, GIS files and saved workspaces, monitoring charts, research and a full capability comparison.',
+    href: '/dev/nechako',
+    icon: MapPinned,
+    color: 'bg-teal-700',
+    label: '/dev/nechako',
+    subpages: [{ label: 'Comparison', href: '/dev/nechako?view=compare' }],
+  },
+  {
     title: 'Water temperature',
     description: 'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
     href: '/dev/water-temperature',

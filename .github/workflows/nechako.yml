@@ -1,0 +1,66 @@
+name: Verify Nechako workbench
+
+on:
+  pull_request:
+    paths:
+      - 'src/maps/nechako/**'
+      - 'src/lib/nechakoPortal*'
+      - 'src/pages/DevNechako.tsx'
+      - 'src/types/nechako-turf.d.ts'
+      - 'scripts/nechako-server/**'
+      - 'tests/e2e/nechako*.spec.ts'
+      - 'scripts/write-spa-fallback.mjs'
+      - 'vite.config.ts'
+      - '.github/workflows/nechako.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nechako-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - run: npx tsc -b
+      - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
+      - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
+      - run: sudo apt-get update && sudo apt-get install -y gdal-bin php-cli
+      - run: python3 scripts/nechako-server/test_converter.py
+      - run: php -l scripts/nechako-server/cors.inc.php && python3 scripts/nechako-server/test_cors.py
+      - run: npx playwright install --with-deps chromium
+      - name: Verify desktop, phone and actual local GDAL browser workflows
+        env:
+          PGMAPS_E2E_BASE_URL: http://127.0.0.1:42173
+        run: |
+          python3 scripts/nechako-server/converter.py > /tmp/nechako-converter.log 2>&1 &
+          CONVERTER_PID=$!
+          npx vite --host 127.0.0.1 --port 42173 --strictPort > /tmp/nechako-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$CONVERTER_PID" "$VITE_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:42173/dev/nechako > /dev/null && curl -fsS http://127.0.0.1:42174/api/nechako/health > /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts --workers=1 --reporter=list
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nechako-browser-reports
+          path: |
+            test-results
+            playwright-report

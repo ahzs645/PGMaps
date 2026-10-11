@@ -41,6 +41,7 @@ const pgDataTabLinks = PG_DATA_TABS.map(({ id, label, icon }) => ({
 const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/socioeconomic': 'Census',
   '/dev': 'Dev Library',
+  '/dev/nechako': 'Nechako Portal',
   '/dev/projects': 'Projects',
   '/dev/boundaries': 'Boundaries',
   '/dev/boundaries/bcer': 'BCER Compare',
