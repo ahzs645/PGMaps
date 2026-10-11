@@ -23,7 +23,6 @@ import {
   type Station,
 } from './dev-water-temperature/data'
 import { useWaterTemperature } from './dev-water-temperature/useWaterTemperature'
-import { useStationMapStyles, type StationBasemap } from './dev-water-temperature/mapStyles'
 
 const fieldClass =
   'min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-base text-foreground md:text-sm'
@@ -78,8 +77,6 @@ export default function DevWaterTemperature() {
   const [collapsed, setCollapsed] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(false)
   const [dialogContainer, setDialogContainer] = useState<HTMLDivElement | null>(null)
-  const [basemap, setBasemap] = useState<StationBasemap>('reference')
-  const mapStyles = useStationMapStyles(basemap)
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
   const [search, setSearch] = useState('')
   const [minimumDays, setMinimumDays] = useState('')
@@ -305,19 +302,6 @@ export default function DevWaterTemperature() {
           <SidebarSection
             title="Stations"
             className="flex min-h-0 flex-col p-3 lg:flex-1 [&>div:first-child]:shrink-0"
-            actions={
-              <select
-                aria-label="Station basemap"
-                className="max-w-[180px] rounded-md border bg-background px-2 py-1 text-xs"
-                value={basemap}
-                onChange={(event) => setBasemap(event.target.value as StationBasemap)}
-              >
-                <option value="reference">OpenStreetMap</option>
-                <option value="imagery">Esri imagery</option>
-                <option value="pgmaps">PGMaps colors</option>
-                <option value="none">No basemap</option>
-              </select>
-            }
           >
             <div
               ref={mapRef}
@@ -328,7 +312,6 @@ export default function DevWaterTemperature() {
               <Map
                 center={[-124.5, 54.2]}
                 zoom={7}
-                styles={mapStyles}
                 controls={<MapControls position="top-right" showZoom showCompass={false} />}
               >
                 <FitStations stations={data.stations} />

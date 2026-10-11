@@ -22,16 +22,6 @@ const observations = Array.from({ length: 90 }, (_, index) => ({
 }))
 
 async function prepare(page: Page) {
-  const raster = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQERH5DwABuAE8a9JwDAAAAABJRU5ErkJggg==',
-    'base64',
-  )
-  await page.route('https://*.tile.openstreetmap.org/**', (route) =>
-    route.fulfill({ contentType: 'image/png', body: raster }),
-  )
-  await page.route('https://server.arcgisonline.com/**', (route) =>
-    route.fulfill({ contentType: 'image/png', body: raster }),
-  )
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
@@ -63,6 +53,10 @@ async function dragZoom(page: Page, region: Locator) {
 
 test('map and station list share selection, with a four-station limit and stable colours', async ({ page }) => {
   const errors: string[] = []
+  const requestedStyles = new Set<string>()
+  page.on('request', (request) => {
+    if (request.url().startsWith('https://basemaps.cartocdn.com/gl/')) requestedStyles.add(request.url())
+  })
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text())
@@ -100,8 +94,9 @@ test('map and station list share selection, with a four-station limit and stable
     page.getByTestId('range-toolbar').getByRole('button', { name: 'Show series A', exact: true }),
   ).toHaveCount(0)
   const colour = await page.getByRole('button', { name: 'Map station B', exact: true }).getAttribute('style')
-  for (const basemap of ['imagery', 'pgmaps', 'none', 'reference']) {
-    await page.getByRole('combobox', { name: 'Station basemap', exact: true }).selectOption(basemap)
+  await expect(page.getByRole('combobox', { name: 'Station basemap', exact: true })).toHaveCount(0)
+  for (let themeChange = 0; themeChange < 2; themeChange++) {
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Fit all stations', exact: true })).toBeEnabled()
     await expect(page.getByTestId('range-summary')).toContainText('180 water observations')
     await expect(page.getByRole('button', { name: 'Map station B', exact: true }).locator('circle')).toHaveAttribute(
@@ -109,6 +104,10 @@ test('map and station list share selection, with a four-station limit and stable
       '#377eb8',
     )
   }
+  await expect.poll(() => [...requestedStyles].sort()).toEqual([
+    'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  ].sort())
   await selectStation(page, 'C')
   await selectStation(page, 'D')
   await selectStation(page, 'E')

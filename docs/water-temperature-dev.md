@@ -20,7 +20,7 @@ and individual years. PGMaps now follows that arrangement:
 | Map + time series above two side-by-side comparison plots | Same simultaneous arrangement; stacked plots on phones                                                                                                                                                           |
 | Chart fullscreen                                          | Full-window expansion on each chart, plus the map and entire dashboard; plots resize and stay mounted                                                                                                            |
 | Four station overlays with stable colors                  | Shared map/list selection and matching colors across all plots                                                                                                                                                   |
-| OpenStreetMap, Esri imagery and no basemap                | Same basemaps and 50% raster opacity; additional PGMaps colors mode uses the designer's shared style transform                                                                                                   |
+| OpenStreetMap, Esri imagery and no basemap                | Uses the shared PGMaps Carto vector basemap, following the site's light/dark theme; no page-specific basemap selector                                                                                            |
 | Station symbols and initial camera                        | Green translucent circles before selection; gray context circles and larger selected rings, using the source's red/blue/green/purple colors. Initial center/zoom match the source; Fit all stations is explicit. |
 | Daily/monthly/seasonal aggregation and custom season      | Included, with 75% calendar-day coverage                                                                                                                                                                         |
 | Navigator, drag range, 1m/3m/6m/1y/All                    | Included; presets available in time-series fullscreen too                                                                                                                                                        |
@@ -82,9 +82,10 @@ header's information icon. Calculation notes live on the mode controls' hover
 text so the dashboard reserves its space for plots. The frontend neither runs
 the original R pipeline nor refreshes data.
 
-OpenStreetMap and Esri imagery use actual raster tiles at 50% opacity. They are
-not vector recreations of those maps. PGMaps colors uses Carto vector tiles
-recolored by the same function as `/dev/design`; it is a separate visual preset.
+The station map uses the shared `Map` component's default Carto vector basemaps:
+Positron in light mode and Dark Matter in dark mode. It follows the site's theme
+and shares the same map styling as the other standard map sections. There is no
+page-specific basemap selector or styling override.
 Watershed filtering, a guided tour and chart-image exports are not included in
 this first preview. The local source snapshot contains no watershed GeoJSON or
 station basin assignments, so basin membership is not inferred.
