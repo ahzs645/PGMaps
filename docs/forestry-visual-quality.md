@@ -947,3 +947,37 @@ in `toolImports.ts`; workspace persistence in `toolsStorage.ts` and
 `usePersistentScene.ts`; jobs in `useToolRunner.ts`; presentation in the tool panels
 and `useAssessmentTools.tsx`; evidence exporters in `toolEvidence.ts`. All panels
 stay within the sidebar's mounted step slots and its shared scroll container.
+
+## Preliminary route viewshed
+
+Step 2, **Visit**, includes **Preliminary terrain preview**. After drawing,
+importing, or snapping the road in Step 1, enable **Road viewshed**. Scrub the
+road sample to see a red terrain footprint from that location, or choose
+**Open route overview** to use a raised 3D overview with the existing road camera, Play,
+speed, pause, and position controls. No cutblock, VRI query, or full visibility
+assessment is needed. Return to the map to add cutblocks and use **Look from
+the road** / **Run visibility** for the assessment workflow.
+
+The preview uses AWS overview terrain at 1× elevation. It excludes forest,
+buildings and target-height assumptions, and does not generate or update VQO
+ratings, alteration percentages, formal visited-view evidence, or saved assessed
+views. Imported survey DEMs remain part of the full assessment; this preview
+and the rendered road camera use the overview. Red means visible ground;
+purple means incomplete terrain. The displayed percentages count sampled
+terrain within the selected radius, not a cutblock or screen share.
+
+Visibility follows the actual drawn/snapped centreline at the configured driver
+eye height. The overview camera is raised 150 m and tilted downward to show the
+footprint; that display height never enters the sightline calculation. The full
+road-level drive keeps its existing eye-height camera. Neither calculation
+uses the centre of a pitched map. During playback, 64×64 footprints update at nearby 25 m road
+positions. Pausing computes 128×128 detail at the actual stopped position.
+Solar skyline work is disabled here. The fixed camera mosaic covers the road
+before playback and uses `renderedGroundSource`; sightlines keep the analysis
+grid's pixel-centre sampling. Missing ground holds the camera and playback.
+
+The shared feature is documented in
+[`src/features/terrain-viewshed/README.md`](../src/features/terrain-viewshed/README.md).
+Recent complete viewpoints and decoded terrain are bounded caches; validated
+PNG tiles also persist locally for seven days. Failed/incomplete terrain is
+not cached as a successful view. **Retry road terrain** bypasses these caches.

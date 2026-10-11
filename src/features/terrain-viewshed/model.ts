@@ -4,9 +4,9 @@ import {
   mercatorToLngLat,
   type Bounds,
   type ElevationSource,
-} from '../dev-forestry/terrain'
-import { earthCurvatureDropMeters, testSightline, type GeoPoint } from '../dev-forestry/visibility'
-export type { GeoPoint } from '../dev-forestry/visibility'
+} from '@/pages/dev-forestry/terrain'
+import { earthCurvatureDropMeters, testSightline, type GeoPoint } from '@/pages/dev-forestry/visibility'
+export type { GeoPoint } from '@/pages/dev-forestry/visibility'
 
 export type ViewshedSettings = {
   observer: GeoPoint

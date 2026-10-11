@@ -8,7 +8,7 @@ import {
   viewshedBounds,
   type ViewshedSettings,
 } from './model'
-import { haversineMeters } from '../dev-forestry/visibility'
+import { haversineMeters } from '@/pages/dev-forestry/visibility'
 
 const SETTINGS: ViewshedSettings = { observer: { lng: 0, lat: 0 }, radiusMeters: 500, heightA: 1.2, heightB: 1.7 }
 const FLAT = { elevationAt: () => 100 }

@@ -1,8 +1,12 @@
+import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
+import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
+import { ViewshedOverlay, visibilityOutline, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
+import { sampleAlongLine } from './dev-forestry/visibility'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
-import { Map, MapControls, MapScaleBar, type MapRef } from '@/components/ui/map'
+import { Map, MapControls, MapScaleBar, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { PG_CENTER } from '@/components/ui/map-styles'
@@ -175,7 +179,7 @@ function downloadFile(fileName: string, text: string, type: string) {
  */
 function loadInitialScene(): ForestryScene {
   const stored = loadStoredScene()
-  return stored && stored.targets.length > 0 ? stored : createSampleScene()
+  return stored && (stored.targets.length > 0 || (stored.viewpoint.mode === 'corridor' && stored.viewpoint.coordinates.length >= 2)) ? stored : createSampleScene()
 }
 
 function DevForestryVisuals() {
@@ -198,6 +202,7 @@ function DevForestryVisuals() {
   const [lowFrameRate, setLowFrameRate] = useState(false)
   const [restoreLook, setRestoreLook] = useState({ yaw: 0, tilt: 0 })
   const cameraLook = useRef({ yaw: 0, tilt: 0 })
+  const [preliminaryDrive, setPreliminaryDrive] = useState(false)
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
   const driveRef = useRef(drive)
   driveRef.current = drive
@@ -236,7 +241,7 @@ function DevForestryVisuals() {
     scene.targets.filter((target) => target.role === 'block').map((target) => target.geometry),
   ])
   const [visitedKey, setVisitedKey] = useState<string | null>(null)
-  if (drive.active && result && visitedKey !== visitKey) setVisitedKey(visitKey)
+  if (drive.active && !preliminaryDrive && result && visitedKey !== visitKey) setVisitedKey(visitKey)
   // Water and the road's class, read from the basemap while the overview shows.
   // Timber is kept off mapped water, and the roadside clearing follows the
   // road's class until the reviewer sets a width of their own.
@@ -296,22 +301,23 @@ function DevForestryVisuals() {
     return () => window.clearTimeout(timer)
   }, [fitBounds])
 
-  const updateDrive = useCallback((patch: Partial<DriveState>) => {
-    if (patch.active && !result) return
-    if (patch.positionMeters !== undefined || patch.lookAtTargetId !== undefined || patch.active) setRestoreLook({ yaw: 0, tilt: 0 })
+  const updateDrive = useCallback((patch: Partial<DriveState>, preliminary = false) => {
+    if (patch.active && !result && !preliminary) return
+    if (patch.active) setPreliminaryDrive(preliminary)
+    if (patch.positionMeters !== undefined || patch.lookAtTargetId !== undefined || patch.active) setRestoreLook({ yaw: 0, tilt: preliminary || preliminaryDrive ? -25 : 0 })
     if (patch.active) { setDrawMode('none'); setDraftCoordinates([]) }
     setDrive((current) => {
       const entering = patch.active === true && !current.active
       return { ...current, ...patch, exaggeration: 1,
-        ...(entering && result ? {
-          positionMeters: patch.positionMeters ?? (scene.viewpoint.id === ROADSIDE_DEMO_ID ? 200 : result.stations[result.assessmentStationIndex]?.distanceAlongMeters ?? 0),
+        ...(entering && (result || preliminary) ? {
+          positionMeters: patch.positionMeters ?? (scene.viewpoint.id === ROADSIDE_DEMO_ID ? 200 : result?.stations[result.assessmentStationIndex]?.distanceAlongMeters ?? 0),
           lookAtTargetId: patch.lookAtTargetId ?? null,
-          forest: true,
+          forest: !preliminary,
         } : {}),
       }
     })
     if (patch.positionMeters !== undefined || patch.active) setSeekVersion((version) => version + 1)
-  }, [result, scene.viewpoint.id])
+  }, [result, scene.viewpoint.id, preliminaryDrive])
 
   const setViewpoint = useCallback((viewpoint: Viewpoint) => {
     setScene((current) => ({ ...current, viewpoint }))
@@ -895,7 +901,13 @@ function DevForestryVisuals() {
     return station ? { lng: station.lng, lat: station.lat } : null
   }, [cameraEye, drive.active, driveStationIndex, result])
 
-  const previewPolygons = useMemo(() => scene.targets.map(target => target.geometry), [scene.targets])
+  const routeViewshed = useRouteViewshed(scene.viewpoint.coordinates, drive.positionMeters, drive.active && drive.playing, scene.settings.observerHeightMeters)
+  const routeOutline = useMemo(() => visibilityOutline(routeViewshed.analysis.overlayResult, 'standing'), [routeViewshed.analysis.overlayResult])
+  const preliminaryStations = useMemo(() => sampleAlongLine(scene.viewpoint.coordinates, 50, 400).map(station => ({ ...station, groundElevationMeters: NaN })), [scene.viewpoint.coordinates])
+  const activeStations = preliminaryDrive ? preliminaryStations : result?.stations ?? preliminaryStations
+  const activeRouteLength = preliminaryDrive ? routeViewshed.length : result?.corridorLengthMeters ?? 0
+  useEffect(() => { if (!drive.active) setPreliminaryDrive(false) }, [drive.active])
+  const previewPolygons = useMemo(() => preliminaryDrive ? [] : scene.targets.map(target => target.geometry), [scene.targets, preliminaryDrive])
   const preparePreview = drive.active || !!pendingPreview || !!result
   const previewTerrain = useDriveTerrain(preparePreview, scene.viewpoint.coordinates, previewPolygons)
   // A street-level field photo to line the road view up with (handbook 3.2, 3.3.4).
@@ -914,7 +926,7 @@ function DevForestryVisuals() {
       treeHeightMeters: drive.treeHeightMeters, roadClearWidthMeters: drive.roadClearWidthMeters, harvestPhase: 'before',
     })
   }
-  const liveForest = useForestHistory(preparePreview && drive.existingForest, scene.viewpoint.coordinates, previewPolygons, drive.playing)
+  const liveForest = useForestHistory(preparePreview && !preliminaryDrive && drive.existingForest, scene.viewpoint.coordinates, previewPolygons, drive.playing)
   const visualYear = scene.assessmentYear ?? new Date().getFullYear()
   const regrowth = useMemo(() => {
     const supplied: ForestHistoryRecord[] = scene.targets.filter(t => t.role === 'harvested' && !t.siteDisturbance).map(t => ({ id: `scene-${t.id}`, kind: 'harvest', geometry: t.geometry, year: t.harvestYear, clearcutPercent: t.clearcutPercent, heightMeters: null, speciesCode: null }))
@@ -1110,7 +1122,7 @@ function DevForestryVisuals() {
 
   const stops = useMemo(() => candidateDriveViews(result, drive.lookAtTargetId ?? selectedTargetId), [result, drive.lookAtTargetId, selectedTargetId])
   const currentExposure = (result?.targets.find(t => t.targetId === (drive.lookAtTargetId ?? selectedTargetId) && t.role === 'block') ?? result?.targets.find(t => t.role === 'block'))?.stations[driveStationIndex]
-  const canSaveView = drive.active && !liveForest.loading && !liveForest.pendingUpdate && cameraStatus === 'ready' && !!currentForestStatus?.ready && !currentForestStatus.error
+  const canSaveView = !preliminaryDrive && drive.active && !liveForest.loading && !liveForest.pendingUpdate && cameraStatus === 'ready' && !!currentForestStatus?.ready && !currentForestStatus.error
   const saveView = () => {
     if (!canSaveView) return
     if (savedViews.length >= 12) { setPreviewMessage('Twelve comparisons are saved. Remove one or download this preview before starting another.'); return }
@@ -1209,7 +1221,11 @@ function DevForestryVisuals() {
           </div>
         )
       }
-      visit={<><PreviewWorkflow part="visit" {...previewProps} />{tools.field}</>}
+      visit={<><RouteViewshedPanel preview={routeViewshed} driving={drive.active} position={drive.positionMeters}
+        onRetryTerrain={previewTerrain.retry}
+        onSeek={distance => updateDrive({ positionMeters: distance, playing: false })}
+        onDrive={() => { routeViewshed.setEnabled(true); updateDrive({ active: true, playing: false, positionMeters: Math.min(drive.positionMeters, routeViewshed.length) }, true) }} />
+      <PreviewWorkflow part="visit" {...previewProps} />{tools.field}</>}
       landformScope={<><AssessmentPanel part="scope" {...assessmentProps} /><ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} /></>}
       designReview={<><LandformDesignPanel result={result} onView={(station, blockId) => updateDrive({ active: true, playing: false, lookAtTargetId: blockId, positionMeters: result?.stations[station].distanceAlongMeters ?? 0 })} />{tools.design}</>}
       fieldPhoto={<FieldPhotoPanel photo={fieldPhoto} canLineUp={!!fieldPhoto.image && !!fieldPhoto.onRoad && fieldPhoto.onRoad.offsetMeters <= 60 && !previewInputError(scene)} onLineUp={() => lineUpPhoto()} />}
@@ -1234,7 +1250,7 @@ function DevForestryVisuals() {
       forestStatus={forestStatus}
       selectedTargetId={selectedTargetId}
       onSelectTarget={setSelectedTargetId}
-      drive={drive}
+      drive={preliminaryDrive ? { ...drive, active: false } : drive}
       onDriveChange={updateDrive}
       onImportFile={(file) => void handleImportFile(file)}
       importMessage={importMessage}
@@ -1289,6 +1305,13 @@ function DevForestryVisuals() {
           hillshade
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
         />
+        {routeViewshed.enabled && routeViewshed.valid && <>
+          {!drive.active && <MapMarker longitude={routeViewshed.observer.lng} latitude={routeViewshed.observer.lat} opacityWhenCovered="1">
+            <MarkerContent><span role="img" aria-label="Road viewshed observer" className="block h-4 w-4 rounded-full border-2 border-white shadow" style={{ backgroundColor: VIEWSHED_COLORS.visible }} /></MarkerContent>
+          </MapMarker>}
+          <ViewshedOverlay result={routeViewshed.analysis.overlayResult} mode="standing" opacity={0.6} showHidden={false} sourceKey="forestry-route-viewshed" />
+          <MapLineLayer data={routeOutline} color={VIEWSHED_COLORS.visible} width={1.5} opacity={1} interactive={false} sourceTolerance={0} sourceKey="forestry-route-viewshed-outline" />
+        </>}
         <ForestOverlay
           active={drive.active && drive.forest}
           configuration={forestConfiguration}
@@ -1382,7 +1405,7 @@ function DevForestryVisuals() {
         <MapCircleLayer
           data={sampleCollection}
           onFeatureClick={(_id, _event, properties) => tools.inspect(String(properties.targetId), Number(properties.sampleIndex), drive.active ? driveStationIndex : result?.assessmentStationIndex ?? 0)}
-          visible={!drive.active || (drive.showAnalysis && drive.harvestPhase === 'after')}
+          visible={!preliminaryDrive && (!drive.active || (drive.showAnalysis && drive.harvestPhase === 'after'))}
           color={['case', ['==', ['get', 'visible'], 2], '#71717a', ['==', ['get', 'visible'], 1], VISIBLE_COLOR, SCREENED_COLOR]}
           radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}
           opacity={['case', ['==', ['get', 'visible'], 1], 0.95, 0.35]}
@@ -1455,18 +1478,23 @@ function DevForestryVisuals() {
           </div>
         </div>}
 
-        {result && (
+        {(result || preliminaryDrive) && (
           <DriveCamera
+            preliminary={preliminaryDrive}
             restoredLook={restoreLook}
             onLookChange={look => { cameraLook.current = look }}
             onStatusChange={setCameraStatus}
             onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
             forestReady={!drive.forest || !!currentForestStatus?.nearbyReady}
-            routeLengthMeters={result.corridorLengthMeters}
+            routeLengthMeters={activeRouteLength}
             onSeek={distance => updateDrive({ positionMeters: distance, playing: false })}
             speedKmh={drive.speedKmh}
             onSpeedChange={speedKmh => updateDrive({ speedKmh })}
-            comparison={
+            comparison={preliminaryDrive ? <div className="space-y-2 text-xs">
+              <p>Raised route overview. Red shows visibility from driver-height road samples; pause for a detailed calculation. Return to the map to add cutblocks and run the assessment.</p>
+              {(previewTerrain.loading || previewTerrain.message) && <p role="status">{previewTerrain.loading ? `Loading road terrain · ${previewTerrain.progress}%` : previewTerrain.message}</p>}
+              {!previewTerrain.loading && previewTerrain.message && <Button size="sm" variant="outline" onClick={() => { previewTerrain.retry(); routeViewshed.retry() }}>Retry terrain</Button>}
+            </div> :
               <div className="space-y-2" aria-label="Harvest comparison">
                 {liveForest.loading && <p role="status" className="text-xs">Preliminary forest — existing records are loading. You can explore; saving waits for loading to finish.</p>}
                 {liveForest.pendingUpdate && !liveForest.loading && <p role="status" className="text-xs">New forest records are ready. Pause to apply them.</p>}
@@ -1519,13 +1547,13 @@ function DevForestryVisuals() {
             elevation={previewTerrain.source}
             active={drive.active}
             playing={drive.playing}
-            stations={result.stations}
-            roadCoordinates={result.inputSnapshot?.viewpoint.coordinates}
+            stations={activeStations}
+            roadCoordinates={preliminaryDrive ? scene.viewpoint.coordinates : result?.inputSnapshot?.viewpoint.coordinates}
             seekMeters={drive.positionMeters}
             seekVersion={seekVersion}
             speedMetersPerSecond={(drive.speedKmh * 1000) / 3600}
-            eyeHeightMeters={result.settings.observerHeightMeters}
-            lookAt={lookAtTarget}
+            eyeHeightMeters={preliminaryDrive ? 150 : result?.settings.observerHeightMeters ?? scene.settings.observerHeightMeters}
+            lookAt={preliminaryDrive ? null : lookAtTarget}
             spotBearing={spotBearing}
             onPosition={({ distanceMeters, stationIndex, lng, lat, bearing }) => {
               setDriveStationIndex(stationIndex)
@@ -1536,7 +1564,7 @@ function DevForestryVisuals() {
             }}
             onPause={() => setDrive((current) => ({ ...current, playing: false }))}
             onPlay={() => setDrive((current) => ({ ...current, playing: true }))}
-            onExit={() => setDrive((current) => ({ ...current, active: false, playing: false }))}
+            onExit={() => { setPreliminaryDrive(false); setDrive((current) => ({ ...current, active: false, playing: false })) }}
             onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
           />
         )}

@@ -1,13 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ViewshedResult, ViewshedSettings } from './model'
 
-type Job = { key: string; settings: ViewshedSettings; preview: boolean }
+export type ViewshedOptions = { enabled?: boolean; horizon?: boolean; detailSize?: number; demZoom?: number }
+type Job = { key: string; settings: ViewshedSettings; preview: boolean; retry: number } & Omit<
+  ViewshedOptions,
+  'enabled'
+>
 
-export function useViewshed(settings: ViewshedSettings, retry: number, dragging = false) {
+export function useViewshed(
+  settings: ViewshedSettings,
+  retry: number,
+  dragging = false,
+  options: ViewshedOptions = {},
+) {
   const desired = useRef<Job | null>(null)
   const pump = useRef<() => void>(() => {})
-  const key = JSON.stringify({ settings, retry, preview: dragging })
-  const [state, setState] = useState<{ key: string; result: ViewshedResult | null; message: string; error: boolean }>({
+  const enabled = options.enabled !== false
+  const [started, setStarted] = useState(false)
+  const key = JSON.stringify({
+    settings,
+    retry,
+    preview: dragging,
+    horizon: options.horizon ?? true,
+    detailSize: options.detailSize ?? 192,
+    demZoom: options.demZoom ?? 13,
+  })
+  const [state, setState] = useState<{
+    key: string
+    result: ViewshedResult | null
+    message: string
+    error: boolean
+    cacheHit?: boolean
+  }>({
     key: '',
     result: null,
     message: 'Loading terrain…',
@@ -15,6 +39,7 @@ export function useViewshed(settings: ViewshedSettings, retry: number, dragging 
   })
 
   useEffect(() => {
+    if (!started) return
     const instance = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module' })
     let active: Job | null = null
     let completedKey = ''
@@ -26,7 +51,7 @@ export function useViewshed(settings: ViewshedSettings, retry: number, dragging 
       const job = desired.current
       if (active || !job || job.key === completedKey) return
       active = job
-      instance.postMessage({ requestId: ++requestId, settings: job.settings, preview: job.preview })
+      instance.postMessage({ ...job, requestId: ++requestId })
     }
     instance.onmessage = (event) => {
       const data = event.data
@@ -44,6 +69,7 @@ export function useViewshed(settings: ViewshedSettings, retry: number, dragging 
           result: data.result,
           message: job.preview ? 'Updating visibility…' : 'Viewshed ready',
           error: false,
+          cacheHit: Boolean(data.cacheHit),
         })
       else setState((old) => ({ ...old, key: job.key, message: data.message, error: true }))
       timer = setTimeout(() => pump.current(), 60)
@@ -61,14 +87,15 @@ export function useViewshed(settings: ViewshedSettings, retry: number, dragging 
       instance.terminate()
       pump.current = () => {}
     }
-  }, [])
+  }, [started])
 
   useEffect(() => {
-    desired.current = { key, settings: JSON.parse(key).settings, preview: dragging }
+    if (enabled && !started) setStarted(true)
+    desired.current = enabled ? { key, ...JSON.parse(key) } : null
     pump.current()
-  }, [key, dragging])
+  }, [key, dragging, enabled, started])
 
-  const current = state.key === key && !dragging && !state.error
+  const current = enabled && state.key === key && !dragging && !state.error
   return {
     ...state,
     message: state.error
@@ -79,7 +106,7 @@ export function useViewshed(settings: ViewshedSettings, retry: number, dragging 
           ? state.message
           : 'Updating visibility…',
     // Keep the footprint displayed during updates; only current detailed results feed statistics and sun planning.
-    overlayResult: state.result,
+    overlayResult: enabled ? state.result : null,
     result: current ? state.result : null,
   }
 }

@@ -1,3 +1,4 @@
+import { terrainTileCache, storedTerrainTile, storeTerrainTile, deleteStoredTerrainTile } from './terrainTileCache'
 /**
  * Fetching and decoding DEM tiles into an {@link ElevationGrid}.
  *
@@ -21,6 +22,8 @@ export type TileDecoder = (bytes: ArrayBuffer) => Promise<Float32Array>
 
 export type LoadElevationGridOptions = {
   range: DemTileRange
+  /** Explicit retry bypasses decoded and persistent caches. */
+  refresh?: boolean
   tileUrlTemplate?: string
   /**
    * Parallel tile requests. The map is fetching its own terrain tiles at the
@@ -73,13 +76,13 @@ function attemptSignal(signal: AbortSignal | undefined): AbortSignal | undefined
   return typeof AbortSignal.any === 'function' ? AbortSignal.any([signal, timeout]) : signal
 }
 
-async function fetchTile(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+async function fetchTile(url: string, signal?: AbortSignal, refresh = false): Promise<ArrayBuffer> {
   let lastError: unknown = null
   // One retry: tile hosts occasionally drop a connection under a burst, and a
   // single missing tile punches a hole through every sightline crossing it.
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(url, { signal: attemptSignal(signal) })
+      const response = await fetch(url, { signal: attemptSignal(signal), cache: refresh ? 'reload' : 'default' })
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
       return await response.arrayBuffer()
     } catch (error) {
@@ -91,6 +94,40 @@ async function fetchTile(url: string, signal?: AbortSignal): Promise<ArrayBuffer
   throw lastError instanceof Error ? lastError : new Error(String(lastError))
 }
 
+async function decodedTile(
+  url: string,
+  decode: TileDecoder,
+  signal?: AbortSignal,
+  refresh = false,
+): Promise<Float32Array> {
+  const validate = (data: Float32Array) => {
+    if (data.length !== DEM_TILE_SIZE * DEM_TILE_SIZE) throw new Error(`Unexpected DEM tile size: ${data.length}`)
+    return data
+  }
+  // Injectable Node/test decoders use their own transport; production caching
+  // only stores Terrarium tiles successfully validated by the browser decoder.
+  if (decode !== decodeTerrariumTile) return validate(await decode(await fetchTile(url, signal, refresh)))
+  if (refresh) await deleteStoredTerrainTile(url)
+  return terrainTileCache.get(
+    url,
+    async (active) => {
+      const stored = refresh ? null : await storedTerrainTile(url)
+      if (stored) {
+        try {
+          return validate(await decode(stored))
+        } catch {
+          await deleteStoredTerrainTile(url)
+        }
+      }
+      const bytes = await fetchTile(url, active, refresh)
+      const data = validate(await decode(bytes))
+      if (!active.aborted) await storeTerrainTile(url, bytes)
+      return data
+    },
+    signal,
+  )
+}
+
 /** Loads every tile in a range, tolerating individual failures. */
 export async function loadElevationGrid({
   range,
@@ -99,7 +136,9 @@ export async function loadElevationGrid({
   decode = decodeTerrariumTile,
   signal,
   onProgress,
+  refresh = false,
 }: LoadElevationGridOptions): Promise<LoadElevationGridResult> {
+  if (refresh && decode === decodeTerrariumTile) terrainTileCache.clear()
   const grid = new ElevationGrid(range)
   const tiles = demTileCoordinates(range)
   let missingTileCount = 0
@@ -111,11 +150,12 @@ export async function loadElevationGrid({
       const tile = tiles[next]
       next += 1
       try {
-        const bytes = await fetchTile(demTileUrl(tile.x, tile.y, range.zoom, tileUrlTemplate), signal)
-        const elevations = await decode(bytes)
-        if (elevations.length !== DEM_TILE_SIZE * DEM_TILE_SIZE) {
-          throw new Error(`Unexpected DEM tile size: ${elevations.length}`)
-        }
+        const elevations = await decodedTile(
+          demTileUrl(tile.x, tile.y, range.zoom, tileUrlTemplate),
+          decode,
+          signal,
+          refresh,
+        )
         grid.setTile(tile.x, tile.y, elevations)
       } catch (error) {
         if (signal?.aborted) throw error

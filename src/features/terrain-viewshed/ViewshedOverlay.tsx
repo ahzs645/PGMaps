@@ -10,17 +10,19 @@ export function ViewshedOverlay({
   mode,
   opacity,
   showHidden,
+  sourceKey = 'viewshed-overlay',
 }: {
   result: ViewshedResult | null
   mode: OverlayMode
   opacity: number
   showHidden: boolean
+  sourceKey?: string
 }) {
   const areas = useMemo(() => visibilityAreas(result, mode, showHidden), [result, mode, showHidden])
   return (
     <MapFillLayer
       data={areas}
-      sourceKey="viewshed-overlay"
+      sourceKey={sourceKey}
       layerOrder={100}
       fillColor={['get', 'color']}
       fillOpacity={opacity * 0.55}

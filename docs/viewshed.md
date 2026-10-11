@@ -51,3 +51,7 @@ The previously published BC terrain tool remains available at
 `/dev/viewshed/terrain`, linked as “Local DEM tools”. It retains local terrain
 GeoTIFF import, vertical-reference metadata, target-height controls, tile-detail
 selection, BC presets, keyboard observer movement, and the `read_viewshed` tool.
+
+The viewshed worker, pure model, contour builder and overlay are shared through
+`src/features/terrain-viewshed`. Forestry uses the same feature for its
+preliminary road preview. See the feature README for API and cache limits.

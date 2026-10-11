@@ -9,6 +9,8 @@ import { PreviewFrameBudget } from './previewState'
 import { DRIVE_SPEEDS_KMH, roadPath, type DriveLookAt, type DriveStation } from './driveMath'
 export type { DriveLookAt, DriveStation } from './driveMath'
 type Props = {
+  /** Terrain-only route exploration, before a cutblock assessment. */
+  preliminary?: boolean
   restoredLook?: { yaw: number; tilt: number }
   onLookChange?: (look: { yaw: number; tilt: number }) => void
   onStatusChange?: (status: DriveStatus) => void
@@ -182,7 +184,7 @@ export function DriveCamera(props: Props) {
       aria-label="Road view controls"
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold">Road-level preview · 1× terrain</p>
+        <p className="text-xs font-semibold">{props.preliminary ? 'Preliminary route overview' : 'Road-level preview'} · 1× terrain</p>
         <Button variant="outline" size="sm" className="shrink-0 touch:h-10" aria-expanded={optionsExpanded} onClick={() => setOptionsExpanded(current => !current)}>{optionsExpanded ? 'Hide options' : 'Show options'}</Button>
       </div>
       <p className={`mt-1 text-xs ${status === 'ready' ? 'hidden md:block' : ''}`} role="status">

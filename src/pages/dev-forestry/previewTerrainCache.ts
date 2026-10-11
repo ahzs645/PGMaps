@@ -16,7 +16,7 @@ export function createPreviewTerrainLoader(load: (options: LoadElevationGridOpti
       options.onProgress?.(options.range.tileCount, options.range.tileCount)
       return cached
     }
-    const { grid, missingTileCount } = await load(options)
+    const { grid, missingTileCount } = await load({ ...options, refresh: retry })
     if (options.signal?.aborted) throw new DOMException('Terrain loading cancelled', 'AbortError')
     const entry = { source: missingTileCount === options.range.tileCount ? null : renderedGroundSource(grid), missingTileCount, time: Date.now() }
     cache.set(key, entry)

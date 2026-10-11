@@ -1,4 +1,4 @@
-import { visibilityOutline } from './dev-viewshed/outline'
+import { visibilityOutline } from '@/features/terrain-viewshed'
 import { useMemo, useRef, useState } from 'react'
 import type { StyleSpecification } from 'maplibre-gl'
 import { Eye, MapPin, Mountain, Sun } from 'lucide-react'
@@ -27,9 +27,9 @@ import {
   sunVisibility,
   VIEWSHED_COLORS,
   type GeoPoint,
-} from './dev-viewshed/model'
-import { ViewshedOverlay, type OverlayMode } from './dev-viewshed/ViewshedOverlay'
-import { useViewshed } from './dev-viewshed/useViewshed'
+} from '@/features/terrain-viewshed'
+import { ViewshedOverlay, type OverlayMode } from '@/features/terrain-viewshed'
+import { useViewshed } from '@/features/terrain-viewshed'
 
 const INITIAL_OBSERVER = { lng: -122.532, lat: 53.872 }
 const MOUNTAIN_OBSERVER = { lng: -119.1753, lat: 53.0786 }
