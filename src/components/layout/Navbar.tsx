@@ -42,6 +42,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/socioeconomic': 'Census',
   '/dev': 'Dev Library',
   '/dev/nechako': 'Nechako Portal',
+  '/dev/nechako/portal': 'Nechako Portal',
   '/dev/projects': 'Projects',
   '/dev/boundaries': 'Boundaries',
   '/dev/boundaries/bcer': 'BCER Compare',

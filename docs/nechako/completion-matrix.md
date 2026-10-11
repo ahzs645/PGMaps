@@ -4,6 +4,7 @@ Updated October 11, 2026 UTC. “Implemented” means code in this PGMaps change
 
 | Work item | Delivered | Remaining dependency / limit |
 | --- | --- | --- |
+| Native portal interface | `/dev/nechako/portal`: portal-style header/navigation, persistent map, collapsible tools/layers rails, local research search/map/timeline, project workspace windows, imports and monitoring | React/MapLibre/shared toolkit; original portal still owns login, permissions and publishing. [Interface contract](native-interface.md). |
 | Repository showcase | Default dev entry; 42 public snapshot files with source URLs, byte counts and hashes; local research browsing/map/timeline, catalogue/capabilities, format registry, attachment-link list and downloadable location workspace; explicit refresh and offline consistency check | 1,257,503 bytes excluding manifest. WMS imagery/identify and basemap tiles stay live; no private projects, file bodies or source GIS databases. Original literature project remains live. |
 | Public portal map integration | 32-service catalogue, 135 advertised named entries, styles, legends, opacity/visibility/order, extent/camera, identify, attribution and scale | Source rendering: two EchoScreen names fail; full-extent Canvec contours time out. 132/135 original-extent PNG checks passed. |
 | Public literature | All 1,408 records, including 365 unmapped; virtual browsing, search, dialogs and CSV | Canonical per-record citation URLs/DOIs absent upstream; no invented link to portal IDs. |
@@ -29,20 +30,20 @@ Updated October 11, 2026 UTC. “Implemented” means code in this PGMaps change
 
 ## Verification
 
-Final local results: **30 focused unit tests**, **8 browser tests** (desktop, phone, XML parsing and real local GDAL browser import/export), **5 GDAL tests** covering 23 format/geometry round trips plus additional validation cases, **7 audit-script checks**, the 42-file snapshot consistency check, and **5 isolated PHP CORS tests** passed. TypeScript, integration lint, the production Vite build, generated deep-route entry-point comparisons, and the existing Nechako package audit passed.
+Final local results: **30 focused unit tests**, **11 browser tests** (native portal desktop/phone navigation and workspace persistence, workbench/showcase, XML parsing and real local GDAL browser import/export), **5 GDAL tests** covering 23 format/geometry round trips plus additional validation cases, **7 audit-script checks**, the 42-file snapshot consistency check, and **5 isolated PHP CORS tests** passed. TypeScript, integration lint, the production Vite build, generated deep-route entry-point comparisons, and the existing Nechako package audit passed.
 
 The completed local gates are recorded with their final results in the assessment evidence under `/workspace/nechako-assessment`. Commands:
 
 ```sh
 npx tsc -b
-npx eslint src/maps/nechako src/pages/DevNechako.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
+npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
 npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
 python3 scripts/nechako-server/test_converter.py
 python3 scripts/nechako-server/test_audit_data.py
 python3 scripts/nechako-server/check_showcase.py
 php -l scripts/nechako-server/cors.inc.php
 python3 scripts/nechako-server/test_cors.py
-PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts tests/e2e/nechako-showcase.spec.ts --workers=1
+PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts tests/e2e/nechako-showcase.spec.ts tests/e2e/nechako-native-portal.spec.ts --workers=1
 npx vite build
 node scripts/write-spa-fallback.mjs
 node .agents/skills/pgmaps-project-builder/scripts/audit-project-package.mjs public/data/projects/nechako-watershed-research-portal.json

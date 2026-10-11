@@ -29,17 +29,32 @@ function researchConfig(source: 'snapshot' | 'live'): ProjectMapExplorerWorkspac
       }
 }
 
-export function PortalResearchMap({ onBack }: { onBack: () => void }) {
+export function PortalResearchMap({
+  onBack,
+  fill = false,
+  backLabel = 'Showcase',
+}: {
+  onBack: () => void
+  fill?: boolean
+  backLabel?: string
+}) {
   const config = researchConfig('snapshot')
   if (!config) return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
   return (
-    <div className="space-y-3">
+    <div className={fill ? 'flex min-h-0 flex-1 flex-col gap-3' : 'space-y-3'}>
       <p className="text-sm text-muted-foreground">
         Repository snapshot · location markers are reference points, not study footprints. Basemap tiles use the live
         basemap service.
       </p>
-      <div className="relative h-[75vh] min-h-[540px] overflow-hidden rounded-lg border" data-nechako-research-map>
-        <ProjectMapExplorer title="Nechako research showcase" config={config} onBack={onBack} backLabel="Showcase" />
+      <div
+        className={
+          fill
+            ? 'relative min-h-0 flex-1 overflow-hidden rounded-lg border'
+            : 'relative h-[75vh] min-h-[540px] overflow-hidden rounded-lg border'
+        }
+        data-nechako-research-map
+      >
+        <ProjectMapExplorer title="Nechako research showcase" config={config} onBack={onBack} backLabel={backLabel} />
       </div>
     </div>
   )

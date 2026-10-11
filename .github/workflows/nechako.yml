@@ -6,6 +6,8 @@ on:
       - 'src/maps/nechako/**'
       - 'src/lib/nechakoPortal*'
       - 'src/pages/DevNechako.tsx'
+      - 'src/pages/DevNechakoPortal.tsx'
+      - 'src/App.tsx'
       - 'src/maps/project-explorer/ProjectMapExplorer.tsx'
       - 'src/maps/project-explorer/ProjectExplorerSidebar.tsx'
       - 'src/components/projects/ProjectBackButton.tsx'
@@ -42,7 +44,7 @@ jobs:
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
       - run: npx tsc -b
-      - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
+      - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
       - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
       - run: sudo apt-get update && sudo apt-get install -y gdal-bin php-cli
       - run: python3 scripts/nechako-server/test_converter.py
@@ -63,7 +65,7 @@ jobs:
             if curl -fsS http://127.0.0.1:42173/dev/nechako > /dev/null && curl -fsS http://127.0.0.1:42174/api/nechako/health > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts tests/e2e/nechako-showcase.spec.ts --workers=1 --reporter=list
+          npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts tests/e2e/nechako-showcase.spec.ts tests/e2e/nechako-native-portal.spec.ts --workers=1 --reporter=list
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

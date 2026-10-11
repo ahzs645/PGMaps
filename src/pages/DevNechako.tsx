@@ -161,6 +161,9 @@ export default function DevNechako() {
           Dev library
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">Nechako portal workbench</h1>
+        <Link to="/dev/nechako/portal" className="inline-block text-sm text-primary underline">
+          Open portal interface
+        </Link>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           Explore public portal content from PGMaps and compare what each site supports.
         </p>
