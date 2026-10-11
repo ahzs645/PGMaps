@@ -40,6 +40,7 @@ const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
 const DevProjects = lazy(() => import('@/pages/DevProjects'))
+const DevWaterTemperature = lazy(() => import('@/pages/DevWaterTemperature'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then((m) => ({ default: m.AqMapSection })))
 
 function RouteLoadingFallback() {
@@ -115,6 +116,7 @@ function App() {
             <Route path="/dev/flatten/pg" element={<DevFlatten key="pg" cityId="pg" />} />
             <Route path="/dev/outdoors" element={<DevOutdoors />} />
             <Route path="/dev/projects" element={<DevProjects />} />
+            <Route path="/dev/water-temperature" element={<DevWaterTemperature />} />
             <Route path="/dev/projects/:projectSlug" element={<DevProjects />} />
             <Route path="/dev/aqmap" element={<AqMapSection />} />
             <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />

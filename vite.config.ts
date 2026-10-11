@@ -6,6 +6,7 @@ import fs from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { aqmapApiPlugin } from './src/maps/aqmap/server/aqmapApiPlugin'
 import { remediationDevDataPlugin } from './scripts/remediation-dev-data'
+import { waterTempDevDataPlugin } from './scripts/water-temp-dev-data'
 
 // Local review only: restricted EDI caches never enter public/ or the build.
 function earlyLearningDevDataPlugin(): Plugin {
@@ -86,6 +87,7 @@ export default defineConfig({
     networkDevDataPlugin(),
     earlyLearningDevDataPlugin(),
     remediationDevDataPlugin(),
+    waterTempDevDataPlugin(),
   ],
   resolve: {
     alias: {

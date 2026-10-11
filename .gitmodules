@@ -4,3 +4,6 @@
 [submodule "vendor/bcdatamapper"]
 	path = vendor/bcdatamapper
 	url = https://github.com/ahzs645/bcdatamapper.git
+[submodule "packages/geo-toolkit"]
+	path = packages/geo-toolkit
+	url = https://github.com/ahzs645/geo-toolkit.git

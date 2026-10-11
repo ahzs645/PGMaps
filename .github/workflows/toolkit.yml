@@ -17,10 +17,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      # Toolkit verification must work without scraper data or submodules.
+      # Toolkit verification initializes code dependencies without scraper data.
       - uses: actions/checkout@v4
-      - name: Initialize the application npm dependency
-        run: git submodule update --init vendor/json-url
+      - name: Initialize toolkit and application npm dependencies
+        run: git submodule update --init packages/geo-toolkit vendor/json-url
       - uses: actions/setup-node@v4
         with:
           node-version: 22
