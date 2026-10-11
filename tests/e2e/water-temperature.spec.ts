@@ -205,6 +205,7 @@ test('edge tooltips stay inside charts and years hover emphasizes one original y
     )
     const tooltip = timeline.locator('.recharts-default-tooltip')
     await expect(tooltip).toBeVisible()
+    await expect(tooltip).toContainText('A')
     const card = await tooltip.boundingBox()
     const chart = await timeline.locator('.recharts-wrapper').first().boundingBox()
     expect(card!.x).toBeGreaterThanOrEqual(chart!.x - 1)
@@ -453,4 +454,110 @@ test('scatter renders raw observations on canvas with precise point tooltips and
   await page.mouse.move(x, y)
   await expect(season.getByRole('tooltip')).toContainText('A · 2023')
   await expect(season.getByRole('tooltip')).toContainText('2023-01-11')
+})
+
+test('aggregate markers, period tooltips and all chart download formats retain the rendered observations', async ({
+  page,
+}) => {
+  await prepare(page)
+  await selectStation(page, 'A')
+  const timeline = page.getByRole('region', { name: 'Water temperature over time', exact: true })
+  await page.getByRole('button', { name: 'Monthly', exact: true }).click()
+  const markers = timeline.locator('.recharts-line-dot:not(.recharts-brush .recharts-line-dot)')
+  await expect(markers).toHaveCount(3)
+  await expect(markers.first()).toHaveAttribute('fill', '#e41a1c')
+  await markers.first().hover()
+  await expect(timeline.locator('.recharts-default-tooltip')).toContainText('January 2023')
+  await expect(timeline.locator('.recharts-default-tooltip')).toContainText('A')
+  await expect(timeline.locator('.recharts-label')).toContainText('Monthly mean °C')
+  await page.getByRole('button', { name: 'Seasonal', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Season starts', exact: true }).selectOption('1')
+  await page.getByRole('combobox', { name: 'Season ends', exact: true }).selectOption('3')
+  await expect(markers).toHaveCount(1) // A single seasonal mean must remain visible.
+  await markers.first().hover()
+  await expect(timeline.locator('.recharts-default-tooltip')).toContainText('Jan 2023 – Mar 2023')
+  await page.getByRole('button', { name: 'Daily', exact: true }).click()
+  await expect(markers).toHaveCount(0)
+
+  for (const title of ['Water temperature over time', 'Seasonality', 'Air vs. water']) {
+    const region = page.getByRole('region', { name: title, exact: true })
+    if (title === 'Seasonality') {
+      await region.getByRole('button', { name: `Fullscreen ${title}`, exact: true }).click()
+      await dragZoom(page, region)
+    }
+    await region.getByRole('button', { name: `Chart options ${title}`, exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: `${title} options`, exact: true })
+    await expect(dialog).toBeVisible()
+    expect(await dialog.evaluate((element) => element.closest('[data-theme]')?.getAttribute('data-theme'))).toBe(
+      await page.evaluate(() => (document.documentElement.classList.contains('dark') ? 'dark' : 'light')),
+    )
+    await expect(dialog).toContainText(title === 'Air vs. water' ? 'through 2023' : 'Drag')
+    for (const format of title === 'Air vs. water' ? ['SVG', 'PNG', 'PDF', 'JPEG'] : ['SVG', 'PNG', 'PDF']) {
+      const download = page.waitForEvent('download')
+      await dialog.getByRole('button', { name: `Download ${format}`, exact: true }).click()
+      const file = await download
+      expect(file.suggestedFilename()).toMatch(new RegExp(`\\.${format.toLowerCase()}$`))
+      const stream = await file.createReadStream()
+      const chunks: Buffer[] = []
+      for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+      const bytes = Buffer.concat(chunks)
+      expect(bytes.length).toBeGreaterThan(1000)
+      if (format === 'SVG') {
+        const svg = bytes.toString()
+        expect(svg).toContain(title)
+        expect(svg).toContain('A: River A')
+        expect(svg).not.toContain('Reset zoom')
+        if (title === 'Air vs. water') expect(svg).toContain('data:image/png;base64,')
+      } else if (format === 'PDF') {
+        expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+        expect(bytes.toString()).toContain('/Subtype /Image')
+      } else if (format === 'PNG') {
+        expect(bytes.subarray(1, 4).toString()).toBe('PNG')
+        const redPixels = await page.evaluate(async (data) => {
+          const image = new Image()
+          image.src = `data:image/png;base64,${data}`
+          await image.decode()
+          const canvas = document.createElement('canvas')
+          canvas.width = image.width
+          canvas.height = image.height
+          const context = canvas.getContext('2d')!
+          context.drawImage(image, 0, 0)
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+          let red = 0
+          // Ignore the export heading/legend: verify the actual lines/canvas points were captured.
+          for (let index = canvas.width * 130 * 4; index < pixels.length; index += 4)
+            if (pixels[index] > 150 && pixels[index + 1] < 110 && pixels[index + 2] < 110) red++
+          return red
+        }, bytes.toString('base64'))
+        expect(redPixels, `${title} PNG must contain visible station observations`).toBeGreaterThan(20)
+      } else expect(bytes.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]))
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    if (title === 'Seasonality') {
+      await expect(region).toHaveAttribute('data-fullscreen', 'true')
+      await expect(region.getByRole('button', { name: 'Reset zoom' })).toBeVisible()
+      await page.keyboard.press('Escape')
+    }
+  }
+})
+
+test('chart loading remains visible when the station pane is collapsed', async ({ page }) => {
+  await prepare(page)
+  let finish!: () => void
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  await page.route('**/__dev_water_temp/data/A.json', async (route) => {
+    await pending
+    await route.fulfill({ json: observations })
+  })
+  await selectStation(page, 'A')
+  await page.getByRole('button', { name: 'Hide stations', exact: true }).click()
+  for (const name of ['Water temperature over time', 'Seasonality', 'Air vs. water'])
+    await expect(page.getByRole('region', { name, exact: true })).toHaveAttribute('aria-busy', 'true')
+  finish()
+  await expect(page.getByTestId('range-summary')).toContainText('90 water observations')
+  for (const name of ['Water temperature over time', 'Seasonality', 'Air vs. water'])
+    await expect(page.getByRole('region', { name, exact: true })).not.toHaveAttribute('aria-busy', 'true')
 })

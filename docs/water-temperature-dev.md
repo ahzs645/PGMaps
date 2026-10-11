@@ -28,7 +28,8 @@ and individual years. PGMaps now follows that arrangement:
 | Air/water scatter, minimum air filter and XY zoom         | Included; tooltip identifies station, date and both temperatures                                                                                                                                                 |
 | Clickable station legends                                 | One common legend shows/hides a station across all three charts; the source legends operate per chart                                                                                                            |
 | CSV download                                              | Daily observations within the selected dates; hidden series remain in the export                                                                                                                                 |
-| Image/PDF chart exports, help dialogs, guided tour        | Not ported                                                                                                                                                                                                       |
+| PNG/JPEG/SVG/PDF chart exports and chart help             | Included in each compact chart options dialog                                                                                                                                                                    |
+| Guided tour                                               | Not ported; chart-specific instructions are available in the options dialogs                                                                                                                                     |
 | Watershed boundaries and basin filtering                  | Not ported; referenced GeoJSON is absent from the local source snapshot                                                                                                                                          |
 
 The station pane has no independent scroll port. Its map fills the available
@@ -52,9 +53,9 @@ Reset zoom appears inside the plot only after zooming. Focus a plot and press
 `+` to zoom or `Home` to reset. Seasonality shows one nearby series in its tooltip,
 with the observed range or the original individual-year date. Year grouping and
 seasonal summaries are cached until the input series changes.
-Mean & range remains the default. In Years mode, hovering near a line emphasizes
-that station/year and dims the others; the tooltip uses that year's original
-observation. Moving away, changing the data or zooming clears the emphasis.
+Mean & range remains the default. In either mode, hovering near a line emphasizes
+that station or station/year and dims the other lines and bands. The tooltip
+shows the observed range in mean mode and the original date in Years mode. Moving away, changing the data or zooming clears the emphasis.
 Tooltip content wraps and stays inside each measured chart, including narrow
 and fullscreen views. The timeline's vertical Water °C axis starts at zero when
 readings are nonnegative, preserves below-zero readings and uses rounded bounds
@@ -93,8 +94,7 @@ The station map uses the shared `Map` component's default Carto vector basemaps:
 Positron in light mode and Dark Matter in dark mode. It follows the site's theme
 and shares the same map styling as the other standard map sections. There is no
 page-specific basemap selector or styling override.
-Watershed filtering, a guided tour and chart-image exports are not included in
-this first preview. The local source snapshot contains no watershed GeoJSON or
+Watershed filtering and a guided tour are not included. The local source snapshot contains no watershed GeoJSON or
 station basin assignments, so basin membership is not inferred.
 
 ## Semantics and boundaries
@@ -146,3 +146,34 @@ valid MapLibre style, test real marker selection and navigator movement, check
 CSV contents and exercise mobile resizing, load retries, simultaneous desktop
 graphs, calendar presets, legend visibility, pane collapse, every fullscreen
 surface, and seasonal XY dragging.
+
+## Chart interaction audit (2026-10-10)
+
+Compared `TimeseriesChart.vue`, `SeasonalChart.vue`, `ScatterChart.vue` and
+`pages/index.vue` at reference revision `ca382f9` against the host adapters and
+shared toolkit. Fixed station labels disappearing from timeline tooltips; added
+station-colored markers for monthly/seasonal points (including a lone seasonal
+mean), period-specific tooltip headings with correct cross-year season dates,
+and aggregation-specific axis units. Seasonality now emphasizes the inspected
+line in both modes, dims unrelated bands and retains January/December ticks.
+Mean & range remains the default. All three charts signal pending data loads,
+even with the station pane hidden.
+
+Each chart's options dialog has contextual help and PNG/JPEG/SVG/PDF downloads
+of its current range/zoom, with title, units, period and station legend. SVG
+retains vector lines/axes and embeds the scatter canvas as PNG. PDF embeds a
+2× resolution chart image. Downloads are generated locally; no export service
+receives the observations. Toolkit capture/options/loading behavior is generic;
+PDF packaging, filenames and water-temperature text remain in the host.
+
+The source uses per-chart legends; PGMaps intentionally retains its shared
+station visibility control. Its UTC calendar dates, calendar-day coverage and
+leap-year alignment also remain intentional corrections to the reference's
+timezone/30-day aggregation/ordinal-day behavior. The reference's daily scatter
+and its paired-point metadata are preserved without downsampling.
+
+Browser checks verify aggregation markers and hover periods, nonempty rendered
+chart pixels in downloaded PNGs (including canvas points), SVG axes/metadata,
+PDF image content, fullscreen options/zoom preservation and collapsed-pane
+loading. The independent energy consumer exercises the same export helpers and
+options dialog through compiled toolkit exports.

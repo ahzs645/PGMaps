@@ -23,6 +23,7 @@ import {
   type Station,
 } from './dev-water-temperature/data'
 import { useWaterTemperature } from './dev-water-temperature/useWaterTemperature'
+import { chartDownloads } from './dev-water-temperature/exportChart'
 
 const fieldClass =
   'min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-base text-foreground md:text-sm'
@@ -143,6 +144,12 @@ export default function DevWaterTemperature() {
   )
   const allDates = data.series.flatMap((item) => item.data.map((point) => point.date)).sort()
   const extent: DateRange = allDates.length ? [allDates[0], allDates[allDates.length - 1]] : null
+  const exportSeries = visibleSeries.map((item) => ({
+    id: item.station.station_id,
+    label: `${item.station.station_code}: ${item.station.waterbody_name ?? ''}`,
+    color: item.color,
+  }))
+  const exportDates = (range ?? extent)?.join(' – ') ?? 'No observations'
   const activeRange = range ?? extent
   const sourceDate = data.config.updated?.slice(0, 10)
   const sourceDetails = `${import.meta.env.DEV ? 'Local UNBC snapshot' : 'UNBC snapshot from ahzs645/unbcwatertemp-viz on GitHub'}${sourceDate ? ` · updated ${sourceDate}` : ' · update date unavailable'}.${data.config.airYear ? ` Daymet air temperatures available through ${data.config.airYear}.` : ''}`
@@ -299,10 +306,7 @@ export default function DevWaterTemperature() {
           aria-label="Station browser"
           className={`${collapsed ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-col rounded-xl border bg-card lg:h-full`}
         >
-          <SidebarSection
-            title="Stations"
-            className="flex min-h-0 flex-col p-3 lg:flex-1 [&>div:first-child]:shrink-0"
-          >
+          <SidebarSection title="Stations" className="flex min-h-0 flex-col p-3 lg:flex-1 [&>div:first-child]:shrink-0">
             <div
               ref={mapRef}
               data-fullscreen={mapFullscreen || undefined}
@@ -544,6 +548,13 @@ export default function DevWaterTemperature() {
           >
             <FullscreenPanel
               title="Water temperature over time"
+              loading={data.loading}
+              menuActions={chartDownloads(
+                'Water temperature over time',
+                `${aggregation === 'day' ? 'Daily' : aggregation === 'month' ? 'Monthly mean' : `Seasonal mean (${MONTHS[startMonth - 1]}–${MONTHS[endMonth - 1]})`} · ${exportDates}`,
+                exportSeries,
+              )}
+              help="Drag across the timeline or move the navigator handles to filter all three plots. Use All dates to reset. Monthly and seasonal means require 75% of calendar days. Downloads include the displayed range, units and station colors."
               compact
               className="flex min-h-0 flex-col"
               actions={
@@ -637,6 +648,9 @@ export default function DevWaterTemperature() {
                         series={visibleSeries}
                         range={range}
                         onRange={changeRange}
+                        aggregation={aggregation}
+                        startMonth={startMonth}
+                        endMonth={endMonth}
                       />
                     )}
                   </ChartArea>
@@ -646,6 +660,13 @@ export default function DevWaterTemperature() {
             <div className="grid min-h-0 min-w-0 gap-3 lg:grid-cols-2">
               <FullscreenPanel
                 title="Seasonality"
+                loading={data.loading}
+                menuActions={chartDownloads(
+                  'Seasonality',
+                  `${individual ? 'Individual years' : 'Mean & observed range'} · ${exportDates}`,
+                  exportSeries,
+                )}
+                help="Mean & range shows the daily mean and observed minimum–maximum across years. Years shows one line per station and year; hover a line to highlight it. Drag a rectangle to zoom both axes; Reset zoom or Home restores the view."
                 compact
                 className="flex min-h-0 flex-col"
                 actions={
@@ -681,6 +702,13 @@ export default function DevWaterTemperature() {
               </FullscreenPanel>
               <FullscreenPanel
                 title="Air vs. water"
+                loading={data.loading}
+                menuActions={chartDownloads(
+                  'Air vs. water',
+                  `Minimum air ${minimumAir} °C · ${exportDates}`,
+                  exportSeries,
+                )}
+                help={`Each point is a paired daily air/water reading. Hover for its station, date and temperatures. The dashed line marks equal temperatures. Min. air filters this plot. Drag to zoom; Reset zoom or Home restores the view. Daymet air data is available through ${data.config.airYear ?? 'the source snapshot’s last available year'}.`}
                 compact
                 className="flex min-h-0 flex-col"
                 actions={

@@ -10,7 +10,16 @@ import {
   type LineBandSeries,
 } from '@pgmaps/geo-toolkit/visualizations/react'
 import { EmptyHint } from '@/components/ui/result-list'
-import { isoDate, seasonalPoints, timestamp, type ChartRow, type DateRange, type Series } from './data'
+import {
+  isoDate,
+  MONTHS,
+  seasonalPoints,
+  timestamp,
+  type Aggregation,
+  type ChartRow,
+  type DateRange,
+  type Series,
+} from './data'
 
 const temperatureTick = (value: number) => value.toLocaleString('en-CA', { maximumFractionDigits: 3 })
 const dateLabel = (time: number) =>
@@ -39,12 +48,18 @@ export function TimeChart({
   series,
   range,
   onRange,
+  aggregation = 'day',
+  startMonth = 6,
+  endMonth = 8,
   height = 330,
 }: {
   rows: ChartRow[]
   series: Series[]
   range: DateRange
   onRange: (range: DateRange) => void
+  aggregation?: Aggregation
+  startMonth?: number
+  endMonth?: number
   height?: number
 }) {
   const points = useMemo(() => rows.map(({ time, ...values }) => ({ ...values, x: time })), [rows])
@@ -79,12 +94,21 @@ export function TimeChart({
       xAxis={{ format: dateTick }}
       yDomain={yDomain}
       yAxis={{
-        label: 'Water °C',
+        label: aggregation === 'day' ? 'Water °C' : aggregation === 'month' ? 'Monthly mean °C' : 'Seasonal mean °C',
         width: 72,
         format: temperatureTick,
         ticks: ticks(yDomain[0], yDomain[1], Math.max(2, Math.min(4, Math.floor((height - 76) / 30)))),
       }}
-      formatTooltipX={dateLabel}
+      showPoints={aggregation !== 'day'}
+      formatTooltipX={(time) => {
+        if (aggregation === 'day') return dateLabel(time)
+        if (aggregation === 'month')
+          return new Intl.DateTimeFormat('en-CA', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(time)
+        const year = new Date(time).getUTCFullYear()
+        return startMonth === endMonth
+          ? `${MONTHS[startMonth - 1]} ${year}`
+          : `${MONTHS[startMonth - 1]} ${year} – ${MONTHS[endMonth - 1]} ${year + (startMonth > endMonth ? 1 : 0)}`
+      }}
       formatNavigatorX={isoDate}
       formatValue={(value) => `${value.toFixed(1)} °C`}
       empty={
@@ -142,6 +166,8 @@ export function SeasonChart({
           id: item.station.station_id,
           label: `${item.station.station_code} mean`,
           color: item.color,
+          strokeOpacity: 0.8,
+          strokeWidth: 1,
           points: seasonal.map((point) => ({
             x: point.time,
             y: point.mean,
@@ -154,7 +180,7 @@ export function SeasonChart({
   return (
     <LineBandChart
       series={lines}
-      highlightOnHover={individual}
+      highlightOnHover
       height={height}
       extent={extent}
       label={
