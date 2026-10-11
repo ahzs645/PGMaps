@@ -106,7 +106,7 @@ for (const viewport of [
         json: { success: true, status: 'failure', error: 'Website is not registered', loggedIn: false },
       })
     })
-    await page.goto('/dev/nechako')
+    await page.goto('/dev/nechako?view=layers&source=live')
     await expect(page.getByText('1 WMS services', { exact: false })).toBeVisible()
     await expect(page.getByLabel('Named layer or group')).toHaveValue('native group')
     await page.getByLabel('Layer style', { exact: true }).selectOption('native')
@@ -159,6 +159,7 @@ for (const viewport of [
     await page.getByRole('button', { name: 'Refresh formats' }).click()
     await expect(page.getByText('"format_extension": ".geojson"', { exact: false })).toBeVisible()
     await page.getByRole('tab', { name: 'Research', exact: true }).click()
+    await page.getByLabel('Research data source').selectOption('live')
     await expect(page.getByText('3 total records · 1 without location tags')).toBeVisible()
     await expect(page.getByText('3 matching records')).toBeVisible()
     await page.getByRole('button', { name: 'Unmapped records', exact: true }).click()

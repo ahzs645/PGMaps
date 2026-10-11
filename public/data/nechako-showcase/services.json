@@ -1,0 +1,418 @@
+[
+  {
+    "source": {
+      "name": "Administration Boundaries",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/boundaries/boundaries.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-01.xml",
+    "named_layers": 5
+  },
+  {
+    "source": {
+      "name": "Agricultural Land Reserve",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/Nechako_ALR/Nechako_ALR.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-02.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Anthropogenic Disturbance",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/disturbance/disturbance.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-03.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Aquifer",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_WATER_MANAGEMENT.GW_AQUIFERS_CLASSIFICATION_SVW/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-04.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "BC Notice of Works",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_MINERAL_TENURE.HSP_NOTICE_OF_WORK_PA_POINT_SV/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-05.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "CIRC-Koh-SD91",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/Koh/CIRC-Koh-SD91.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-06.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Canvec",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/BC_Canvec/BC_Canvec.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-07.xml",
+    "named_layers": 4
+  },
+  {
+    "source": {
+      "name": "Census Subdivision History",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/census_subdivision/census_subdivision_history.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-08.xml",
+    "named_layers": 16
+  },
+  {
+    "source": {
+      "name": "Cheslatta Carrier Nation Archives",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/Cheslatta_Carrier_Nation_Archives/Cheslatta_Carrier_Nation_Archives.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-09.xml",
+    "named_layers": 2
+  },
+  {
+    "source": {
+      "name": "Community",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/community/communities.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-10.xml",
+    "named_layers": 4
+  },
+  {
+    "source": {
+      "name": "Consolidated Cutblocks",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_CONSOLIDATED_CUT_BLOCKS_SP/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-11.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Current Year Wildfire Perimeters",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-12.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Dams",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_WATER_MANAGEMENT.WRIS_DAMS_PUBLIC_SVW/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-13.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Drinking Water Sources",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/drinking_water_sources/drinking_water_sources.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-14.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Drought",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/drought/drought.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-15.xml",
+    "named_layers": 2
+  },
+  {
+    "source": {
+      "name": "EchoScreen",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/echoscreen/echoscreen.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-16.xml",
+    "named_layers": 26
+  },
+  {
+    "source": {
+      "name": "Evacuation Orders and Alerts",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-17.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Fig 2, Picketts et al. 2016, Fig 2 - Spider Diagram Climate Change & Resource development",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/picketts_2016/picketts_dery_parkes-2016.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-18.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Groundwater",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/groundwater/groundwater.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-19.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Health and Climate",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/northern_health/northern_health.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-20.xml",
+    "named_layers": 11
+  },
+  {
+    "source": {
+      "name": "IWRG Sample Sites",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/IWRG/iwrg_sites.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-21.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Natural Resource Boundaries",
+      "type": "wms",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/natural_resource_regions.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": false,
+      "layers": "main map",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-22.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Natural Resource Management Areas",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/NatRes_RegionsDistricts/NatRes_Boundaries.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "Natural Resource Regions & Districts",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-23.xml",
+    "named_layers": 4
+  },
+  {
+    "source": {
+      "name": "Old Growth Deferrals",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.OGSR_TAP_PRIORITY_DEF_AREA_SP/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-24.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Regional Districts",
+      "type": "wms",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/RD.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": false,
+      "layers": "main map",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-25.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "School District",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/SD.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-26.xml",
+    "named_layers": 3
+  },
+  {
+    "source": {
+      "name": "Stellaten Fisheries Status",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/stellako_fish/Stellaten_fisheries.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-27.xml",
+    "named_layers": 4
+  },
+  {
+    "source": {
+      "name": "Surface Hydrology",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/water_features/water_features.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "All",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-28.xml",
+    "named_layers": 8
+  },
+  {
+    "source": {
+      "name": "Water and Meteorological Stations",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/WaterMetStations/Water_Met_Stations.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-29.xml",
+    "named_layers": 2
+  },
+  {
+    "source": {
+      "name": "Watershed Context",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/waterbodies/waterbodies.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "main map",
+      "attributions": ""
+    },
+    "capabilities_file": "capabilities/service-30.xml",
+    "named_layers": 14
+  },
+  {
+    "source": {
+      "name": "Wildfires",
+      "type": "capabilities",
+      "resource": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/wildfire/wildfire.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "Fire Decade",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-31.xml",
+    "named_layers": 1
+  },
+  {
+    "source": {
+      "name": "Wildlife Management Areas",
+      "type": "capabilities",
+      "resource": "https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/ows?service=WMS&request=GetCapabilities",
+      "is_base": false,
+      "is_on": true,
+      "layers": "",
+      "attributions": null
+    },
+    "capabilities_file": "capabilities/service-32.xml",
+    "named_layers": 1
+  }
+]

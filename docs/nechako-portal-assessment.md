@@ -291,6 +291,8 @@ At the initial source review, empty submodules blocked the local audit. Those de
 
 ## Evidence files
 
+The dev showcase now includes app-owned public data at `public/data/nechako-showcase/`: 1,408 records, location/decade data, all 32 public WMS capability documents and their 135 named entries, format registry, eight Zotero HTML links and a derived 46-point workspace. Its 42 files total 1,257,503 bytes, excluding the source/hash manifest. `/dev/nechako` opens the showcase; local research/map/timeline, catalogue and format views can be tested without the research/portal APIs. Basemap/WMS imagery remain live and private/full-file data remain unverified. See [`data-audit.md`](nechako/data-audit.md) for capture, ownership, source switching and checks. The existing native literature project still uses its live source.
+
 - `archive-inventory.json`: all supplied filenames and sizes.
 - `feature-support-matrix.csv`: 17 feature comparisons with existing PGMaps support and required work.
 - `format-support-matrix.csv`: 13 spatial format/service support comparisons.

@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>None</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-116.455614" maxy="60.604525" minx="-139.052202" miny="48.773403"/>
+   <BoundingBox maxx="1553982.5" maxy="1735670.865" SRS="EPSG:3005" minx="112159.228" miny="446997.249"/>
+   <BoundingBox maxx="-12963779.663" maxy="8535576.181" SRS="EPSG:3857" minx="-15479220.214" miny="6236499.796"/>
+   <BoundingBox maxx="-116.455614" maxy="60.604525" SRS="EPSG:4326" minx="-139.052202" miny="48.773403"/>
+   <Layer queryable="1">
+    <Name>Hospitals</Name>
+    <Title>Hospitals</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-119.305028" maxy="58.848708" minx="-132.965938" miny="52.879441"/>
+    <BoundingBox maxx="1387842.998" maxy="1540485.55" SRS="EPSG:3005" minx="596360.003" miny="891741.191"/>
+    <BoundingBox maxx="-13280975.038" maxy="8147758.283" SRS="EPSG:3857" minx="-14801700.444" miny="6960728.967"/>
+    <BoundingBox maxx="-119.305028" maxy="58.848708" SRS="EPSG:4326" minx="-132.965938" miny="52.879441"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Hospitals&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>HSDA</Name>
+    <Title>HSDA</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-116.455614" maxy="60.604525" minx="-139.052202" miny="51.532985"/>
+    <BoundingBox maxx="1528150.072" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="778503.753"/>
+    <BoundingBox maxx="-12963779.663" maxy="8535576.181" SRS="EPSG:3857" minx="-15479220.214" miny="6716119.797"/>
+    <BoundingBox maxx="-116.455614" maxy="60.604525" SRS="EPSG:4326" minx="-139.052202" miny="51.532985"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=HSDA&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Nechako Watershed</Name>
+    <Title>Nechako Watershed</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-122.519518" maxy="56.176492" minx="-127.906437" miny="52.879037"/>
+    <BoundingBox maxx="1215846.62" maxy="1242547.82" SRS="EPSG:3005" minx="881836.585" miny="879433.823"/>
+    <BoundingBox maxx="-13638810.374" maxy="7593630.563" SRS="EPSG:3857" minx="-14238479.344" miny="6960654.42"/>
+    <BoundingBox maxx="-122.519518" maxy="56.176492" SRS="EPSG:4326" minx="-127.906437" miny="52.879037"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Nechako Watershed&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Fraser Watershed</Name>
+    <Title>Fraser Watershed</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-117.107031" maxy="56.176452" minx="-127.906335" miny="48.773403"/>
+    <BoundingBox maxx="1553982.5" maxy="1242541.875" SRS="EPSG:3005" minx="881842.75" miny="446997.249"/>
+    <BoundingBox maxx="-13036295.109" maxy="7593622.646" SRS="EPSG:3857" minx="-14238467.991" miny="6236499.796"/>
+    <BoundingBox maxx="-117.107031" maxy="56.176452" SRS="EPSG:4326" minx="-127.906335" miny="48.773403"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Fraser Watershed&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Northern Health</Name>
+    <Title>Northern Health</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-116.455614" maxy="60.604525" minx="-139.052202" miny="51.532985"/>
+    <BoundingBox maxx="1528150.072" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="778503.753"/>
+    <BoundingBox maxx="-12963779.663" maxy="8535576.181" SRS="EPSG:3857" minx="-15479220.214" miny="6716119.797"/>
+    <BoundingBox maxx="-116.455614" maxy="60.604525" SRS="EPSG:4326" minx="-139.052202" miny="51.532985"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Northern Health&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Days > 30C (1971-2000) Nechako (source: ClimateData.ca)</Name>
+    <Title>Days > 30C (1971-2000) Nechako (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-122.75" maxy="56.166667" minx="-127.750001" miny="52.999999"/>
+    <BoundingBox maxx="1217589.912" maxy="1246072.424" SRS="EPSG:3005" minx="882806.909" miny="888026.593"/>
+    <BoundingBox maxx="-13664467.576" maxy="7591665.951" SRS="EPSG:3857" minx="-14221065.008" miny="6982997.831"/>
+    <BoundingBox maxx="-122.75" maxy="56.166667" SRS="EPSG:4326" minx="-127.750001" miny="52.999999"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Days %3E 30C (1971-2000) Nechako (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Days > 30C (2071-2100) Nechako (source: ClimateData.ca)</Name>
+    <Title>Days > 30C (2071-2100) Nechako (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-122.75" maxy="56.166667" minx="-127.750001" miny="52.999999"/>
+    <BoundingBox maxx="1217589.912" maxy="1246072.424" SRS="EPSG:3005" minx="882806.909" miny="888026.593"/>
+    <BoundingBox maxx="-13664467.576" maxy="7591665.951" SRS="EPSG:3857" minx="-14221065.008" miny="6982997.831"/>
+    <BoundingBox maxx="-122.75" maxy="56.166667" SRS="EPSG:4326" minx="-127.750001" miny="52.999999"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Days %3E 30C (2071-2100) Nechako (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Days >30C (1971-2000) NH (source: ClimateData.ca)</Name>
+    <Title>Days >30C (1971-2000) NH (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-118.25" maxy="60" minx="-139.000001" miny="51.916666"/>
+    <BoundingBox maxx="1531213.622" maxy="1735131.965" SRS="EPSG:3005" minx="112159.228" miny="767226.278"/>
+    <BoundingBox maxx="-13163529.887" maxy="8399737.721" SRS="EPSG:3857" minx="-15473409.23" miny="6785071.642"/>
+    <BoundingBox maxx="-118.25" maxy="60" SRS="EPSG:4326" minx="-139.000001" miny="51.916666"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Days %3E30C (1971-2000) NH (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Days >30C (2071-2100) NH (source: ClimateData.ca)</Name>
+    <Title>Days >30C (2071-2100) NH (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-118.25" maxy="60" minx="-139.000001" miny="51.916666"/>
+    <BoundingBox maxx="1531213.622" maxy="1735131.965" SRS="EPSG:3005" minx="112159.228" miny="767226.278"/>
+    <BoundingBox maxx="-13163529.887" maxy="8399737.721" SRS="EPSG:3857" minx="-15473409.23" miny="6785071.642"/>
+    <BoundingBox maxx="-118.25" maxy="60" SRS="EPSG:4326" minx="-139.000001" miny="51.916666"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Days %3E30C (2071-2100) NH (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)</Name>
+    <Title>Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-118.25" maxy="60" minx="-139" miny="51.91667"/>
+    <BoundingBox maxx="1531213.639" maxy="1735132.047" SRS="EPSG:3005" minx="112159.31" miny="767226.698"/>
+    <BoundingBox maxx="-13163529.786" maxy="8399737.89" SRS="EPSG:3857" minx="-15473409.221" miny="6785072.322"/>
+    <BoundingBox maxx="-118.25" maxy="60" SRS="EPSG:4326" minx="-139" miny="51.91667"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Change in summer precip (between past 1971-2000 and 2071-2100) (source: ClimateData.ca)</Name>
+    <Title>Change in summer precip (between past 1971-2000 and 2071-2100) (source: ClimateData.ca)</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-118.25" maxy="60" minx="-139" miny="51.91667"/>
+    <BoundingBox maxx="1531213.639" maxy="1735132.047" SRS="EPSG:3005" minx="112159.31" miny="767226.698"/>
+    <BoundingBox maxx="-13163529.786" maxy="8399737.89" SRS="EPSG:3857" minx="-15473409.221" miny="6785072.322"/>
+    <BoundingBox maxx="-118.25" maxy="60" SRS="EPSG:4326" minx="-139" miny="51.91667"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Change in summer precip (between past 1971-2000 and 2071-2100) (source: ClimateData.ca)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

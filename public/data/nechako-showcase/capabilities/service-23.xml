@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>conditions unknown</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-110.427245" maxy="60.604979" minx="-139.061306" miny="47.60919"/>
+   <BoundingBox maxx="1870586.801" maxy="1735720.875" SRS="EPSG:3005" minx="273366.802" miny="359771.84"/>
+   <BoundingBox maxx="-12292704.69" maxy="8535686.327" SRS="EPSG:3857" minx="-15480233.76" miny="6042082.615"/>
+   <BoundingBox maxx="-110.427245" maxy="60.604979" SRS="EPSG:4326" minx="-139.061306" miny="47.60919"/>
+   <Layer queryable="1">
+    <Name>Natural Resource Regions &amp; Districts</Name>
+    <Title>Natural Resource Regions &amp; Districts</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427245" maxy="60.604979" minx="-139.061306" miny="47.60919"/>
+    <BoundingBox maxx="1870586.801" maxy="1735720.875" SRS="EPSG:3005" minx="273366.802" miny="359771.84"/>
+    <BoundingBox maxx="-12292704.69" maxy="8535686.327" SRS="EPSG:3857" minx="-15480233.76" miny="6042082.615"/>
+    <BoundingBox maxx="-110.427245" maxy="60.604979" SRS="EPSG:4326" minx="-139.061306" miny="47.60919"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Natural Resource Regions %26 Districts&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+    <Layer queryable="1">
+     <Name>Natural_Res_Regions_Label</Name>
+     <Title>Natural_Res_Regions_Label</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-110.427245" maxy="60.604979" minx="-139.061306" miny="47.60919"/>
+     <BoundingBox maxx="1870586.801" maxy="1735720.875" SRS="EPSG:3005" minx="273366.802" miny="359771.84"/>
+     <BoundingBox maxx="-12292704.69" maxy="8535686.327" SRS="EPSG:3857" minx="-15480233.76" miny="6042082.615"/>
+     <BoundingBox maxx="-110.427245" maxy="60.604979" SRS="EPSG:4326" minx="-139.061306" miny="47.60919"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Natural_Res_Regions_Label&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <ScaleHint min="316.783838" max="17819.090886"/>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Natural_Res_Regions_NoLabel</Name>
+     <Title>Natural_Res_Regions_NoLabel</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-110.427245" maxy="60.604979" minx="-139.061306" miny="47.60919"/>
+     <BoundingBox maxx="1870586.801" maxy="1735720.875" SRS="EPSG:3005" minx="273366.802" miny="359771.84"/>
+     <BoundingBox maxx="-12292704.69" maxy="8535686.327" SRS="EPSG:3857" minx="-15480233.76" miny="6042082.615"/>
+     <BoundingBox maxx="-110.427245" maxy="60.604979" SRS="EPSG:4326" minx="-139.061306" miny="47.60919"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Natural_Res_Regions_NoLabel&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Natural_Res_Districts_Label</Name>
+     <Title>Natural_Res_Districts_Label</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-110.427245" maxy="60.604979" minx="-139.061306" miny="47.60919"/>
+     <BoundingBox maxx="1870586.801" maxy="1735720.875" SRS="EPSG:3005" minx="273366.802" miny="359771.84"/>
+     <BoundingBox maxx="-12292704.69" maxy="8535686.327" SRS="EPSG:3857" minx="-15480233.76" miny="6042082.615"/>
+     <BoundingBox maxx="-110.427245" maxy="60.604979" SRS="EPSG:4326" minx="-139.061306" miny="47.60919"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Natural_Res_Districts_Label&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <ScaleHint min="0" max="316.783838"/>
+    </Layer>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

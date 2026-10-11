@@ -12,8 +12,38 @@ import { useResearchRecordsAdapter } from '@/maps/project-explorer/adapters/useR
 import type { ResearchRecord } from '@/maps/project-explorer/adapters/researchRecordsTypes'
 import { downloadText } from '@/lib/download'
 import { csvExport } from './data/monitoring'
+import { SHOWCASE_BASE } from './data/showcase'
+import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 
 const project = normalizeProjectPackage(packageJson)
+
+function researchConfig(source: 'snapshot' | 'live'): ProjectMapExplorerWorkspaceDef | undefined {
+  if (project?.workspace?.type !== 'map-explorer') return undefined
+  return source === 'live'
+    ? project.workspace
+    : {
+        ...project.workspace,
+        data: { ...project.workspace.data, baseUrl: SHOWCASE_BASE },
+        // The separate scraper-owned watershed boundary is outside this public snapshot.
+        features: project.workspace.features.filter((feature) => feature.type !== 'aggregate-boundary'),
+      }
+}
+
+export function PortalResearchMap({ onBack }: { onBack: () => void }) {
+  const config = researchConfig('snapshot')
+  if (!config) return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Repository snapshot · location markers are reference points, not study footprints. Basemap tiles use the live
+        basemap service.
+      </p>
+      <div className="relative h-[75vh] min-h-[540px] overflow-hidden rounded-lg border" data-nechako-research-map>
+        <ProjectMapExplorer title="Nechako research showcase" config={config} onBack={onBack} backLabel="Showcase" />
+      </div>
+    </div>
+  )
+}
 
 function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef }) {
   const data = useResearchRecordsAdapter(config)
@@ -153,8 +183,30 @@ function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef })
   )
 }
 
-export function PortalResearch() {
-  if (project?.workspace?.type !== 'map-explorer')
-    return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
-  return <ResearchRecords config={project.workspace} />
+export function PortalResearch({ onMap }: { onMap?: () => void }) {
+  const [source, setSource] = useState<'snapshot' | 'live'>('snapshot')
+  const config = useMemo(() => researchConfig(source), [source])
+  if (!config) return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
+  return (
+    <div className="space-y-4">
+      <label className="block text-sm font-medium">
+        Research data source
+        <select
+          aria-label="Research data source"
+          value={source}
+          onChange={(event) => setSource(event.target.value as 'snapshot' | 'live')}
+          className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
+        >
+          <option value="snapshot">Repository snapshot</option>
+          <option value="live">Live nwsviz data</option>
+        </select>
+      </label>
+      {onMap && (
+        <Button variant="outline" onClick={onMap}>
+          Open bundled map and timeline
+        </Button>
+      )}
+      <ResearchRecords key={source} config={config} />
+    </div>
+  )
 }

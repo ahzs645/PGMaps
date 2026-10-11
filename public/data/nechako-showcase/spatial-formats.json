@@ -1,0 +1,82 @@
+[
+  {
+    "format_id": 1,
+    "name": "ESRI Shapefile",
+    "format_name": "ESRI Shapefile",
+    "format_extension": ".shp",
+    "enabled": true,
+    "format_description": "ESRI Shapefile",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 2,
+    "name": "GeoJSON",
+    "format_name": "GeoJSON",
+    "format_extension": ".geojson",
+    "enabled": true,
+    "format_description": "Geographic JavaScript Object Notation",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 3,
+    "name": "GML",
+    "format_name": "GML",
+    "format_extension": ".gml",
+    "enabled": true,
+    "format_description": "Geography Markup Language",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 4,
+    "name": "GPX",
+    "format_name": "GPX",
+    "format_extension": ".gpx",
+    "enabled": true,
+    "format_description": "GPS Exchange Format",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 5,
+    "name": "KML",
+    "format_name": "KML",
+    "format_extension": ".kml",
+    "enabled": true,
+    "format_description": "Keyhole Markup Language",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 7,
+    "name": "SQLite",
+    "format_name": "SQLite",
+    "format_extension": ".db",
+    "enabled": true,
+    "format_description": "Spatial SQLite Database",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  },
+  {
+    "format_id": 8,
+    "name": "Spatialite",
+    "format_name": "SQLite",
+    "format_extension": ".sqlite",
+    "enabled": true,
+    "format_description": "Spatialite Database",
+    "additional_import_parameters": null,
+    "additional_export_parameters": "-dsco SPATIALITE=YES"
+  },
+  {
+    "format_id": 9,
+    "name": "Geopackage",
+    "format_name": "GPKG",
+    "format_extension": ".gpkg",
+    "enabled": true,
+    "format_description": "Geopackage Database",
+    "additional_import_parameters": null,
+    "additional_export_parameters": null
+  }
+]

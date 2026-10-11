@@ -6,7 +6,15 @@ import { projectCatalogDestination } from '@/lib/projectCollections'
 /**
  * Return to the project’s catalog folder, or the catalog for ungrouped projects.
  */
-export function ProjectBackButton({ onBack, className }: { onBack: () => void; className?: string }) {
+export function ProjectBackButton({
+  onBack,
+  className,
+  label,
+}: {
+  onBack: () => void
+  className?: string
+  label?: string
+}) {
   const { projectSlug } = useParams<{ projectSlug?: string }>()
   const destination = projectCatalogDestination(projectSlug)
   return (
@@ -19,7 +27,7 @@ export function ProjectBackButton({ onBack, className }: { onBack: () => void; c
       )}
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-      {destination.label}
+      {label ?? destination.label}
     </button>
   )
 }

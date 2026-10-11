@@ -1,5 +1,26 @@
 # Check research data, projects and attachments
 
+## Bundled dev showcase
+
+Open `/dev/nechako` (or `/dev/nechako?view=showcase`) to test the committed public snapshot. Research browsing, the research map/timeline, WMS catalogue/capability inspection and the format registry use repository files by default. Research and catalogue controls also allow the live source. The existing `/dev/projects/nechako-watershed-research-portal` project still reads its original live source.
+
+`public/data/nechako-showcase/` is **app-owned showcase data**, preserved by the data-sync script's clean mode. Its 42 data files total **1,257,503 bytes**, excluding the manifest: 1,408 research records, 51 location IDs, 12 decades, 32 WMS services with 135 named layers/groups, eight public Zotero HTML attachment links, the spatial format registry, access-check evidence and derived location/workspace files. Each file has a source URL, byte count and SHA-256 in `manifest.json`.
+
+“Load research locations on map” adds 46 non-aggregate source reference points and preserves other map layers. It does not invent study footprints or map the 365 records without location tags. Repeated loading replaces that showcase layer rather than duplicating it. The separate bundled research explorer uses the existing native filters, ranked locations, popups, regional-record dialog and animated timeline; its optional scraper-owned watershed boundary is outside this snapshot.
+
+WMS imagery/identify, basemap tiles and linked articles still require their original services. The snapshot does not contain full source GIS databases, saved/private portal projects or PDF/video bodies. Attachment storage remains unknown. The showcase is reproducible public evidence and test data, not a copy of the entire portal.
+
+Refresh the snapshot explicitly (requires public source access; no login or writes):
+
+```sh
+python3 scripts/nechako-server/snapshot_showcase.py
+python3 scripts/nechako-server/check_showcase.py
+```
+
+The capture stages and validates all responses before replacing the prior snapshot. It refuses to replace a directory without the showcase manifest. Review changed counts, timestamps and source metadata before committing. The offline checker verifies file hashes/lengths, catalogue counts, research/location relationships and the workspace geometry against its source coordinates. The browser checks block external portal/research data requests at desktop and phone widths while exercising the actual bundled files.
+
+## Live read-only audit
+
 Run from the PGMaps repository. Python 3's standard library is sufficient:
 
 ```sh

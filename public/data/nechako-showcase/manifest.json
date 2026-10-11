@@ -1,0 +1,321 @@
+{
+  "schema": "nechako-showcase-v1",
+  "captured_at_utc": "2026-10-11T09:03:46.787108+00:00",
+  "attribution": "Research: UNBC IWRG / nwsviz. Map services: Nechako Stewardship Portal and DataBC. Attachment links: public Zotero group 5510344. Source ownership is retained.",
+  "counts": {
+    "research_records": 1408,
+    "location_ids": 51,
+    "mapped_locations": 46,
+    "unmapped_records": 365,
+    "decades": 12,
+    "wms_services": 32,
+    "named_layers": 135,
+    "attachment_links": 8,
+    "zotero_top_level_items": 767
+  },
+  "research_bytes": 802513,
+  "snapshot_file_bytes": 1257503,
+  "limitations": [
+    "WMS capabilities are metadata; map tiles and identify still use live services.",
+    "Attachment entries are links, not downloaded PDFs/videos.",
+    "No private submissions, saved portal projects or source GIS databases are included.",
+    "The bundled workspace is derived from research locations, not a saved portal project.",
+    "Research record IDs, Zotero keys and portal submission IDs have no verified crosswalk."
+  ],
+  "files": [
+    {
+      "path": "overview.json",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/overview.json",
+      "kind": "research",
+      "bytes": 273,
+      "sha256": "d045d3a6c71d9361a42da845d55a2f1316a5240b5e8911c796bf65fb5095bce9"
+    },
+    {
+      "path": "submissions.cleaned.json",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/submissions.cleaned.json",
+      "kind": "research",
+      "bytes": 780480,
+      "sha256": "64159a1ab45b4dfb736d301c570a744d926e5779498462125128871b1d8929ac"
+    },
+    {
+      "path": "locations.cleaned.json",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/locations.cleaned.json",
+      "kind": "research",
+      "bytes": 19686,
+      "sha256": "ec02238c2489f68ad08e34428aa2c1b3ee0b27be81ca4da0d47cf9281ab11aa0"
+    },
+    {
+      "path": "decades.cleaned.json",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/decades.cleaned.json",
+      "kind": "research",
+      "bytes": 2074,
+      "sha256": "a5f0bebd7635517b771e3fc81c50e6d462754029e8b1f8cffb35381c4c3fbabe"
+    },
+    {
+      "path": "capabilities/service-01.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fboundaries%2Fboundaries.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 9861,
+      "sha256": "608b9f1245dbbfab35ee5a2870abbd8f9422c312f59c3b03d9a956e367c3282e"
+    },
+    {
+      "path": "capabilities/service-02.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FNechako_ALR%2FNechako_ALR.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 5350,
+      "sha256": "1886224421070485cfe537209f4f3365fa4028fb3b3fe9bb83bd58831b9f5319"
+    },
+    {
+      "path": "capabilities/service-03.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fdisturbance%2Fdisturbance.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 5339,
+      "sha256": "4cf223f3b8a95d398dbfd7614b506578c5e0aeb4bf10d803ff66b72cff3db3ae"
+    },
+    {
+      "path": "capabilities/service-04.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_WATER_MANAGEMENT.GW_AQUIFERS_CLASSIFICATION_SVW/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 17823,
+      "sha256": "cb6a0b55cf82835e9d338645c690f53226ec4e9b9977d8014f6253ee8dc5f28c"
+    },
+    {
+      "path": "capabilities/service-05.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_MINERAL_TENURE.HSP_NOTICE_OF_WORK_PA_POINT_SV/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 17277,
+      "sha256": "1acd11f33f05f8d84e5035245154780b5c0551e8a607fc5227d24eafcdb62c0a"
+    },
+    {
+      "path": "capabilities/service-06.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FKoh%2FCIRC-Koh-SD91.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7426,
+      "sha256": "081a38d9d7279a67b9b91b3963c4eb6f8b25b0454f1911619e817b4bfc9694da"
+    },
+    {
+      "path": "capabilities/service-07.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FBC_Canvec%2FBC_Canvec.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 8174,
+      "sha256": "f4707b4094c16378dbb8fcafb6878901966d00a130946ce3473f50c16e6a8ccd"
+    },
+    {
+      "path": "capabilities/service-08.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fcensus_subdivision%2Fcensus_subdivision_history.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 22089,
+      "sha256": "31ef4034d36438d80559a08f6a57de97dd72d55bec0da1eb23f47b87639f4ec3"
+    },
+    {
+      "path": "capabilities/service-09.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FCheslatta_Carrier_Nation_Archives%2FCheslatta_Carrier_Nation_Archives.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 6935,
+      "sha256": "37afbcde07b125ef43580e6fb66ade10aff743aca1224cefdabf4c75d763995d"
+    },
+    {
+      "path": "capabilities/service-10.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 8685,
+      "sha256": "768aa823ab91c641f7151ddb0997112f4961470d879cc41df668175fd79b016f"
+    },
+    {
+      "path": "capabilities/service-11.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_CONSOLIDATED_CUT_BLOCKS_SP/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 16712,
+      "sha256": "82925a7b9500e97a866866b5f2497ba32bcc04aa43f8bf1faef6cd7455d37cab"
+    },
+    {
+      "path": "capabilities/service-12.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 18612,
+      "sha256": "ecd6135be890192b54c4bfc2a4625b795542c97d911285c718f96a046be51ee5"
+    },
+    {
+      "path": "capabilities/service-13.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_WATER_MANAGEMENT.WRIS_DAMS_PUBLIC_SVW/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 16502,
+      "sha256": "f0b50e79f76684f29538b17a95b03d937687e68a6edf2e7f0d2f891cf580fde1"
+    },
+    {
+      "path": "capabilities/service-14.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fdrinking_water_sources%2Fdrinking_water_sources.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 8000,
+      "sha256": "c13e6d37ee6c834b6a57d383441641e8bdb3490bf61dc5de6639baa15e295a4c"
+    },
+    {
+      "path": "capabilities/service-15.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fdrought%2Fdrought.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 6057,
+      "sha256": "dbb300036b8aff0efe826ee78679f2e93a88f24cfadbc384106d4d9febd29170"
+    },
+    {
+      "path": "capabilities/service-16.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 34871,
+      "sha256": "943827afd5b0097835235cfe1d01b11678acd5ab45806ad94a81778f28e4c954"
+    },
+    {
+      "path": "capabilities/service-17.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 16733,
+      "sha256": "f95bfa5cb168c67a9bb15bb68bf757354f9fac0aff088378c95f6d60a1c306aa"
+    },
+    {
+      "path": "capabilities/service-18.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fpicketts_2016%2Fpicketts_dery_parkes-2016.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 5593,
+      "sha256": "0bfb652070c0f80edc8438e2b11bf32721a6abbcc02f78e74193d67fa8d2a867"
+    },
+    {
+      "path": "capabilities/service-19.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fgroundwater%2Fgroundwater.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7551,
+      "sha256": "982a8aeebf3a73d7cd6cb8f94dd6f5c192184df4cd9bd01dadb8006512db6504"
+    },
+    {
+      "path": "capabilities/service-20.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fnorthern_health%2Fnorthern_health.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 17232,
+      "sha256": "33d2cb04f4e19687bced734e7f8289e57347fa920b454773f80a75e9ebf606e0"
+    },
+    {
+      "path": "capabilities/service-21.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FIWRG%2Fiwrg_sites.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7727,
+      "sha256": "b99f0483d70b2b53d6d498776da226bf50f928fe5e4b8a656ca008f9536aaa6b"
+    },
+    {
+      "path": "capabilities/service-22.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fnatural_resource_regions.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7555,
+      "sha256": "217ea8c95d4163cb998cc070fb8024dc64dbe84eb070c91024c7c5c0c6a16a5c"
+    },
+    {
+      "path": "capabilities/service-23.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FNatRes_RegionsDistricts%2FNatRes_Boundaries.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 9186,
+      "sha256": "62527c08ed45e3fa1806c8220841e5259b3fe641614eb5010d43600b7716e3d3"
+    },
+    {
+      "path": "capabilities/service-24.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.OGSR_TAP_PRIORITY_DEF_AREA_SP/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 18018,
+      "sha256": "66be8181cc626b29c367ed6d5223e8ad110a463d93b0c1a436131595fe730429"
+    },
+    {
+      "path": "capabilities/service-25.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FRD.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7331,
+      "sha256": "2dbd70219ee2e2105e0fb0cca5b455c860d9c0a0198779ee451004026596e7f9"
+    },
+    {
+      "path": "capabilities/service-26.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FSD.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 7328,
+      "sha256": "ad86cde9f74c9d0120726f81c201db6276b83895c85968f4e556138d90dba073"
+    },
+    {
+      "path": "capabilities/service-27.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fstellako_fish%2FStellaten_fisheries.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 8729,
+      "sha256": "f5dacae1ede2ce85d975ff662dfe65335c544b2035ac01cb5ccc6d75978faac0"
+    },
+    {
+      "path": "capabilities/service-28.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 13513,
+      "sha256": "92cdcec64033c685feebb0d1bc5c2a7673b90761abd16c0d9dc3b4f6573810eb"
+    },
+    {
+      "path": "capabilities/service-29.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2FWaterMetStations%2FWater_Met_Stations.qgz&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 5301,
+      "sha256": "a0ef5cb835ba6c284974c779936a256055eca1e3ea7115affbecfd2a565e4de7"
+    },
+    {
+      "path": "capabilities/service-30.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fwaterbodies%2Fwaterbodies.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 20394,
+      "sha256": "444452794ee60f4143c89db5454fc17273c6318f442a16bcc19ee3c6fe218cb6"
+    },
+    {
+      "path": "capabilities/service-31.xml",
+      "source_url": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?map=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 5292,
+      "sha256": "fc408cbc05d6fa381308451e4a02c2540b460e0bfc212ea7184fba92acd51d5d"
+    },
+    {
+      "path": "capabilities/service-32.xml",
+      "source_url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/ows?service=WMS&request=GetCapabilities&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+      "kind": "wms_capabilities",
+      "bytes": 16558,
+      "sha256": "b59aae03693e768042d613510893a73548d6858beec1846fac7ce0d7f63b3f28"
+    },
+    {
+      "path": "services.json",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/getBaseLayers.php",
+      "kind": "wms_catalogue",
+      "bytes": 14412,
+      "sha256": "9762e5361958d289560af0e389412acea63917d17fdc098c7684221968887409"
+    },
+    {
+      "path": "spatial-formats.json",
+      "source_url": "https://nechakowatershed-portal.ca/rest/portal/getSpatialFormats.php",
+      "kind": "format_registry",
+      "bytes": 2181,
+      "sha256": "094bd7656dab8d3a465ff696659a205bee42fe95f865347b2d80274c2ef1fd2c"
+    },
+    {
+      "path": "attachments.json",
+      "source_url": "https://api.zotero.org/groups/5510344/items?itemType=attachment",
+      "kind": "attachment_links",
+      "bytes": 2609,
+      "sha256": "0f7a23c3ee0353cd11e1c21c238487660d9d894af119a3f4060e3a7207e863b2"
+    },
+    {
+      "path": "access-checks.json",
+      "source_url": "https://nechakowatershed-portal.ca/",
+      "kind": "access_checks",
+      "bytes": 887,
+      "sha256": "d392f992218554edbb7bb1699ce12b1272a0d7947aad48346f414cd9f9752263"
+    },
+    {
+      "path": "research-locations.geojson",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/locations.cleaned.json",
+      "kind": "derived_locations",
+      "bytes": 22377,
+      "sha256": "879ca594830d4997d0242e3c4c6d20b14f496d67902523e586ddac5bd9fe0289"
+    },
+    {
+      "path": "research-workspace.json",
+      "source_url": "https://projects.ahmadjalil.com/nwsviz/data/locations.cleaned.json",
+      "kind": "showcase_workspace",
+      "bytes": 28770,
+      "sha256": "99c6ce61474a80740c85730331a9104504cab56f7da1e1d4cfd0874f81443b6e"
+    }
+  ]
+}

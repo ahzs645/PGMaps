@@ -116,6 +116,12 @@ skill reference, tests, and a working package example together.
 
 ## Data ownership and adapter contract
 
+Embedded dev workspaces can pass an optional `backLabel` to `ProjectMapExplorer`
+to identify their actual return destination. Package routes retain the default
+catalog/folder label. The Nechako dev showcase reuses the normalized research
+configuration with a root-relative repository data override; this does not
+change the package parser's HTTPS source contract or the original live project.
+
 `baseUrl` must be HTTPS. PGMaps fetches the configured files at runtime; it does
 not copy them into this repository.
 

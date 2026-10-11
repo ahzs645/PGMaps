@@ -7,8 +7,10 @@ import { geographicArea, type VectorData } from './data/workspace'
 import { PortalSubmission } from './PortalSubmission'
 import { downloadText } from '@/lib/download'
 import { csvExport } from './data/monitoring'
+import { fetchJson } from '@/lib/fetchJson'
+import { SHOWCASE_BASE, type CatalogueSource } from './data/showcase'
 
-export function useReadCheck() {
+export function useReadCheck(read = portalRead) {
   const [state, setState] = useState<{ loading: boolean; data?: unknown; error?: string }>({ loading: false })
   const request = useRef<AbortController>()
   useEffect(
@@ -19,25 +21,28 @@ export function useReadCheck() {
     },
     [],
   )
-  const run = useCallback(async (path: string, params?: Record<string, string>) => {
-    request.current?.abort()
-    const controller = new AbortController()
-    request.current = controller
-    setState({ loading: true })
-    const timeout = setTimeout(() => controller.abort(), 60000)
-    try {
-      const data = await portalRead(path, params, controller.signal)
-      if (request.current === controller && !controller.signal.aborted) setState({ loading: false, data })
-    } catch (error) {
-      if (request.current === controller)
-        setState({
-          loading: false,
-          error: controller.signal.aborted ? 'The request timed out or was cancelled.' : errorText(error),
-        })
-    } finally {
-      clearTimeout(timeout)
-    }
-  }, [])
+  const run = useCallback(
+    async (path: string, params?: Record<string, string>) => {
+      request.current?.abort()
+      const controller = new AbortController()
+      request.current = controller
+      setState({ loading: true })
+      const timeout = setTimeout(() => controller.abort(), 60000)
+      try {
+        const data = await read(path, params, controller.signal)
+        if (request.current === controller && !controller.signal.aborted) setState({ loading: false, data })
+      } catch (error) {
+        if (request.current === controller)
+          setState({
+            loading: false,
+            error: controller.signal.aborted ? 'The request timed out or was cancelled.' : errorText(error),
+          })
+      } finally {
+        clearTimeout(timeout)
+      }
+    },
+    [read],
+  )
   return { ...state, run }
 }
 
@@ -75,17 +80,29 @@ export function JsonResults({ data }: { data: unknown }) {
   )
 }
 
-export function CheckState({ loading, error, data }: { loading: boolean; error?: string; data?: unknown }) {
+export function CheckState({
+  loading,
+  error,
+  data,
+  local = false,
+}: {
+  loading: boolean
+  error?: string
+  data?: unknown
+  local?: boolean
+}) {
   return (
     <div className="space-y-3" aria-live="polite">
-      {loading && <InlineAlert loading>Requesting the live portal…</InlineAlert>}
+      {loading && <InlineAlert loading>{local ? 'Loading bundled data…' : 'Requesting the live portal…'}</InlineAlert>}
       {error && (
-        <InlineAlert tone="error" title="Portal request failed">
+        <InlineAlert tone="error" title={local ? 'Bundled data unavailable' : 'Portal request failed'}>
           {error}
-          <p className="mt-2">
-            A registration error needs investigation in the portal configuration. A browser “Failed to fetch” can also
-            indicate CORS or a network failure.
-          </p>
+          {!local && (
+            <p className="mt-2">
+              A registration error needs investigation in the portal configuration. A browser “Failed to fetch” can also
+              indicate CORS or a network failure.
+            </p>
+          )}
         </InlineAlert>
       )}
       {data !== undefined && <JsonResults data={data} />}
@@ -456,23 +473,41 @@ function SubmissionResults({ data, onSelect }: { data: unknown; onSelect: (id: s
   )
 }
 
-export function PortalFormats() {
-  const check = useReadCheck()
+const readSnapshotJson: typeof portalRead = (path, _params, signal) => fetchJson(path, signal)
+
+export function PortalFormats({ defaultSource = 'live' }: { defaultSource?: CatalogueSource }) {
+  const [source, setSource] = useState(defaultSource)
+  const path = source === 'snapshot' ? `${SHOWCASE_BASE}spatial-formats.json` : 'rest/portal/getSpatialFormats.php'
+  const check = useReadCheck(source === 'snapshot' ? readSnapshotJson : portalRead)
   const run = check.run
   useEffect(() => {
-    void run('rest/portal/getSpatialFormats.php')
-  }, [run])
+    void run(path)
+  }, [run, path])
   return (
     <div className="max-w-4xl space-y-4">
-      <h2 className="text-xl font-semibold">Live spatial format registry</h2>
+      <h2 className="text-xl font-semibold">
+        {source === 'snapshot' ? 'Bundled spatial format registry' : 'Live spatial format registry'}
+      </h2>
+      <label className="block text-sm font-medium">
+        Format registry source
+        <select
+          aria-label="Format registry source"
+          className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
+          value={source}
+          onChange={(event) => setSource(event.target.value as CatalogueSource)}
+        >
+          <option value="snapshot">Repository snapshot</option>
+          <option value="live">Live portal registry</option>
+        </select>
+      </label>
       <p className="text-sm text-muted-foreground">
         These formats are advertised by the portal. Listing a format does not verify import/export round trips or make
         it a supported PGMaps file upload.
       </p>
-      <Button variant="outline" disabled={check.loading} onClick={() => void run('rest/portal/getSpatialFormats.php')}>
+      <Button variant="outline" disabled={check.loading} onClick={() => void run(path)}>
         Refresh formats
       </Button>
-      <CheckState {...check} />
+      <CheckState {...check} local={source === 'snapshot'} />
       <p className="text-sm text-muted-foreground">
         The submission chooser additionally lists KMZ. Documents, images, audio/video, monitoring CSV, Zotero CSV and
         GeoPaparazzi archives have separate workflows. See the comparison for conversion and viewer gaps.

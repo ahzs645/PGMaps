@@ -5,17 +5,31 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { PortalLayers } from '@/maps/nechako/PortalLayers'
 import { PortalFormats, PortalProjects, PortalSearch } from '@/maps/nechako/PortalChecks'
-import { PortalResearch } from '@/maps/nechako/PortalResearch'
+import { PortalResearch, PortalResearchMap } from '@/maps/nechako/PortalResearch'
 import { FEATURE_COMPARISON, FORMAT_COMPARISON } from '@/maps/nechako/comparison'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
 import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { EMPTY_WORKSPACE, type Workspace } from '@/maps/nechako/data/workspace'
+import { PortalShowcase } from '@/maps/nechako/PortalShowcase'
+import type { CatalogueSource } from '@/maps/nechako/data/showcase'
 
-type View = 'layers' | 'search' | 'research' | 'projects' | 'formats' | 'compare' | 'files' | 'monitoring'
+type View =
+  | 'showcase'
+  | 'layers'
+  | 'search'
+  | 'research'
+  | 'research-map'
+  | 'projects'
+  | 'formats'
+  | 'compare'
+  | 'files'
+  | 'monitoring'
 const VIEWS: readonly TabOption<View>[] = [
+  { value: 'showcase', label: 'Showcase' },
   { value: 'layers', label: 'Layers' },
   { value: 'search', label: 'Search' },
   { value: 'research', label: 'Research' },
+  { value: 'research-map', label: 'Research map' },
   { value: 'projects', label: 'Projects' },
   { value: 'monitoring', label: 'Monitoring' },
   { value: 'files', label: 'Files & imports' },
@@ -127,10 +141,19 @@ function Comparison() {
 
 export default function DevNechako() {
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
+  const [workspaceRevision, setWorkspaceRevision] = useState(0)
   const [mapBounds, setMapBounds] = useState<[number, number, number, number]>()
   const [params, setParams] = useSearchParams()
   const requested = params.get('view')
-  const view: View = VIEWS.some((item) => item.value === requested) ? (requested as View) : 'layers'
+  const view: View = VIEWS.some((item) => item.value === requested) ? (requested as View) : 'showcase'
+  const catalogueSource: CatalogueSource = params.get('source') === 'live' ? 'live' : 'snapshot'
+  const showView = (value: View) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('view', value)
+      next.set('source', 'snapshot')
+      return next
+    })
   return (
     <div className="container mx-auto space-y-6 px-4 pb-10 pt-24 sm:px-6 md:pt-10">
       <div className="space-y-3">
@@ -170,7 +193,33 @@ export default function DevNechako() {
         aria-labelledby="nechako-tab-layers"
         hidden={view !== 'layers'}
       >
-        <PortalLayers workspace={workspace} setWorkspace={setWorkspace} onBounds={setMapBounds} />
+        <div className="mb-4">
+          <label className="text-sm font-medium">
+            Map catalogue source
+            <select
+              aria-label="Map catalogue source"
+              value={catalogueSource}
+              className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
+              onChange={(event) =>
+                setParams((current) => {
+                  const next = new URLSearchParams(current)
+                  next.set('source', event.target.value)
+                  return next
+                })
+              }
+            >
+              <option value="snapshot">Repository snapshot</option>
+              <option value="live">Live portal catalogue</option>
+            </select>
+          </label>
+        </div>
+        <PortalLayers
+          key={workspaceRevision + catalogueSource}
+          workspace={workspace}
+          setWorkspace={setWorkspace}
+          onBounds={setMapBounds}
+          catalogueSource={catalogueSource}
+        />
       </section>
       <section
         role="tabpanel"
@@ -194,10 +243,36 @@ export default function DevNechako() {
       </section>
       {view !== 'layers' && view !== 'monitoring' && view !== 'files' && (
         <section role="tabpanel" id={`nechako-panel-${view}`} aria-labelledby={`nechako-tab-${view}`}>
+          {view === 'showcase' && (
+            <PortalShowcase
+              onView={(value) => {
+                setParams((current) => {
+                  const next = new URLSearchParams(current)
+                  next.set('view', value)
+                  next.set('source', 'snapshot')
+                  return next
+                })
+              }}
+              onWorkspace={(imported) => {
+                setWorkspace((current) => ({
+                  ...current,
+                  camera: imported.camera,
+                  vectors: [
+                    ...current.vectors.filter((vector) => !imported.vectors.some((item) => item.id === vector.id)),
+                    ...imported.vectors,
+                  ],
+                  warnings: [...new Set([...current.warnings, ...imported.warnings])],
+                }))
+                setWorkspaceRevision((value) => value + 1)
+                showView('layers')
+              }}
+            />
+          )}
           {view === 'search' && <PortalSearch mapBounds={mapBounds} vectors={workspace.vectors} />}
-          {view === 'research' && <PortalResearch />}
+          {view === 'research' && <PortalResearch onMap={() => showView('research-map')} />}
+          {view === 'research-map' && <PortalResearchMap onBack={() => showView('showcase')} />}
           {view === 'projects' && <PortalProjects />}
-          {view === 'formats' && <PortalFormats />}
+          {view === 'formats' && <PortalFormats defaultSource={catalogueSource} />}
           {view === 'compare' && <Comparison />}
         </section>
       )}

@@ -8,6 +8,7 @@ import { MapScaleBar } from '@/components/ui/map-controls'
 import { downloadText } from '@/lib/download'
 import { PortalVectors, VectorLayers } from './PortalVectors'
 import { importWorkspace, type ActiveWms, type Workspace } from './data/workspace'
+import { loadSnapshotCapabilities, loadSnapshotSources, type CatalogueSource } from './data/showcase'
 import {
   errorText,
   isWmsSource,
@@ -145,10 +146,12 @@ export function PortalLayers({
   workspace,
   setWorkspace,
   onBounds,
+  catalogueSource = 'live',
 }: {
   workspace: Workspace
   setWorkspace: React.Dispatch<React.SetStateAction<Workspace>>
   onBounds: (bounds: [number, number, number, number]) => void
+  catalogueSource?: CatalogueSource
 }) {
   const [sources, setSources] = useState<PortalSource[]>([])
   const [sourceUrl, setSourceUrl] = useState('')
@@ -200,7 +203,8 @@ export function PortalLayers({
     const controller = new AbortController()
     let cancelled = false
     const timeout = setTimeout(() => controller.abort(), 30000)
-    loadPortalSources(controller.signal)
+    const loadSources = catalogueSource === 'snapshot' ? loadSnapshotSources : loadPortalSources
+    loadSources(controller.signal)
       .then((items) => {
         if (controller.signal.aborted) return
         setSources(items)
@@ -227,14 +231,15 @@ export function PortalLayers({
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [retry])
+  }, [retry, catalogueSource])
 
   useEffect(() => {
     if (!source || !isWmsSource(source)) return
     const controller = new AbortController()
     let cancelled = false
     const timeout = setTimeout(() => controller.abort(), 30000)
-    loadWmsCapabilities(source, controller.signal)
+    const loadCapabilities = catalogueSource === 'snapshot' ? loadSnapshotCapabilities : loadWmsCapabilities
+    loadCapabilities(source, controller.signal)
       .then((value) => {
         if (controller.signal.aborted) return
         setCaps(value)
@@ -254,7 +259,7 @@ export function PortalLayers({
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [source, retry])
+  }, [source, retry, catalogueSource])
 
   const tiles = useMemo(
     () => active.map((item) => ({ ...item, tiles: [wmsTiles(item.source.resource, item.layer.name, item.style)] })),
@@ -277,11 +282,19 @@ export function PortalLayers({
   return (
     <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Live portal layers</h2>
+        <h2 className="text-xl font-semibold">
+          {catalogueSource === 'snapshot' ? 'Bundled portal catalogue' : 'Live portal layers'}
+        </h2>
         <p className="text-sm text-muted-foreground">
           Choose a service, then add its named layers to the map. Groups use the portal’s original symbology.
+          {catalogueSource === 'snapshot' &&
+            ' Service definitions load from the repository; map imagery and identify still use the live services.'}
         </p>
-        {loading && !catalogueError && <InlineAlert loading>Loading the live catalogue…</InlineAlert>}
+        {loading && !catalogueError && (
+          <InlineAlert loading>
+            Loading the {catalogueSource === 'snapshot' ? 'bundled' : 'live'} catalogue…
+          </InlineAlert>
+        )}
         {catalogueError && (
           <InlineAlert tone="error" title="Catalogue unavailable">
             {catalogueError}

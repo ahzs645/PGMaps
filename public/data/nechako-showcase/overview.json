@@ -1,0 +1,13 @@
+{
+  "submissionsTotal": 1408,
+  "linkedRowsTotal": 1220,
+  "linkedUniquePairs": 1220,
+  "submissionsWithLocations": 1043,
+  "submissionsWithoutLocations": 365,
+  "locationsTotal": 51,
+  "locationsWithCoordinates": 51,
+  "yearRange": {
+    "min": 1918,
+    "max": 2024
+  }
+}

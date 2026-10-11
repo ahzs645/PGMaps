@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "https://openmaps.gov.bc.ca/geo/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd">
+<WMT_MS_Capabilities version="1.1.1" updateSequence="2188590">
+  <Service>
+    <Name>OGC:WMS</Name>
+    <Title>DataBC Public Web Map Service</Title>
+    <Abstract>A compliant implementation of WMS plus most of the SLD extension (dynamic styling). Can also generate PDF, SVG, KML, GeoRSS</Abstract>
+    <KeywordList>
+      <Keyword>WFS</Keyword>
+      <Keyword>WMS</Keyword>
+      <Keyword>GEOSERVER</Keyword>
+    </KeywordList>
+    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/ows"/>
+    <ContactInformation>
+      <ContactPersonPrimary>
+        <ContactPerson>DataBC</ContactPerson>
+        <ContactOrganization>DataBC</ContactOrganization>
+      </ContactPersonPrimary>
+      <ContactPosition/>
+      <ContactAddress>
+        <AddressType/>
+        <Address/>
+        <City>Victoria</City>
+        <StateOrProvince/>
+        <PostCode/>
+        <Country>Canada</Country>
+      </ContactAddress>
+      <ContactVoiceTelephone/>
+      <ContactFacsimileTelephone/>
+      <ContactElectronicMailAddress>datamaps@gov.bc.ca</ContactElectronicMailAddress>
+    </ContactInformation>
+    <Fees>NONE</Fees>
+    <AccessConstraints>NONE</AccessConstraints>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>application/vnd.ogc.wms_xml</Format>
+        <Format>text/xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+            <Post>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Post>
+          </HTTP>
+        </DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <Format>application/atom xml</Format>
+        <Format>application/atom+xml</Format>
+        <Format>application/json;type=geojson</Format>
+        <Format>application/json;type=topojson</Format>
+        <Format>application/json;type=utfgrid</Format>
+        <Format>application/openlayers</Format>
+        <Format>application/openlayers2</Format>
+        <Format>application/openlayers3</Format>
+        <Format>application/pdf</Format>
+        <Format>application/rss xml</Format>
+        <Format>application/rss+xml</Format>
+        <Format>application/vnd.google-earth.kml</Format>
+        <Format>application/vnd.google-earth.kml xml</Format>
+        <Format>application/vnd.google-earth.kml+xml</Format>
+        <Format>application/vnd.google-earth.kml+xml;mode=networklink</Format>
+        <Format>application/vnd.google-earth.kmz</Format>
+        <Format>application/vnd.google-earth.kmz xml</Format>
+        <Format>application/vnd.google-earth.kmz+xml</Format>
+        <Format>application/vnd.google-earth.kmz;mode=networklink</Format>
+        <Format>application/vnd.mapbox-vector-tile</Format>
+        <Format>application/x-protobuf;type=mapbox-vector</Format>
+        <Format>atom</Format>
+        <Format>geojson</Format>
+        <Format>image/geotiff</Format>
+        <Format>image/geotiff8</Format>
+        <Format>image/gif</Format>
+        <Format>image/gif;subtype=animated</Format>
+        <Format>image/jpeg</Format>
+        <Format>image/png8</Format>
+        <Format>image/png; mode=8bit</Format>
+        <Format>image/svg</Format>
+        <Format>image/svg xml</Format>
+        <Format>image/svg+xml</Format>
+        <Format>image/tiff</Format>
+        <Format>image/tiff8</Format>
+        <Format>image/vnd.jpeg-png</Format>
+        <Format>image/vnd.jpeg-png8</Format>
+        <Format>kml</Format>
+        <Format>kmz</Format>
+        <Format>openlayers</Format>
+        <Format>pbf</Format>
+        <Format>rss</Format>
+        <Format>text/html; subtype=openlayers</Format>
+        <Format>text/html; subtype=openlayers2</Format>
+        <Format>text/html; subtype=openlayers3</Format>
+        <Format>topojson</Format>
+        <Format>utfgrid</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetMap>
+      <GetFeatureInfo>
+        <Format>text/plain</Format>
+        <Format>application/vnd.ogc.gml</Format>
+        <Format>text/xml</Format>
+        <Format>application/vnd.ogc.gml/3.1.1</Format>
+        <Format>text/xml; subtype=gml/3.1.1</Format>
+        <Format>text/html</Format>
+        <Format>text/javascript</Format>
+        <Format>application/json</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+            <Post>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Post>
+          </HTTP>
+        </DCPType>
+      </GetFeatureInfo>
+      <DescribeLayer>
+        <Format>application/vnd.ogc.wms_xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </DescribeLayer>
+      <GetLegendGraphic>
+        <Format>image/png</Format>
+        <Format>image/jpeg</Format>
+        <Format>application/json</Format>
+        <Format>image/gif</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetLegendGraphic>
+      <GetStyles>
+        <Format>application/vnd.ogc.sld+xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetStyles>
+    </Request>
+    <Exception>
+      <Format>application/vnd.ogc.se_xml</Format>
+      <Format>application/vnd.ogc.se_inimage</Format>
+      <Format>application/vnd.ogc.se_blank</Format>
+      <Format>application/json</Format>
+      <Format>text/javascript</Format>
+    </Exception>
+    <UserDefinedSymbolization SupportSLD="1" UserLayer="1" UserStyle="1" RemoteWFS="1"/>
+    <Layer>
+      <Title>DataBC Public Web Map Service</Title>
+      <Abstract>A compliant implementation of WMS plus most of the SLD extension (dynamic styling). Can also generate PDF, SVG, KML, GeoRSS</Abstract>
+      <!--Limited list of EPSG projections:-->
+      <SRS>EPSG:4326</SRS>
+      <SRS>EPSG:3005</SRS>
+      <SRS>EPSG:3857</SRS>
+      <SRS>EPSG:26907</SRS>
+      <SRS>EPSG:26707</SRS>
+      <SRS>EPSG:32607</SRS>
+      <SRS>EPSG:42102</SRS>
+      <SRS>EPSG:4269</SRS>
+      <SRS>EPSG:26708</SRS>
+      <SRS>EPSG:26709</SRS>
+      <SRS>EPSG:26710</SRS>
+      <SRS>EPSG:26711</SRS>
+      <SRS>EPSG:26712</SRS>
+      <SRS>EPSG:26908</SRS>
+      <SRS>EPSG:26909</SRS>
+      <SRS>EPSG:26910</SRS>
+      <SRS>EPSG:26911</SRS>
+      <SRS>EPSG:26912</SRS>
+      <SRS>EPSG:32608</SRS>
+      <SRS>EPSG:32609</SRS>
+      <SRS>EPSG:32610</SRS>
+      <SRS>EPSG:32611</SRS>
+      <SRS>EPSG:32612</SRS>
+      <SRS>EPSG:54004</SRS>
+      <LatLonBoundingBox minx="-139.1782824917356" miny="47.60393449638617" maxx="-110.35337939457779" maxy="60.593907018763396"/>
+      <BoundingBox SRS="EPSG:4326" minx="-139.1782824917356" miny="47.60393449638617" maxx="-110.35337939457779" maxy="60.593907018763396"/>
+      <BoundingBox SRS="EPSG:3005" minx="11383.895358992158" miny="288569.24849725416" maxx="2171005.4379849234" maxy="1829233.988903584"/>
+      <BoundingBox SRS="EPSG:3857" minx="-1.5493255536462387E7" miny="6041214.772851668" maxx="-1.2284482001521327E7" maxy="8533168.554633766"/>
+      <BoundingBox SRS="EPSG:26907" minx="599775.7393594234" miny="5273888.537728652" maxx="2788489.950336626" maxy="7112253.903001574"/>
+      <BoundingBox SRS="EPSG:26707" minx="599880.5514068878" miny="5273724.405150106" maxx="2788598.5669275266" maxy="7112091.988236083"/>
+      <BoundingBox SRS="EPSG:32607" minx="599775.7393581767" miny="5273888.537850421" maxx="2788489.950315626" maxy="7112253.903119246"/>
+      <BoundingBox SRS="EPSG:42102" minx="11383.895358992158" miny="288569.24849725416" maxx="2171005.4379849234" maxy="1829233.988903584"/>
+      <BoundingBox SRS="EPSG:4269" minx="-139.1782824917356" miny="47.60393449638617" maxx="-110.35337939457779" maxy="60.593907018763396"/>
+      <BoundingBox SRS="EPSG:26708" minx="186058.4329559239" miny="5272298.158615089" maxx="2345814.82787159" maxy="6971932.67744094"/>
+      <BoundingBox SRS="EPSG:26709" minx="-264584.9861763957" miny="5272258.2901380705" maxx="1899017.3229993943" maxy="6862706.7830883"/>
+      <BoundingBox SRS="EPSG:26710" minx="-714311.8981672854" miny="5273604.8499967605" maxx="1449901.1891012215" maxy="6826675.961084771"/>
+      <BoundingBox SRS="EPSG:26711" minx="-1162226.0739194953" miny="5272239.518218862" maxx="999548.0923776666" maxy="6923255.732329645"/>
+      <BoundingBox SRS="EPSG:26712" minx="-1606914.5520492252" miny="5272284.818792298" maxx="548650.0134798154" maxy="7050636.685441296"/>
+      <BoundingBox SRS="EPSG:26908" minx="185965.89168269956" miny="5272470.466114858" maxx="2345718.0745003545" maxy="6972104.819387437"/>
+      <BoundingBox SRS="EPSG:26909" minx="-264667.37648294796" miny="5272438.091077717" maxx="1898932.8214939872" maxy="6862887.853734355"/>
+      <BoundingBox SRS="EPSG:26910" minx="-714384.0291015573" miny="5273791.388076158" maxx="1449829.1106270335" maxy="6826860.885456422"/>
+      <BoundingBox SRS="EPSG:26911" minx="-1162287.826608666" miny="5272432.413194" maxx="999488.4981962985" maxy="6923447.153876573"/>
+      <BoundingBox SRS="EPSG:26912" minx="-1606965.8158040103" miny="5272483.258577376" maxx="548602.9317818295" maxy="7050833.755418729"/>
+      <BoundingBox SRS="EPSG:32608" minx="185965.8916855171" miny="5272470.466236639" maxx="2345718.0744835055" maxy="6972104.819506931"/>
+      <BoundingBox SRS="EPSG:32609" minx="-264667.3764760655" miny="5272438.091199498" maxx="1898932.8214812973" maxy="6862887.853855253"/>
+      <BoundingBox SRS="EPSG:32610" minx="-714384.0290905696" miny="5273791.388197928" maxx="1449829.110618468" maxy="6826860.885577778"/>
+      <BoundingBox SRS="EPSG:32611" minx="-1162287.82659353" miny="5272432.41331578" maxx="999488.4981918125" maxy="6923447.153996695"/>
+      <BoundingBox SRS="EPSG:32612" minx="-1606965.8157847123" miny="5272483.258699156" maxx="548602.9317813937" maxy="7050833.755537202"/>
+      <BoundingBox SRS="EPSG:54004" minx="-1.5493255536462387E7" miny="6041214.772851668" maxx="-1.2284482001521327E7" maxy="8533168.554633766"/>
+      <Layer queryable="1" opaque="0">
+        <Name>pub:WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW</Name>
+        <Title>TANTALIS - Wildlife Management Areas</Title>
+        <Abstract/>
+        <KeywordList>
+          <Keyword>features</Keyword>
+          <Keyword>TA_WILDLIFE_MGMT_AREAS_SVW</Keyword>
+        </KeywordList>
+        <SRS>EPSG:3005</SRS>
+        <LatLonBoundingBox minx="-139.1782824917356" miny="47.60393449638617" maxx="-110.35337939457779" maxy="60.593907018763396"/>
+        <BoundingBox SRS="EPSG:3005" minx="273875.663" miny="362346.895" maxx="1870571.76" maxy="1735670.856"/>
+        <BoundingBox SRS="EPSG:4326" minx="-139.0522011144567" miny="47.632141442571694" maxx="-110.42769916022715" maxy="60.5985243564883"/>
+        <BoundingBox SRS="EPSG:3857" minx="-1.5479220221745186E7" miny="6045873.0184186315" maxx="-1.229275523998929E7" maxy="8534215.479697939"/>
+        <BoundingBox SRS="EPSG:26907" minx="608633.1155209602" miny="5310743.68736684" maxx="2489004.922568892" maxy="7022746.286274036"/>
+        <BoundingBox SRS="EPSG:26707" minx="608737.826737501" miny="5310579.341685906" maxx="2489112.9609170603" maxy="7022584.255365305"/>
+        <BoundingBox SRS="EPSG:32607" minx="608633.1155196188" miny="5310743.687488647" maxx="2489004.922550685" maxy="7022746.286392103"/>
+        <BoundingBox SRS="EPSG:42102" minx="273875.663" miny="362346.895" maxx="1870571.76" maxy="1735670.856"/>
+        <BoundingBox SRS="EPSG:4269" minx="-139.0522011144567" miny="47.632141442571694" maxx="-110.42769916022715" maxy="60.5985243564883"/>
+        <BoundingBox SRS="EPSG:26708" minx="274167.66390435566" miny="5297186.859784028" maxx="2043675.1561838842" maxy="6879932.60272478"/>
+        <BoundingBox SRS="EPSG:26709" minx="-59153.859382476774" miny="5318706.578076724" maxx="1595431.734925385" maxy="6768971.125318979"/>
+        <BoundingBox SRS="EPSG:26710" minx="-449523.47189385816" miny="5311137.585449591" maxx="1204021.1665862529" maxy="6760195.781351968"/>
+        <BoundingBox SRS="EPSG:26711" minx="-896573.157092022" miny="5278488.3010683535" maxx="869134.4143169211" maxy="6857409.911460594"/>
+        <BoundingBox SRS="EPSG:26712" minx="-1341182.228377958" miny="5280832.009678405" maxx="532223.2393010119" maxy="6985918.286202747"/>
+        <BoundingBox SRS="EPSG:26908" minx="274072.1447494604" miny="5297358.943724438" maxx="2043578.8945985697" maxy="6880104.842861226"/>
+        <BoundingBox SRS="EPSG:26909" minx="-59239.671226500766" miny="5318885.369223795" maxx="1595347.5271617183" maxy="6769152.252250057"/>
+        <BoundingBox SRS="EPSG:26910" minx="-449595.5893819964" miny="5311325.806992711" maxx="1203946.0758007073" maxy="6760380.662877047"/>
+        <BoundingBox SRS="EPSG:26911" minx="-896634.5955650182" miny="5278681.783425622" maxx="869071.2893419269" maxy="6857601.223297737"/>
+        <BoundingBox SRS="EPSG:26912" minx="-1341232.8609729207" miny="5281029.640646346" maxx="532172.4227683961" maxy="6986115.184984054"/>
+        <BoundingBox SRS="EPSG:32608" minx="274072.1447522502" miny="5297358.943846367" maxx="2043578.8945845265" maxy="6880104.842981126"/>
+        <BoundingBox SRS="EPSG:32609" minx="-59239.67121959035" miny="5318885.369345528" maxx="1595347.5271518142" maxy="6769152.2523713615"/>
+        <BoundingBox SRS="EPSG:32610" minx="-449595.58937337226" miny="5311325.807114186" maxx="1203946.075792051" maxy="6760380.662998707"/>
+        <BoundingBox SRS="EPSG:32611" minx="-896634.5955522622" miny="5278681.783547394" maxx="869071.2893373925" maxy="6857601.223418166"/>
+        <BoundingBox SRS="EPSG:32612" minx="-1341232.860956" miny="5281029.640768097" maxx="532172.422768001" maxy="6986115.185102834"/>
+        <BoundingBox SRS="EPSG:54004" minx="-1.5479220221745186E7" miny="6045873.0184186315" maxx="-1.229275523998929E7" maxy="8534215.479697939"/>
+        <MetadataURL type="TC211">
+          <Format>text/plain</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://catalogue.data.gov.bc.ca/dataset/f3ece977-aa7f-4cb2-b7d0-de64155f6c83"/>
+        </MetadataURL>
+        <Style>
+          <Name>437</Name>
+          <Title>Wildlife_Management_Areas_Tantalis_Colour_Filled</Title>
+          <LegendURL width="194" height="20">
+            <Format>image/png</Format>
+            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://openmaps.gov.bc.ca/geo/pub/WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW/wms?request=GetLegendGraphic&amp;version=1.1.1&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=pub%3AWHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW"/>
+          </LegendURL>
+        </Style>
+        <ScaleHint min="0.0" max="4751.757569573599"/>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMT_MS_Capabilities>
