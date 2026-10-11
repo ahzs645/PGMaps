@@ -20,7 +20,7 @@ Remove old wildcard/duplicate CORS headers in PHP and the HTTP server. Confirm a
 
 Continue using URL-encoded form bodies: permitting the `Content-Type` header does not make PHP `$_POST` parse JSON. If JSON is desired, migrate endpoint body parsing and validate both transports explicitly.
 
-CORS is not authentication or CSRF protection. Before enabling private requests, verify real per-user sessions, existing CSRF protection on mutations, server-side permission checks and logout/expiry. Cross-site cookies require deliberate Secure/SameSite handling and can still be blocked by browser privacy settings. A same-origin per-user backend session exchange may be preferable. Do not proxy a shared administrator cookie or put credentials in frontend files. This workbench deliberately keeps anonymous reads; a protected adapter must be validated before enabling it.
+CORS is not authentication or CSRF protection. Before enabling private requests, verify real per-user sessions, existing CSRF protection on mutations, server-side permission checks and logout/expiry. Cross-site cookies require deliberate Secure/SameSite handling and can still be blocked by browser privacy settings. The observed PHPSESSID is Lax with Secure/HttpOnly false, so direct authenticated cross-site use requires a session-cookie change as well as CORS, or a per-user backend session design. A same-origin per-user backend session exchange may be preferable. Do not proxy a shared administrator cookie or put credentials in frontend files. This workbench deliberately keeps anonymous reads; a protected adapter must be validated before enabling it.
 
 Acceptance browser cases from the actual deployed PGMaps origin, without route interception or disabled security:
 
@@ -34,6 +34,8 @@ Acceptance browser cases from the actual deployed PGMaps origin, without route i
 ### Original portal embedding and startup JSON
 
 A normal cross-site iframe from the local PGMaps origin could load the portal interface; the portal root did not advertise X-Frame-Options or CSP frame-ancestors. However `rest/portal/admin/getStartupContent.php` returned PHP HTML warnings before its JSON: undefined `configuration` and access to a null value, both reported at line 8. ExtJS then raised an invalid-JSON client exception; the default-project registration error was also visible. Embedding is not a completed substitute for the workbench or portal login.
+
+A separate normal top-level portal visit returned valid startup JSON with `startup:true` and no JavaScript exception. Its PHP session cookie was observed as SameSite=Lax, Secure=false and HttpOnly=false (cookie values were not recorded); that cookie cannot establish the same cross-site iframe/session behavior. The issue is specific to the tested frame/session context, not evidence that top-level startup always fails.
 
 Inspect that endpoint's configuration/session initialization and server logs. Keep production warnings out of REST JSON (`display_errors=Off`, `log_errors=On`) and fix the missing value rather than only suppressing its warning. Test a normal top-level portal visit separately from an iframe, and inspect cookie SameSite/Secure behavior without exporting session values. A frame's presence does not prove protected login or third-party cookies work. Evidence: `portal-embedding.json`, `portal-embedded.png`, and the separate `portal-top-level-startup.json` follow-up. PGMaps continues to offer a top-level portal link; no broken iframe integration was added.
 
