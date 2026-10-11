@@ -202,12 +202,15 @@ for (const width of [1440, 390]) {
     await nav.getByRole('button', { name: 'Reports', exact: true }).click()
     await expect(page.getByLabel('Monitoring CSV')).toBeVisible()
     await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await nav.getByRole('button', { name: 'Login / Sign-up', exact: true }).click()
     await expect(page.getByRole('link', { name: 'Open portal login and sign-up' })).toHaveAttribute(
       'href',
       'https://nechakowatershed-portal.ca/',
     )
     await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/dev\/nechako\/portal$/)
 
     await page.reload()
     await expect(mapCanvas).toBeVisible()
