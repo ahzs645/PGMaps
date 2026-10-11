@@ -12,7 +12,8 @@ import { PortalResearch, PortalResearchMap } from '@/maps/nechako/PortalResearch
 import { PortalSearch, PortalProjects } from '@/maps/nechako/PortalChecks'
 import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
-import { SHOWCASE_BASE, loadSnapshotSources, loadSnapshotCapabilities } from '@/maps/nechako/data/showcase'
+import { SHOWCASE_BASE } from '@/maps/nechako/data/showcase'
+import { loadNechakoBoundary } from '@/maps/nechako/data/boundary'
 import { EMPTY_WORKSPACE, importWorkspace, type Workspace } from '@/maps/nechako/data/workspace'
 
 const PANELS = [
@@ -46,6 +47,7 @@ export default function DevNechakoPortal() {
   const [searchView, setSearchView] = useState<'research' | 'submissions'>('research')
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
   const [bounds, setBounds] = useState<[number, number, number, number]>()
+  const [initialBounds, setInitialBounds] = useState<[number, number, number, number]>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
@@ -68,30 +70,16 @@ export default function DevNechakoPortal() {
       controller.abort()
     }, 30000)
     const initialize = async () => {
-      const [saved, sources] = await Promise.all([
+      const [saved, boundary] = await Promise.all([
         fetchJson(`${SHOWCASE_BASE}research-workspace.json`, controller.signal),
-        loadSnapshotSources(controller.signal),
+        loadNechakoBoundary(controller.signal),
       ])
       const initial = importWorkspace(saved)
-      const source = sources.find((item) => item.name === 'Watershed Context')
-      if (source) {
-        const caps = await loadSnapshotCapabilities(source, controller.signal)
-        const layer = caps.layers.find((item) => item.name === 'Nechako Watershed')
-        if (layer?.crs.includes('EPSG:3857') && caps.mapFormats.includes('image/png')) {
-          initial.layers = [
-            {
-              id: `${source.resource}|${layer.name}|`,
-              source,
-              layer,
-              style: '',
-              opacity: 0.85,
-              formats: caps.featureInfoFormats,
-              visible: true,
-            },
-          ]
-        }
+      initial.vectors.push(boundary.vector)
+      if (!controller.signal.aborted) {
+        setInitialBounds(boundary.bounds)
+        setWorkspace(initial)
       }
-      if (!controller.signal.aborted) setWorkspace(initial)
     }
     void initialize()
       .catch((reason) => {
@@ -189,6 +177,7 @@ export default function DevNechakoPortal() {
             onBounds={setBounds}
             catalogueSource="snapshot"
             layout="portal"
+            initialBounds={initialBounds}
             projectsOpen={panel === 'projects'}
             onProjectsClose={close}
             onOpenFiles={() => showPanel('files')}
@@ -296,6 +285,10 @@ export default function DevNechakoPortal() {
               <p>
                 Research locations are reference points, not study footprints. The repository snapshot was captured
                 October 11, 2026. Basemaps, WMS imagery and identify responses use live services.
+              </p>
+              <p>
+                The Nechako outline uses the same BC Freshwater Atlas named watershed (8886) as EchoScreen, from its
+                50-metre simplified snapshot. It loads locally and can be used as the submission search area.
               </p>
               <InlineAlert tone="warning" title="Portal integration limits">
                 Saved portal projects and submission search remain subject to the portal’s registration and

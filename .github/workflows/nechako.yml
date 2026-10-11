@@ -15,6 +15,8 @@ on:
       - 'scripts/nechako-server/**'
       - 'public/data/nechako-showcase/**'
       - 'scripts/sync-bcdatamapper-data.mjs'
+      - 'scripts/build-echoscreen-project-data.mjs'
+      - 'public/data/projects/echoscreen-climate-health.json'
       - 'tests/e2e/nechako*.spec.ts'
       - 'scripts/write-spa-fallback.mjs'
       - 'vite.config.ts'
@@ -43,9 +45,10 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: npm run projects:echoscreen-data -- --watersheds-only
       - run: npx tsc -b
       - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
-      - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
+      - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/nechako/data/boundary.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
       - run: sudo apt-get update && sudo apt-get install -y gdal-bin php-cli
       - run: python3 scripts/nechako-server/test_converter.py
       - run: python3 scripts/nechako-server/test_audit_data.py

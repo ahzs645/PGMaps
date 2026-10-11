@@ -71,9 +71,10 @@ function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id:
         <MapFillLayer
           data={polygons}
           fillColor={vector.color}
-          fillOpacity={0.35}
+          fillOpacity={vector.fillOpacity ?? 0.35}
           lineColor={vector.color}
-          lineWidth={2}
+          lineWidth={vector.lineWidth ?? 2}
+          lineOpacity={vector.lineOpacity}
           idProperty="__nechako_render_id"
           onFeatureClick={(id) => onSelect?.(vector.id, Number(id))}
         />

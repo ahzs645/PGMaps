@@ -153,6 +153,7 @@ export function PortalLayers({
   projectsOpen = false,
   onProjectsClose,
   onOpenFiles,
+  initialBounds,
 }: {
   workspace: Workspace
   setWorkspace: React.Dispatch<React.SetStateAction<Workspace>>
@@ -162,6 +163,7 @@ export function PortalLayers({
   projectsOpen?: boolean
   onProjectsClose?: () => void
   onOpenFiles?: () => void
+  initialBounds?: [number, number, number, number]
 }) {
   const [sources, setSources] = useState<PortalSource[]>([])
   const [sourceUrl, setSourceUrl] = useState('')
@@ -586,7 +588,7 @@ export function PortalLayers({
           ]}
         />
         <MapScaleBar />
-        {layout === 'portal' && <InitialWatershedView bounds={workspace.layers[0]?.layer.bounds} />}
+        {layout === 'portal' && <InitialWatershedView bounds={initialBounds} />}
         <CameraObserver onCamera={onCamera} onBounds={onBounds} />
         <Identify
           selected={!drawing && selected?.visible !== false ? selected : undefined}
