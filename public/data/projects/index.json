@@ -129,7 +129,7 @@
     },
     {
       "file": "echoscreen-climate-health.json",
-      "revision": "4b6678854065",
+      "revision": "7004f306d18f",
       "catalog": {
         "slug": "echoscreen-climate-health",
         "title": "EchoScreen Cumulative Impacts Study",
@@ -140,11 +140,11 @@
         "region": "Northern BC watersheds",
         "status": "Prototype",
         "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
-        "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. The Northern Health outline uses PGMaps' shared BC Ministry of Health health-authority vector. Fraser and Nechako boundaries come from BC Freshwater Atlas named-watershed vectors, while hospital points come from the local BC Data Mapper health place registry.",
+        "sourceNote": "Climate surfaces reproduce the original Northern Health consultant archive: annual days above 29°C (P50, SSP585, BCCAQv2 CMIP6) and future-minus-past seasonal precipitation in mm. Exact numeric vector blocks retain the original continuous QGIS colour ramps. The Northern Health outline uses the shared BCMoH vector; watershed boundaries and hospitals use local PGMaps vectors. River and watershed-label context still uses the Nechako portal.",
         "details": [
           "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
           "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
-          "Climate variables use CMIP6 CanDCS-U6 data under SSP585 from ClimateData.ca, with the Northern Health boundary and watershed context kept visible while the raster story changes."
+          "The consultant archive contains P50, SSP585 ClimateData.ca BCCAQv2 CMIP6 surfaces clipped to Northern Health. Heat uses days above 29°C for 1971–2000 and 2071–2100; this differs from the live portal’s >30°C layer. Seasonal precipitation is the change in total mm between those periods."
         ],
         "image": {
           "src": "/media/dev-projects/echoscreen-climate-health-event.png",
@@ -158,20 +158,24 @@
           {
             "label": "Nechako Watershed Portal",
             "href": "https://nechakowatershed-portal.ca/"
+          },
+          {
+            "label": "Original consultant GeoPackage",
+            "href": "https://drive.google.com/file/d/1Qz7bXQbK6pjzBPF1D0uhlqQgf36LpS_l/view"
           }
         ],
         "catalogMetrics": [
           {
             "label": "Scenes",
-            "value": "4"
+            "value": "5"
           },
           {
             "label": "Layers",
-            "value": "9"
+            "value": "10"
           },
           {
-            "label": "Raster",
-            "value": "Portal WMS"
+            "label": "Climate",
+            "value": "Vector blocks"
           }
         ],
         "files": [
@@ -180,8 +184,8 @@
             "detail": "Layers, style, scenes, and notes"
           },
           {
-            "label": "Nechako portal WMS",
-            "detail": "ClimateData.ca raster layers"
+            "label": "Consultant climate vectors",
+            "detail": "Four exact numeric layers with original QGIS ramps; source GeoPackage linked above"
           },
           {
             "label": "Northern Health boundary",
@@ -196,8 +200,8 @@
             "detail": "18 local Northern Health facility vectors"
           }
         ],
-        "layerCount": 9,
-        "sceneCount": 4
+        "layerCount": 10,
+        "sceneCount": 5
       }
     },
     {

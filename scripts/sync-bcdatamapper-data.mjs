@@ -32,6 +32,7 @@ const contentMappings = [
 ]
 
 const pathMappings = [
+  ['datascrapers/climate/echoscreen/output', 'echoscreen-climate'],
   ['datascrapers/bc/cciss/output', 'cciss'],
   ['datascrapers/bc/laep/output', 'bc/laep'],
   ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],

@@ -23,6 +23,11 @@ same mode as the exact structural example.
 Project package JSON is app-owned unless a documented generator or scraper owns
 it. Do not force generated scraper output into `public/data`.
 
+Legacy portal recipes may replace individual WMS climate surfaces with an exact
+numeric polygon source using `portalMap.rasterLayers[].vectorManifest`. See
+`docs/echoscreen-climate-vectors.md` for the manifest, styling, picking and
+generated-data ownership contract; other portal layers retain their WMS adapter.
+
 Treat envelope copy as sourced project information. Do not infer an owner,
 publication/update date, status, provenance note, or catalog metric from the
 renderer configuration. When those facts are missing, produce an explicitly

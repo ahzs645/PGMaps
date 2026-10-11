@@ -45,6 +45,27 @@ const HEAT_PACKAGE: ProjectPackage = {
   },
 }
 
+it('retains numeric vector manifests and rejects invalid vector sources in portal recipes', () => {
+  const portalMap = {
+    endpoint: 'https://example.test/wms',
+    defaultMapPath: '/map.qgs',
+    bounds: [-139, 52, -118, 60],
+    center: [-128, 56],
+    zoom: 4,
+    rasterLayers: [{ id: 'heat', layerName: 'Days >29°C', vectorManifest: '/data/heat/manifest.json' }],
+    contextLayers: [],
+  }
+  expect(normalizeProjectPackage({ ...HEAT_PACKAGE, portalMap })?.portalMap?.rasterLayers[0].vectorManifest).toBe(
+    '/data/heat/manifest.json',
+  )
+  expect(
+    normalizeProjectPackage({
+      ...HEAT_PACKAGE,
+      portalMap: { ...portalMap, rasterLayers: [{ id: 'heat', layerName: 'Heat', vectorManifest: 123 }] },
+    })?.portalMap,
+  ).toBeUndefined()
+})
+
 /** Fixtures stand in for untrusted JSON, so their fields stay loosely typed. */
 type RawStoryPackage = {
   scenes: Array<Record<string, unknown>>

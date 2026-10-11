@@ -17,7 +17,7 @@ type Pyramid = { format: 'categorical-raster-pyramid-v1'; levels: RasterLevel[] 
 export type CategoricalRasterPick = { value: number; longitude: number; latitude: number; overview?: boolean }
 export type CategoricalRasterStatus = { state: 'loading' | 'ready' | 'error'; message: string }
 
-/** Draw native class polygons from categorical_raster.py; colour and picking use the same value. */
+/** Draw native numeric/class polygons; colour and picking use the same source value. */
 export function MapCategoricalRaster({
   manifestUrl,
   colorForValue,
@@ -25,6 +25,8 @@ export function MapCategoricalRaster({
   onStatus,
   opacity = 0.8,
   attribution,
+  beforeId,
+  onLayers,
 }: {
   manifestUrl: string
   colorForValue: (value: number) => [number, number, number, number]
@@ -32,6 +34,10 @@ export function MapCategoricalRaster({
   onStatus: (status: CategoricalRasterStatus) => void
   opacity?: number
   attribution?: string
+  /** Place polygon surfaces beneath an existing MapLibre context anchor. */
+  beforeId?: string
+  /** Use a shared map overlay when composing several native-grid surfaces. */
+  onLayers?: (layers: GeoJsonLayer[]) => void
 }) {
   const { map, isLoaded } = useMap()
   const [result, setResult] = useState<{
@@ -52,6 +58,7 @@ export function MapCategoricalRaster({
   const uid = useId().replace(/:/g, '')
   const anchor = `categorical-raster-${uid}`
   const overlayRef = useDeckOverlay({
+    enabled: !onLayers,
     onAttach: (_overlay, instance) => {
       instance.addSource(anchor, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution })
       instance.addLayer({ id: anchor, source: anchor, type: 'circle', paint: { 'circle-opacity': 0 } })
@@ -64,6 +71,19 @@ export function MapCategoricalRaster({
       if (instance.getSource(anchor)) instance.removeSource(anchor)
     },
   })
+
+  useEffect(() => {
+    if (!onLayers || !map || !isLoaded) return
+    const resident = residentRef.current
+    map.addSource(anchor, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution })
+    map.addLayer({ id: anchor, source: anchor, type: 'circle', paint: { 'circle-opacity': 0 } })
+    return () => {
+      resident.clear()
+      if (!map.getStyle()) return
+      if (map.getLayer(anchor)) map.removeLayer(anchor)
+      if (map.getSource(anchor)) map.removeSource(anchor)
+    }
+  }, [map, isLoaded, anchor, attribution, onLayers])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -103,7 +123,7 @@ export function MapCategoricalRaster({
         }
         const detail = selected.overview
           ? 'Generalized display; zoom in for full cells.'
-          : 'Click a polygon to read its class.'
+          : 'Click a polygon to read its value.'
         statusRef.current(
           errors.length
             ? {
@@ -124,8 +144,11 @@ export function MapCategoricalRaster({
     }
     const base = manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1)
     const install = (level: RasterLevel, value: Manifest) => {
-      if (value.format !== 'categorical-raster-polygons-v1' || !Array.isArray(value.tiles)) {
-        throw new Error('Unsupported categorical raster polygon manifest')
+      if (
+        !['categorical-raster-polygons-v1', 'numeric-raster-polygons-v1'].includes(value.format) ||
+        !Array.isArray(value.tiles)
+      ) {
+        throw new Error('Unsupported raster polygon manifest')
       }
       const paths = new Map(value.tiles.map((tile) => [tile.id, tile.path]))
       const path = `${base}${level.manifest}`
@@ -256,40 +279,48 @@ export function MapCategoricalRaster({
             }))
           : []
       const retained = residentRef.current.update(current)
-      overlayRef.current?.setProps({
-        layers: retained.map(
-          ({ id, data, visible }) =>
-            new GeoJsonLayer<{ value: number }>({
-              id: `${anchor}-${id}`,
-              data: data.binary,
-              visible,
-              filled: true,
-              stroked: false,
-              pickable: visible,
-              opacity: 1,
-              getFillColor: (feature) => {
-                const [r, g, b, a] = colorForValue(feature.properties.value)
-                return [r, g, b, Math.round(a * opacity)]
-              },
-              updateTriggers: { getFillColor: [colorForValue, opacity] },
-              onClick: (info: PickingInfo) => {
-                // Binary GeoJSON picking reports a global feature index, not a GeoJSON object.
-                if (info.index >= 0 && info.index < data.values.length && info.coordinate) {
-                  onPick({
-                    value: data.values[info.index],
-                    longitude: info.coordinate[0],
-                    latitude: info.coordinate[1],
-                    overview: result.level?.overview,
-                  })
-                }
-              },
-            }),
-        ),
-      })
+      const layers = retained.map(
+        ({ id, data, visible }) =>
+          new GeoJsonLayer<{ value: number }>({
+            id: `${anchor}-${id}`,
+            ...{ beforeId },
+            data: data.binary,
+            visible,
+            filled: true,
+            stroked: false,
+            pickable: visible,
+            opacity: 1,
+            getFillColor: (feature) => {
+              const [r, g, b, a] = colorForValue(feature.properties.value)
+              return [r, g, b, Math.round(a * opacity)]
+            },
+            updateTriggers: { getFillColor: [colorForValue, opacity] },
+            onClick: (info: PickingInfo) => {
+              // Binary GeoJSON picking reports a global feature index, not a GeoJSON object.
+              if (info.index >= 0 && info.index < data.values.length && info.coordinate) {
+                onPick({
+                  value: data.values[info.index],
+                  longitude: info.coordinate[0],
+                  latitude: info.coordinate[1],
+                  overview: result.level?.overview,
+                })
+              }
+            },
+          }),
+      )
+      if (onLayers) onLayers(layers)
+      else overlayRef.current?.setProps({ layers })
     }
     rebuildRef.current = rebuild
     rebuild()
-  }, [result, manifestUrl, colorForValue, onPick, opacity, overlayRef, anchor])
+  }, [result, manifestUrl, colorForValue, onPick, opacity, overlayRef, anchor, beforeId, onLayers])
+
+  useEffect(
+    () => () => {
+      onLayers?.([])
+    },
+    [onLayers],
+  )
 
   return null
 }

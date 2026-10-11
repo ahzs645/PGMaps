@@ -14,7 +14,7 @@ import {
   Settings2,
   SlidersHorizontal,
 } from 'lucide-react'
-import { lazy, useEffect, useState } from 'react'
+import { lazy, useCallback, useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
@@ -25,7 +25,9 @@ import {
 import { ProjectBackButton } from '@/components/projects/ProjectBackButton'
 import { ProjectHeader } from '@/components/projects/ProjectHeader'
 import { Button } from '@/components/ui/button'
-import { MapMarker, MarkerContent, MarkerTooltip, Map as PgMap } from '@/components/ui/map'
+import { MapMarker, MapPopup, MarkerContent, MarkerTooltip, Map as PgMap } from '@/components/ui/map'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import type { CategoricalRasterStatus } from '@/components/ui/map-categorical-raster'
 import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { Slider } from '@/components/ui/slider'
@@ -56,6 +58,13 @@ const ProjectScoreMapPreview = lazy(() =>
 )
 
 import { KIND_LABELS, iconClass } from './projectPresentation'
+import {
+  ProjectPortalVectorAnchor,
+  ProjectPortalVectorStack,
+  ProjectPortalVectorLayer,
+  ProjectPortalVectorLegend,
+  type ProjectVectorPick,
+} from './ProjectPortalVectorLayer'
 type ControllerTab = 'layers' | 'project'
 const CONTROLLER_TABS: readonly TabOption<ControllerTab>[] = [
   { value: 'layers', label: 'Layers' },
@@ -158,6 +167,17 @@ function ProjectPortalMapPreview({
   const activeContextLayers = portal.contextLayers.filter((layer) => visibleLayerIds.has(layer.id))
   const activeRasterLayer = activeRasterLayers[activeRasterLayers.length - 1] ?? null
   const showLocalBoundary = Boolean(portal.localBoundaryLayerId) && visibleLayerIds.has(portal.localBoundaryLayerId!)
+  const [vectorAttempt, setVectorAttempt] = useState(0)
+  const vectorAnchor = `portal-climate-${useId().replace(/:/g, '')}`
+  const [vectorStatuses, setVectorStatuses] = useState<Record<string, CategoricalRasterStatus>>({})
+  const [vectorPick, setVectorPick] = useState<ProjectVectorPick | null>(null)
+  const onVectorStatus = useCallback((id: string, status: CategoricalRasterStatus) => {
+    setVectorStatuses((previous) =>
+      previous[id]?.state === status.state && previous[id]?.message === status.message
+        ? previous
+        : { ...previous, [id]: status },
+    )
+  }, [])
 
   return (
     <div className={cn('relative overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
@@ -169,17 +189,33 @@ function ProjectPortalMapPreview({
         maxZoom={11}
         showStyleLoadingOverlay={false}
       >
-        {activeRasterLayers.map((layer) => (
-          <MapRasterLayer
-            key={layer.id}
-            tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
-            opacity={rasterOpacity / 100}
-            tileSize={256}
-            minZoom={3}
-            maxZoom={11}
-            attribution="Nechako Watershed Portal, ClimateData.ca"
-          />
-        ))}
+        <ProjectPortalVectorAnchor id={vectorAnchor} />
+        <ProjectPortalVectorStack
+          layerIds={activeRasterLayers.filter((layer) => layer.vectorManifest).map((layer) => layer.id)}
+        >
+          {activeRasterLayers.map((layer) =>
+            layer.vectorManifest ? (
+              <ProjectPortalVectorLayer
+                key={`${layer.id}-${vectorAttempt}`}
+                layer={layer}
+                opacity={rasterOpacity / 100}
+                onStatus={onVectorStatus}
+                onPick={setVectorPick}
+                beforeId={vectorAnchor}
+              />
+            ) : (
+              <MapRasterLayer
+                key={layer.id}
+                tiles={[buildPortalWmsTileUrl(portal, layer.layerName, layer.mapPath)]}
+                opacity={rasterOpacity / 100}
+                tileSize={256}
+                minZoom={3}
+                maxZoom={11}
+                attribution="Nechako Watershed Portal, ClimateData.ca"
+              />
+            ),
+          )}
+        </ProjectPortalVectorStack>
 
         {activeContextLayers.map((layer) =>
           layer.data && layer.geometry === 'point' ? (
@@ -225,11 +261,39 @@ function ProjectPortalMapPreview({
           />
         )}
 
+        {vectorPick && visibleLayerIds.has(vectorPick.layerId) && (
+          <MapPopup
+            longitude={vectorPick.longitude}
+            latitude={vectorPick.latitude}
+            onClose={() => setVectorPick(null)}
+            closeOnClick={false}
+          >
+            <MapPopupCard
+              title={vectorPick.label}
+              subtitle="Original consultant grid cell"
+              className="max-w-60"
+              onClose={() => setVectorPick(null)}
+            >
+              <div
+                data-testid="project-vector-value"
+                data-value={vectorPick.value}
+                title={String(vectorPick.value)}
+                className="text-base font-semibold"
+              >
+                {vectorPick.value.toLocaleString(undefined, { maximumFractionDigits: 3 })} {vectorPick.units}
+              </div>
+            </MapPopupCard>
+          </MapPopup>
+        )}
+
         <ProjectPortalMapLegend
           project={project}
           portal={portal}
           visibleLayerIds={visibleLayerIds}
           activeRasterLayer={activeRasterLayer}
+          vectorStatus={activeRasterLayer ? vectorStatuses[activeRasterLayer.id] : undefined}
+          vectorAttempt={vectorAttempt}
+          onVectorRetry={() => setVectorAttempt((attempt) => attempt + 1)}
         />
       </PgMap>
     </div>
@@ -241,11 +305,17 @@ function ProjectPortalMapLegend({
   portal,
   visibleLayerIds,
   activeRasterLayer,
+  vectorStatus,
+  vectorAttempt,
+  onVectorRetry,
 }: {
   project: ProjectPackage
   portal: ProjectPortalMapDef
   visibleLayerIds: Set<string>
   activeRasterLayer: ProjectPortalRasterLayerDef | null
+  vectorStatus?: CategoricalRasterStatus
+  vectorAttempt: number
+  onVectorRetry: () => void
 }) {
   const activeRasterLabel = activeRasterLayer
     ? (project.layers.find((layer) => layer.id === activeRasterLayer.id)?.label ?? activeRasterLayer.layerName)
@@ -265,14 +335,25 @@ function ProjectPortalMapLegend({
         {activeRasterLayer ? (
           <div>
             <div className="mb-1 text-xs font-semibold text-foreground">{activeRasterLabel}</div>
-            <img
-              src={buildPortalWmsLegendUrl(portal, activeRasterLayer.layerName, activeRasterLayer.mapPath)}
-              alt={`${activeRasterLabel} legend`}
-              className="max-h-24 w-full rounded border bg-white object-contain p-1"
-            />
-            <div className="mt-1 text-xs leading-snug text-muted-foreground">
-              Portal WMS raster, ClimateData.ca source layer.
-            </div>
+            {activeRasterLayer.vectorManifest ? (
+              <ProjectPortalVectorLegend
+                key={`${activeRasterLayer.id}-${vectorAttempt}`}
+                layer={activeRasterLayer}
+                status={vectorStatus}
+                onRetry={onVectorRetry}
+              />
+            ) : (
+              <>
+                <img
+                  src={buildPortalWmsLegendUrl(portal, activeRasterLayer.layerName, activeRasterLayer.mapPath)}
+                  alt={`${activeRasterLabel} legend`}
+                  className="max-h-24 w-full rounded border bg-white object-contain p-1"
+                />
+                <div className="mt-1 text-xs leading-snug text-muted-foreground">
+                  Portal WMS raster, ClimateData.ca source layer.
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div>
@@ -549,7 +630,9 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   const isMobile = useIsMobile()
   const [activeTab, setActiveTab] = useState<ControllerTab>('project')
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
-  const [rasterOpacity, setRasterOpacity] = useState(82)
+  const [rasterOpacity, setRasterOpacity] = useState(() =>
+    project.portalMap?.rasterLayers.some((layer) => layer.vectorManifest) ? 100 : 82,
+  )
   const [visibleLayerIds, setVisibleLayerIds] = useState<Set<string>>(() => defaultVisibleLayerIds(project))
   const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(() => clampPanelWidth(320, 320))

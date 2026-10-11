@@ -13,10 +13,10 @@ export function preparePolygons(collection: ClassCollection): PreparedPolygons {
   }
   if (
     collection.features.some(
-      (feature) => feature.geometry?.type !== 'Polygon' || !Number.isSafeInteger(feature.properties?.value),
+      (feature) => feature.geometry?.type !== 'Polygon' || !Number.isFinite(feature.properties?.value),
     )
   ) {
-    throw new Error('Expected polygons with integer class values')
+    throw new Error('Expected polygons with finite numeric values')
   }
   return {
     binary: geojsonToBinary(collection.features, {

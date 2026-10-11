@@ -9,11 +9,11 @@
   "region": "Northern BC watersheds",
   "status": "Prototype",
   "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
-  "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. The Northern Health outline uses PGMaps' shared BC Ministry of Health health-authority vector. Fraser and Nechako boundaries come from BC Freshwater Atlas named-watershed vectors, while hospital points come from the local BC Data Mapper health place registry.",
+  "sourceNote": "Climate surfaces reproduce the original Northern Health consultant archive: annual days above 29°C (P50, SSP585, BCCAQv2 CMIP6) and future-minus-past seasonal precipitation in mm. Exact numeric vector blocks retain the original continuous QGIS colour ramps. The Northern Health outline uses the shared BCMoH vector; watershed boundaries and hospitals use local PGMaps vectors. River and watershed-label context still uses the Nechako portal.",
   "details": [
     "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
     "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
-    "Climate variables use CMIP6 CanDCS-U6 data under SSP585 from ClimateData.ca, with the Northern Health boundary and watershed context kept visible while the raster story changes."
+    "The consultant archive contains P50, SSP585 ClimateData.ca BCCAQv2 CMIP6 surfaces clipped to Northern Health. Heat uses days above 29°C for 1971–2000 and 2071–2100; this differs from the live portal’s >30°C layer. Seasonal precipitation is the change in total mm between those periods."
   ],
   "image": {
     "src": "/media/dev-projects/echoscreen-climate-health-event.png",
@@ -27,29 +27,106 @@
     {
       "label": "Nechako Watershed Portal",
       "href": "https://nechakowatershed-portal.ca/"
+    },
+    {
+      "label": "Original consultant GeoPackage",
+      "href": "https://drive.google.com/file/d/1Qz7bXQbK6pjzBPF1D0uhlqQgf36LpS_l/view"
     }
   ],
   "catalogMetrics": [
-    { "label": "Scenes", "value": "4" },
-    { "label": "Layers", "value": "9" },
-    { "label": "Raster", "value": "Portal WMS" }
+    {
+      "label": "Scenes",
+      "value": "5"
+    },
+    {
+      "label": "Layers",
+      "value": "10"
+    },
+    {
+      "label": "Climate",
+      "value": "Vector blocks"
+    }
   ],
   "layers": [
-    { "id": "topo", "label": "ESRI Topo", "type": "base", "checked": true, "locked": true },
-    { "id": "watershed-labels", "label": "Watershed Labels", "type": "boundary", "checked": true },
-    { "id": "hospitals", "label": "Hospitals", "type": "point", "checked": true },
-    { "id": "northern-health", "label": "Northern Health", "type": "boundary", "checked": true },
-    { "id": "rivers", "label": "River and lake network", "type": "line", "checked": true },
-    { "id": "fraser-nechako", "label": "Fraser and Nechako watersheds", "type": "boundary", "checked": true },
-    { "id": "hot-days-past", "label": "Days >30C NH, 1971-2000", "type": "raster", "checked": false },
-    { "id": "hot-days-future", "label": "Days >30C NH, 2071-2100", "type": "raster", "checked": true },
-    { "id": "precip-change", "label": "Winter precip change", "type": "raster", "checked": false }
+    {
+      "id": "topo",
+      "label": "ESRI Topo",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "watershed-labels",
+      "label": "Watershed Labels",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "hospitals",
+      "label": "Hospitals",
+      "type": "point",
+      "checked": true
+    },
+    {
+      "id": "northern-health",
+      "label": "Northern Health",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "rivers",
+      "label": "River and lake network",
+      "type": "line",
+      "checked": true
+    },
+    {
+      "id": "fraser-nechako",
+      "label": "Fraser and Nechako watersheds",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "hot-days-past",
+      "label": "Days >29°C NH, 1971-2000",
+      "type": "raster",
+      "checked": false
+    },
+    {
+      "id": "hot-days-future",
+      "label": "Days >29°C NH, 2071-2100",
+      "type": "raster",
+      "checked": true
+    },
+    {
+      "id": "precip-change",
+      "label": "Winter precip change",
+      "type": "raster",
+      "checked": false
+    },
+    {
+      "id": "summer-precip-change",
+      "label": "Summer precip change",
+      "type": "raster",
+      "checked": false
+    }
   ],
   "legend": [
-    { "label": "Low projected heat", "color": "#fef3c7" },
-    { "label": "Moderate projected heat", "color": "#f59e0b" },
-    { "label": "High projected heat", "color": "#ea580c" },
-    { "label": "Highest projected heat", "color": "#b91c1c" }
+    {
+      "label": "Low projected heat",
+      "color": "#fef3c7"
+    },
+    {
+      "label": "Moderate projected heat",
+      "color": "#f59e0b"
+    },
+    {
+      "label": "High projected heat",
+      "color": "#ea580c"
+    },
+    {
+      "label": "Highest projected heat",
+      "color": "#b91c1c"
+    }
   ],
   "scenes": [
     {
@@ -63,7 +140,7 @@
       "label": "Future Heat",
       "title": "Projected hot-day surface",
       "text": "Switch on the future raster to show where hot days become the dominant climate signal across the project extent.",
-      "focus": "Days >30C, 2071-2100",
+      "focus": "Days >29°C, 2071-2100",
       "visibleLayerIds": [
         "topo",
         "watershed-labels",
@@ -75,11 +152,18 @@
       ]
     },
     {
-      "label": "Change",
-      "title": "Seasonal precipitation change",
+      "label": "Winter Change",
+      "title": "Winter precipitation change",
       "text": "Use the same project shell to pivot from heat to seasonal precipitation without leaving the story package.",
-      "focus": "Winter and summer precipitation-change raster",
+      "focus": "Winter total precipitation change, 2071–2100 minus 1971–2000 (mm)",
       "visibleLayerIds": ["topo", "watershed-labels", "northern-health", "rivers", "precip-change"]
+    },
+    {
+      "label": "Summer Change",
+      "title": "Summer precipitation change",
+      "text": "Compare summer totals with the historical baseline using the consultant’s original continuous colours.",
+      "focus": "Summer total precipitation change, 2071–2100 minus 1971–2000 (mm)",
+      "visibleLayerIds": ["topo", "watershed-labels", "northern-health", "rivers", "summer-precip-change"]
     },
     {
       "label": "Methods",
@@ -90,11 +174,26 @@
     }
   ],
   "files": [
-    { "label": "Project package", "detail": "Layers, style, scenes, and notes" },
-    { "label": "Nechako portal WMS", "detail": "ClimateData.ca raster layers" },
-    { "label": "Northern Health boundary", "detail": "Shared PGMaps BCMoH health-authority vector" },
-    { "label": "BC Freshwater Atlas", "detail": "Named watershed vectors 11541 and 8886" },
-    { "label": "Hospital points", "detail": "18 local Northern Health facility vectors" }
+    {
+      "label": "Project package",
+      "detail": "Layers, style, scenes, and notes"
+    },
+    {
+      "label": "Consultant climate vectors",
+      "detail": "Four exact numeric layers with original QGIS ramps; source GeoPackage linked above"
+    },
+    {
+      "label": "Northern Health boundary",
+      "detail": "Shared PGMaps BCMoH health-authority vector"
+    },
+    {
+      "label": "BC Freshwater Atlas",
+      "detail": "Named watershed vectors 11541 and 8886"
+    },
+    {
+      "label": "Hospital points",
+      "detail": "18 local Northern Health facility vectors"
+    }
   ],
   "portalMap": {
     "endpoint": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/",
@@ -103,11 +202,25 @@
     "center": [-128.6, 56.2],
     "zoom": 4.35,
     "rasterLayers": [
-      { "id": "hot-days-past", "layerName": "Days >30C (1971-2000) NH (source: ClimateData.ca)" },
-      { "id": "hot-days-future", "layerName": "Days >30C (2071-2100) NH (source: ClimateData.ca)" },
+      {
+        "id": "hot-days-past",
+        "layerName": "Days >29°C (1971-2000) NH (source: ClimateData.ca)",
+        "vectorManifest": "/data/echoscreen-climate/hot-days-past/manifest.json"
+      },
+      {
+        "id": "hot-days-future",
+        "layerName": "Days >29°C (2071-2100) NH (source: ClimateData.ca)",
+        "vectorManifest": "/data/echoscreen-climate/hot-days-future/manifest.json"
+      },
       {
         "id": "precip-change",
-        "layerName": "Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)"
+        "layerName": "Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)",
+        "vectorManifest": "/data/echoscreen-climate/precip-change/manifest.json"
+      },
+      {
+        "id": "summer-precip-change",
+        "layerName": "Summer precipitation change, 2071–2100 minus 1971–2000",
+        "vectorManifest": "/data/echoscreen-climate/summer-precip-change/manifest.json"
       }
     ],
     "contextLayers": [

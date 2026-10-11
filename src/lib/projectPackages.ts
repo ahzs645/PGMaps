@@ -63,6 +63,8 @@ export interface ProjectPortalRasterLayerDef {
   id: string
   layerName: string
   mapPath?: string
+  /** Exact numeric grid polygons with a source colour ramp; replaces WMS for this layer. */
+  vectorManifest?: string
 }
 
 export interface ProjectPortalContextLayerDef {
@@ -829,7 +831,14 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     portalMap !== null &&
     typeof portalMap.endpoint === 'string' &&
     Array.isArray(portalMap.bounds) &&
-    Array.isArray(portalMap.rasterLayers)
+    Array.isArray(portalMap.rasterLayers) &&
+    portalMap.rasterLayers.every(
+      (layer) =>
+        typeof layer?.id === 'string' &&
+        typeof layer.layerName === 'string' &&
+        (layer.vectorManifest === undefined ||
+          (typeof layer.vectorManifest === 'string' && layer.vectorManifest.trim().length > 0)),
+    )
 
   return {
     version: 1,

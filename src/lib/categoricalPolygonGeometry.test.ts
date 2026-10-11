@@ -47,6 +47,15 @@ const collection: ClassCollection = {
 }
 
 describe('prepared categorical polygons', () => {
+  it('keeps fractional source values identical for colouring and picking and rejects missing values', () => {
+    const numeric = structuredClone(collection)
+    numeric.features[0].properties.value = 39.28333282470703
+    const prepared = preparePolygons(numeric)
+    expect(prepared.values[0]).toBe(39.28333282470703)
+    expect(prepared.binary.polygons!.properties[0].value).toBe(prepared.values[0])
+    numeric.features[0].properties.value = NaN
+    expect(() => preparePolygons(numeric)).toThrow('finite numeric values')
+  })
   it('triangulates holes without filling them and preserves zero class and pick indices', () => {
     const prepared = preparePolygons(collection)
     const polygons = prepared.binary.polygons!

@@ -141,6 +141,7 @@ public/data/health/msp-facility-geocode-cache.json
 public/data/health/bccdc-chronic-disease-tableau/
 public/data/health/phsa-community-health/
 public/data/health/echoscreen-northern-health-hospitals.geojson
+public/data/echoscreen-climate/
 
 # App read models generated after data sync; rebuild, never commit copies.
 public/data/ui/
