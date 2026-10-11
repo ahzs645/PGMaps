@@ -41,6 +41,9 @@ contents scroll independently and keep the same controls mounted across collapse
 
 Search, report and project windows leave the primary map mounted. Panel names are
 reflected in the `panel` query parameter so direct links and browser Back work.
+Escape closes a focused native window immediately; a nested research record
+dialog handles its own Escape and leaves the search window open. Browser reload
+checks wait for the close and URL update to complete.
 Local edits are transient until saved or exported; closing an import/report/search
 window discards that window's unsaved form settings, while the map workspace remains.
 

@@ -201,6 +201,22 @@ export default function DevNechakoPortal() {
           onClose={close}
           size="xl"
           closeLabel="Close portal window"
+          contentProps={{
+            onKeyDown: (event) => {
+              // Handle the focused window even before the document-level dialog
+              // listener attaches. A nested record dialog owns its own Escape.
+              if (
+                event.key === 'Escape' &&
+                !event.defaultPrevented &&
+                event.target instanceof Element &&
+                event.target.closest('[role="dialog"]') === event.currentTarget
+              ) {
+                event.preventDefault()
+                event.stopPropagation()
+                close()
+              }
+            },
+          }}
           className={
             panel === 'research-map' ? 'h-[90dvh] [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden' : undefined
           }
