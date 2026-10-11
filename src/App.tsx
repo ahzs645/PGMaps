@@ -18,6 +18,7 @@ const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default:
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
+const DevNechako = lazy(() => import('@/pages/DevNechako'))
 const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
 const DevClimateVulnerability = lazy(() => import('@/pages/DevClimateVulnerability'))
@@ -92,6 +93,7 @@ function App() {
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
+            <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />
             <Route path="/dev/boundaries" element={<DevBoundaries />} />
             <Route path="/dev/climate-vulnerability" element={<DevClimateVulnerability />} />

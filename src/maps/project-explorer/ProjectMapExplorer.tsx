@@ -15,10 +15,12 @@ export function ProjectMapExplorer({
   title,
   config,
   onBack,
+  backLabel,
 }: {
   title: string
   config: ProjectMapExplorerWorkspaceDef
   onBack: () => void
+  backLabel?: string
 }) {
   const [timelineMode, setTimelineMode] = useState(false)
   const data = useResearchRecordsAdapter(config, timelineMode)
@@ -61,6 +63,7 @@ export function ProjectMapExplorer({
         <ProjectExplorerSidebar
           title={title}
           onBack={onBack}
+          backLabel={backLabel}
           config={config}
           data={data}
           boundary={boundary}

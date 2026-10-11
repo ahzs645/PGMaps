@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -31,6 +31,7 @@ const spaRoutes = [
   'dev/networks',
   'dev/transit',
   'dev/projects',
+  'dev/nechako',
   'dev/aqmap',
   'dev/aqmap/main',
   'dev/aqmap/ring',
@@ -49,4 +50,16 @@ for (const route of spaRoutes) {
   mkdirSync(dirname(routeIndexPath), { recursive: true })
   copyFileSync(indexPath, routeIndexPath)
 }
-console.log(`[spa] copied dist/index.html -> ${spaRoutes.length} route fallback(s)`)
+// Give static hosts real entry points for the registered project deep routes.
+const projectsRoot = join(root, 'public', 'data', 'projects')
+if (existsSync(projectsRoot)) {
+  for (const filename of readdirSync(projectsRoot)) {
+    if (!filename.endsWith('.json') || filename === 'index.json') continue
+    const slug = filename.slice(0, -5)
+    if (!/^[a-z0-9-]+$/.test(slug)) continue
+    const entry = join(root, 'dist', 'dev', 'projects', slug, 'index.html')
+    mkdirSync(dirname(entry), { recursive: true })
+    copyFileSync(indexPath, entry)
+  }
+}
+console.log(`[spa] copied route and project entry points`)

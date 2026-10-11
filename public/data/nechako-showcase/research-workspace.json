@@ -1,0 +1,1004 @@
+{
+  "schema": "nechako-workspace-v1",
+  "camera": {
+    "center": [
+      -124.2,
+      54.1
+    ],
+    "zoom": 6.2,
+    "bearing": 0,
+    "pitch": 0
+  },
+  "layers": [],
+  "tiles": [],
+  "vectors": [
+    {
+      "id": "nechako-research-locations",
+      "name": "Nechako research locations",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "id": "prince_george",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122.7497,
+                53.9171
+              ]
+            },
+            "properties": {
+              "name": "Prince George",
+              "location_id": "prince_george",
+              "total_publications": 323,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 277,
+                "document": 13,
+                "newspaperArticle": 11,
+                "conferencePaper": 9,
+                "videoRecording": 7,
+                "webpage": 2,
+                "thesis": 2,
+                "book": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "nechako_river",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.5,
+                54
+              ]
+            },
+            "properties": {
+              "name": "Nechako_River",
+              "location_id": "nechako_river",
+              "total_publications": 86,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 51,
+                "report": 24,
+                "document": 6,
+                "newspaperArticle": 2,
+                "book": 2,
+                "videoRecording": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "takla_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.9,
+                55.3
+              ]
+            },
+            "properties": {
+              "name": "takla_lake",
+              "location_id": "takla_lake",
+              "total_publications": 55,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 35,
+                "report": 20
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "kenney_dam",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.1667,
+                53.8333
+              ]
+            },
+            "properties": {
+              "name": "Kenney dam",
+              "location_id": "kenney_dam",
+              "total_publications": 51,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 32,
+                "newspaperArticle": 12,
+                "document": 3,
+                "webpage": 2,
+                "videoRecording": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "fraser_river",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122,
+                52.8
+              ]
+            },
+            "properties": {
+              "name": "Fraser_River",
+              "location_id": "fraser_river",
+              "total_publications": 51,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 44,
+                "document": 2,
+                "report": 2,
+                "conferencePaper": 2,
+                "newspaperArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "vanderhoof",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.0051,
+                54.0186
+              ]
+            },
+            "properties": {
+              "name": "vanderhoof",
+              "location_id": "vanderhoof",
+              "total_publications": 40,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 22,
+                "videoRecording": 6,
+                "newspaperArticle": 4,
+                "book": 3,
+                "webpage": 2,
+                "report": 1,
+                "thesis": 1,
+                "document": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "fort_st_james",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.2567,
+                54.4439
+              ]
+            },
+            "properties": {
+              "name": "Fort St James",
+              "location_id": "fort_st_james",
+              "total_publications": 38,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 35,
+                "conferencePaper": 2,
+                "other": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "stuart_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.8,
+                54.3
+              ]
+            },
+            "properties": {
+              "name": "stuart_lake",
+              "location_id": "stuart_lake",
+              "total_publications": 31,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "report": 17,
+                "journalArticle": 12,
+                "document": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "endako",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.8,
+                54.1
+              ]
+            },
+            "properties": {
+              "name": "endako",
+              "location_id": "endako",
+              "total_publications": 30,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 27,
+                "report": 3
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "fraser_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.8478,
+                54.0567
+              ]
+            },
+            "properties": {
+              "name": "fraser_lake",
+              "location_id": "fraser_lake",
+              "total_publications": 27,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "report": 14,
+                "journalArticle": 11,
+                "document": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "cheslatta",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.2,
+                53.8
+              ]
+            },
+            "properties": {
+              "name": "Cheslatta",
+              "location_id": "cheslatta",
+              "total_publications": 23,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 20,
+                "videoRecording": 1,
+                "other": 1,
+                "document": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "burns_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.7604,
+                54.2297
+              ]
+            },
+            "properties": {
+              "name": "burns_lake",
+              "location_id": "burns_lake",
+              "total_publications": 22,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 16,
+                "newspaperArticle": 3,
+                "report": 2,
+                "thesis": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "pinchi_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.4249773,
+                54.6124372
+              ]
+            },
+            "properties": {
+              "name": "pinchi_lake",
+              "location_id": "pinchi_lake",
+              "total_publications": 18,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 17,
+                "report": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_wetsuwetennation",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.6759966,
+                54.0234476
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_WetsuwetenNation",
+              "location_id": "bc_soi_wetsuwetennation",
+              "total_publications": 17,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 17
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "nechako_reservoir",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.7629547,
+                53.6059385
+              ]
+            },
+            "properties": {
+              "name": "nechako_reservoir",
+              "location_id": "nechako_reservoir",
+              "total_publications": 14,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 12,
+                "videoRecording": 1,
+                "conferencePaper": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "francois_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.6167,
+                54.0833
+              ]
+            },
+            "properties": {
+              "name": "Francois_lake",
+              "location_id": "francois_lake",
+              "total_publications": 13,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "report": 8,
+                "journalArticle": 4,
+                "document": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "trembleur_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.7,
+                55.1
+              ]
+            },
+            "properties": {
+              "name": "trembleur_lake",
+              "location_id": "trembleur_lake",
+              "total_publications": 13,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "report": 13
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "kemano",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -127.9167,
+                53.5667
+              ]
+            },
+            "properties": {
+              "name": "Kemano",
+              "location_id": "kemano",
+              "total_publications": 11,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 11
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "ootsa_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.1,
+                53.9
+              ]
+            },
+            "properties": {
+              "name": "Ootsa_Lake",
+              "location_id": "ootsa_lake",
+              "total_publications": 10,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 10
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "cheslatta_carrier_nation_community",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.2,
+                53.8
+              ]
+            },
+            "properties": {
+              "name": "Cheslatta Carrier Nation Community",
+              "location_id": "cheslatta_carrier_nation_community",
+              "total_publications": 9,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 8,
+                "videoRecording": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "carrier_sekani_tribal_nations_territory",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.85,
+                54.45
+              ]
+            },
+            "properties": {
+              "name": "Carrier Sekani Tribal Nations Territory",
+              "location_id": "carrier_sekani_tribal_nations_territory",
+              "total_publications": 7,
+              "coordinate_source": "manual_centroid",
+              "resource_types": {
+                "journalArticle": 7
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "burns_lake_community",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.7604,
+                54.2297
+              ]
+            },
+            "properties": {
+              "name": "Burns Lake community",
+              "location_id": "burns_lake_community",
+              "total_publications": 6,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 6
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "smithers",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -127.1743,
+                54.7804
+              ]
+            },
+            "properties": {
+              "name": "Smithers",
+              "location_id": "smithers",
+              "total_publications": 5,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 5
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "fraser_fort_george_rd",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -121.5171616,
+                53.9859906
+              ]
+            },
+            "properties": {
+              "name": "fraser_fort-george_RD",
+              "location_id": "fraser_fort_george_rd",
+              "total_publications": 5,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 2,
+                "report": 2,
+                "book": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "williams_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122.1417,
+                52.1417
+              ]
+            },
+            "properties": {
+              "name": "Williams_Lake",
+              "location_id": "williams_lake",
+              "total_publications": 4,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 3,
+                "book": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "nulki_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.1617268,
+                53.9122289
+              ]
+            },
+            "properties": {
+              "name": "Nulki_lake",
+              "location_id": "nulki_lake",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "mackenzie",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -123.0947,
+                55.338
+              ]
+            },
+            "properties": {
+              "name": "Mackenzie",
+              "location_id": "mackenzie",
+              "total_publications": 2,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "caribou_rd",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122.9927906,
+                52.3550873
+              ]
+            },
+            "properties": {
+              "name": "caribou_RD",
+              "location_id": "caribou_rd",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1,
+                "report": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "sd_91",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.0075928,
+                54.0180219
+              ]
+            },
+            "properties": {
+              "name": "SD 91",
+              "location_id": "sd_91",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "thesis": 1,
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "fraser_lake_water",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.8478,
+                54.0567
+              ]
+            },
+            "properties": {
+              "name": "fraser_lake_water",
+              "location_id": "fraser_lake_water",
+              "total_publications": 2,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "report": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "kemess_mine",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.7375044,
+                57.0103328
+              ]
+            },
+            "properties": {
+              "name": "Kemess_Mine",
+              "location_id": "kemess_mine",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1,
+                "conferencePaper": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_carriersekanitribalcouncil",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122.7550357,
+                53.9100459
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_CarrierSekaniTribalCouncil",
+              "location_id": "bc_soi_carriersekanitribalcouncil",
+              "total_publications": 2,
+              "coordinate_source": "manual_proxy",
+              "resource_types": {
+                "journalArticle": 1,
+                "report": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "tezzeron_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.5131085,
+                54.7144797
+              ]
+            },
+            "properties": {
+              "name": "Tezzeron_Lake",
+              "location_id": "tezzeron_lake",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_lheidlitennehfirstnation",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -122.7348101,
+                53.9061433
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_LheidliTennehFirstNation",
+              "location_id": "bc_soi_lheidlitennehfirstnation",
+              "total_publications": 2,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 2
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "cheslatta_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.2,
+                53.8
+              ]
+            },
+            "properties": {
+              "name": "cheslatta_lake",
+              "location_id": "cheslatta_lake",
+              "total_publications": 1,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "burns_lake_first_nation",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.7604,
+                54.2297
+              ]
+            },
+            "properties": {
+              "name": "Burns Lake First Nation",
+              "location_id": "burns_lake_first_nation",
+              "total_publications": 1,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "tweedsmuir_park",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.5,
+                52.5
+              ]
+            },
+            "properties": {
+              "name": "Tweedsmuir_Park",
+              "location_id": "tweedsmuir_park",
+              "total_publications": 1,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "capoose_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.283154,
+                53.3154909
+              ]
+            },
+            "properties": {
+              "name": "Capoose Lake",
+              "location_id": "capoose_lake",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "mcbride",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -120.1667,
+                53.3
+              ]
+            },
+            "properties": {
+              "name": "McBride",
+              "location_id": "mcbride",
+              "total_publications": 1,
+              "coordinate_source": "project_reference",
+              "resource_types": {
+                "book": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "saikuz",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -123.4026384,
+                53.8760122
+              ]
+            },
+            "properties": {
+              "name": "saikuz",
+              "location_id": "saikuz",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "thesis": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "tetachuk_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.9141202,
+                53.3088869
+              ]
+            },
+            "properties": {
+              "name": "Tetachuk_lake",
+              "location_id": "tetachuk_lake",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "irs_locations_lejac",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -124.7613775,
+                54.0622374
+              ]
+            },
+            "properties": {
+              "name": "IRS_Locations_Lejac",
+              "location_id": "irs_locations_lejac",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_gitxsanhereditarychiefs",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -127.670882,
+                55.2553671
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_GitxsanHereditaryChiefs",
+              "location_id": "bc_soi_gitxsanhereditarychiefs",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_cheslattacarriernation",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.7687882,
+                54.0237775
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_CheslattaCarrierNation",
+              "location_id": "bc_soi_cheslattacarriernation",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "bc_soi_lakebabinenation",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -126.6232871,
+                55.318431
+              ]
+            },
+            "properties": {
+              "name": "BC_SOI_LakeBabineNation",
+              "location_id": "bc_soi_lakebabinenation",
+              "total_publications": 1,
+              "coordinate_source": "manual_proxy",
+              "resource_types": {
+                "journalArticle": 1
+              }
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "decker_lake",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -125.8319391,
+                54.2924481
+              ]
+            },
+            "properties": {
+              "name": "Decker_lake",
+              "location_id": "decker_lake",
+              "total_publications": 1,
+              "coordinate_source": "nominatim_osm",
+              "resource_types": {
+                "report": 1
+              }
+            }
+          }
+        ]
+      },
+      "color": "#2563eb",
+      "visible": true
+    }
+  ],
+  "warnings": [
+    "Research locations are source reference points, not study footprints. Regional aggregate tags are excluded from this point layer."
+  ]
+}

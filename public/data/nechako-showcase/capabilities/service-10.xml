@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>None</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-110.753703" maxy="62.120403" minx="-137.810491" miny="47.67023"/>
+   <BoundingBox maxx="1856289.502" maxy="1903594.72" SRS="EPSG:3005" minx="372600.665" miny="364282.201"/>
+   <BoundingBox maxx="-12329045.831" maxy="8887780.489" SRS="EPSG:3857" minx="-15340993.679" miny="6052167.318"/>
+   <BoundingBox maxx="-110.753703" maxy="62.120403" SRS="EPSG:4326" minx="-137.810491" miny="47.67023"/>
+   <Layer queryable="1">
+    <Name>main map</Name>
+    <Title>main map</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.753703" maxy="62.120403" minx="-137.810491" miny="47.67023"/>
+    <BoundingBox maxx="1856289.502" maxy="1903594.72" SRS="EPSG:3005" minx="372600.665" miny="364282.201"/>
+    <BoundingBox maxx="-12329045.831" maxy="8887780.489" SRS="EPSG:3857" minx="-15340993.679" miny="6052167.318"/>
+    <BoundingBox maxx="-110.753703" maxy="62.120403" SRS="EPSG:4326" minx="-137.810491" miny="47.67023"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=main map&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+    <Layer queryable="1">
+     <Name>First Nation Community</Name>
+     <Title>First Nation Community</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-111.112149" maxy="62.120403" minx="-137.810491" miny="47.832044"/>
+     <BoundingBox maxx="1795283.518" maxy="1903594.72" SRS="EPSG:3005" minx="372600.665" miny="372859.805"/>
+     <BoundingBox maxx="-12368947.861" maxy="8887780.489" SRS="EPSG:3857" minx="-15340993.679" miny="6078958.41"/>
+     <BoundingBox maxx="-111.112149" maxy="62.120403" SRS="EPSG:4326" minx="-137.810491" miny="47.832044"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=First Nation Community&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Community</Name>
+     <Title>Community</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-112.006083" maxy="59.771859" minx="-133.726646" miny="47.855558"/>
+     <BoundingBox maxx="1798382.001" maxy="1643181.25" SRS="EPSG:3005" minx="563199.813" miny="375965.905"/>
+     <BoundingBox maxx="-12468460.225" maxy="8349118.955" SRS="EPSG:3857" minx="-14886382.076" miny="6082858.406"/>
+     <BoundingBox maxx="-112.006083" maxy="59.771859" SRS="EPSG:4326" minx="-133.726646" miny="47.855558"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Community&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Road</Name>
+     <Title>Road</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-110.753703" maxy="60.418123" minx="-136.853882" miny="47.67023"/>
+     <BoundingBox maxx="1856289.502" maxy="1714984.864" SRS="EPSG:3005" minx="395112.21" miny="364282.201"/>
+     <BoundingBox maxx="-12329045.831" maxy="8493405.489" SRS="EPSG:3857" minx="-15234504.358" miny="6052167.318"/>
+     <BoundingBox maxx="-110.753703" maxy="60.418123" SRS="EPSG:4326" minx="-136.853882" miny="47.67023"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fcommunity%2Fcommunities.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Road&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <ScaleHint min="0" max="277.185858"/>
+    </Layer>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

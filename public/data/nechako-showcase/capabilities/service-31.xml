@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>None</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-110.529928" maxy="60.363985" minx="-136.593741" miny="47.702429"/>
+   <BoundingBox maxx="1870586.802" maxy="1709027.297" SRS="EPSG:3005" minx="408933.068" miny="370244.186"/>
+   <BoundingBox maxx="-12304135.321" maxy="8481346.646" SRS="EPSG:3857" minx="-15205545.606" miny="6057491.783"/>
+   <BoundingBox maxx="-110.529928" maxy="60.363985" SRS="EPSG:4326" minx="-136.593741" miny="47.702429"/>
+   <Layer queryable="1">
+    <Name>Fire Decade</Name>
+    <Title>Fire Decade</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.529928" maxy="60.363985" minx="-136.593741" miny="47.702429"/>
+    <BoundingBox maxx="1870586.802" maxy="1709027.297" SRS="EPSG:3005" minx="408933.068" miny="370244.186"/>
+    <BoundingBox maxx="-12304135.321" maxy="8481346.646" SRS="EPSG:3857" minx="-15205545.606" miny="6057491.783"/>
+    <BoundingBox maxx="-110.529928" maxy="60.363985" SRS="EPSG:4326" minx="-136.593741" miny="47.702429"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwildfire%2Fwildfire.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Fire Decade&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

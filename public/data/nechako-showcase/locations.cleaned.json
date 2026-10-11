@@ -1,0 +1,1022 @@
+[
+  {
+    "id": "prince_george",
+    "name": "Prince George",
+    "coordinates": {
+      "lat": 53.9171,
+      "lon": -122.7497
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 323,
+    "byDecade": {
+      "1950": 1,
+      "1960": 3,
+      "1970": 6,
+      "1980": 16,
+      "1990": 49,
+      "2000": 84,
+      "2010": 118,
+      "2020": 43
+    },
+    "resourceTypes": {
+      "journalArticle": 277,
+      "document": 13,
+      "newspaperArticle": 11,
+      "conferencePaper": 9,
+      "videoRecording": 7,
+      "webpage": 2,
+      "thesis": 2,
+      "book": 2
+    }
+  },
+  {
+    "id": "nechako_watershed",
+    "name": "nechako_watershed",
+    "coordinates": {
+      "lat": 54,
+      "lon": -124
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 193,
+    "byDecade": {
+      "1940": 1,
+      "1950": 2,
+      "1960": 3,
+      "1970": 5,
+      "1980": 5,
+      "1990": 22,
+      "2000": 31,
+      "2010": 70,
+      "2020": 51
+    },
+    "resourceTypes": {
+      "journalArticle": 115,
+      "newspaperArticle": 29,
+      "webpage": 15,
+      "report": 10,
+      "videoRecording": 9,
+      "document": 8,
+      "conferencePaper": 3,
+      "thesis": 3,
+      "other": 1
+    }
+  },
+  {
+    "id": "nechako_river",
+    "name": "Nechako_River",
+    "coordinates": {
+      "lat": 54,
+      "lon": -124.5
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 86,
+    "byDecade": {
+      "1940": 1,
+      "1950": 1,
+      "1980": 8,
+      "1990": 31,
+      "2000": 12,
+      "2010": 28,
+      "2020": 5
+    },
+    "resourceTypes": {
+      "journalArticle": 51,
+      "report": 24,
+      "document": 6,
+      "newspaperArticle": 2,
+      "book": 2,
+      "videoRecording": 1
+    }
+  },
+  {
+    "id": "takla_lake",
+    "name": "takla_lake",
+    "coordinates": {
+      "lat": 55.3,
+      "lon": -125.9
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 55,
+    "byDecade": {
+      "1950": 1,
+      "1970": 7,
+      "1980": 1,
+      "1990": 21,
+      "2000": 19,
+      "2010": 6
+    },
+    "resourceTypes": {
+      "journalArticle": 35,
+      "report": 20
+    }
+  },
+  {
+    "id": "kenney_dam",
+    "name": "Kenney dam",
+    "coordinates": {
+      "lat": 53.8333,
+      "lon": -126.1667
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 51,
+    "byDecade": {
+      "1950": 2,
+      "1980": 2,
+      "1990": 7,
+      "2000": 20,
+      "2010": 5,
+      "2020": 14
+    },
+    "resourceTypes": {
+      "journalArticle": 32,
+      "newspaperArticle": 12,
+      "document": 3,
+      "webpage": 2,
+      "videoRecording": 2
+    }
+  },
+  {
+    "id": "fraser_river",
+    "name": "Fraser_River",
+    "coordinates": {
+      "lat": 52.8,
+      "lon": -122
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 51,
+    "byDecade": {
+      "1970": 2,
+      "1980": 2,
+      "1990": 10,
+      "2000": 10,
+      "2010": 23,
+      "2020": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 44,
+      "document": 2,
+      "report": 2,
+      "conferencePaper": 2,
+      "newspaperArticle": 1
+    }
+  },
+  {
+    "id": "fraser_basin_watershed",
+    "name": "Fraser_Basin_Watershed",
+    "coordinates": {
+      "lat": 52.5,
+      "lon": -122
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 42,
+    "byDecade": {
+      "1980": 3,
+      "1990": 7,
+      "2000": 9,
+      "2010": 19,
+      "2020": 4
+    },
+    "resourceTypes": {
+      "journalArticle": 37,
+      "report": 3,
+      "webpage": 1,
+      "conferencePaper": 1
+    }
+  },
+  {
+    "id": "vanderhoof",
+    "name": "vanderhoof",
+    "coordinates": {
+      "lat": 54.0186,
+      "lon": -124.0051
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 40,
+    "byDecade": {
+      "1930": 1,
+      "1940": 1,
+      "1970": 3,
+      "1980": 2,
+      "1990": 1,
+      "2000": 6,
+      "2010": 15,
+      "2020": 8
+    },
+    "resourceTypes": {
+      "journalArticle": 22,
+      "videoRecording": 6,
+      "newspaperArticle": 4,
+      "book": 3,
+      "webpage": 2,
+      "report": 1,
+      "thesis": 1,
+      "document": 1
+    }
+  },
+  {
+    "id": "fort_st_james",
+    "name": "Fort St James",
+    "coordinates": {
+      "lat": 54.4439,
+      "lon": -124.2567
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 38,
+    "byDecade": {
+      "1980": 1,
+      "1990": 1,
+      "2000": 20,
+      "2010": 15
+    },
+    "resourceTypes": {
+      "journalArticle": 35,
+      "conferencePaper": 2,
+      "other": 1
+    }
+  },
+  {
+    "id": "stuart_lake",
+    "name": "stuart_lake",
+    "coordinates": {
+      "lat": 54.3,
+      "lon": -124.8
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 31,
+    "byDecade": {
+      "1950": 1,
+      "1970": 2,
+      "1980": 1,
+      "1990": 7,
+      "2000": 12,
+      "2010": 5,
+      "2020": 2
+    },
+    "resourceTypes": {
+      "report": 17,
+      "journalArticle": 12,
+      "document": 2
+    }
+  },
+  {
+    "id": "endako",
+    "name": "endako",
+    "coordinates": {
+      "lat": 54.1,
+      "lon": -125.8
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 30,
+    "byDecade": {
+      "1960": 1,
+      "1970": 9,
+      "1980": 1,
+      "1990": 3,
+      "2000": 13,
+      "2010": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 27,
+      "report": 3
+    }
+  },
+  {
+    "id": "fraser_lake",
+    "name": "fraser_lake",
+    "coordinates": {
+      "lat": 54.0567,
+      "lon": -124.8478
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 27,
+    "byDecade": {
+      "1960": 1,
+      "1970": 3,
+      "1980": 1,
+      "1990": 1,
+      "2000": 12,
+      "2010": 4,
+      "2020": 5
+    },
+    "resourceTypes": {
+      "report": 14,
+      "journalArticle": 11,
+      "document": 2
+    }
+  },
+  {
+    "id": "bulkley_nechako_rd",
+    "name": "bulkley_nechako_RD",
+    "coordinates": {
+      "lat": 54.5,
+      "lon": -125
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 23,
+    "byDecade": {
+      "1980": 3,
+      "1990": 1,
+      "2000": 1,
+      "2010": 7,
+      "2020": 10
+    },
+    "resourceTypes": {
+      "journalArticle": 15,
+      "newspaperArticle": 3,
+      "webpage": 2,
+      "book": 1,
+      "report": 1,
+      "thesis": 1
+    }
+  },
+  {
+    "id": "cheslatta",
+    "name": "Cheslatta",
+    "coordinates": {
+      "lat": 53.8,
+      "lon": -126.2
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 23,
+    "byDecade": {
+      "1950": 1,
+      "1990": 5,
+      "2000": 8,
+      "2010": 6,
+      "2020": 2
+    },
+    "resourceTypes": {
+      "journalArticle": 20,
+      "videoRecording": 1,
+      "other": 1,
+      "document": 1
+    }
+  },
+  {
+    "id": "northern_bc",
+    "name": "northern_BC",
+    "coordinates": {
+      "lat": 56,
+      "lon": -124
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 22,
+    "byDecade": {
+      "1940": 2,
+      "1980": 2,
+      "1990": 2,
+      "2000": 2,
+      "2010": 11,
+      "2020": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 21,
+      "webpage": 1
+    }
+  },
+  {
+    "id": "burns_lake",
+    "name": "burns_lake",
+    "coordinates": {
+      "lat": 54.2297,
+      "lon": -125.7604
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 22,
+    "byDecade": {
+      "1970": 1,
+      "1980": 1,
+      "1990": 1,
+      "2000": 7,
+      "2010": 10,
+      "2020": 2
+    },
+    "resourceTypes": {
+      "journalArticle": 16,
+      "newspaperArticle": 3,
+      "report": 2,
+      "thesis": 1
+    }
+  },
+  {
+    "id": "pinchi_lake",
+    "name": "pinchi_lake",
+    "coordinates": {
+      "lat": 54.6124372,
+      "lon": -124.4249773
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 18,
+    "byDecade": {
+      "1970": 5,
+      "1990": 6,
+      "2000": 6,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 17,
+      "report": 1
+    }
+  },
+  {
+    "id": "bc_soi_wetsuwetennation",
+    "name": "BC_SOI_WetsuwetenNation",
+    "coordinates": {
+      "lat": 54.0234476,
+      "lon": -126.6759966
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 17,
+    "byDecade": {
+      "1990": 6,
+      "2000": 4,
+      "2010": 1,
+      "2020": 6
+    },
+    "resourceTypes": {
+      "journalArticle": 17
+    }
+  },
+  {
+    "id": "nechako_reservoir",
+    "name": "nechako_reservoir",
+    "coordinates": {
+      "lat": 53.6059385,
+      "lon": -126.7629547
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 14,
+    "byDecade": {
+      "1960": 1,
+      "1980": 3,
+      "1990": 6,
+      "2000": 1,
+      "2020": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 12,
+      "videoRecording": 1,
+      "conferencePaper": 1
+    }
+  },
+  {
+    "id": "francois_lake",
+    "name": "Francois_lake",
+    "coordinates": {
+      "lat": 54.0833,
+      "lon": -125.6167
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 13,
+    "byDecade": {
+      "1960": 3,
+      "1970": 2,
+      "1980": 2,
+      "1990": 1,
+      "2000": 3,
+      "2010": 2
+    },
+    "resourceTypes": {
+      "report": 8,
+      "journalArticle": 4,
+      "document": 1
+    }
+  },
+  {
+    "id": "trembleur_lake",
+    "name": "trembleur_lake",
+    "coordinates": {
+      "lat": 55.1,
+      "lon": -125.7
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 13,
+    "byDecade": {
+      "1950": 2,
+      "1970": 2,
+      "1980": 1,
+      "1990": 2,
+      "2000": 5,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "report": 13
+    }
+  },
+  {
+    "id": "kemano",
+    "name": "Kemano",
+    "coordinates": {
+      "lat": 53.5667,
+      "lon": -127.9167
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 11,
+    "byDecade": {
+      "1950": 1,
+      "1970": 1,
+      "1980": 2,
+      "1990": 3,
+      "2000": 1,
+      "2010": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 11
+    }
+  },
+  {
+    "id": "ootsa_lake",
+    "name": "Ootsa_Lake",
+    "coordinates": {
+      "lat": 53.9,
+      "lon": -126.1
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 10,
+    "byDecade": {
+      "1990": 2,
+      "2000": 4,
+      "2010": 4
+    },
+    "resourceTypes": {
+      "journalArticle": 10
+    }
+  },
+  {
+    "id": "cheslatta_carrier_nation_community",
+    "name": "Cheslatta Carrier Nation Community",
+    "coordinates": {
+      "lat": 53.8,
+      "lon": -126.2
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 9,
+    "byDecade": {
+      "1990": 2,
+      "2000": 1,
+      "2010": 4,
+      "2020": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 8,
+      "videoRecording": 1
+    }
+  },
+  {
+    "id": "carrier_sekani_tribal_nations_territory",
+    "name": "Carrier Sekani Tribal Nations Territory",
+    "coordinates": {
+      "lat": 54.45,
+      "lon": -124.85
+    },
+    "coordinateSource": "manual_centroid",
+    "totalPublications": 7,
+    "byDecade": {
+      "2000": 2,
+      "2010": 5
+    },
+    "resourceTypes": {
+      "journalArticle": 7
+    }
+  },
+  {
+    "id": "burns_lake_community",
+    "name": "Burns Lake community",
+    "coordinates": {
+      "lat": 54.2297,
+      "lon": -125.7604
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 6,
+    "byDecade": {
+      "1970": 1,
+      "2000": 1,
+      "2010": 3,
+      "2020": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 6
+    }
+  },
+  {
+    "id": "smithers",
+    "name": "Smithers",
+    "coordinates": {
+      "lat": 54.7804,
+      "lon": -127.1743
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 5,
+    "byDecade": {
+      "2010": 1,
+      "2020": 3
+    },
+    "resourceTypes": {
+      "journalArticle": 5
+    }
+  },
+  {
+    "id": "fraser_fort_george_rd",
+    "name": "fraser_fort-george_RD",
+    "coordinates": {
+      "lat": 53.9859906,
+      "lon": -121.5171616
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 5,
+    "byDecade": {
+      "1980": 1,
+      "2000": 1,
+      "2010": 1,
+      "2020": 2
+    },
+    "resourceTypes": {
+      "journalArticle": 2,
+      "report": 2,
+      "book": 1
+    }
+  },
+  {
+    "id": "williams_lake",
+    "name": "Williams_Lake",
+    "coordinates": {
+      "lat": 52.1417,
+      "lon": -122.1417
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 4,
+    "byDecade": {
+      "1950": 1,
+      "1980": 1,
+      "1990": 1,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 3,
+      "book": 1
+    }
+  },
+  {
+    "id": "nulki_lake",
+    "name": "Nulki_lake",
+    "coordinates": {
+      "lat": 53.9122289,
+      "lon": -124.1617268
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "2000": 2
+    },
+    "resourceTypes": {
+      "journalArticle": 2
+    }
+  },
+  {
+    "id": "mackenzie",
+    "name": "Mackenzie",
+    "coordinates": {
+      "lat": 55.338,
+      "lon": -123.0947
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 2,
+    "byDecade": {
+      "2010": 1,
+      "2020": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 2
+    }
+  },
+  {
+    "id": "caribou_rd",
+    "name": "caribou_RD",
+    "coordinates": {
+      "lat": 52.3550873,
+      "lon": -122.9927906
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "1980": 1,
+      "2020": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1,
+      "report": 1
+    }
+  },
+  {
+    "id": "sd_91",
+    "name": "SD 91",
+    "coordinates": {
+      "lat": 54.0180219,
+      "lon": -124.0075928
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "2020": 2
+    },
+    "resourceTypes": {
+      "thesis": 1,
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "fraser_lake_water",
+    "name": "fraser_lake_water",
+    "coordinates": {
+      "lat": 54.0567,
+      "lon": -124.8478
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 2,
+    "byDecade": {
+      "1990": 1,
+      "2000": 1
+    },
+    "resourceTypes": {
+      "report": 2
+    }
+  },
+  {
+    "id": "kemess_mine",
+    "name": "Kemess_Mine",
+    "coordinates": {
+      "lat": 57.0103328,
+      "lon": -126.7375044
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "2000": 1,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1,
+      "conferencePaper": 1
+    }
+  },
+  {
+    "id": "bc_soi_carriersekanitribalcouncil",
+    "name": "BC_SOI_CarrierSekaniTribalCouncil",
+    "coordinates": {
+      "lat": 53.9100459,
+      "lon": -122.7550357
+    },
+    "coordinateSource": "manual_proxy",
+    "totalPublications": 2,
+    "byDecade": {
+      "2000": 1,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1,
+      "report": 1
+    }
+  },
+  {
+    "id": "tezzeron_lake",
+    "name": "Tezzeron_Lake",
+    "coordinates": {
+      "lat": 54.7144797,
+      "lon": -124.5131085
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "1980": 1,
+      "2000": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 2
+    }
+  },
+  {
+    "id": "bc_soi_lheidlitennehfirstnation",
+    "name": "BC_SOI_LheidliTennehFirstNation",
+    "coordinates": {
+      "lat": 53.9061433,
+      "lon": -122.7348101
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 2,
+    "byDecade": {
+      "2000": 1,
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 2
+    }
+  },
+  {
+    "id": "cheslatta_lake",
+    "name": "cheslatta_lake",
+    "coordinates": {
+      "lat": 53.8,
+      "lon": -126.2
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 1,
+    "byDecade": {
+      "2000": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "burns_lake_first_nation",
+    "name": "Burns Lake First Nation",
+    "coordinates": {
+      "lat": 54.2297,
+      "lon": -125.7604
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 1,
+    "byDecade": {
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "tweedsmuir_park",
+    "name": "Tweedsmuir_Park",
+    "coordinates": {
+      "lat": 52.5,
+      "lon": -126.5
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 1,
+    "byDecade": {
+      "1990": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "capoose_lake",
+    "name": "Capoose Lake",
+    "coordinates": {
+      "lat": 53.3154909,
+      "lon": -125.283154
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "1980": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "omineca_resource_region",
+    "name": "Omineca_Resource_Region",
+    "coordinates": {
+      "lat": 55,
+      "lon": -125
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 1,
+    "byDecade": {
+      "2010": 1
+    },
+    "resourceTypes": {
+      "report": 1
+    }
+  },
+  {
+    "id": "mcbride",
+    "name": "McBride",
+    "coordinates": {
+      "lat": 53.3,
+      "lon": -120.1667
+    },
+    "coordinateSource": "project_reference",
+    "totalPublications": 1,
+    "byDecade": {
+      "1980": 1
+    },
+    "resourceTypes": {
+      "book": 1
+    }
+  },
+  {
+    "id": "saikuz",
+    "name": "saikuz",
+    "coordinates": {
+      "lat": 53.8760122,
+      "lon": -123.4026384
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "2020": 1
+    },
+    "resourceTypes": {
+      "thesis": 1
+    }
+  },
+  {
+    "id": "tetachuk_lake",
+    "name": "Tetachuk_lake",
+    "coordinates": {
+      "lat": 53.3088869,
+      "lon": -125.9141202
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "1990": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "irs_locations_lejac",
+    "name": "IRS_Locations_Lejac",
+    "coordinates": {
+      "lat": 54.0622374,
+      "lon": -124.7613775
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "2010": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "bc_soi_gitxsanhereditarychiefs",
+    "name": "BC_SOI_GitxsanHereditaryChiefs",
+    "coordinates": {
+      "lat": 55.2553671,
+      "lon": -127.670882
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "1990": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "bc_soi_cheslattacarriernation",
+    "name": "BC_SOI_CheslattaCarrierNation",
+    "coordinates": {
+      "lat": 54.0237775,
+      "lon": -125.7687882
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "2000": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "bc_soi_lakebabinenation",
+    "name": "BC_SOI_LakeBabineNation",
+    "coordinates": {
+      "lat": 55.318431,
+      "lon": -126.6232871
+    },
+    "coordinateSource": "manual_proxy",
+    "totalPublications": 1,
+    "byDecade": {
+      "2000": 1
+    },
+    "resourceTypes": {
+      "journalArticle": 1
+    }
+  },
+  {
+    "id": "decker_lake",
+    "name": "Decker_lake",
+    "coordinates": {
+      "lat": 54.2924481,
+      "lon": -125.8319391
+    },
+    "coordinateSource": "nominatim_osm",
+    "totalPublications": 1,
+    "byDecade": {
+      "2000": 1
+    },
+    "resourceTypes": {
+      "report": 1
+    }
+  }
+]

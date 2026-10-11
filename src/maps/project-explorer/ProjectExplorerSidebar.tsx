@@ -15,6 +15,7 @@ import { AggregateBoundaryFeature, type AggregateBoundaryState } from './feature
 export function ProjectExplorerSidebar({
   title,
   onBack,
+  backLabel,
   config,
   data,
   boundary,
@@ -23,6 +24,7 @@ export function ProjectExplorerSidebar({
 }: {
   title: string
   onBack: () => void
+  backLabel?: string
   config: ProjectMapExplorerWorkspaceDef
   data: ResearchRecordsAdapterData
   boundary: AggregateBoundaryState
@@ -58,7 +60,7 @@ export function ProjectExplorerSidebar({
   return (
     <div className="flex h-full flex-col bg-background">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-2">
-        <ProjectBackButton onBack={onBack} className="shrink-0" />
+        <ProjectBackButton onBack={onBack} label={backLabel} className="shrink-0" />
         <div className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground" title={title}>
           {title}
         </div>

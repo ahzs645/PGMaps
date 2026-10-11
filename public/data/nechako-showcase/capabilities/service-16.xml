@@ -1,0 +1,602 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>None</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+   <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+   <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+   <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+   <Layer queryable="1">
+    <Name>Overall ECHOScreen Score</Name>
+    <Title>Overall ECHOScreen Score</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Overall ECHOScreen Score&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Sensitive Population Score</Name>
+    <Title>Sensitive Population Score</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Sensitive Population Score&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Socioeconomic Factor Score</Name>
+    <Title>Socioeconomic Factor Score</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Socioeconomic Factor Score&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Environmental Effects Score</Name>
+    <Title>Environmental Effects Score</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Environmental Effects Score&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Environmental Exposure Score</Name>
+    <Title>Environmental Exposure Score</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Environmental Exposure Score&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Cancer rank - Sensitive Population </Name>
+    <Title>Cancer rank - Sensitive Population </Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Cancer rank - Sensitive Population &amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>COPD rank - Sensitive Population </Name>
+    <Title>COPD rank - Sensitive Population </Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=COPD rank - Sensitive Population &amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Hypertension rank - Sensitive Population</Name>
+    <Title>Hypertension rank - Sensitive Population</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Hypertension rank - Sensitive Population&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Low birthweight rank - Sensitive Population</Name>
+    <Title>Low birthweight rank - Sensitive Population</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Low birthweight rank - Sensitive Population&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Diabetes mellitus rank - Sensitive Population</Name>
+    <Title>Diabetes mellitus rank - Sensitive Population</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Diabetes mellitus rank - Sensitive Population&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Low income rank - Socioeconomic Factor</Name>
+    <Title>Low income rank - Socioeconomic Factor</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Low income rank - Socioeconomic Factor&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Low education rank - Socioeconomic Factor</Name>
+    <Title>Low education rank - Socioeconomic Factor</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Low education rank - Socioeconomic Factor&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Housing burden rank - Socioeconomic Factor</Name>
+    <Title>Housing burden rank - Socioeconomic Factor</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Housing burden rank - Socioeconomic Factor&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Linguistic isolation rank - Socioeconomic Factor</Name>
+    <Title>Linguistic isolation rank - Socioeconomic Factor</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Linguistic isolation rank - Socioeconomic Factor&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Unemployment rank - Socioeconomic Factor</Name>
+    <Title>Unemployment rank - Socioeconomic Factor</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Unemployment rank - Socioeconomic Factor&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Linear footprint rank - Environmental Effects</Name>
+    <Title>Linear footprint rank - Environmental Effects</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Linear footprint rank - Environmental Effects&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Wildfire footprint rank - Environmental Effects</Name>
+    <Title>Wildfire footprint rank - Environmental Effects</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Wildfire footprint rank - Environmental Effects&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Disturbed landscape rank - Environmental Effects</Name>
+    <Title>Disturbed landscape rank - Environmental Effects</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Disturbed landscape rank - Environmental Effects&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Remediation sites rank - Environmental Effects</Name>
+    <Title>Remediation sites rank - Environmental Effects</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Remediation sites rank - Environmental Effects&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Industrial sites rank - Environmental Effects</Name>
+    <Title>Industrial sites rank - Environmental Effects</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Industrial sites rank - Environmental Effects&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>PM 2.5 rank - Environmental Exposure</Name>
+    <Title>PM 2.5 rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=PM 2.5 rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Ozone rank - Environmental Exposure</Name>
+    <Title>Ozone rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Ozone rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Traffic density rank - Environmental Exposure</Name>
+    <Title>Traffic density rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Traffic density rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Water quality exceedance rank - Environmental Exposure</Name>
+    <Title>Water quality exceedance rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Water quality exceedance rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Future temperature rank - Environmental Exposure</Name>
+    <Title>Future temperature rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Future temperature rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+   <Layer queryable="1">
+    <Name>Future precipitation rank - Environmental Exposure</Name>
+    <Title>Future precipitation rank - Environmental Exposure</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-110.427447" maxy="60.604531" minx="-139.052202" miny="47.691699"/>
+    <BoundingBox maxx="1870586.317" maxy="1735670.865" SRS="EPSG:3005" minx="273875.668" miny="369038.735"/>
+    <BoundingBox maxx="-12292727.177" maxy="8535460.721" SRS="EPSG:3857" minx="-15479220.214" miny="6055716.957"/>
+    <BoundingBox maxx="-110.427447" maxy="60.604531" SRS="EPSG:4326" minx="-139.052202" miny="47.691699"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fechoscreen%2Fechoscreen.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Future precipitation rank - Environmental Exposure&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

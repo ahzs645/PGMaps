@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM 'http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd'>
+<WMT_MS_Capabilities version="1.1.1">
+ <Service>
+  <Name>WMS</Name>
+  <Title>Untitled</Title>
+  <KeywordList>
+   <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+  </KeywordList>
+  <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+  <Fees>None</Fees>
+  <AccessConstraints>None</AccessConstraints>
+ </Service>
+ <Capability>
+  <Request>
+   <GetCapabilities>
+    <Format>application/vnd.ogc.wms_xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetCapabilities>
+   <GetMap>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>image/png; mode=16bit</Format>
+    <Format>image/png; mode=8bit</Format>
+    <Format>image/png; mode=1bit</Format>
+    <Format>application/dxf</Format>
+    <Format>application/pdf</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetMap>
+   <GetFeatureInfo>
+    <Format>text/plain</Format>
+    <Format>text/html</Format>
+    <Format>text/xml</Format>
+    <Format>application/vnd.ogc.gml</Format>
+    <Format>application/vnd.ogc.gml/3.1.1</Format>
+    <Format>application/json</Format>
+    <Format>application/geo+json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetFeatureInfo>
+   <GetLegendGraphic>
+    <Format>image/jpeg</Format>
+    <Format>image/png</Format>
+    <Format>application/json</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetLegendGraphic>
+   <DescribeLayer>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </DescribeLayer>
+   <GetStyles>
+    <Format>text/xml</Format>
+    <DCPType>
+     <HTTP>
+      <Get>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </Get>
+     </HTTP>
+    </DCPType>
+   </GetStyles>
+  </Request>
+  <Exception>
+   <Format>application/vnd.ogc.se_xml</Format>
+  </Exception>
+  <Layer queryable="1">
+   <Title>Untitled</Title>
+   <KeywordList>
+    <Keyword vocabulary="ISO">infoMapAccessService</Keyword>
+   </KeywordList>
+   <SRS>EPSG:4326</SRS>
+   <SRS>EPSG:3857</SRS>
+   <SRS>EPSG:3005</SRS>
+   <LatLonBoundingBox maxx="-122.430553" maxy="56.243135" minx="-127.955298" miny="52.881544"/>
+   <BoundingBox maxx="1221033.597" maxy="1249983.011" SRS="EPSG:3005" minx="879011.996" miny="879379.539"/>
+   <BoundingBox maxx="-13628906.822" maxy="7606965.937" SRS="EPSG:3857" minx="-14243918.55" miny="6961116.782"/>
+   <BoundingBox maxx="-122.430553" maxy="56.243135" SRS="EPSG:4326" minx="-127.955298" miny="52.881544"/>
+   <Layer queryable="1">
+    <Name>All</Name>
+    <Title>All</Title>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:3857</SRS>
+    <SRS>EPSG:3005</SRS>
+    <LatLonBoundingBox maxx="-122.430553" maxy="56.243135" minx="-127.955298" miny="52.881544"/>
+    <BoundingBox maxx="1221033.597" maxy="1249983.011" SRS="EPSG:3005" minx="879011.996" miny="879379.539"/>
+    <BoundingBox maxx="-13628906.822" maxy="7606965.937" SRS="EPSG:3857" minx="-14243918.55" miny="6961116.782"/>
+    <BoundingBox maxx="-122.430553" maxy="56.243135" SRS="EPSG:4326" minx="-127.955298" miny="52.881544"/>
+    <Style>
+     <Name>default</Name>
+     <Title>default</Title>
+     <LegendURL>
+      <Format>image/png</Format>
+      <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=All&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+     </LegendURL>
+    </Style>
+    <Layer queryable="1">
+     <Name>Streams</Name>
+     <Title>Streams</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-122.527604" maxy="56.174555" minx="-127.90518" miny="52.881544"/>
+     <BoundingBox maxx="1215355.062" maxy="1242329.591" SRS="EPSG:3005" minx="881908.666" miny="879691.4"/>
+     <BoundingBox maxx="-13639710.504" maxy="7593239.743" SRS="EPSG:3857" minx="-14238339.402" miny="6961116.782"/>
+     <BoundingBox maxx="-122.527604" maxy="56.174555" SRS="EPSG:4326" minx="-127.90518" miny="52.881544"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Streams&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <Layer queryable="1">
+      <Name>Stream (order 5 and up)</Name>
+      <Title>Stream (order 5 and up)</Title>
+      <SRS>EPSG:4326</SRS>
+      <SRS>EPSG:3857</SRS>
+      <SRS>EPSG:3005</SRS>
+      <LatLonBoundingBox maxx="-122.539715" maxy="56.067089" minx="-127.792676" miny="53.00755"/>
+      <BoundingBox maxx="1215189.313" maxy="1230338.468" SRS="EPSG:3005" minx="888581.47" miny="893754.769"/>
+      <BoundingBox maxx="-13641058.738" maxy="7571782.763" SRS="EPSG:3857" minx="-14225815.594" miny="6984394.677"/>
+      <BoundingBox maxx="-122.539715" maxy="56.067089" SRS="EPSG:4326" minx="-127.792676" miny="53.00755"/>
+      <Style>
+       <Name>default</Name>
+       <Title>default</Title>
+       <LegendURL>
+        <Format>image/png</Format>
+        <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Stream (order 5 and up)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+       </LegendURL>
+      </Style>
+     </Layer>
+     <Layer queryable="1">
+      <Name>Stream (order 3 and 4)</Name>
+      <Title>Stream (order 3 and 4)</Title>
+      <SRS>EPSG:4326</SRS>
+      <SRS>EPSG:3857</SRS>
+      <SRS>EPSG:3005</SRS>
+      <LatLonBoundingBox maxx="-122.547378" maxy="56.158207" minx="-127.887528" miny="52.905383"/>
+      <BoundingBox maxx="1214215.761" maxy="1240505.202" SRS="EPSG:3005" minx="882954.676" miny="882301.85"/>
+      <BoundingBox maxx="-13641911.789" maxy="7589970.9" SRS="EPSG:3857" minx="-14236374.398" miny="6965515.558"/>
+      <BoundingBox maxx="-122.547378" maxy="56.158207" SRS="EPSG:4326" minx="-127.887528" miny="52.905383"/>
+      <Style>
+       <Name>default</Name>
+       <Title>default</Title>
+       <LegendURL>
+        <Format>image/png</Format>
+        <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Stream (order 3 and 4)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+       </LegendURL>
+      </Style>
+      <ScaleHint min="0" max="197.989899"/>
+     </Layer>
+     <Layer queryable="1">
+      <Name>Stream (order 1 and 2)</Name>
+      <Title>Stream (order 1 and 2)</Title>
+      <SRS>EPSG:4326</SRS>
+      <SRS>EPSG:3857</SRS>
+      <SRS>EPSG:3005</SRS>
+      <LatLonBoundingBox maxx="-122.527604" maxy="56.174555" minx="-127.90518" miny="52.881544"/>
+      <BoundingBox maxx="1215355.062" maxy="1242329.591" SRS="EPSG:3005" minx="881908.666" miny="879691.4"/>
+      <BoundingBox maxx="-13639710.504" maxy="7593239.743" SRS="EPSG:3857" minx="-14238339.402" miny="6961116.782"/>
+      <BoundingBox maxx="-122.527604" maxy="56.174555" SRS="EPSG:4326" minx="-127.90518" miny="52.881544"/>
+      <Style>
+       <Name>default</Name>
+       <Title>default</Title>
+       <LegendURL>
+        <Format>image/png</Format>
+        <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Stream (order 1 and 2)&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+       </LegendURL>
+      </Style>
+      <ScaleHint min="0" max="39.59798"/>
+     </Layer>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Wetlands</Name>
+     <Title>Wetlands</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-122.430553" maxy="56.243135" minx="-127.955298" miny="52.883153"/>
+     <BoundingBox maxx="1220997.939" maxy="1249983.011" SRS="EPSG:3005" minx="879011.996" miny="880130.362"/>
+     <BoundingBox maxx="-13628906.822" maxy="7606965.937" SRS="EPSG:3857" minx="-14243918.55" miny="6961413.705"/>
+     <BoundingBox maxx="-122.430553" maxy="56.243135" SRS="EPSG:4326" minx="-127.955298" miny="52.883153"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Wetlands&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <ScaleHint min="0" max="79.195959"/>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Sub-watersheds</Name>
+     <Title>Sub-watersheds</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-122.519518" maxy="56.17651" minx="-127.906437" miny="52.905308"/>
+     <BoundingBox maxx="1215846.62" maxy="1242547.819" SRS="EPSG:3005" minx="881836.585" miny="882367.311"/>
+     <BoundingBox maxx="-13638810.374" maxy="7593630.563" SRS="EPSG:3857" minx="-14238479.344" miny="6965501.649"/>
+     <BoundingBox maxx="-122.519518" maxy="56.17651" SRS="EPSG:4326" minx="-127.906437" miny="52.905308"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Sub-watersheds&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+    </Layer>
+    <Layer queryable="1">
+     <Name>Detailed Watersheds</Name>
+     <Title>Detailed Watersheds</Title>
+     <SRS>EPSG:4326</SRS>
+     <SRS>EPSG:3857</SRS>
+     <SRS>EPSG:3005</SRS>
+     <LatLonBoundingBox maxx="-122.704541" maxy="56.198216" minx="-127.7915" miny="52.922488"/>
+     <BoundingBox maxx="1221033.597" maxy="1249719.672" SRS="EPSG:3005" minx="879809.647" miny="879379.539"/>
+     <BoundingBox maxx="-13659407.128" maxy="7597976.278" SRS="EPSG:3857" minx="-14225684.61" miny="6968673.289"/>
+     <BoundingBox maxx="-122.704541" maxy="56.198216" SRS="EPSG:4326" minx="-127.7915" miny="52.922488"/>
+     <Style>
+      <Name>default</Name>
+      <Title>default</Title>
+      <LegendURL>
+       <Format>image/png</Format>
+       <OnlineResource xlink:href="https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/?MAP=%2Fvar%2Fwww%2Fqgis_maps%2Fwater_features%2Fwater_features.qgs&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetLegendGraphic&amp;LAYER=Detailed Watersheds&amp;FORMAT=image/png&amp;STYLE=default" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple"/>
+      </LegendURL>
+     </Style>
+     <ScaleHint min="0" max="23.758788"/>
+    </Layer>
+   </Layer>
+  </Layer>
+ </Capability>
+</WMT_MS_Capabilities>

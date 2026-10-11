@@ -1,0 +1,125 @@
+[
+  {
+    "decade": 1910,
+    "total": 1,
+    "byResourceType": {
+      "book": 1
+    }
+  },
+  {
+    "decade": 1920,
+    "total": 1,
+    "byResourceType": {
+      "document": 1
+    }
+  },
+  {
+    "decade": 1930,
+    "total": 3,
+    "byResourceType": {
+      "document": 2,
+      "journalArticle": 1
+    }
+  },
+  {
+    "decade": 1940,
+    "total": 6,
+    "byResourceType": {
+      "journalArticle": 5,
+      "document": 1
+    }
+  },
+  {
+    "decade": 1950,
+    "total": 14,
+    "byResourceType": {
+      "journalArticle": 7,
+      "document": 4,
+      "report": 3
+    }
+  },
+  {
+    "decade": 1960,
+    "total": 17,
+    "byResourceType": {
+      "journalArticle": 12,
+      "report": 5
+    }
+  },
+  {
+    "decade": 1970,
+    "total": 55,
+    "byResourceType": {
+      "journalArticle": 41,
+      "report": 10,
+      "document": 3,
+      "book": 1
+    }
+  },
+  {
+    "decade": 1980,
+    "total": 65,
+    "byResourceType": {
+      "journalArticle": 51,
+      "report": 8,
+      "document": 5,
+      "book": 1
+    }
+  },
+  {
+    "decade": 1990,
+    "total": 225,
+    "byResourceType": {
+      "journalArticle": 177,
+      "report": 23,
+      "document": 15,
+      "conferencePaper": 6,
+      "book": 2,
+      "webpage": 1,
+      "newspaperArticle": 1
+    }
+  },
+  {
+    "decade": 2000,
+    "total": 360,
+    "byResourceType": {
+      "journalArticle": 309,
+      "report": 31,
+      "conferencePaper": 9,
+      "document": 4,
+      "webpage": 3,
+      "book": 3,
+      "newspaperArticle": 1
+    }
+  },
+  {
+    "decade": 2010,
+    "total": 469,
+    "byResourceType": {
+      "journalArticle": 405,
+      "newspaperArticle": 19,
+      "report": 14,
+      "webpage": 11,
+      "videoRecording": 10,
+      "thesis": 3,
+      "book": 3,
+      "conferencePaper": 3,
+      "document": 1
+    }
+  },
+  {
+    "decade": 2020,
+    "total": 176,
+    "byResourceType": {
+      "journalArticle": 96,
+      "newspaperArticle": 33,
+      "videoRecording": 18,
+      "webpage": 10,
+      "report": 7,
+      "thesis": 5,
+      "document": 5,
+      "book": 1,
+      "conferencePaper": 1
+    }
+  }
+]
