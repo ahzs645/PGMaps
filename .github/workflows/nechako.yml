@@ -51,6 +51,7 @@ jobs:
       - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/nechako/data/boundary.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
       - run: sudo apt-get update && sudo apt-get install -y gdal-bin php-cli
       - run: python3 scripts/nechako-server/test_converter.py
+      - run: node --check scripts/nechako-server/check-access.cjs && node scripts/nechako-server/check-access.cjs --help
       - run: python3 scripts/nechako-server/test_audit_data.py
       - run: python3 scripts/nechako-server/check_showcase.py
       - run: php -l scripts/nechako-server/cors.inc.php && python3 scripts/nechako-server/test_cors.py
