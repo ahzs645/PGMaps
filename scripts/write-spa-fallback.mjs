@@ -17,6 +17,7 @@ const spaRoutes = [
   'misc',
   'bc-assessment',
   'dev',
+  'dev/forestry/visual-quality',
   'dev/viewshed',
   'dev/viewshed/terrain',
   'dev/flatten',
