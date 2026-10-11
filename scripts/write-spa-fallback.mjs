@@ -32,6 +32,7 @@ const spaRoutes = [
   'dev/transit',
   'dev/projects',
   'dev/nechako',
+  'dev/nechako/portal',
   'dev/aqmap',
   'dev/aqmap/main',
   'dev/aqmap/ring',

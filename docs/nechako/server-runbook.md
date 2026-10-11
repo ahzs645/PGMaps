@@ -1,6 +1,6 @@
 # Nechako server integration and maintenance
 
-Reviewed October 11, 2026 UTC. The PGMaps changes and conversion service are local, reviewable implementation. No remote portal configuration, database, QGIS project, permission, deployment or account was changed. No portal server credentials or authenticated portal session were available. PGMaps GitHub access is available for preparing a reviewable pull request; the portal server has a separate access/deployment requirement. Example logins in the uploaded guide are documentary content and were not used.
+Reviewed October 11, 2026 UTC. The PGMaps changes and conversion service are local, reviewable implementation. No remote portal configuration, database, QGIS project, permission, deployment or account was changed. No portal server credentials or authenticated portal session were available. A later user-authorized test-account login was attempted through the original interface, but API registration rejected it before a session could be established; see the [access check and CORS retest](access-check.md). PGMaps GitHub access is available for preparing a reviewable pull request; the portal server has a separate access/deployment requirement. Example logins in the uploaded guide are documentary content and were not used.
 
 For repeatable public data sizing, project-list checks and attachment inventories, use [the read-only data audit script](data-audit.md). It distinguishes file sizes from metadata, linked websites and unknown/protected resources.
 

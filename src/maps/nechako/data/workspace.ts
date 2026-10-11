@@ -22,6 +22,9 @@ export type VectorData = {
   data: FeatureCollection
   color: string
   visible: boolean
+  fillOpacity?: number
+  lineOpacity?: number
+  lineWidth?: number
   original?: unknown
 }
 export type TileData = { id: string; name: string; urls: string[]; attribution: string; visible: boolean }
@@ -192,6 +195,15 @@ export function importWorkspace(input: unknown): Workspace {
         !/^#[a-f0-9]{6}$/i.test(vector.color)
       )
         throw new Error('Invalid vector workspace layer.')
+      for (const [key, max] of [
+        ['fillOpacity', 1],
+        ['lineOpacity', 1],
+        ['lineWidth', 20],
+      ] as const) {
+        const value = vector[key]
+        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max))
+          throw new Error('Invalid vector workspace style.')
+      }
       return { ...vector, data: normalizeGeojson(vector.data), visible: vector.visible !== false } as VectorData
     })
     const tiles = object.tiles.map((value) => {

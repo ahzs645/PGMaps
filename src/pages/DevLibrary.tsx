@@ -38,6 +38,7 @@ const devEntries: DevEntry[] = [
     color: 'bg-teal-700',
     label: '/dev/nechako',
     subpages: [
+      { label: 'Portal interface', href: '/dev/nechako/portal' },
       { label: 'Showcase', href: '/dev/nechako?view=showcase' },
       { label: 'Research map', href: '/dev/nechako?view=research-map' },
       { label: 'Comparison', href: '/dev/nechako?view=compare' },

@@ -25,11 +25,12 @@ const watershedSelections = [
   { namedWatershedId: 11541, name: 'Fraser River', streamOrder: 10 },
   { namedWatershedId: 8886, name: 'Nechako River', streamOrder: 8 },
 ]
+const watershedsOnly = process.argv.includes('--watersheds-only')
 
-const build = beginDataBuild(root, 'echoscreen-data', [
-  fileURLToPath(import.meta.url), hospitalSourcePath,
+const build = beginDataBuild(root, watershedsOnly ? 'echoscreen-watersheds' : 'echoscreen-data', [
+  fileURLToPath(import.meta.url), ...(watershedsOnly ? [] : [hospitalSourcePath]),
   ...watershedSelections.map((selection) => path.join(watershedSourceDirectory, `named_watersheds_stream_order_${selection.streamOrder}_50m.geojson.gz`)),
-], [watershedOutputPath, hospitalOutputPath], process.argv.includes('--force'))
+], [watershedOutputPath, ...(watershedsOnly ? [] : [hospitalOutputPath])], process.argv.includes('--force'))
 if (!build.needsBuild) {
   console.log('[echoscreen-data] unchanged')
   process.exit(0)
@@ -84,6 +85,12 @@ const watershedSummary = watershedResult.features
   )
   .join(', ')
 process.stdout.write(`[echoscreen-data] wrote ${path.relative(root, watershedOutputPath)}: ${watershedSummary}\n`)
+
+// The native watershed portal and its browser checks only need this shared asset.
+if (watershedsOnly) {
+  build.complete()
+  process.exit(0)
+}
 
 function hospitalCoordinateKey(feature) {
   return feature.geometry.coordinates.map((coordinate) => Number(coordinate).toFixed(6)).join(',')

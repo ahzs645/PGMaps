@@ -7,39 +7,65 @@ import { RecordDialog } from '@/components/ui/record-dialog'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { normalizeProjectPackage, type ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
+import {
+  normalizeProjectPackage,
+  type ProjectMapExplorerWorkspaceDef,
+  type ProjectExplorerFeatureDef,
+} from '@/lib/projectPackages'
 import { useResearchRecordsAdapter } from '@/maps/project-explorer/adapters/useResearchRecordsAdapter'
 import type { ResearchRecord } from '@/maps/project-explorer/adapters/researchRecordsTypes'
 import { downloadText } from '@/lib/download'
 import { csvExport } from './data/monitoring'
 import { SHOWCASE_BASE } from './data/showcase'
+import { NECHAKO_BOUNDARY_URL } from './data/boundary'
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 
 const project = normalizeProjectPackage(packageJson)
 
-function researchConfig(source: 'snapshot' | 'live'): ProjectMapExplorerWorkspaceDef | undefined {
+function researchConfig(source: 'snapshot' | 'live', withBoundary = false): ProjectMapExplorerWorkspaceDef | undefined {
   if (project?.workspace?.type !== 'map-explorer') return undefined
   return source === 'live'
     ? project.workspace
     : {
         ...project.workspace,
         data: { ...project.workspace.data, baseUrl: SHOWCASE_BASE },
-        // The separate scraper-owned watershed boundary is outside this public snapshot.
-        features: project.workspace.features.filter((feature) => feature.type !== 'aggregate-boundary'),
+        // The workbench snapshot stays self-contained; the native page reuses EchoScreen's built asset.
+        features: project.workspace.features.flatMap<ProjectExplorerFeatureDef>((feature) =>
+          feature.type !== 'aggregate-boundary'
+            ? [feature]
+            : withBoundary
+              ? [{ ...feature, data: NECHAKO_BOUNDARY_URL, idProperty: 'namedWatershedId', featureId: '8886' }]
+              : [],
+        ),
       }
 }
 
-export function PortalResearchMap({ onBack }: { onBack: () => void }) {
-  const config = researchConfig('snapshot')
+export function PortalResearchMap({
+  onBack,
+  fill = false,
+  backLabel = 'Showcase',
+}: {
+  onBack: () => void
+  fill?: boolean
+  backLabel?: string
+}) {
+  const config = researchConfig('snapshot', fill)
   if (!config) return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
   return (
-    <div className="space-y-3">
+    <div className={fill ? 'flex min-h-0 flex-1 flex-col gap-3' : 'space-y-3'}>
       <p className="text-sm text-muted-foreground">
         Repository snapshot · location markers are reference points, not study footprints. Basemap tiles use the live
         basemap service.
       </p>
-      <div className="relative h-[75vh] min-h-[540px] overflow-hidden rounded-lg border" data-nechako-research-map>
-        <ProjectMapExplorer title="Nechako research showcase" config={config} onBack={onBack} backLabel="Showcase" />
+      <div
+        className={
+          fill
+            ? 'relative min-h-0 flex-1 overflow-hidden rounded-lg border'
+            : 'relative h-[75vh] min-h-[540px] overflow-hidden rounded-lg border'
+        }
+        data-nechako-research-map
+      >
+        <ProjectMapExplorer title="Nechako research showcase" config={config} onBack={onBack} backLabel={backLabel} />
       </div>
     </div>
   )
