@@ -9,7 +9,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
-    files: ['scripts/toolkit/**/*.mjs'],
+    files: ['scripts/toolkit/**/*.mjs', 'packages/geo-toolkit/scripts/toolkit/**/*.mjs'],
     languageOptions: {
       globals: { fetch: 'readonly', AbortSignal: 'readonly' },
     },

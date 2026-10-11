@@ -1,7 +1,9 @@
 # Toolkit extraction
 
-The reusable foundation is isolated in `packages/geo-toolkit`, with the local
-package name `@pgmaps/geo-toolkit`. PG Maps depends on it through an npm workspace
+The reusable foundation is maintained in the public
+[`ahzs645/geo-toolkit`](https://github.com/ahzs645/geo-toolkit) repository.
+`packages/geo-toolkit` is a pinned Git submodule, with package name
+`@pgmaps/geo-toolkit`. PG Maps depends on it through an npm workspace
 link and uses its compiled artifacts in Vite. TypeScript and Vitest resolve the
 local source so package edits and compatibility tests are checked together.
 
@@ -60,6 +62,14 @@ independent mobile cards, container resizing/state preservation, import/export
 round trips and container bounds. Basemaps use inline styles so the
 example does not require external tile services.
 
+Its `/charts` route demonstrates the chart toolkit with synthetic energy data:
+a linked numeric timeline, supplied range bands, canvas scatter points, shared
+range/series controls and full-window panels. Two instances verify independent
+selection, zoom and range state, including a narrow embed in a wide browser.
+Chart implementations live in `/visualizations/react` so pure visualization
+helpers and donut imports remain usable without rendering peers. Water data
+preparation and calendar/coverage rules stay in PG Maps adapters.
+
 ## Commands
 
 ```sh
@@ -98,30 +108,45 @@ compatibility paths; do not add unsupported JSON fields for portability.
 
 `.github/workflows/toolkit.yml` runs boundary, lint, format, focused compatibility
 tests, watch recovery, example browser and packed artifact checks on pull requests
-and main. It initializes the small json-url npm dependency, without scraper data.
+and main. It initializes the toolkit and small json-url npm dependency, without
+scraper data. The toolkit repository has its own standalone verification workflow.
 Root lint/format commands now also cover package/example sources. The package
 inherits the repository's MIT license; `API.md` defines supported and compatibility
-exports, and `RELEASING.md` defines versioning and the later repository transition.
+exports, and `RELEASING.md` defines versioning and consumer updates.
 
-## Remaining work and future split
+## Remaining host responsibilities
 
 Specialized domain methods, dataset transports, indexed result storage, report
 implementations, project catalog normalizers, imported-document adapters and
 full source-specific explorer orchestration remain host-owned. The toolkit has
 working Index Lab, native editorial and scene presentation interfaces; a visual
 project authoring editor, remote sharing service and generic report designer
-would be additional product work. No separate repository or release is created
-by this in-repo refactor.
+would be additional product work. The source repository is public; npm registry
+publication remains disabled.
 
-Before moving to another repository:
+## Working with the toolkit submodule
 
-1. Keep the independent consumer passing against the packed artifact.
-2. Move package-local tests/build configuration alongside the source and keep
-   behavioral compatibility tests in PG Maps.
-3. Preserve the package name and exports, version schema/behavior changes, and
-   establish the repository's license and release process.
-4. Replace the local `file:packages/geo-toolkit` dependency with the released
-   version, remove the toolkit workspace entry and source paths/test aliases,
-   and delete the local directory after PG Maps builds against the release.
-5. Continue improving shared behavior in the toolkit while adapting PG-specific
-   policies in PG Maps. Existing datasets retain their documented ownership.
+Clone PG Maps with `git clone --recurse-submodules`, or initialize an existing
+checkout with `git submodule update --init --recursive`. Deployment checkout
+already initializes recursive submodules; keep that setting.
+
+1. Edit toolkit behavior inside `packages/geo-toolkit`, or use a separate clone
+   of `ahzs645/geo-toolkit`. The package owns its build config, tests, API docs,
+   independent consumer and CI. PG Maps keeps its host compatibility tests and
+   integration consumer.
+2. Run the standalone checks documented in the toolkit's `RELEASING.md`, then
+   commit and push toolkit changes to its repository first.
+3. Update the PG Maps submodule to the intended toolkit commit. Run
+   `npm run toolkit:build`, the affected host checks and `npx tsc -b`.
+4. Commit the `packages/geo-toolkit` pointer in PG Maps. A deployed host uses
+   this pinned commit; a toolkit push alone does not update it.
+
+The workspace link and local TypeScript/Vitest source aliases remain intentional
+for submodule development. Do not add toolkit source files to the parent index.
+The independent public repository builds with `npm ci && npm run build`, without
+PG Maps or scraper submodules.
+
+If a registry release replaces the submodule later, preserve the package name
+and exports; remove the local toolkit workspace and source aliases only after
+PG Maps passes its checks against the released artifact. Datasets retain their
+documented ownership.

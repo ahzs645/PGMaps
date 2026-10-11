@@ -13,25 +13,30 @@ See [toolkit extraction](toolkit-extraction.md) for ownership and checks.
 
 ## Sidebars
 
-| Need | Use |
-|---|---|
-| Sidebar frame (header, dataset info, scroll port) | `MapSidebarShell` (`map-panels.tsx`). `icon` for an icon tile; `hideTitleOnMobile` when the mobile top bar already names the section. |
-| A titled block inside it | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading) |
-| Numbered steps of a procedure | `StepSection` (`step-section.tsx`): `step`, `title`, `status` (`done` / `current` / `todo`), `reference`, one-line `summary`; folds to its header and keeps its content mounted. `collapsible={false}` gives a plain heading for a step already in its own tab panel. `StepMarker` is the numbered/checked circle on its own, for tabs. For a long procedure, show one step at a time: `TabBar` with a `StepMarker` per tab, each step's panel kept mounted and `hidden` when not selected (the forestry visual-quality sidebar is the reference). |
-| Settings people set once (mode, period) | `MobileCollapsibleSection` (folds on phones only) |
-| A disclosure at every width | `CollapsibleSection collapseOn="always"` |
-| Headline numbers | `StatGroup` (`stat-group.tsx`): `variant="inline"` for a row of numbers, `variant="tiles"` with `size="sm"` (dense sidebar grid) or `size="md"` (dialogs). `StatGrid`/`StatTile` are legacy wrappers around it. |
-| Pick one of 2–4 views | `SegmentedControl` (`segmented-control.tsx`). `variant="solid"`, per-option `icon`/`activeClassName` for toolbars. |
-| Switch which panel shows | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. Opt-in: `stretch` (tabs share the width without a nested scroll area; long labels truncate), `stacked` (marker above the label, for five or so tabs in a sidebar), and per option `marker` (in place of `icon`) and `ariaLabel` (when the visible label is abbreviated). Default label-sized tabs can scroll horizontally. Keep underline borders inside the row: negative bottom margins create vertical overflow in a horizontal scroll port. |
-| Layer / data-source on-off | `ToggleRow` (`toggle-row.tsx`), `layout="tile"` for grids. |
-| Multi-select filter chips | `FilterChipGroup variant="filled"` + `SelectAllActions` (`text-button.tsx`) in the group heading. |
-| Notes, warnings, errors, loading text | `InlineAlert` (`tone`, `title`, `loading`) |
-| Label/value details | `KeyValueRows` (`variant="stack" \| "divided" \| "grid"`, `size`), falsy rows skipped |
-| Selected item card | `SelectedItemCard` (hover follows `tone`) |
-| Search field | `SearchInput` (`icon`, `onClear`, forwards `ref`); 16px on phones so iOS does not zoom. It marks itself as the target of the map search shortcut; pass `data-map-search-input="false"` on secondary search fields in the same sidebar. |
-| Small link-style actions | `TextButton` (`tone`) |
-| Tags and counts | `Badge` (`badge.tsx`: `tone`, `variant`, `pill`) |
-| "View source" links | `ExternalLink` (`variant="link" \| "button"`) |
+Basemap appearance: `buildBasemapStyle` (`map-styles.ts`) recolors a supplied
+Carto/OpenMapTiles style using explicit colors and visibility flags. It preserves
+tile sources, filters and zoom constraints; fetching and named host presets stay
+with the application. `/dev/design` and `/dev/water-temperature` share it.
+
+| Need                                              | Use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sidebar frame (header, dataset info, scroll port) | `MapSidebarShell` (`map-panels.tsx`). `icon` for an icon tile; `hideTitleOnMobile` when the mobile top bar already names the section.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| A titled block inside it                          | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Numbered steps of a procedure                     | `StepSection` (`step-section.tsx`): `step`, `title`, `status` (`done` / `current` / `todo`), `reference`, one-line `summary`; folds to its header and keeps its content mounted. `collapsible={false}` gives a plain heading for a step already in its own tab panel. `StepMarker` is the numbered/checked circle on its own, for tabs. For a long procedure, show one step at a time: `TabBar` with a `StepMarker` per tab, each step's panel kept mounted and `hidden` when not selected (the forestry visual-quality sidebar is the reference). |
+| Settings people set once (mode, period)           | `MobileCollapsibleSection` (folds on phones only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| A disclosure at every width                       | `CollapsibleSection collapseOn="always"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Headline numbers                                  | `StatGroup` (`stat-group.tsx`): `variant="inline"` for a row of numbers, `variant="tiles"` with `size="sm"` (dense sidebar grid) or `size="md"` (dialogs). `StatGrid`/`StatTile` are legacy wrappers around it.                                                                                                                                                                                                                                                                                                                                    |
+| Pick one of 2–4 views                             | `SegmentedControl` (`segmented-control.tsx`). `variant="solid"`, per-option `icon`/`activeClassName` for toolbars.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Switch which panel shows                          | `TabBar` (`tab-bar.tsx`), tablist semantics and arrow keys. Opt-in: `stretch` (tabs share the width without a nested scroll area; long labels truncate), `stacked` (marker above the label, for five or so tabs in a sidebar), and per option `marker` (in place of `icon`) and `ariaLabel` (when the visible label is abbreviated). Default label-sized tabs can scroll horizontally. Keep underline borders inside the row: negative bottom margins create vertical overflow in a horizontal scroll port.                                        |
+| Layer / data-source on-off                        | `ToggleRow` (`toggle-row.tsx`), `layout="tile"` for grids.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Multi-select filter chips                         | `FilterChipGroup variant="filled"` + `SelectAllActions` (`text-button.tsx`) in the group heading.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Notes, warnings, errors, loading text             | `InlineAlert` (`tone`, `title`, `loading`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Label/value details                               | `KeyValueRows` (`variant="stack" \| "divided" \| "grid"`, `size`), falsy rows skipped                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Selected item card                                | `SelectedItemCard` (hover follows `tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Search field                                      | `SearchInput` (`icon`, `onClear`, forwards `ref`); 16px on phones so iOS does not zoom. It marks itself as the target of the map search shortcut; pass `data-map-search-input="false"` on secondary search fields in the same sidebar.                                                                                                                                                                                                                                                                                                             |
+| Small link-style actions                          | `TextButton` (`tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tags and counts                                   | `Badge` (`badge.tsx`: `tone`, `variant`, `pill`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| "View source" links                               | `ExternalLink` (`variant="link" \| "button"`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## Result lists
 
@@ -59,6 +64,13 @@ See [toolkit extraction](toolkit-extraction.md) for ownership and checks.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
 
 ## Map overlays
+
+- Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window
+  expansion button; its render child receives the fullscreen state for layout.
+  Opt into `compact` for a single-row header with smaller chrome and truncated
+  long titles. `FullscreenButton` also accepts `compact` for a 32px icon button.
+  `useElementFullscreen` and `FullscreenButton` support an existing dashboard
+  frame. The content stays mounted; Escape or the exit button restores it.
 
 - `MapCircleLayer` accepts `hoverEnabled={false}` to dismiss and suspend hover
   cards during marker dragging or another external interaction. Normal hovering
@@ -142,7 +154,7 @@ See [toolkit extraction](toolkit-extraction.md) for ownership and checks.
   padding, border, shadow and wrapping. `.mapcn-tooltip` removes MapLibre's own
   chrome, so bare HTML there has no card. `MarkerTooltip` uses this surface too.
 - Phone peek text: `mobilePeekTitle` / `mobilePeekSubtitle` on
-  `MapSectionLayout`, parts separated with ` · `.
+  `MapSectionLayout`, parts separated with `·`.
 
 ## Touch
 
@@ -171,3 +183,19 @@ in `src/lib/diagrams/storyDiagrams.ts`.
 `EditorialShell` is shared by native and imported stories and owns project
 navigation, viewport measurement and chapter navigation. See the
 [native editorial contract](native-editorial-stories.md) for JSON invocation.
+
+## Chart dashboards
+
+Use toolkit `/ui` exports `DashboardToolbar` for a compact title/control row,
+`RangeControls` for controlled date/numeric input fields and host-defined presets,
+and `SeriesLegend` / `SelectedSeriesList` for stable series colors and visibility.
+`DashboardToolbar` observes its own container width (default inline threshold
+1000px); narrower containers wrap controls. Selection and color assignment remain
+host-owned. Hiding a series and removing its selection have separate callbacks.
+
+Use `/visualizations/react` for `TimeSeriesChart` (linked numeric brush/drag
+range), `LineBandChart` (lines and supplied bounds), and `ScatterPlot` (high-DPI
+canvas, point hover and local XY zoom). `ChartViewport` measures a host-defined
+height slot. `XYPlot` also supports controlled zoom and supplied plot insets for
+custom renderers. Axis units, tooltip content, calendars and calculations belong
+to the host. See the toolkit API guide and independent consumer's `/charts` page.

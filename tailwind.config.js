@@ -6,8 +6,9 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    // The host uses its Button adapter outside map workspaces as well.
-    "./node_modules/@pgmaps/geo-toolkit/dist/ui/button.js",
+    // Shared controls and charts also render outside scoped map workspaces.
+    "./node_modules/@pgmaps/geo-toolkit/dist/ui/**/*.js",
+    "./node_modules/@pgmaps/geo-toolkit/dist/visualizations/charts/**/*.js",
   ],
   theme: {
     extend: {

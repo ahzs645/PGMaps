@@ -1,0 +1,55 @@
+.chart-experience {
+  width: min(1400px, 100%);
+  padding: 24px;
+}
+.energy-workspace {
+  margin-bottom: 24px;
+  max-width: 100%;
+  border: 1px solid hsl(var(--border));
+  padding: 12px;
+  border-radius: 12px;
+  container-type: inline-size;
+}
+.energy-toolbar {
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+.energy-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.energy-summary > div {
+  width: 300px;
+  max-width: 100%;
+}
+.energy-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.energy-charts > :first-child {
+  grid-column: 1 / -1;
+}
+.energy-panel {
+  display: flex;
+  flex-direction: column;
+}
+.energy-chart {
+  height: 250px;
+  min-width: 0;
+}
+.energy-chart-full {
+  min-height: 100px;
+  flex: 1;
+  flex-basis: 0;
+}
+@container (max-width: 650px) {
+  .energy-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

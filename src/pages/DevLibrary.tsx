@@ -31,6 +31,14 @@ const devEntries: DevEntry[] = [
     label: '/dev/viewshed',
   },
   {
+    title: 'Water temperature',
+    description: 'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
+    href: '/dev/water-temperature',
+    icon: CircleDot,
+    color: 'bg-sky-600',
+    label: '/dev/water-temperature',
+  },
+  {
     title: 'Flatten PG',
     description: 'Prince George walking and cycling routes, with live dragging, elevation estimates, shortest-to-flattest trade-offs, loops and GPX export.',
     href: '/dev/flatten/pg',

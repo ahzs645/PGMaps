@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: git submodule update --init --depth 1 vendor/json-url vendor/bcdatamapper
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
       - uses: actions/setup-node@v4
         with:
           node-version: 22

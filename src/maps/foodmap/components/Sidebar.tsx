@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/sticky-list-toolbar'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useToggleArray } from '@/hooks/useToggleArray'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   FACILITY_TYPE_OPTIONS,
   HAZARD_RATING_OPTIONS,
@@ -149,6 +150,7 @@ export function Sidebar({
 
   const { toolbarRef, filtersPanelId, filtersOpen: showFilters, toggleFilters } = useStickyListToolbar()
   const selectedCardRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
 
   const toggleHazard = useToggleArray(selectedHazardRatings, filterActions.setHazardRatings)
   const toggleFacility = useToggleArray(selectedFacilityTypes, filterActions.setFacilityTypes)
@@ -162,7 +164,7 @@ export function Sidebar({
   // A pick from the list or the map inserts the detail card above the list,
   // out of view if the list was scrolled. Scroll it in (desktop only: the
   // card is hidden on phones, where the map shows its own feature card).
-  useRevealBelowSticky(toolbarRef, selectedCardRef, selectedRestaurant?.details_url)
+  useRevealBelowSticky(toolbarRef, selectedCardRef, isMobile ? undefined : selectedRestaurant?.details_url)
 
   return (
     <MapSidebarShell
@@ -376,10 +378,10 @@ export function Sidebar({
       )}
 
       {/* Selected establishment */}
-      {selectedRestaurant && (
+      {selectedRestaurant && !isMobile && (
         <div
           ref={selectedCardRef}
-          className="hidden border-b border-sky-300/60 bg-sky-50 p-3 dark:border-sky-800/60 dark:bg-sky-950/30 md:block"
+          className="border-b border-sky-300/60 bg-sky-50 p-3 dark:border-sky-800/60 dark:bg-sky-950/30"
         >
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">Selected</span>
