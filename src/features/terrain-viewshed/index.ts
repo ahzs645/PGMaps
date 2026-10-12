@@ -1,4 +1,5 @@
 export * from './model'
 export * from './outline'
+export * from './combined'
 export { ViewshedOverlay, type OverlayMode } from './ViewshedOverlay'
 export { useViewshed, type ViewshedOptions } from './useViewshed'

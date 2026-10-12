@@ -38,3 +38,24 @@ workers and later visits reuse downloaded data. Failed HTTP requests and bad
 PNGs are not stored. An explicit retry bypasses storage and HTTP caches;
 storage failures fall back to memory/normal HTTP caching. MapLibre's own
 terrain rendering continues to use its normal image/HTTP cache.
+
+For road coverage, pass `observers` (1–32 points at one eye height) and an
+optional fixed `bounds` in the hook options. Each output cell is red if any
+sample has a verified visible sightline. It stays unknown if no sample sees
+it and at least one relevant ray is unknown. Cells outside every sample's
+radius remain outside. No solar skyline is calculated for combined coverage.
+The worker extends complete prefix results by computing only newly added
+observers and skipping cells already known visible. All results use the same
+grid for a selected stretch, so accumulating cannot erase a previously red
+cell through resampling. Retries discard the prefix as well as the usual caches.
+
+Forestry supports **Current view**, **Whole stretch**, and **As you move**.
+Start/end controls select the centreline portion; both endpoints are sampled,
+at intervals no greater than 100 m unless the 32-viewpoint budget requires a
+wider spacing (displayed in the panel). **As you move** adds stations through
+the furthest road position reached by playback or scrubbing; moving backwards
+retains them. Reset starts again at the selected start, and changing the road,
+selection, radius or eye height creates a new accumulation. The merged grid
+is 128×128 across the full selected footprint; long stretches have coarser
+display cells and may need a lower DEM zoom to stay within the 64-tile budget.
+This is sampled preliminary terrain coverage, not a continuous-road guarantee.

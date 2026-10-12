@@ -1224,7 +1224,7 @@ function DevForestryVisuals() {
       visit={<><RouteViewshedPanel preview={routeViewshed} driving={drive.active} position={drive.positionMeters}
         onRetryTerrain={previewTerrain.retry}
         onSeek={distance => updateDrive({ positionMeters: distance, playing: false })}
-        onDrive={() => { routeViewshed.setEnabled(true); updateDrive({ active: true, playing: false, positionMeters: Math.min(drive.positionMeters, routeViewshed.length) }, true) }} />
+        onDrive={() => { routeViewshed.setEnabled(true); updateDrive({ active: true, playing: false, positionMeters: routeViewshed.mode === 'point' ? Math.min(drive.positionMeters, routeViewshed.length) : Math.max(routeViewshed.selected.from, Math.min(drive.positionMeters, routeViewshed.selected.to)) }, true) }} />
       <PreviewWorkflow part="visit" {...previewProps} />{tools.field}</>}
       landformScope={<><AssessmentPanel part="scope" {...assessmentProps} /><ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} /></>}
       designReview={<><LandformDesignPanel result={result} onView={(station, blockId) => updateDrive({ active: true, playing: false, lookAtTargetId: blockId, positionMeters: result?.stations[station].distanceAlongMeters ?? 0 })} />{tools.design}</>}
@@ -1306,6 +1306,8 @@ function DevForestryVisuals() {
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
         />
         {routeViewshed.enabled && routeViewshed.valid && <>
+          {routeViewshed.mode !== 'point' && <MapLineLayer data={routeViewshed.selectedRoad} color="#2563eb" width={5} opacity={1} interactive={false} sourceKey="forestry-viewshed-selected-road" />}
+          {routeViewshed.mode !== 'point' && <MapLineLayer data={routeViewshed.currentRadius} color={VIEWSHED_COLORS.visible} width={1} opacity={0.6} interactive={false} sourceKey="forestry-viewshed-moving-radius" />}
           {!drive.active && <MapMarker longitude={routeViewshed.observer.lng} latitude={routeViewshed.observer.lat} opacityWhenCovered="1">
             <MarkerContent><span role="img" aria-label="Road viewshed observer" className="block h-4 w-4 rounded-full border-2 border-white shadow" style={{ backgroundColor: VIEWSHED_COLORS.visible }} /></MarkerContent>
           </MapMarker>}

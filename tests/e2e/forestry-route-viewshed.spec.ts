@@ -126,3 +126,43 @@ test('missing road terrain stays unknown and retry does not reuse failed tiles',
   await expect(page.getByText(/ · 0\.0% unknown/)).toBeVisible({ timeout: 45000 })
   expect((await state(page))?.areas?.features[0].properties?.color).toBe('#e11d48')
 })
+
+test('selected road coverage merges upfront or accumulates without shrinking on backwards movement', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await setup(page)
+  const status = page.locator('[data-route-viewshed-status]')
+  await expect(status).toContainText('Viewshed ready', { timeout: 45000 })
+  const coverage = page.getByRole('group', { name: 'Road visibility coverage' })
+  await coverage.getByRole('button', { name: 'As you move', exact: true }).click()
+  await expect(status).toContainText('Combined viewshed ready')
+  await expect(page.locator('[data-route-viewshed-samples]')).toContainText(/^1 viewpoint ·/)
+  const initial = (await state(page))!.areas!
+  await page.getByLabel('Road viewshed position', { exact: true }).press('End')
+  await expect(status).toContainText('Combined viewshed ready', { timeout: 45000 })
+  await expect(page.locator('[data-route-viewshed-samples]')).not.toContainText(/^1 viewpoint ·/)
+  expect(Number(await page.getByLabel('Road viewshed position', { exact: true }).inputValue())).toBeCloseTo(
+    Number(await page.getByLabel('Road viewshed position', { exact: true }).getAttribute('max')),
+    6,
+  )
+  const merged = (await state(page))!.areas!
+  expect(merged).not.toEqual(initial)
+  await page.getByLabel('Road viewshed position', { exact: true }).press('Home')
+  await expect(status).toContainText('Combined viewshed ready')
+  expect((await state(page))!.areas!).toEqual(merged)
+  await page.getByRole('button', { name: 'Reset accumulated views', exact: true }).click()
+  await expect(status).toContainText('cached view')
+  await expect(page.locator('[data-route-viewshed-samples]')).toContainText(/^1 viewpoint ·/)
+  expect((await state(page))!.areas!).toEqual(initial)
+  await coverage.getByRole('button', { name: 'Whole stretch', exact: true }).click()
+  await expect(status).toContainText('cached view')
+  expect((await state(page))!.areas!).toEqual(merged)
+  await page.getByLabel('Road stretch end', { exact: true }).press('ArrowLeft')
+  await expect(status).toContainText('Combined viewshed ready')
+  await expect
+    .poll(async () => (await state(page))?.areas?.features[0].properties?.bounds)
+    .not.toEqual(merged.features[0].properties?.bounds)
+  expect(errors).toEqual([])
+})

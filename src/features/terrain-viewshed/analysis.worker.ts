@@ -2,11 +2,15 @@ import { ViewshedResultCache } from './resultCache'
 import { loadElevationGrid } from '@/pages/dev-forestry/demLoader'
 import { demResolutionMeters, demTileRange, type ElevationGrid } from '@/pages/dev-forestry/terrain'
 import { computeViewshed, viewshedBounds, type ViewshedSettings } from './model'
+import { combinedViewshedBounds, computeCombinedViewshed } from './combined'
+import type { GeoPoint, ViewshedResult } from './model'
+import type { Bounds } from '@/pages/dev-forestry/terrain'
 
 const results = new ViewshedResultCache()
 let lastRetry = 0
 let cached: { grid: ElevationGrid; missingTileCount: number } | null = null
 let controller: AbortController | null = null
+let combined: { key: string; observers: GeoPoint[]; result: ViewshedResult } | null = null
 
 self.onmessage = async (
   event: MessageEvent<{
@@ -17,20 +21,33 @@ self.onmessage = async (
     horizon?: boolean
     detailSize?: number
     demZoom?: number
+    observers?: GeoPoint[]
+    bounds?: Bounds
   }>,
 ) => {
   controller?.abort()
   const active = new AbortController()
   controller = active
-  const { requestId, settings, preview, retry = 0, horizon = true, detailSize = 192, demZoom = 13 } = event.data
+  const {
+    requestId,
+    settings,
+    preview,
+    retry = 0,
+    horizon = true,
+    detailSize = 192,
+    demZoom = 13,
+    observers,
+    bounds: footprint,
+  } = event.data
   try {
     const refresh = retry !== lastRetry
     if (refresh) {
       results.clear()
       cached = null
+      combined = null
       lastRetry = retry
     }
-    const resultKey = JSON.stringify([settings, preview, horizon, detailSize, demZoom])
+    const resultKey = JSON.stringify([settings, preview, horizon, detailSize, demZoom, observers, footprint])
     const hit = results.get(resultKey)
     if (hit) {
       self.postMessage(
@@ -39,7 +56,7 @@ self.onmessage = async (
       )
       return
     }
-    const bounds = viewshedBounds(settings)
+    const bounds = observers ? (footprint ?? combinedViewshedBounds(settings, observers)) : viewshedBounds(settings)
     let zoom = Math.max(6, Math.min(14, demZoom))
     const padding = Math.max(500, settings.radiusMeters * 0.5)
     let range = demTileRange(bounds, zoom, padding)
@@ -63,14 +80,36 @@ self.onmessage = async (
       })
     }
     if (active.signal.aborted || !cached) return
-    const result = computeViewshed(
-      cached.grid,
-      settings,
-      demResolutionMeters(settings.observer.lat, zoom),
-      preview ? 64 : Math.max(16, Math.min(192, detailSize)),
-      !preview && horizon,
-    )
+    const combinedKey = JSON.stringify([settings, bounds, detailSize, demZoom])
+    const previous =
+      observers &&
+      combined?.key === combinedKey &&
+      !combined.result.missingTileCount &&
+      !combined.result.counts.unknown &&
+      combined.observers.length <= observers.length &&
+      combined.observers.every((point, i) => point.lng === observers[i].lng && point.lat === observers[i].lat)
+        ? { result: combined.result, observerCount: combined.observers.length }
+        : undefined
+    const result = observers
+      ? computeCombinedViewshed(
+          cached.grid,
+          settings,
+          observers,
+          demResolutionMeters(settings.observer.lat, zoom),
+          Math.max(16, Math.min(192, detailSize)),
+          bounds,
+          (completed, total) => self.postMessage({ type: 'progress', phase: 'combine', requestId, completed, total }),
+          previous,
+        )
+      : computeViewshed(
+          cached.grid,
+          settings,
+          demResolutionMeters(settings.observer.lat, zoom),
+          preview ? 64 : Math.max(16, Math.min(192, detailSize)),
+          !preview && horizon,
+        )
     result.missingTileCount = cached.missingTileCount
+    if (observers) combined = { key: combinedKey, observers, result: structuredClone(result) }
     results.put(resultKey, result)
     self.postMessage(
       { type: 'result', requestId, result },

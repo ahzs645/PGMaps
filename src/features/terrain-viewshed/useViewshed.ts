@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ViewshedResult, ViewshedSettings } from './model'
+import type { GeoPoint, ViewshedResult, ViewshedSettings } from './model'
+import type { Bounds } from '@/pages/dev-forestry/terrain'
 
-export type ViewshedOptions = { enabled?: boolean; horizon?: boolean; detailSize?: number; demZoom?: number }
+export type ViewshedOptions = {
+  enabled?: boolean
+  horizon?: boolean
+  detailSize?: number
+  demZoom?: number
+  observers?: GeoPoint[]
+  bounds?: Bounds
+}
 type Job = { key: string; settings: ViewshedSettings; preview: boolean; retry: number } & Omit<
   ViewshedOptions,
   'enabled'
@@ -24,6 +32,8 @@ export function useViewshed(
     horizon: options.horizon ?? true,
     detailSize: options.detailSize ?? 192,
     demZoom: options.demZoom ?? 13,
+    observers: options.observers,
+    bounds: options.bounds,
   })
   const [state, setState] = useState<{
     key: string
@@ -57,7 +67,11 @@ export function useViewshed(
       const data = event.data
       if (!active || data.requestId !== requestId) return
       if (data.type === 'progress') {
-        setState((old) => ({ ...old, message: `Loading terrain ${data.completed}/${data.total}…`, error: false }))
+        setState((old) => ({
+          ...old,
+          message: `${data.phase === 'combine' ? 'Combining road views' : 'Loading terrain'} ${data.completed}/${data.total}…`,
+          error: false,
+        }))
         return
       }
       const job = active
@@ -67,7 +81,7 @@ export function useViewshed(
         setState({
           key: job.key,
           result: data.result,
-          message: job.preview ? 'Updating visibility…' : 'Viewshed ready',
+          message: job.observers ? 'Combined viewshed ready' : job.preview ? 'Updating visibility…' : 'Viewshed ready',
           error: false,
           cacheHit: Boolean(data.cacheHit),
         })
@@ -102,7 +116,7 @@ export function useViewshed(
       ? state.message
       : current
         ? state.message
-        : state.message.startsWith('Loading terrain ')
+        : state.message.startsWith('Loading terrain ') || state.message.startsWith('Combining road views ')
           ? state.message
           : 'Updating visibility…',
     // Keep the footprint displayed during updates; only current detailed results feed statistics and sun planning.

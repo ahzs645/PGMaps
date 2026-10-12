@@ -981,3 +981,20 @@ The shared feature is documented in
 Recent complete viewpoints and decoded terrain are bounded caches; validated
 PNG tiles also persist locally for seven days. Failed/incomplete terrain is
 not cached as a successful view. **Retry road terrain** bypasses these caches.
+
+Choose **Whole stretch** to merge visibility from the selected start/end
+distances, highlighted by a blue centreline. Red means ground seen from at
+least one sampled viewpoint; a known visible ray wins over missing rays from
+other viewpoints. If no viewpoint establishes visibility and a relevant ray
+is missing, the ground remains purple. Hidden holes are preserved.
+
+**As you move** accumulates these views as the road sample or drive reaches
+each station. Moving backwards retains the union through the furthest reached
+station; **Reset accumulated views** starts again at the selected start.
+Road, stretch, radius and eye-height changes start a new accumulation. Both
+stretch endpoints are included, with at most 32 observers and the actual
+sampling interval displayed (normally up to 100 m). Views between sampled
+stations are not guaranteed. The merged 128×128 grid stays fixed across the
+selected footprint, avoiding flicker or loss from changing grids; complete
+prefixes are reused and only newly reached stations are calculated. Large
+stretches produce coarser cells/DEM zoom within the same 64-tile loading limit.

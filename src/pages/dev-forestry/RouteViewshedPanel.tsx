@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { RouteViewshed } from './useRouteViewshed'
 
 export function RouteViewshedPanel({
@@ -30,6 +31,80 @@ export function RouteViewshedPanel({
       {!preview.valid && <p>Draw or import a road with at least two distinct points.</p>}
       {preview.enabled && preview.valid && (
         <>
+          <SegmentedControl
+            label="Road visibility coverage"
+            size="sm"
+            value={preview.mode}
+            onChange={preview.setMode}
+            options={[
+              { value: 'point', label: 'Current view' },
+              { value: 'stretch', label: 'Whole stretch' },
+              { value: 'travel', label: 'As you move' },
+            ]}
+          />
+          {preview.mode !== 'point' && (
+            <>
+              <p>
+                Red combines ground visible from at least one road sample. The blue line marks your selected stretch.
+              </p>
+              <label className="block">
+                Stretch start · {(preview.selected.from / 1000).toFixed(2)} km
+                <input
+                  type="range"
+                  aria-label="Road stretch start"
+                  min={0}
+                  max={preview.length}
+                  step="any"
+                  value={preview.selected.from}
+                  className="mt-1 w-full accent-blue-600"
+                  onChange={(event) =>
+                    preview.setSelection([
+                      Math.max(0, Math.min(Number(event.target.value), preview.selected.to - 1)) / preview.length,
+                      preview.selection[1],
+                    ])
+                  }
+                />
+              </label>
+              <label className="block">
+                Stretch end · {(preview.selected.to / 1000).toFixed(2)} km
+                <input
+                  type="range"
+                  aria-label="Road stretch end"
+                  min={0}
+                  max={preview.length}
+                  step="any"
+                  value={preview.selected.to}
+                  className="mt-1 w-full accent-blue-600"
+                  onChange={(event) =>
+                    preview.setSelection([
+                      preview.selection[0],
+                      Math.min(preview.length, Math.max(Number(event.target.value), preview.selected.from + 1)) /
+                        preview.length,
+                    ])
+                  }
+                />
+              </label>
+              <p data-route-viewshed-samples>
+                {preview.sampleCount} {preview.sampleCount === 1 ? 'viewpoint' : 'viewpoints'} · samples up to{' '}
+                {Math.ceil(preview.selected.spacing)} m apart ·{' '}
+                {preview.analysis.overlayResult?.sourceResolutionMeters
+                  ? `${Math.ceil(preview.analysis.overlayResult.sourceResolutionMeters)} m terrain source`
+                  : 'overview terrain'}
+              </p>
+              {preview.mode === 'travel' && (
+                <>
+                  <p>
+                    Move the road sample or play the drive to add views. Coverage is kept through the furthest position
+                    reached, even when moving backwards. Changing the stretch, radius or eye height starts a new
+                    accumulation.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={preview.resetTravel}>
+                    Reset accumulated views
+                  </Button>
+                </>
+              )}
+            </>
+          )}
           <label className="block">
             Preview radius · {(preview.radius / 1000).toFixed(1)} km
             <input
@@ -52,7 +127,7 @@ export function RouteViewshedPanel({
                   aria-label="Road viewshed position"
                   min={0}
                   max={preview.length}
-                  step={5}
+                  step="any"
                   value={Math.min(position, preview.length)}
                   onChange={(event) => onSeek(Number(event.target.value))}
                   className="mt-1 w-full accent-rose-600"
@@ -92,7 +167,10 @@ export function RouteViewshedPanel({
       )}
       <p className="text-muted-foreground">
         AWS overview terrain for preliminary screening. Trees, buildings, cutblock percentages and VQO ratings are not
-        assessed. Pause for a detailed view at your position.
+        assessed.{' '}
+        {preview.mode === 'point'
+          ? 'Pause for a detailed view at your position.'
+          : 'Combined coverage samples the road; visibility between samples is not guaranteed.'}
       </p>
     </section>
   )

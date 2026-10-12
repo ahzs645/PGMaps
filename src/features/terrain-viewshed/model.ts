@@ -78,10 +78,11 @@ export function computeViewshed(
   sourceResolutionMeters: number,
   size = VIEWSHED_SIZE,
   includeHorizon = true,
+  footprint?: { bounds: Bounds; skipVisible?: Uint8Array },
 ): ViewshedResult {
   if (![settings.heightA, settings.heightB].every((h) => Number.isFinite(h) && h >= 0 && h <= 100))
     throw new Error('Observer heights must be between 0 and 100 m.')
-  const bounds = viewshedBounds(settings)
+  const bounds = footprint?.bounds ?? viewshedBounds(settings)
   const nw = lngLatToMercator(bounds[0], bounds[3]),
     se = lngLatToMercator(bounds[2], bounds[1])
   const groundMeters = source.elevationAt(settings.observer.lng, settings.observer.lat)
@@ -97,6 +98,7 @@ export function computeViewshed(
   }
   for (let row = 0; row < size; row++)
     for (let col = 0; col < size; col++) {
+      if (footprint?.skipVisible?.[row * size + col] === 4) continue
       const x = nw[0] + ((col + 0.5) / size) * (se[0] - nw[0])
       const y = nw[1] + ((row + 0.5) / size) * (se[1] - nw[1])
       const [lng, lat] = mercatorToLngLat(x, y)
