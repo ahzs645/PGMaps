@@ -3,7 +3,7 @@ import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useMatch } from 'react-router-dom'
 import { projectCatalogDestination } from '@/lib/projectCollections'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Map, Layers, FlaskConical, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -18,7 +18,7 @@ const navLinks = [
   { path: '/pgdata?tab=parks', label: 'Parks & Trails', icon: Trees },
   { path: '/census', label: 'Census', icon: BarChart3 },
   { path: '/explorer', label: 'Explorer', icon: Layers },
-  { path: '/score-builder', label: 'Index Lab', icon: Calculator },
+  { path: '/labs', label: 'Labs', icon: FlaskConical },
   { path: '/bc-assessment', label: 'Assessment', icon: Building2 },
   { path: '/pgdata', label: 'PG Data', icon: ShieldAlert },
   { path: '/misc', label: 'MISC', icon: Database },
@@ -37,8 +37,14 @@ const pgDataTabLinks = PG_DATA_TABS.map(({ id, label, icon }) => ({
   icon,
 }))
 
+// The Labs page and the three labs it opens share one nav entry.
+const LAB_PATHS = new Set(['/labs', '/score-builder', '/density-lab', '/correlation-lab'])
+
 // Pages outside the primary nav still get a compact mobile title.
 const EXTRA_PAGE_LABELS: Record<string, string> = {
+  '/score-builder': 'Index Lab',
+  '/density-lab': 'Density Lab',
+  '/correlation-lab': 'Correlation Lab',
   '/socioeconomic': 'Census',
   '/dev': 'Dev Library',
   '/dev/nechako': 'Nechako Portal',
@@ -99,6 +105,7 @@ export function Navbar() {
     if (path === '/misc') {
       return location.pathname === '/misc'
     }
+    if (path === '/labs') return LAB_PATHS.has(location.pathname)
     return location.pathname === path
   }
 
@@ -194,8 +201,8 @@ export function Navbar() {
   }, [closeMobileMenu])
 
   const activeNavLabel =
-    navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
     EXTRA_PAGE_LABELS[location.pathname] ??
+    navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
     null
   const mobileMenuLabel = isProjectPage ? 'Project' : activeNavLabel ?? 'PGMaps'
 

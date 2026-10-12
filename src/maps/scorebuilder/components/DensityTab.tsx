@@ -8,7 +8,6 @@ interface DensityTabProps {
   className?: string
   densityMetric: ScoreMetricKey
   onDensityMetricChange: (metric: ScoreMetricKey) => void
-  onBuildDensityScore: (metric: ScoreMetricKey) => void
   densitySummary: { min: number; max: number; median: number; average: number } | null
   densityLeaders: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
@@ -19,7 +18,6 @@ export function DensityTab({
   className,
   densityMetric,
   onDensityMetricChange,
-  onBuildDensityScore,
   densitySummary,
   densityLeaders,
   selectedRegion,
@@ -40,26 +38,6 @@ export function DensityTab({
           className="w-44"
           triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
         />
-      </div>
-
-      <div className="rounded-lg border border-border bg-muted/20 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-foreground">Build score from heat map</div>
-            <div className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              Use the selected metric as a one-layer score so the map, rankings, exports, and share URL all follow this
-              dataset.
-            </div>
-          </div>
-          <button
-            type="button"
-            data-score-builder-build-density-score="true"
-            onClick={() => onBuildDensityScore(densityMetric)}
-            className="shrink-0 rounded-md border border-cyan-500/50 bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 dark:bg-cyan-950/30 dark:text-cyan-100"
-          >
-            Build score
-          </button>
-        </div>
       </div>
 
       {densitySummary ? (

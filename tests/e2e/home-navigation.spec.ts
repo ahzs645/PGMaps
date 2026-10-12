@@ -12,7 +12,7 @@ test.describe('Home Page Navigation', () => {
       'Air Quality',
       'Parks & Trails',
       'Census Data',
-      'Index Lab',
+      'Labs',
       'PG Data',
       'Explorer',
     ]) {

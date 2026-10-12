@@ -17,15 +17,11 @@ import type {
 } from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
-import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { formatScore, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { getScoreDrivers } from '../lib/scoreDrivers'
-import { CorrelateTab } from './CorrelateTab'
 import { DataSourceToggleList } from './DataSourceToggleList'
-import { DensityTab } from './DensityTab'
 import { WeightDistribution } from './EquationComposer'
-import type { MapLens } from './IndexLabHeader'
 import { MetricPickerDialog } from './MetricLibrary'
 import { RegionsTab } from './RegionsTab'
 import { CompactWeightRow } from './WeightRow'
@@ -55,22 +51,6 @@ interface ScoreBuilderSidebarProps {
   canUseWalkabilitySourceSurface: boolean
   mapSurface: 'source' | 'boundary'
   onMapSurfaceChange: (surface: 'source' | 'boundary') => void
-  lens: MapLens
-  densityMetric: ScoreMetricKey
-  onDensityMetricChange: (metric: ScoreMetricKey) => void
-  onBuildDensityScore: (metric: ScoreMetricKey) => void
-  densitySummary: { min: number; max: number; median: number; average: number } | null
-  densityLeaders: ScoredBoundaryRegion[]
-  onToggleCorrelateMode: () => void
-  correlateMetricX: ScoreMetricKey
-  correlateMetricY: ScoreMetricKey
-  onCorrelateMetricXChange: (metric: ScoreMetricKey) => void
-  onCorrelateMetricYChange: (metric: ScoreMetricKey) => void
-  correlateVisStyle: 'bivariate' | 'residual'
-  onCorrelateVisStyleChange: (style: 'bivariate' | 'residual') => void
-  correlationResult: CorrelationResult
-  correlationTopPairs: MetricCorrelation[]
-  onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
   scoreSpread: { min: number; max: number; average: number }
   populationEquitySummary: PopulationWeightedEquitySummary | null
   regions: ScoredBoundaryRegion[]
@@ -98,8 +78,8 @@ interface ScoreBuilderSidebarProps {
 
 /**
  * The phone bottom sheet for the Index Lab. It holds only what is useful while
- * looking at the map: the active recipe and its actions, the lens panel when a
- * lens is on, the equation, the study area, and the ranked regions. Method,
+ * looking at the map: the active recipe and its actions, the equation, the study
+ * area, and the ranked regions. Method,
  * model, and robustness live behind Settings; loading recipes behind Recipes.
  */
 export function ScoreBuilderSidebar({
@@ -125,22 +105,6 @@ export function ScoreBuilderSidebar({
   canUseWalkabilitySourceSurface,
   mapSurface,
   onMapSurfaceChange,
-  lens,
-  densityMetric,
-  onDensityMetricChange,
-  onBuildDensityScore,
-  densitySummary,
-  densityLeaders,
-  onToggleCorrelateMode,
-  correlateMetricX,
-  correlateMetricY,
-  onCorrelateMetricXChange,
-  onCorrelateMetricYChange,
-  correlateVisStyle,
-  onCorrelateVisStyleChange,
-  correlationResult,
-  correlationTopPairs,
-  onApplyTopPair,
   scoreSpread,
   populationEquitySummary,
   regions,
@@ -258,40 +222,6 @@ export function ScoreBuilderSidebar({
               <p key={i}>{err}</p>
             ))}
           </InlineAlert>
-        )}
-
-        {lens === 'density' && (
-          <section className="border-b border-border px-4 py-3" data-score-builder-lens-panel="density">
-            <h2 className="mb-2 text-sm font-semibold text-foreground">Density lens</h2>
-            <DensityTab
-              densityMetric={densityMetric}
-              onDensityMetricChange={onDensityMetricChange}
-              onBuildDensityScore={onBuildDensityScore}
-              densitySummary={densitySummary}
-              densityLeaders={densityLeaders}
-              selectedRegion={selectedRegion}
-              onRegionSelect={onRegionSelect}
-            />
-          </section>
-        )}
-
-        {lens === 'correlate' && (
-          <section className="border-b border-border" data-score-builder-lens-panel="correlate">
-            <h2 className="px-4 pt-3 text-sm font-semibold text-foreground">Correlate lens</h2>
-            <CorrelateTab
-              correlateMode
-              onToggleCorrelateMode={onToggleCorrelateMode}
-              metricX={correlateMetricX}
-              metricY={correlateMetricY}
-              onMetricXChange={onCorrelateMetricXChange}
-              onMetricYChange={onCorrelateMetricYChange}
-              visStyle={correlateVisStyle}
-              onVisStyleChange={onCorrelateVisStyleChange}
-              result={correlationResult}
-              topPairs={correlationTopPairs}
-              onApplyTopPair={onApplyTopPair}
-            />
-          </section>
         )}
 
         <section className="border-b border-border px-4 py-3" data-score-builder-section="equation">

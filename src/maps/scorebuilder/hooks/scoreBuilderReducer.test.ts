@@ -132,7 +132,6 @@ describe('scoreBuilderReducer enableDataSource', () => {
   })
 })
 
-
 describe('economic region boundary selection', () => {
   it('restores economic regions independently and preserves the selected census level', () => {
     const initial = createInitialScoreBuilderState(new URLSearchParams('src=economicRegion&level=economicRegion&w=0'))
@@ -142,5 +141,50 @@ describe('economic region boundary selection', () => {
     expect(getSelectedRegionLevel(census)).toBe('ct')
     const economic = scoreBuilderReducer(census, { type: 'setBoundarySource', source: 'economicRegion' })
     expect(getSelectedRegionLevel(economic)).toBe('economicRegion')
+  })
+})
+
+describe('createInitialScoreBuilderState for the lens labs', () => {
+  it('leaves both lenses off in the Index Lab', () => {
+    const state = createInitialScoreBuilderState(new URLSearchParams('w=0&ds=parks&dm=parkDensity'))
+
+    expect(state.densityMode).toBe(false)
+    expect(state.correlateMode).toBe(false)
+  })
+
+  it('turns the density lens on, reads its metric, and enables its source', () => {
+    const state = createInitialScoreBuilderState(new URLSearchParams('w=0&ds=census&dm=parkDensity'), 'density')
+
+    expect(state.densityMode).toBe(true)
+    expect(state.correlateMode).toBe(false)
+    expect(state.densityMetric).toBe('parkDensity')
+    expect(state.enabledDataSources).toEqual(expect.arrayContaining(['census', 'parks']))
+    expect(state.mapSurface).toBe('boundary')
+  })
+
+  it('ignores a density metric that is not offered as a heat map', () => {
+    const state = createInitialScoreBuilderState(new URLSearchParams('w=0&dm=commercialShare'), 'density')
+
+    expect(state.densityMetric).toBe('overallDensity')
+  })
+
+  it('turns the correlation lens on with both axes, the style, and their sources', () => {
+    const state = createInitialScoreBuilderState(
+      new URLSearchParams('w=0&ds=parks&cx=commercialShare&cy=crimePerCapita&cstyle=residual'),
+      'correlate',
+    )
+
+    expect(state.correlateMode).toBe(true)
+    expect(state.densityMode).toBe(false)
+    expect(state.correlateMetricX).toBe('commercialShare')
+    expect(state.correlateMetricY).toBe('crimePerCapita')
+    expect(state.correlateVisStyle).toBe('residual')
+    expect(state.enabledDataSources).toEqual(expect.arrayContaining(['parks', 'bcAssessment', 'crime', 'census']))
+  })
+
+  it('switches off the index score filters, which would hide regions the lens maps', () => {
+    const state = createInitialScoreBuilderState(new URLSearchParams('w=0'), 'density')
+
+    expect(Object.values(state.scoreFilters).every((enabled) => !enabled)).toBe(true)
   })
 })

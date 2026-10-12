@@ -78,6 +78,22 @@ export const MAP_EXPERIENCES: MapExperience[] = [
     tags: ['index', 'score', 'environment', 'health', 'walkability', 'equity'],
   },
   {
+    id: 'density-lab',
+    title: 'Density Lab',
+    description: 'Map one metric across a study area and find the regions where it is highest.',
+    path: '/density-lab',
+    stage: 'primary',
+    tags: ['density', 'heat map', 'metric', 'regions'],
+  },
+  {
+    id: 'correlation-lab',
+    title: 'Correlation Lab',
+    description: 'Compare two metrics across regions and map where they agree or diverge.',
+    path: '/correlation-lab',
+    stage: 'primary',
+    tags: ['correlation', 'bivariate', 'residual', 'metrics', 'regions'],
+  },
+  {
     id: 'parks-and-trails',
     title: 'Parks and trails',
     description: 'Explore parks, trails, recreation amenities, and nearby outdoor spaces.',

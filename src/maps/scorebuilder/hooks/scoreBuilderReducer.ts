@@ -15,11 +15,11 @@ import type {
 } from '@/maps/airquality'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
 import {
+  DENSITY_METRIC_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
   SCORE_PRESETS,
   createDefaultWeights,
-  createMetricValueMap,
   decodeWeightsFromParams,
   getScoreDataSourcesForWeights,
 } from '../constants'
@@ -32,6 +32,7 @@ import {
   type WalkabilitySurfaceTuning,
 } from '../lib/walkabilitySurface'
 import type { ScoreBuilderShareState } from '../lib/shareState'
+import { LAB_URL_PARAMS, type ScoreLabKind } from '../lib/labs'
 import {
   getQuickIndexLabPresetKey,
   parseAccessMinimumHits,
@@ -125,7 +126,6 @@ export type ScoreBuilderAction =
   | { type: 'setRegionLevel'; level: RegionLevel }
   | { type: 'setWeight'; metric: ScoreMetricKey; value: number }
   | { type: 'addMetric'; metric: ScoreMetricKey; value: number; allNetworks: string[] }
-  | { type: 'buildDensityScore'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'applyExample'; exampleKey: string; allNetworks: string[] }
   | { type: 'applyPreset'; presetKey: string; allNetworks: string[] }
   | { type: 'applyQuickPreset'; presetKey: string }
@@ -149,8 +149,6 @@ export type ScoreBuilderAction =
   | { type: 'clearComparison' }
   | { type: 'setSearchQuery'; query: string }
   | { type: 'setDensityMetric'; metric: ScoreMetricKey; allNetworks: string[] }
-  | { type: 'toggleDensityMode' }
-  | { type: 'toggleCorrelateMode' }
   | { type: 'setCorrelateMetricX'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'setCorrelateMetricY'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'setCorrelateVisStyle'; style: 'bivariate' | 'residual' }
@@ -412,32 +410,6 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       return next
     }
-    case 'buildDensityScore': {
-      const definition = activeMetricDefinitionsFor(state).find((entry) => entry.key === action.metric)
-      const source = definition ? metricToDataSource(definition.category) : null
-      const nextWeights = createMetricValueMap(0) as ScoreMetricWeightMap
-      nextWeights[action.metric] = 100
-
-      const next: ScoreBuilderControlState = {
-        ...state,
-        activeExampleKey: null,
-        weights: nextWeights,
-        methodSettings: { ...state.methodSettings, normalization: 'percentile', aggregation: 'additive' },
-      }
-      if (source) {
-        if (!next.enabledDataSources.includes(source)) {
-          next.enabledDataSources = [...next.enabledDataSources, source]
-        }
-        if (source === 'airQuality') {
-          if (!next.selectedNetworks.length) next.selectedNetworks = action.allNetworks
-          next.showPoints = true
-        }
-        if (action.metric === 'crimePerCapita' && !next.enabledDataSources.includes('census')) {
-          next.enabledDataSources = [...next.enabledDataSources, 'census']
-        }
-      }
-      return next
-    }
     case 'applyExample': {
       const example = SCORE_BUILDER_EXAMPLES.find((entry) => entry.key === action.exampleKey)
       if (!example) return state
@@ -622,16 +594,6 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       return { ...state, searchQuery: action.query }
     case 'setDensityMetric':
       return enableDataForMetric({ ...state, densityMetric: action.metric }, action.metric, action.allNetworks)
-    case 'toggleDensityMode': {
-      const densityMode = !state.densityMode
-      if (!densityMode) return { ...state, densityMode }
-      return { ...state, densityMode, correlateMode: false, mapSurface: 'boundary' }
-    }
-    case 'toggleCorrelateMode': {
-      const correlateMode = !state.correlateMode
-      if (!correlateMode) return { ...state, correlateMode }
-      return { ...state, correlateMode, densityMode: false, mapSurface: 'boundary' }
-    }
     case 'setCorrelateMetricX':
       return enableDataForMetric({ ...state, correlateMetricX: action.metric }, action.metric, action.allNetworks)
     case 'setCorrelateMetricY':
@@ -712,7 +674,10 @@ export function hasUrlWeightParams(searchParams: URLSearchParams): boolean {
  * the first example is applied here (instead of in a mount effect) so the very first
  * render already reflects it.
  */
-export function createInitialScoreBuilderState(searchParams: URLSearchParams): ScoreBuilderControlState {
+export function createInitialScoreBuilderState(
+  searchParams: URLSearchParams,
+  lab: ScoreLabKind = 'index',
+): ScoreBuilderControlState {
   const quickPresetKey = getQuickIndexLabPresetKey(searchParams.get('quick'))
   const quickPreset = SCORE_PRESETS.find((preset) => preset.key === quickPresetKey) || null
   const hasUrlWeights = hasUrlWeightParams(searchParams)
@@ -814,5 +779,41 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
   if (!state.enabledDataSources.includes('walkability') && state.mapSurface === 'source') {
     state = { ...state, mapSurface: 'boundary' }
   }
-  return state
+  return lab === 'index' ? state : applyLensLab(state, searchParams, lab)
+}
+
+/**
+ * The Density and Correlation labs fix the map lens on: they paint boundaries (never the
+ * walkability source grid), read their lens metrics from the URL, and switch on the data
+ * those metrics need.
+ */
+function applyLensLab(
+  state: ScoreBuilderControlState,
+  searchParams: URLSearchParams,
+  lab: Exclude<ScoreLabKind, 'index'>,
+): ScoreBuilderControlState {
+  // Score filters judge regions by the index's weighted metrics, which a lens does not
+  // map, so they would hide regions for reasons the lens cannot show.
+  const scoreFilters = Object.fromEntries(
+    Object.keys(state.scoreFilters).map((key) => [key, false]),
+  ) as ScoreBuilderControlState['scoreFilters']
+  const next: ScoreBuilderControlState = { ...state, mapSurface: 'boundary', scoreFilters }
+  if (lab === 'density') {
+    const requested = parseScoreMetricKey(searchParams.get(LAB_URL_PARAMS.densityMetric), next.densityMetric)
+    const densityMetric = DENSITY_METRIC_OPTIONS.includes(requested) ? requested : next.densityMetric
+    return enableDataForMetric({ ...next, densityMode: true, densityMetric }, densityMetric, [])
+  }
+  const correlateMetricX = parseScoreMetricKey(searchParams.get(LAB_URL_PARAMS.correlateMetricX), next.correlateMetricX)
+  const correlateMetricY = parseScoreMetricKey(searchParams.get(LAB_URL_PARAMS.correlateMetricY), next.correlateMetricY)
+  const correlateVisStyle =
+    searchParams.get(LAB_URL_PARAMS.correlateVisStyle) === 'residual' ? 'residual' : next.correlateVisStyle
+  return enableDataForMetric(
+    enableDataForMetric(
+      { ...next, correlateMode: true, correlateMetricX, correlateMetricY, correlateVisStyle },
+      correlateMetricX,
+      [],
+    ),
+    correlateMetricY,
+    [],
+  )
 }

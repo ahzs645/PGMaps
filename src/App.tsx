@@ -12,6 +12,7 @@ const SharedMapLayout = lazy(() => import('@/components/layout/SharedMapLayout')
 const FoodMap = lazy(() => import('@/maps/foodmap').then((m) => ({ default: m.FoodMap })))
 const AirQualitySection = lazy(() => import('@/maps/airquality').then((m) => ({ default: m.AirQualitySection })))
 const CensusSection = lazy(() => import('@/maps/census').then((m) => ({ default: m.CensusSection })))
+const Labs = lazy(() => import('@/pages/Labs'))
 const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then((m) => ({ default: m.ScoreBuilderSection })))
 const ExplorerSection = lazy(() => import('@/maps/explorer').then((m) => ({ default: m.ExplorerSection })))
 const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default: m.PGDataSection })))
@@ -91,7 +92,11 @@ function App() {
             <Route path="/census" element={<CensusSection />} />
             <Route path="/socioeconomic" element={<CensusSection />} />
             <Route path="/parks" element={<Navigate to="/pgdata?tab=parks" replace />} />
-            <Route path="/score-builder" element={<ScoreBuilderSection />} />
+            <Route path="/labs" element={<Labs />} />
+            {/* One pipeline, three pages; the keys keep each lab's state separate. */}
+            <Route path="/score-builder" element={<ScoreBuilderSection key="index" lab="index" />} />
+            <Route path="/density-lab" element={<ScoreBuilderSection key="density" lab="density" />} />
+            <Route path="/correlation-lab" element={<ScoreBuilderSection key="correlate" lab="correlate" />} />
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />

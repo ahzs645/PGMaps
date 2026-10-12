@@ -41,7 +41,7 @@ test('Index Lab has a results drawer at intermediate widths and bounded phone ac
   await page.getByRole('button', { name: 'Hide right sidebar', exact: true }).click()
   await page.setViewportSize({ width: 320, height: 800 })
   const actions = page.locator('[data-score-builder-mobile-actions]')
-  await expect(actions.getByRole('group', { name: 'Map lens' })).toBeInViewport()
+  await expect(actions.getByRole('link', { name: 'Back to Labs' })).toBeInViewport()
   expect(await actions.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
   // Settings moved off the map into the sheet header.
   await page.locator('[data-map-mobile-sheet-handle="true"]').press('End')

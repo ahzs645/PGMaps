@@ -10,8 +10,7 @@ import { getMetricLabel } from '../lib/metrics'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
 
 interface CorrelateTabProps {
-  correlateMode: boolean
-  onToggleCorrelateMode: () => void
+  className?: string
   metricX: ScoreMetricKey
   metricY: ScoreMetricKey
   onMetricXChange: (metric: ScoreMetricKey) => void
@@ -24,8 +23,7 @@ interface CorrelateTabProps {
 }
 
 export function CorrelateTab({
-  correlateMode,
-  onToggleCorrelateMode,
+  className,
   metricX,
   metricY,
   onMetricXChange,
@@ -58,32 +56,7 @@ export function CorrelateTab({
   }
 
   return (
-    <div className="space-y-3 p-4" data-score-builder-section="correlate">
-      <div className="rounded-lg border border-border bg-muted/20 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-foreground">Correlation mode</div>
-            <div className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              Repaints regions by the relationship between two metrics. The current scoring map is hidden while this is
-              on.
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onToggleCorrelateMode}
-            aria-pressed={correlateMode}
-            className={cn(
-              'shrink-0 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-              correlateMode
-                ? 'border-cyan-500 bg-cyan-500 text-white hover:bg-cyan-600'
-                : 'border-input bg-background text-foreground hover:bg-accent',
-            )}
-          >
-            {correlateMode ? 'On' : 'Off'}
-          </button>
-        </div>
-      </div>
-
+    <div className={cn('space-y-3', className)} data-score-builder-section="correlate">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <label className="text-xs font-medium text-muted-foreground">Metric X</label>
@@ -163,8 +136,8 @@ export function CorrelateTab({
       {stats && (stats.xMin === stats.xMax || stats.yMin === stats.yMax) && (
         <InlineAlert tone="warning" className="leading-snug">
           {stats.xMin === stats.xMax
-            ? `${getMetricLabel(metricX)} has the same value for every region - likely the data source is off in the left panel.`
-            : `${getMetricLabel(metricY)} has the same value for every region - likely the data source is off in the left panel.`}
+            ? `${getMetricLabel(metricX)} has the same value for every region - likely its data source is switched off.`
+            : `${getMetricLabel(metricY)} has the same value for every region - likely its data source is switched off.`}
         </InlineAlert>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -172,16 +145,12 @@ export function CorrelateTab({
         <StatTile label="Strength" value={stats ? describeStrength(stats.pearson) : '-'} />
       </div>
 
-      <CorrelationScatter result={result} xLabel={xLabel} yLabel={yLabel} active={correlateMode} />
+      <CorrelationScatter result={result} xLabel={xLabel} yLabel={yLabel} />
 
       <div>
         <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Strongest pairs (|r|)</div>
         {topPairs.length === 0 ? (
-          <div className="text-xs text-muted-foreground">
-            {correlateMode
-              ? 'Computing pairs...'
-              : 'Turn correlation mode on to see the strongest pairs across all metrics.'}
-          </div>
+          <div className="text-xs text-muted-foreground">Computing pairs...</div>
         ) : (
           <div className="space-y-1">
             {topPairs.map((pair) => (
@@ -230,26 +199,10 @@ function describeStrength(r: number): string {
   return 'Very strong'
 }
 
-function CorrelationScatter({
-  result,
-  xLabel,
-  yLabel,
-  active,
-}: {
-  result: CorrelationResult
-  xLabel: string
-  yLabel: string
-  active: boolean
-}) {
+function CorrelationScatter({ result, xLabel, yLabel }: { result: CorrelationResult; xLabel: string; yLabel: string }) {
   const { stats, points } = result
   if (!stats || points.length === 0) {
-    return (
-      <EmptyHint>
-        {active
-          ? 'No region has finite values for both metrics in the current boundary level.'
-          : 'Turn correlation mode on to plot the scatter and load statistics.'}
-      </EmptyHint>
-    )
+    return <EmptyHint>No region has finite values for both metrics in the current boundary level.</EmptyHint>
   }
 
   const width = 280

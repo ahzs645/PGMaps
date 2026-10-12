@@ -13,6 +13,7 @@ import {
 } from '../lib/shareState'
 import { encodeCustomMetricRecipes, encodeCustomMetricWeights, getQuickIndexLabPresetKey } from '../lib/urlState'
 import { encodeWalkabilitySurfaceTuning, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
+import { LAB_URL_PARAMS, getScoreLab, type ScoreLabKind } from '../lib/labs'
 import type {
   ScoreDataSource,
   ScoreFilterKey,
@@ -41,7 +42,6 @@ const HISTORY_ACTION_TYPES = new Set<ScoreBuilderAction['type']>([
   'setRegionLevel',
   'setWeight',
   'addMetric',
-  'buildDensityScore',
   'applyExample',
   'applyPreset',
   'applyShareState',
@@ -56,13 +56,74 @@ const HISTORY_ACTION_TYPES = new Set<ScoreBuilderAction['type']>([
 ])
 
 /**
+ * The URL form of the control state. Every lab writes the shared study state (boundary,
+ * sources, weights, method) so switching labs keeps it; the lens labs add their metrics.
+ */
+export function buildScoreBuilderSearchParams(
+  state: ScoreBuilderControlState,
+  selectedRegionLevel: RegionLevel,
+  lab: ScoreLabKind,
+): URLSearchParams {
+  const params = new URLSearchParams()
+  params.set('src', state.boundarySource)
+  params.set('level', selectedRegionLevel)
+  params.set('w', encodeWeightsToParams(state.weights))
+  if (state.customMetricRecipes.some((recipe) => (state.weights[recipe.id] ?? 0) !== 0)) {
+    params.set('cw', encodeCustomMetricWeights(state.weights, state.customMetricRecipes))
+  }
+  params.set('ds', state.enabledDataSources.join(','))
+  params.set('norm', state.methodSettings.normalization)
+  params.set('agg', state.methodSettings.aggregation)
+  params.set('missing', state.methodSettings.missingData)
+  params.set('sens', state.methodSettings.sensitivity ? 'on' : 'off')
+  params.set('scope', state.methodSettings.normalizationScope)
+  params.set('vis', state.methodSettings.visualOutput)
+  params.set('cscale', state.methodSettings.mapColorScale)
+  if (state.enabledDataSources.includes('airQuality')) {
+    if (state.pendingNetworkSelectAll) params.set('networks', 'all')
+    else if (state.selectedNetworks.length) params.set('networks', state.selectedNetworks.join(','))
+  }
+  if (state.methodSettings.paletteOverride) params.set('pal', state.methodSettings.paletteOverride)
+  params.set('surface', state.mapSurface)
+  if (state.customMetricRecipes.length) params.set('recipes', encodeCustomMetricRecipes(state.customMetricRecipes))
+  if (state.methodSettings.healthyPlanPriority.demographicMetric) {
+    params.set('hpDemo', state.methodSettings.healthyPlanPriority.demographicMetric)
+  }
+  if (state.methodSettings.healthyPlanPriority.environmentMetric) {
+    params.set('hpEnv', state.methodSettings.healthyPlanPriority.environmentMetric)
+  }
+  params.set('accessMin', String(state.methodSettings.accessThreshold.minimumAccess))
+  params.set('accessHits', String(state.methodSettings.accessThreshold.minimumHits))
+  params.set('bcExp', String(state.methodSettings.bcEnviroScreenComponentWeights.exposures))
+  params.set('bcEff', String(state.methodSettings.bcEnviroScreenComponentWeights.environmentalEffects))
+  params.set('bcSens', String(state.methodSettings.bcEnviroScreenComponentWeights.sensitivePopulations))
+  params.set('bcSoc', String(state.methodSettings.bcEnviroScreenComponentWeights.socioeconomicFactors))
+  params.set('bcFormulaMode', state.methodSettings.bcEnviroScreenFormula.mode)
+  if (state.methodSettings.bcEnviroScreenFormula.mode === 'custom') {
+    params.set('bcFormula', state.methodSettings.bcEnviroScreenFormula.expression)
+  }
+  const walkabilitySurfaceToken = encodeWalkabilitySurfaceTuning(state.walkabilitySurfaceTuning)
+  if (walkabilitySurfaceToken) params.set('wsurf', walkabilitySurfaceToken)
+  if (lab === 'density') {
+    params.set(LAB_URL_PARAMS.densityMetric, state.densityMetric)
+  } else if (lab === 'correlate') {
+    params.set(LAB_URL_PARAMS.correlateMetricX, state.correlateMetricX)
+    params.set(LAB_URL_PARAMS.correlateMetricY, state.correlateMetricY)
+    params.set(LAB_URL_PARAMS.correlateVisStyle, state.correlateVisStyle)
+  }
+  return params
+}
+
+/**
  * Owns every piece of sidebar/control state for the score builder (boundary focus, weights,
  * data sources, presets/examples, map surface, analysis modes, selection) behind one reducer,
  * plus the URL synchronisation that goes with it.
  */
-export function useScoreBuilderState() {
+export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [state, dispatch] = useReducer(scoreBuilderReducer, searchParams, createInitialScoreBuilderState)
+  const [state, dispatch] = useReducer(scoreBuilderReducer, searchParams, (params) =>
+    createInitialScoreBuilderState(params, lab),
+  )
 
   // Mount-time URL facts; both intentionally keep their first-render values.
   const initialShareToken = useRef(searchParams.get('s'))
@@ -176,66 +237,22 @@ export function useScoreBuilderState() {
 
   const selectedRegionLevel = getSelectedRegionLevel(state)
 
-  // URL persistence
+  // URL persistence. Keyed on the serialized query so selection and search edits, which
+  // are not in the URL, do not rewrite it.
+  const urlQuery = buildScoreBuilderSearchParams(state, selectedRegionLevel, lab).toString()
+  const quickPending = searchParams.has('quick')
   useEffect(() => {
-    if (searchParamsRef.current.get('quick')) return
-    const params = new URLSearchParams()
+    if (quickPending) return
+    // Router navigations render in a transition, so a lab being switched away from stays
+    // mounted for a moment after the address changes. Its relative search-param write would
+    // then pull the browser back to this lab's path.
+    if (window.location.pathname !== getScoreLab(lab).path) return
+    const params = new URLSearchParams(urlQuery)
     // The build/explore view param is owned by the section; carry it through rewrites.
     const view = searchParamsRef.current.get('view')
-    if (view === 'build' || view === 'explore') params.set('view', view)
-    params.set('src', state.boundarySource)
-    params.set('level', selectedRegionLevel)
-    params.set('w', encodeWeightsToParams(state.weights))
-    if (state.customMetricRecipes.some((recipe) => (state.weights[recipe.id] ?? 0) !== 0)) {
-      params.set('cw', encodeCustomMetricWeights(state.weights, state.customMetricRecipes))
-    }
-    params.set('ds', state.enabledDataSources.join(','))
-    params.set('norm', state.methodSettings.normalization)
-    params.set('agg', state.methodSettings.aggregation)
-    params.set('missing', state.methodSettings.missingData)
-    params.set('sens', state.methodSettings.sensitivity ? 'on' : 'off')
-    params.set('scope', state.methodSettings.normalizationScope)
-    params.set('vis', state.methodSettings.visualOutput)
-    params.set('cscale', state.methodSettings.mapColorScale)
-    if (state.enabledDataSources.includes('airQuality')) {
-      if (state.pendingNetworkSelectAll) params.set('networks', 'all')
-      else if (state.selectedNetworks.length) params.set('networks', state.selectedNetworks.join(','))
-    }
-    if (state.methodSettings.paletteOverride) params.set('pal', state.methodSettings.paletteOverride)
-    params.set('surface', state.mapSurface)
-    if (state.customMetricRecipes.length) params.set('recipes', encodeCustomMetricRecipes(state.customMetricRecipes))
-    if (state.methodSettings.healthyPlanPriority.demographicMetric) {
-      params.set('hpDemo', state.methodSettings.healthyPlanPriority.demographicMetric)
-    }
-    if (state.methodSettings.healthyPlanPriority.environmentMetric) {
-      params.set('hpEnv', state.methodSettings.healthyPlanPriority.environmentMetric)
-    }
-    params.set('accessMin', String(state.methodSettings.accessThreshold.minimumAccess))
-    params.set('accessHits', String(state.methodSettings.accessThreshold.minimumHits))
-    params.set('bcExp', String(state.methodSettings.bcEnviroScreenComponentWeights.exposures))
-    params.set('bcEff', String(state.methodSettings.bcEnviroScreenComponentWeights.environmentalEffects))
-    params.set('bcSens', String(state.methodSettings.bcEnviroScreenComponentWeights.sensitivePopulations))
-    params.set('bcSoc', String(state.methodSettings.bcEnviroScreenComponentWeights.socioeconomicFactors))
-    params.set('bcFormulaMode', state.methodSettings.bcEnviroScreenFormula.mode)
-    if (state.methodSettings.bcEnviroScreenFormula.mode === 'custom') {
-      params.set('bcFormula', state.methodSettings.bcEnviroScreenFormula.expression)
-    }
-    const walkabilitySurfaceToken = encodeWalkabilitySurfaceTuning(state.walkabilitySurfaceTuning)
-    if (walkabilitySurfaceToken) params.set('wsurf', walkabilitySurfaceToken)
+    if (lab === 'index' && (view === 'build' || view === 'explore')) params.set('view', view)
     setSearchParams(params, { replace: true })
-  }, [
-    state.boundarySource,
-    selectedRegionLevel,
-    state.weights,
-    state.enabledDataSources,
-    state.pendingNetworkSelectAll,
-    state.selectedNetworks,
-    state.mapSurface,
-    state.methodSettings,
-    state.customMetricRecipes,
-    state.walkabilitySurfaceTuning,
-    setSearchParams,
-  ])
+  }, [lab, quickPending, setSearchParams, urlQuery])
 
   // Shared-state tokens are decoded asynchronously, then applied on top of the initial state.
   useEffect(() => {
@@ -301,12 +318,6 @@ export function useScoreBuilderState() {
   const handleAddMetric = useCallback(
     (metric: ScoreMetricKey, value: number) => {
       dispatchTracked({ type: 'addMetric', metric, value, allNetworks: allNetworksRef.current })
-    },
-    [dispatchTracked],
-  )
-  const handleBuildDensityScore = useCallback(
-    (metric: ScoreMetricKey) => {
-      dispatchTracked({ type: 'buildDensityScore', metric, allNetworks: allNetworksRef.current })
     },
     [dispatchTracked],
   )
@@ -396,12 +407,6 @@ export function useScoreBuilderState() {
   }, [])
   const setDensityMetric = useCallback((metric: ScoreMetricKey) => {
     dispatch({ type: 'setDensityMetric', metric, allNetworks: allNetworksRef.current })
-  }, [])
-  const handleToggleDensityMode = useCallback(() => {
-    dispatch({ type: 'toggleDensityMode' })
-  }, [])
-  const handleToggleCorrelateMode = useCallback(() => {
-    dispatch({ type: 'toggleCorrelateMode' })
   }, [])
   const setCorrelateMetricX = useCallback((metric: ScoreMetricKey) => {
     dispatch({ type: 'setCorrelateMetricX', metric, allNetworks: allNetworksRef.current })
@@ -513,7 +518,6 @@ export function useScoreBuilderState() {
     handleRegionLevelChange,
     handleWeightChange,
     handleAddMetric,
-    handleBuildDensityScore,
     applyExample,
     handleApplyPreset,
     handleCreateCustomMetric,
@@ -536,8 +540,6 @@ export function useScoreBuilderState() {
     clearComparison,
     setSearchQuery,
     setDensityMetric,
-    handleToggleDensityMode,
-    handleToggleCorrelateMode,
     setCorrelateMetricX,
     setCorrelateMetricY,
     setCorrelateVisStyle,

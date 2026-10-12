@@ -8,11 +8,12 @@ import {
 } from '@/components/layout/MapSectionLayout'
 import type { MapRef } from '@/components/ui/map'
 import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
-import { IndexLabHeader, MapLensToggle, type MapLens } from './components/IndexLabHeader'
+import { IndexLabHeader, LabsBackLink } from './components/IndexLabHeader'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
 import { RecipesDialog } from './components/RecipesDialog'
 import { SCORE_PRESETS } from './constants'
 import { presetAppliesToBoundary } from './lib/presets'
+import { LensLabSidebar } from './components/LensLabSidebar'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderCoverageNotice } from './components/ScoreBuilderCoverageNotice'
@@ -48,8 +49,13 @@ import {
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import { formatMetricValue } from './lib/metrics'
+import { getScoreLab, type ScoreLabKind } from './lib/labs'
 
-const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
+/** Each lab keeps its own panel layout; the lens labs have a single sidebar. */
+function layoutStorageKey(lab: ScoreLabKind): string {
+  return lab === 'index' ? 'pgmaps.indexLab.layout' : `pgmaps.${lab}Lab.layout`
+}
 
 interface StoredLayoutPrefs {
   showSidebar?: boolean
@@ -65,8 +71,9 @@ const BOTH_PANELS_MEDIA_QUERY = '(min-width: 1280px)'
 
 type LabViewMode = 'build' | 'explore'
 
-function initialLabViewMode(): LabViewMode {
-  if (typeof window === 'undefined') return 'explore'
+function initialLabViewMode(lab: ScoreLabKind): LabViewMode {
+  // Only the Index Lab has a Build view; the lens labs are map-first.
+  if (lab !== 'index' || typeof window === 'undefined') return 'explore'
   const params = new URLSearchParams(window.location.search)
   const explicit = params.get('view')
   if (explicit === 'build' || explicit === 'explore') return explicit
@@ -79,9 +86,9 @@ function clampStoredWidth(width: number | undefined, fallback: number): number {
   return Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, Math.round(width)))
 }
 
-function readLayoutPrefs(): StoredLayoutPrefs {
+function readLayoutPrefs(lab: ScoreLabKind): StoredLayoutPrefs {
   try {
-    const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY)
+    const raw = window.localStorage.getItem(layoutStorageKey(lab))
     if (!raw) return {}
     const parsed: unknown = JSON.parse(raw)
     return typeof parsed === 'object' && parsed !== null ? (parsed as StoredLayoutPrefs) : {}
@@ -90,16 +97,20 @@ function readLayoutPrefs(): StoredLayoutPrefs {
   }
 }
 
-function writeLayoutPrefs(prefs: StoredLayoutPrefs) {
+function writeLayoutPrefs(lab: ScoreLabKind, prefs: StoredLayoutPrefs) {
   try {
-    window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(prefs))
+    window.localStorage.setItem(layoutStorageKey(lab), JSON.stringify(prefs))
   } catch {
     // Private browsing or full storage — layout prefs just won't persist.
   }
 }
 
 /**
- * Composition root for the Index Lab (score builder).
+ * Composition root for the Index Lab (score builder) and its two lens labs. All three
+ * run the same data pipeline; `lab` fixes what the map shows:
+ * - `index` — the composite score, with the Build view, equation bar, and ranked regions;
+ * - `density` — one metric painted across the study area (Density Lab);
+ * - `correlate` — the relationship between two metrics (Correlation Lab).
  *
  * Responsibilities are split across dedicated hooks:
  * - `useScoreBuilderState` — all control state (boundary, weights, sources, presets,
@@ -110,14 +121,16 @@ function writeLayoutPrefs(prefs: StoredLayoutPrefs) {
  * - `useScoreBuilderResults` — scoring, ranking, filtering, and derived analysis;
  * - `useScoreBuilderMapColors` — map fill colors for the active lens.
  */
-export default function ScoreBuilderSection() {
-  const sb = useScoreBuilderState()
+export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabKind }) {
+  const sb = useScoreBuilderState(lab)
   const { state } = sb
   const isDesktop = !useIsMobile()
+  const isIndexLab = lab === 'index'
+  const labInfo = getScoreLab(lab)
 
   // Build/Explore split: same state, two layouts. The choice is linkable via `view=`.
   const [searchParams, setSearchParams] = useSearchParams()
-  const [viewMode, setViewModeState] = useState<LabViewMode>(initialLabViewMode)
+  const [viewMode, setViewModeState] = useState<LabViewMode>(() => initialLabViewMode(lab))
   const setViewMode = useCallback(
     (mode: LabViewMode) => {
       setViewModeState(mode)
@@ -129,10 +142,13 @@ export default function ScoreBuilderSection() {
   )
 
   // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
-  // except the right panel below `xl` where both panels would crowd out the map.
-  const [showSidebar, setShowSidebar] = useState(() => readLayoutPrefs().showSidebar ?? !sb.initializedFromUrlWeights)
+  // except the right panel below `xl` where both panels would crowd out the map. A lens
+  // lab's sidebar holds all of its controls, so it opens even on a deep link.
+  const [showSidebar, setShowSidebar] = useState(
+    () => readLayoutPrefs(lab).showSidebar ?? (lab !== 'index' || !sb.initializedFromUrlWeights),
+  )
   const [showRightSidebar, setShowRightSidebar] = useState(() => {
-    const stored = readLayoutPrefs().showRightSidebar
+    const stored = readLayoutPrefs(lab).showRightSidebar
     if (stored != null) return stored
     if (typeof window !== 'undefined' && !window.matchMedia(BOTH_PANELS_MEDIA_QUERY).matches) return false
     return !sb.initializedFromUrlWeights
@@ -144,34 +160,34 @@ export default function ScoreBuilderSection() {
   )
   const [bcEnviroScreenColorBins, setBcEnviroScreenColorBins] = useState(BC_ENVIRO_SCREEN_DEFAULT_COLOR_BINS)
   const [sidebarWidth, setSidebarWidth] = useState(() =>
-    clampStoredWidth(readLayoutPrefs().sidebarWidth, DEFAULT_SIDEBAR_WIDTH),
+    clampStoredWidth(readLayoutPrefs(lab).sidebarWidth, DEFAULT_SIDEBAR_WIDTH),
   )
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() =>
-    clampStoredWidth(readLayoutPrefs().rightSidebarWidth, DEFAULT_RIGHT_SIDEBAR_WIDTH),
+    clampStoredWidth(readLayoutPrefs(lab).rightSidebarWidth, DEFAULT_RIGHT_SIDEBAR_WIDTH),
   )
 
   // Persist panel widths after drags settle rather than on every pointer move.
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const prefs = readLayoutPrefs()
+      const prefs = readLayoutPrefs(lab)
       if (prefs.sidebarWidth === sidebarWidth && prefs.rightSidebarWidth === rightSidebarWidth) return
-      writeLayoutPrefs({ ...prefs, sidebarWidth, rightSidebarWidth })
+      writeLayoutPrefs(lab, { ...prefs, sidebarWidth, rightSidebarWidth })
     }, 400)
     return () => window.clearTimeout(timer)
-  }, [rightSidebarWidth, sidebarWidth])
+  }, [lab, rightSidebarWidth, sidebarWidth])
 
   const toggleSidebar = useCallback(() => {
     setShowSidebar((current) => {
-      writeLayoutPrefs({ ...readLayoutPrefs(), showSidebar: !current })
+      writeLayoutPrefs(lab, { ...readLayoutPrefs(lab), showSidebar: !current })
       return !current
     })
-  }, [])
+  }, [lab])
   const toggleRightSidebar = useCallback(() => {
     setShowRightSidebar((current) => {
-      writeLayoutPrefs({ ...readLayoutPrefs(), showRightSidebar: !current })
+      writeLayoutPrefs(lab, { ...readLayoutPrefs(lab), showRightSidebar: !current })
       return !current
     })
-  }, [])
+  }, [lab])
 
   const datasets = useScoreBuilderDatasets({
     enabledSourceSet: sb.enabledSourceSet,
@@ -374,25 +390,6 @@ export default function ScoreBuilderSection() {
     ],
   )
 
-  // Map lens: Score, Density, or Correlate. The reducer keeps the two modes mutually exclusive.
-  const lens: MapLens = state.correlateMode ? 'correlate' : state.densityMode ? 'density' : 'score'
-  // On a phone, choosing a lens raises the sheet to the lens panel so its controls are reachable.
-  const [mobileSnap, setMobileSnap] = useState<{ state: 'half'; key: number } | null>(null)
-  const { handleToggleDensityMode, handleToggleCorrelateMode } = sb
-  const handleLensChange = useCallback(
-    (next: MapLens) => {
-      if (next === 'score') {
-        if (state.densityMode) handleToggleDensityMode()
-        if (state.correlateMode) handleToggleCorrelateMode()
-        return
-      }
-      if (next === 'density' && !state.densityMode) handleToggleDensityMode()
-      if (next === 'correlate' && !state.correlateMode) handleToggleCorrelateMode()
-      if (!isDesktop) setMobileSnap((current) => ({ state: 'half', key: (current?.key ?? 0) + 1 }))
-    },
-    [handleToggleCorrelateMode, handleToggleDensityMode, isDesktop, state.correlateMode, state.densityMode],
-  )
-
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, state.boundarySource)),
     [state.boundarySource],
@@ -444,11 +441,6 @@ export default function ScoreBuilderSection() {
       hasActiveBoundarySurface={!sb.showWalkabilitySourceSurface}
       scoreSpread={results.scoreSpread}
       populationEquitySummary={results.populationEquitySummary}
-      densityMetric={state.densityMetric}
-      onDensityMetricChange={sb.setDensityMetric}
-      onBuildDensityScore={sb.handleBuildDensityScore}
-      densitySummary={results.densitySummary}
-      densityLeaders={results.densityLeaders}
       regions={results.scoredRegions}
       filteredRegions={results.filteredRegions}
       selectedRegion={results.selectedRegion}
@@ -464,18 +456,6 @@ export default function ScoreBuilderSection() {
       onExport={handleExport}
       onShareUrl={sb.handleShareUrl}
       activeExampleKey={results.resolvedExampleKey}
-      correlateMode={state.correlateMode}
-      onToggleCorrelateMode={sb.handleToggleCorrelateMode}
-      densityMode={state.densityMode}
-      correlateMetricX={state.correlateMetricX}
-      correlateMetricY={state.correlateMetricY}
-      onCorrelateMetricXChange={sb.setCorrelateMetricX}
-      onCorrelateMetricYChange={sb.setCorrelateMetricY}
-      correlateVisStyle={state.correlateVisStyle}
-      onCorrelateVisStyleChange={sb.setCorrelateVisStyle}
-      correlationResult={correlationResult}
-      correlationTopPairs={correlationTopPairs}
-      onApplyTopPair={sb.applyCorrelatePair}
       baseline={baseline}
       baselineComparison={baselineComparison}
       onPinBaseline={pinBaseline}
@@ -507,22 +487,6 @@ export default function ScoreBuilderSection() {
       canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
       mapSurface={state.mapSurface}
       onMapSurfaceChange={sb.handleMapSurfaceChange}
-      lens={lens}
-      densityMetric={state.densityMetric}
-      onDensityMetricChange={sb.setDensityMetric}
-      onBuildDensityScore={sb.handleBuildDensityScore}
-      densitySummary={results.densitySummary}
-      densityLeaders={results.densityLeaders}
-      onToggleCorrelateMode={sb.handleToggleCorrelateMode}
-      correlateMetricX={state.correlateMetricX}
-      correlateMetricY={state.correlateMetricY}
-      onCorrelateMetricXChange={sb.setCorrelateMetricX}
-      onCorrelateMetricYChange={sb.setCorrelateMetricY}
-      correlateVisStyle={state.correlateVisStyle}
-      onCorrelateVisStyleChange={sb.setCorrelateVisStyle}
-      correlationResult={correlationResult}
-      correlationTopPairs={correlationTopPairs}
-      onApplyTopPair={sb.applyCorrelatePair}
       scoreSpread={results.scoreSpread}
       populationEquitySummary={results.populationEquitySummary}
       regions={results.scoredRegions}
@@ -548,6 +512,70 @@ export default function ScoreBuilderSection() {
       onOpenBuild={() => setViewMode('build')}
     />
   )
+
+  const lensSidebarProps = {
+    dataErrors: datasets.dataErrors,
+    regionCount: results.scoredRegions.length,
+    metrics: sb.activeMetricDefinitions,
+    boundarySource: state.boundarySource,
+    onBoundarySourceChange: sb.setBoundarySource,
+    selectedRegionLevel: sb.selectedRegionLevel,
+    onRegionLevelChange: sb.handleRegionLevelChange,
+    boundaryLevelOptions: sb.boundaryLevelOptions,
+    enabledDataSources: state.enabledDataSources,
+    onToggleDataSource: sb.toggleDataSource,
+    onEnableDataSource: sb.enableDataSource,
+    showPoints: state.showPoints,
+    onTogglePoints: sb.togglePoints,
+    selectedRegion: results.selectedRegion,
+    onRegionSelect: sb.selectRegion,
+    onClearRegionSelection: sb.clearRegionSelection,
+    className: isDesktop ? 'border-r border-border shadow-xl' : 'border-0 shadow-none',
+    showDescription: !isDesktop,
+  }
+  const lensSidebar =
+    lab === 'density' ? (
+      <LensLabSidebar
+        {...lensSidebarProps}
+        lab="density"
+        densityMetric={state.densityMetric}
+        onDensityMetricChange={sb.setDensityMetric}
+        densitySummary={results.densitySummary}
+        densityLeaders={results.densityLeaders}
+      />
+    ) : (
+      <LensLabSidebar
+        {...lensSidebarProps}
+        lab="correlate"
+        correlateMetricX={state.correlateMetricX}
+        correlateMetricY={state.correlateMetricY}
+        onCorrelateMetricXChange={sb.setCorrelateMetricX}
+        onCorrelateMetricYChange={sb.setCorrelateMetricY}
+        correlateVisStyle={state.correlateVisStyle}
+        onCorrelateVisStyleChange={sb.setCorrelateVisStyle}
+        correlationResult={correlationResult}
+        correlationTopPairs={correlationTopPairs}
+        onApplyTopPair={sb.applyCorrelatePair}
+      />
+    )
+
+  // On a phone the sheet peeks the selected region and, in a lens lab, its lens values.
+  const selectedRegion = results.selectedRegion
+  const mobilePeekSubtitle = (() => {
+    if (!selectedRegion) {
+      const count = `${results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} regions`
+      return isIndexLab ? `${count} · avg ${results.scoreSpread.average.toFixed(1)}` : count
+    }
+    if (lab === 'density') {
+      return `${selectedRegion.region.name} · ${formatMetricValue(state.densityMetric, selectedRegion.metrics[state.densityMetric], true)}`
+    }
+    if (lab === 'correlate') {
+      const x = formatMetricValue(state.correlateMetricX, selectedRegion.metrics[state.correlateMetricX], true)
+      const y = formatMetricValue(state.correlateMetricY, selectedRegion.metrics[state.correlateMetricY], true)
+      return `${selectedRegion.region.name} · ${x} / ${y}`
+    }
+    return `#${selectedRegion.rank} ${selectedRegion.region.name}`
+  })()
 
   const buildView = (
     <ScoreBuilderBuildView
@@ -605,23 +633,21 @@ export default function ScoreBuilderSection() {
       {viewMode === 'explore' && (
         <div className="flex h-full min-h-0 flex-col">
           {/* Same header strip as the Build view, so the toggle and actions stay put on swap. */}
-          {isDesktop && (
-            <IndexLabHeader
-              mode="explore"
-              onSwitchToBuild={() => setViewMode('build')}
-              title={activeRecipeLabel}
-              description={activeRecipeDescription}
-              onOpenRecipes={openRecipes}
-              onOpenSettings={openSettings}
-              onUndo={sb.undo}
-              onRedo={sb.redo}
-              canUndo={sb.canUndo}
-              canRedo={sb.canRedo}
-              lens={lens}
-              onLensChange={handleLensChange}
-              onExport={handleExport}
-            />
-          )}
+          {isDesktop &&
+            (isIndexLab ? (
+              <IndexLabHeader
+                mode="explore"
+                onSwitchToBuild={() => setViewMode('build')}
+                title={activeRecipeLabel}
+                description={activeRecipeDescription}
+                onOpenRecipes={openRecipes}
+                onOpenSettings={openSettings}
+                history={{ onUndo: sb.undo, onRedo: sb.redo, canUndo: sb.canUndo, canRedo: sb.canRedo }}
+                onExport={handleExport}
+              />
+            ) : (
+              <IndexLabHeader title={labInfo.title} description={labInfo.description} />
+            ))}
           <div className="min-h-0 flex-1">
             <MapSectionLayout
               showDesktopSidebar={showSidebar}
@@ -629,23 +655,17 @@ export default function ScoreBuilderSection() {
               desktopSidebarWidth={sidebarWidth}
               onDesktopSidebarWidthChange={setSidebarWidth}
               mobileInitialSheetState="collapsed"
-              mobilePeekTitle={activeRecipeLabel}
-              mobilePeekSubtitle={
-                results.selectedRegion
-                  ? `#${results.selectedRegion.rank} ${results.selectedRegion.region.name}`
-                  : `${results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} regions · avg ${results.scoreSpread.average.toFixed(1)}`
-              }
-              mobileSnapTo={mobileSnap?.state}
-              mobileSnapKey={mobileSnap?.key}
-              sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
-              rightSidebar={isDesktop ? desktopRightPanel : undefined}
+              mobilePeekTitle={isIndexLab ? activeRecipeLabel : labInfo.title}
+              mobilePeekSubtitle={mobilePeekSubtitle}
+              sidebar={!isIndexLab ? lensSidebar : isDesktop ? desktopLeftPanel : mobileSidebar}
+              rightSidebar={isDesktop && isIndexLab ? desktopRightPanel : undefined}
               showDesktopRightSidebar={showRightSidebar}
               onToggleDesktopRightSidebar={toggleRightSidebar}
               desktopRightSidebarWidth={rightSidebarWidth}
               onDesktopRightSidebarWidthChange={setRightSidebarWidth}
             >
               <div className="relative flex h-full min-h-0 flex-col">
-                {isDesktop && (
+                {isDesktop && isIndexLab && (
                   <ScoreBuilderEquationBar
                     weights={state.weights}
                     metrics={sb.activeMetricDefinitions}
@@ -701,37 +721,39 @@ export default function ScoreBuilderSection() {
                     />
                   )}
 
-                  {/* Phone strip: one lens segment plus undo/redo. Build, Recipes, and Settings live in the sheet. */}
+                  {/* Phone strip: back to Labs, plus undo/redo in the Index Lab. Build, Recipes, and Settings live in the sheet. */}
                   {!isDesktop && (
                     <div
                       className="absolute left-2 right-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
                       data-score-builder-mobile-actions="true"
                     >
-                      <MapLensToggle lens={lens} onLensChange={handleLensChange} size="lg" className="min-w-0" />
-                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={sb.undo}
-                          disabled={!sb.canUndo}
-                          aria-label="Undo"
-                          className={mobileIconButtonClass}
-                        >
-                          <Undo2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={sb.redo}
-                          disabled={!sb.canRedo}
-                          aria-label="Redo"
-                          className={mobileIconButtonClass}
-                        >
-                          <Redo2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      <LabsBackLink size="lg" />
+                      {isIndexLab && (
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={sb.undo}
+                            disabled={!sb.canUndo}
+                            aria-label="Undo"
+                            className={mobileIconButtonClass}
+                          >
+                            <Undo2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={sb.redo}
+                            disabled={!sb.canRedo}
+                            aria-label="Redo"
+                            className={mobileIconButtonClass}
+                          >
+                            <Redo2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {!isDesktop && results.selectedRegion && (
+                  {!isDesktop && isIndexLab && results.selectedRegion && (
                     <ScoreBuilderMobileRegionCard
                       region={results.selectedRegion}
                       drivers={results.selectedRegionDrivers}

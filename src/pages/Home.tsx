@@ -3,7 +3,7 @@ import {
   UtensilsCrossed,
   Wind,
   BarChart3,
-  Calculator,
+  FlaskConical,
   Calendar,
   Layers,
   ShieldAlert,
@@ -113,10 +113,10 @@ const mapProjects: MapCardProps[] = [
     status: 'available',
   },
   {
-    title: 'Index Lab',
-    description: 'Build transparent civic and environmental-health indices with adjustable weights, methods, and explainable region scores.',
-    icon: Calculator,
-    href: '/score-builder',
+    title: 'Labs',
+    description: 'Analyze regions three ways: build weighted indices, map a single metric, or correlate two metrics.',
+    icon: FlaskConical,
+    href: '/labs',
     color: 'bg-cyan-600',
     status: 'available',
   },
@@ -181,9 +181,9 @@ export default function Home() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="min-w-0 flex-1 sm:flex-none">
-            <Link to="/score-builder">
-              <Calculator className="h-5 w-5 mr-2" />
-              Open Index Lab
+            <Link to="/labs">
+              <FlaskConical className="h-5 w-5 mr-2" />
+              Open Labs
             </Link>
           </Button>
         </div>

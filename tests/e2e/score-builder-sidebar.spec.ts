@@ -50,12 +50,6 @@ async function applyPresetFromDialog(page: Page, presetName: string) {
   await expect(page.getByRole('dialog', { name: 'Recipes' })).toHaveCount(0)
 }
 
-/** Opens the in-place weight editor for an equation-bar chip. */
-async function openChipEditor(page: Page, metricKey: string) {
-  await page.locator(`[data-score-builder-term-label="${metricKey}"]`).click()
-  await expect(page.locator(`[data-score-builder-weight-popover="${metricKey}"]`)).toBeVisible()
-}
-
 function dataSourceButton(page: Page, label: string) {
   return page.locator(
     `button[aria-label^="${label}"][aria-label$="ON"], button[aria-label^="${label}"][aria-label$="OFF"]`,
@@ -104,10 +98,6 @@ async function openPanels(page: Page) {
   }
 }
 
-/** Density and Correlate are map-lens toggles in the Index Lab header, not standalone right-panel tabs. */
-async function setMapLens(page: Page, lens: 'Score' | 'Density' | 'Correlate') {
-  await page.getByRole('group', { name: 'Map lens' }).getByRole('button', { name: lens }).click()
-}
 
 test.describe('Score Builder preset model', () => {
   test('presets have coherent metadata, source derivation, and active matching', () => {
@@ -277,37 +267,35 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page).toHaveURL(/src=bcHealth.*level=chsa/)
   })
 
-  test('right panel follows the map lens between density and regions', async ({ page }) => {
-    await expect(page.locator('[data-score-builder-section="regions"]')).toBeVisible()
+  test('each lab shows only its own concept and links back to the Labs page', async ({ page }) => {
+    // The Index Lab carries no density or correlation controls, and no way into the other labs.
+    await expect(page.getByLabel('Density metric')).toHaveCount(0)
+    await expect(page.getByLabel('Correlation metric X')).toHaveCount(0)
+    await expect(page.locator('a[href^="/density-lab"], a[href^="/correlation-lab"]')).toHaveCount(0)
 
-    // Density is a map lens; enabling it surfaces the density panel.
-    await setMapLens(page, 'Density')
-    await expect(page.locator('[data-score-builder-section="density"]')).toBeVisible()
+    await page.getByRole('link', { name: 'Back to Labs' }).click()
+    await expect(page).toHaveURL(/\/labs$/)
+    await expect(page.locator('[data-lab-card]')).toHaveCount(3)
+
+    await page.locator('[data-lab-card="density"]').click()
+    await expect(page).toHaveURL(/\/density-lab/)
+    await expect(page.locator('[data-score-lab-sidebar="density"]')).toBeVisible()
     await expect(page.getByLabel('Density metric')).toBeVisible()
-    await expect(page.locator('[data-score-builder-build-density-score="true"]')).toBeVisible()
-
-    await setMapLens(page, 'Score')
-    await page.locator('[data-score-builder-tab="regions"]').click()
-    await expect(page.locator('[data-score-builder-section="regions"]')).toBeVisible()
-    await expect(page.locator('[data-score-builder-region-stats="true"]')).toBeVisible()
-  })
-
-  test('density heat-map lens can become a one-metric score', async ({ page }) => {
-    await setMapLens(page, 'Density')
-    // Density metric is an AppSelect (Radix), not a native <select>.
+    // No equation, ranked regions, or correlation controls here.
+    await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(0)
+    await expect(page.locator('[data-score-builder-section="regions"]')).toHaveCount(0)
+    await expect(page.getByLabel('Correlation metric X')).toHaveCount(0)
     await page.getByLabel('Density metric').click()
     await page.getByRole('option', { name: 'Shade Gap' }).click()
-    await page.locator('[data-score-builder-build-density-score="true"]').click()
+    await expect(page).toHaveURL(/dm=shadeGap/)
 
-    await expect(page.getByRole('button', { name: /Heat & Shade/i })).toContainText('ON')
-    // Leave the density lens so the right panel settles on a stable (non-density) tab.
-    await setMapLens(page, 'Score')
-    // Equation-term chips live in the always-visible top equation bar.
-    await expect(page.locator('[data-score-builder-equation-term="shadeGap"]')).toBeVisible()
-    await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(1)
-    // The numeric weight input lives in the chip's in-place editor.
-    await openChipEditor(page, 'shadeGap')
-    await expect(page.locator('[data-score-builder-equation-number="shadeGap"]')).toHaveValue('100')
+    await page.getByRole('link', { name: 'Back to Labs' }).click()
+    await page.locator('[data-lab-card="correlate"]').click()
+    await expect(page).toHaveURL(/\/correlation-lab/)
+    await expect(page.locator('[data-score-lab-sidebar="correlate"]')).toBeVisible()
+    await expect(page.getByLabel('Correlation metric X')).toBeVisible()
+    await expect(page.getByLabel('Density metric')).toHaveCount(0)
+    await expect(page).toHaveURL(/cx=.*cy=/)
   })
 
   test('equation builder can add a metric and generate a share URL', async ({ page }) => {
@@ -442,7 +430,7 @@ test.describe('Score Builder mobile interface', () => {
   const MOBILE_URL =
     '/score-builder?src=census&level=ct&w=0%2C0%2C0%2C0%2C0%2C0%2C0%2C22%2C28%2C20%2C15%2C0%2C0%2C0%2C0%2C15%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0&ds=parks%2Ccensus'
 
-  test('phone sheet edits weights in place and follows the map lens', async ({ page }) => {
+  test('phone sheet edits weights in place and leads back to the Labs page', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(MOBILE_URL, { waitUntil: 'domcontentloaded' })
 
@@ -450,7 +438,7 @@ test.describe('Score Builder mobile interface', () => {
     await expect(handle).toBeVisible()
     // Collapsed, the sheet peeks the recipe name rather than a page title.
     await expect(handle).toContainText('Custom index')
-    await expect(page.getByText('Index Lab', { exact: true })).toHaveCount(1)
+    await expect(page.getByText('Index Lab', { exact: true }).filter({ visible: true })).toHaveCount(1)
 
     await handle.press('End')
     await expect(handle).toHaveAttribute('aria-valuenow', '2')
@@ -478,12 +466,16 @@ test.describe('Score Builder mobile interface', () => {
     await equationSection.locator('[data-score-builder-equation-number="parkAreaRatio"]').fill('40')
     await expect(page).toHaveURL(/w=.*40/)
 
-    // Choosing a lens raises the sheet to that lens panel.
+    // The only way to another lab is back through the Labs page.
     await handle.press('Home')
-    await page.getByRole('group', { name: 'Map lens' }).getByRole('button', { name: 'Density' }).click()
-    await expect(handle).toHaveAttribute('aria-valuenow', '1')
-    await expect(sheet.locator('[data-score-builder-lens-panel="density"]')).toBeVisible()
-    await expect(sheet.getByLabel('Density metric')).toBeVisible()
+    await page.locator('[data-score-builder-mobile-actions]').getByRole('link', { name: 'Back to Labs' }).click()
+    await page.locator('[data-lab-card="density"]').click()
+    await expect(page).toHaveURL(/\/density-lab/)
+    await expect(handle).toContainText('Density Lab')
+    await handle.press('End')
+    const lensSheet = page.locator('[data-score-lab-sidebar="density"]')
+    await expect(lensSheet.locator('[data-score-builder-lens-panel="density"]')).toBeVisible()
+    await expect(lensSheet.getByLabel('Density metric')).toBeVisible()
   })
 
   test('phone Build view puts results under the equation and adds metrics through the picker', async ({ page }) => {

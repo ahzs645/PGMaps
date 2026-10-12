@@ -1,20 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 import { SCORE_BUILDER_EXAMPLES, SCORE_PRESETS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import type { ScoredBoundaryRegion, ScoreMetricWeightMap } from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { getScoreDrivers } from '../lib/scoreDrivers'
-import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
-import { CorrelateTab } from './CorrelateTab'
-import { DensityTab } from './DensityTab'
 import { RegionsTab } from './RegionsTab'
-
-type RightPanelTab = 'density' | 'correlate' | 'regions'
 
 interface ScoreBuilderRightPanelProps {
   className?: string
@@ -25,11 +19,6 @@ interface ScoreBuilderRightPanelProps {
   hasActiveBoundarySurface: boolean
   scoreSpread: { min: number; max: number; average: number }
   populationEquitySummary: PopulationWeightedEquitySummary | null
-  densityMetric: ScoreMetricKey
-  onDensityMetricChange: (metric: ScoreMetricKey) => void
-  onBuildDensityScore: (metric: ScoreMetricKey) => void
-  densitySummary: { min: number; max: number; median: number; average: number } | null
-  densityLeaders: ScoredBoundaryRegion[]
   regions: ScoredBoundaryRegion[]
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
@@ -45,34 +34,16 @@ interface ScoreBuilderRightPanelProps {
   onExport: (format: ScoreBuilderExportFormat) => void
   onShareUrl: () => Promise<string>
   activeExampleKey: string | null
-  correlateMode: boolean
-  onToggleCorrelateMode: () => void
-  densityMode: boolean
-  correlateMetricX: ScoreMetricKey
-  correlateMetricY: ScoreMetricKey
-  onCorrelateMetricXChange: (metric: ScoreMetricKey) => void
-  onCorrelateMetricYChange: (metric: ScoreMetricKey) => void
-  correlateVisStyle: 'bivariate' | 'residual'
-  onCorrelateVisStyleChange: (style: 'bivariate' | 'residual') => void
-  correlationResult: CorrelationResult
-  correlationTopPairs: MetricCorrelation[]
-  onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
   baseline: BaselineSnapshot | null
   baselineComparison: BaselineComparisonResult | null
   onPinBaseline: () => void
   onClearBaseline: () => void
 }
 
-const TAB_LABELS: Record<RightPanelTab, string> = {
-  density: 'Density',
-  correlate: 'Correlate',
-  regions: 'Regions',
-}
-
 /**
- * Results-only desktop panel: ranked regions, plus the Density and Correlate lens
- * panels while those lenses are on. The equation itself is edited in the equation bar
- * and the Build view, never here.
+ * Results-only desktop panel: the ranked regions. The equation itself is edited in the
+ * equation bar and the Build view, never here. Density and correlation have their own
+ * labs (`/density-lab`, `/correlation-lab`).
  */
 export function ScoreBuilderRightPanel({
   className,
@@ -83,11 +54,6 @@ export function ScoreBuilderRightPanel({
   hasActiveBoundarySurface,
   scoreSpread,
   populationEquitySummary,
-  densityMetric,
-  onDensityMetricChange,
-  onBuildDensityScore,
-  densitySummary,
-  densityLeaders,
   regions,
   filteredRegions,
   selectedRegion,
@@ -103,43 +69,12 @@ export function ScoreBuilderRightPanel({
   onExport,
   onShareUrl,
   activeExampleKey,
-  correlateMode,
-  onToggleCorrelateMode,
-  densityMode,
-  correlateMetricX,
-  correlateMetricY,
-  onCorrelateMetricXChange,
-  onCorrelateMetricYChange,
-  correlateVisStyle,
-  onCorrelateVisStyleChange,
-  correlationResult,
-  correlationTopPairs,
-  onApplyTopPair,
   baseline,
   baselineComparison,
   onPinBaseline,
   onClearBaseline,
 }: ScoreBuilderRightPanelProps) {
-  const [activeTab, setActiveTab] = useState<RightPanelTab>('regions')
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
-
-  // The lens panels follow the active lens; leaving a lens returns to the ranking.
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      if (correlateMode) setActiveTab('correlate')
-      else if (densityMode) setActiveTab('density')
-      else setActiveTab('regions')
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [correlateMode, densityMode])
-
-  const tabOrder = useMemo<RightPanelTab[]>(() => {
-    const tabs: RightPanelTab[] = []
-    if (densityMode) tabs.push('density')
-    if (correlateMode) tabs.push('correlate')
-    if (hasActiveBoundarySurface) tabs.push('regions')
-    return tabs
-  }, [correlateMode, densityMode, hasActiveBoundarySurface])
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const activeExample = useMemo(
@@ -206,21 +141,6 @@ export function ScoreBuilderRightPanel({
         </div>
       </div>
 
-      {tabOrder.length > 1 && (
-        <div className="shrink-0 bg-background/95" data-score-builder-tablist="true">
-          <TabBar
-            value={activeTab}
-            options={tabOrder.map((tab) => ({ value: tab, label: TAB_LABELS[tab] }))}
-            onChange={setActiveTab}
-            label="Results views"
-            variant="underline"
-            activeClassName="border-cyan-500 text-cyan-700 dark:text-cyan-300"
-            getTabProps={(option) => ({ 'data-score-builder-tab': option.value })}
-            className="gap-0 [&>button]:min-w-[3.5rem] [&>button]:flex-1 [&>button]:justify-center [&>button]:px-2"
-          />
-        </div>
-      )}
-
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
         {dataErrors.length > 0 && (
           <InlineAlert tone="error" title="Unable to build scores" className="m-3 p-3">
@@ -238,36 +158,7 @@ export function ScoreBuilderRightPanel({
           </InlineAlert>
         )}
 
-        {activeTab === 'density' && densityMode && (
-          <DensityTab
-            className="p-4"
-            densityMetric={densityMetric}
-            onDensityMetricChange={onDensityMetricChange}
-            onBuildDensityScore={onBuildDensityScore}
-            densitySummary={densitySummary}
-            densityLeaders={densityLeaders}
-            selectedRegion={selectedRegion}
-            onRegionSelect={onRegionSelect}
-          />
-        )}
-
-        {activeTab === 'correlate' && correlateMode && (
-          <CorrelateTab
-            correlateMode={correlateMode}
-            onToggleCorrelateMode={onToggleCorrelateMode}
-            metricX={correlateMetricX}
-            metricY={correlateMetricY}
-            onMetricXChange={onCorrelateMetricXChange}
-            onMetricYChange={onCorrelateMetricYChange}
-            visStyle={correlateVisStyle}
-            onVisStyleChange={onCorrelateVisStyleChange}
-            result={correlationResult}
-            topPairs={correlationTopPairs}
-            onApplyTopPair={onApplyTopPair}
-          />
-        )}
-
-        {hasActiveBoundarySurface && (activeTab === 'regions' || !tabOrder.includes(activeTab)) && (
+        {hasActiveBoundarySurface && (
           <RegionsTab
             className="p-4"
             loading={loading}

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  Activity,
   BookOpen,
+  ChevronLeft,
   Download,
-  Flame,
   Hammer,
   Map as MapIcon,
   Redo2,
@@ -13,25 +13,22 @@ import {
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
-
-export type MapLens = 'score' | 'density' | 'correlate'
+import { LABS_HOME_PATH } from '../lib/labs'
 
 export interface IndexLabHeaderProps {
-  mode: 'build' | 'explore'
+  /** Index Lab only: the Build / Explore view switch. */
+  mode?: 'build' | 'explore'
   onSwitchToBuild?: () => void
   onSwitchToExplore?: () => void
   title: string
   description: string
-  onOpenRecipes: () => void
-  onOpenSettings: () => void
-  onUndo: () => void
-  onRedo: () => void
-  canUndo: boolean
-  canRedo: boolean
-  /** Explore only: the map lens segment and the results export menu. */
-  lens?: MapLens
-  onLensChange?: (lens: MapLens) => void
+  /** Index Lab only: undo/redo of the index composition. */
+  history?: { onUndo: () => void; onRedo: () => void; canUndo: boolean; canRedo: boolean }
+  onOpenRecipes?: () => void
+  onOpenSettings?: () => void
   onExport?: (format: ScoreBuilderExportFormat) => void
+  /** Extra actions rendered at the end of the toolbar. */
+  actions?: ReactNode
 }
 
 const EXPORT_FORMATS: Array<[ScoreBuilderExportFormat, string]> = [
@@ -47,9 +44,10 @@ const headerIconButtonClass =
   'inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40'
 
 /**
- * The single Index Lab toolbar on desktop: view toggle, recipe title, map lens,
- * undo/redo, and the Recipes / Export / Settings actions. Both views render it so
- * nothing moves when swapping between Build and Explore.
+ * The single toolbar shared by the Index, Density, and Correlation labs: the way back
+ * to the Labs page, then the title, then whichever actions the lab offers. In the Index Lab
+ * that is the Build / Explore view toggle, undo/redo, and the Recipes / Export /
+ * Settings actions; both views render it so nothing moves when swapping between them.
  */
 export function IndexLabHeader({
   mode,
@@ -57,15 +55,11 @@ export function IndexLabHeader({
   onSwitchToExplore,
   title,
   description,
+  history,
   onOpenRecipes,
   onOpenSettings,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
-  lens,
-  onLensChange,
   onExport,
+  actions,
 }: IndexLabHeaderProps) {
   return (
     // On mobile the app navbar is a fixed overlay of floating pills, so the header's
@@ -75,56 +69,63 @@ export function IndexLabHeader({
       className="shrink-0 border-b border-border bg-background max-md:pt-[calc(env(safe-area-inset-top)+3.25rem)]"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
-        <ViewModeToggle mode={mode} onSwitchToBuild={onSwitchToBuild} onSwitchToExplore={onSwitchToExplore} />
+        <LabsBackLink />
+        {mode && <ViewModeToggle mode={mode} onSwitchToBuild={onSwitchToBuild} onSwitchToExplore={onSwitchToExplore} />}
         <div className="hidden min-w-0 flex-1 md:block">
           <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
           <p className="line-clamp-1 text-xs text-muted-foreground">{description}</p>
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          {lens && onLensChange && <MapLensToggle lens={lens} onLensChange={onLensChange} />}
-          <div className="inline-flex items-center gap-1">
+          {history && (
+            <div className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={history.onUndo}
+                disabled={!history.canUndo}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+                className={headerIconButtonClass}
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={history.onRedo}
+                disabled={!history.canRedo}
+                title="Redo (Shift+Ctrl+Z)"
+                aria-label="Redo"
+                className={headerIconButtonClass}
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {onOpenRecipes && (
             <button
               type="button"
-              onClick={onUndo}
-              disabled={!canUndo}
-              title="Undo (Ctrl+Z)"
-              aria-label="Undo"
-              className={headerIconButtonClass}
+              onClick={onOpenRecipes}
+              title="Browse examples, presets, projects, and saved indexes"
+              aria-label="Browse recipes"
+              className={headerButtonClass}
             >
-              <Undo2 className="h-4 w-4" />
+              <BookOpen className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Recipes</span>
             </button>
-            <button
-              type="button"
-              onClick={onRedo}
-              disabled={!canRedo}
-              title="Redo (Shift+Ctrl+Z)"
-              aria-label="Redo"
-              className={headerIconButtonClass}
-            >
-              <Redo2 className="h-4 w-4" />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenRecipes}
-            title="Browse examples, presets, projects, and saved indexes"
-            aria-label="Browse recipes"
-            className={headerButtonClass}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Recipes</span>
-          </button>
+          )}
           {onExport && <ExportMenu onExport={onExport} />}
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            title="Index settings — methodology, model & filters, robustness"
-            aria-label="Index settings"
-            className={headerIconButtonClass}
-          >
-            <SettingsIcon className="h-4 w-4" />
-          </button>
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              title="Index settings — methodology, model & filters, robustness"
+              aria-label="Index settings"
+              className={headerIconButtonClass}
+            >
+              <SettingsIcon className="h-4 w-4" />
+            </button>
+          )}
+          {actions}
         </div>
 
         <div className="w-full min-w-0 md:hidden">
@@ -150,7 +151,7 @@ const LAB_VIEW_OPTIONS = [
     value: 'explore',
     label: 'Explore',
     icon: MapIcon,
-    title: 'Explore view — map-first with regions, density, and correlate',
+    title: 'Explore view — map-first with the ranked regions',
     activeClassName: CYAN_ACTIVE,
   },
 ] as const satisfies readonly SegmentedOption<'build' | 'explore'>[]
@@ -185,53 +186,22 @@ export function ViewModeToggle({
   )
 }
 
-const MAP_LENS_OPTIONS = [
-  {
-    value: 'score',
-    label: 'Score',
-    title: 'Score lens — map colored by the composite index',
-    activeClassName: CYAN_ACTIVE,
-  },
-  {
-    value: 'density',
-    label: 'Density',
-    icon: Flame,
-    title: 'Density lens — map painted by a single metric',
-    activeClassName: 'bg-amber-500 text-white',
-  },
-  {
-    value: 'correlate',
-    label: 'Correlate',
-    icon: Activity,
-    title: 'Correlate lens — map shows the relationship between two metrics',
-    activeClassName: CYAN_ACTIVE,
-  },
-] as const satisfies readonly SegmentedOption<MapLens>[]
-
-/** Score / Density / Correlate map-lens segment. Shared by the desktop header and the phone strip. */
-export function MapLensToggle({
-  lens,
-  onLensChange,
-  size = 'sm',
-  className,
-}: {
-  lens: MapLens
-  onLensChange: (lens: MapLens) => void
-  size?: 'sm' | 'lg'
-  className?: string
-}) {
+/** The way out of a lab: back to the Labs page, never sideways into another lab. */
+export function LabsBackLink({ size = 'sm', className }: { size?: 'sm' | 'lg'; className?: string }) {
   return (
-    <SegmentedControl
-      value={lens}
-      options={MAP_LENS_OPTIONS}
-      onChange={onLensChange}
-      label="Map lens"
-      // The phone strip floats over the map, so it gets the larger hit area and a lift.
-      size={size === 'lg' ? 'md' : 'sm'}
-      variant="solid"
-      fullWidth={false}
-      className={cn(size === 'lg' && 'shadow-sm backdrop-blur', className)}
-    />
+    <Link
+      to={LABS_HOME_PATH}
+      aria-label="Back to Labs"
+      className={cn(
+        size === 'lg'
+          ? 'inline-flex min-h-10 items-center gap-1 rounded-md border border-border bg-background/95 px-3 text-sm font-medium text-foreground shadow-sm backdrop-blur transition-colors'
+          : headerButtonClass,
+        className,
+      )}
+    >
+      <ChevronLeft className={size === 'lg' ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
+      Labs
+    </Link>
   )
 }
 
