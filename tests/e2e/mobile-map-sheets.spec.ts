@@ -132,6 +132,26 @@ test.describe('mobile map sidebars', () => {
     await expect(page).not.toHaveURL(/restaurant=/)
   })
 
+  test('a selected feature card stacks in front of the sheet, which only peeks above it', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/foodmap?restaurant=A+%26+W+Restaurant-+5th+Avenue', { waitUntil: 'domcontentloaded' })
+
+    const card = page.locator('[aria-label="Selected feature"] [role="dialog"]')
+    await expect(card).toBeVisible({ timeout: 30_000 })
+    const sheet = page.locator('[data-map-mobile-sheet="true"]')
+    // The sheet settles just behind the card: its edge shows above the card's top, but none
+    // of its content does. A re-snap used to pull it back up over half the screen.
+    await expect
+      .poll(async () => {
+        const [sheetBox, cardBox] = await Promise.all([sheet.boundingBox(), card.boundingBox()])
+        return sheetBox && cardBox ? cardBox.y - sheetBox.y : null
+      }, { timeout: 5_000 })
+      .toBeGreaterThanOrEqual(0)
+    await page.waitForTimeout(600)
+    const [sheetBox, cardBox] = await Promise.all([sheet.boundingBox(), card.boundingBox()])
+    expect(cardBox!.y - sheetBox!.y).toBeLessThanOrEqual(16)
+  })
+
   test('mobile food map docked restaurant card shows restaurant peek text', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/foodmap?restaurant=A+%26+W+Restaurant-+5th+Avenue', { waitUntil: 'domcontentloaded' })
