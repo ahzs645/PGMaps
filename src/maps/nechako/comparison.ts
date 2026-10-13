@@ -1,11 +1,11 @@
-// Updated 2026-10-11. Live evidence and deployment limits: docs/nechako-portal-assessment.md.
+// Updated 2026-10-12. Live evidence and deployment limits: docs/nechako-portal-assessment.md.
 export const FEATURE_COMPARISON = [
   {
     feature: 'Map, layers, visibility, legends, camera',
     portal: 'Live catalogue and WMS tests',
     pgmaps:
       'Shared MapLibre/toolkit components; existing portal WMS project preview; GeoJSON/PMTiles and raster support',
-    next: 'Verify native private sources and exact cross-type order; deploy the prepared workbench.',
+    next: 'Verify permission-dependent native sources and service availability. Native source order is preserved; full SLD symbolizers and ordering within split vector geometries remain partial.',
     devView:
       'Live catalogue, WMS styles/opacity/visibility/order/legends/identify; camera and workspace save/restore; local vector and imported tile layers.',
   },
@@ -19,42 +19,60 @@ export const FEATURE_COMPARISON = [
   },
   {
     feature: 'Portal-wide submission search',
-    portal: 'Live Search UI; eight search contexts; query failed with registration error',
+    portal: 'Original catalogue exposed 1,585 searchable submissions; local gateway query nechako returns 419 results',
     pgmaps: 'Global site search and literature search cover different sources',
-    next: 'Live results/area behavior are blocked by portal registration; verify payloads and permission scopes after server repair.',
+    next: 'Local gateway reads real results; direct browser mode can fail registration. Production deployment and permission-scoped area acceptance remain.',
     devView:
-      'Native expression/context form transport; geographic extent filter, current map extent, paged result table/CSV and submission resource links.',
+      'Unified public-content search and native submission search; nested visual expressions, local saved queries, geographic limits, paged results/CSV and form detail dialogs.',
   },
   {
     feature: 'Submission detail',
     portal: 'Client has General, Preview, Allowed Users, Spatial Data, Attachments, Child Submissions, History, Export',
     pgmaps: 'General cards/dialogs available; no portal submission adapter found',
-    next: 'Anonymous connection only. Verify authorized payloads, schema-driven form previews, file downloads, child/history and permission boundaries.',
+    next: 'Isolated gateway sign-in and dynamic form reads work locally. Verify production permission scopes, protected file access and unsupported static nodes.',
     devView:
-      'Seven independent read-only resource sections using native endpoint parameter names; exported JSON review.',
+      'Dynamic source form preview, safe links/content, seven independent resources, child navigation, layer Attributes/monitoring links and JSON review.',
   },
   {
     feature: 'Project catalogue and JSON packages',
-    portal: 'Portal project UI tested; listing failed with registration error',
+    portal: 'Administrator grid lists 19 saved maps; anonymous grid lists nine. Project-form submissions are separate.',
     pgmaps: '`/projects`, project folders, imported packages, story/explorer modes, Index Lab handoff',
-    next: 'Registration blocks live catalogue/defaults. Authorized project transport and revision integration remain server work.',
+    next: 'Live source catalogue/default/history reads through local gateway; reviewed write adapters are mocked-contract verified, with no source mutations executed.',
     devView:
-      'Live list/default/form checks plus native portal project file conversion in Layers; existing PGMaps library retained.',
+      'Nine actual public map definitions with descriptions, original raster images, links and partial map loading; local JSON collection import/export and existing PGMaps library.',
   },
   {
     feature: 'Saved map workspaces',
     portal: 'Client saves camera/scale, ordered layers, styles and native source references',
     pgmaps: 'Local package repository and outdoors JSON/share/save workflows',
-    next: 'SLD/custom style rendering, portal-native source resolution and exact cross-type order need validated native samples; private ownership/history stays in portal.',
+    next: '130 of 131 WMS references convert: 19 native references use the verified MapServer prefix and supplied mapfile/layer names, with existing HTTPS SLDs. Teacher resources retain 9/9 WMS. One empty WMS name and 18 HTTP XYZ basemaps remain omitted; temporary references may expire. Native cross-type order is preserved; full SLD symbolizers remain partial.',
     devView:
       'Versioned local workspace JSON, browser save/restore and native project conversion; retains original styles/IDs/unsupported sources with warnings.',
+  },
+  {
+    feature: 'Stories and learning modules',
+    portal:
+      'Verified public Learning Module has five place cases and 25 questions; content templates are not a story total.',
+    pgmaps: 'Existing story-map renderer and project packages',
+    next: 'Obtain permitted exports for other stories, their linked media and any original answer material. Complete story count and storage remain unknown.',
+    devView:
+      'Playable seven-chapter learning adaptation, source links, readable imported story text/JSON and supported PGMaps story packages.',
+  },
+  {
+    feature: 'Information inventory and size',
+    portal:
+      'Observed record, layer, form, schema and saved-map counts measure different collections; full server storage is not disclosed.',
+    pgmaps: 'App-owned public snapshot with per-file manifest hashes and byte counts',
+    next: 'Measure original GIS archives, monitoring exports, attachments and private collections from permitted exports; do not infer bytes from record counts.',
+    devView:
+      '52 snapshot files / 7,513,926 bytes; separate learning-package and browser-import sizes; searchable collection inventory and options directory.',
   },
   {
     feature: 'Collaborative project ownership/sharing/history/defaults',
     portal: 'Portal client and SOP',
     pgmaps: 'Local storage/file/share capabilities; no equivalent portal account/group synchronization found',
-    next: 'Retained in portal. Any future PGMaps synchronization needs per-user authentication and server-side authorization checks.',
-    devView: 'Portal links and clear anonymous access errors; local saves do not claim shared ownership.',
+    next: 'Source ownership stays authoritative. Reviewed native project adapters need disposable-record and multi-user production acceptance.',
+    devView: 'Live source projects/shares/history/defaults and review-gated owner save/rename/share/default adapters; browser versions and original-preserving exports.',
   },
   {
     feature: 'Point/line/polygon data and attributes',
@@ -75,9 +93,9 @@ export const FEATURE_COMPARISON = [
     feature: 'Monitoring tables and charts',
     portal: 'CSV/schema/station links, pagination, time-zone matching, line/bar chart builder in client/SOP',
     pgmaps: '`/dev/water-temperature`, reusable time series/scatter/range charts and exports',
-    next: 'Protected monitor schema/record/submission transport and source-side paging remain unverified; compare real samples with portal output.',
+    next: 'Actual layer 386/record 1 read returns 500 rows of 25,933; page exports/charts are scoped to the loaded page. Full database size and production access remain unknown.',
     devView:
-      'CSV/station/column/time-zone matching, per-row zones, quality report, presets, paged table, line/bar dual axes, filters/CSV and numeric statistics.',
+      'Live station/schema/Attributes relationships and bounded observations; local CSV/time-zone quality review, chart presets, dual axes and page CSV/JSON.',
   },
   {
     feature: 'Attachments and archives',
@@ -93,7 +111,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Specialized import paths and scraper infrastructure',
     next: 'Portal draft publishing stays authoritative. GeoPaparazzi form/note/photo/track mapping needs a real sample; inventory is not full import parity.',
     devView:
-      'Bibliographic CSV all-column review, mapped titles/DOIs, repeated-DOI flags, draft review/CSV exports; GeoPaparazzi table inventory.',
+      'Source-form CSV/spatial mapping, typed validation, local draft review/exports; optional signed-in CSV draft adapter, GeoPaparazzi table inventory.',
   },
   {
     feature: 'GIS editing/processing',
@@ -107,15 +125,15 @@ export const FEATURE_COMPARISON = [
     feature: 'Reporting and statistics',
     portal: 'Live Reports UI; no forms visible anonymously; client presets/statistics/CSV',
     pgmaps: 'Charts and export building blocks',
-    next: 'Portal form/schema-driven report definitions and permissions remain authoritative; local statistics are not full portal reporting.',
-    devView: 'Local monitoring numeric statistics/CSV and anonymous report-form availability check.',
+    next: 'Original form/statistics reads are integrated; static-node/report format coverage and production permissions remain limits.',
+    devView: 'Original dynamic form reports, source field labels, local presets and CSV/HTML/PDF/ZIP exports; separate monitoring statistics.',
   },
   {
     feature: 'Forms, schemas, users, groups, approvals, shared-layer review',
-    portal: 'Client and Data Manager SOP',
+    portal: 'Administrator interface and Data Manager SOP: 31 forms, 13 schemas, 77 accounts and five groups.',
     pgmaps: 'Reusable UI primitives; no matching portal admin subsystem found',
-    next: 'Maintain these workflows in the portal; verify them with an authorized administrator after server fixes.',
-    devView: 'Original portal handoff for administration; anonymous schema/form reads are not an admin replacement.',
+    next: 'Local gateway supports reviewed existing permissions/groups/moderation/help changes; contracts mocked only. Source form/schema edits and publication remain original workflows.',
+    devView: 'Dashboard/forms/schemas reads; reviewed existing user permissions, group membership, shared-layer approval/active state and editable help content.',
   },
   {
     feature: 'Notifications, schedules and relationship nodes',
@@ -126,10 +144,10 @@ export const FEATURE_COMPARISON = [
   },
   {
     feature: 'Payments and BOSS',
-    portal: 'Loaded client modules; BOSS explicitly hidden in startup HTML',
+    portal: 'October 12 administrator could open BOSS inputs, output/export and queue controls.',
     pgmaps: 'No matching integration established',
     next: 'Confirm business use before specifying or building parity.',
-    devView: 'Documented loaded modules and hidden BOSS state; no inferred active requirement.',
+    devView: 'Options directory and documented original workflow; execution, costs and payment use are unverified.',
   },
 ] as const
 
@@ -240,6 +258,6 @@ export const FORMAT_COMPARISON = [
     format: 'Native portal project JSON',
     evidence: 'OpenLayers project camera/scale/layers/styles/source references in Project.js',
     pgmaps: 'PGMaps project packages use a different typed workspace schema',
-    next: 'Implemented versioned local conversion retaining originals/IDs/styles and reporting unsupported sources. CSS-inch scale translated; custom SLD and cross-type order require further verified adapters.',
+    next: 'Implemented versioned local conversion retaining originals/IDs/styles and reporting unsupported sources. CSS-inch scale translated; native mapfile references, safe HTTPS SLD passthrough and cross-type source order preserved. Temporary service references, full SLD symbolizers and ordering within split vector geometries remain limits.',
   },
 ] as const

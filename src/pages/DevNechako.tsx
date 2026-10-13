@@ -1,10 +1,10 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { useState } from 'react'
+import { lazy, Suspense, useState, useCallback } from 'react'
 import { TabBar, type TabOption } from '@/components/ui/tab-bar'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { PortalLayers } from '@/maps/nechako/PortalLayers'
-import { PortalFormats, PortalProjects, PortalSearch } from '@/maps/nechako/PortalChecks'
+import { PortalFormats } from '@/maps/nechako/PortalChecks'
 import { PortalResearch, PortalResearchMap } from '@/maps/nechako/PortalResearch'
 import { FEATURE_COMPARISON, FORMAT_COMPARISON } from '@/maps/nechako/comparison'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
@@ -12,6 +12,21 @@ import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { EMPTY_WORKSPACE, type Workspace } from '@/maps/nechako/data/workspace'
 import { PortalShowcase } from '@/maps/nechako/PortalShowcase'
 import type { CatalogueSource } from '@/maps/nechako/data/showcase'
+import { PortalInventory } from '@/maps/nechako/PortalInventory'
+import { PortalCollections, EMPTY_COLLECTION_SESSION, type CollectionSession } from '@/maps/nechako/PortalCollections'
+import { PortalOptions } from '@/maps/nechako/PortalOptions'
+import { PortalPublicProjects } from '@/maps/nechako/PortalPublicProjects'
+import { PortalUnifiedSearch } from '@/maps/nechako/PortalUnifiedSearch'
+import { LocalPortalConnection } from '@/maps/nechako/LocalPortalConnection'
+import { PortalAdministration } from '@/maps/nechako/PortalAdministration'
+import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
+import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
+import { portalWrite } from '@/lib/nechakoPortal'
+import { usePortalSession } from '@/maps/nechako/data/usePortalSession'
+import type { InventoryPanel } from '@/maps/nechako/data/portalInventory'
+import type { ProjectPackage } from '@/lib/projectPackages'
+
+const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
 
 type View =
   | 'showcase'
@@ -24,8 +39,23 @@ type View =
   | 'compare'
   | 'files'
   | 'monitoring'
+  | 'inventory'
+  | 'collections'
+  | 'stories'
+  | 'options'
+  | 'reader'
+  | 'connection'
+  | 'administration'
+  | 'reports'
 const VIEWS: readonly TabOption<View>[] = [
   { value: 'showcase', label: 'Showcase' },
+  { value: 'inventory', label: 'Data inventory' },
+  { value: 'collections', label: 'Community projects' },
+  { value: 'stories', label: 'Stories' },
+  { value: 'options', label: 'All options' },
+  { value: 'connection', label: 'Connection' },
+  { value: 'administration', label: 'Administration' },
+  { value: 'reports', label: 'Form reports' },
   { value: 'layers', label: 'Layers' },
   { value: 'search', label: 'Search' },
   { value: 'research', label: 'Research' },
@@ -42,13 +72,14 @@ function Comparison() {
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Stewardship Portal ↔ PGMaps</h2>
       <p className="max-w-3xl text-sm text-muted-foreground">
-        Reviewed October 11, 2026 UTC. Public services were tested live. Protected workflows were assessed from the
-        portal client and the supplied guides; they were not exercised with an account. This dev view adds public
-        exploration while the portal remains responsible for publishing and permissions.
+        Updated October 12, 2026 after an authorized administrator interface audit. Public services, existing records,
+        saved projects, forms and monitoring tables were inspected. PGMaps provides public exploration and local-file
+        viewers; the original portal controls publication and permissions.
       </p>
       <InlineAlert title="What loads today">
         Public WMS maps and identify responses, the format registry, search contexts, and the existing literature
-        dataset. Search results and saved projects returned registration errors. Private submissions, attachments,
+        dataset, nine bundled public saved projects and a playable learning adaptation. The PGMaps live submission and
+        project bridge still returns registration errors; the original portal works. Private submissions, attachments,
         monitoring records and administration need authenticated integration.
       </InlineAlert>
       <div className="overflow-x-auto rounded-lg border">
@@ -126,8 +157,8 @@ function Comparison() {
           design and corresponding server CORS configuration.
         </li>
         <li>
-          Fix the portal registration error before verifying search results, saved projects and conversion. The same
-          error occurs within the original portal.
+          PGMaps search and project requests still receive registration errors. The original portal now returns real
+          search results and exposes saved projects; its request/session contract needs to be reconciled with PGMaps.
         </li>
         <li>
           Local GIS conversion, CSV monitoring, workspace conversion and submission-resource reads are now available.
@@ -140,12 +171,36 @@ function Comparison() {
 }
 
 export default function DevNechako() {
+  const [monitoringContext, setMonitoringContext] = useState<{ submissionId: string; formId: string; layerId?: string; recId?: string }>()
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
+  const clearSessionWorkspace = useCallback(
+    () =>
+      setWorkspace((current) =>
+        current.sessionBound
+          ? {
+              ...EMPTY_WORKSPACE,
+              camera: current.camera,
+              warnings: [
+                'The portal connection changed; unsaved source-session map data was cleared. Explicit browser saves remain available.',
+              ],
+            }
+          : current,
+      ),
+    [],
+  )
+  const session = usePortalSession(clearSessionWorkspace)
   const [workspaceRevision, setWorkspaceRevision] = useState(0)
   const [mapBounds, setMapBounds] = useState<[number, number, number, number]>()
   const [params, setParams] = useSearchParams()
+  const [collectionSession, setCollectionSession] = useState<CollectionSession>(EMPTY_COLLECTION_SESSION)
+  const [selectedProject, setSelectedProject] = useState<ProjectPackage | null>(null)
   const requested = params.get('view')
-  const view: View = VIEWS.some((item) => item.value === requested) ? (requested as View) : 'showcase'
+  const view: View =
+    requested === 'reader'
+      ? 'reader'
+      : VIEWS.some((item) => item.value === requested)
+        ? (requested as View)
+        : 'showcase'
   const catalogueSource: CatalogueSource = params.get('source') === 'live' ? 'live' : 'snapshot'
   const showView = (value: View) =>
     setParams((current) => {
@@ -154,6 +209,24 @@ export default function DevNechako() {
       next.set('source', 'snapshot')
       return next
     })
+  const openPanel = (panel: InventoryPanel) => {
+    const views: Partial<Record<InventoryPanel, View>> = {
+      search: 'search',
+      submissions: 'search',
+      reports: 'reports',
+      monitoring: 'monitoring',
+      projects: 'layers',
+      files: 'files',
+      'research-map': 'research-map',
+      'saved-projects': 'projects',
+      collections: 'collections',
+      stories: 'stories',
+      account: 'connection',
+      administration: 'administration',
+    }
+    if (views[panel]) showView(views[panel])
+    else window.location.assign(`/dev/nechako/portal?panel=${panel}`)
+  }
   return (
     <div className="container mx-auto space-y-6 px-4 pb-10 pt-24 sm:px-6 md:pt-10">
       <div className="space-y-3">
@@ -180,7 +253,7 @@ export default function DevNechako() {
         label="Nechako portal views"
         idPrefix="nechako"
         value={view}
-        options={VIEWS}
+        options={selectedProject ? [...VIEWS, { value: 'reader', label: 'Project reader' }] : VIEWS}
         onChange={(value) =>
           setParams((current) => {
             const next = new URLSearchParams(current)
@@ -230,10 +303,12 @@ export default function DevNechako() {
         aria-labelledby="nechako-tab-monitoring"
         hidden={view !== 'monitoring'}
       >
-        <PortalMonitoring />
+        <PortalMonitoring key={session.revision} {...monitoringContext} />
       </section>
       <section role="tabpanel" id="nechako-panel-files" aria-labelledby="nechako-tab-files" hidden={view !== 'files'}>
         <PortalFiles
+          write={portalWrite}
+          canWrite={session.canWrite}
           onVectors={(vectors) => {
             setWorkspace((current) => ({ ...current, vectors: [...current.vectors, ...vectors] }))
             setParams((current) => {
@@ -271,10 +346,87 @@ export default function DevNechako() {
               }}
             />
           )}
-          {view === 'search' && <PortalSearch mapBounds={mapBounds} vectors={workspace.vectors} />}
+          {view === 'search' && (
+            <PortalUnifiedSearch
+              key={session.revision}
+              files={collectionSession.files}
+              workspace={workspace}
+              mapBounds={mapBounds}
+              onWorkspace={(imported) => {
+                setWorkspace(imported)
+                setWorkspaceRevision((value) => value + 1)
+                showView('layers')
+              }}
+              onProject={(project) => {
+                setSelectedProject(project)
+                showView('reader')
+              }}
+              onResearchMap={() => showView('research-map')}
+              onMonitoring={(context) => {
+                setMonitoringContext(context)
+                showView('monitoring')
+              }}
+            />
+          )}
           {view === 'research' && <PortalResearch onMap={() => showView('research-map')} />}
           {view === 'research-map' && <PortalResearchMap onBack={() => showView('showcase')} />}
-          {view === 'projects' && <PortalProjects />}
+          {view === 'projects' && (
+            <PortalProjectManager
+              key={session.revision}
+              workspace={workspace}
+              onWorkspace={(imported) => {
+                setWorkspace(imported)
+                setWorkspaceRevision((value) => value + 1)
+                showView('layers')
+              }}
+              write={portalWrite}
+              canWrite={session.canWrite}
+            />
+          )}
+          {view === 'connection' && <LocalPortalConnection />}
+          {view === 'administration' && <PortalAdministration key={session.revision} write={portalWrite} />}
+          {view === 'reports' && <PortalFormReports key={session.revision} />}
+          {view === 'inventory' && <PortalInventory onOpen={openPanel} importedFiles={collectionSession.files} />}
+          {view === 'options' && <PortalOptions onOpen={openPanel} onMapPane={() => showView('layers')} />}
+          {(view === 'collections' || view === 'stories') && (
+            <div className="space-y-6">
+              {view === 'collections' && (
+                <PortalPublicProjects
+                  onWorkspace={(imported) => {
+                    setWorkspace(imported)
+                    setWorkspaceRevision((value) => value + 1)
+                    showView('layers')
+                  }}
+                />
+              )}
+              <PortalCollections
+                mode={view === 'stories' ? 'stories' : 'all'}
+                session={collectionSession}
+                onSessionChange={setCollectionSession}
+                learningStoryAvailable
+                showObservedIndex={false}
+                onWorkspace={(imported) => {
+                  setWorkspace(imported)
+                  setWorkspaceRevision((value) => value + 1)
+                  showView('layers')
+                }}
+                onProject={(project) => {
+                  setSelectedProject(project)
+                  showView('reader')
+                }}
+              />
+            </div>
+          )}
+          {view === 'reader' &&
+            (selectedProject ? (
+              <div className="relative h-[80vh] min-h-[500px] overflow-hidden rounded-lg border">
+                <Suspense fallback={<InlineAlert loading>Opening project reader…</InlineAlert>}>
+                  <ProjectWorkspace project={selectedProject} onBack={() => showView('collections')} />
+                </Suspense>
+              </div>
+            ) : (
+              <InlineAlert>Import a project or story in Community projects to open the reader.</InlineAlert>
+            ))}
           {view === 'formats' && <PortalFormats defaultSource={catalogueSource} />}
           {view === 'compare' && <Comparison />}
         </section>

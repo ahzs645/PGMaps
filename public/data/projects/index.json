@@ -8869,6 +8869,67 @@
         "layerCount": 0,
         "sceneCount": 5
       }
+    },
+    {
+      "file": "nechako-learning-module.json",
+      "revision": "785dabaea5ea",
+      "catalog": {
+        "slug": "nechako-learning-module",
+        "title": "Welcome to the Nechako Watershed · Learning map",
+        "kind": "map-story",
+        "theme": "blue",
+        "owner": "PGMaps (adaptation)",
+        "updated": "2026-10-12",
+        "region": "Nechako Watershed",
+        "status": "Public module adaptation",
+        "summary": "A guided map through five community cases, with 25 adapted questions connecting climate, water, ecosystems and community well-being. Based on the original portal’s publicly accessible learning module.",
+        "sourceNote": "PGMaps authored this summary and reworded prompts from the Nechako Watershed Portal’s Learning Module, verified without login on 2026-10-12. Original educational content remains credited to the source portal. Community coordinates come from the existing public nwsviz research-location snapshot (project_reference positions); they are approximate context markers, not field observations. The contextual watershed outlines reuse the existing Government of British Columbia Freshwater Atlas snapshot, simplified at 50 metres with topology preserved. Climate results and the original saved map workspace are not included.",
+        "details": [
+          "This adaptation retains the five-place structure and ecological, social, health and Indigenous-knowledge themes of the source. It is not a verbatim copy, an answer key or the source project’s saved map.",
+          "The source publication/update date was not established. The displayed package date describes this PGMaps adaptation and public-access verification.",
+          "The map highlights the FWA Nechako named watershed within a shared Fraser/Nechako context snapshot. Community point coordinates follow the existing public research-location project; they do not identify sampling locations or legal territory boundaries."
+        ],
+        "links": [
+          {
+            "label": "Original portal · Links → Learning Module",
+            "href": "https://nechakowatershed-portal.ca/"
+          },
+          {
+            "label": "Explore watershed research",
+            "href": "/projects/nechako-watershed-research-portal"
+          },
+          {
+            "label": "Open native Nechako portal",
+            "href": "/dev/nechako/portal"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Place cases",
+            "value": "5"
+          },
+          {
+            "label": "Adapted questions",
+            "value": "25"
+          },
+          {
+            "label": "Story chapters",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "nechako-learning-module.json",
+            "detail": "PGMaps adaptation: chapter text, reworded prompts, approximate community markers and map configuration."
+          },
+          {
+            "label": "echoscreen_fraser_nechako.geojson",
+            "detail": "Existing topology-preserved 50 m Freshwater Atlas watershed context snapshot; not a climate dataset."
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 7
+      }
     }
   ]
 }

@@ -1,4 +1,6 @@
 import proj4 from 'proj4'
+import { nativeWmsResource, type NativeWmsReference } from './nativeLayers'
+import { checkedCategoryStyle, checkedSldUrl, type CategoryStyle } from './vectorStyle'
 import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type { PortalSource, WmsLayer } from '@/lib/nechakoPortal'
 
@@ -15,6 +17,7 @@ export type ActiveWms = {
   opacity: number
   formats: string[]
   visible?: boolean
+  native?: NativeWmsReference
 }
 export type VectorData = {
   id: string
@@ -25,6 +28,8 @@ export type VectorData = {
   fillOpacity?: number
   lineOpacity?: number
   lineWidth?: number
+  pointRadius?: number
+  categories?: CategoryStyle
   original?: unknown
 }
 export type TileData = { id: string; name: string; urls: string[]; attribution: string; visible: boolean }
@@ -35,6 +40,10 @@ export type Workspace = {
   vectors: VectorData[]
   tiles: TileData[]
   originalProject?: unknown
+  /** Live source content loaded under an authenticated connection; clear its display on logout. */
+  sessionBound?: boolean
+  /** Native bottom-to-top source IDs, including unsupported originals, preserved across exports. */
+  sourceOrder?: string[]
   warnings: string[]
 }
 
@@ -171,6 +180,14 @@ export function importWorkspace(input: unknown): Workspace {
         source = record(layer.source),
         named = record(layer.layer)
       httpsUrl(source.resource)
+      const sourceUrl = new URL(String(source.resource))
+      for (const [key, value] of sourceUrl.searchParams) {
+        if (key.toUpperCase() === 'SLD_BODY')
+          throw new Error(
+            'Inline SLD rendering is unsupported. Preserve it as original metadata and use an HTTPS SLD reference or an advertised style.',
+          )
+        if (key.toUpperCase() === 'SLD') checkedSldUrl(value)
+      }
       if (
         typeof layer.id !== 'string' ||
         typeof source.name !== 'string' ||
@@ -199,11 +216,13 @@ export function importWorkspace(input: unknown): Workspace {
         ['fillOpacity', 1],
         ['lineOpacity', 1],
         ['lineWidth', 20],
+        ['pointRadius', 30],
       ] as const) {
         const value = vector[key]
         if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max))
           throw new Error('Invalid vector workspace style.')
       }
+      if (vector.categories !== undefined) checkedCategoryStyle(vector.categories)
       return { ...vector, data: normalizeGeojson(vector.data), visible: vector.visible !== false } as VectorData
     })
     const tiles = object.tiles.map((value) => {
@@ -218,6 +237,14 @@ export function importWorkspace(input: unknown): Workspace {
         throw new Error('Invalid tile workspace layer.')
       return { ...tile, urls: tile.urls.map(httpsUrl), visible: tile.visible !== false } as TileData
     })
+    if (
+      object.sourceOrder !== undefined &&
+      (!Array.isArray(object.sourceOrder) ||
+        object.sourceOrder.length > 200 ||
+        object.sourceOrder.some((id) => typeof id !== 'string') ||
+        new Set(object.sourceOrder).size !== object.sourceOrder.length)
+    )
+      throw new Error('Invalid source layer order.')
     const ids = [...layers, ...vectors, ...tiles].map((item) => item.id)
     if (new Set(ids).size !== ids.length) throw new Error('Workspace layer IDs must be unique.')
     return {
@@ -227,6 +254,8 @@ export function importWorkspace(input: unknown): Workspace {
       vectors,
       tiles,
       originalProject: object.originalProject,
+      sessionBound: object.sessionBound === true,
+      sourceOrder: object.sourceOrder as string[] | undefined,
       warnings: Array.isArray(object.warnings)
         ? object.warnings.filter((item): item is string => typeof item === 'string')
         : [],
@@ -249,6 +278,7 @@ export function importWorkspace(input: unknown): Workspace {
     vectors: [],
     tiles: [],
     originalProject: input,
+    sourceOrder: object.layers.map((_, index) => `native-${index}`),
     warnings: [],
   }
   // The portal measures a CSS inch (#dpiScale = 96 CSS px) and uses 39.37 inches/metre. MapLibre uses 512 px world tiles.
@@ -274,18 +304,42 @@ export function importWorkspace(input: unknown): Workspace {
           original: value,
         })
       } else if (layer.sourceType === 'WMS') {
-        if (!Array.isArray(layer.urls) || !layer.urls.length)
-          throw new Error('Portal-native source needs its authorized layer endpoint; no URL in this file.')
-        const resource = httpsUrl(layer.urls[0]),
-          params = record(layer.params)
-        const nativeName = String(params.LAYERS || params.layers || '')
+        const resolved = !Array.isArray(layer.urls) || !layer.urls.length ? nativeWmsResource(layer) : undefined
+        const resource = httpsUrl(resolved?.resource ?? (layer.urls as unknown[])[0]),
+          params = layer.params ? record(layer.params) : {}
+        const nativeName = resolved?.name ?? String(params.LAYERS || params.layers || '')
         if (!nativeName) throw new Error('No WMS layer name.')
         const endpoint = new URL(resource)
-        for (const [key, value] of Object.entries(params))
-          if (['MAP', 'SLD', 'SLD_BODY', 'FILTER', 'CQL_FILTER'].includes(key.toUpperCase()))
+        for (const [key, value] of Object.entries(params)) {
+          if (key.toUpperCase() === 'SLD_BODY') {
+            output.warnings.push(
+              `${name}: inline SLD retained in original metadata; rendering its expressions is unsupported.`,
+            )
+          } else if (key.toUpperCase() === 'SLD') {
+            try {
+              endpoint.searchParams.set(key, checkedSldUrl(String(value)))
+            } catch {
+              output.warnings.push(`${name}: unsafe SLD URL retained in original metadata and excluded from rendering.`)
+            }
+          } else if (['MAP', 'FILTER', 'CQL_FILTER'].includes(key.toUpperCase()))
             endpoint.searchParams.set(key, String(value))
+        }
+        if (typeof layer.portalSld === 'string') {
+          try {
+            endpoint.searchParams.set('SLD', checkedSldUrl(layer.portalSld))
+          } catch {
+            output.warnings.push(
+              `${name}: unsafe native SLD retained in original metadata and excluded from rendering.`,
+            )
+          }
+        }
+        if (resolved)
+          output.warnings.push(
+            `${name}: native mapfile and SLD references can expire; verify the service or refresh the authorized shared-layer reference.`,
+          )
         output.layers.push({
           id,
+          native: resolved?.reference,
           source: {
             name,
             type: 'wms',
@@ -319,7 +373,7 @@ export function importWorkspace(input: unknown): Workspace {
   })
   if (new Set(object.layers.map((value) => record(value).sourceType)).size > 1)
     output.warnings.push(
-      'Native order is preserved within each source type. Cross-type order is raster tiles, WMS, then vectors; exact interleaving is not reproduced.',
+      'Native source order is preserved across layer types. Unsupported sources remain in the original metadata and are omitted from rendering.',
     )
   return output
 }

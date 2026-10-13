@@ -4,11 +4,57 @@
 
 Open `/dev/nechako` (or `/dev/nechako?view=showcase`) to test the committed public snapshot. Research browsing, the research map/timeline, WMS catalogue/capability inspection and the format registry use repository files by default. Research and catalogue controls also allow the live source. The existing `/projects/nechako-watershed-research-portal` project still reads its original live source.
 
-`public/data/nechako-showcase/` is **app-owned showcase data**, preserved by the data-sync script's clean mode. Its 42 data files total **1,257,503 bytes**, excluding the manifest: 1,408 research records, 51 location IDs, 12 decades, 32 WMS services with 135 named layers/groups, eight public Zotero HTML attachment links, the spatial format registry, access-check evidence and derived location/workspace files. Each file has a source URL, byte count and SHA-256 in `manifest.json`.
+`public/data/nechako-showcase/` is **app-owned showcase data**, preserved by the data-sync script's clean mode. The October 11 capture contained 42 data files / **1,257,503 bytes**. Adding nine proven anonymous saved-project definitions and their index on October 12 brings the current bundle to **52 files / 7,513,926 bytes**, excluding the manifest. It includes 1,408 research records, 51 location IDs, 12 decades, 32 WMS services with 135 named layers/groups, eight public Zotero HTML attachment links, the spatial format registry, access-check evidence and derived location/workspace files. Each file has a source URL, byte count and SHA-256 in `manifest.json`.
 
-“Load research locations on map” adds 46 non-aggregate source reference points and preserves other map layers. It does not invent study footprints or map the 365 records without location tags. Repeated loading replaces that showcase layer rather than duplicating it. The separate bundled research explorer uses the existing native filters, ranked locations, popups, regional-record dialog and animated timeline; its optional scraper-owned watershed boundary is outside this snapshot. The native `/dev/nechako/portal` page additionally reuses EchoScreen’s generated local BC Freshwater Atlas Nechako polygon (8886), including its existing 50-metre simplification; the boundary is not duplicated among the 42 showcase files.
+“Load research locations on map” adds 46 non-aggregate source reference points and preserves other map layers. It does not invent study footprints or map the 365 records without location tags. Repeated loading replaces that showcase layer rather than duplicating it. The separate bundled research explorer uses the existing native filters, ranked locations, popups, regional-record dialog and animated timeline; its optional scraper-owned watershed boundary is outside this snapshot. The native `/dev/nechako/portal` page additionally reuses EchoScreen’s generated local BC Freshwater Atlas Nechako polygon (8886), including its existing 50-metre simplification; the boundary is not duplicated in the showcase bundle.
 
-WMS imagery/identify, basemap tiles and linked articles still require their original services. The snapshot does not contain full source GIS databases, saved/private portal projects or PDF/video bodies. Attachment storage remains unknown. The showcase is reproducible public evidence and test data, not a copy of the entire portal.
+WMS imagery/identify, basemap tiles and linked articles still require their original services. Nine public saved-map definitions are included; private projects, full source GIS databases and external PDF/video bodies are not. Attachment storage remains unknown. The showcase is public evidence and test data, not a copy of the entire portal.
+
+## Public maps and browser collections added October 12
+
+The original portal anonymously returned project IDs **4, 6, 9, 10, 12, 14, 15, 21 and 27**. Their nine decoded JSON responses total **6,253,465 bytes** (approximately **5.964 MiB**); the derived catalogue is **2,958 bytes**. The source method/parameters, anonymous state, exact bytes and hashes are retained in the manifest. The administrator's separate project grid contained **19** records. Neither the nine public maps nor their size should be described as the complete portal.
+
+These definitions retain cameras, layer references, descriptions, embedded raster description images and links. The community reader searches the catalogue, displays safe source text/images/links, downloads original JSON and loads supported map data through the existing workspace converter. Conversion warnings disclose unsupported sources, temporary service references and unimplemented SLD symbolizers. Each of the nine maps skips two HTTP XYZ basemaps (**18 total**). **130 of 131 WMS references** now convert structurally: 19 native references use the verified original MapServer prefix plus their supplied mapfile and mapfileName, and existing safe HTTPS portal SLDs pass through to WMS. One external WMS lacks a layer name. Koh_Wetlands_Teacher_Resources retains **9 of 9 WMS references**. Native bottom-to-top source order survives JSON export/import and renders across tile/WMS/vector types; ordering within split vector geometries is not a full reproduction of native symbolizers. The reader shows retained/total layers and individual omissions before loading. Complete originals remain downloadable; actual imagery/identify, unresolved GIS sources and linked files still depend on their original services and access rules.
+
+### Native MapServer verification, October 12, 2026
+
+The [original page](https://nechakowatershed-portal.ca/) build **6268M** declares
+`Global.addGlobal("MapServerUrl", "/cgi-bin/mapserv?map=")` in its inline client
+configuration. [MapPanel.js](https://nechakowatershed-portal.ca/definitions/MapPanel.js?v=6268M)
+uses the supplied native mapfileName as `LAYERS`;
+[Project.js](https://nechakowatershed-portal.ca/definitions/map/Project.js?v=6268M)
+combines the prefix with the saved mapfile and passes an existing portal SLD to
+WMS. The converter follows those observed contracts rather than guessing service
+URLs, file paths or layer names, and never silently upgrades external HTTP URLs.
+
+A fresh anonymous load of public project **10**, Koh_Wetlands_Teacher_Resources,
+in the original interface on **October 12, 2026** produced **109 HTTP 200
+`image/png` MapServer responses across its eight native teacher layers**. These
+requests included the existing HTTPS SLD references where supplied, with
+`VERSION=1.3.0` and `CRS=EPSG:3857`; the response header was
+`Access-Control-Allow-Origin: *`. This checks those eight layers' native tile
+delivery and SLD-reference pipeline, not every project service, all observations,
+or complete SLD symbolizer parity. No new form, project, style or default-SLD
+generation was submitted during this check.
+
+The initial October 12 converter retained **111/131 WMS references**, including
+**1/9** in the teacher project, before the native configuration was verified.
+That earlier subset is historical evidence, superseded by the current
+**130/131** and **9/9** structural counts. The original snapshot bytes/hashes
+remain unchanged. Native mapfiles and SLD files are temporary references and may
+expire. Refreshing a DirectDb reference uses the permission-checked
+[shared-layer client contract](https://nechakowatershed-portal.ca/definitions/portal/LinkableManager.js?v=6268M),
+`admin/getLayerSharedLayersManager.php` with `layerId`; generation of a replacement
+default SLD is not treated as a read or called automatically. Original services,
+access rules and backend storage remain authoritative.
+
+The native `nechako-learning-module` package is a **16,765-byte** app-owned adaptation outside the showcase manifest: seven chapters, five place cases and 25 discussion prompts. It links the original module. It is not an additional original portal submission or a full reproduction of every source resource.
+
+The preview's Data size view keeps measured snapshot bytes, observed entity counts and imported collection bytes separate. Collection JSON stays in page memory across modal changes; originals and chosen record types round trip through browser collection export/import. Exact UTF-8 JSON bytes are measured locally. Linked-file sizes are counted only when explicitly labeled in bytes, deduplicated by URL, and marked unverified; missing/conflicting declarations remain unknown. Nothing is uploaded to the portal. Protected exports must not be committed under `public/data`.
+
+Collection review limits are 20 MiB per import, 50 MiB of original JSON per session, 100 files, 10,000 records, 64 nesting levels and 200,000 values. A combined export above the 20 MiB import boundary requires downloading its individual original JSON files. ZIP bundles and HTML imports are not implemented.
+
+## Refreshing source evidence
 
 Refresh the snapshot explicitly (requires public source access; no login or writes):
 
@@ -18,6 +64,11 @@ python3 scripts/nechako-server/check_showcase.py
 ```
 
 The capture stages and validates all responses before replacing the prior snapshot. It refuses to replace a directory without the showcase manifest. Review changed counts, timestamps and source metadata before committing. The offline checker verifies file hashes/lengths, catalogue counts, research/location relationships and the workspace geometry against its source coordinates. The browser checks block external portal/research data requests at desktop and phone widths while exercising the actual bundled files.
+
+Refresh preserves the separately captured nine reviewed anonymous project files
+and their source date; it does not recapture those maps or make their October 12
+capture current. Review public-project access and refresh those definitions
+explicitly before changing their evidence date or claiming current source state.
 
 ## Live read-only audit
 
@@ -56,3 +107,9 @@ Offline validation:
 ```sh
 python3 scripts/nechako-server/test_audit_data.py
 ```
+
+## Live monitoring scope — October 12 proof of concept
+
+The association-safe local gateway verified submission **1477**, form **39**, spatial layer **386** (Upper_Nechako), and its source `schema_rec_seq_id` **1** with `monitor_status` **ENABLED**. `getMonitorData.php` in Layer mode returned 500 rows of **25,933**, page 1 of 52, with 16 named columns. That response was **197,276 decoded bytes**, including its JSON envelope; neither row counts nor this page size establish total storage. The earlier **77,799** native-table observation is a different audit scope. Even schema 13/record 1 with the tested single-layer flag returned 25,933; no multiplication or portal-wide total is inferred.
+
+Source dates are DD/MM/YYYY daily values. Choosing that explicit format and UTC in the PGMaps chart review accepted all 500 loaded rows, with zero rejected rows and zero duplicate station/timestamp keys. Source values and strings remain intact; daily chart placement at midnight is a display convention selected by the user. These checks do not validate meteorological field meanings or the quality/completeness of the full source collection. Live source changes were not exercised by the new implementation.

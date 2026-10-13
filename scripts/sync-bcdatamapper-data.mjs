@@ -85,6 +85,7 @@ const pathMappings = [
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],
   ['datascrapers/bc/wars/output', 'wars'],
+  ['datascrapers/bc/nechako-portal/output', 'nechako-portal'],
   ['datascrapers/ev-charging/output', 'ev-charging'],
   ['datascrapers/network-availability/output', 'network-availability'],
   ['datascrapers/open-litter-map/output', 'open-litter-map'],

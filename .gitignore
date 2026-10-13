@@ -93,6 +93,7 @@ public/data/monitors.csv
 public/data/monitors/
 public/data/snow-survey/
 public/data/network-availability/
+public/data/nechako-portal/
 public/data/open-litter-map/
 public/data/restaurant-classifications.json
 public/data/restaurant-location-overrides.json
@@ -151,3 +152,7 @@ public/data/forest/visual-inventory/
 
 # Generated from BCDataMapper's BC Stats LAEP snapshots.
 public/data/bc/laep/
+
+# Local Worker simulator/cache; upstream sessions never become source artifacts.
+scripts/nechako-worker/.wrangler/
+scripts/nechako-worker/__pycache__/

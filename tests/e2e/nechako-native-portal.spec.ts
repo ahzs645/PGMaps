@@ -11,6 +11,8 @@ const sharedBoundary = JSON.parse(
 const nechakoFeature = sharedBoundary.features.find(
   (feature: GeoJSON.Feature) => feature.properties?.namedWatershedId === 8886,
 )
+const researchRows = JSON.parse(readFileSync('public/data/nechako-showcase/submissions.cleaned.json', 'utf8'))
+const unmappedResearch = researchRows.find((row: { locationIds: string[] }) => row.locationIds.length === 0)
 test.use({ actionTimeout: 30_000 })
 
 for (const width of [1440, 390]) {
@@ -84,10 +86,11 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Expand Map Tools', exact: true })).toBeFocused()
     await page.getByRole('button', { name: 'Expand Map', exact: true }).click()
-    await expect(page.getByLabel('Show Nechako research locations')).toBeChecked()
+    await expect(page.getByLabel('Show Nechako research locations')).not.toBeChecked()
     await expect(page.getByLabel('Show Nechako Watershed')).toBeChecked()
     await page.getByLabel('Show Nechako Watershed').uncheck()
     await page.getByLabel('Show Nechako Watershed').check()
+    await page.getByLabel('Show Nechako research locations').check()
     await page.getByLabel('Show Nechako research locations').uncheck()
     await page.getByRole('button', { name: 'Close Map', exact: true }).click()
 
@@ -120,20 +123,27 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Native test river', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Close Map', exact: true }).click()
 
-    await nav.getByRole('button', { name: 'Search', exact: true }).click()
-    await expect(page.getByText('1,408 total records · 365 without location tags')).toBeVisible()
-    await page.getByRole('button', { name: 'Unmapped records', exact: true }).click()
-    await expect(page.getByText('365 matching records', { exact: true })).toBeVisible()
-    await page.locator('[data-map-sidebar-scroll="true"]').getByRole('button').first().click()
-    const recordDialog = page.getByRole('dialog').filter({ hasText: 'nwsviz record' })
-    await expect(recordDialog).toContainText('Location IDs: No location tags')
-    await expect(recordDialog.getByRole('link', { name: 'Source dataset', exact: true })).toHaveAttribute(
-      'href',
-      '/data/nechako-showcase/submissions.cleaned.json',
-    )
+    await nav.getByRole('button', { name: 'Data inventory', exact: true }).click()
+    await page.getByRole('tab', { name: 'Search collections', exact: true }).click()
+    await page
+      .getByRole('tablist', { name: 'Watershed search type' })
+      .getByRole('tab', { name: 'Research', exact: true })
+      .click()
+    await expect(page.getByText('1,408 matching results · page 1 of 57', { exact: true })).toBeVisible()
+    await page.getByLabel('Search all watershed information').fill(unmappedResearch.title)
+    await page.getByRole('button').filter({ hasText: unmappedResearch.title }).first().click()
+    const recordDialog = page
+      .getByRole('dialog')
+      .filter({ has: page.getByRole('heading', { name: unmappedResearch.title, exact: true }) })
+    await expect(recordDialog).toContainText(`nwsviz research ID ${unmappedResearch.id}`)
+    const researchDownload = page.waitForEvent('download')
+    await recordDialog.getByRole('button', { name: 'Download source record JSON', exact: true }).click()
+    const sourceRecord = JSON.parse(readFileSync((await (await researchDownload).path())!, 'utf8'))
+    expect(sourceRecord.id).toBe(unmappedResearch.id)
+    expect(sourceRecord.locationIds).toEqual([])
     await recordDialog.getByRole('button', { name: 'Close', exact: true }).last().press('Escape')
     await expect(page.getByRole('dialog')).toHaveCount(1)
-    await page.getByRole('tab', { name: 'Portal submissions', exact: true }).click()
+    await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
     await page.getByLabel('Search geographic limit').selectOption('polygon')
     await page.getByLabel('Search area layer').selectOption('nechako-watershed-boundary')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
@@ -204,6 +214,7 @@ for (const width of [1440, 390]) {
     expect(await canvas!.isVisible()).toBe(true)
 
     await nav.getByRole('button', { name: 'Reports', exact: true }).click()
+    await page.getByRole('tab', { name: 'Monitoring and local charts', exact: true }).click()
     await expect(page.getByLabel('Monitoring CSV')).toBeVisible()
     await page.getByRole('button', { name: 'Close portal window', exact: true }).press('Escape')
     await expect(page.getByRole('dialog')).toHaveCount(0)

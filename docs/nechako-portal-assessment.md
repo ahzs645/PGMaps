@@ -1,18 +1,61 @@
 # Nechako Stewardship Portal and PGMaps: support assessment
 
+> October 12 proof-of-concept update: the local gateway now reads real submission search, saved projects, form definitions and paged monitoring. PGMaps adds unified search/detail dialogs, visual expressions and saved queries, local review/export pipelines, form reports and review-gated project/admin/CSV-draft adapters. Source write contracts are mocked/offline-tested; no implementation mutations or deployment were executed. Original backend/deployment is unavailable. See [current scope and limits](nechako/completion-matrix.md#current-proof-of-concept--october-12) and [local operating instructions](nechako/server-runbook.md#local-portal-gateway-proof-of-concept). Historical failure evidence below remains dated evidence, not the current gateway status.
+
 Assessed October 10, 2026, America/Vancouver. Network evidence was collected October 11, approximately 06:09–06:16 UTC. Scope: maintain both sites, identify PGMaps gaps, and define a PGMaps development area for exploring the portal’s capabilities.
+
+**October 12, 2026 update:** a fresh browser audit, including user-authorized
+administrator access and parallel reviews of the supplied guides/admin menus,
+is recorded in [the authenticated interface audit](nechako/native-interface.md#authenticated-audit-october-12-2026).
+The original portal's anonymous search returned 419 results for `nechako`;
+PGMaps's same query still returned the registration error. Original search is
+therefore not currently blocked in the same way as the PGMaps adapter. Current
+inventory and upload-pipeline findings supersede earlier anonymous-access
+assumptions; old validation results below are retained as dated evidence.
+
+**Current implementation:** `/dev/nechako/portal` now includes searchable community
+projects, Stories, Data size and All options. Nine saved maps proven accessible
+without login are bundled with original metadata/descriptions/raster images/links
+and workspace conversion notes. Their JSON is **6,253,465 bytes**; the index is
+**2,958 bytes**. The expanded showcase is **52 files / 7,513,926 bytes**, excluding
+its manifest. The administrator's **19-project** grid is a separate inventory;
+its protected maps have not been published or migrated.
+
+The native learning adaptation has seven chapters, five place cases and 25 prompts
+and uses the existing story renderer. Its **16,765-byte** package sits outside the
+showcase manifest. Supported user-imported PGMaps story/explorer packages open in
+the preview's project reader; other authorized JSON exports have searchable text,
+metadata, safe source references and original downloads. Collection state survives
+modal changes in browser memory, with exact JSON bytes and type/ID preservation;
+reload clears it. Data size distinguishes measured bytes from observed entity
+counts and unknown backend/GIS/media storage. The options directory routes native
+views and gives original menu paths for server-owned workflows.
+
+PGMaps live portal search/session integration still needs repair, as do protected
+schema-rendered records and canonical downloads. Public project conversion does
+not reproduce full SLD symbolizers or ordering within split vector geometries.
+Native cross-type source order is now preserved by the interleaved renderer.
+Each of the nine maps skips two HTTP XYZ basemaps (**18 total**); **130/131 WMS
+references** convert structurally, with one external WMS missing a layer name.
+The 19 native references use the verified original MapServer prefix and supplied
+mapfile/mapfileName, including existing safe HTTPS portal SLDs. Koh teacher
+resources retain **9/9 WMS references**. Temporary mapfile/SLD references may
+expire; see the [October 12 native MapServer verification](nechako/data-audit.md#native-mapserver-verification-october-12-2026). Retained/total counts and individual omissions are shown before map
+loading, and complete original JSON is preserved. No server upload, publishing, approvals, groups or
+other administrative backend was added. See the [current interface](nechako/native-interface.md)
+and [data audit](nechako/data-audit.md) for current behavior and limits.
 
 ## Implemented PGMaps workbench
 
 The workspace now includes `/dev/nechako`, linked from the Dev Library, with Layers, Search, Research, Projects, Monitoring, Files & imports, Formats and Comparison views. This is a local implementation prepared for review; no production portal change is implied. The current [completion matrix](nechako/completion-matrix.md) and [server runbook](nechako/server-runbook.md) supersede the initial staged plan below.
 
-- **Layers and workspaces:** live deduplicated catalogue, native WMS maps/styles/legends/opacity/visibility/order, click identify, scale, camera and local workspace JSON/browser save/restore. Native portal JSON conversion retains the original, metadata/IDs and unsupported styles/sources. Native vector wrappers and their separate typed attribute matrices are normalized without silently rounding large integers. Camera scale uses the portal's measured CSS-inch convention, not the generic WMS pixel convention. Exact interleaving of vector/WMS/tile sources and arbitrary SLD styles are reported as limits.
+- **Layers and workspaces:** live deduplicated catalogue, native WMS maps/styles/legends/opacity/visibility/order, click identify, scale, camera and local workspace JSON/browser save/restore. Native portal JSON conversion retains the original, metadata/IDs and unsupported styles/sources. Native vector wrappers and their separate typed attribute matrices are normalized without silently rounding large integers. Camera scale uses the portal's measured CSS-inch convention, not the generic WMS pixel convention. Native interleaving of vector/WMS/tile sources is preserved; full SLD symbolizers and ordering within split vector geometries remain limits. Existing safe HTTPS portal SLD references pass through to WMS, without a generic SLD translator.
 - **Search and submissions:** eight live contexts; native Boolean/field/comparison AST; anonymous form transport; geographic extent/current-map or imported/drawn polygon areas; paged result table and CSV; seven independent submission-resource reads using the actual client parameter names. Registration still blocks genuine search results. Successful table/related-resource interactions are exercised with explicit synthetic payloads; protected resources and schema-driven form previews are not claimed as verified.
 - **Research:** all 1,408 nwsviz records and the 365 without location tags remain browsable/searchable; shared virtualization/dialogs and filtered CSV export. Literature IDs are not portal submission IDs. The source has no canonical per-record DOI/URL links; these were not invented.
 - **GIS files and editing:** local GeoJSON validation and known-CRS reprojection; optional bounded GDAL service for Shapefile sidecars/ZIP, GML, GPX, KML/KMZ, spatial SQLite/SpatiaLite and multi-layer GeoPackage imports/exports. Originals are retained in the browser; save binary originals separately from normalized workspace JSON. Point/line/polygon display and attributes, local drawing/GeoJSON edits, measurement, undo, buffer, polygon union/intersection/difference, point/line/polygon clipping and line/polygon splitting create local output layers. These do not modify portal submissions.
 - **Monitoring and reports:** local CSV/station/column matching, explicit or per-column time zones/offsets, missing/invalid/duplicate checks, matching presets, paged tables, date/station filters, line/bar dual-axis charts, numeric statistics and CSV/error exports. Protected monitoring schema/record relationships and form-driven portal reporting still require authorized samples.
 - **Bibliography and attachments:** all-column bibliographic CSV review, title/DOI mapping, repeated DOI flags, draft-review/CSV exports; local raster image/PDF/audio/video previews and original downloads. GeoPaparazzi supports table/column/row inventory only; actual field-form, track and media import semantics remain unverified.
-- **Projects, administration and comparison:** live list/default/report-form checks and existing PGMaps project links; full 17-category feature and 18-category format comparison. Publishing, sharing, revisions/defaults, forms/schemas, approvals, accounts/groups, notifications and schedules remain authoritative in the portal. Hidden/unconfirmed payment/BOSS code is not treated as an active requirement.
+- **Projects, stories and administration:** nine captured public saved maps with source descriptions/images/links and original downloads; native learning story; browser-memory authorized JSON collection review; data-size inventory and searchable options directory. Existing live list/default/report-form checks and PGMaps project links remain available. Publishing, sharing, revisions/defaults, forms/schemas, approvals, accounts/groups, notifications and schedules remain authoritative in the portal. BOSS UI was visible in the October 12 administrator session; execution and costs remain untested. Payment use is unconfirmed.
 
 Implementation lives in `src/pages/DevNechako.tsx`, `src/maps/nechako/`, `src/lib/nechakoPortal.ts` and `scripts/nechako-server/`. The existing toolkit/project-package contracts and source submodule pins are unchanged. Portal reads omit credentials and use GET or URL-encoded POST. JSON requests to the optional **same-origin local converter** are a separate transport from the cross-origin PHP API. The candidate CORS include is tested in an isolated PHP handler, not deployed to the portal. Static build entry points now include the workbench and project deep routes.
 
@@ -34,7 +77,7 @@ The new workbench rendered the live Watershed Context map and returned actual at
 
 The completed local pass passed 30 focused unit tests, six browser tests, five GDAL tests (including 23 format/geometry round trips) and five isolated PHP CORS tests, plus TypeScript, lint, production build and the existing project audit. The public workbench remains clean in a normal live browser. A separate original-portal iframe check exposed PHP warnings in `getStartupContent.php` that break ExtJS JSON decoding; normal top-level startup succeeded. The observed PHP session cookie is Lax and lacks Secure/HttpOnly flags, so a frame cannot be treated as equivalent to top-level session behavior. Its interface can embed, but reliable account/workflow embedding has not been established. See the server runbook and separate original-portal evidence.
 
-Validation includes focused transport/expression tests; desktop and phone browser tests for layers, inherited metadata, inspection, opacity, legends, removal, tab state, search errors/retries, paging, format refresh, project checks, all/unmapped research filtering and dialogs; TypeScript; lint on new integration files; the production Vite bundle; and the existing Nechako project's structural audit. Stubbed interaction tests are kept separate from live CORS/rendering evidence. No portal account, publishing, editing, private file or administrative operation was exercised.
+Initial validation included focused transport/expression tests; desktop and phone browser tests for layers, inherited metadata, inspection, opacity, legends, removal, tab state, search errors/retries, paging, format refresh, project checks, all/unmapped research filtering and dialogs; TypeScript; integration lint; the production Vite bundle; and the existing Nechako project's structural audit. Stubbed interaction tests are kept separate from live CORS/rendering evidence. No portal account, publishing, editing, private file or administrative operation was exercised during those initial checks. See the dated October 12 audit for subsequent authorized access and the automatic draft side effect.
 
 The build used the pinned sibling repositories to initialize the previously empty submodules and built their existing library outputs. It did not regenerate all scraper snapshots or change submodule pins. Deployment still needs the repository's normal recursive-submodule/data build pipeline and SPA fallback configured for real client routes.
 
@@ -64,10 +107,10 @@ The first implementation, now present locally, is **a live capability workbench*
 - Confirmed eight enabled spatial formats through the portal’s format registry. This establishes advertised formats, not successful import/export round trips.
 - Tested 14 representative browser request cases, plus all 32 exact WMS capability URLs, without intercepting the tested requests. Also ran 48 HTTP probes across PGMaps, localhost, and example.com Origin headers. Browser findings are authoritative for browser compatibility.
 - Loaded the deployed [PGMaps Dev Library](https://pgmaps.ahmadjalil.com/dev) and [Nechako literature project](https://pgmaps.ahmadjalil.com/projects/nechako-watershed-research-portal), exercised its text search and location paging, and inspected the corresponding workspace code.
-- Read all three nonzero archive files. The upload contains **12 files**: two usable guides, one DOCX with no extractable text, and nine zero-byte DOCX files. The Data Manager guide is dated March 2025; the project-loading PDF has seven pages. Instructions and example login text in those documents were treated as reference material, not permission to authenticate, create users, upload data, or change the site.
+- Read all three nonzero files in the initially supplied archive. That archive contained **12 files**: two usable guides, one DOCX with no extractable text, and nine zero-byte DOCX files. The subsequently supplied OneDrive folder contains **11 files**: the same two substantive guides, one empty-body DOCX and eight zero-byte DOCX files. The Data Manager guide is dated March 2025; the project-loading PDF has seven pages. Guide login examples did not authorize access during the initial review; the user subsequently authorized the October 12 temporary-account audit explicitly.
 - Compared workspace revisions: PGMaps `d02c30c`, geo-toolkit `dab201f`, and bcdatamapper `555a9878`. The initial assessment left application repositories unchanged; the implementation below was subsequently added to PGMaps.
 
-Evidence labels below distinguish **live tested**, **client/SOP described**, and **proposed**. Protected accounts, live submission detail payloads, write operations, import/export round trips, and administrative actions were not verified. No account was created or used.
+Evidence labels below distinguish **live tested**, **client/SOP described**, and **proposed**. The initial review did not use an account or verify protected accounts, live submission detail payloads, write operations, import/export round trips or administrative actions. The October 12 authenticated observations above supersede that earlier access boundary; they do not establish upload/publishing behavior.
 
 ## PGMaps at the initial review and the real gaps
 
@@ -291,7 +334,7 @@ At the initial source review, empty submodules blocked the local audit. Those de
 
 ## Evidence files
 
-The dev showcase now includes app-owned public data at `public/data/nechako-showcase/`: 1,408 records, location/decade data, all 32 public WMS capability documents and their 135 named entries, format registry, eight Zotero HTML links and a derived 46-point workspace. Its 42 files total 1,257,503 bytes, excluding the source/hash manifest. `/dev/nechako` opens the showcase; local research/map/timeline, catalogue and format views can be tested without the research/portal APIs. Basemap/WMS imagery remain live and private/full-file data remain unverified. See [`data-audit.md`](nechako/data-audit.md) for capture, ownership, source switching and checks. The existing native literature project still uses its live source.
+The app-owned showcase at `public/data/nechako-showcase/` contains 1,408 records, location/decade data, all 32 public WMS capability documents and 135 named entries, format registry, eight Zotero HTML links, a derived 46-point workspace and nine actual public saved maps. Its current 52 files total **7,513,926 bytes**, excluding the manifest; the historical October 11 subset was 42 files / 1,257,503 bytes. `/dev/nechako` opens the showcase, while `/dev/nechako/portal` adds community projects, the native story reader and measured data-size view. Basemap/WMS imagery and external linked files remain live; private/full-source storage is unknown. See [`data-audit.md`](nechako/data-audit.md) for ownership, refresh and checks. The native literature project still uses its live source.
 
 - `archive-inventory.json`: all supplied filenames and sizes.
 - `feature-support-matrix.csv`: 17 feature comparisons with existing PGMaps support and required work.

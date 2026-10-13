@@ -108,7 +108,10 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     // Optional local GDAL service; start with python3 scripts/nechako-server/converter.py.
-    proxy: { '/api/nechako': 'http://127.0.0.1:42174' },
+    proxy: {
+      '/api/nechako-portal': 'http://127.0.0.1:42175',
+      '/api/nechako': 'http://127.0.0.1:42174',
+    },
     // Network snapshots contain thousands of static tiles served by middleware.
     watch: { ignored: ['**/vendor/bcdatamapper/datascrapers/network/*/output/**'] },
   },

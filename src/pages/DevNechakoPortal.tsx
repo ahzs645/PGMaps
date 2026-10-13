@@ -1,24 +1,43 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BookOpen, FolderOpen, HelpCircle, Search, Upload, Waves } from 'lucide-react'
+import { BookOpen, Database, FolderOpen, HelpCircle, Library, List, Search, Upload, Waves } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { TabBar } from '@/components/ui/tab-bar'
 import { fetchJson } from '@/lib/fetchJson'
 import { errorText, NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { PortalLayers } from '@/maps/nechako/PortalLayers'
-import { PortalResearch, PortalResearchMap } from '@/maps/nechako/PortalResearch'
-import { PortalSearch, PortalProjects } from '@/maps/nechako/PortalChecks'
+import { PortalResearchMap } from '@/maps/nechako/PortalResearch'
+import { PortalSearch } from '@/maps/nechako/PortalChecks'
 import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
 import { SHOWCASE_BASE } from '@/maps/nechako/data/showcase'
 import { loadNechakoBoundary } from '@/maps/nechako/data/boundary'
 import { EMPTY_WORKSPACE, importWorkspace, type Workspace } from '@/maps/nechako/data/workspace'
+import { PortalInventory } from '@/maps/nechako/PortalInventory'
+import { PortalCollections, EMPTY_COLLECTION_SESSION, type CollectionSession } from '@/maps/nechako/PortalCollections'
+import { PortalOptions } from '@/maps/nechako/PortalOptions'
+import { PortalPublicProjects } from '@/maps/nechako/PortalPublicProjects'
+import { normalizeProjectPackage, type ProjectPackage } from '@/lib/projectPackages'
+import learningJson from '../../public/data/projects/nechako-learning-module.json'
+import { PortalUnifiedSearch } from '@/maps/nechako/PortalUnifiedSearch'
+import { PortalSubmissionSearch } from '@/maps/nechako/PortalSubmissionSearch'
+import { LocalPortalConnection } from '@/maps/nechako/LocalPortalConnection'
+import { PortalAdministration } from '@/maps/nechako/PortalAdministration'
+import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
+import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
+import { portalWrite } from '@/lib/nechakoPortal'
+import { usePortalSession } from '@/maps/nechako/data/usePortalSession'
+import { TabBar } from '@/components/ui/tab-bar'
+
+const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
+const learningProject = normalizeProjectPackage(learningJson)
 
 const PANELS = [
   'search',
+  'submissions',
   'reports',
+  'monitoring',
   'projects',
   'files',
   'research-map',
@@ -26,11 +45,19 @@ const PANELS = [
   'about',
   'account',
   'saved-projects',
+  'inventory',
+  'collections',
+  'stories',
+  'options',
+  'project-viewer',
+  'administration',
 ] as const
 type Panel = (typeof PANELS)[number]
 const TITLES: Record<Panel, string> = {
-  search: 'Search',
+  search: 'Find Submissions : SEARCH',
+  submissions: 'Portal submissions',
   reports: 'Reporting and statistics',
+  monitoring: 'Monitoring and observations',
   projects: 'Projects',
   files: 'Import files',
   'research-map': 'Research map and timeline',
@@ -38,19 +65,50 @@ const TITLES: Record<Panel, string> = {
   about: 'About this preview',
   account: 'Portal account',
   'saved-projects': 'Saved portal projects',
+  inventory: 'Information and data size',
+  collections: 'Community projects and collections',
+  stories: 'Stories and learning',
+  options: 'All portal options',
+  'project-viewer': 'Project reader',
+  administration: 'Administration and workflow',
 }
 
 export default function DevNechakoPortal() {
+  const [reportsView, setReportsView] = useState<'forms' | 'monitoring'>('forms')
+  const [monitoringContext, setMonitoringContext] = useState<{
+    submissionId: string
+    formId: string
+    layerId?: string
+    recId?: string
+  }>()
   const [params, setParams] = useSearchParams()
   const requested = params.get('panel')
   const panel = PANELS.includes(requested as Panel) ? (requested as Panel) : undefined
-  const [searchView, setSearchView] = useState<'research' | 'submissions'>('research')
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
+  const clearSessionWorkspace = useCallback(
+    () =>
+      setWorkspace((current) =>
+        current.sessionBound
+          ? {
+              ...EMPTY_WORKSPACE,
+              camera: current.camera,
+              warnings: [
+                'The portal connection changed; unsaved source-session map data was cleared. Explicit browser saves remain available.',
+              ],
+            }
+          : current,
+      ),
+    [],
+  )
+  const session = usePortalSession(clearSessionWorkspace)
   const [bounds, setBounds] = useState<[number, number, number, number]>()
   const [initialBounds, setInitialBounds] = useState<[number, number, number, number]>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
+  const [collectionSession, setCollectionSession] = useState<CollectionSession>(EMPTY_COLLECTION_SESSION)
+  const [selectedProject, setSelectedProject] = useState<ProjectPackage | null>(learningProject)
+  const [requestedPane, setRequestedPane] = useState<{ pane: 'tools' | 'layers'; revision: number }>()
   const showPanel = useCallback(
     (value?: Panel) =>
       setParams((current) => {
@@ -75,6 +133,8 @@ export default function DevNechakoPortal() {
         loadNechakoBoundary(controller.signal),
       ])
       const initial = importWorkspace(saved)
+      const researchLocations = initial.vectors.find((vector) => vector.id === 'nechako-research-locations')
+      if (researchLocations) researchLocations.visible = false
       initial.vectors.push(boundary.vector)
       if (!controller.signal.aborted) {
         setInitialBounds(boundary.bounds)
@@ -97,6 +157,15 @@ export default function DevNechakoPortal() {
   }, [retry])
 
   const close = () => showPanel()
+  const openProject = (project: ProjectPackage) => {
+    setSelectedProject(project)
+    showPanel('project-viewer')
+  }
+  const loadWorkspace = (imported: Workspace) => {
+    setInitialBounds(undefined)
+    setWorkspace(imported)
+    close()
+  }
   const toolbarClass =
     'h-10 shrink-0 gap-1.5 rounded-sm border border-white/20 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white'
   return (
@@ -114,8 +183,17 @@ export default function DevNechakoPortal() {
       </header>
       <nav
         aria-label="Watershed portal"
-        className="flex shrink-0 gap-1 overflow-x-auto border-y border-white/20 px-2 py-1.5 md:justify-center"
+        className="flex shrink-0 gap-1 overflow-x-auto border-y border-white/20 px-2 py-1.5"
       >
+        <Button className={toolbarClass} onClick={() => showPanel('inventory')}>
+          <Database className="h-4 w-4" /> Data inventory
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('collections')}>
+          <Library className="h-4 w-4" /> Community projects
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('stories')}>
+          <BookOpen className="h-4 w-4" /> Stories
+        </Button>
         <Button className={toolbarClass} onClick={() => showPanel('search')}>
           <Search className="h-4 w-4" />
           Search
@@ -141,6 +219,12 @@ export default function DevNechakoPortal() {
         </Button>
         <Button className={toolbarClass} onClick={() => showPanel('account')}>
           Login / Sign-up
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('options')}>
+          <List className="h-4 w-4" /> All options
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('administration')}>
+          Administration
         </Button>
         <Button className={toolbarClass} aria-label="About this preview" onClick={() => showPanel('about')}>
           <HelpCircle className="h-4 w-4" />
@@ -181,6 +265,7 @@ export default function DevNechakoPortal() {
             projectsOpen={panel === 'projects'}
             onProjectsClose={close}
             onOpenFiles={() => showPanel('files')}
+            requestedPane={requestedPane}
           />
         )}
       </div>
@@ -197,9 +282,9 @@ export default function DevNechakoPortal() {
       </footer>
       {panel && panel !== 'projects' && (
         <DialogShell
-          title={TITLES[panel]}
+          title={panel === 'project-viewer' && selectedProject ? selectedProject.title : TITLES[panel]}
           onClose={close}
-          size="xl"
+          size={panel === 'search' ? 'lg' : 'xl'}
           closeLabel="Close portal window"
           contentProps={{
             onKeyDown: (event) => {
@@ -218,38 +303,123 @@ export default function DevNechakoPortal() {
             },
           }}
           className={
-            panel === 'research-map' ? 'h-[90dvh] [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden' : undefined
+            panel === 'search'
+              ? 'h-[min(700px,92dvh)] sm:h-[min(550px,92dvh)] sm:!max-w-[800px] [&>header]:p-3 [&>div]:flex [&>div]:min-h-0 [&>div]:flex-1 [&>div]:flex-col [&>div]:overflow-hidden'
+              : panel === 'research-map' || panel === 'project-viewer'
+                ? 'h-[90dvh] [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden'
+                : undefined
           }
-          bodyClassName={panel === 'research-map' ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : undefined}
+          bodyClassName={
+            panel === 'search'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden !p-3'
+              : panel === 'research-map' || panel === 'project-viewer'
+                ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                : undefined
+          }
         >
-          {panel === 'search' && (
-            <div className="space-y-4">
-              <TabBar
-                label="Search source"
-                idPrefix="native-search"
-                value={searchView}
-                onChange={setSearchView}
-                options={[
-                  { value: 'research', label: 'Research records' },
-                  { value: 'submissions', label: 'Portal submissions' },
-                ]}
+          {panel === 'inventory' && (
+            <PortalInventory
+              onOpen={showPanel}
+              importedFiles={collectionSession.files}
+              searchCollections={
+                <PortalUnifiedSearch
+                  key={session.revision}
+                  files={collectionSession.files}
+                  workspace={workspace}
+                  mapBounds={bounds}
+                  onWorkspace={loadWorkspace}
+                  onProject={openProject}
+                  onResearchMap={() => showPanel('research-map')}
+                  onMonitoring={(context) => {
+                    setMonitoringContext(context)
+                    setReportsView('monitoring')
+                    showPanel('reports')
+                  }}
+                />
+              }
+            />
+          )}
+          {(panel === 'collections' || panel === 'stories') && (
+            <div className="space-y-5">
+              {panel === 'collections' && <PortalPublicProjects onWorkspace={loadWorkspace} />}
+              {panel === 'stories' && learningProject && (
+                <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
+                  <h2 className="text-xl font-semibold">Welcome to the Nechako Watershed</h2>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    A public learning adaptation: five place cases, 25 discussion prompts, and a map you can follow
+                    chapter by chapter. The original module remains linked for its complete source material.
+                  </p>
+                  <Button onClick={() => openProject(learningProject)}>Read learning story in this portal</Button>
+                </div>
+              )}
+              <PortalCollections
+                mode={panel === 'stories' ? 'stories' : 'all'}
+                session={collectionSession}
+                onSessionChange={setCollectionSession}
+                onWorkspace={loadWorkspace}
+                onProject={openProject}
+                learningStoryAvailable={Boolean(learningProject)}
+                showObservedIndex={false}
               />
-              <section
-                role="tabpanel"
-                id={`native-search-panel-${searchView}`}
-                aria-labelledby={`native-search-tab-${searchView}`}
-              >
-                {searchView === 'research' ? (
-                  <PortalResearch onMap={() => showPanel('research-map')} />
-                ) : (
-                  <PortalSearch vectors={workspace.vectors} mapBounds={bounds} />
-                )}
-              </section>
             </div>
           )}
-          {panel === 'reports' && <PortalMonitoring />}
+          {panel === 'options' && (
+            <PortalOptions
+              onOpen={showPanel}
+              onMapPane={(pane) => {
+                setRequestedPane((current) => ({ pane, revision: (current?.revision ?? 0) + 1 }))
+                close()
+              }}
+            />
+          )}
+          {panel === 'project-viewer' &&
+            (selectedProject ? (
+              <div className="relative min-h-0 flex-1" data-nechako-project-reader>
+                <Suspense fallback={<InlineAlert loading>Opening project reader…</InlineAlert>}>
+                  <ProjectWorkspace project={selectedProject} onBack={() => showPanel('stories')} />
+                </Suspense>
+              </div>
+            ) : (
+              <InlineAlert>No project selected. Open Stories or import a supported project package.</InlineAlert>
+            ))}
+          {panel === 'search' && <PortalSubmissionSearch mapBounds={bounds} vectors={workspace.vectors} />}
+          {panel === 'submissions' && (
+            <PortalSearch
+              key={session.revision}
+              vectors={workspace.vectors}
+              mapBounds={bounds}
+              onMonitoring={(context) => {
+                setMonitoringContext(context)
+                setReportsView('monitoring')
+                showPanel('reports')
+              }}
+            />
+          )}
+          {(panel === 'reports' || panel === 'monitoring') && (
+            <div className="space-y-4">
+              <TabBar
+                label="Reporting workflow"
+                value={panel === 'monitoring' ? 'monitoring' : reportsView}
+                onChange={(value) => {
+                  setReportsView(value)
+                  if (panel === 'monitoring') showPanel('reports')
+                }}
+                options={[
+                  { value: 'forms', label: 'Original form reports' },
+                  { value: 'monitoring', label: 'Monitoring and local charts' },
+                ]}
+              />
+              {panel !== 'monitoring' && reportsView === 'forms' ? (
+                <PortalFormReports key={session.revision} />
+              ) : (
+                <PortalMonitoring key={session.revision} {...monitoringContext} />
+              )}
+            </div>
+          )}
           {panel === 'files' && (
             <PortalFiles
+              write={portalWrite}
+              canWrite={session.canWrite}
               onVectors={(vectors) => {
                 setWorkspace((current) => ({ ...current, vectors: [...current.vectors, ...vectors] }))
                 close()
@@ -257,7 +427,16 @@ export default function DevNechakoPortal() {
             />
           )}
           {panel === 'research-map' && <PortalResearchMap onBack={close} fill backLabel="Watershed map" />}
-          {panel === 'saved-projects' && <PortalProjects />}
+          {panel === 'saved-projects' && (
+            <PortalProjectManager
+              key={session.revision}
+              workspace={workspace}
+              onWorkspace={loadWorkspace}
+              write={portalWrite}
+              canWrite={session.canWrite}
+            />
+          )}
+          {panel === 'administration' && <PortalAdministration key={session.revision} write={portalWrite} />}
           {panel === 'links' && (
             <div className="space-y-4 text-sm">
               <a className="block text-primary underline" href={NECHAKO_PORTAL} target="_blank" rel="noreferrer">
@@ -276,6 +455,7 @@ export default function DevNechakoPortal() {
           )}
           {panel === 'account' && (
             <div className="space-y-4 text-sm">
+              <LocalPortalConnection />
               <p>
                 Account registration, login, publishing and permissions are managed by the original portal. Open it to
                 use your account.
@@ -307,8 +487,9 @@ export default function DevNechakoPortal() {
                 50-metre simplified snapshot. It loads locally and can be used as the submission search area.
               </p>
               <InlineAlert tone="warning" title="Portal integration limits">
-                Saved portal projects and submission search remain subject to the portal’s registration and
-                authentication. Private attachments and the full underlying data store are outside this public snapshot.
+                The original portal’s search and saved projects work in its own interface. PGMaps requests still receive
+                registration errors. Data inventory distinguishes observed collections, available local files and
+                unknown source storage; imported exports remain in this browser session.
               </InlineAlert>
               <Link className="block text-primary underline" to="/dev/nechako?view=compare">
                 Review the full comparison

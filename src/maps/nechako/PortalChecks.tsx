@@ -9,6 +9,9 @@ import { downloadText } from '@/lib/download'
 import { csvExport } from './data/monitoring'
 import { fetchJson } from '@/lib/fetchJson'
 import { SHOWCASE_BASE, type CatalogueSource } from './data/showcase'
+import { PortalExpressionBuilder } from './PortalExpressionBuilder'
+import { checkedSavedSearches, QUERY_STORAGE_KEY, type SavedSearch } from './data/searchBuilder'
+import { RecordDialog } from '@/components/ui/record-dialog'
 
 export function useReadCheck(read = portalRead) {
   const [state, setState] = useState<{ loading: boolean; data?: unknown; error?: string }>({ loading: false })
@@ -85,11 +88,13 @@ export function CheckState({
   error,
   data,
   local = false,
+  showData = true,
 }: {
   loading: boolean
   error?: string
   data?: unknown
   local?: boolean
+  showData?: boolean
 }) {
   return (
     <div className="space-y-3" aria-live="polite">
@@ -105,7 +110,7 @@ export function CheckState({
           )}
         </InlineAlert>
       )}
-      {data !== undefined && <JsonResults data={data} />}
+      {showData && data !== undefined && <JsonResults data={data} />}
     </div>
   )
 }
@@ -113,13 +118,26 @@ export function CheckState({
 export function PortalSearch({
   mapBounds,
   vectors = [],
+  initialQuery = 'nechako',
+  onMonitoring,
 }: {
   mapBounds?: [number, number, number, number]
   vectors?: VectorData[]
+  initialQuery?: string
+  onMonitoring?: (context: { submissionId: string; formId: string; layerId?: string; recId?: string }) => void
 }) {
   const contexts = useReadCheck()
   const results = useReadCheck()
-  const [query, setQuery] = useState('nechako')
+  const [query, setQuery] = useState(initialQuery)
+  const [savedQueries, setSavedQueries] = useState<SavedSearch[]>(() => {
+    try {
+      return checkedSavedSearches(JSON.parse(localStorage.getItem(QUERY_STORAGE_KEY) || '[]'))
+    } catch {
+      return []
+    }
+  })
+  const [queryName, setQueryName] = useState('')
+  const [queryStorageError, setQueryStorageError] = useState('')
   const [fields, setFields] = useState<string[]>([])
   const [syntaxError, setSyntaxError] = useState('')
   const [tree, setTree] = useState<unknown>()
@@ -140,6 +158,16 @@ export function PortalSearch({
   // explicit after the user edits them, including an empty selection.
   const [fieldsEdited, setFieldsEdited] = useState(false)
   const selected = fieldsEdited ? fields.filter((field) => available.includes(field)) : available
+  const persistQueries = (queries: SavedSearch[]) => {
+    try {
+      const checked = checkedSavedSearches(queries)
+      localStorage.setItem(QUERY_STORAGE_KEY, JSON.stringify(checked))
+      setSavedQueries(checked)
+      setQueryStorageError('')
+    } catch (reason) {
+      setQueryStorageError(errorText(reason))
+    }
+  }
   const search = () => {
     setSyntaxError('')
     try {
@@ -178,10 +206,10 @@ export function PortalSearch({
         Search the portal’s metadata and content using its expression format. The existing literature project searches a
         separate research dataset.
       </p>
-      <InlineAlert tone="warning" title="Registration currently blocks results">
-        The original portal and PGMaps received “Website is not registered” during the live review. Retry here to check
-        the current state. Successful result payloads and submission details still need verification after that is
-        resolved.
+      <InlineAlert title="Live portal submissions">
+        Search uses the original portal's catalogue and permissions. Direct PGMaps requests can receive a registration
+        error; configure the verified gateway in Account / Connection for local access. Bundled research is a separate
+        collection.
       </InlineAlert>
       <form
         onSubmit={(event) => {
@@ -199,6 +227,7 @@ export function PortalSearch({
             aria-label="Search expression"
           />
         </label>
+        <PortalExpressionBuilder onApply={setQuery} />
         <p className="text-xs text-muted-foreground">
           Examples: salmon AND water; (salmon OR trout) AND river; {'{Submission ID} >= 100'}. Separate terms imply OR.
           Use quoted text and {'{column}'} comparisons; ! negates a comparison operator.
@@ -319,21 +348,133 @@ export function PortalSearch({
             </label>
           )}
         </fieldset>
-        <Button type="submit" disabled={results.loading || !available.length}>
-          Search portal
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={results.loading || !available.length}>
+            Search portal
+          </Button>
+          <Button type="button" asChild variant="outline">
+            <a href="https://nechakowatershed-portal.ca/" target="_blank" rel="noreferrer">
+              Search in original portal
+            </a>
+          </Button>
+        </div>
       </form>
+      <details className="space-y-3 rounded-lg border p-3">
+        <summary className="cursor-pointer font-medium">Saved queries in this browser ({savedQueries.length})</summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Saves the expression, contexts and geographic filter on this device. Polygon queries refer to a workspace
+            layer; load that layer before running the query. Saving never submits or publishes a portal record.
+          </p>
+          <label className="grid gap-1 text-sm">
+            Query name
+            <input
+              aria-label="Saved query name"
+              className="rounded-md border bg-background p-2 text-base"
+              maxLength={160}
+              value={queryName}
+              onChange={(e) => setQueryName(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={!queryName.trim() || savedQueries.length >= 50}
+              onClick={() =>
+                persistQueries([
+                  ...savedQueries,
+                  {
+                    id: crypto.randomUUID(),
+                    name: queryName.trim(),
+                    expression: query,
+                    contexts: selected,
+                    area: { mode: areaMode, bounds, vectorId: areaVectorId },
+                  },
+                ])
+              }
+            >
+              Save current query
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!savedQueries.length}
+              onClick={() =>
+                downloadText(JSON.stringify(savedQueries, null, 2), 'nechako-saved-queries.json', 'application/json')
+              }
+            >
+              Export saved queries
+            </Button>
+            <label className="text-sm">
+              Import saved queries
+              <input
+                aria-label="Import saved queries"
+                type="file"
+                accept=".json,application/json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    if (file.size > 200000) throw new Error('Saved-query imports are limited to 200 KB.')
+                    persistQueries(checkedSavedSearches(JSON.parse(await file.text())))
+                  } catch (reason) {
+                    setQueryStorageError(errorText(reason))
+                  }
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          </div>
+          {queryStorageError && <InlineAlert tone="error">{queryStorageError}</InlineAlert>}
+          {savedQueries.map((saved) => (
+            <div key={saved.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2">
+              <span className="min-w-0 flex-1 break-words text-sm">{saved.name}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setQuery(saved.expression)
+                  setFields(saved.contexts)
+                  setFieldsEdited(true)
+                  setAreaMode(saved.area.mode)
+                  setBounds(saved.area.bounds)
+                  setAreaVectorId(saved.area.vectorId)
+                  setQueryName(saved.name)
+                }}
+              >
+                Load {saved.name}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => persistQueries(savedQueries.filter((item) => item.id !== saved.id))}
+              >
+                Remove {saved.name}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </details>
       {syntaxError && <InlineAlert tone="error">{syntaxError}</InlineAlert>}
       {submitted && (
         <div className="space-y-3">
           <p className="text-sm">Results for: {submittedQuery}</p>
-          <CheckState {...results} />
+          <CheckState {...results} showData={false} />
           {results.data !== undefined && (
             <SubmissionResults key={submittedQuery} data={results.data} onSelect={setSelectedSubmission} />
           )}
         </div>
       )}
-      <PortalSubmission submissionId={selectedSubmission || undefined} />
+      <RecordDialog
+        open={!!selectedSubmission}
+        title={`Portal submission ${selectedSubmission}`}
+        onClose={() => setSelectedSubmission('')}
+      >
+        <PortalSubmission submissionId={selectedSubmission || undefined} onMonitoring={onMonitoring} />
+      </RecordDialog>
+      <PortalSubmission onMonitoring={onMonitoring} />
       {tree !== undefined && (
         <details className="rounded-lg border p-3">
           <summary className="cursor-pointer text-sm">Submitted expression tree</summary>
