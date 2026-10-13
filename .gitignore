@@ -152,3 +152,6 @@ public/data/forest/visual-inventory/
 
 # Generated from BCDataMapper's BC Stats LAEP snapshots.
 public/data/bc/laep/
+
+# Local Worker simulator/cache; upstream sessions never become source artifacts.
+scripts/nechako-worker/.wrangler/

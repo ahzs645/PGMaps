@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPortalConnectionStatus, getPortalConnectionMode, PORTAL_CONNECTION_EVENT } from '@/lib/nechakoPortal'
+import { isHostedPortalGateway } from '@/lib/nechakoConnection'
 export function usePortalSession(onSessionChange?: () => void) {
   const [state, setState] = useState({ canWrite: false, isAdmin: false, revision: 0 })
   useEffect(() => {
@@ -41,10 +42,20 @@ export function usePortalSession(onSessionChange?: () => void) {
         })
     }
     refresh()
+    const peekWhileVisible = () => {
+      if (isHostedPortalGateway() && document.visibilityState !== 'hidden') refresh()
+    }
+    // GET status observes idle expiry without allocating sessions or extending TTL.
+    const poll = isHostedPortalGateway() ? window.setInterval(peekWhileVisible, 60000) : undefined
+    window.addEventListener('focus', peekWhileVisible)
+    document.addEventListener('visibilitychange', peekWhileVisible)
     window.addEventListener(PORTAL_CONNECTION_EVENT, refresh)
     return () => {
       generation += 1
       request?.abort()
+      if (poll !== undefined) window.clearInterval(poll)
+      window.removeEventListener('focus', peekWhileVisible)
+      document.removeEventListener('visibilitychange', peekWhileVisible)
       window.removeEventListener(PORTAL_CONNECTION_EVENT, refresh)
     }
   }, [onSessionChange])

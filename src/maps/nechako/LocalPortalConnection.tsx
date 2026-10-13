@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ExternalLink } from '@/components/ui/text-button'
+import { isHostedPortalGateway } from '@/lib/nechakoConnection'
 import {
   connectPortalSession,
   disconnectPortalSession,
@@ -76,7 +77,11 @@ export function LocalPortalConnection({ onChange }: { onChange?: () => void }) {
         fullWidth={false}
         options={[
           { value: 'direct', label: 'Direct public reads', disabled: busy },
-          { value: 'gateway', label: 'Local gateway', disabled: busy || !status?.available },
+          {
+            value: 'gateway',
+            label: isHostedPortalGateway() ? 'Portal connection' : 'Local gateway',
+            disabled: busy || !status?.available,
+          },
         ]}
         onChange={(value) => {
           setMode(value)

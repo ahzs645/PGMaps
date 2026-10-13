@@ -1,0 +1,19 @@
+{
+  "name": "pgmaps-nechako-portal",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-12",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "durable_objects": {
+    "bindings": [
+      { "name": "NECHAKO_SESSIONS", "class_name": "NechakoSession" },
+      { "name": "NECHAKO_REGISTRY", "class_name": "NechakoRegistry" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NechakoSession", "NechakoRegistry"] }],
+  "ratelimits": [
+    { "name": "SESSION_RATE_LIMIT", "namespace_id": "46011", "simple": { "limit": 100, "period": 60 } },
+    { "name": "LOGIN_RATE_LIMIT", "namespace_id": "46012", "simple": { "limit": 5, "period": 60 } },
+  ],
+}
