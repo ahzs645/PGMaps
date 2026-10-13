@@ -133,6 +133,8 @@ export default function DevNechakoPortal() {
         loadNechakoBoundary(controller.signal),
       ])
       const initial = importWorkspace(saved)
+      const researchLocations = initial.vectors.find((vector) => vector.id === 'nechako-research-locations')
+      if (researchLocations) researchLocations.visible = false
       initial.vectors.push(boundary.vector)
       if (!controller.signal.aborted) {
         setInitialBounds(boundary.bounds)

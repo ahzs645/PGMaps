@@ -86,10 +86,11 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Expand Map Tools', exact: true })).toBeFocused()
     await page.getByRole('button', { name: 'Expand Map', exact: true }).click()
-    await expect(page.getByLabel('Show Nechako research locations')).toBeChecked()
+    await expect(page.getByLabel('Show Nechako research locations')).not.toBeChecked()
     await expect(page.getByLabel('Show Nechako Watershed')).toBeChecked()
     await page.getByLabel('Show Nechako Watershed').uncheck()
     await page.getByLabel('Show Nechako Watershed').check()
+    await page.getByLabel('Show Nechako research locations').check()
     await page.getByLabel('Show Nechako research locations').uncheck()
     await page.getByRole('button', { name: 'Close Map', exact: true }).click()
 
