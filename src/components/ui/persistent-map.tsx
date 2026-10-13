@@ -7,6 +7,8 @@ export * from "@pgmaps/geo-toolkit/map/persistent-map";
 export function PersistentMapProvider(props: PersistentMapProviderProps) {
   const { resolvedTheme } = useTheme();
   const workspace = useWorkspace();
-  const content = <ToolkitPersistentMapProvider center={PG_CENTER} zoom={PG_DEFAULT_ZOOM} {...props} theme={props.theme ?? (resolvedTheme === "dark" ? "dark" : "light")} />;
+  // Defaults go after the spread: callers such as SharedMapLayout forward `center`/`zoom`
+  // as explicit undefined, which would otherwise override them and open on the world view.
+  const content = <ToolkitPersistentMapProvider {...props} center={props.center ?? PG_CENTER} zoom={props.zoom ?? PG_DEFAULT_ZOOM} theme={props.theme ?? (resolvedTheme === "dark" ? "dark" : "light")} />;
   return workspace ? content : <WorkspaceProvider eventTarget={typeof window === "undefined" ? undefined : window} placement="viewport" responsive="viewport" theme={props.theme ?? (resolvedTheme === "dark" ? "dark" : "light")}>{content}</WorkspaceProvider>;
 }
