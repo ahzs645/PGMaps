@@ -69,7 +69,7 @@ for (const [name, title, variant, theme, side, width] of variants) {
       `The same connected-geographies story presented with the ${name} editorial layout. This is a PGMaps implementation inspired by the supplied StoryMaps reference, using our own boundary sources and narrative.`,
       ...base.details,
     ],
-    links: [{ label: 'All interaction examples', href: '/dev/projects?collection=example' }, ...base.links],
+    links: [{ label: 'All interaction examples', href: '/projects?collection=example' }, ...base.links],
   })
   pkg.workspace.options = {
     ...pkg.workspace.options,

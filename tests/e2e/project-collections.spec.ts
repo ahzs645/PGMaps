@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const folderUrl = '/dev/projects?collection=bc-climate-health'
+const folderUrl = '/projects?collection=bc-climate-health'
 
 for (const width of [320, 390, 1024, 1440]) {
   test(`climate folder supports browsing, search, links, and return at ${width}px`, async ({ page }, testInfo) => {
@@ -14,7 +14,7 @@ for (const width of [320, 390, 1024, 1440]) {
     page.on('request', (r) => {
       if (/data\.map\.ahmad\.sh|\/data\/projects\/(?!index\.json)/.test(r.url())) dataRequests.push(r.url())
     })
-    await page.goto('/dev/projects')
+    await page.goto('/projects')
     // Folders are ordinary list entries, pinned ahead of the projects.
     const folderEntry = page.locator('[data-entry="folder"]')
     const folder = folderEntry.getByRole('link').first()
@@ -69,14 +69,14 @@ for (const width of [320, 390, 1024, 1440]) {
       .first()
       .getByRole('button', { name: width < 1280 ? 'Enter Project' : 'Enter', exact: true })
       .click()
-    await expect(page).toHaveURL(/\/dev\/projects\/bc-climate-seasonal-precipitation$/)
+    await expect(page).toHaveURL(/\/projects\/bc-climate-seasonal-precipitation$/)
     await page.goBack()
     await expect(page.getByRole('heading', { name: 'B.C. Climate & Health', exact: true })).toBeVisible()
   })
 }
 
 test('unknown folder offers a way back instead of showing unrelated projects', async ({ page }) => {
-  await page.goto('/dev/projects?collection=does-not-exist')
+  await page.goto('/projects?collection=does-not-exist')
   await expect(page.getByText('This project folder does not exist.')).toBeVisible()
   await page
     .getByRole('navigation', { name: 'Project breadcrumb' })

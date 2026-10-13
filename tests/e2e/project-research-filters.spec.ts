@@ -93,7 +93,7 @@ for (const width of [1440, 390]) {
       if (message.type() === 'error') errors.push(message.text())
     })
     await setup(page)
-    await page.goto('/dev/projects/nechako-watershed-research-portal')
+    await page.goto('/projects/nechako-watershed-research-portal')
     if (width === 390) await page.locator('[data-map-mobile-sheet-handle]').press('End')
     const sidebar = page.locator('[data-explorer-sidebar-scroll]')
     const category = sidebar.getByRole('button', { name: /Journal Articles/ })
@@ -166,7 +166,7 @@ test('regional boundary failure can be retried without losing the research contr
   await page.route('**/named_watersheds_stream_order_8_50m.geojson.gz', (route) =>
     failed ? route.fulfill({ status: 503 }) : route.continue(),
   )
-  await page.goto('/dev/projects/nechako-watershed-research-portal')
+  await page.goto('/projects/nechako-watershed-research-portal')
   await page.getByRole('button', { name: /Show Nechako River boundary/ }).click()
   await expect(page.getByRole('alert')).toContainText('Boundary unavailable')
   failed = false

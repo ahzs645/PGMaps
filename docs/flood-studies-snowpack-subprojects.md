@@ -28,7 +28,7 @@ PGMaps currently has a flat project model:
 - `src/lib/projectPackages.ts` defines `ProjectPackage` without parent/child fields.
 - `public/data/projects/index.json` is a flat filename list.
 - `loadStaticProjectPackages()` fetches every listed package eagerly.
-- `src/pages/DevProjects.tsx` selects one project from the `project` query parameter.
+- `src/pages/Projects.tsx` selects one project from the `project` query parameter.
 - `map-explorer-v1` currently accepts only the `research-records-v1` adapter.
 
 Adding 189 nearly identical package files would clutter the catalog, duplicate

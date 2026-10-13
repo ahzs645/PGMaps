@@ -5,7 +5,7 @@
 carousel, expansion and map-reveal components used by the Prague reconstruction.
 PGMaps retains its app header and project-folder navigation.
 
-The working example is `/dev/projects/example-native-editorial`, in the
+The working example is `/projects/example-native-editorial`, in the
 **example** folder. Its document is
 [`native-example/story.json`](../public/data/story-documents/native-example/story.json)
 and its wrapper is

@@ -82,13 +82,13 @@ for (const width of [1440, 390]) {
         body: readFileSync(`public/data/nechako-showcase/${filename}`),
       })
     })
-    await page.goto('/dev/projects/nechako-watershed-research-portal')
+    await page.goto('/projects/nechako-watershed-research-portal')
     if (width === 390) await page.locator('[data-map-mobile-sheet-handle]').press('End')
     await expect(page.getByRole('button', { name: 'All projects', exact: true })).toBeVisible()
     await expect(page.getByText('1,408', { exact: true })).toBeVisible()
     expect(new Set(liveResearchRequests).size).toBe(4)
     await page.getByRole('button', { name: 'All projects', exact: true }).click()
-    await expect(page).toHaveURL(/\/dev\/projects$/)
+    await expect(page).toHaveURL(/\/projects$/)
     expect(errors).toEqual([])
   })
 }

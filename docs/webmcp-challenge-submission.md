@@ -4,7 +4,7 @@
 
 **Working title:** PGMaps — an agent-native geospatial research workbench
 
-**Live URL:** https://pgmaps.ahmadjalil.com/dev/projects
+**Live URL:** https://pgmaps.ahmadjalil.com/projects
 
 **Public repository:** https://github.com/ahzs645/PGMaps
 

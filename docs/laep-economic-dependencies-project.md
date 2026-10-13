@@ -4,7 +4,7 @@
 
 Implementable now as a regional-district `story-map-v1` project. The initial
 package is `public/data/projects/bc-economic-dependencies.json`, available at
-`/dev/projects/bc-economic-dependencies`. It reuses existing geometry, attribute
+`/projects/bc-economic-dependencies`. It reuses existing geometry, attribute
 joins, category fills, highlights, selection details, legends and navigation.
 No renderer changes are needed for this first version.
 

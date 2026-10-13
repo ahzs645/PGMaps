@@ -108,7 +108,7 @@ const mapProjects: MapCardProps[] = [
     title: 'Census Data',
     description: 'Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.',
     icon: BarChart3,
-    href: '/census',
+    href: '/misc?tab=census',
     color: 'bg-amber-600',
     status: 'available',
   },

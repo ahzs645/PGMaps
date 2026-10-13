@@ -342,7 +342,7 @@ export function PortalSearch({
       )}
       <Link
         className="inline-block text-sm text-primary underline"
-        to="/dev/projects/nechako-watershed-research-portal"
+        to="/projects/nechako-watershed-research-portal"
       >
         Open the existing literature project
       </Link>
@@ -375,10 +375,10 @@ export function PortalProjects() {
       </p>
       <div className="flex flex-wrap gap-3">
         <Button asChild variant="outline">
-          <Link to="/dev/projects">PGMaps project library</Link>
+          <Link to="/projects">PGMaps project library</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/dev/projects/nechako-watershed-research-portal">Nechako literature</Link>
+          <Link to="/projects/nechako-watershed-research-portal">Nechako literature</Link>
         </Button>
         <Button asChild variant="outline">
           <Link to="/dev/water-temperature">Water temperature</Link>

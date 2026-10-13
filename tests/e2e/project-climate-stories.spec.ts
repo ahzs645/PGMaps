@@ -15,7 +15,7 @@ for (const viewport of viewports)
     const index = story.scenes.findIndex((s: { label: string }) => s.label === 'spring · P10')
     expect(index).toBeGreaterThanOrEqual(0)
     await page.setViewportSize(viewport)
-    await page.goto(`/dev/projects/${story.slug}`)
+    await page.goto(`/projects/${story.slug}`)
     await page.getByRole('button', { name: `Go to scene ${index + 1}`, exact: true }).click()
     await checkScene(page, story, index)
     const expand = page.getByRole('button', { name: 'Expand legend', exact: true })
@@ -106,7 +106,7 @@ for (const viewport of viewports)
         if (match) products.add(match[1])
       })
       try {
-        await page.goto(`/dev/projects/${story.slug}`)
+        await page.goto(`/projects/${story.slug}`)
         await checkScene(page, story, 0)
         const map = page.locator('.maplibregl-map')
         const height = (await map.boundingBox())!.height
@@ -162,7 +162,7 @@ test('climate source errors are retryable and inactive layers are not fetched', 
   await page.route('**/products/txgt_29.json', (route) =>
     fail ? route.fulfill({ status: 503, body: 'Test source outage' }) : route.continue(),
   )
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await expect(page.getByTestId('climate-status')).toHaveAttribute('data-status', 'error', { timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Retry climate layers' })).toBeVisible()
   fail = false
@@ -178,7 +178,7 @@ test('climate source errors are retryable and inactive layers are not fetched', 
 
 test('climate clicks expose stored values and scene changes clear selections', async ({ page }) => {
   const story = stories.find((s) => s.slug === 'bc-climate-days-above-29c')!
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await checkScene(page, story, 0)
   const box = (await page.locator('.maplibregl-map').boundingBox())!
   // Data readiness precedes Deck's next rendered/picking frame. Click a small
@@ -207,7 +207,7 @@ test('malformed climate metadata is refetched on Retry', async ({ page }) => {
   await page.route('**/products/txgt_29.json', (route) =>
     malformed ? route.fulfill({ status: 200, contentType: 'application/json', body: '{' }) : route.continue(),
   )
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await expect(page.getByTestId('climate-status')).toHaveAttribute('data-status', 'error')
   malformed = false
   await page.getByRole('button', { name: 'Retry climate layers' }).click()
@@ -216,7 +216,7 @@ test('malformed climate metadata is refetched on Retry', async ({ page }) => {
 
 test('snow zoom gate avoids province-wide fine-grid loading and recovers on a scene reset', async ({ page }) => {
   const story = stories.find((s) => s.slug === 'bc-climate-precipitation-as-snow')!
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await checkScene(page, story, 0)
   await page.getByRole('button', { name: 'Collapse legend', exact: true }).click()
   for (let i = 0; i < 4; i++) {
@@ -235,7 +235,7 @@ test('climate periods reuse downloaded blocks and picks use the new band', async
   page.on('request', (request) => {
     if (request.url().includes('/climate/bc-climate-u6/')) downloads.push(request.url())
   })
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await checkScene(page, story, 0)
   const initial = downloads.length
   for (const index of [1, 2, 1, 0, 2]) {
@@ -258,7 +258,7 @@ test('Northern Health preloads only the adjacent climate scene while the introdu
     const match = request.url().match(/\/products\/([^/]+)\.json/)
     if (match) products.add(match[1])
   })
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await checkScene(page, story, 0)
   await expect.poll(() => [...products], { timeout: 30_000 }).toEqual(['tg_mean'])
   await page.waitForTimeout(1500)
@@ -284,7 +284,7 @@ test('data saver suppresses read-ahead but still allows foreground climate loadi
   page.on('request', (request) => {
     if (request.url().includes('/climate/bc-climate-u6/')) downloads.push(request.url())
   })
-  await page.goto(`/dev/projects/${story.slug}`)
+  await page.goto(`/projects/${story.slug}`)
   await checkScene(page, story, 0)
   await page.waitForTimeout(2000)
   expect(downloads).toEqual([])
@@ -306,7 +306,7 @@ for (const viewport of viewports)
       await route.continue().catch(() => {})
     })
     try {
-      await page.goto(`/dev/projects/${story.slug}`)
+      await page.goto(`/projects/${story.slug}`)
       await page.getByRole('button', { name: 'Go to scene 4', exact: true }).click()
       await checkScene(page, story, 3)
       if (viewport.name === 'phone') await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
@@ -348,7 +348,7 @@ test('rapid navigation aborts a slow climate scene without allowing a stale swap
     await route.continue().catch(() => {})
   })
   try {
-    await page.goto(`/dev/projects/${story.slug}`)
+    await page.goto(`/projects/${story.slug}`)
     await page.getByRole('button', { name: 'Go to scene 4', exact: true }).click()
     await checkScene(page, story, 3)
     await page.getByRole('button', { name: 'Next scene', exact: true }).click()

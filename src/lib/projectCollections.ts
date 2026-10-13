@@ -68,14 +68,14 @@ export function getCollectionForProject(slug: string) {
 }
 
 export function collectionHref(slug: string) {
-  return `/dev/projects?collection=${encodeURIComponent(slug)}`
+  return `/projects?collection=${encodeURIComponent(slug)}`
 }
 
 /** A stable parent destination, including direct links and refreshed projects. */
 export function projectCatalogDestination(projectSlug: string | null | undefined) {
   const collection = projectSlug ? getCollectionForProject(projectSlug) : undefined
   return {
-    href: collection ? collectionHref(collection.slug) : '/dev/projects',
+    href: collection ? collectionHref(collection.slug) : '/projects',
     label: collection ? `Back to ${collection.title}` : 'All projects',
     ariaLabel: collection ? `Back to ${collection.title}` : 'Back to all projects',
   }

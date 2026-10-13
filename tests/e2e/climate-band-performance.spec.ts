@@ -20,7 +20,7 @@ for (const width of [1440, 390]) {
       page.on('request', (request) => {
         if (request.url().includes('/climate/bc-climate-u6/')) downloads.push(request.url())
       })
-      await page.goto(`/dev/projects/${slug}`)
+      await page.goto(`/projects/${slug}`)
       const first = page.getByRole('button', { name: 'Go to scene 1', exact: true })
       await expect(first).toHaveAttribute('aria-current', 'step')
       const status = page.getByTestId('climate-status')
@@ -62,7 +62,7 @@ for (const width of [1440, 390]) {
       page.on('request', (request) => {
         if (request.url().includes('/climate/bc-climate-u6/')) downloads.push(request.url())
       })
-      await page.goto(`/dev/projects/${slug}`)
+      await page.goto(`/projects/${slug}`)
       const status = page.getByTestId('climate-status')
       await expect(status).toHaveAttribute('data-status', 'ready', { timeout: 60_000 })
       expect(intercepted).toBe(true)

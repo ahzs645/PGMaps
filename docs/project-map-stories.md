@@ -5,7 +5,7 @@ PGMaps project packages can render a scroll-driven map when `workspace.type` is
 
 The complete working example is
 `public/data/projects/where-is-north-bc.json`. Add a package filename to
-`public/data/projects/index.json` to make it appear in `/dev/projects`.
+`public/data/projects/index.json` to make it appear in `/projects`.
 
 A story renders inside the standard `MapSectionLayout` shell, so it inherits the
 same chrome as every other PGMaps map page: a collapsible, resizable narrative
@@ -561,7 +561,7 @@ change can substitute for a suitable source representation.
    GeoJSON for sources that are stable, appropriately licensed, and CORS
    enabled.
 5. Add the filename to `public/data/projects/index.json`.
-6. Open `/dev/projects?project=<slug>` and scroll through every scene.
+6. Open `/projects?project=<slug>` and scroll through every scene.
 7. Use the toolbar information icon's **Download story JSON** button to download the normalized project package and
    confirm it can be imported again.
 
@@ -634,7 +634,7 @@ Three renderer invariants are load-bearing and easy to undo by accident:
 
 After changing a package, option, story renderer, or shared map shell, repeat
 audit → focused tests → rendered inspection → fix until every affected gate is
-clean. Use the canonical `/dev/projects/<slug>` route and inspect the browser
+clean. Use the canonical `/projects/<slug>` route and inspect the browser
 console as well as the visible result.
 
 For shared renderer changes, cover all three layouts with the shipped examples:
@@ -672,7 +672,7 @@ same active-source loading path rather than a second eager fetch.
 
 ## Scene interaction examples
 
-The **example** catalog folder (`/dev/projects?collection=example`) contains twelve
+The **example** catalog folder (`/projects?collection=example`) contains twelve
 packages in `public/data/projects/example`: docked narrative, guided slides,
 scroll-driven story, boundary comparison, relationship bars and linked hierarchy,
 plus four editorial sidecars (docked, floating, slideshow and mixed), and the

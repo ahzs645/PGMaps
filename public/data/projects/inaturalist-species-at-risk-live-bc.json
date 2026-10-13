@@ -19,7 +19,7 @@
   "links": [
     { "label": "Current iNaturalist observations", "href": "https://www.inaturalist.org/observations" },
     { "label": "Live snapshot manifest", "href": "/data/forest/species-at-risk/inaturalist_species_at_risk_live_2026-08-28.manifest.json" },
-    { "label": "Historical 2021 story", "href": "/dev/projects/inaturalist-species-at-risk-bc" }
+    { "label": "Historical 2021 story", "href": "/projects/inaturalist-species-at-risk-bc" }
   ],
   "catalogMetrics": [
     { "label": "Observations", "value": "118,350" },

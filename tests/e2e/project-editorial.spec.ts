@@ -23,7 +23,7 @@ for (const viewport of [
       if (new URL(response.url()).pathname.startsWith('/data/story-documents/') && response.status() >= 400)
         localFailures.push(response.url())
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     await expect(page.getByTestId('editorial-cover').getByRole('heading', { name: 'The Diverse Prague' })).toBeVisible()
     const originalCover = Object.values(graph.nodes).find((node) => node.type === 'storycover')!.data!
     await expect(
@@ -199,7 +199,7 @@ for (const viewport of [
     })
     await page.setViewportSize(viewport)
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const sidecar = page.locator('#n-pcY7hL')
     await sidecar
       .locator('.editorial-slide')
@@ -241,7 +241,7 @@ for (const viewport of [
         /* Navigating away may cancel a completed response body. */
       }
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const tour = page.locator('#n-Or5kxQ')
     await tour
       .locator('.editorial-tour-stop')
@@ -293,7 +293,7 @@ for (const viewport of [
     test.setTimeout(90_000)
     await page.setViewportSize(viewport)
     await page.emulateMedia({ reducedMotion: 'no-preference' })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const chapters = page.getByRole('navigation', { name: 'Story chapters' })
     const sourceNavigation = Object.values(graph.nodes).find((node) => node.type === 'navigation')!
     const links = sourceNavigation.data!.links as { nodeId: string }[]
@@ -414,7 +414,7 @@ test('Prague comparison forwards feature clicks to the revealed native map', asy
   test.setTimeout(120_000)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/dev/projects/example-prague')
+  await page.goto('/projects/example-prague')
   const section = page.locator('#n-JXRUzL')
   await section
     .locator('.editorial-slide')
@@ -494,7 +494,7 @@ for (const viewport of [
       await nextDocument
       await route.continue()
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const section = page.locator('#n-pcY7hL')
     const slides = section.locator('.editorial-slide')
     const map = section.getByTestId('editorial-map')
@@ -607,7 +607,7 @@ for (const viewport of [
         })
       } else await route.continue()
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const section = page.locator('#n-JXRUzL')
     await section
       .locator('.editorial-slide')
@@ -695,7 +695,7 @@ for (const viewport of [
       if (request.url().includes('/resources/styles/root.json')) sourceBasemaps.push(request.url())
     })
     page.on('pageerror', (error) => errors.push(error.message))
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     for (const id of ['n-Or5kxQ', 'n-VsipbN', 'n-KKi8wX']) {
       const tour = page.locator(`#${id}`)
       await tour
@@ -744,7 +744,7 @@ for (const viewport of [
     page.on('request', (request) => {
       if (request.url().includes('/query?')) queries++
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const story = page.getByTestId('editorial-story')
     const tour = page.locator('#n-Or5kxQ')
     await tour
@@ -842,7 +842,7 @@ for (const width of [1440, 390]) {
         },
       })
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const tour = page.locator('#n-Or5kxQ')
     await tour
       .locator('.editorial-tour-stop')

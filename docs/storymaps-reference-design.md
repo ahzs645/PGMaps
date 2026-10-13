@@ -57,7 +57,7 @@ A keyboard-operable range input and **Show left**, **Both** and **Show right** b
 
 ## Original-document reconstruction
 
-Open `/dev/projects/example-prague` for the actual Prague content: 257 nodes,
+Open `/projects/example-prague` for the actual Prague content: 257 nodes,
 59 resources, 18 immersive slides, four comparisons, four tours with 15 stops,
 and seven visible inline actions (15 stored action records, including eight stale records). Forty media assets, six fonts and 19 map definitions are
 local. PGMaps renders maps with its existing MapLibre stack. A source adapter

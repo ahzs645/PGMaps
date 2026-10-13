@@ -1,6 +1,6 @@
 # How B.C.'s geographies connect
 
-Project: `/dev/projects/bc-connected-geographies`.
+Project: `/projects/bc-connected-geographies`.
 Package: `public/data/projects/bc-connected-geographies.json` (`story-map-v1`, slides).
 
 The canonical joining methodology and build script are in

@@ -97,7 +97,7 @@ function envelope(slug, title, summary, scenes, layers, extra = {}) {
       { label: 'Full R2 data preview: all indicators, bands and periods', href: `${release}preview.html` },
       { label: 'Pinned climate manifest and provenance', href: MANIFEST },
       { label: 'Climate source inventory', href: `${release}sources.json` },
-      { label: 'Northern Health resilience narrative', href: '/dev/projects/northern-health-climate-resilience' },
+      { label: 'Northern Health resilience narrative', href: '/projects/northern-health-climate-resilience' },
     ], catalogMetrics: [{ label: 'Story scenes', value: String(scenes.length) }, { label: 'Scenario', value: 'SSP5-8.5' }],
     layers: layers.map(layer => ({ id: layer.id, label: layer.climate ? labelFor(layer) : layer.id === 'hospitals' ? 'Report hospital locations' : 'Health Authority boundaries', type: layer.geometry === 'point' ? 'point' : 'boundary', checked: scenes[0].visibleLayerIds.includes(layer.id) })),
     legend: [], scenes, files: [{ label: `${slug}.json`, detail: 'Narrative, band selections, colours and cameras only; no climate arrays embedded.' }, { label: 'R2 native-grid release', detail: 'Gzipped geometry indices and lossless Float64 values, fetched only for the active map view.' }],
@@ -174,7 +174,7 @@ for (const feature of [...hospitals].sort((a, b) => a.properties.locality.locale
 chapter('Putting it together', 'Use the climate evidence, then assess the facility', 'The report’s message is to preserve essential care as conditions change. Climate indicators inform that conversation; they do not replace a facility vulnerability assessment or engineering design. Explore the individual indicator stories for baseline, future and ensemble comparisons. This adaptation keeps report-reported regional statistics separate from native grid values, preserves the whole BC dataset, and does not reproduce inconsistent site-table deltas.')
 const nh = envelope('northern-health-climate-resilience', 'Northern Health · Climate-resilient care', 'An independent map-story adaptation of the supplied Northern Health briefing: changing heat, precipitation and seasons, followed by all 18 hospital communities.', nhScenes, [...nhLayers.values(), boundary, hospitalLayer])
 nh.details = [...commonDetails, 'Narrative source: the user-supplied Northern Health climate-resilient health facilities briefing (sections Context, Methodology, Regional Projections and Site Specific Projections; publication date not supplied). Regional callouts are explicitly report-reported population-weighted figures, not newly validated calculations.', 'Source corrections: txgt_29 is >29°C; rx1day/rx5day are amounts, not event counts; tn_min and tn_mean are distinct. Inconsistent copied changes, percentages and units in site tables are intentionally not reproduced. Hospital names and verification flags come from the existing snapshot.']
-nh.links = [...nh.links.filter(link => !link.href.endsWith(nh.slug)), ...categories.map(([id, , title]) => ({ label: title, href: `/dev/projects/${slugFor(id)}` }))]
+nh.links = [...nh.links.filter(link => !link.href.endsWith(nh.slug)), ...categories.map(([id, , title]) => ({ label: title, href: `/projects/${slugFor(id)}` }))]
 nh.catalogMetrics.push({ label: 'Hospital communities', value: String(hospitals.length) })
 nh.layers.find(layer => layer.id === boundary.id).label = 'Northern Health boundary'
 await save(nh)

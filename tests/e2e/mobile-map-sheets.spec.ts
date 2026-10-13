@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const mapRoutes = [
   '/foodmap',
   '/airquality',
-  '/census',
+  '/misc?tab=census',
   '/score-builder',
   '/explorer',
   '/bc-assessment',

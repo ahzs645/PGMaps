@@ -23,7 +23,7 @@ for (const width of [1440, 390]) {
         body: readFileSync('public/data/story-documents/prague/assets/fYs6LDk6BBcJAfy-BZPsX.png'),
       })
     })
-    await page.goto('/dev/projects/example-prague')
+    await page.goto('/projects/example-prague')
     const region = page.locator('#n-WQCHkO')
     const slides = region.locator('.editorial-slide')
     const image = region.locator('.editorial-immersive-media img')
@@ -49,7 +49,7 @@ for (const width of [1440, 390]) {
   test(`Prague section links restore panels and preserve history at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto('/dev/projects/example-prague?reading=test#n-bMeb1v')
+    await page.goto('/projects/example-prague?reading=test#n-bMeb1v')
     const region = page.locator('#n-WQCHkO')
     await expect(region).toHaveAttribute('data-active-slide', '1')
     const historyLength = await page.evaluate(() => history.length)
@@ -76,7 +76,7 @@ for (const width of [1440, 390]) {
     const project = JSON.parse(readFileSync('public/data/projects/example/prague.json', 'utf8'))
     project.workspace.options.sectionUrl = false
     await page.route('**/data/projects/example/prague.json?*', (route) => route.fulfill({ json: project }))
-    await page.goto('/dev/projects/example-prague?reading=test#custom')
+    await page.goto('/projects/example-prague?reading=test#custom')
     await page
       .locator('#n-WQCHkO .editorial-slide')
       .nth(1)
@@ -92,7 +92,7 @@ for (const width of [1440, 390]) {
     const project = JSON.parse(readFileSync('public/data/projects/example/native-editorial.json', 'utf8'))
     project.workspace.options.sectionUrl = true
     await page.route('**/data/projects/example/native-editorial.json?*', (route) => route.fulfill({ json: project }))
-    await page.goto('/dev/projects/example-native-editorial#coast-step')
+    await page.goto('/projects/example-native-editorial#coast-step')
     const sidecar = page.locator('#region-sidecar')
     await expect(sidecar).toHaveAttribute('data-active-slide', '2')
     await page.locator('#cariboo-step').evaluate((element) => element.scrollIntoView({ block: 'start' }))
@@ -112,7 +112,7 @@ test('Prague skips adjacent preloading in data saver mode', async ({ page }) => 
     requested = true
     await route.continue()
   })
-  await page.goto('/dev/projects/example-prague')
+  await page.goto('/projects/example-prague')
   const region = page.locator('#n-WQCHkO')
   await region
     .locator('.editorial-slide')
@@ -130,7 +130,7 @@ test('Prague skips adjacent preloading in data saver mode', async ({ page }) => 
 
 test('Cover playback stops offscreen and preserves the reader pause preference', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
-  await page.goto('/dev/projects/example-prague')
+  await page.goto('/projects/example-prague')
   const video = page.locator('video')
   const reading = page.getByRole('heading', { name: 'What is urban diversity?', exact: true })
   const top = page.getByRole('button', { name: 'The Diverse Prague: Return to top', exact: true })

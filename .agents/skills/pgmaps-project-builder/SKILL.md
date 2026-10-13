@@ -44,7 +44,7 @@ data contract and interaction cannot be expressed by an existing one.
    warnings before calling the package repository-ready.
 6. Regenerate the catalog with `npm run projects:index` after adding or renaming
    a package. Run focused tests, TypeScript, and lint proportional to the change.
-7. Render the canonical `/dev/projects/<slug>` route. Exercise every changed
+7. Render the canonical `/projects/<slug>` route. Exercise every changed
    interaction at desktop and mobile sizes, inspect the browser console, and
    compare the result with the active mode's reference invariants.
 8. If any structural, test, console, interaction, or visual check fails, fix the

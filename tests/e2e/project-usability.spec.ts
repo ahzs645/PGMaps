@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('mobile scrolly exposes the map and preserves the reading position', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/dev/projects/bc-big-tree-registry')
+  await page.goto('/projects/bc-big-tree-registry')
   await expect(page.locator('.maplibregl-canvas')).toBeVisible()
   const toggle = page.getByRole('button', { name: 'Explore map', exact: true })
   await toggle.click()
@@ -18,7 +18,7 @@ test('mobile scrolly exposes the map and preserves the reading position', async 
 
 test('small-phone slides start at the next heading', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
-  await page.goto('/dev/projects/roadless-areas-bc-ecoregions')
+  await page.goto('/projects/roadless-areas-bc-ecoregions')
   const first = page.getByRole('heading', { name: "Two thirds of B.C.'s landbase is roadless", includeHidden: true })
   await expect(first).toBeVisible()
   await page.getByRole('button', { name: 'OK', exact: true }).click()
@@ -40,7 +40,7 @@ test.describe('source recovery', () => {
     await page.route('**/regional_district_environmental_indicators.json', (route) =>
       failing ? route.fulfill({ status: 503, body: 'Unavailable' }) : route.continue(),
     )
-    await page.goto('/dev/projects/bc-population-distribution')
+    await page.goto('/projects/bc-population-distribution')
     await expect(page.getByRole('alert')).toContainText('Could not load')
     await page.locator('.maplibregl-canvas').evaluate((node) => node.setAttribute('data-original-map', 'yes'))
     failing = false
@@ -53,7 +53,7 @@ test.describe('source recovery', () => {
 
 test('mobile research controls and timeline respect filters', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/dev/projects/nechako-watershed-research-portal')
+  await page.goto('/projects/nechako-watershed-research-portal')
   const zoom = page.getByRole('button', { name: 'Zoom in', exact: true })
   await expect(zoom).toBeVisible({ timeout: 30000 })
   expect(
@@ -73,7 +73,7 @@ test('mobile research controls and timeline respect filters', async ({ page }) =
 })
 
 test('research lists expose remaining results and playback restores the static decade', async ({ page }) => {
-  await page.goto('/dev/projects/nechako-watershed-research-portal')
+  await page.goto('/projects/nechako-watershed-research-portal')
   await page.getByRole('button', { name: /publications tagged to watershed region only/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Regional Publications' })
   await expect(dialog.locator('article')).toHaveCount(20)

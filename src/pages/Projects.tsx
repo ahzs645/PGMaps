@@ -830,7 +830,7 @@ function ProjectCatalogPage({
   )
 }
 
-export default function DevProjects() {
+export default function Projects() {
   const { projects, loading, loadError, importProject, removeProject } = useProjectPackages()
   const navigate = useNavigate()
   const { projectSlug: routeProjectSlug } = useParams<{ projectSlug?: string }>()
@@ -864,7 +864,7 @@ export default function DevProjects() {
   // Preserve old shared links while making every project URL path-based and canonical.
   useEffect(() => {
     if (routeProjectSlug || !legacyProjectSlug) return
-    navigate(`/dev/projects/${encodeURIComponent(legacyProjectSlug)}`, { replace: true })
+    navigate(`/projects/${encodeURIComponent(legacyProjectSlug)}`, { replace: true })
   }, [legacyProjectSlug, navigate, routeProjectSlug])
 
   const matchingProjects = useMemo(() => {
@@ -909,7 +909,7 @@ export default function DevProjects() {
     filteredProjects.find((project) => project.slug === previewProjectSlug) ?? filteredProjects[0] ?? null
 
   function openProject(slug: string) {
-    navigate(`/dev/projects/${encodeURIComponent(slug)}`)
+    navigate(`/projects/${encodeURIComponent(slug)}`)
   }
 
   function backToCatalog() {
@@ -920,7 +920,7 @@ export default function DevProjects() {
     setQuery('')
     setFilter('all')
     setPreviewProjectSlug(null)
-    navigate('/dev/projects')
+    navigate('/projects')
   }
 
   async function handleImportFile(file: File) {
@@ -931,7 +931,7 @@ export default function DevProjects() {
       setPreviewProjectSlug(imported.slug)
       setFilter('all')
       setQuery(imported.slug)
-      navigate('/dev/projects')
+      navigate('/projects')
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'The file could not be imported.')
     }

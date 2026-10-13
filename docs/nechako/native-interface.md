@@ -53,7 +53,7 @@ The preview reads research JSON, service definitions and capabilities from the
 app-owned `public/data/nechako-showcase` snapshot captured October 11, 2026. WMS
 images, legends and identify responses and the basemap use live HTTPS sources.
 The boundary is the generated local asset already used by
-`/dev/projects/echoscreen-climate-health`; it is not duplicated in the showcase.
+`/projects/echoscreen-climate-health`; it is not duplicated in the showcase.
 The scraper submodule owns its source shards. Standard data sync builds the shared
 asset; `npm run projects:echoscreen-data -- --watersheds-only` builds just the
 watershed asset for isolated preview/browser checks. Workspace export/restore

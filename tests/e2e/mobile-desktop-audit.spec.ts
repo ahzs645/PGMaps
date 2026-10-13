@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-for (const route of ['/foodmap', '/airquality', '/census', '/explorer']) {
+for (const route of ['/foodmap', '/airquality', '/misc?tab=census', '/explorer']) {
   test(`mobile search reveals and collapses its panel without moving the map: ${route}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(route, { waitUntil: 'domcontentloaded' })

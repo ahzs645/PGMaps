@@ -85,7 +85,7 @@ test('archive vectors retain colours and exact picks, traverse scenes, and recov
     if (r.url().includes('nechakowatershed') && /txgt|Days|precip|GetLegendGraphic/i.test(decodeURIComponent(r.url())))
       climateWms.push(r.url())
   })
-  await page.goto('/dev/projects/echoscreen-climate-health')
+  await page.goto('/projects/echoscreen-climate-health')
   await ready(page, 'hot-days-future')
   expect(fetched.some((url) => /hot-days-past|precip-change/.test(url))).toBe(false)
   await page.screenshot({ path: info.outputPath('archive-future-desktop.png') })
@@ -176,7 +176,7 @@ test('phone legend and sheet expose every archive layer and opacity control', as
   await setup(page)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.goto('/dev/projects/echoscreen-climate-health')
+  await page.goto('/projects/echoscreen-climate-health')
   await page.getByRole('button', { name: 'Expand legend' }).click()
   await ready(page, 'hot-days-future')
   await page.screenshot({ path: info.outputPath('archive-future-phone.png') })

@@ -7,7 +7,7 @@ for (const width of [320, 390, 1024, 1440]) {
     page.on('request', (request) => {
       if (/maplibre[^/]*\.(js|css)/.test(request.url())) mapRequests.push(request.url())
     })
-    await page.goto('/dev/projects')
+    await page.goto('/projects')
     const search = page.getByRole('textbox', { name: 'Search projects' })
     await expect(search).toBeVisible()
     const rows = width < 1280 ? page.locator('article') : page.locator('tbody tr')
@@ -47,7 +47,7 @@ test('an imported project is revealed even after filtering or paging', async ({ 
   fixture.slug = 'pagination-import-fixture'
   fixture.title = 'Pagination import fixture'
   await page.setViewportSize({width:390,height:844})
-  await page.goto('/dev/projects')
+  await page.goto('/projects')
   await page.getByRole('textbox',{name:'Search projects'}).fill('nothing-matches')
   await page.locator('input[type="file"]').setInputFiles({name:'project.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))})
   await expect(page.locator('article')).toHaveCount(1)

@@ -360,7 +360,7 @@ for (const p of palettes) {
                 : 'unclassified'
   const project = projects.find((pr) => pr.file === p.file)
   p.pages = project
-    ? [{ href: `/dev/projects/${project.data.slug}`, evidence: 'Project package' }]
+    ? [{ href: `/projects/${project.data.slug}`, evidence: 'Project package' }]
     : routes
         .filter((r) => reaches(r.file, p.file))
         .map((r) => ({ href: r.href, evidence: 'Source-module import path; verify active layer' }))

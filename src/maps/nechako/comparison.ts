@@ -36,7 +36,7 @@ export const FEATURE_COMPARISON = [
   {
     feature: 'Project catalogue and JSON packages',
     portal: 'Portal project UI tested; listing failed with registration error',
-    pgmaps: '`/dev/projects`, project folders, imported packages, story/explorer modes, Index Lab handoff',
+    pgmaps: '`/projects`, project folders, imported packages, story/explorer modes, Index Lab handoff',
     next: 'Registration blocks live catalogue/defaults. Authorized project transport and revision integration remain server work.',
     devView:
       'Live list/default/form checks plus native portal project file conversion in Layers; existing PGMaps library retained.',

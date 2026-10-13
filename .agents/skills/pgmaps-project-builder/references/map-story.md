@@ -38,7 +38,7 @@ renderer layouts it can affect:
 1. Run the project-package audit and the focused parser/story-scene tests. For a
    renderer change, also run `tests/e2e/project-story-map.spec.ts` and
    `tests/e2e/project-story-layouts.spec.ts`.
-2. Open `/dev/projects/<slug>` at a representative desktop size. Visit every
+2. Open `/projects/<slug>` at a representative desktop size. Visit every
    scene in both directions and verify active-card state, layer visibility,
    highlights/overrides, legend, callouts, places/popups, camera framing, map
    controls, and a clean console.

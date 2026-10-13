@@ -2,7 +2,7 @@
 
 ## Bundled dev showcase
 
-Open `/dev/nechako` (or `/dev/nechako?view=showcase`) to test the committed public snapshot. Research browsing, the research map/timeline, WMS catalogue/capability inspection and the format registry use repository files by default. Research and catalogue controls also allow the live source. The existing `/dev/projects/nechako-watershed-research-portal` project still reads its original live source.
+Open `/dev/nechako` (or `/dev/nechako?view=showcase`) to test the committed public snapshot. Research browsing, the research map/timeline, WMS catalogue/capability inspection and the format registry use repository files by default. Research and catalogue controls also allow the live source. The existing `/projects/nechako-watershed-research-portal` project still reads its original live source.
 
 `public/data/nechako-showcase/` is **app-owned showcase data**, preserved by the data-sync script's clean mode. Its 42 data files total **1,257,503 bytes**, excluding the manifest: 1,408 research records, 51 location IDs, 12 decades, 32 WMS services with 135 named layers/groups, eight public Zotero HTML attachment links, the spatial format registry, access-check evidence and derived location/workspace files. Each file has a source URL, byte count and SHA-256 in `manifest.json`.
 

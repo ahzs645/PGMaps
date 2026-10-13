@@ -20,7 +20,7 @@
   "links": [
     {
       "label": "All interaction examples",
-      "href": "/dev/projects?collection=example"
+      "href": "/projects?collection=example"
     },
     {
       "label": "Read the crosswalk and dashboard joining guide",

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Compass, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, TreePine, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Compass, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, TreePine, Wind } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -183,14 +183,6 @@ const devEntries: DevEntry[] = [
     icon: RadioTower,
     color: 'bg-blue-600',
     label: '/dev/networks',
-  },
-  {
-    title: 'Project Mode',
-    description: 'Prototype for preset project cards, story scenes, layer/legend/project tabs, and Index Lab handoff.',
-    href: '/dev/projects',
-    icon: FolderKanban,
-    color: 'bg-slate-800',
-    label: '/dev/projects',
   },
   {
     title: 'Outdoors Planner',

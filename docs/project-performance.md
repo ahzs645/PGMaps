@@ -12,7 +12,7 @@ pagination with an accumulating “load more” list without a DOM bound.
 
 Reusable ownership boundaries:
 
-- `pages/DevProjects.tsx`: catalog and routing, summary/package loading.
+- `pages/Projects.tsx`: catalog and routing, summary/package loading.
 - `maps/project-workspace/`: generic portal/recipe workspace and lightweight
   shared presentation metadata. Story, research, and score renderers load lazily.
 - `maps/project-story/storySources.ts`: source lifecycle, request deduplication,

@@ -43,7 +43,7 @@ list what a developer or project owner must resolve.
 3. Run `npm run projects:index` after adding or renaming it.
 4. Run `npm run projects:index:check`, parser tests, TypeScript, and relevant
    renderer tests.
-5. Open `/dev/projects/<slug>` at desktop and mobile widths. Verify loading,
+5. Open `/projects/<slug>` at desktop and mobile widths. Verify loading,
    empty/error states, sidebar/sheet behavior, map controls, popups, legends,
    and any timeline.
 

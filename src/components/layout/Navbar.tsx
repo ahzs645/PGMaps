@@ -3,7 +3,7 @@ import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useMatch } from 'react-router-dom'
 import { projectCatalogDestination } from '@/lib/projectCollections'
-import { Map, Layers, FlaskConical, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Map, Layers, FlaskConical, Wind, FolderKanban, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -16,7 +16,7 @@ const navLinks = [
   { path: '/foodmap', label: 'Food Safety', icon: UtensilsCrossed },
   { path: '/airquality', label: 'Air Quality', icon: Wind },
   { path: '/pgdata?tab=parks', label: 'Parks & Trails', icon: Trees },
-  { path: '/census', label: 'Census', icon: BarChart3 },
+  { path: '/projects', label: 'Projects', icon: FolderKanban },
   { path: '/explorer', label: 'Explorer', icon: Layers },
   { path: '/labs', label: 'Labs', icon: FlaskConical },
   { path: '/bc-assessment', label: 'Assessment', icon: Building2 },
@@ -45,11 +45,9 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/score-builder': 'Index Lab',
   '/density-lab': 'Density Lab',
   '/correlation-lab': 'Correlation Lab',
-  '/socioeconomic': 'Census',
   '/dev': 'Dev Library',
   '/dev/nechako': 'Nechako Portal',
   '/dev/nechako/portal': 'Nechako Portal',
-  '/dev/projects': 'Projects',
   '/dev/boundaries': 'Boundaries',
   '/dev/boundaries/bcer': 'BCER Compare',
   '/dev/design': 'Design',
@@ -82,10 +80,10 @@ export function Navbar() {
   // The desktop nav scrolls sideways between md and xl; these fades say so.
   const [navOverflow, setNavOverflow] = useState({ left: false, right: false })
   const locationParams = new URLSearchParams(location.search)
-  const isProjectPage = location.pathname.startsWith('/dev/projects/') || (
-    location.pathname === '/dev/projects' && locationParams.has('project')
+  const isProjectPage = location.pathname.startsWith('/projects/') || (
+    location.pathname === '/projects' && locationParams.has('project')
   )
-  const projectRoute = useMatch('/dev/projects/:projectSlug')
+  const projectRoute = useMatch('/projects/:projectSlug')
   const projectBack = projectCatalogDestination(projectRoute?.params.projectSlug ?? locationParams.get('project'))
   const showProjectBackButton = isProjectPage
   const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
@@ -106,6 +104,7 @@ export function Navbar() {
       return location.pathname === '/misc'
     }
     if (path === '/labs') return LAB_PATHS.has(location.pathname)
+    if (path === '/projects') return location.pathname === '/projects' || location.pathname.startsWith('/projects/')
     return location.pathname === path
   }
 

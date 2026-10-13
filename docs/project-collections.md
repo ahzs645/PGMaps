@@ -13,7 +13,7 @@ The initial **B.C. Climate & Health** folder contains the Northern Health
 resilience narrative, EchoScreen, and all 18 climate-category stories. Counts are
 derived from loaded catalog summaries, not hard-coded in the UI.
 
-- Share a folder with `/dev/projects?collection=bc-climate-health`.
+- Share a folder with `/projects?collection=bc-climate-health`.
 - The root catalog lists folders as ordinary entries, pinned ahead of the
   ungrouped projects in the same table (desktop) or card grid (smaller widths);
   see `src/components/projects/ProjectFolderEntries.tsx`. Members are not repeated

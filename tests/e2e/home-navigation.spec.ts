@@ -36,11 +36,19 @@ test.describe('Home Page Navigation', () => {
   })
 
   test('navbar links work and highlight active page', async ({ page }) => {
-    await page.goto('/census', { waitUntil: 'domcontentloaded' })
+    await page.goto('/projects', { waitUntil: 'domcontentloaded' })
 
-    // Census link should be active
-    const censusLink = page.locator('nav').getByText('Census')
-    await expect(censusLink).toBeVisible()
+    const projectsLink = page.locator('nav').getByRole('link', { name: 'Projects' })
+    await expect(projectsLink).toBeVisible()
+    await expect(projectsLink).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('moved routes redirect: census into MISC, projects out of dev', async ({ page }) => {
+    await page.goto('/census?level=da', { waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/misc\?level=da&tab=census$/)
+
+    await page.goto('/dev/projects?collection=example', { waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/projects\?collection=example$/)
   })
 
   test('navbar leaves selected air quality monitor URLs for PG Data tabs', async ({ page }) => {

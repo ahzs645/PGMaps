@@ -1,6 +1,6 @@
 # Story interaction examples
 
-Open `/dev/projects?collection=example`. Each example is an independently usable
+Open `/projects?collection=example`. Each example is an independently usable
 `story-map-v1` package and works on desktop and phones.
 
 | Package | Interaction |
@@ -51,7 +51,7 @@ The `interaction` scene schema and renderer rules are documented in
 `prague.json` recreates **The Diverse Prague** using the original supplied story
 content, media, tours and map definitions. Its document and credited assets live
 under `public/data/story-documents/prague`; the wrapper selects the reusable
-`workspace.document` adapter. Open `/dev/projects/example-prague`.
+`workspace.document` adapter. Open `/projects/example-prague`.
 
 See the [story presentation reuse audit](../../../../docs/story-component-reuse-audit.md)
 for the component behind every Prague section, which styles are configurable in

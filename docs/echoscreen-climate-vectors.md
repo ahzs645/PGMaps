@@ -1,6 +1,6 @@
 # EchoScreen consultant climate vectors
 
-The canonical `/dev/projects/echoscreen-climate-health` package uses the verified
+The canonical `/projects/echoscreen-climate-health` package uses the verified
 consultant GeoPackage, not the live portal's >30°C surface. Heat is annual days
 above **29°C**, P50, SSP585, BCCAQv2 CMIP6. Past and future are 1971–2000 and
 2071–2100. Summer and winter precipitation change is future minus past in mm,

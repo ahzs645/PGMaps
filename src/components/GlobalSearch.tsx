@@ -42,7 +42,6 @@ interface GlobalSearchProps {
 const mapSearchPaths = new Set([
   '/airquality',
   '/bc-assessment',
-  '/census',
   '/dev/aqmap',
   '/dev/interact',
   '/explorer',
@@ -52,7 +51,6 @@ const mapSearchPaths = new Set([
   '/score-builder',
   '/density-lab',
   '/correlation-lab',
-  '/socioeconomic',
 ])
 
 function staticSearchIndex(): SearchItem[] {
@@ -88,7 +86,7 @@ function staticSearchIndex(): SearchItem[] {
     'text-orange-500',
   )
   addDatasetItem('dataset-air', 'Air monitoring stations dataset', 'airQuality', '/airquality', Wind, 'text-sky-500')
-  addDatasetItem('dataset-census', '2021 Census variables catalogue', 'census', '/census', BarChart3, 'text-amber-600')
+  addDatasetItem('dataset-census', '2021 Census variables catalogue', 'census', '/misc?tab=census', BarChart3, 'text-amber-600')
   addDatasetItem(
     'dataset-parks',
     'Parks, trails, and amenities datasets',
@@ -162,7 +160,7 @@ function staticSearchIndex(): SearchItem[] {
       label: 'Census Data',
       sublabel: 'Choropleth census patterns',
       section: 'Maps',
-      sectionPath: '/census',
+      sectionPath: '/misc?tab=census',
       icon: BarChart3,
       iconColor: 'text-amber-600',
     },
@@ -189,7 +187,7 @@ function staticSearchIndex(): SearchItem[] {
       label: 'Projects',
       sublabel: 'Map stories, project folders, and Index Lab presets',
       section: 'Maps',
-      sectionPath: '/dev/projects',
+      sectionPath: '/projects',
       icon: FolderKanban,
       iconColor: 'text-cyan-600',
     },
@@ -268,7 +266,7 @@ const SEARCH_SOURCES: SearchSource[] = [
   {
     key: 'census',
     section: 'Census Variables',
-    sectionPath: '/census',
+    sectionPath: '/misc?tab=census',
     icon: BarChart3,
     iconColor: 'text-amber-600',
     load: localIndex('census'),
@@ -284,7 +282,7 @@ const SEARCH_SOURCES: SearchSource[] = [
   {
     key: 'projects',
     section: 'Projects',
-    sectionPath: '/dev/projects',
+    sectionPath: '/projects',
     icon: FolderKanban,
     iconColor: 'text-cyan-600',
     load: async () => {
@@ -307,7 +305,7 @@ const SEARCH_SOURCES: SearchSource[] = [
           id: `project-${project.slug}`,
           label: project.title,
           sublabel: `${KIND_LABELS[project.kind]} | ${project.summary}`,
-          sectionPath: `/dev/projects/${encodeURIComponent(project.slug)}`,
+          sectionPath: `/projects/${encodeURIComponent(project.slug)}`,
         })),
       ]
     },
@@ -472,8 +470,12 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
 
   const navigateTo = useCallback(
     (item: SearchItem) => {
-      const params = item.params ? '?' + new URLSearchParams(item.params).toString() : ''
-      navigate(`${item.sectionPath}${params}`)
+      // A section path may carry its own query (e.g. a MISC tab); item params join it.
+      const [pathname, sectionQuery = ''] = item.sectionPath.split('?')
+      const params = new URLSearchParams(sectionQuery)
+      for (const [key, value] of Object.entries(item.params ?? {})) params.set(key, value)
+      const query = params.toString()
+      navigate(query ? `${pathname}?${query}` : pathname)
       setOpen(false)
       setQuery('')
     },

@@ -34,7 +34,7 @@ for (const width of [1440, 390])
     test(`native camera revisits animate at ${width}px with ${reducedMotion} motion`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.emulateMedia({ reducedMotion })
-      await page.goto('/dev/projects/example-native-editorial')
+      await page.goto('/projects/example-native-editorial')
       const sidecar = page.locator('#region-sidecar')
       const map = sidecar.getByTestId('native-story-map')
       await page
@@ -71,7 +71,7 @@ for (const width of [1440, 390])
     await page.emulateMedia({ reducedMotion: 'reduce' })
     const errors: string[] = []
     page.on('pageerror', (e) => errors.push(e.message))
-    await page.goto('/dev/projects/example-native-editorial')
+    await page.goto('/projects/example-native-editorial')
     await expect(page.getByRole('heading', { name: 'One story, reusable pieces', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Back to example', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Categories that connect', exact: true }).click()
@@ -194,7 +194,7 @@ for (const [width, sameStyle] of [
         },
       })
     })
-    await page.goto('/dev/projects/example-native-editorial')
+    await page.goto('/projects/example-native-editorial')
     const linked = page.locator('#linked-map')
     await linked.scrollIntoViewIfNeeded()
     const map = linked.getByTestId('native-story-map')

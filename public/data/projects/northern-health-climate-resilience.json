@@ -32,75 +32,75 @@
     },
     {
       "label": "Mean annual temperature",
-      "href": "/dev/projects/bc-climate-mean-temperature"
+      "href": "/projects/bc-climate-mean-temperature"
     },
     {
       "label": "Cooling degree days above 18°C",
-      "href": "/dev/projects/bc-climate-cooling-degree-days"
+      "href": "/projects/bc-climate-cooling-degree-days"
     },
     {
       "label": "Heating degree days below 18°C",
-      "href": "/dev/projects/bc-climate-heating-degree-days"
+      "href": "/projects/bc-climate-heating-degree-days"
     },
     {
       "label": "Days above 29°C",
-      "href": "/dev/projects/bc-climate-days-above-29c"
+      "href": "/projects/bc-climate-days-above-29c"
     },
     {
       "label": "Hottest day of the year",
-      "href": "/dev/projects/bc-climate-hottest-day"
+      "href": "/projects/bc-climate-hottest-day"
     },
     {
       "label": "Coldest night of the year",
-      "href": "/dev/projects/bc-climate-coldest-night"
+      "href": "/projects/bc-climate-coldest-night"
     },
     {
       "label": "Nights above 18°C",
-      "href": "/dev/projects/bc-climate-nights-above-18c"
+      "href": "/projects/bc-climate-nights-above-18c"
     },
     {
       "label": "Annual frost days",
-      "href": "/dev/projects/bc-climate-frost-days"
+      "href": "/projects/bc-climate-frost-days"
     },
     {
       "label": "Annual ice days",
-      "href": "/dev/projects/bc-climate-ice-days"
+      "href": "/projects/bc-climate-ice-days"
     },
     {
       "label": "Frost-free season length",
-      "href": "/dev/projects/bc-climate-frost-free-season"
+      "href": "/projects/bc-climate-frost-free-season"
     },
     {
       "label": "Annual total precipitation",
-      "href": "/dev/projects/bc-climate-annual-precipitation"
+      "href": "/projects/bc-climate-annual-precipitation"
     },
     {
       "label": "Annual maximum 1-day precipitation",
-      "href": "/dev/projects/bc-climate-wettest-day"
+      "href": "/projects/bc-climate-wettest-day"
     },
     {
       "label": "Annual maximum 5-day precipitation",
-      "href": "/dev/projects/bc-climate-wettest-five-days"
+      "href": "/projects/bc-climate-wettest-five-days"
     },
     {
       "label": "Days above 32°C",
-      "href": "/dev/projects/bc-climate-days-above-32c"
+      "href": "/projects/bc-climate-days-above-32c"
     },
     {
       "label": "Mean daily minimum temperature",
-      "href": "/dev/projects/bc-climate-mean-daily-minimum"
+      "href": "/projects/bc-climate-mean-daily-minimum"
     },
     {
       "label": "Mean daily maximum temperature",
-      "href": "/dev/projects/bc-climate-mean-daily-maximum"
+      "href": "/projects/bc-climate-mean-daily-maximum"
     },
     {
       "label": "Seasonal total precipitation",
-      "href": "/dev/projects/bc-climate-seasonal-precipitation"
+      "href": "/projects/bc-climate-seasonal-precipitation"
     },
     {
       "label": "Annual precipitation as snow",
-      "href": "/dev/projects/bc-climate-precipitation-as-snow"
+      "href": "/projects/bc-climate-precipitation-as-snow"
     }
   ],
   "catalogMetrics": [

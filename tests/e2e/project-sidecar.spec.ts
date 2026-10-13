@@ -149,7 +149,7 @@ for (const variant of VARIANTS) {
       })
 
       try {
-        await page.goto(`/dev/projects/example-sidecar-${variant}`, { waitUntil: 'domcontentloaded' })
+        await page.goto(`/projects/example-sidecar-${variant}`, { waitUntil: 'domcontentloaded' })
         await expect(page.getByTestId('sidecar-cover')).toBeVisible()
         await expect(page.locator('.maplibregl-canvas')).toHaveCount(1)
         const primaryCanvas = await page.locator('.maplibregl-canvas').elementHandle()

@@ -46,7 +46,7 @@ for (const viewport of [
       page.on('console', (message) => {
         if (message.type() === 'error') errors.push(message.text())
       })
-      await page.goto(`/dev/projects/example-${example.slug}`)
+      await page.goto(`/projects/example-${example.slug}`)
       await expect(page.locator('.maplibregl-canvas')).toBeVisible()
       const block = page.locator(`[data-story-interaction="${example.type}"]:visible`)
       for (const i of [...example.targets.keys(), ...[...example.targets.keys()].reverse()]) {
@@ -72,7 +72,7 @@ for (const viewport of [
 }
 
 test('example folder exposes all twelve projects', async ({ page }) => {
-  await page.goto('/dev/projects?collection=example')
+  await page.goto('/projects?collection=example')
   await expect(page.getByRole('heading', { name: 'example', exact: true })).toBeVisible()
   for (const title of [
     '01 · Docked narrative',

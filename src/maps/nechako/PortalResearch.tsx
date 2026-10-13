@@ -88,7 +88,7 @@ function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef })
         collection is separate from Stewardship Portal submissions.
       </p>
       <Link
-        to="/dev/projects/nechako-watershed-research-portal"
+        to="/projects/nechako-watershed-research-portal"
         className="inline-block text-sm text-primary underline"
       >
         Open the existing map and timeline

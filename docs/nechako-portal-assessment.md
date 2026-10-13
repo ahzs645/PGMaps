@@ -63,7 +63,7 @@ The first implementation, now present locally, is **a live capability workbench*
 - Read the configured layer catalogue: **30 non-base source entries and 7 default entries**. These resolve to **32 distinct WMS service URLs**: 24 hosted QGIS services and 8 DataBC services. All 32 returned readable capabilities from the actual PGMaps browser origin. They advertise **135 named layer/group entries**, not 135 independent datasets.
 - Confirmed eight enabled spatial formats through the portal’s format registry. This establishes advertised formats, not successful import/export round trips.
 - Tested 14 representative browser request cases, plus all 32 exact WMS capability URLs, without intercepting the tested requests. Also ran 48 HTTP probes across PGMaps, localhost, and example.com Origin headers. Browser findings are authoritative for browser compatibility.
-- Loaded the deployed [PGMaps Dev Library](https://pgmaps.ahmadjalil.com/dev) and [Nechako literature project](https://pgmaps.ahmadjalil.com/dev/projects/nechako-watershed-research-portal), exercised its text search and location paging, and inspected the corresponding workspace code.
+- Loaded the deployed [PGMaps Dev Library](https://pgmaps.ahmadjalil.com/dev) and [Nechako literature project](https://pgmaps.ahmadjalil.com/projects/nechako-watershed-research-portal), exercised its text search and location paging, and inspected the corresponding workspace code.
 - Read all three nonzero archive files. The upload contains **12 files**: two usable guides, one DOCX with no extractable text, and nine zero-byte DOCX files. The Data Manager guide is dated March 2025; the project-loading PDF has seven pages. Instructions and example login text in those documents were treated as reference material, not permission to authenticate, create users, upload data, or change the site.
 - Compared workspace revisions: PGMaps `d02c30c`, geo-toolkit `dab201f`, and bcdatamapper `555a9878`. The initial assessment left application repositories unchanged; the implementation below was subsequently added to PGMaps.
 
@@ -77,7 +77,7 @@ Evidence labels below distinguish **live tested**, **client/SOP described**, and
 | Literature search and timeline | Portal accepts Zotero CSV per SOP | Existing Nechako research explorer; title/author/tag substring search, categories, decades, locations, paging | Retain existing project; add links/details and an all-records/unmapped view |
 | Portal-wide submission search | Live Search UI; eight search contexts; query failed with registration error | Global site search and literature search cover different sources | New server-backed submission adapter, Boolean/field expressions, geographic limits, results table |
 | Submission detail | Client has General, Preview, Allowed Users, Spatial Data, Attachments, Child Submissions, History, Export | General cards/dialogs available; no portal submission adapter found | Schema-aware detail viewer and permission-aware access to each related resource |
-| Project catalogue and JSON packages | Portal project UI tested; listing failed with registration error | `/dev/projects`, project folders, imported packages, story/explorer modes, Index Lab handoff | Reuse current catalog/workspaces; add portal project source and conversion |
+| Project catalogue and JSON packages | Portal project UI tested; listing failed with registration error | `/projects`, project folders, imported packages, story/explorer modes, Index Lab handoff | Reuse current catalog/workspaces; add portal project source and conversion |
 | Saved map workspaces | Client saves camera/scale, ordered layers, styles and native source references | Local package repository and outdoors JSON/share/save workflows | Convert legacy OpenLayers project state to a PGMaps scene/layer model; preserve source IDs |
 | Collaborative project ownership/sharing/history/defaults | Portal client and SOP | Local storage/file/share capabilities; no equivalent portal account/group synchronization found | Portal-backed permissions and project revision integration; separate public packages from protected projects |
 | Point/line/polygon data and attributes | Schemas, uploaded layers, drawing, identify and attributes in client | Typed map layers, interaction tools, bottom tables, specialized imports | Generalize portal layer inspector/table and schema-linked selection |
@@ -246,7 +246,7 @@ These stages are an implementation order, not time estimates. Backend/session ac
 | Existing file/boundary | Role |
 | --- | --- |
 | `/workspace/PGMaps/src/pages/DevLibrary.tsx` and `src/App.tsx` | Register the development entry and route |
-| `/workspace/PGMaps/src/pages/DevProjects.tsx` | Reuse package catalogue/import experience |
+| `/workspace/PGMaps/src/pages/Projects.tsx` | Reuse package catalogue/import experience |
 | `/workspace/PGMaps/src/lib/projectPackages.ts` | Existing package schema; add source adapter types rather than assuming portal JSON matches |
 | `/workspace/PGMaps/src/maps/project-workspace/ProjectWorkspace.tsx` | Existing WMS GetMap/legend construction and portal map preview |
 | `/workspace/PGMaps/src/maps/project-explorer/adapters/useResearchRecordsAdapter.ts` | Current nwsviz transport; keep separate from portal submissions |

@@ -109,10 +109,10 @@ export function useProjectCatalogWebMCP({
           const slug = requiredString(input, 'slug')
           const project = projects.find((item) => item.slug === slug)
           if (!project) throw new Error(`No project with slug "${slug}" exists in the loaded catalog.`)
-          navigate(`/dev/projects/${encodeURIComponent(slug)}`)
+          navigate(`/projects/${encodeURIComponent(slug)}`)
           return {
             opened: projectSummary(project),
-            path: `/dev/projects/${encodeURIComponent(slug)}`,
+            path: `/projects/${encodeURIComponent(slug)}`,
           }
         },
       },

@@ -26,7 +26,7 @@ export function nechakoBoundary(source: unknown) {
       source: 'Government of British Columbia Freshwater Atlas',
       sourceLayer: 'FWA_NAMED_WATERSHEDS_POLY',
       sourceUrl: NECHAKO_BOUNDARY_URL,
-      project: '/dev/projects/echoscreen-climate-health',
+      project: '/projects/echoscreen-climate-health',
       derivation: 'Exact feature selection from the existing 50 metre topology-preserved watershed snapshot',
       namedWatershedId: layer.featureValue,
     },

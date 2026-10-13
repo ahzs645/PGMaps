@@ -92,7 +92,7 @@ test('census fetches only the selected level and loads a second level on demand'
     return route.fulfill({ json: censusFeature(level) })
   })
   await page.route('**/data/census/variables/catalog.json', (route) => route.fulfill({ json: { categories: [] } }))
-  await page.goto('/census?level=da')
+  await page.goto('/misc?tab=census&level=da')
   await expect(page.getByText('1 of 1 units', { exact: true })).toBeVisible()
   await captureMap(page)
   expect(requested).toEqual(['da'])
@@ -103,7 +103,8 @@ test('census fetches only the selected level and loads a second level on demand'
   await expect.poll(() => requested).toEqual(['da', 'ct'])
   await page.getByRole('combobox', { name: 'Boundary level', exact: true }).click()
   await page.getByRole('option', { name: 'Dissemination Area (DA)', exact: true }).click()
-  await expect(page).toHaveURL(/level=da/)
+  // DA is the default level, so its param may be dropped rather than written.
+  await expect(page).not.toHaveURL(/level=ct/)
   await expect(page.getByText('1 of 1 units', { exact: true })).toBeVisible()
   await expect.poll(() => requested).toEqual(['da', 'ct'])
 })

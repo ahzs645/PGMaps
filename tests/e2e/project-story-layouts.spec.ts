@@ -100,7 +100,7 @@ for (const story of STORIES) {
       })
 
       try {
-        await page.goto(`/dev/projects/${story.slug}`, { waitUntil: 'domcontentloaded' })
+        await page.goto(`/projects/${story.slug}`, { waitUntil: 'domcontentloaded' })
         const map = page.locator('.maplibregl-map')
         const canvas = page.locator('.maplibregl-canvas')
         await expect(map).toBeVisible({ timeout: 30_000 })

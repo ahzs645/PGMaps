@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const STORY_URL = '/dev/projects/where-is-north-bc'
+const STORY_URL = '/projects/where-is-north-bc'
 
 test.describe('JSON map story', () => {
   test('uses a project slug and lets the mobile map extend behind the toolbar', async ({ page }) => {
@@ -16,7 +16,7 @@ test.describe('JSON map story', () => {
   })
 
   test('redirects legacy project query links to the canonical slug', async ({ page }) => {
-    await page.goto('/dev/projects?project=where-is-north-bc')
+    await page.goto('/projects?project=where-is-north-bc')
     await expect(page).toHaveURL(new RegExp(`${STORY_URL}$`))
   })
 
@@ -24,7 +24,7 @@ test.describe('JSON map story', () => {
     const layerRequests: string[] = []
     page.on('request', (request) => {
       const url = new URL(request.url())
-      // The `?import` variant is DevProjects' static import, not a map source.
+      // The `?import` variant is the Projects page's static import, not a map source.
       if (/^\/data\/(boundaries|census)\//.test(url.pathname) && !url.search.includes('import')) {
         layerRequests.push(url.pathname)
       }

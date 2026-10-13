@@ -58,7 +58,7 @@ describe('project collections', () => {
   })
 
   it('uses shareable folder URLs and treats unknown folders explicitly', () => {
-    expect(collectionHref('bc-climate-health')).toBe('/dev/projects?collection=bc-climate-health')
+    expect(collectionHref('bc-climate-health')).toBe('/projects?collection=bc-climate-health')
     expect(getProjectCollection('unknown')).toBeUndefined()
     expect(getProjectCollection(null)).toBeUndefined()
   })

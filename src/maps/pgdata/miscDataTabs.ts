@@ -1,9 +1,10 @@
-import { Database, Droplets, Flame, Footprints, LandPlot, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
+import { BarChart3, Database, Droplets, Flame, Footprints, LandPlot, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
 import type { SectionTab } from '@/components/layout/SectionTabsBar'
 
 export type MiscDataTab =
   | 'heatShade'
   | 'canue'
+  | 'census'
   | 'network'
   | 'ev'
   | 'icbc'
@@ -20,6 +21,7 @@ export type MiscDataTab =
 export const MISC_TABS: Array<SectionTab<MiscDataTab>> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees, shortLabel: 'Shade' },
   { id: 'canue', label: 'CANUE', icon: Database },
+  { id: 'census', label: 'Census', icon: BarChart3 },
   { id: 'network', label: 'Network', icon: RadioTower },
   { id: 'ev', label: 'EV Chargers', icon: Zap },
   { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
@@ -37,6 +39,7 @@ export const MISC_TABS: Array<SectionTab<MiscDataTab>> = [
 export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
   heatShade: 'Heat & Shade Layers',
   canue: 'CANUE Layer',
+  census: 'Census',
   network: 'Network Sources',
   ev: 'EV Chargers',
   icbc: 'ICBC Layer',

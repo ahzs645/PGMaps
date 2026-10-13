@@ -19,7 +19,7 @@ async function save(name, title, layout, summary, scenes, extraLayers = []) {
   const pkg = clone(base)
   Object.assign(pkg, { slug: `example-${name}`, title, summary, status: 'Interaction example', updated: '2026-09-27', scenes,
     catalogMetrics: [{ label: 'Scenes', value: String(scenes.length) }, { label: 'Layout', value: layout }],
-    details: [summary, ...base.details], links: [{ label: 'All interaction examples', href: '/dev/projects?collection=example' }, ...base.links] })
+    details: [summary, ...base.details], links: [{ label: 'All interaction examples', href: '/projects?collection=example' }, ...base.links] })
   pkg.workspace.options = { layout, sceneTransition: 'ease', sceneTransitionMs: 500, legendCollapsed: 'auto', cameraFit: 'auto', mobileSheet: 'collapsed', mobilePeekSceneText: true, slidesSwipeHint: 'pane' }
   if (name === 'hierarchy' || name === 'relationships' || name === 'comparison') pkg.workspace.options.slidesSwipeHint = 'off'
   pkg.workspace.layers.push(...extraLayers)

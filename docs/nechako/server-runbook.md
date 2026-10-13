@@ -70,7 +70,7 @@ GeoPaparazzi currently supports read-only table inventory, not verified form/pho
 
 Build the existing toolkit and JSON URL dependency, then run TypeScript/Vite and the existing `scripts/write-spa-fallback.mjs`. Preserve project data/submodule pins. Deploy through the host's existing process. Configure history fallback to `index.html` for app routes while leaving missing assets/API paths as real 404s. The deployed literature deep link returned HTTP 404 even though client navigation worked; the host must actually apply the fallback.
 
-Verify direct visits and refresh on `/dev/nechako?view=files`, `/dev/nechako?view=monitoring` and `/dev/projects/nechako-watershed-research-portal`. Verify HTTPS, mobile layout, no console exceptions, source attribution, portal links, public reads and the converter's explicit availability state. The local production bundle does not prove remote deployment.
+Verify direct visits and refresh on `/dev/nechako?view=files`, `/dev/nechako?view=monitoring` and `/projects/nechako-watershed-research-portal`. Verify HTTPS, mobile layout, no console exceptions, source attribution, portal links, public reads and the converter's explicit availability state. The local production bundle does not prove remote deployment.
 
 ## 6. Protected workflow acceptance
 

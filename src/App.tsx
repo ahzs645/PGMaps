@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate, Link } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useLocation, useParams } from 'react-router-dom'
 import { MapPinned } from 'lucide-react'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -11,7 +11,6 @@ import Home from '@/pages/Home'
 const SharedMapLayout = lazy(() => import('@/components/layout/SharedMapLayout').then((m) => ({ default: m.SharedMapLayout })))
 const FoodMap = lazy(() => import('@/maps/foodmap').then((m) => ({ default: m.FoodMap })))
 const AirQualitySection = lazy(() => import('@/maps/airquality').then((m) => ({ default: m.AirQualitySection })))
-const CensusSection = lazy(() => import('@/maps/census').then((m) => ({ default: m.CensusSection })))
 const Labs = lazy(() => import('@/pages/Labs'))
 const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then((m) => ({ default: m.ScoreBuilderSection })))
 const ExplorerSection = lazy(() => import('@/maps/explorer').then((m) => ({ default: m.ExplorerSection })))
@@ -44,7 +43,7 @@ const DevViewshedTerrain = lazy(() => import('@/pages/DevViewshedTerrain'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
-const DevProjects = lazy(() => import('@/pages/DevProjects'))
+const Projects = lazy(() => import('@/pages/Projects'))
 const DevWaterTemperature = lazy(() => import('@/pages/DevWaterTemperature'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then((m) => ({ default: m.AqMapSection })))
 
@@ -54,6 +53,24 @@ function RouteLoadingFallback() {
       <MapLoader label="Loading map" />
     </div>
   )
+}
+
+/** Redirects a moved route while keeping its query string and hash. */
+function LegacyRedirect({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: to, search, hash }} replace />
+}
+
+function LegacyProjectRedirect() {
+  const { projectSlug = '' } = useParams()
+  return <LegacyRedirect to={`/projects/${encodeURIComponent(projectSlug)}`} />
+}
+
+function CensusRedirect() {
+  const { search, hash } = useLocation()
+  const params = new URLSearchParams(search)
+  params.set('tab', 'census')
+  return <Navigate to={{ pathname: '/misc', search: `?${params.toString()}`, hash }} replace />
 }
 
 function NotFound() {
@@ -89,9 +106,15 @@ function App() {
               <Route path="/airquality" element={<AirQualitySection />} />
               <Route path="/pgdata" element={<PGDataSection />} />
             </Route>
-            <Route path="/census" element={<CensusSection />} />
-            <Route path="/socioeconomic" element={<CensusSection />} />
+            {/* Census moved into MISC as a tab. */}
+            <Route path="/census" element={<CensusRedirect />} />
+            <Route path="/socioeconomic" element={<CensusRedirect />} />
             <Route path="/parks" element={<Navigate to="/pgdata?tab=parks" replace />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:projectSlug" element={<Projects />} />
+            {/* Projects graduated from the dev library; old links keep working. */}
+            <Route path="/dev/projects" element={<LegacyRedirect to="/projects" />} />
+            <Route path="/dev/projects/:projectSlug" element={<LegacyProjectRedirect />} />
             <Route path="/labs" element={<Labs />} />
             {/* One pipeline, three pages; the keys keep each lab's state separate. */}
             <Route path="/score-builder" element={<ScoreBuilderSection key="index" lab="index" />} />
@@ -128,9 +151,7 @@ function App() {
             <Route path="/dev/flatten" element={<DevFlatten key="sf" />} />
             <Route path="/dev/flatten/pg" element={<DevFlatten key="pg" cityId="pg" />} />
             <Route path="/dev/outdoors" element={<DevOutdoors />} />
-            <Route path="/dev/projects" element={<DevProjects />} />
             <Route path="/dev/water-temperature" element={<DevWaterTemperature />} />
-            <Route path="/dev/projects/:projectSlug" element={<DevProjects />} />
             <Route path="/dev/aqmap" element={<AqMapSection />} />
             <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
             <Route path="/dev/aqmap/ring" element={<AqMapSection variant="ring" />} />

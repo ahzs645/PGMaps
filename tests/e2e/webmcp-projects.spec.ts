@@ -72,7 +72,7 @@ test('WebMCP tools follow the page and update the visible map workspace', async 
   test.setTimeout(60_000)
   const runtimeErrors = captureRuntimeErrors(page)
   await installWebMCPTestHost(page)
-  await page.goto('/dev/projects')
+  await page.goto('/projects')
 
   await expect
     .poll(() => toolNames(page))
@@ -87,7 +87,7 @@ test('WebMCP tools follow the page and update the visible map workspace', async 
   })
 
   await executeTool(page, 'open_map_project', { slug: 'echoscreen-climate-health' })
-  await expect(page).toHaveURL(/\/dev\/projects\/echoscreen-climate-health$/)
+  await expect(page).toHaveURL(/\/projects\/echoscreen-climate-health$/)
   await expect(page.getByRole('heading', { name: 'EchoScreen Cumulative Impacts Study' })).toBeVisible()
 
   await expect
@@ -188,7 +188,7 @@ test('research tools filter shared data and open a mapped location', async ({ pa
     const file = new URL(route.request().url()).pathname.split('/').at(-1) ?? ''
     await route.fulfill({ json: fixtures[file] })
   })
-  await page.goto('/dev/projects/nechako-watershed-research-portal')
+  await page.goto('/projects/nechako-watershed-research-portal')
 
   await expect
     .poll(() => toolNames(page))
