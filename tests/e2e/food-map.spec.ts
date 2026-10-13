@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test'
 
+/** The history button carries the record count, e.g. "Inspection history (3)". */
+const INSPECTION_HISTORY = /^Inspection history( \(\d+\))?$/
+
 test.describe('Food Map', () => {
   for (const width of [1280, 390]) {
     test(`opens inspection reports after selecting a list result at ${width}px`, async ({ page }) => {
@@ -37,16 +40,15 @@ test.describe('Food Map', () => {
       if (width < 768) await page.locator('[data-map-mobile-sheet-handle]').press('End')
       await page.getByRole('list', { name: 'Establishments' }).getByRole('button', { name: /^Inspection test cafe/ }).click()
 
-      const history = page.getByRole('button', { name: 'Inspection history', exact: true })
+      const history = page.getByRole('button', { name: INSPECTION_HISTORY })
       await expect(history).toHaveCount(1)
       await expect(history).toBeVisible()
       await expect(history).toBeInViewport()
       await history.click()
       const dialog = page.getByRole('dialog', { name: 'Inspection test cafe' })
-      await expect(dialog.getByText('All inspection history', { exact: true })).toBeVisible()
       await expect(dialog.getByText('Inspection report observation', { exact: false })).toBeVisible()
       await expect(dialog.getByText('Inspection report corrective action', { exact: false })).toBeVisible()
-      await expect(dialog.getByRole('link', { name: 'View on HealthSpace' })).toHaveAttribute('href', 'https://example.test/premise/cafe')
+      await expect(dialog.getByRole('link', { name: /HealthSpace/ })).toHaveAttribute('href', 'https://example.test/premise/cafe')
     })
   }
 
@@ -167,27 +169,31 @@ test.describe('Food Map', () => {
   test('opens earlier inspection history when the selected period has no records', async ({ page }) => {
     await page.goto('/foodmap?restaurant=7-Eleven+Food+Store+%2337258', { waitUntil: 'domcontentloaded' })
 
-    await expect(page.getByRole('button', { name: 'Inspection history' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('Latest inspection outside selected period:')).toBeVisible()
-    await page.getByRole('button', { name: 'Inspection history' }).click()
+    const history = page.getByRole('button', { name: INSPECTION_HISTORY })
+    await expect(history).toBeVisible({ timeout: 15_000 })
+    // The summary dates the latest record and says it predates the period, instead of "0 inspections".
+    await expect(page.locator('[data-restaurant-latest-inspection]')).toContainText('before this period')
+    await history.click()
 
     const dialog = page.getByRole('dialog')
-    await expect(dialog.getByText('All inspection history', { exact: true })).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /Routine March 18, 2024/ })).toBeVisible()
-    await dialog.getByRole('button', { name: 'Selected period' }).click()
+    const range = dialog.getByRole('group', { name: 'Inspection history range' })
+    // The range buttons carry their counts, which explain why history opened instead of the period.
+    await expect(range.getByRole('button', { name: /^All history \(\d+\)$/ })).toHaveAttribute('aria-pressed', 'true')
+    await expect(dialog.getByRole('button', { name: /March 18, 2024.*Routine/ })).toBeVisible()
+    await range.getByRole('button', { name: /\(0\)$/ }).click()
     await expect(dialog.getByText(/^No inspections in /)).toBeVisible()
-    await dialog.getByRole('button', { name: 'All history' }).click()
-    await expect(dialog.getByRole('button', { name: /Routine March 18, 2024/ })).toBeVisible()
+    await range.getByRole('button', { name: /^All history/ }).click()
+    await expect(dialog.getByRole('button', { name: /March 18, 2024.*Routine/ })).toBeVisible()
   })
 
   test('an establishment with no inspection records shows one empty state, not a page of zeros', async ({ page }) => {
     await page.goto('/foodmap?restaurant=Freeman+Park', { waitUntil: 'domcontentloaded' })
 
-    await page.getByRole('button', { name: 'Inspection history' }).click()
+    await page.getByRole('button', { name: INSPECTION_HISTORY }).click()
     const dialog = page.getByRole('dialog', { name: 'Freeman Park' })
     await expect(dialog.getByText('No inspection records on file')).toBeVisible()
     await expect(dialog.getByText('2825 12th Avenue, Prince George', { exact: true })).toBeVisible()
-    await expect(dialog.getByRole('button', { name: 'All history' })).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: /^All history/ })).toHaveCount(0)
     await expect(dialog.getByText(/N\/A/)).toHaveCount(0)
   })
 })

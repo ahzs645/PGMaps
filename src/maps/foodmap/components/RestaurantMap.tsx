@@ -11,9 +11,10 @@ import {
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { RestaurantSummary } from './RestaurantSummary'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { cn } from '@/lib/utils'
-import { getHazardRating, HAZARD_BADGE_CLASSES, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
+import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
 import { MARKER_FADE_MS, useLingeringMarkers } from '../hooks/useLingeringMarkers'
 import { formatFullAddress } from '../address'
 import type { LingerPhase } from '../lingering'
@@ -460,7 +461,7 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
         <MarkerPopup closeButton className="p-0">
           <RestaurantPopupContent
             restaurant={restaurant}
-            rating={rating}
+            visualizationMode={visualizationMode}
             onViewInspections={onViewInspections}
           />
         </MarkerPopup>
@@ -471,49 +472,23 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
 
 function RestaurantPopupContent({
   restaurant,
-  rating,
+  visualizationMode,
   onViewInspections,
 }: {
   restaurant: RestaurantWithStats
-  rating: HazardRating
+  visualizationMode: VisualizationMode
   onViewInspections: () => void
 }) {
-  const stats = restaurant.violationStats || {
-    total: 0,
-    critical: 0,
-    inspectionCount: 0
-  }
-  const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
-  const latestOutsidePeriod = restaurant.filteredInspections.length === 0 && Boolean(restaurant.inspections?.length)
-
   return (
     <div className="w-[260px] p-3 pr-7">
       <h3 className="text-sm font-semibold leading-snug text-foreground">{restaurant.name}</h3>
-      <p className="mt-1 text-xs leading-snug text-muted-foreground">
-        {formatFullAddress(restaurant)}
-      </p>
-
-      <RestaurantSummaryBadges rating={rating} stats={stats} />
-
-      <div className="mt-2 text-xs text-muted-foreground">
-        {stats.inspectionCount} inspection{stats.inspectionCount !== 1 ? 's' : ''}
-        {latestInspection ? (
-          <span>
-            {' '}· {latestOutsidePeriod ? 'Outside period' : 'Latest'} {latestInspection.inspection_date || latestInspection.date}
-          </span>
-        ) : null}
-      </div>
-
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation()
-          onViewInspections()
-        }}
-        className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-      >
-        Inspection history
-      </button>
+      <p className="mt-1 text-xs leading-snug text-muted-foreground">{formatFullAddress(restaurant)}</p>
+      <RestaurantSummary
+        className="mt-3"
+        restaurant={restaurant}
+        visualizationMode={visualizationMode}
+        onViewInspections={onViewInspections}
+      />
     </div>
   )
 }
@@ -529,15 +504,6 @@ function MobileRestaurantFeatureCard({
   onClose: () => void
   onViewInspections: () => void
 }) {
-  const stats = restaurant.violationStats || {
-    total: 0,
-    critical: 0,
-    inspectionCount: 0
-  }
-  const rating = getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })
-  const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
-  const latestOutsidePeriod = restaurant.filteredInspections.length === 0 && Boolean(restaurant.inspections?.length)
-
   return (
     <MobileFeatureCard
       cardKey={restaurant.details_url}
@@ -545,48 +511,12 @@ function MobileRestaurantFeatureCard({
       subtitle={formatFullAddress(restaurant)}
       onClose={onClose}
     >
-      <RestaurantSummaryBadges rating={rating} stats={stats} />
-      <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-border/70 py-2 first:pt-0">
-          <span className="text-muted-foreground">Inspections</span>
-          <span className="font-medium">{stats.inspectionCount}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 py-2 last:pb-0">
-          <span className="text-muted-foreground">{latestOutsidePeriod ? 'Outside period' : 'Latest'}</span>
-          <span className="min-w-0 truncate font-medium">{latestInspection?.inspection_date || latestInspection?.date || 'None on file'}</span>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onViewInspections}
-        className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-      >
-        Inspection history
-      </button>
+      <RestaurantSummary
+        size="md"
+        restaurant={restaurant}
+        visualizationMode={visualizationMode}
+        onViewInspections={onViewInspections}
+      />
     </MobileFeatureCard>
-  )
-}
-
-function RestaurantSummaryBadges({
-  rating,
-  stats,
-}: {
-  rating: HazardRating
-  stats: { total: number; critical: number; inspectionCount: number }
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      <span className={cn('rounded px-2 py-0.5 text-xs', HAZARD_BADGE_CLASSES[rating])}>
-        {rating} hazard
-      </span>
-      <span className={cn('rounded px-2 py-0.5 text-xs', getViolationBucketStyle(stats).badgeClass)}>
-        {getViolationBadgeLabel(stats)}
-      </span>
-      {stats.critical > 0 && (
-        <span className="text-xs font-medium text-red-600 dark:text-red-400">
-          {stats.critical} critical
-        </span>
-      )}
-    </div>
   )
 }

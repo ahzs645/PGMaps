@@ -6,28 +6,13 @@ import { StatGroup } from '@/components/ui/stat-group'
 import { formatFullAddress } from '../address'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
 import { getHazardRating } from '../hazard'
-import type { RestaurantWithStats, HazardRating, Inspection, Violation, ViolationRiskBand } from '../types'
+import type { RestaurantWithStats, Inspection, Violation, ViolationRiskBand } from '../types'
 
 interface InspectionPanelProps {
   restaurant: RestaurantWithStats
   periodLabel?: string
   useFilteredInspections?: boolean
   onClose: () => void
-}
-
-function getInspectionTypeColor(type?: string): string {
-  const t = (type || '').toLowerCase()
-  if (t.includes('routine')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
-  if (t.includes('follow')) return 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
-  if (t.includes('complaint')) return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-  if (t.includes('initial')) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-}
-
-function getHazardColor(rating?: HazardRating): string {
-  if (rating === 'Low') return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-  if (rating === 'Moderate') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
 function getRiskBandClass(band: string): string {
@@ -58,14 +43,6 @@ function getRiskCategoryClass(category: string): string {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
-const RISK_BANDS = ['Severe', 'Elevated', 'Moderate', 'Administrative'] as const
-const RISK_SUMMARY_KEYS = {
-  Severe: 'severe',
-  Elevated: 'elevated',
-  Moderate: 'moderate',
-  Administrative: 'administrative',
-} as const
-
 /**
  * Period labels come in three shapes: "Oct 2025 – Sep 2026", "Through Sep
  * 2026" and "All time through Sep 2026". Lower-case the leading word of the
@@ -73,11 +50,6 @@ const RISK_SUMMARY_KEYS = {
  */
 function periodPhrase(label: string): string {
   return /^(through|all time)\b/i.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label
-}
-
-function describePeriod(label: string): string {
-  const phrase = periodPhrase(label)
-  return phrase.startsWith('through') ? `Inspections ${phrase}` : `Inspections, ${phrase}`
 }
 
 interface ViolationDetailMismatch {
@@ -140,22 +112,15 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).extraDetails, 0)
   }, [inspections])
 
+  // Counts follow the itemized rows; say briefly when HealthSpace's own tally differs.
   const detailMismatchNote = [
     missingViolationDetails > 0
-      ? `Detailed violation text unavailable for ${missingViolationDetails} ${
-          missingViolationDetails === 1 ? 'finding' : 'findings'
-        }.`
+      ? `${missingViolationDetails} ${missingViolationDetails === 1 ? 'finding has' : 'findings have'} no itemized detail.`
       : '',
     extraViolationDetails > 0
-      ? `Detailed rows include ${extraViolationDetails} ${
-          extraViolationDetails === 1 ? 'finding' : 'findings'
-        } outside HealthSpace critical/non-critical totals.`
-      : ''
+      ? `${extraViolationDetails} itemized ${extraViolationDetails === 1 ? 'finding is' : 'findings are'} not in HealthSpace's tally.`
+      : '',
   ].filter(Boolean).join(' ')
-
-  const riskSummary = useMemo(() => {
-    return summarizeViolationRisk(inspections)
-  }, [inspections])
 
   const currentRating = getHazardRating(restaurant)
 
@@ -174,90 +139,69 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
   const hasAnyRecords = (restaurant.inspections?.length || 0) > 0
   // The switch only earns its place when the period hides some of the history.
   const periodDiffers = useFilteredInspections && restaurant.filteredInspections.length !== (restaurant.inspections?.length || 0)
-  const context = !hasAnyRecords
-    ? undefined
-    : showHistory || !useFilteredInspections
-      ? 'All inspection history'
-      : periodLabel && describePeriod(periodLabel)
-  const severityCounts = RISK_BANDS.map((band) => ({ band, count: riskSummary[RISK_SUMMARY_KEYS[band]] })).filter(
-    (entry) => entry.count > 0,
-  )
+  const periodCount = restaurant.filteredInspections.length
+  const historyCount = restaurant.inspections?.length || 0
 
   return (
     <RecordDialog
       title={restaurant.name}
       subtitle={formatFullAddress(restaurant)}
-      context={context}
       closeLabel="Close inspection panel"
-      source="Northern Health Authority HealthSpace"
-      sourceHref={restaurant.details_url}
-      sourceLinkLabel="View on HealthSpace"
+      // The source link sits inline with the attribution, so the footer keeps one action.
+      footerStart={
+        <a
+          href={restaurant.details_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          Northern Health HealthSpace ↗
+        </a>
+      }
       onClose={onClose}
       toolbar={
         hasAnyRecords && periodDiffers ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <SegmentedControl
-              label="Inspection history range"
-              size="sm"
-              className="w-full sm:w-auto"
-              value={showHistory ? 'all' : 'period'}
-              onChange={(value) => {
-                setHistoryView(value === 'all')
-                setSelectedInspectionKey(null)
-              }}
-              options={[
-                { value: 'period', label: 'Selected period' },
-                { value: 'all', label: 'All history' },
-              ]}
-            />
-            {showHistory && restaurant.filteredInspections.length === 0 && periodLabel && (
-              <span className="text-xs text-muted-foreground">None in {periodPhrase(periodLabel)}, so all dates are shown.</span>
-            )}
-          </div>
-        ) : undefined
-      }
-      summary={
-        hasAnyRecords ? (
-          <StatGroup
-            variant="tiles"
-            items={[
-              { label: 'Inspections', shortLabel: 'Insp.', value: inspections.length },
-              { label: 'Violations', value: totalViolations },
-              { label: 'Critical', value: totalCritical, tone: totalCritical > 0 ? 'danger' : 'default' },
+          // The counts say why a range is empty, so no explanatory sentence is needed.
+          <SegmentedControl
+            label="Inspection history range"
+            size="sm"
+            className="w-full sm:w-auto"
+            value={showHistory ? 'all' : 'period'}
+            onChange={(value) => {
+              setHistoryView(value === 'all')
+              setSelectedInspectionKey(null)
+            }}
+            options={[
               {
-                label: 'Current rating',
-                shortLabel: 'Rating',
-                compact: true,
-                value: (
-                  <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium sm:text-sm', getHazardColor(currentRating))}>
-                    {currentRating || 'Unknown'}
-                  </span>
-                ),
+                value: 'period',
+                label: `${periodLabel ? periodPhrase(periodLabel) : 'Selected period'} (${periodCount})`,
+                title: 'Inspections in the period chosen on the map',
               },
+              { value: 'all', label: `All history (${historyCount})` },
             ]}
           />
         ) : undefined
       }
-      headerExtra={
-        hasAnyRecords && (severityCounts.length > 0 || detailMismatchNote) ? (
-          <div className="space-y-2">
-            {severityCounts.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground">Severity</span>
-                {severityCounts.map(({ band, count }) => (
-                  <span key={band} className={cn('rounded-full px-2.5 py-0.5 font-medium', getRiskBandClass(band))}>
-                    {count} {band.toLowerCase()}
-                  </span>
-                ))}
-              </div>
-            )}
+      summary={
+        hasAnyRecords ? (
+          <div className="space-y-1.5">
+            {/* Same figures row as the food sidebar, for this one establishment. */}
+            <StatGroup
+              items={[
+                { label: inspections.length === 1 ? 'inspection' : 'inspections', value: inspections.length },
+                { label: totalViolations === 1 ? 'violation' : 'violations', value: totalViolations },
+                { label: 'critical', value: totalCritical, tone: totalCritical > 0 ? 'danger' : 'default' },
+                {
+                  label: 'hazard now',
+                  value: currentRating || 'Unknown',
+                  tone: currentRating === 'Low' ? 'success' : currentRating === 'Moderate' ? 'warning' : 'default',
+                },
+              ]}
+            />
             {detailMismatchNote && (
-              <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs leading-snug text-muted-foreground">
-                <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{detailMismatchNote} The <span className="font-medium">Violations</span> count above reflects the detailed rows shown below.</span>
-              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                {detailMismatchNote}
+              </p>
             )}
           </div>
         ) : undefined
@@ -280,10 +224,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           onBack={() => setSelectedInspectionKey(null)}
         />
       ) : (
-        <div className="space-y-3 sm:space-y-4">
-          <p className="px-1 text-xs text-muted-foreground">
-            Select an inspection to view its violations.
-          </p>
+        <div className="space-y-2">
           {inspections.map((inspection, index) => (
             <InspectionSummaryCard
               key={inspectionKeys[index]}
@@ -300,8 +241,6 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
 interface InspectionCounts {
   violationCount: number
   criticalCount: number
-  nonCriticalCount: number
-  otherCount: number
   notItemizedCount: number
 }
 
@@ -309,54 +248,42 @@ function getInspectionCounts(inspection: Inspection): InspectionCounts {
   const violationCount = inspection.violations?.length || 0
   const criticalCount = inspection.critical_violations_count || 0
   const nonCriticalCount = inspection.non_critical_violations_count || 0
-  // HealthSpace's critical/non-critical tally and the detailed rows can disagree;
-  // surface the difference so the numbers visibly reconcile (crit + non-crit +
-  // other = total) instead of looking like a math error.
-  const otherCount = Math.max(0, violationCount - (criticalCount + nonCriticalCount))
-  const notItemizedCount = Math.max(0, (criticalCount + nonCriticalCount) - violationCount)
-  return { violationCount, criticalCount, nonCriticalCount, otherCount, notItemizedCount }
+  // HealthSpace's critical/non-critical tally can exceed the itemized rows; the heading
+  // says how many went unitemized so the counts never look like a math error.
+  const notItemizedCount = Math.max(0, criticalCount + nonCriticalCount - violationCount)
+  return { violationCount, criticalCount, notItemizedCount }
 }
 
-function ViolationCountSummary({ counts }: { counts: InspectionCounts }) {
-  const { criticalCount, nonCriticalCount, otherCount, violationCount, notItemizedCount } = counts
+/** One inspection as two lines, when and then what; shared by the list row and the detail header. */
+function InspectionHeading({ inspection }: { inspection: Inspection }) {
+  const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
+  const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
+  const counts = getInspectionCounts(inspection)
+  const findings =
+    counts.violationCount === 0
+      ? 'No violations'
+      : counts.criticalCount > 0
+        ? `${counts.criticalCount} critical of ${counts.violationCount}`
+        : `${counts.violationCount} violation${counts.violationCount === 1 ? '' : 's'}`
+
   return (
-    <>
-      <span className="text-muted-foreground">
-        <span className="font-medium text-red-600 dark:text-red-400">{criticalCount}</span>
-        {' '}critical
+    <span className="min-w-0 flex-1">
+      <span className="block text-sm font-medium text-foreground">{inspectionDate}</span>
+      <span className="block text-xs text-muted-foreground">
+        {inspectionType} ·{' '}
+        <span className={cn(counts.criticalCount > 0 && 'text-red-600 dark:text-red-400')}>{findings}</span>
+        {inspection.hazard_rating ? ` · ${inspection.hazard_rating} hazard` : ''}
+        {inspection.follow_up_required === 'Yes' && (
+          <span className="font-medium text-red-600 dark:text-red-400"> · Follow-up required</span>
+        )}
+        {counts.notItemizedCount > 0 && ` · ${counts.notItemizedCount} not itemized`}
       </span>
-      <span className="text-muted-foreground/50">•</span>
-      <span className="text-muted-foreground">
-        <span className="font-medium text-amber-600 dark:text-amber-400">{nonCriticalCount}</span>
-        {' '}non-critical
-      </span>
-      {otherCount > 0 && (
-        <>
-          <span className="text-muted-foreground/50">•</span>
-          <span className="text-muted-foreground" title="Detailed rows beyond HealthSpace's critical/non-critical tally">
-            <span className="font-medium text-foreground">{otherCount}</span>
-            {' '}other
-          </span>
-        </>
-      )}
-      <span className="text-muted-foreground/50">•</span>
-      <span className="text-muted-foreground">
-        <span className="font-medium text-foreground">{violationCount}</span>
-        {' '}total
-      </span>
-      {notItemizedCount > 0 && (
-        <span className="italic text-muted-foreground/70">
-          ({notItemizedCount} not itemized)
-        </span>
-      )}
-    </>
+    </span>
   )
 }
 
 // List item — click to open the inspection's detail view.
 function InspectionSummaryCard({ inspection, onOpen }: { inspection: Inspection; onOpen: () => void }) {
-  const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
-  const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
   const counts = getInspectionCounts(inspection)
   const hasViolations = counts.violationCount > 0
   const worstBand = hasViolations ? summarizeViolationRisk([inspection]).worstBand : 'Unknown'
@@ -365,46 +292,24 @@ function InspectionSummaryCard({ inspection, onOpen }: { inspection: Inspection;
     <button
       type="button"
       onClick={onOpen}
-      className="block w-full overflow-hidden rounded-lg border border-border bg-background text-left shadow-sm transition-colors hover:border-sky-300 hover:bg-muted/40 dark:hover:border-sky-700 sm:rounded-xl"
+      className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left shadow-sm transition-colors hover:border-sky-300 hover:bg-muted/40 dark:hover:border-sky-700"
     >
-      <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
-        <span
-          className={cn('h-2.5 w-2.5 shrink-0 rounded-full', getRiskDotClass(worstBand, hasViolations))}
-          aria-hidden="true"
-        />
-        <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
-          {inspectionType}
-        </span>
-        <span className="text-sm text-muted-foreground">{inspectionDate}</span>
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <span className={cn('rounded px-2 py-1 text-sm', getHazardColor(inspection.hazard_rating))}>
-            {inspection.hazard_rating}
-          </span>
-          {inspection.follow_up_required === 'Yes' && (
-            <span className="hidden rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300 sm:inline">
-              Follow-up Required
-            </span>
-          )}
-          <svg className="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-3 pl-9 text-sm sm:px-4 sm:pl-9">
-        <ViolationCountSummary counts={counts} />
-      </div>
+      <span
+        className={cn('h-2.5 w-2.5 shrink-0 rounded-full', getRiskDotClass(worstBand, hasViolations))}
+        aria-hidden="true"
+      />
+      <InspectionHeading inspection={inspection} />
+      <svg className="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
     </button>
   )
 }
 
-// Detail view for a single inspection — its header, counts, and full violation list.
+// Detail view for a single inspection: its heading, then each violation.
 function InspectionDetailView({ inspection, showBack, onBack }: { inspection: Inspection; showBack: boolean; onBack: () => void }) {
-  const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
-  const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
-  const counts = getInspectionCounts(inspection)
-
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="space-y-3">
       {showBack && (
         <button
           type="button"
@@ -418,30 +323,12 @@ function InspectionDetailView({ inspection, showBack, onBack }: { inspection: In
         </button>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/35 px-3 py-3 sm:px-4">
-          <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
-            {inspectionType}
-          </span>
-          <span className="text-sm text-muted-foreground">{inspectionDate}</span>
-          <div className="ml-auto flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className={cn('rounded px-2 py-1 text-sm', getHazardColor(inspection.hazard_rating))}>
-              {inspection.hazard_rating}
-            </span>
-            {inspection.follow_up_required === 'Yes' && (
-              <span className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300">
-                Follow-up Required
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm sm:px-4">
-          <ViolationCountSummary counts={counts} />
-        </div>
+      <div className="flex px-1">
+        <InspectionHeading inspection={inspection} />
       </div>
 
-      {counts.violationCount > 0 ? (
-        <div className="space-y-3">
+      {(inspection.violations?.length ?? 0) > 0 ? (
+        <div className="space-y-2">
           {inspection.violations?.map((violation, vIndex) => (
             <ViolationCard key={vIndex} violation={violation} />
           ))}
@@ -479,20 +366,18 @@ function ViolationCard({ violation }: { violation: Violation }) {
           </div>
           <div
             className={cn(
-              'mb-2 leading-snug',
-              violation.details_unavailable
-                ? 'text-sm italic text-muted-foreground'
-                : 'text-base font-semibold text-foreground sm:text-sm sm:font-medium'
+              'mb-1.5 text-sm leading-snug',
+              violation.details_unavailable ? 'italic text-muted-foreground' : 'font-medium text-foreground',
             )}
           >
             {violation.description}
           </div>
-          <div className="mb-3 text-base leading-7 text-muted-foreground sm:mb-2 sm:text-sm sm:leading-relaxed">
-            <span className="font-medium">Observation:</span> {violation.observation}
+          <div className="text-sm leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground/80">Observed:</span> {violation.observation}
           </div>
           {violation.corrective_action && (
-            <div className="text-base leading-7 text-muted-foreground sm:text-sm sm:leading-relaxed">
-              <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
+            <div className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground/80">Action:</span> {violation.corrective_action}
             </div>
           )}
         </div>

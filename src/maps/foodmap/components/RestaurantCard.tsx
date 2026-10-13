@@ -2,12 +2,11 @@ import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { getHazardRating, HAZARD_BADGE_CLASSES, HAZARD_TAILWIND } from '../hazard'
 import { getViolationBadgeLabel, getViolationBucketStyle } from '../violationBuckets'
-import { cleanAddress, formatFullAddress } from '../address'
+import { cleanAddress } from '../address'
 import type { RestaurantWithStats, VisualizationMode } from '../types'
 
 interface RestaurantCardProps {
   restaurant: RestaurantWithStats
-  expanded?: boolean
   isSelected?: boolean
   visualizationMode?: VisualizationMode
   onClick?: () => void
@@ -18,7 +17,6 @@ const EMPTY_STATS = { total: 0, critical: 0, nonCritical: 0, inspectionCount: 0 
 
 export function RestaurantCard({
   restaurant,
-  expanded = false,
   isSelected = false,
   visualizationMode = 'violations',
   onClick,
@@ -40,10 +38,6 @@ export function RestaurantCard({
 
   const hasLocation = Boolean(restaurant.latitude && restaurant.longitude)
 
-  const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
-  // The stats badges only count the selected period, so an all-time fallback
-  // inspection needs to say so or the card contradicts itself.
-  const latestInspectionOutsidePeriod = !restaurant.filteredInspections?.length && Boolean(restaurant.inspections?.length)
   const Root = onClick ? 'button' : 'div'
 
   return (
@@ -78,9 +72,7 @@ export function RestaurantCard({
               </span>
             )}
           </div>
-          <p className={cn('text-xs text-slate-500 dark:text-slate-400', !expanded && 'truncate')}>
-            {expanded ? formatFullAddress(restaurant) : cleanAddress(restaurant.address)}
-          </p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{cleanAddress(restaurant.address)}</p>
 
           {/* One status signal per mode: the legend's measure leads, the other stays text. */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -106,61 +98,6 @@ export function RestaurantCard({
             ].join(' · ')}
           </div>
 
-          {/* Expanded details */}
-          {expanded && (
-            <div className="mt-3 space-y-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-              {!latestInspection && (
-                <div className="text-xs text-slate-500 dark:text-slate-400">No inspection records on file.</div>
-              )}
-              {latestInspection && (
-                <div className="text-xs">
-                  <div className="font-medium text-slate-700 dark:text-slate-200">
-                    {latestInspectionOutsidePeriod ? 'Latest inspection outside selected period:' : 'Latest inspection:'}
-                  </div>
-                  <div className="text-slate-600 dark:text-slate-300">
-                    {latestInspection.inspection_date || latestInspection.date} -{' '}
-                    {latestInspection.inspection_type || latestInspection.type}
-                  </div>
-                  {latestInspection.critical_violations_count > 0 && (
-                    <div className="text-red-600 dark:text-red-400">
-                      {latestInspection.critical_violations_count} critical violation(s)
-                    </div>
-                  )}
-                  {latestInspection.follow_up_required === 'Yes' && (
-                    <div className="text-orange-600 dark:text-orange-400 font-medium">
-                      Follow-up Required
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Recent violations preview */}
-              {latestInspection?.violations && latestInspection.violations.length > 0 && (
-                <div className="mt-2">
-                  <div className="mb-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                    Violations in this inspection:
-                  </div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {latestInspection.violations.slice(0, 2).map((violation, index) => (
-                      <div
-                        key={index}
-                        className="text-xs p-2 bg-red-50 dark:bg-red-900/30 rounded text-red-800 dark:text-red-200 border border-red-100 dark:border-red-800"
-                      >
-                        <div className="font-medium">
-                          [{violation.code}] {violation.description}
-                        </div>
-                      </div>
-                    ))}
-                    {latestInspection.violations.length > 2 && (
-                      <div className="text-xs italic text-slate-500 dark:text-slate-400">
-                        +{latestInspection.violations.length - 2} more violations
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </Root>

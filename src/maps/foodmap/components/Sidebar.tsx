@@ -2,6 +2,8 @@ import { useRef, type ReactNode } from 'react'
 import { Dices, History, X } from 'lucide-react'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { RestaurantCard } from './RestaurantCard'
+import { RestaurantSummary } from './RestaurantSummary'
+import { formatFullAddress } from '../address'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
 import { FilterChipGroup, MapSidebarShell, MobileCollapsibleSection, SearchInput } from '@/components/ui/map-panels'
@@ -394,19 +396,14 @@ export function Sidebar({
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          <RestaurantCard
+          <h3 className="text-sm font-semibold leading-snug text-foreground">{selectedRestaurant.name}</h3>
+          <p className="text-xs text-muted-foreground">{formatFullAddress(selectedRestaurant)}</p>
+          <RestaurantSummary
+            className="mt-2"
             restaurant={selectedRestaurant}
-            expanded
             visualizationMode={visualizationMode}
-            className="p-0"
+            onViewInspections={onOpenInspectionPanel}
           />
-          <button
-            type="button"
-            onClick={onOpenInspectionPanel}
-            className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-          >
-            Inspection history
-          </button>
         </div>
       )}
 
