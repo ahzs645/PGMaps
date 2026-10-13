@@ -8,11 +8,15 @@ import { MapControls, MapScaleBar } from '@/components/ui/map-controls'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { PortalDock } from './PortalDock'
 import { downloadText } from '@/lib/download'
+import { PortalProjectManager } from './PortalProjectManager'
 import { PortalVectors, VectorLayers } from './PortalVectors'
+import { refreshSharedLayer, workspaceRenderOrder } from './data/nativeLayers'
+import { checkedSldUrl } from './data/vectorStyle'
 import { importWorkspace, type ActiveWms, type Workspace } from './data/workspace'
 import { loadSnapshotCapabilities, loadSnapshotSources, type CatalogueSource } from './data/showcase'
 import {
   errorText,
+  portalRead,
   isWmsSource,
   loadPortalSources,
   loadWmsCapabilities,
@@ -154,6 +158,7 @@ export function PortalLayers({
   onProjectsClose,
   onOpenFiles,
   initialBounds,
+  requestedPane,
 }: {
   workspace: Workspace
   setWorkspace: React.Dispatch<React.SetStateAction<Workspace>>
@@ -164,12 +169,15 @@ export function PortalLayers({
   onProjectsClose?: () => void
   onOpenFiles?: () => void
   initialBounds?: [number, number, number, number]
+  requestedPane?: { pane: 'tools' | 'layers'; revision: number }
 }) {
   const [sources, setSources] = useState<PortalSource[]>([])
   const [sourceUrl, setSourceUrl] = useState('')
   const [caps, setCaps] = useState<WmsCapabilities | null>(null)
   const [layerName, setLayerName] = useState('')
   const [style, setStyle] = useState('')
+  const [activeStyleError, setActiveStyleError] = useState('')
+  const [verifyingId, setVerifyingId] = useState('')
   const active = workspace.layers
   const setActive = (value: React.SetStateAction<ActiveLayer[]>) =>
     setWorkspace((current) => ({ ...current, layers: typeof value === 'function' ? value(current.layers) : value }))
@@ -178,6 +186,10 @@ export function PortalLayers({
   const [picked, setPicked] = useState<{ id: string; index: number }>()
   const [toolsOpen, setToolsOpen] = useState(false)
   const [layersOpen, setLayersOpen] = useState(false)
+  useEffect(() => {
+    if (requestedPane?.pane === 'tools') setToolsOpen(true)
+    if (requestedPane?.pane === 'layers') setLayersOpen(true)
+  }, [requestedPane])
   const onVectorSelect = useCallback(
     (id: string, index: number) => {
       setPicked({ id, index })
@@ -186,7 +198,14 @@ export function PortalLayers({
     [layout],
   )
   const [workspaceRevision, setWorkspaceRevision] = useState(0)
-  const rasterOrder = [...workspace.tiles, ...active].map((item) => item.id).join('|')
+  const renderOrder = workspaceRenderOrder(workspace)
+  const rasterOrder =
+    renderOrder.map((item) => item.id).join('|') +
+    '|' +
+    workspace.vectors
+      .filter((item) => item.visible)
+      .map((item) => item.id)
+      .join('|')
   const [workspaceError, setWorkspaceError] = useState('')
   const [workspaceMessage, setWorkspaceMessage] = useState('')
   const [identifyId, setIdentifyId] = useState('')
@@ -502,6 +521,144 @@ export function PortalLayers({
               Raise
             </Button>
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!!verifyingId}
+            onClick={async () => {
+              setVerifyingId(item.id)
+              setActiveStyleError('')
+              try {
+                const verified = await loadWmsCapabilities(item.source)
+                const named = verified.layers.find((layer) => layer.name === item.layer.name)
+                if (!named) throw new Error('This source no longer advertises the imported layer.')
+                if (
+                  !named.crs.some((crs) => crs.toUpperCase() === 'EPSG:3857') ||
+                  !verified.mapFormats.includes('image/png')
+                )
+                  throw new Error('This source does not advertise EPSG:3857 PNG rendering.')
+                setActive((current) =>
+                  current.map((value) =>
+                    value.id === item.id ? { ...value, layer: named, formats: verified.featureInfoFormats } : value,
+                  ),
+                )
+              } catch (reason) {
+                setActiveStyleError(errorText(reason))
+              } finally {
+                setVerifyingId('')
+              }
+            }}
+          >
+            {verifyingId === item.id ? 'Verifying service…' : 'Verify service / query fields'}
+          </Button>
+          {item.native?.directDb && item.native.layerId && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!verifyingId}
+              onClick={async () => {
+                setVerifyingId(item.id)
+                setActiveStyleError('')
+                try {
+                  const resolved = await refreshSharedLayer(item.native!, portalRead)
+                  const refreshedResource = new URL(resolved.resource)
+                  const savedStyle = new URL(item.source.resource).searchParams.get('SLD')
+                  if (savedStyle && !refreshedResource.searchParams.has('SLD'))
+                    refreshedResource.searchParams.set('SLD', checkedSldUrl(savedStyle))
+                  setActive((current) =>
+                    current.map((value) =>
+                      value.id === item.id
+                        ? {
+                            ...value,
+                            native: resolved.reference,
+                            source: { ...value.source, resource: refreshedResource.href },
+                            layer: {
+                              ...value.layer,
+                              name: resolved.name,
+                              title: resolved.title,
+                              queryable: false,
+                              styles: [],
+                            },
+                            formats: [],
+                            style: '',
+                          }
+                        : value,
+                    ),
+                  )
+                  setActiveStyleError(
+                    'Reference refreshed. Verify service to enable identify. A generated default SLD is not requested; existing expired styles need an explicit source styling change.',
+                  )
+                } catch (reason) {
+                  setActiveStyleError(errorText(reason))
+                } finally {
+                  setVerifyingId('')
+                }
+              }}
+            >
+              Refresh authorized native reference
+            </Button>
+          )}
+          {item.layer.styles.length > 0 && (
+            <label className="block text-xs">
+              Advertised WMS style
+              <select
+                aria-label={`WMS style for ${item.layer.title}`}
+                className="mt-1 w-full rounded border bg-background p-2"
+                value={item.style}
+                onChange={(event) =>
+                  setActive((current) =>
+                    current.map((value) => (value.id === item.id ? { ...value, style: event.target.value } : value)),
+                  )
+                }
+              >
+                <option value="">Service default</option>
+                {item.style && !item.layer.styles.some((style) => style.name === item.style) && (
+                  <option value={item.style}>{item.style} · imported unverified</option>
+                )}
+                {item.layer.styles.map((style) => (
+                  <option key={style.name} value={style.name}>
+                    {style.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <details className="text-xs">
+            <summary>SLD reference / source query</summary>
+            <p className="my-2 break-all">{item.source.resource}</p>
+            <p>
+              HTTPS SLD references can be rendered by the WMS service. Inline SLD rules, symbolizers and filters are
+              preserved in original metadata; their vector styling is not translated.
+            </p>
+            <label className="mt-2 block">
+              HTTPS SLD URL
+              <input
+                key={item.source.resource}
+                aria-label={`SLD URL for ${item.layer.title}`}
+                className="mt-1 w-full rounded border bg-background p-2"
+                defaultValue={new URL(item.source.resource).searchParams.get('SLD') ?? ''}
+                onBlur={(event) => {
+                  try {
+                    const resource = new URL(item.source.resource)
+                    if (event.target.value.trim())
+                      resource.searchParams.set('SLD', checkedSldUrl(event.target.value.trim()))
+                    else resource.searchParams.delete('SLD')
+                    setActive((current) =>
+                      current.map((value) =>
+                        value.id === item.id
+                          ? { ...value, source: { ...value.source, resource: resource.href } }
+                          : value,
+                      ),
+                    )
+                    setActiveStyleError('')
+                  } catch (reason) {
+                    setActiveStyleError(errorText(reason))
+                  }
+                }}
+              />
+            </label>
+          </details>
+          {activeStyleError && <InlineAlert tone="error">{activeStyleError}</InlineAlert>}
           <label className="block text-xs">
             Opacity {Math.round(item.opacity * 100)}%
             <input
@@ -564,24 +721,39 @@ export function PortalLayers({
           ) : undefined
         }
       >
-        {workspace.tiles.map((item) => (
-          <MapRasterLayer
-            key={`tile-${rasterOrder}-${item.id}`}
-            tiles={item.urls}
-            attribution={item.attribution}
-            visible={item.visible}
-          />
-        ))}
-        {tiles.map((item) => (
-          <MapRasterLayer
-            key={`${rasterOrder}-${item.id}`}
-            tiles={item.tiles}
-            opacity={item.opacity}
-            visible={item.visible !== false}
-            attribution={item.source.attributions || item.source.name}
-          />
-        ))}
-        <VectorLayers key={rasterOrder} vectors={workspace.vectors} onSelect={!drawing ? onVectorSelect : undefined} />
+        {renderOrder.map((entry) => {
+          if (entry.kind === 'tile') {
+            const item = workspace.tiles.find((item) => item.id === entry.id)!
+            return (
+              <MapRasterLayer
+                key={`tile-${rasterOrder}-${item.id}`}
+                tiles={item.urls}
+                attribution={item.attribution}
+                visible={item.visible}
+              />
+            )
+          }
+          if (entry.kind === 'wms') {
+            const item = tiles.find((item) => item.id === entry.id)!
+            return (
+              <MapRasterLayer
+                key={`wms-${rasterOrder}-${item.id}`}
+                tiles={item.tiles}
+                opacity={item.opacity}
+                visible={item.visible !== false}
+                attribution={item.source.attributions || item.source.name}
+              />
+            )
+          }
+          const item = workspace.vectors.find((item) => item.id === entry.id)!
+          return (
+            <VectorLayers
+              key={`vector-${rasterOrder}-${item.id}`}
+              vectors={[item]}
+              onSelect={!drawing ? onVectorSelect : undefined}
+            />
+          )
+        })}
         <VectorLayers
           vectors={[
             { id: 'drawing-preview', name: 'Drawing preview', data: sketch, color: '#a21caf', visible: drawing },
@@ -603,8 +775,8 @@ export function PortalLayers({
       <summary className="cursor-pointer text-sm font-semibold">Save, load and import workspaces</summary>
       <p className="mt-2 text-xs text-muted-foreground">
         JSON saves include camera, layer order/visibility, WMS styles and local vectors. Browser saves use this device.
-        Portal ownership, permissions, history and defaults stay on the portal. Imports preserve the native project and
-        report conversion limits.
+        Named browser projects and original portal project controls are available below. Imports preserve the native
+        project and report conversion limits.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
@@ -688,6 +860,9 @@ export function PortalLayers({
             }}
           />
         </label>
+      </div>
+      <div className="mt-4 border-t pt-4">
+        <PortalProjectManager workspace={workspace} onWorkspace={applyWorkspace} />
       </div>
       {workspaceError && <InlineAlert tone="error">{workspaceError}</InlineAlert>}
       {workspaceMessage && (

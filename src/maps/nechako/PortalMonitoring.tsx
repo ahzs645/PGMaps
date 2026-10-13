@@ -1,3 +1,4 @@
+import { PortalLiveMonitoring, type PortalMonitoringProps } from './PortalLiveMonitoring'
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
@@ -15,10 +16,11 @@ const DEFAULT_MAPPING: MonitoringMapping = {
   secondaryUnit: '',
   timezone: 'embedded',
   timezoneColumn: '',
+  dateFormat: 'iso',
 }
 const inputClass = 'mt-1 w-full rounded-md border bg-background p-2 text-base'
 
-export function PortalMonitoring() {
+export function PortalMonitoring(props: PortalMonitoringProps = {}) {
   const [table, setTable] = useState<ReturnType<typeof checkedCsv>>()
   const [filename, setFilename] = useState('')
   const [mapping, setMapping] = useState(DEFAULT_MAPPING)
@@ -108,10 +110,25 @@ export function PortalMonitoring() {
   }
   return (
     <div className="space-y-5">
+      <PortalLiveMonitoring
+        {...props}
+        onCsv={(text, name, raw) => {
+          setTable(raw ?? checkedCsv(text))
+          setFilename(name)
+          setMapping(DEFAULT_MAPPING)
+          setStation('')
+          setStart('')
+          setEnd('')
+          setPage(0)
+          setError('')
+          setDelimiter(',')
+        }}
+      />
       <h2 className="text-xl font-semibold">Monitoring CSV and reports</h2>
       <p className="max-w-3xl text-sm text-muted-foreground">
         Load an exported monitoring CSV, map its columns and review observations, quality checks and statistics. Files
-        stay in this browser. Publishing and protected station/schema access remain in the portal.
+        stay in this browser. Live pages can be brought into this report above; server permissions determine
+        station/schema access.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">
@@ -246,10 +263,28 @@ export function PortalMonitoring() {
               </select>
             </label>
           </div>
+          <label className="block text-sm font-medium">
+            Date format
+            <select
+              aria-label="Monitoring date format"
+              className={inputClass}
+              value={mapping.dateFormat ?? 'iso'}
+              onChange={(event) => {
+                setMapping((value) => ({ ...value, dateFormat: event.target.value as MonitoringMapping['dateFormat'] }))
+                setPage(0)
+              }}
+            >
+              <option value="iso">ISO date and time</option>
+              <option value="dmy">DD/MM/YYYY · daily date</option>
+              <option value="mdy">MM/DD/YYYY · daily date</option>
+              <option value="ymd">YYYY-MM-DD · daily date</option>
+            </select>
+          </label>
           <p className="text-xs text-muted-foreground">
-            ISO dates only. Embedded offsets take precedence. Ambiguous or missing local times at daylight-saving
-            changes are rejected. Empty measurements stay missing; duplicate station/timestamps are retained and
-            counted. Charts and date filters use UTC.
+            Choose the actual source format; dates are never guessed. Daily dates are placed at midnight in the selected
+            time zone for charting, with their original values retained. Embedded offsets take precedence. Ambiguous or
+            missing local times at daylight-saving changes are rejected. Empty measurements stay missing; duplicate
+            station/timestamps are retained and counted. Charts and date filters use UTC.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -279,10 +314,12 @@ export function PortalMonitoring() {
                     if (file.size > 100000) throw new Error('Preset file is too large.')
                     const value = JSON.parse(await file.text())
                     if (value.mapping && value.mapping.timezoneColumn === undefined) value.mapping.timezoneColumn = ''
+                    if (value.mapping && value.mapping.dateFormat === undefined) value.mapping.dateFormat = 'iso'
                     if (
                       value.schema !== 'nechako-monitoring-preset-v1' ||
                       !value.mapping ||
-                      Object.keys(DEFAULT_MAPPING).some((key) => typeof value.mapping[key] !== 'string')
+                      Object.keys(DEFAULT_MAPPING).some((key) => typeof value.mapping[key] !== 'string') ||
+                      !['iso', 'dmy', 'mdy', 'ymd'].includes(value.mapping.dateFormat)
                     )
                       throw new Error('Invalid monitoring preset.')
                     for (const key of ['timestamp', 'station', 'primary', 'secondary', 'timezoneColumn'])

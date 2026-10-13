@@ -1,0 +1,89 @@
+{
+  "schema": "nechako-public-projects-v1",
+  "capturedAt": "2026-10-12",
+  "source": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+  "access": "anonymous",
+  "projects": [
+    {
+      "id": 4,
+      "name": "EchoScreen Cummulative Impacts Study",
+      "file": "public-projects/project-4.json",
+      "bytes": 13102,
+      "layerCount": 31,
+      "savedAt": "2026-04-29 05:20:52.6051+00",
+      "sha256": "55c691712b5f8d4647b00ddb4483820bed8f18a1dadba0a80e68715dc6e6ef51"
+    },
+    {
+      "id": 6,
+      "name": "IWRG Collated Project for PLOS Water 2024",
+      "file": "public-projects/project-6.json",
+      "bytes": 7741,
+      "layerCount": 19,
+      "savedAt": "2024-06-05 19:08:29.280163+00",
+      "sha256": "e966ba5f4b90db85c3e1d395233ee08958ad6ac4e5d17ca7992e5b0772310b29"
+    },
+    {
+      "id": 9,
+      "name": "Census_subdivision_history",
+      "file": "public-projects/project-9.json",
+      "bytes": 6491,
+      "layerCount": 20,
+      "savedAt": "2024-03-05 04:46:25.897875+00",
+      "sha256": "4e35cc1d5e8b317fe5d1a98615d10b01e5a0cc4b490d0f36ed2feab6425ffc61"
+    },
+    {
+      "id": 10,
+      "name": "Koh_Wetlands_Teacher_Resources",
+      "file": "public-projects/project-10.json",
+      "bytes": 5287,
+      "layerCount": 12,
+      "savedAt": "2024-03-05 04:46:25.897875+00",
+      "sha256": "d50509a23e352a3799cad0c48aee6612835e1f48f604b1a5a65dccf63f6540e6"
+    },
+    {
+      "id": 12,
+      "name": "NWR Annual Meeting 2023",
+      "file": "public-projects/project-12.json",
+      "bytes": 4537264,
+      "layerCount": 9,
+      "savedAt": "2024-03-20 16:42:37.333161+00",
+      "sha256": "8b7ea359341aaccd81419f3fbf41f54173088b7e5b7542ee62757cfd45e6c3c2"
+    },
+    {
+      "id": 14,
+      "name": "Climate and Health",
+      "file": "public-projects/project-14.json",
+      "bytes": 1663401,
+      "layerCount": 20,
+      "savedAt": "2024-04-12 13:03:14.53946+00",
+      "sha256": "5a0ac597c1c640341044494c7883d08ff8e47e4212df16d052d5b5bee42acf2f"
+    },
+    {
+      "id": 15,
+      "name": "Cheslatta Carrier Nation Archives",
+      "file": "public-projects/project-15.json",
+      "bytes": 3916,
+      "layerCount": 9,
+      "savedAt": "2024-04-10 13:30:34.867738+00",
+      "sha256": "41d82fd9a523278413d1d1cc9cbe6b27caaf1f4cf93f09f35eb69d244c0d5c10"
+    },
+    {
+      "id": 21,
+      "name": "Large Lakes Monitoring Working Group",
+      "file": "public-projects/project-21.json",
+      "bytes": 6469,
+      "layerCount": 17,
+      "savedAt": "2025-08-28 21:38:54.763728+00",
+      "sha256": "c89f4579d7a4eec732aaca8581688edc85ee5893d4efcbe5217ec3e23ebc26cd"
+    },
+    {
+      "id": 27,
+      "name": "\"Welcome to the Nechako Watershed\" Learning Module",
+      "file": "public-projects/project-27.json",
+      "bytes": 9794,
+      "layerCount": 21,
+      "savedAt": "2025-05-30 16:54:45.096646+00",
+      "sha256": "0cfca7fd30e876aff1fe1b45cce644be61870215fdce49adbc93edc679d36612"
+    }
+  ]
+}

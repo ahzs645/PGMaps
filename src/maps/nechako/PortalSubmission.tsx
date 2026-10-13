@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { PortalLayerRecords, type MonitoringContext } from './PortalLayerRecords'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NECHAKO_PORTAL, errorText } from '@/lib/nechakoPortal'
 import { downloadText } from '@/lib/download'
 import { CheckState, useReadCheck } from './PortalChecks'
+import { NativeSubmissionForm, PortalSubmissionReader, checkedReviewJson } from './PortalSubmissionReader'
 
 const SECTIONS = [
   ['Metadata', 'getSubmissionMetadata.php', 'submissionId'],
@@ -20,11 +22,15 @@ function Resource({
   name,
   endpoint,
   parameter,
+  onOpenSubmission,
+  onMonitoring,
 }: {
   id: string
   name: string
   endpoint: string
   parameter: string
+  onOpenSubmission: (id: string) => void
+  onMonitoring?: (context: MonitoringContext) => void
 }) {
   const check = useReadCheck()
   return (
@@ -39,7 +45,16 @@ function Resource({
         >
           Load {name.toLowerCase()}
         </Button>
-        <CheckState {...check} />
+        <CheckState {...check} showData={false} />
+        {check.data !== undefined && (
+          <PortalSubmissionReader
+            data={check.data}
+            onOpenSubmission={['Child submissions', 'Metadata'].includes(name) ? onOpenSubmission : undefined}
+          />
+        )}
+        {name === 'Spatial layers' && check.data !== undefined && (
+          <PortalLayerRecords key={id} submissionId={id} layers={check.data} onMonitoring={onMonitoring} />
+        )}
         {check.data !== undefined && (
           <Button
             variant="outline"
@@ -60,22 +75,26 @@ function Resource({
   )
 }
 
-export function PortalSubmission({ submissionId }: { submissionId?: string }) {
+type SubmissionProps = {
+  submissionId?: string
+  onMonitoring?: (context: MonitoringContext) => void
+}
+export function PortalSubmission({ submissionId, onMonitoring }: SubmissionProps) {
+  return <SubmissionContent key={submissionId || ''} submissionId={submissionId} onMonitoring={onMonitoring} />
+}
+
+function SubmissionContent({ submissionId, onMonitoring }: SubmissionProps) {
   const [entered, setEntered] = useState(submissionId || ''),
     [loaded, setLoaded] = useState(submissionId || '')
   const [error, setError] = useState(''),
     [file, setFile] = useState<unknown>()
-  useEffect(() => {
-    setEntered(submissionId || '')
-    setLoaded(submissionId || '')
-  }, [submissionId])
   return (
     <div className="space-y-3 rounded-lg border p-4">
       <h3 className="font-semibold">Submission resources</h3>
       <p className="text-sm text-muted-foreground">
         Load resources for a known portal submission ID. Each section asks the portal independently and respects its
-        returned access errors. This connection is anonymous; protected resources, schema-rendered form previews and
-        editing use the original portal.
+        returned access errors. The source form preview reads existing dynamic field definitions and values. This
+        connection uses available public reads; protected resources and edits retain the original access rules.
       </p>
       <form
         className="flex flex-wrap gap-2"
@@ -106,8 +125,20 @@ export function PortalSubmission({ submissionId }: { submissionId?: string }) {
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       {loaded && (
         <div key={loaded} className="space-y-3">
+          <NativeSubmissionForm submissionId={loaded} onMonitoring={onMonitoring} />
           {SECTIONS.map(([name, endpoint, parameter]) => (
-            <Resource key={endpoint} id={loaded} name={name} endpoint={endpoint} parameter={parameter} />
+            <Resource
+              key={endpoint}
+              id={loaded}
+              name={name}
+              endpoint={endpoint}
+              parameter={parameter}
+              onMonitoring={onMonitoring}
+              onOpenSubmission={(id) => {
+                setEntered(id)
+                setLoaded(id)
+              }}
+            />
           ))}
         </div>
       )}
@@ -125,9 +156,7 @@ export function PortalSubmission({ submissionId }: { submissionId?: string }) {
             const source = event.target.files?.[0]
             if (!source) return
             try {
-              if (source.size > 20 * 1024 * 1024) throw new Error('Submission export exceeds 20 MB.')
-              const data = JSON.parse(await source.text())
-              if (!data || typeof data !== 'object') throw new Error('Expected a submission JSON object or array.')
+              const data = await checkedReviewJson(source)
               setFile(data)
               setError('')
             } catch (reason) {
@@ -138,9 +167,13 @@ export function PortalSubmission({ submissionId }: { submissionId?: string }) {
         />
       </label>
       {file !== undefined && (
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">
-          {JSON.stringify(file, null, 2)}
-        </pre>
+        <PortalSubmissionReader
+          data={file}
+          onOpenSubmission={(id) => {
+            setEntered(id)
+            setLoaded(id)
+          }}
+        />
       )}
     </div>
   )

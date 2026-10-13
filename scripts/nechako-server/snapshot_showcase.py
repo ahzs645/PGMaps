@@ -14,15 +14,70 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from audit_data import Client, FILES, PORTAL, RESEARCH, rows, zotero_inventory
+from check_showcase import check, validate_public_projects
 
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def capture(output):
+def reviewed_public_projects(source):
+    """Read and validate every reviewed input before any copy or network request."""
+    try:
+        manifest = json.loads((source / 'manifest.json').read_text())
+        index = validate_public_projects(source, manifest)
+        entries = [entry for entry in manifest['files']
+                   if entry['kind'] in ('public_saved_project', 'public_project_catalogue')]
+        bodies = []
+        for entry in entries:
+            body = (source / entry['path']).read_bytes()
+            if len(body) != entry['bytes'] or hashlib.sha256(body).hexdigest() != entry['sha256']:
+                raise ValueError(f"Preserved-file manifest mismatch: {entry['path']}")
+            bodies.append((entry, body))
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+        raise ValueError(f'Cannot preserve reviewed public projects from {source}: {error}') from error
+    return index, entries, bodies
+
+
+def select_public_project_source(output, explicit_source=None, repository_source=None):
+    """Prefer an output's existing review; new/legacy outputs can use a reviewed seed."""
+    repository_source = repository_source or ROOT / 'public/data/nechako-showcase'
+    has_review = (output / 'public-projects').exists()
+    if explicit_source is None and (output / 'manifest.json').is_file():
+        try:
+            existing = json.loads((output / 'manifest.json').read_text())
+            has_review = has_review or bool(existing.get('counts', {}).get('public_saved_projects')) or any(
+                entry.get('kind') in ('public_saved_project', 'public_project_catalogue')
+                for entry in existing.get('files', []))
+        except (OSError, ValueError, AttributeError, TypeError) as error:
+            raise ValueError(f'Cannot inspect existing snapshot review at {output}: {error}') from error
+    if explicit_source is not None:
+        source = explicit_source
+    elif has_review:
+        source = output
+    else:
+        source = repository_source
+    # A corrupt existing review must fail rather than silently fall back to another date.
+    reviewed_public_projects(source)
+    return source
+
+
+def preserve_public_projects(source, output):
+    """Copy reviewed public evidence byte-for-byte, retaining its original date."""
+    index, entries, bodies = reviewed_public_projects(source)
+    # Validate every input before copying any of them into the staging directory.
+    for entry, body in bodies:
+        target = output / entry['path']
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(body)
+    return {'files': entries, 'count': len(index['projects']), 'captured_at_utc': index['capturedAt']}
+
+
+def capture(output, previous=None):
+    # Public-project evidence was separately reviewed; refreshing metadata does not recapture it.
+    preserved = preserve_public_projects(previous, output) if previous is not None else None
     client = Client()
     captured = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    files = []
+    files = list(preserved['files']) if preserved else []
 
     def save(path, body, source, kind):
         target = output / path
@@ -137,10 +192,17 @@ def capture(output):
                 'snapshot_file_bytes': sum(item['bytes'] for item in files),
                 'limitations': ['WMS capabilities are metadata; map tiles and identify still use live services.',
                                 'Attachment entries are links, not downloaded PDFs/videos.',
-                                'No private submissions, saved portal projects or source GIS databases are included.',
+                                'No private submissions, private saved portal projects or source GIS databases are included.',
                                 'The bundled workspace is derived from research locations, not a saved portal project.',
                                 'Research record IDs, Zotero keys and portal submission IDs have no verified crosswalk.'],
                 'files': files}
+    if preserved:
+        manifest['counts']['public_saved_projects'] = preserved['count']
+        manifest['public_projects_captured_at_utc'] = preserved['captured_at_utc']
+        manifest['attribution'] += ' Public saved maps: anonymous Nechako Stewardship Portal responses.'
+        manifest['limitations'].append(
+            f"Reviewed anonymous saved-project responses were preserved from {preserved['captured_at_utc']}; "
+            'the general snapshot capture timestamp does not describe a new project capture.')
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
     return manifest
 
@@ -148,15 +210,29 @@ def capture(output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'public/data/nechako-showcase')
+    parser.add_argument('--public-projects-from', type=Path,
+                        help='Existing showcase with reviewed anonymous projects to preserve; defaults to the output review, or repository showcase for a new/legacy output')
     args = parser.parse_args()
     if args.output.exists():
         manifest_file = args.output / 'manifest.json'
-        if not manifest_file.is_file() or json.loads(manifest_file.read_text()).get('schema') != 'nechako-showcase-v1':
+        try:
+            valid_snapshot = manifest_file.is_file() and json.loads(manifest_file.read_text()).get('schema') == 'nechako-showcase-v1'
+        except (OSError, ValueError, AttributeError):
+            valid_snapshot = False
+        if not valid_snapshot:
             parser.error('Refusing to replace a directory that is not a Nechako showcase snapshot')
+    try:
+        public_project_source = select_public_project_source(args.output, args.public_projects_from)
+    except ValueError as error:
+        parser.error(f'No valid reviewed public-project seed; output retained: {error}')
     # Fetch and validate everything before replacing the previous working snapshot.
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='nechako-showcase-', dir=args.output.parent) as staging:
-        manifest = capture(Path(staging))
+        try:
+            manifest = capture(Path(staging), previous=public_project_source)
+            check(Path(staging))
+        except (ValueError, AssertionError, OSError) as error:
+            parser.error(f'Snapshot refresh failed; previous output retained: {error}')
         if args.output.exists():
             shutil.rmtree(args.output)
         shutil.copytree(staging, args.output)

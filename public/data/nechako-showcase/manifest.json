@@ -11,14 +11,15 @@
     "wms_services": 32,
     "named_layers": 135,
     "attachment_links": 8,
-    "zotero_top_level_items": 767
+    "zotero_top_level_items": 767,
+    "public_saved_projects": 9
   },
   "research_bytes": 802513,
-  "snapshot_file_bytes": 1257503,
+  "snapshot_file_bytes": 7513926,
   "limitations": [
     "WMS capabilities are metadata; map tiles and identify still use live services.",
     "Attachment entries are links, not downloaded PDFs/videos.",
-    "No private submissions, saved portal projects or source GIS databases are included.",
+    "No private submissions, private saved projects or source GIS databases are included. Public saved project definitions include original descriptions and embedded raster images; external media and GIS services remain at their sources.",
     "The bundled workspace is derived from research locations, not a saved portal project.",
     "Research record IDs, Zotero keys and portal submission IDs have no verified crosswalk."
   ],
@@ -316,6 +317,132 @@
       "kind": "showcase_workspace",
       "bytes": 28770,
       "sha256": "99c6ce61474a80740c85730331a9104504cab56f7da1e1d4cfd0874f81443b6e"
+    },
+    {
+      "path": "public-projects/project-4.json",
+      "kind": "public_saved_project",
+      "bytes": 13102,
+      "sha256": "55c691712b5f8d4647b00ddb4483820bed8f18a1dadba0a80e68715dc6e6ef51",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 4
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-6.json",
+      "kind": "public_saved_project",
+      "bytes": 7741,
+      "sha256": "e966ba5f4b90db85c3e1d395233ee08958ad6ac4e5d17ca7992e5b0772310b29",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 6
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-9.json",
+      "kind": "public_saved_project",
+      "bytes": 6491,
+      "sha256": "4e35cc1d5e8b317fe5d1a98615d10b01e5a0cc4b490d0f36ed2feab6425ffc61",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 9
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-10.json",
+      "kind": "public_saved_project",
+      "bytes": 5287,
+      "sha256": "d50509a23e352a3799cad0c48aee6612835e1f48f604b1a5a65dccf63f6540e6",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 10
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-12.json",
+      "kind": "public_saved_project",
+      "bytes": 4537264,
+      "sha256": "8b7ea359341aaccd81419f3fbf41f54173088b7e5b7542ee62757cfd45e6c3c2",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 12
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-14.json",
+      "kind": "public_saved_project",
+      "bytes": 1663401,
+      "sha256": "5a0ac597c1c640341044494c7883d08ff8e47e4212df16d052d5b5bee42acf2f",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 14
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-15.json",
+      "kind": "public_saved_project",
+      "bytes": 3916,
+      "sha256": "41d82fd9a523278413d1d1cc9cbe6b27caaf1f4cf93f09f35eb69d244c0d5c10",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 15
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-21.json",
+      "kind": "public_saved_project",
+      "bytes": 6469,
+      "sha256": "c89f4579d7a4eec732aaca8581688edc85ee5893d4efcbe5217ec3e23ebc26cd",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 21
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/project-27.json",
+      "kind": "public_saved_project",
+      "bytes": 9794,
+      "sha256": "0cfca7fd30e876aff1fe1b45cce644be61870215fdce49adbc93edc679d36612",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "source_method": "POST",
+      "source_params": {
+        "mode": "load",
+        "projectId": 27
+      },
+      "captured_at_utc": "2026-10-12"
+    },
+    {
+      "path": "public-projects/index.json",
+      "kind": "public_project_catalogue",
+      "bytes": 2958,
+      "sha256": "1fd2fb18e504495011fa75cb04fbb6f4e40c70164a7e74eaf7415716473d81da",
+      "source_url": "https://nechakowatershed-portal.ca/rest/openmap/savedProjects.php",
+      "captured_at_utc": "2026-10-12"
     }
-  ]
+  ],
+  "public_projects_captured_at_utc": "2026-10-12"
 }

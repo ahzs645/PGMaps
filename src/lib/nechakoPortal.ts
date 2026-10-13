@@ -1,4 +1,19 @@
-/** Anonymous, read-only transport for the Stewardship Portal. */
+/** Direct anonymous reads or an explicitly selected isolated local read gateway. */
+import { gatewayRequest, gatewayWrite, getPortalConnectionMode } from './nechakoConnection'
+export {
+  getPortalConnectionMode,
+  setPortalConnectionMode,
+  getPortalConnectionStatus,
+  connectPortalSession,
+  disconnectPortalSession,
+  portalDownloadSubmission,
+  type SubmissionDownloadMode,
+  PORTAL_CONNECTION_EVENT,
+  PORTAL_CONNECTION_SETTING,
+  type PortalConnectionMode,
+  type PortalConnectionStatus,
+  type PortalConnectionChangeReason,
+} from './nechakoConnection'
 export const NECHAKO_PORTAL = 'https://nechakowatershed-portal.ca/'
 
 export type PortalSource = {
@@ -42,6 +57,15 @@ export function checkedPortalAttributes(value: unknown): unknown {
 }
 
 export async function portalRead(path: string, params?: Record<string, string>, signal?: AbortSignal) {
+  if (
+    !/^rest\/(?:portal|openmap)\/[a-zA-Z][a-zA-Z0-9]*\.php$/.test(path) &&
+    !/^rest\/portal\/admin\/[a-zA-Z][a-zA-Z0-9]*\.php$/.test(path)
+  ) {
+    throw new Error('Portal reads require a relative native REST endpoint.')
+  }
+  if (getPortalConnectionMode() === 'gateway') {
+    return checkedPortalAttributes(await gatewayRequest('read', { path, params: params ?? {} }, signal))
+  }
   const response = await fetch(new URL(path, NECHAKO_PORTAL), {
     credentials: 'omit',
     // URLSearchParams produces a CORS-safelisted form POST. Do not add X-Requested-With.
@@ -50,6 +74,22 @@ export async function portalRead(path: string, params?: Record<string, string>, 
   })
   if (!response.ok) throw new Error(`Portal HTTP ${response.status}`)
   return checkedPortalAttributes(await response.json())
+}
+
+/** Called only after a user has reviewed and confirmed a source change in the UI. */
+export async function portalWrite(path: string, params: Record<string, string>, signal?: AbortSignal) {
+  return checkedPortalAttributes(await gatewayWrite(path, params, signal))
+}
+
+/** Read a submission's native layer attributes through server-derived descriptors only. */
+export async function portalLayerAttributes(submissionId: number, layerId: number, signal?: AbortSignal) {
+  if (getPortalConnectionMode() !== 'gateway')
+    throw new Error('Source layer attributes require the local gateway connection.')
+  if (![submissionId, layerId].every((id) => Number.isSafeInteger(id) && id > 0 && id <= 2147483647))
+    throw new Error('Enter the source submission and layer IDs.')
+  return checkedPortalAttributes(
+    await gatewayRequest('layer-attributes', { submissionId: String(submissionId), layerId: String(layerId) }, signal),
+  )
 }
 
 export async function loadPortalSources(signal?: AbortSignal): Promise<PortalSource[]> {

@@ -30,6 +30,7 @@ export function csvExport(headers: string[], rows: unknown[][]) {
   return [headers, ...rows].map((row) => row.map(cell).join(',')).join('\r\n')
 }
 
+export type MonitoringDateFormat = 'iso' | 'dmy' | 'mdy' | 'ymd'
 export type MonitoringMapping = {
   timestamp: string
   station: string
@@ -39,6 +40,7 @@ export type MonitoringMapping = {
   secondaryUnit: string
   timezone: string
   timezoneColumn?: string
+  dateFormat?: MonitoringDateFormat
 }
 export type Observation = {
   time: number
@@ -50,7 +52,18 @@ export type Observation = {
   source: Record<string, string>
 }
 
-export function parseTimestamp(text: string, timezone: string): number {
+export function parseTimestamp(text: string, timezone: string, dateFormat: MonitoringDateFormat = 'iso'): number {
+  if (!['iso', 'dmy', 'mdy', 'ymd'].includes(dateFormat)) throw new Error('Choose a supported explicit date format.')
+  if (dateFormat !== 'iso') {
+    const parts = text
+      .trim()
+      .match(dateFormat === 'ymd' ? /^(\d{4})-(\d{1,2})-(\d{1,2})$/ : /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+    if (!parts) throw new Error(`The daily date does not match the selected ${dateFormat.toUpperCase()} format.`)
+    const year = dateFormat === 'ymd' ? parts[1] : parts[3]
+    const month = dateFormat === 'dmy' ? parts[2] : dateFormat === 'mdy' ? parts[1] : parts[2]
+    const day = dateFormat === 'dmy' ? parts[1] : dateFormat === 'mdy' ? parts[2] : parts[3]
+    text = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} 00:00:00`
+  }
   const match = text
     .trim()
     .match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?$/)
@@ -124,7 +137,7 @@ export function normalizeMonitoring(records: Record<string, string>[], mapping: 
       }
       const timezone = mapping.timezoneColumn ? source[mapping.timezoneColumn]?.trim() : mapping.timezone
       if (!timezone) throw new Error('Missing timezone/UTC offset in the mapped column.')
-      const time = parseTimestamp(source[mapping.timestamp] || '', timezone)
+      const time = parseTimestamp(source[mapping.timestamp] || '', timezone, mapping.dateFormat)
       const primary = numeric(mapping.primary),
         secondary = numeric(mapping.secondary)
       if (primary === null && secondary === null) throw new Error('No measurements in this row.')

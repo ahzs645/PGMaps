@@ -6,6 +6,7 @@ export type CatalogueSource = 'snapshot' | 'live'
 export type ShowcaseManifest = {
   schema: 'nechako-showcase-v1'
   captured_at_utc: string
+  public_projects_captured_at_utc?: string
   attribution: string
   counts: {
     research_records: number
@@ -17,6 +18,7 @@ export type ShowcaseManifest = {
     named_layers: number
     attachment_links: number
     zotero_top_level_items: number
+    public_saved_projects?: number
   }
   research_bytes: number
   snapshot_file_bytes: number

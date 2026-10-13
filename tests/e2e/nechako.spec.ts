@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { FEATURE_COMPARISON, FORMAT_COMPARISON } from '../../src/maps/nechako/comparison'
 
 const origin = 'https://nechakowatershed-portal.ca'
 const resource = `${origin}/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/example.qgs&REQUEST=GetCapabilities`
@@ -98,7 +99,15 @@ for (const viewport of [
       if (url.pathname.endsWith('getSearchContext.php'))
         return success([{ context: 'Submission Title' }, { context: 'Submission ID' }])
       if (url.pathname.endsWith('getSearchResults.php') && !searchFails)
-        return success({ results: Array.from({ length: 21 }, (_, i) => ({ id: i + 1, title: `Record ${i + 1}` })) })
+        return success({
+          results: Array.from({ length: 26 }, (_, i) => ({
+            submission_id: i + 1,
+            submission_title: `Record ${i + 1}`,
+            submission_name: `Source record ${i + 1}`,
+            submission_date: '2026-01-01',
+            submitted_by: 'Fixture author',
+          })),
+        })
       if (url.pathname.endsWith('getSpatialFormats.php'))
         return success([{ name: 'GeoJSON', format_extension: '.geojson', enabled: true }])
       if (url.pathname.endsWith('getForms.php')) return success([])
@@ -107,6 +116,7 @@ for (const viewport of [
       })
     })
     await page.goto('/dev/nechako?view=layers&source=live')
+    const workbenchTabs = page.getByRole('tablist', { name: 'Nechako portal views', exact: true })
     await expect(page.getByText('1 WMS services', { exact: false })).toBeVisible()
     await expect(page.getByLabel('Named layer or group')).toHaveValue('native group')
     await page.getByLabel('Layer style', { exact: true }).selectOption('native')
@@ -126,7 +136,8 @@ for (const viewport of [
     await page.getByRole('button', { name: 'Zoom to layer' }).click()
     await page.getByText('Layer legends (1)', { exact: true }).click()
     await expect(page.getByAltText('Legend for Watershed group')).toBeVisible()
-    await page.getByRole('tab', { name: 'Search', exact: true }).click()
+    await workbenchTabs.getByRole('tab', { name: 'Search', exact: true }).click()
+    await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
     await page.getByLabel('Search expression').fill('(salmon OR trout) AND {Submission ID} >= 100')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('Website is not registered')
@@ -139,26 +150,26 @@ for (const viewport of [
     expect(searchRequest.headers['content-type']).toContain('application/x-www-form-urlencoded')
     searchFails = false
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
-    await expect(page.getByText('21 records · Page 1 of 2')).toBeVisible()
-    await page.getByRole('button', { name: 'Next', exact: true }).click()
-    await expect(page.getByText('"title": "Record 21"', { exact: false })).toBeVisible()
-    await page.getByRole('button', { name: 'Previous', exact: true }).click()
+    await expect(page.getByText('Submission table: 26 object records · Page 1 of 2')).toBeVisible()
+    await page.getByRole('button', { name: 'Next submissions', exact: true }).click()
+    await expect(page.getByRole('cell', { name: 'Record 26', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Previous submissions', exact: true }).click()
     await page.getByLabel('Search expression').fill('salmon AND')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('incomplete')
-    await expect(page.getByText('21 records · Page 1 of 2')).toHaveCount(0)
-    await page.getByRole('tab', { name: 'Projects', exact: true }).click()
-    await page.getByRole('button', { name: 'Check saved projects' }).click()
+    await expect(page.getByText('Submission table: 26 object records · Page 1 of 2')).toHaveCount(0)
+    await workbenchTabs.getByRole('tab', { name: 'Projects', exact: true }).click()
+    await page.getByRole('button', { name: 'Refresh portal projects', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('Website is not registered')
-    await page.getByRole('button', { name: 'Check default project' }).click()
-    await expect(page.getByRole('alert')).toHaveCount(2)
-    await page.getByRole('button', { name: 'Check available report forms' }).click()
-    await expect(page.getByText('0 records · Page 1 of 1')).toBeVisible()
-    await page.getByRole('tab', { name: 'Formats', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Load portal project', exact: true })).toBeDisabled()
+    await workbenchTabs.getByRole('tab', { name: 'Form reports', exact: true }).click()
+    await page.getByRole('button', { name: 'Read available report forms', exact: true }).click()
+    await expect(page.getByLabel('Source report form', { exact: true }).getByRole('option')).toHaveCount(1)
+    await workbenchTabs.getByRole('tab', { name: 'Formats', exact: true }).click()
     await expect(page.getByText('"format_extension": ".geojson"', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Refresh formats' }).click()
     await expect(page.getByText('"format_extension": ".geojson"', { exact: false })).toBeVisible()
-    await page.getByRole('tab', { name: 'Research', exact: true }).click()
+    await workbenchTabs.getByRole('tab', { name: 'Research', exact: true }).click()
     await page.getByLabel('Research data source').selectOption('live')
     await expect(page.getByText('3 total records · 1 without location tags')).toBeVisible()
     await expect(page.getByText('3 matching records')).toBeVisible()
@@ -173,12 +184,12 @@ for (const viewport of [
     await expect(page.getByText('1 matching records')).toBeVisible()
     await page.getByRole('button', { name: 'All records', exact: true }).click()
     await expect(page.getByText('3 matching records')).toBeVisible()
-    await page.getByRole('tab', { name: 'Comparison', exact: true }).click()
+    await workbenchTabs.getByRole('tab', { name: 'Comparison', exact: true }).click()
     await expect(page).toHaveURL(/view=compare/)
     await expect(page.getByRole('table')).toHaveCount(2)
-    expect(await page.getByRole('table').first().getByRole('row').count()).toBe(18)
-    expect(await page.getByRole('table').last().getByRole('row').count()).toBe(19)
-    await page.getByRole('tab', { name: 'Layers', exact: true }).click()
+    expect(await page.getByRole('table').first().getByRole('row').count()).toBe(FEATURE_COMPARISON.length + 1)
+    expect(await page.getByRole('table').last().getByRole('row').count()).toBe(FORMAT_COMPARISON.length + 1)
+    await workbenchTabs.getByRole('tab', { name: 'Layers', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Map layers (1)' })).toBeVisible()
     await page.getByRole('button', { name: 'Refresh catalogue' }).click()
     await expect(page.getByLabel('Named layer or group')).toHaveValue('native group')

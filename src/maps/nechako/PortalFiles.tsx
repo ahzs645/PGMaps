@@ -6,8 +6,18 @@ import { errorText } from '@/lib/nechakoPortal'
 import { convertFiles } from './data/conversion'
 import { checkedCsv, csvExport } from './data/monitoring'
 import type { VectorData } from './data/workspace'
+import { PortalDraftReview } from './PortalDraftReview'
+import type { DraftWrite } from './data/nativeDraftUpload'
 
-export function PortalFiles({ onVectors }: { onVectors: (layers: VectorData[]) => void }) {
+export function PortalFiles({
+  onVectors,
+  write,
+  canWrite = false,
+}: {
+  onVectors: (layers: VectorData[]) => void
+  write?: DraftWrite
+  canWrite?: boolean
+}) {
   const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<Awaited<ReturnType<typeof convertFiles>>>()
   const [sourceCrs, setSourceCrs] = useState('')
@@ -163,8 +173,63 @@ export function PortalFiles({ onVectors }: { onVectors: (layers: VectorData[]) =
                 </Button>
               </div>
             ))}
+            {result.layers.map((layer: { name: string; data: GeoJSON.FeatureCollection }, index: number) => (
+              <details key={`match-${index}`} className="rounded border p-3">
+                <summary className="cursor-pointer text-sm font-medium">
+                  Match {layer.name} attributes to a source schema
+                </summary>
+                <PortalDraftReview
+                  sourceName={layer.name}
+                  rows={layer.data.features.map((feature) => feature.properties ?? {})}
+                  geometry={layer.data}
+                />
+              </details>
+            ))}
             {!!result.tables?.length && (
-              <pre className="max-h-80 overflow-auto text-xs">{JSON.stringify(result.tables, null, 2)}</pre>
+              <div className="space-y-3">
+                <pre className="max-h-80 overflow-auto text-xs">{JSON.stringify(result.tables, null, 2)}</pre>
+                <p className="text-xs text-muted-foreground">
+                  This database inspection provides table names, column names and row counts. It does not read GPAP
+                  note/form values, attachment bodies or tracks, so those records have not been converted into portal
+                  drafts. Preserve the original database; CSV/GeoJSON exported from your source can be reviewed with the
+                  field matcher below.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    downloadText(
+                      JSON.stringify(
+                        {
+                          schema: 'nechako-database-inventory-review-v1',
+                          publication: 'not-submitted',
+                          sourceFiles: files.map((file) => ({ name: file.name, bytes: file.size })),
+                          tables: result.tables,
+                          warnings: result.warnings,
+                          recordsRead: false,
+                          sourceGpapWorkflow: [
+                            'Choose File',
+                            'Match Forms',
+                            'Match Fields',
+                            'Select Records to Submit',
+                          ],
+                          unresolved: [
+                            'Original note/form values and media/track relationships',
+                            'Native multipart staging response and recovery',
+                            'Schema compatibility and duplicateProtection semantics',
+                          ],
+                        },
+                        null,
+                        2,
+                      ),
+                      'database-inventory-review.json',
+                      'application/json',
+                    )
+                  }
+                >
+                  Download database inventory review artifact
+                </Button>
+              </div>
             )}
             {!!result.archiveEntries?.length && (
               <details>
@@ -177,6 +242,7 @@ export function PortalFiles({ onVectors }: { onVectors: (layers: VectorData[]) =
           </>
         )}
       </div>
+      <PortalDraftReview write={write} canWrite={canWrite} />
       <div className="space-y-3 rounded-lg border p-4">
         <h3 className="font-semibold">Zotero / bibliographic CSV</h3>
         <p className="text-sm text-muted-foreground">

@@ -18,6 +18,7 @@ import { errorText } from '@/lib/nechakoPortal'
 import { csvExport } from './data/monitoring'
 import { exportGis } from './data/conversion'
 import { normalizeGeojson, type VectorData } from './data/workspace'
+import { categoryColor, categoryLabel, makeCategoryStyle } from './data/vectorStyle'
 import { splitPolygon } from './data/polygonSplit'
 
 function featureCollection(features: Feature[]): FeatureCollection {
@@ -70,9 +71,9 @@ function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id:
       {polygons.features.length > 0 && (
         <MapFillLayer
           data={polygons}
-          fillColor={vector.color}
+          fillColor={categoryColor(vector.categories, vector.color)}
           fillOpacity={vector.fillOpacity ?? 0.35}
-          lineColor={vector.color}
+          lineColor={categoryColor(vector.categories, vector.color)}
           lineWidth={vector.lineWidth ?? 2}
           lineOpacity={vector.lineOpacity}
           idProperty="__nechako_render_id"
@@ -82,8 +83,9 @@ function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id:
       {lines.features.length > 0 && (
         <MapLineLayer
           data={lines}
-          color={vector.color}
-          width={3}
+          color={categoryColor(vector.categories, vector.color)}
+          width={vector.lineWidth ?? 3}
+          opacity={vector.lineOpacity ?? 1}
           sourceTolerance={0}
           interactive={!!onSelect}
           idProperty="__nechako_render_id"
@@ -93,8 +95,8 @@ function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id:
       {points.features.length > 0 && (
         <MapCircleLayer
           data={points}
-          color={vector.color}
-          radius={6}
+          color={categoryColor(vector.categories, vector.color)}
+          radius={vector.pointRadius ?? 6}
           hoverEnabled={false}
           idProperty="__nechako_render_id"
           onFeatureClick={(id) => onSelect?.(vector.id, Number(id))}
@@ -392,6 +394,112 @@ export function PortalVectors({
               )
             }
           />
+          <details className="w-full rounded border p-2">
+            <summary>Style {item.name}</summary>
+            <label className="block">
+              Color categories by field
+              <select
+                className="ml-2 max-w-full rounded border bg-background p-2"
+                aria-label={`Category field for ${item.name}`}
+                value={item.categories?.property ?? ''}
+                onChange={(event) => {
+                  try {
+                    const categories = event.target.value
+                      ? makeCategoryStyle(item.data, event.target.value, item.color)
+                      : undefined
+                    replace(vectors.map((value) => (value.id === item.id ? { ...value, categories } : value)))
+                    setError('')
+                  } catch (reason) {
+                    setError(errorText(reason))
+                  }
+                }}
+              >
+                <option value="">Single color</option>
+                {[...new Set(item.data.features.flatMap((feature) => Object.keys(feature.properties ?? {})))]
+                  .sort()
+                  .map((field) => (
+                    <option key={field}>{field}</option>
+                  ))}
+              </select>
+            </label>
+            {item.categories?.rules.map((rule, index) => (
+              <label key={index} className="mt-1 flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={`Category ${categoryLabel(rule.value)} for ${item.name}`}
+                  value={rule.color}
+                  onChange={(event) =>
+                    replace(
+                      vectors.map((value) =>
+                        value.id === item.id
+                          ? {
+                              ...value,
+                              categories: {
+                                ...item.categories!,
+                                rules: item.categories!.rules.map((entry, i) =>
+                                  i === index ? { ...entry, color: event.target.value } : entry,
+                                ),
+                              },
+                            }
+                          : value,
+                      ),
+                    )
+                  }
+                />
+                {categoryLabel(rule.value)}
+              </label>
+            ))}
+            {item.categories && (
+              <label className="mt-1 flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={`Fallback color for ${item.name}`}
+                  value={item.categories.fallback}
+                  onChange={(event) =>
+                    replace(
+                      vectors.map((value) =>
+                        value.id === item.id
+                          ? { ...value, categories: { ...item.categories!, fallback: event.target.value } }
+                          : value,
+                      ),
+                    )
+                  }
+                />
+                Other values
+              </label>
+            )}
+            {(
+              [
+                ['lineWidth', 'Line width (pixels)', 20, 2],
+                ['pointRadius', 'Point radius (pixels)', 30, 6],
+                ['fillOpacity', 'Fill opacity', 1, 0.35],
+              ] as const
+            ).map(([key, title, max, initial]) => (
+              <label key={key} className="mt-2 block">
+                {title}
+                <input
+                  type="range"
+                  className="w-full"
+                  min="0"
+                  max={max}
+                  step={max === 1 ? 0.05 : 1}
+                  aria-label={`${title} for ${item.name}`}
+                  value={item[key] ?? initial}
+                  onChange={(event) =>
+                    replace(
+                      vectors.map((value) =>
+                        value.id === item.id ? { ...value, [key]: Number(event.target.value) } : value,
+                      ),
+                    )
+                  }
+                />
+              </label>
+            ))}
+            <p className="text-xs text-muted-foreground">
+              Category colors preserve number, text and boolean values separately. Missing values share the null
+              category. Up to 40 categories.
+            </p>
+          </details>
           <Button size="sm" variant="outline" onClick={() => replace(vectors.filter((value) => value.id !== item.id))}>
             Remove vector {item.name}
           </Button>
