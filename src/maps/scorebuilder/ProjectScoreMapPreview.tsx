@@ -11,6 +11,7 @@ import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { BcEnviroScreenMapControls } from './components/BcEnviroScreenMapControls'
 import { BcEnviroScreenMapLegend } from './components/BcEnviroScreenMapLegend'
 import { BcEnviroScreenRegionProfile } from './components/BcEnviroScreenRegionProfile'
+import { ScoreBuilderWalkabilitySurfacePanel } from './components/ScoreBuilderWalkabilitySurfacePanel'
 import {
   createInitialScoreBuilderState,
   getSelectedRegionLevel,
@@ -56,6 +57,9 @@ export function ProjectScoreMapPreview({
     const params = buildProjectLabParams(project) ?? new URLSearchParams()
     return createInitialScoreBuilderState(params)
   }, [project])
+  // The walkability raster stays editable here, as on the MISC walkability tab; it starts
+  // from the package's model (report fidelity for the Pedestrian Network Study).
+  const [surfaceTuning, setSurfaceTuning] = useState(() => control.walkabilitySurfaceTuning)
   const selectedRegionLevel = getSelectedRegionLevel(control)
   const enabledSourceSet = useMemo(() => new Set(control.enabledDataSources), [control.enabledDataSources])
 
@@ -153,10 +157,19 @@ export function ProjectScoreMapPreview({
         regionFillColors={regionFillColors}
         walkabilitySourceSurface={showWalkabilitySourceSurface}
         sourceGridWeights={previewControl.weights}
-        walkabilitySurfaceTuning={previewControl.walkabilitySurfaceTuning}
+        walkabilitySurfaceTuning={surfaceTuning}
         loading={datasets.loading}
         fitAllRegions={bcEnviroScreenMapActive}
       />
+
+      {showWalkabilitySourceSurface && (
+        <ScoreBuilderWalkabilitySurfacePanel
+          tuning={surfaceTuning}
+          onChange={setSurfaceTuning}
+          metricWeights={previewControl.weights}
+          isDesktop={isDesktop}
+        />
+      )}
 
       {bcEnviroScreenMapActive && (
         <BcEnviroScreenMapControls
@@ -185,8 +198,10 @@ export function ProjectScoreMapPreview({
             <>
               <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} angledLabels={project.angledLegendLabels} />
               <div className="text-xs leading-snug text-muted-foreground">
-                Mobility Index surface derived from the project recipe, over{' '}
-                {results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} scored regions.
+                {surfaceTuning.enabled
+                  ? 'Mobility Index surface from the 44 report factors'
+                  : 'Mobility Index surface derived from the project recipe'}
+                , over {results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} scored regions.
               </div>
             </>
           ) : (

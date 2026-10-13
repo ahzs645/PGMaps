@@ -38,6 +38,11 @@ import {
   getScoreDataSourcesForWeights,
 } from '@/maps/scorebuilder/constants'
 import type { ScoreBuilderShareState } from '@/maps/scorebuilder/lib/shareState'
+import {
+  encodeWalkabilitySurfaceTuning,
+  walkabilitySurfaceTuningFor,
+  type WalkabilitySurfaceModel,
+} from '@/maps/scorebuilder/lib/walkabilitySurface'
 import type { ScoreMetricWeightMap, ScoreMethodSettings } from '@/maps/scorebuilder/types'
 import { withBase } from './dataUrl'
 
@@ -117,6 +122,8 @@ export interface ProjectLabRecipe {
   mapColorScale?: ScoreMethodSettings['mapColorScale']
   paletteOverride?: string
   mapSurface?: 'source' | 'boundary'
+  /** `report` opens the walkability source surface on the report-fidelity Mobility Index. */
+  walkabilitySurface?: WalkabilitySurfaceModel
   selectedNetworks?: string[] | 'all'
   accessThreshold?: Partial<ScoreMethodSettings['accessThreshold']>
   healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
@@ -1082,6 +1089,8 @@ export function buildProjectLabParams(pkg: ProjectPackage): URLSearchParams | nu
   if (pkg.lab.mapColorScale) params.set('cscale', pkg.lab.mapColorScale)
   if (pkg.lab.paletteOverride) params.set('pal', pkg.lab.paletteOverride)
   if (pkg.lab.mapSurface) params.set('surface', pkg.lab.mapSurface)
+  const surfaceToken = encodeWalkabilitySurfaceTuning(walkabilitySurfaceTuningFor(pkg.lab.walkabilitySurface))
+  if (surfaceToken) params.set('wsurf', surfaceToken)
   if (pkg.lab.selectedNetworks === 'all') {
     params.set('networks', 'all')
   } else if (Array.isArray(pkg.lab.selectedNetworks) && pkg.lab.selectedNetworks.length > 0) {

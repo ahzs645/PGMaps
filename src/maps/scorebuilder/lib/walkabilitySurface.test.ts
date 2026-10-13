@@ -7,7 +7,9 @@ import {
 import {
   buildSourceGridFactorWeights,
   createDefaultWalkabilitySurfaceTuning,
+  createReportFidelityWalkabilitySurfaceTuning,
   encodeWalkabilitySurfaceTuning,
+  isReportFidelityTuning,
   parseWalkabilitySurfaceTuning,
   resolveWalkabilitySurfaceModel,
 } from './walkabilitySurface'
@@ -119,6 +121,24 @@ describe('createDefaultWalkabilitySurfaceTuning', () => {
     expect(tuning.enabled).toBe(false)
     expect(tuning.options).toEqual(HEATMAP_REPORT_FIDELITY_OPTIONS)
     expect(Object.values(tuning.factorWeights).every((value) => value === 1)).toBe(true)
+  })
+})
+
+describe('report-fidelity tuning', () => {
+  it('turns direct control on with the report options and every factor at report weight', () => {
+    const tuning = createReportFidelityWalkabilitySurfaceTuning()
+    expect(tuning.enabled).toBe(true)
+    expect(tuning.options).toEqual(HEATMAP_REPORT_FIDELITY_OPTIONS)
+    expect(Object.keys(tuning.factorWeights)).toHaveLength(WALKABILITY_REPORT_FACTOR_REFS.length)
+    expect(isReportFidelityTuning(tuning)).toBe(true)
+  })
+
+  it('survives the URL round trip and stops matching once a factor is edited', () => {
+    const tuning = createReportFidelityWalkabilitySurfaceTuning()
+    const parsed = parseWalkabilitySurfaceTuning(encodeWalkabilitySurfaceTuning(tuning))
+    expect(isReportFidelityTuning(parsed)).toBe(true)
+    expect(isReportFidelityTuning({ ...parsed, factorWeights: { ...parsed.factorWeights, G1: 1.5 } })).toBe(false)
+    expect(isReportFidelityTuning(createDefaultWalkabilitySurfaceTuning())).toBe(false)
   })
 })
 

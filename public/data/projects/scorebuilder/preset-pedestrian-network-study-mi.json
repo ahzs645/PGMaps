@@ -137,6 +137,7 @@
     },
     "normalization": "percentile",
     "aggregation": "additive",
-    "mapSurface": "source"
+    "mapSurface": "source",
+    "walkabilitySurface": "report"
   }
 }

@@ -5,6 +5,7 @@ import {
   scoreBuilderReducer,
   type ScoreBuilderControlState,
 } from './scoreBuilderReducer'
+import { isReportFidelityTuning } from '../lib/walkabilitySurface'
 
 function baseState(): ScoreBuilderControlState {
   return {
@@ -186,5 +187,25 @@ describe('createInitialScoreBuilderState for the lens labs', () => {
     const state = createInitialScoreBuilderState(new URLSearchParams('w=0'), 'density')
 
     expect(Object.values(state.scoreFilters).every((enabled) => !enabled)).toBe(true)
+  })
+})
+
+describe('walkability surface model from recipes', () => {
+  it('applies the report-fidelity surface with the Pedestrian Network Study preset and resets it after', () => {
+    const state = baseState()
+    const pedestrian = scoreBuilderReducer(state, {
+      type: 'applyPreset',
+      presetKey: 'pedestrianNetworkStudyMi',
+      allNetworks: [],
+    })
+    expect(pedestrian.mapSurface).toBe('source')
+    expect(isReportFidelityTuning(pedestrian.walkabilitySurfaceTuning)).toBe(true)
+
+    const other = scoreBuilderReducer(pedestrian, {
+      type: 'applyPreset',
+      presetKey: 'livabilityIndex',
+      allNetworks: [],
+    })
+    expect(other.walkabilitySurfaceTuning.enabled).toBe(false)
   })
 })

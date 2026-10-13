@@ -127,6 +127,12 @@ export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeight
 }
 
 /**
+ * Which model a recipe draws the walkability source surface with: `report` is the
+ * report-fidelity Mobility Index; absent, the surface follows the equation weights.
+ */
+export type WalkabilitySurfaceModel = 'report'
+
+/**
  * Walkability source-surface tuning. Held as visualization state alongside the
  * score equation (like the scenario baseline) rather than in the scored model.
  */
@@ -143,6 +149,33 @@ export function createDefaultWalkabilitySurfaceTuning(): WalkabilitySurfaceTunin
     factorWeights: { ...HEATMAP_DEFAULT_FACTOR_WEIGHTS },
     options: { ...HEATMAP_REPORT_FIDELITY_OPTIONS },
   }
+}
+
+/**
+ * The report-fidelity model: direct control on, the report's variant options, and every
+ * factor at report weight, so the raster reproduces the published Mobility Index.
+ */
+export function createReportFidelityWalkabilitySurfaceTuning(): WalkabilitySurfaceTuning {
+  return {
+    enabled: true,
+    factorWeights: Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, REPORT_FACTOR_WEIGHT])),
+    options: { ...HEATMAP_REPORT_FIDELITY_OPTIONS },
+  }
+}
+
+/** True when the tuning is exactly the report-fidelity model. */
+export function isReportFidelityTuning(tuning: WalkabilitySurfaceTuning): boolean {
+  if (!tuning.enabled) return false
+  const report = createReportFidelityWalkabilitySurfaceTuning()
+  return (
+    SURFACE_OPTION_ORDER.every((key) => Boolean(tuning.options[key]) === Boolean(report.options[key])) &&
+    WALKABILITY_REPORT_FACTOR_REFS.every((ref) => (tuning.factorWeights[ref] ?? 1) === REPORT_FACTOR_WEIGHT)
+  )
+}
+
+/** The tuning a recipe asks for: the report model when it names it, otherwise the derived default. */
+export function walkabilitySurfaceTuningFor(surface: WalkabilitySurfaceModel | undefined): WalkabilitySurfaceTuning {
+  return surface === 'report' ? createReportFidelityWalkabilitySurfaceTuning() : createDefaultWalkabilitySurfaceTuning()
 }
 
 export interface ResolvedWalkabilitySurfaceModel {

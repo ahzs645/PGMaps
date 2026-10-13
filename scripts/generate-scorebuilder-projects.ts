@@ -63,6 +63,7 @@ interface GeneratedProjectPackage {
     mapColorScale?: ScoreMethodSettings['mapColorScale']
     paletteOverride?: string | null
     mapSurface?: 'source' | 'boundary'
+    walkabilitySurface?: 'report'
     selectedNetworks?: string[] | 'all'
     accessThreshold?: Partial<ScoreMethodSettings['accessThreshold']>
     healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
@@ -185,6 +186,7 @@ function labRecipe({
   methodSettings,
   sources,
   selectedNetworks,
+  walkabilitySurface,
 }: {
   presetKey?: string
   boundarySource: BoundarySource
@@ -193,6 +195,7 @@ function labRecipe({
   methodSettings?: Partial<ScoreMethodSettings>
   sources: ScoreDataSource[]
   selectedNetworks?: string[] | 'all'
+  walkabilitySurface?: 'report'
 }): GeneratedProjectPackage['lab'] {
   return {
     presetKey,
@@ -207,6 +210,7 @@ function labRecipe({
     mapColorScale: methodSettings?.mapColorScale,
     paletteOverride: methodSettings?.paletteOverride,
     mapSurface: sources.includes('walkability') ? 'source' : 'boundary',
+    walkabilitySurface,
     selectedNetworks,
     accessThreshold: methodSettings?.accessThreshold,
     healthyPlanPriority: methodSettings?.healthyPlanPriority,
@@ -228,6 +232,7 @@ function buildProject({
   methodSettings,
   selectedNetworks,
   presetKey,
+  walkabilitySurface,
 }: {
   slug: string
   title: string
@@ -241,6 +246,7 @@ function buildProject({
   methodSettings?: Partial<ScoreMethodSettings>
   selectedNetworks?: string[] | 'all'
   presetKey?: string
+  walkabilitySurface?: 'report'
 }): GeneratedProjectPackage {
   const activeMetrics = metricLabels(weights)
   const metricCount = Object.keys(nonZeroWeights(weights)).length
@@ -344,6 +350,7 @@ function buildProject({
       methodSettings,
       sources,
       selectedNetworks,
+      walkabilitySurface,
     }),
   }
 }
@@ -368,6 +375,7 @@ function presetProjects(): Array<{ file: string; pkg: GeneratedProjectPackage }>
         methodSettings: preset.methodSettings,
         selectedNetworks: networkSelectionForPreset(sources),
         presetKey: preset.key,
+        walkabilitySurface: preset.walkabilitySurface,
       }),
     }
   })
@@ -390,6 +398,7 @@ function exampleProjects(): Array<{ file: string; pkg: GeneratedProjectPackage }
         weights: example.weights,
         methodSettings: example.methodSettings,
         selectedNetworks: networkSelectionForExample(example),
+        walkabilitySurface: example.walkabilitySurface,
       }),
     }
   })

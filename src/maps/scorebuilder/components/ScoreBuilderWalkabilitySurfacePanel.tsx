@@ -3,14 +3,18 @@ import { ChevronDown, Footprints, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   HEATMAP_OPTIONS,
-  HEATMAP_REPORT_FIDELITY_OPTIONS,
   WALKABILITY_FACTOR_GROUPS,
   describeHeatmapLogic,
   isFactorDroppedByOptions,
   type HeatmapOptionKey,
 } from '@/maps/pgdata/walkabilityFactors'
 import type { ScoreMetricWeightMap } from '../types'
-import { buildSourceGridFactorWeights, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
+import {
+  buildSourceGridFactorWeights,
+  createReportFidelityWalkabilitySurfaceTuning,
+  isReportFidelityTuning,
+  type WalkabilitySurfaceTuning,
+} from '../lib/walkabilitySurface'
 
 interface ScoreBuilderWalkabilitySurfacePanelProps {
   tuning: WalkabilitySurfaceTuning
@@ -55,14 +59,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
     onChange({ ...tuning, factorWeights: { ...tuning.factorWeights, [ref]: next } })
   }
 
-  const loadReportDefaults = () => {
-    onChange({
-      ...tuning,
-      enabled: true,
-      options: { ...HEATMAP_REPORT_FIDELITY_OPTIONS },
-      factorWeights: Object.fromEntries(WALKABILITY_FACTOR_GROUPS.map((factor) => [factor.ref, 1])),
-    })
-  }
+  const loadReportDefaults = () => onChange(createReportFidelityWalkabilitySurfaceTuning())
 
   const heatmapLogic = describeHeatmapLogic(tuning.options)
 
@@ -88,7 +85,11 @@ export function ScoreBuilderWalkabilitySurfacePanel({
           <span className="min-w-0">
             <span className="block truncate text-xs font-semibold text-foreground">Walkability MI factors</span>
             <span className="block truncate text-xs text-muted-foreground">
-              {tuning.enabled ? 'Direct 44-factor control' : 'Following equation weights'}
+              {isReportFidelityTuning(tuning)
+                ? 'Report fidelity model'
+                : tuning.enabled
+                  ? 'Direct 44-factor control'
+                  : 'Following equation weights'}
             </span>
           </span>
         </span>

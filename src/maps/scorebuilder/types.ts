@@ -1,6 +1,7 @@
 import type { BoundarySource, RegionLevel, StudyAreaRegion } from '@/lib/studyArea'
 import type { ScorePaletteKey } from './constants/paletteTypes'
 import type { BcEnviroScreenFormulaSettings } from './lib/bcEnviroScreenFormula'
+import type { WalkabilitySurfaceModel } from './lib/walkabilitySurface'
 
 export type ScoreMetricCategory =
   | 'airQuality'
@@ -248,6 +249,8 @@ export interface ScorePreset {
   boundarySources?: BoundarySource[]
   recommendedBoundarySource?: BoundarySource
   recommendedBoundaryLevel?: RegionLevel
+  /** Model for the walkability source surface; see `WalkabilitySurfaceModel`. */
+  walkabilitySurface?: WalkabilitySurfaceModel
 }
 
 export interface ScorePresetMethodology {
@@ -270,6 +273,8 @@ export interface ScoreExample {
   networkFilter: 'all' | 'none' | string[]
   weights: ScoreMetricWeightMap
   methodSettings?: Partial<ScoreMethodSettings>
+  /** Model for the walkability source surface; see `WalkabilitySurfaceModel`. */
+  walkabilitySurface?: WalkabilitySurfaceModel
 }
 
 export interface RegionDataCounts {

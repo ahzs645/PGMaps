@@ -156,9 +156,9 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('default example applies matching data sources and live results', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /Parks & Trails/i })).toContainText('ON')
-    await expect(page.getByRole('button', { name: /Demographics/i })).toContainText('ON')
-    await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('OFF')
+    await expect(dataSourceButton(page, 'Parks & Trails')).toContainText('ON')
+    await expect(dataSourceButton(page, 'Demographics')).toContainText('ON')
+    await expect(dataSourceButton(page, 'Air Quality')).toContainText('OFF')
 
     // The recipe title lives in the shared Index Lab header; the preview card holds the equation.
     await expect(page.locator('[data-index-lab-header="true"]')).toContainText('Greenest Neighbourhoods')
@@ -412,8 +412,6 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('desktop can open and close region insight modal', async ({ page }) => {
-    await page.locator('[data-score-builder-tab="regions"]').click()
-
     const insightButtons = page.locator('[data-score-builder-region-insight]')
     await expect(insightButtons.first()).toBeVisible({ timeout: 20_000 })
     await insightButtons.first().click()

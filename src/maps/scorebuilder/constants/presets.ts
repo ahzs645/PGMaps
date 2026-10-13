@@ -361,6 +361,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       pedestrianCrashDensity: -4,
     },
     methodSettings: PERCENTILE_METHOD,
+    walkabilitySurface: 'report',
   },
   {
     key: 'hbeNaturalEnvironmentAccess',

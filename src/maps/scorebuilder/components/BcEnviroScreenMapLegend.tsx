@@ -7,10 +7,19 @@ import type { BcEnviroScreenMapView } from '../lib/bcEnviroScreenMapView'
  * previews: variable title, stepped bins, an optional note, and the count of
  * LHAs with no value.
  */
-export function BcEnviroScreenMapLegend({ view, note }: { view: BcEnviroScreenMapView; note?: ReactNode }) {
+export function BcEnviroScreenMapLegend({
+  view,
+  note,
+  showLabel = true,
+}: {
+  view: BcEnviroScreenMapView
+  note?: ReactNode
+  /** Off when the enclosing legend panel already titles itself with the variable. */
+  showLabel?: boolean
+}) {
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold text-foreground">{view.label}</h4>
+      {showLabel && <h4 className="text-xs font-semibold text-foreground">{view.label}</h4>}
       <MapSteppedLegend
         bands={view.bands}
         labels={view.legendLabels}

@@ -766,7 +766,6 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                   )}
 
                   <ScoreBuilderMapLegend
-                    isDesktop={isDesktop}
                     correlateMode={state.correlateMode}
                     correlateMetricX={state.correlateMetricX}
                     correlateMetricY={state.correlateMetricY}

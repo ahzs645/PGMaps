@@ -283,6 +283,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       pedestrianCrashDensity: -4,
     },
     methodSettings: PERCENTILE_METHOD,
+    walkabilitySurface: 'report',
   },
   {
     key: 'heatShadeNeedDa',

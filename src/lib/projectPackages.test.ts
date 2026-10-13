@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createInitialScoreBuilderState } from '@/maps/scorebuilder/hooks/scoreBuilderReducer'
 import type { ScoreBuilderShareState } from '@/maps/scorebuilder/lib/shareState'
+import { isReportFidelityTuning } from '@/maps/scorebuilder/lib/walkabilitySurface'
 import {
   buildProjectLabParams,
   buildProjectPackageFromShareState,
@@ -594,6 +595,17 @@ describe('buildProjectLabParams', () => {
     expect(state.enabledDataSources).toEqual(
       expect.arrayContaining(['heatShade', 'census', 'bcAssessment', 'deprivation']),
     )
+  })
+
+  it('opens a report walkability surface on the report-fidelity model and leaves others derived', () => {
+    const reportPkg: ProjectPackage = {
+      ...HEAT_PACKAGE,
+      lab: { ...HEAT_PACKAGE.lab!, mapSurface: 'source', walkabilitySurface: 'report' },
+    }
+    const reportState = createInitialScoreBuilderState(buildProjectLabParams(reportPkg)!)
+    expect(isReportFidelityTuning(reportState.walkabilitySurfaceTuning)).toBe(true)
+
+    expect(buildProjectLabParams(HEAT_PACKAGE)!.has('wsurf')).toBe(false)
   })
 
   it('drops unknown metric keys instead of corrupting the weight vector', () => {

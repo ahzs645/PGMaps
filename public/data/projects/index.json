@@ -1751,7 +1751,7 @@
     },
     {
       "file": "scorebuilder/example-pedestrian-network-study-mi-da.json",
-      "revision": "70d86e70ded7",
+      "revision": "583d17c7e36c",
       "catalog": {
         "slug": "score-example-pedestrian-network-study-mi-da",
         "title": "Pedestrian Network Study MI (DA)",
@@ -1813,7 +1813,8 @@
           },
           "normalization": "percentile",
           "aggregation": "additive",
-          "mapSurface": "source"
+          "mapSurface": "source",
+          "walkabilitySurface": "report"
         },
         "layerCount": 3,
         "sceneCount": 3
@@ -4538,7 +4539,7 @@
     },
     {
       "file": "scorebuilder/preset-pedestrian-network-study-mi.json",
-      "revision": "97963523825c",
+      "revision": "da67b97b480c",
       "catalog": {
         "slug": "score-preset-pedestrian-network-study-mi",
         "title": "Pedestrian Network Study MI",
@@ -4602,7 +4603,8 @@
           },
           "normalization": "percentile",
           "aggregation": "additive",
-          "mapSurface": "source"
+          "mapSurface": "source",
+          "walkabilitySurface": "report"
         },
         "layerCount": 3,
         "sceneCount": 3
@@ -6308,7 +6310,7 @@
     },
     {
       "file": "inaturalist-species-at-risk-live-bc.json",
-      "revision": "b0f057d35eb8",
+      "revision": "aea432a6ef05",
       "catalog": {
         "slug": "inaturalist-species-at-risk-live-bc",
         "title": "Live iNaturalist Species-at-Risk Observations",
@@ -6473,7 +6475,7 @@
     },
     {
       "file": "bc-climate-annual-precipitation.json",
-      "revision": "550a58232b23",
+      "revision": "ef2761cd2acf",
       "catalog": {
         "slug": "bc-climate-annual-precipitation",
         "title": "B.C. Climate · Annual total precipitation",
@@ -6534,7 +6536,7 @@
     },
     {
       "file": "bc-climate-coldest-night.json",
-      "revision": "ca99819fb4ef",
+      "revision": "59057dc0dc60",
       "catalog": {
         "slug": "bc-climate-coldest-night",
         "title": "B.C. Climate · Coldest night of the year",
@@ -6595,7 +6597,7 @@
     },
     {
       "file": "bc-climate-cooling-degree-days.json",
-      "revision": "4146de5e2988",
+      "revision": "0f5c1322f551",
       "catalog": {
         "slug": "bc-climate-cooling-degree-days",
         "title": "B.C. Climate · Cooling degree days above 18°C",
@@ -6656,7 +6658,7 @@
     },
     {
       "file": "bc-climate-days-above-29c.json",
-      "revision": "caae7ba3b5d5",
+      "revision": "5ad45ab5a8ff",
       "catalog": {
         "slug": "bc-climate-days-above-29c",
         "title": "B.C. Climate · Days above 29°C",
@@ -6717,7 +6719,7 @@
     },
     {
       "file": "bc-climate-days-above-32c.json",
-      "revision": "cde212c44c67",
+      "revision": "e30dc55df085",
       "catalog": {
         "slug": "bc-climate-days-above-32c",
         "title": "B.C. Climate · Days above 32°C",
@@ -6778,7 +6780,7 @@
     },
     {
       "file": "bc-climate-frost-days.json",
-      "revision": "78d87507db94",
+      "revision": "d59d568de213",
       "catalog": {
         "slug": "bc-climate-frost-days",
         "title": "B.C. Climate · Annual frost days",
@@ -6839,7 +6841,7 @@
     },
     {
       "file": "bc-climate-frost-free-season.json",
-      "revision": "a39589c249cb",
+      "revision": "ce6740fa6cf6",
       "catalog": {
         "slug": "bc-climate-frost-free-season",
         "title": "B.C. Climate · Frost-free season length",
@@ -6900,7 +6902,7 @@
     },
     {
       "file": "bc-climate-heating-degree-days.json",
-      "revision": "5cf56b8d381d",
+      "revision": "8687a261fe0c",
       "catalog": {
         "slug": "bc-climate-heating-degree-days",
         "title": "B.C. Climate · Heating degree days below 18°C",
@@ -6961,7 +6963,7 @@
     },
     {
       "file": "bc-climate-hottest-day.json",
-      "revision": "b3481ad6f3b3",
+      "revision": "94a955586d79",
       "catalog": {
         "slug": "bc-climate-hottest-day",
         "title": "B.C. Climate · Hottest day of the year",
@@ -7022,7 +7024,7 @@
     },
     {
       "file": "bc-climate-ice-days.json",
-      "revision": "b678d17a0693",
+      "revision": "308b05325861",
       "catalog": {
         "slug": "bc-climate-ice-days",
         "title": "B.C. Climate · Annual ice days",
@@ -7083,7 +7085,7 @@
     },
     {
       "file": "bc-climate-mean-daily-maximum.json",
-      "revision": "8b36ce24266b",
+      "revision": "033c5b8789bb",
       "catalog": {
         "slug": "bc-climate-mean-daily-maximum",
         "title": "B.C. Climate · Mean daily maximum temperature",
@@ -7144,7 +7146,7 @@
     },
     {
       "file": "bc-climate-mean-daily-minimum.json",
-      "revision": "ee3754dee89c",
+      "revision": "96fb548f63a2",
       "catalog": {
         "slug": "bc-climate-mean-daily-minimum",
         "title": "B.C. Climate · Mean daily minimum temperature",
@@ -7205,7 +7207,7 @@
     },
     {
       "file": "bc-climate-mean-temperature.json",
-      "revision": "fc984dbbd7a3",
+      "revision": "e38680a26f52",
       "catalog": {
         "slug": "bc-climate-mean-temperature",
         "title": "B.C. Climate · Mean annual temperature",
@@ -7266,7 +7268,7 @@
     },
     {
       "file": "bc-climate-nights-above-18c.json",
-      "revision": "99323539c52b",
+      "revision": "a2c3738cc0ef",
       "catalog": {
         "slug": "bc-climate-nights-above-18c",
         "title": "B.C. Climate · Nights above 18°C",
@@ -7327,7 +7329,7 @@
     },
     {
       "file": "bc-climate-precipitation-as-snow.json",
-      "revision": "59aa5e9b0a44",
+      "revision": "e5a51e50288f",
       "catalog": {
         "slug": "bc-climate-precipitation-as-snow",
         "title": "B.C. Climate · Annual precipitation as snow",
@@ -7388,7 +7390,7 @@
     },
     {
       "file": "bc-climate-seasonal-precipitation.json",
-      "revision": "a89c0ff38817",
+      "revision": "6971719a1543",
       "catalog": {
         "slug": "bc-climate-seasonal-precipitation",
         "title": "B.C. Climate · Seasonal total precipitation",
@@ -7449,7 +7451,7 @@
     },
     {
       "file": "bc-climate-wettest-day.json",
-      "revision": "c3aac2f59285",
+      "revision": "9e57d5e415ae",
       "catalog": {
         "slug": "bc-climate-wettest-day",
         "title": "B.C. Climate · Annual maximum 1-day precipitation",
@@ -7510,7 +7512,7 @@
     },
     {
       "file": "bc-climate-wettest-five-days.json",
-      "revision": "132db2960cd9",
+      "revision": "2a1ba32f526c",
       "catalog": {
         "slug": "bc-climate-wettest-five-days",
         "title": "B.C. Climate · Annual maximum 5-day precipitation",
@@ -7571,7 +7573,7 @@
     },
     {
       "file": "northern-health-climate-resilience.json",
-      "revision": "e5ddfccf51bc",
+      "revision": "de947e5157a2",
       "catalog": {
         "slug": "northern-health-climate-resilience",
         "title": "Northern Health · Climate-resilient care",
@@ -7862,7 +7864,7 @@
     },
     {
       "file": "example/comparison.json",
-      "revision": "731bf2adb6be",
+      "revision": "0996926d8ece",
       "catalog": {
         "slug": "example-comparison",
         "title": "04 · Boundary comparison",
@@ -7953,7 +7955,7 @@
     },
     {
       "file": "example/docked.json",
-      "revision": "fb02078ef887",
+      "revision": "32ccb6006977",
       "catalog": {
         "slug": "example-docked",
         "title": "01 · Docked narrative",
@@ -8044,7 +8046,7 @@
     },
     {
       "file": "example/hierarchy.json",
-      "revision": "5b5f7f242c07",
+      "revision": "fbfafca9dc8a",
       "catalog": {
         "slug": "example-hierarchy",
         "title": "06 · Linked hierarchy",
@@ -8135,7 +8137,7 @@
     },
     {
       "file": "example/relationships.json",
-      "revision": "c9bb8a2c40f4",
+      "revision": "637fdb2288a0",
       "catalog": {
         "slug": "example-relationships",
         "title": "05 · Map + relationship bars",
@@ -8226,7 +8228,7 @@
     },
     {
       "file": "example/scrolly.json",
-      "revision": "a9e669a35782",
+      "revision": "a9e430ea63a2",
       "catalog": {
         "slug": "example-scrolly",
         "title": "03 · Scroll-driven story",
@@ -8317,7 +8319,7 @@
     },
     {
       "file": "example/slides.json",
-      "revision": "c1e6759c8639",
+      "revision": "29be036d78d5",
       "catalog": {
         "slug": "example-slides",
         "title": "02 · Guided slides",
@@ -8408,7 +8410,7 @@
     },
     {
       "file": "example/sidecar-docked.json",
-      "revision": "06315b5c4633",
+      "revision": "46017a08ddbb",
       "catalog": {
         "slug": "example-sidecar-docked",
         "title": "07 · StoryMaps — docked",
@@ -8499,7 +8501,7 @@
     },
     {
       "file": "example/sidecar-floating.json",
-      "revision": "932235ea3f45",
+      "revision": "e4b9ffda9bae",
       "catalog": {
         "slug": "example-sidecar-floating",
         "title": "08 · StoryMaps — floating",
@@ -8590,7 +8592,7 @@
     },
     {
       "file": "example/sidecar-mixed.json",
-      "revision": "d24ca2ded117",
+      "revision": "05c6c9cdf36a",
       "catalog": {
         "slug": "example-sidecar-mixed",
         "title": "10 · StoryMaps — mixed",
@@ -8681,7 +8683,7 @@
     },
     {
       "file": "example/sidecar-slideshow.json",
-      "revision": "42fb762020e3",
+      "revision": "19e163c7d421",
       "catalog": {
         "slug": "example-sidecar-slideshow",
         "title": "09 · StoryMaps — guided",
@@ -8772,7 +8774,7 @@
     },
     {
       "file": "example/prague.json",
-      "revision": "c828ab3b13d9",
+      "revision": "d415d5cfe1c7",
       "catalog": {
         "slug": "example-prague",
         "title": "The Diverse Prague",

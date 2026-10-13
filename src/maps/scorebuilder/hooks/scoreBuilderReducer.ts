@@ -29,6 +29,7 @@ import type { MetricRecipe } from '../lib/metricRecipes'
 import {
   createDefaultWalkabilitySurfaceTuning,
   parseWalkabilitySurfaceTuning,
+  walkabilitySurfaceTuningFor,
   type WalkabilitySurfaceTuning,
 } from '../lib/walkabilitySurface'
 import type { ScoreBuilderShareState } from '../lib/shareState'
@@ -205,6 +206,7 @@ function applyExampleToState(
     boundarySource: example.boundarySource,
     enabledDataSources: [...example.dataSources],
     mapSurface: example.dataSources.includes('walkability') ? 'source' : 'boundary',
+    walkabilitySurfaceTuning: walkabilitySurfaceTuningFor(example.walkabilitySurface),
     weights: { ...example.weights },
     methodSettings: { ...state.methodSettings, ...example.methodSettings },
     pendingNetworkSelectAll: false,
@@ -259,6 +261,7 @@ function applyPresetToState(
     weights: { ...preset.weights },
     methodSettings: { ...state.methodSettings, ...preset.methodSettings },
     mapSurface: getScoreDataSourcesForWeights(preset.weights).includes('walkability') ? 'source' : 'boundary',
+    walkabilitySurfaceTuning: walkabilitySurfaceTuningFor(preset.walkabilitySurface),
   }
   if (preset.recommendedBoundarySource) {
     next.boundarySource = preset.recommendedBoundarySource
