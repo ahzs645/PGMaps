@@ -29,9 +29,9 @@ Deploy the verified backend before pushing the frontend endpoint configuration t
 
 ## Verified checks
 
-On October 12, 2026, the deployed gateway passed 26 live authenticated acceptance checks, including independent anonymous sessions across original downloads/sign-in/disconnect, capability replacement and revocation, exact CORS handling, successful child/metadata/history reads, and PDF/HTML/CSV/ZIP validation. The original ZIP passed its CRC check. Source cookie/session resets were reproduced in the initial deployment and corrected with bounded in-memory retention before frontend publication. No source record mutations were performed.
+On October 12, 2026, the deployed gateway passed 26 live authenticated acceptance checks, including independent anonymous sessions across original downloads/sign-in/disconnect, capability replacement and revocation, exact CORS handling, successful child/metadata/history reads, and PDF/HTML/CSV/ZIP validation. The original ZIP passed its CRC check. Source cookie/session resets were reproduced in the initial deployment and corrected with bounded in-memory retention before frontend publication. No source record mutations were performed. An uncaptured-child browser fixture additionally verifies metadata denial, authorized preview, connection-change clearing, cancellation of a delayed native download and exclusion from the public archive.
 
-Local validation passed 133 focused frontend unit tests, 15 Worker tests, nine acceptance-script self-tests, 12 submission-browser cases, scoped ESLint, TypeScript and the production build. Source history samples returned successful empty lists; nonempty history rendering is checked with native-contract fixtures.
+Local validation passed 139 focused frontend unit tests, 15 Worker tests, nine acceptance-script self-tests, 13 submission-browser cases, scoped ESLint, TypeScript and the production build. A separate 35-second idle interval passed ten live checks without session resets. Hosted browser reads confirmed submission 69’s two children, four permission groups and empty history, and downloaded valid original PDF and ZIP files. Source history samples returned successful empty lists; nonempty history rendering is checked with native-contract fixtures.
 
 ## Acceptance checks
 

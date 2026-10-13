@@ -17,6 +17,7 @@ import {
 import { SourceFieldValue } from './PortalSubmissionReader'
 import { PortalSubmissionLivePanel } from './PortalSubmissionLive'
 import { LocalPortalConnection } from './LocalPortalConnection'
+import { PortalSourceSubmissionDialog } from './PortalSourceSubmissionDialog'
 import {
   loadSubmissionFormDefinitions,
   publicSubmissionChildren,
@@ -266,7 +267,7 @@ export function PortalSubmissionDialog({
   const [tab, setTab] = useState<Tab>('preview'),
     [retry, setRetry] = useState(0),
     [connectionOpen, setConnectionOpen] = useState(false),
-    [navigationError, setNavigationError] = useState(''),
+    [sourceChild, setSourceChild] = useState<string>(),
     [pdfBusy, setPdfBusy] = useState(false),
     [exportError, setExportError] = useState(''),
     [originalBusy, setOriginalBusy] = useState<OriginalExport>(),
@@ -290,11 +291,10 @@ export function PortalSubmissionDialog({
     formsError = currentFormResult?.error,
     loading = !currentFormResult
   const openPublicSubmission = (id: string) => {
-    if (records.some((item) => item.id === id)) onOpenSubmission(id)
-    else
-      setNavigationError(
-        `Submission ${id} is not included in the anonymous capture. Open the original portal and find it by its source ID.`,
-      )
+    if (records.some((item) => item.id === id)) {
+      setSourceChild(undefined)
+      onOpenSubmission(id)
+    } else setSourceChild(id)
   }
   const connect = () => {
     if (onConnect) onConnect()
@@ -507,8 +507,8 @@ export function PortalSubmissionDialog({
                     <ResourceInventory record={record} kind="layers" unknown />
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Layer references from the public capture. Open the original portal to use their spatial files and
-                    monitoring data.
+                    Layer references from the public capture. Use Export for original owned spatial files. Linked layers
+                    and monitoring observations are not included in ZIP downloads.
                   </p>
                 </>
               )}
@@ -517,7 +517,8 @@ export function PortalSubmissionDialog({
                   <h2 className="font-semibold">Attachments</h2>
                   <ResourceInventory record={record} kind="attachments" />
                   <p className="text-xs text-muted-foreground">
-                    Files are listed from the public capture. Download them through the original portal.
+                    Files are listed from the public capture. Use the Export tab to download original files through your
+                    portal connection.
                   </p>
                 </>
               )}
@@ -545,14 +546,6 @@ export function PortalSubmissionDialog({
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground">No children were included in the public capture.</p>
-                  )}
-                  {navigationError && (
-                    <InlineAlert title="Source child unavailable in this capture">
-                      {navigationError}
-                      <ExternalLink href={record.sourceUrl} className="mt-2 block">
-                        Open original portal
-                      </ExternalLink>
-                    </InlineAlert>
                   )}
                   <h3 className="font-medium">Current child submissions</h3>
                   <PortalSubmissionLivePanel
@@ -708,6 +701,14 @@ export function PortalSubmissionDialog({
         <DialogShell title="Original portal connection" onClose={() => setConnectionOpen(false)} size="md">
           <LocalPortalConnection />
         </DialogShell>
+      )}
+      {sourceChild && (
+        <PortalSourceSubmissionDialog
+          submissionId={sourceChild}
+          onClose={() => setSourceChild(undefined)}
+          onOpenSubmission={openPublicSubmission}
+          onConnect={connect}
+        />
       )}
     </>
   )

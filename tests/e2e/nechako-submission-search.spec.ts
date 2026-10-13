@@ -566,3 +566,185 @@ test('original downloads use the bounded session endpoint and do not enable empt
       .toString(),
   ).toBe('%PDF-')
 })
+
+test('uncaptured child access is gated, sign-in opens a RAM-only viewer and closing cancels its original download', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  const { errors } = await mockSnapshot(page)
+  await page.addInitScript(() => localStorage.setItem('pgmaps-nechako-connection-mode', 'gateway'))
+  let loggedIn = false
+  const status = () => ({ available: true, loggedIn, readOnly: true, canWrite: false, isAdmin: false })
+  await page.route('**/api/nechako-portal/status', (route) =>
+    route.fulfill({
+      json: { ...status(), ...(route.request().method() === 'POST' ? { sessionToken: 'A'.repeat(64) } : {}) },
+    }),
+  )
+  await page.route('**/api/nechako-portal/login', (route) => {
+    expect(route.request().postDataJSON()).toEqual({ username: 'fixture-account', password: 'fixture-password' })
+    loggedIn = true
+    return route.fulfill({ json: { ...status(), sessionToken: 'B'.repeat(64) } })
+  })
+  const reads: { path: string; params: Record<string, string> }[] = []
+  const fieldIndices: Record<string, string> = {}
+  const sourceForm = {
+    name: 'Source fixture form',
+    nodes: [
+      { field_id: 46, field_label: 'Private fixture field', field_type: 'text', nodeInfo: { node_is_dynamic: true } },
+      { field_id: 47, field_label: 'Checked fixture', field_type: 'checkbox', nodeInfo: { node_is_dynamic: true } },
+      {
+        field_id: 100,
+        field_label: 'Attachments',
+        field_type: '5',
+        nodeInfo: { node_is_dynamic: false, node_name: 'attachmentsNode.form' },
+      },
+      { field_id: 48, field_label: 'Count fixture', field_type: 'number', nodeInfo: { node_is_dynamic: true } },
+      { field_id: 49, field_label: 'Empty fixture', field_type: 'text', nodeInfo: { node_is_dynamic: true } },
+      { field_id: 50, field_label: 'Body fixture', field_type: 'htmleditor', nodeInfo: { node_is_dynamic: true } },
+    ],
+  }
+  await page.route('**/api/nechako-portal/read', (route) => {
+    const body = route.request().postDataJSON()
+    reads.push(body)
+    let attributes: unknown = []
+    if (body.path.endsWith('getChildren.php')) {
+      attributes =
+        body.params.parentId === '1' ? [{ form_submission_id: 742, submission_title: 'Uncaptured fixture child' }] : []
+    } else if (body.path.endsWith('getSubmissionMetadata.php')) {
+      expect(body.params).toEqual({ submissionId: '742' })
+      if (!loggedIn)
+        return route.fulfill({
+          json: {
+            status: 'failure',
+            sourceDenied: true,
+            loggedIn: false,
+            error: 'Fixture source access denied for 742',
+          },
+        })
+      attributes = {
+        submission_id: 742,
+        form_id: 4,
+        submission_title: 'Source-only fixture 742',
+        submission_name: 'Private fixture name',
+        parent_id: 1,
+      }
+    } else if (body.path.endsWith('getSubmissionForm.php')) {
+      expect(loggedIn).toBe(true)
+      expect(body.params).toEqual({ submissionId: '742' })
+      attributes = 4
+    } else if (body.path.endsWith('getForm.php')) {
+      expect(loggedIn).toBe(true)
+      expect(body.params).toEqual({ id: '4' })
+      attributes = sourceForm
+    } else if (body.path.endsWith('getFieldValue.php')) {
+      expect(loggedIn).toBe(true)
+      expect(body.params.submissionId).toBe('742')
+      fieldIndices[body.params.fieldId] = body.params.fieldIndex
+      attributes = (
+        {
+          '46': 'Ephemeral private fixture value',
+          '47': false,
+          '48': 0,
+          '49': [],
+          '50': '<p>Ephemeral fixture body.</p><a href="http://example.test/private-citation?a=1&amp;b=2">Source citation</a>',
+        } as Record<string, unknown>
+      )[body.params.fieldId]
+    } else
+      expect([
+        'rest/portal/getSubmissionLayers.php',
+        'rest/portal/getSubmissionLinkedLayers.php',
+        'rest/portal/getSubmissionAttachments.php',
+        'rest/portal/getSubmissionPermissions.php',
+        'rest/portal/getHistory.php',
+      ]).toContain(body.path)
+    return route.fulfill({ json: { status: 'success', loggedIn, attributes } })
+  })
+  let downloadStarted!: () => void, releaseDownload!: () => void, downloadHandled!: () => void
+  const start = new Promise<void>((resolve) => {
+    downloadStarted = resolve
+  })
+  const gate = new Promise<void>((resolve) => {
+    releaseDownload = resolve
+  })
+  const handled = new Promise<void>((resolve) => {
+    downloadHandled = resolve
+  })
+  await page.route('**/api/nechako-portal/download', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ submissionId: '742', mode: 'pdf' })
+    downloadStarted()
+    await gate
+    await route
+      .fulfill({ contentType: 'application/pdf', body: Buffer.from('%PDF-1.7 Source-only fixture report') })
+      .catch(() => undefined)
+    downloadHandled()
+  })
+  const downloads: string[] = []
+  page.on('download', (download) => downloads.push(download.suggestedFilename()))
+  await page.goto('/dev/nechako/portal?panel=search')
+  await page.getByRole('button', { name: 'Public fixture 1', exact: true }).click()
+  const publicDetails = page.locator('[data-nechako-submission-dialog]')
+  await publicDetails.getByRole('tab', { name: 'Child Submissions', exact: true }).click()
+  await publicDetails.getByRole('button', { name: 'Open child submission 742', exact: true }).click()
+  const privateDetails = page.locator('[data-nechako-source-submission-dialog]')
+  await expect(privateDetails.getByRole('alert')).toContainText('Fixture source access denied for 742')
+  expect(
+    reads.filter(({ path }) =>
+      /getSubmissionForm|getForm|getFieldValue|getHistory|getSubmissionPermissions|getSubmissionLayers|getSubmissionAttachments/.test(
+        path,
+      ),
+    ),
+  ).toEqual([])
+  await expect(page.locator('[data-nechako-submission-search]')).toContainText('26 submissions')
+  await privateDetails.getByRole('button', { name: 'Connection settings', exact: true }).click()
+  const connection = page.getByRole('dialog', { name: 'Original portal connection', exact: true })
+  await connection.getByLabel('Portal connection username').fill('fixture-account')
+  await connection.getByLabel('Portal connection password').fill('fixture-password')
+  await connection.getByRole('button', { name: 'Sign in for portal access', exact: true }).click()
+  await expect(connection).toContainText('Portal connection available · signed in')
+  await connection.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(privateDetails.getByRole('heading', { name: 'Source-only fixture 742', exact: true })).toBeVisible()
+  await expect(privateDetails.getByText('Ephemeral private fixture value', { exact: true })).toBeVisible()
+  await expect(privateDetails.getByText('false', { exact: true })).toBeVisible()
+  await expect(privateDetails.getByText('0', { exact: true })).toBeVisible()
+  await expect(privateDetails.getByText('[]', { exact: true })).toBeVisible()
+  await expect(
+    privateDetails.getByRole('link', { name: 'http://example.test/private-citation?a=1&b=2', exact: true }),
+  ).toHaveAttribute('href', 'http://example.test/private-citation?a=1&b=2')
+  expect(fieldIndices).toEqual({ '46': '0', '47': '1', '48': '0', '49': '1', '50': '2' })
+  await expect(privateDetails.getByRole('tab')).toHaveCount(8)
+  for (const tab of ['General', 'Allowed Users', 'Spatial Data', 'Attachments', 'Child Submissions', 'History'])
+    await privateDetails.getByRole('tab', { name: tab, exact: true }).click()
+  await privateDetails.getByRole('tab', { name: 'Preview', exact: true }).click()
+  await expect(privateDetails.getByText('Ephemeral private fixture value', { exact: true })).toBeVisible()
+  await page.evaluate(() =>
+    window.dispatchEvent(new CustomEvent('nechako-connection-change', { detail: { reason: 'session-changing' } })),
+  )
+  await expect(privateDetails.getByText('Ephemeral private fixture value', { exact: true })).toHaveCount(0)
+  await expect(privateDetails.getByRole('heading', { name: 'Source-only fixture 742', exact: true })).toHaveCount(0)
+  await expect(privateDetails.getByText('Private fixture name', { exact: true })).toHaveCount(0)
+  await privateDetails.getByRole('button', { name: 'Check submission access', exact: true }).click()
+  await expect(privateDetails.getByText('Ephemeral private fixture value', { exact: true })).toBeVisible()
+  await privateDetails.getByRole('tab', { name: 'Export', exact: true }).click()
+  await expect(privateDetails.getByRole('button', { name: 'Download original ZIP', exact: true })).toBeDisabled()
+  await privateDetails.getByRole('button', { name: 'Download original PDF', exact: true }).click()
+  await start
+  await privateDetails.getByRole('button', { name: 'Close', exact: true }).last().click()
+  await expect(privateDetails).toHaveCount(0)
+  releaseDownload()
+  await handled
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  )
+  expect(downloads).toEqual([])
+  await expect(publicDetails).toContainText('Submission ID 1 · Project')
+  await publicDetails.getByRole('button', { name: 'Close', exact: true }).last().click()
+  const archiveDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download public data', exact: true }).click()
+  const { default: JSZip } = await import('jszip')
+  const archive = await JSZip.loadAsync(readFileSync((await (await archiveDownload).path())!))
+  const captured = JSON.parse(await archive.file('submissions.json')!.async('text'))
+  expect(captured.records).toHaveLength(26)
+  expect(captured.records.some((record: { id: string }) => record.id === '742')).toBe(false)
+  expect(JSON.stringify(captured)).not.toContain('Ephemeral private fixture value')
+  expect(errors).toEqual([])
+})

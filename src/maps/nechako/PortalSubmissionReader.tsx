@@ -104,9 +104,11 @@ export function SourceFieldValue({
 export function PortalSubmissionReader({
   data,
   onOpenSubmission,
+  allowHttpLinks = false,
 }: {
   data: unknown
   onOpenSubmission?: (id: string) => void
+  allowHttpLinks?: boolean
 }) {
   const [page, setPage] = useState(0)
   let value: unknown
@@ -131,7 +133,7 @@ export function PortalSubmissionReader({
     return (
       <div className="space-y-3">
         <p className="text-sm">
-          Imported source submission {String(value.submissionId ?? 'ID not supplied')} · {form.title}
+          Source submission {String(value.submissionId ?? 'ID not supplied')} · {form.title}
         </p>
         {form.fields.map((field) => {
           const returned = fields[field.id]
@@ -145,6 +147,7 @@ export function PortalSubmissionReader({
                   label={field.label}
                   type={field.type}
                   value={reviewObject(returned) ? returned.value : undefined}
+                  allowHttpLinks={allowHttpLinks}
                 />
               )}
             </section>
@@ -171,7 +174,10 @@ export function PortalSubmissionReader({
                 size="sm"
                 rows={Object.entries(row)
                   .filter(([, field]) => field === null || typeof field !== 'object')
-                  .map(([label, field]) => ({ label, value: <SourceFieldValue label={label} value={field} /> }))}
+                  .map(([label, field]) => ({
+                    label,
+                    value: <SourceFieldValue label={label} value={field} allowHttpLinks={allowHttpLinks} />,
+                  }))}
                 labelClassName="break-words"
               />
               {Object.entries(row)
@@ -206,7 +212,7 @@ export function PortalSubmissionReader({
               )}
             </>
           ) : (
-            <SourceFieldValue label="Returned value" value={row} />
+            <SourceFieldValue label="Returned value" value={row} allowHttpLinks={allowHttpLinks} />
           )}
         </div>
       ))}

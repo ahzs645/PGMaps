@@ -180,7 +180,7 @@ export function LocalPortalConnection({ onChange }: { onChange?: () => void }) {
                   }
                 }}
               >
-                Disconnect local session
+                {isHostedPortalGateway() ? 'Disconnect portal session' : 'Disconnect local session'}
               </Button>
             )}
           </div>

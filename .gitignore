@@ -155,3 +155,4 @@ public/data/bc/laep/
 
 # Local Worker simulator/cache; upstream sessions never become source artifacts.
 scripts/nechako-worker/.wrangler/
+scripts/nechako-worker/__pycache__/
