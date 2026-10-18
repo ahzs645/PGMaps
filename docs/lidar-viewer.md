@@ -235,3 +235,13 @@ for counts, thresholds, classification limits, all rerun commands and test cover
 The full-tile watershed implementation uses SciPy/scikit-image. It is not
 labelled as `lidR::dalponte2016`, pit-free CHM, or the failed GeoLibre mean-shift
 algorithm.
+
+## Forestry structure lab
+
+Analyze now includes original-return vertical layers, canopy texture and
+opening-edge/interior screening on 924 source-grid plots. Compare high/low
+plots, pin A/B fingerprints, inspect original 3D points and export a spatially
+spread field-check shortlist. [Methods, findings, metric definitions and reruns](research/lidar-forestry-explorer.md)
+describe the actual 82.6 million accepted returns and the evidence needed for
+forest boundaries, inventory modelling and change detection. The workflow
+selector keeps navigation compact, with legends visible below the map.

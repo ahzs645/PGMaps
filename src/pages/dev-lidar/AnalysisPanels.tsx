@@ -147,6 +147,21 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
           </a>
         </div>
       </SidebarSection>
+      <SidebarSection title="Forestry structure lab">
+        <p className="text-xs leading-5 text-muted-foreground">
+          Analyze offers vertical layers from 82.6 million accepted original returns, 5 m canopy-surface texture, and
+          10/20/30 m edge/interior proxies. Compare plot fingerprints, inspect original 3D points and export field-check
+          locations. These describe observed structure, not species, biomass, forest health or habitat quality.
+        </p>
+        <a
+          className="mt-3 block text-xs underline"
+          href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-forestry-explorer.md"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Forestry findings and methods ↗
+        </a>
+      </SidebarSection>
       <SidebarSection title="Additional workflows · available now">
         <div className="space-y-3 text-xs leading-5 text-muted-foreground">
           <p>

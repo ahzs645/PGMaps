@@ -1,8 +1,12 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import { forestFeatures, isForestMode, type ForestData, type ReturnMode } from './forestry'
 import type { Basemap } from './basemaps'
 
-export type AnalysisMode = 'gaps' | 'plots' | 'clearance' | 'models'
+export type AnalysisMode = 'gaps' | 'plots' | 'clearance' | 'models' | 'strata' | 'texture' | 'edges'
 export interface WorkflowOptions {
+  returnMode: ReturnMode
+  canopyMinimum: number
+  edgeDistance: 10 | 20 | 30
   mode: AnalysisMode | null
   threshold: 2 | 5
   minGap: number
@@ -13,6 +17,9 @@ export interface WorkflowOptions {
   selectedId: string | null
 }
 export const INITIAL_ANALYSIS: WorkflowOptions = {
+  returnMode: 'all',
+  canopyMinimum: 40,
+  edgeDistance: 20,
   mode: null,
   threshold: 2,
   minGap: 25,
@@ -26,6 +33,7 @@ export type WorkflowFeature = Feature<
   Geometry,
   {
     id: string
+    map_value?: number | null
     area_m2?: number
     threshold_m?: number
     canopy_edge_percent?: number
@@ -87,6 +95,24 @@ export interface ModelData {
   limitations: string[]
 }
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string; basemap: Basemap; note: string }[] = [
+  {
+    id: 'strata',
+    label: 'Vertical layers',
+    basemap: 'vector',
+    note: 'Orange: dispersion of original return heights. Compare lower and upper layers; returns are not vegetation volume.',
+  },
+  {
+    id: 'texture',
+    label: 'Canopy texture',
+    basemap: 'satellite',
+    note: 'Green: 5 m height-surface variability, aggregated to 50 m plots. More texture is not automatically better forest.',
+  },
+  {
+    id: 'edges',
+    label: 'Edges & interior',
+    basemap: 'satellite',
+    note: 'Blue: taller-canopy interior proxy beyond low openings. Unknown and tile boundaries are censored.',
+  },
   {
     id: 'gaps',
     label: 'Canopy gaps',
@@ -179,7 +205,8 @@ export function readReviewLedger(value: string, sourceHash: string, ids: Set<str
   return result
 }
 
-export function sortedWorkflowFeatures(data: WorkflowData, options: WorkflowOptions) {
+export function sortedWorkflowFeatures(data: WorkflowData, options: WorkflowOptions, forest?: ForestData) {
+  if (isForestMode(options.mode)) return forest ? forestFeatures(forest, options) : []
   return workflowFeatures(data, options)
     .slice()
     .sort((a, b) =>
@@ -194,7 +221,7 @@ export function sortedWorkflowFeatures(data: WorkflowData, options: WorkflowOpti
 export function analysisPresentation(mode: AnalysisMode) {
   return {
     basemap: ANALYSIS_MODES.find((item) => item.id === mode)!.basemap,
-    labels: mode === 'plots',
+    labels: mode === 'plots' || mode === 'strata',
     surfaceVisible: false,
     surfaceOpacity: 0.65,
     trees: false,

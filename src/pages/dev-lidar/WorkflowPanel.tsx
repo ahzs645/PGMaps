@@ -16,10 +16,12 @@ import {
   type WorkflowFeature,
   type WorkflowOptions,
 } from './analysisWorkflows'
-import { cityJsonUrl, modelUrl, workflowUrl } from './useWorkflowData'
+import { ForestryPanel } from './ForestryPanel'
+import { isForestMode, type ForestData, type ForestProperties } from './forestry'
+import { cityJsonUrl, modelUrl, workflowUrl, forestUrl } from './useWorkflowData'
 
 interface Props {
-  data: { workflows: WorkflowData; models: ModelData } | null
+  data: { workflows: WorkflowData; models: ModelData; forestry: ForestData } | null
   error: string
   retry: () => void
   options: WorkflowOptions
@@ -32,6 +34,7 @@ interface Props {
   onOptions: (options: Partial<WorkflowOptions>) => void
   onSelect: (id: string) => void
   onPoints: () => void
+  onForestPoints: (plot: ForestProperties) => void
 }
 export function WorkflowPanel(props: Props) {
   const { data, options, features, selected, model } = props
@@ -94,22 +97,35 @@ export function WorkflowPanel(props: Props) {
   return (
     <div ref={root}>
       <SidebarSection title="Run a workflow" subtitle="Processed from your tile · selectable parameters">
-        <div className="grid grid-cols-2 gap-2">
-          {ANALYSIS_MODES.map((item) => (
-            <Button
-              key={item.id}
-              size="sm"
-              variant={options.mode === item.id ? 'secondary' : 'outline'}
-              className="h-auto min-h-9 whitespace-normal text-xs"
-              onClick={() => props.onMode(item.id)}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </div>
+        <label className="block text-xs">
+          <span className="sr-only">LiDAR workflow</span>
+          <select
+            aria-label="LiDAR workflow"
+            value={options.mode ?? ''}
+            onChange={(event) => props.onMode(event.target.value as AnalysisMode)}
+            className="h-9 w-full rounded border bg-background px-2 text-xs"
+          >
+            <option value="" disabled>
+              Choose an analysis…
+            </option>
+            <optgroup label="Forestry lab">
+              {ANALYSIS_MODES.filter((item) => isForestMode(item.id)).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Gaps, plots & structures">
+              {ANALYSIS_MODES.filter((item) => !isForestMode(item.id)).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          Each workflow resets context, surface and candidate layers. Parameters select reproducible offline runs; the
-          page does not run Roofer on every click.
+          Map context and overlays follow the selected workflow.
         </p>
         {!data && (
           <p className="mt-3 text-xs" role="status">
@@ -122,7 +138,18 @@ export function WorkflowPanel(props: Props) {
           </Button>
         )}
       </SidebarSection>
-      {data && options.mode && (
+      {data && isForestMode(options.mode) && (
+        <ForestryPanel
+          data={data.forestry}
+          options={options}
+          features={features}
+          selectedId={selected?.properties.id ?? null}
+          onOptions={props.onOptions}
+          onSelect={choose}
+          onPoints={props.onForestPoints}
+        />
+      )}
+      {data && options.mode && !isForestMode(options.mode) && (
         <>
           <SidebarSection title={mode?.label} subtitle={mode?.note}>
             {(options.mode === 'gaps' || options.mode === 'clearance') && (
@@ -465,6 +492,9 @@ export function WorkflowPanel(props: Props) {
       {data && (
         <SidebarSection title="Reproduce & download">
           <div className="space-y-2 text-xs underline">
+            <a className="block" href={forestUrl} download="forestry-structure.json">
+              Forestry profiles, texture and edge products
+            </a>
             <a className="block" href={workflowUrl} download="workflow-products.json">
               Gap, plot and proximity products
             </a>

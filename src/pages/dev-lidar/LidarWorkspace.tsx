@@ -17,6 +17,7 @@ import { REVIEW_WORKFLOWS, type ReviewWorkflow } from './reviewWorkflows'
 import { RoofInspectionPanel } from './RoofInspectionPanel'
 import { defaultRoofOrigin, roofCentre, type RoofFeature, type RoofInspection } from './roofInspection'
 
+import { isForestMode, FOREST_PALETTES } from './forestry'
 import { WorkflowPanel } from './WorkflowPanel'
 import { useWorkflowData } from './useWorkflowData'
 import {
@@ -69,7 +70,10 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [meshVisible, setMeshVisible] = useState(true)
   const workflowProducts = useWorkflowData(workflowsRequested, analysisBase, summary?.source_sha256 ?? '')
   const workflowRows = useMemo(
-    () => (workflowProducts.data ? sortedWorkflowFeatures(workflowProducts.data.workflows, analysisOptions) : []),
+    () =>
+      workflowProducts.data
+        ? sortedWorkflowFeatures(workflowProducts.data.workflows, analysisOptions, workflowProducts.data.forestry)
+        : [],
     [workflowProducts.data, analysisOptions],
   )
   const selectedWorkflow =
@@ -227,6 +231,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       setWorkflowsRequested(true)
     }
   }, [summary])
+  const forestLegend = isForestMode(analysisOptions.mode) ? FOREST_PALETTES[analysisOptions.mode] : null
   const legend = summary?.rasters[raster]
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -330,7 +335,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                       setWorkflowsRequested(true)
                     }}
                   >
-                    Gaps · plots · proximity · 3D models
+                    Forestry lab · gaps · plots · 3D models
                   </Button>
                 </SidebarSection>
                 <SidebarSection title="Review workflows" className="p-3">
@@ -488,6 +493,21 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                   onMode={startAnalysis}
                   onOptions={(patch) => setAnalysisOptions((previous) => ({ ...previous, ...patch }))}
                   onSelect={selectWorkflow}
+                  onForestPoints={(plot) => {
+                    setCloud(true)
+                    setSurfaceVisible(false)
+                    setToolsOpen(true)
+                    setSceneGround(plot.ground_m)
+                    const feature = workflowRows.find((row) => row.properties.id === plot.id)
+                    if (feature)
+                      setFocus((previous) => ({
+                        index: -1,
+                        revision: previous.revision + 1,
+                        center: featureCentre(feature),
+                        zoom: 18,
+                      }))
+                    if (isMobile) setPanelOpen(false)
+                  }}
                   onPoints={() => {
                     setCloud(true)
                     setToolsOpen(true)
@@ -624,21 +644,37 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     className="flex shrink-0 items-center gap-3 border-t px-3 py-2 text-[10px]"
                     aria-label="Processed surface legend"
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium" title={legend.title}>
-                      {analysisOptions.mode
-                        ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
-                        : surfaceVisible
-                          ? legend.title
-                          : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
+                    <span className="min-w-0 flex-1 truncate font-medium" title={forestLegend?.label ?? legend.title}>
+                      {forestLegend
+                        ? forestLegend.label
+                        : analysisOptions.mode
+                          ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
+                          : surfaceVisible
+                            ? legend.title
+                            : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
                     </span>
-                    {surfaceVisible && (
+                    {(surfaceVisible || forestLegend) && (
                       <div className="w-20 shrink-0 sm:w-32">
                         <div
                           className="h-1.5 rounded"
-                          style={{ background: `linear-gradient(to right, ${legend.colors.join(',')})` }}
+                          style={{
+                            background: `linear-gradient(to right, ${(forestLegend?.colors ?? legend.colors).join(',')})`,
+                          }}
                         />
                         <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
-                          {raster === 'crowns' ? (
+                          {forestLegend ? (
+                            <>
+                              <span>{forestLegend.min}</span>
+                              <span>
+                                {forestLegend.max}
+                                {analysisOptions.mode === 'texture'
+                                  ? ' m'
+                                  : analysisOptions.mode === 'edges'
+                                    ? '%'
+                                    : ''}
+                              </span>
+                            </>
+                          ) : raster === 'crowns' ? (
                             <span>Categorical regions</span>
                           ) : (
                             <>

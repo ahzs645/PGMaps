@@ -11,10 +11,12 @@ import {
   type ModelData,
   type WorkflowData,
 } from './analysisWorkflows'
-import { initialLidarStyle } from './basemaps'
+import { initialLidarStyle, LABEL_ANCHOR } from './basemaps'
 import { applyWorkflowLayers, installWorkflowLayers, WORKFLOW_LAYERS } from './workflowMapLayers'
+import { isForestMode, type ForestData } from './forestry'
 import { meshVertices } from './buildingMesh'
 
+const forestry = JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData
 const workflows = JSON.parse(
   readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8'),
 ) as WorkflowData
@@ -114,10 +116,17 @@ describe('workflow map integration', () => {
         sources.set(id, { setData: (data) => datasets.set(id, data) })
       },
       getLayer: (id: string) => style.layers.find((l) => l.id === id),
-      addLayer: (layer: (typeof style.layers)[number]) => {
+      addLayer: (layer: (typeof style.layers)[number], before?: string) => {
         if (style.layers.some((l) => l.id === layer.id)) throw Error('Duplicate layer')
-        style.layers.push(layer)
+        if (before)
+          style.layers.splice(
+            style.layers.findIndex((l) => l.id === before),
+            0,
+            layer,
+          )
+        else style.layers.push(layer)
       },
+      setPaintProperty: () => {},
       setLayoutProperty: (id: string, _key: string, value: unknown) => {
         visibility[id] = value
       },
@@ -125,6 +134,9 @@ describe('workflow map integration', () => {
     installWorkflowLayers(map as never)
     installWorkflowLayers(map as never)
     expect(validateStyleMin(style)).toEqual([])
+    expect(style.layers.findIndex((l) => l.id === 'workflow-forest')).toBeLessThan(
+      style.layers.findIndex((l) => l.id === LABEL_ANCHOR),
+    )
     for (const mode of [...ANALYSIS_MODES, ...ANALYSIS_MODES]) {
       const state = analysisPresentation(mode.id)
       expect(state.cloud).toBe(false)
@@ -133,20 +145,22 @@ describe('workflow map integration', () => {
       expect(state.buildings).toBe(mode.id === 'clearance')
       expect(state.basemap).toBe(mode.basemap)
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const rows = sortedWorkflowFeatures(workflows, options)
+      const rows = sortedWorkflowFeatures(workflows, options, forestry)
       for (const id of WORKFLOW_LAYERS) visibility[id] = 'visible'
       applyWorkflowLayers(map as never, options, rows, rows[0]?.properties.id ?? null)
       const active = Object.entries(visibility)
         .filter(([, v]) => v === 'visible')
         .map(([k]) => k)
       expect(active).toEqual(
-        mode.id === 'gaps'
-          ? ['workflow-gaps', 'workflow-selected']
-          : mode.id === 'plots'
-            ? ['workflow-plots', 'workflow-plot-lines', 'workflow-selected']
-            : mode.id === 'clearance'
-              ? ['workflow-clearance', 'workflow-selected']
-              : [],
+        isForestMode(mode.id)
+          ? ['workflow-forest', 'workflow-forest-lines', 'workflow-selected']
+          : mode.id === 'gaps'
+            ? ['workflow-gaps', 'workflow-selected']
+            : mode.id === 'plots'
+              ? ['workflow-plots', 'workflow-plot-lines', 'workflow-selected']
+              : mode.id === 'clearance'
+                ? ['workflow-clearance', 'workflow-selected']
+                : [],
       )
     }
     applyWorkflowLayers(map as never, INITIAL_ANALYSIS, [], null)

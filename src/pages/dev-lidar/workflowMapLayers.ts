@@ -1,5 +1,7 @@
-import type { GeoJSONSource, Map } from 'maplibre-gl'
+import type { GeoJSONSource, Map, LayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
+import { LABEL_ANCHOR } from './basemaps'
+import { isForestMode, FOREST_PALETTES } from './forestry'
 import type { WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export const WORKFLOW_LAYERS = [
@@ -7,14 +9,18 @@ export const WORKFLOW_LAYERS = [
   'workflow-plots',
   'workflow-plot-lines',
   'workflow-clearance',
+  'workflow-forest',
+  'workflow-forest-lines',
   'workflow-selected',
 ]
 export function installWorkflowLayers(map: Map) {
   if (!map.getSource('workflow-features')) map.addSource('workflow-features', { type: 'geojson', data: EMPTY })
   if (!map.getSource('workflow-selection')) map.addSource('workflow-selection', { type: 'geojson', data: EMPTY })
+  // Put thematic fills below context labels; retain selection outlines above candidates.
+  const add = (layer: LayerSpecification) => map.addLayer(layer, layer.type === 'fill' ? LABEL_ANCHOR : undefined)
   const hidden = { visibility: 'none' } as const
   if (!map.getLayer('workflow-gaps'))
-    map.addLayer({
+    add({
       id: 'workflow-gaps',
       type: 'fill',
       source: 'workflow-features',
@@ -22,7 +28,7 @@ export function installWorkflowLayers(map: Map) {
       paint: { 'fill-color': '#22d3ee', 'fill-opacity': 0.45, 'fill-outline-color': '#075985' },
     })
   if (!map.getLayer('workflow-plots'))
-    map.addLayer({
+    add({
       id: 'workflow-plots',
       type: 'fill',
       source: 'workflow-features',
@@ -45,7 +51,7 @@ export function installWorkflowLayers(map: Map) {
       },
     })
   if (!map.getLayer('workflow-plot-lines'))
-    map.addLayer({
+    add({
       id: 'workflow-plot-lines',
       type: 'line',
       source: 'workflow-features',
@@ -53,15 +59,34 @@ export function installWorkflowLayers(map: Map) {
       paint: { 'line-color': '#6b21a8', 'line-width': 0.6 },
     })
   if (!map.getLayer('workflow-clearance'))
-    map.addLayer({
+    add({
       id: 'workflow-clearance',
       type: 'line',
       source: 'workflow-features',
       layout: hidden,
       paint: { 'line-color': '#f472b6', 'line-width': 3 },
     })
+  if (!map.getLayer('workflow-forest'))
+    add({
+      id: 'workflow-forest',
+      type: 'fill',
+      source: 'workflow-features',
+      layout: hidden,
+      paint: {
+        'fill-color': ['interpolate', ['linear'], ['get', 'map_value'], 0, '#fff7ed', 0.5, '#fb923c', 1, '#7c2d12'],
+        'fill-opacity': 0.65,
+      },
+    })
+  if (!map.getLayer('workflow-forest-lines'))
+    add({
+      id: 'workflow-forest-lines',
+      type: 'line',
+      source: 'workflow-features',
+      layout: hidden,
+      paint: { 'line-color': '#64748b', 'line-width': 0.5 },
+    })
   if (!map.getLayer('workflow-selected'))
-    map.addLayer({
+    add({
       id: 'workflow-selected',
       type: 'line',
       source: 'workflow-selection',
@@ -70,7 +95,7 @@ export function installWorkflowLayers(map: Map) {
     })
 }
 export function applyWorkflowLayers(
-  map: Pick<Map, 'getSource' | 'setLayoutProperty'>,
+  map: Pick<Map, 'getSource' | 'setLayoutProperty' | 'setPaintProperty'>,
   options: WorkflowOptions,
   features: WorkflowFeature[],
   selectedId: string | null,
@@ -80,8 +105,23 @@ export function applyWorkflowLayers(
     type: 'FeatureCollection',
     features: features.filter((f) => f.properties.id === selectedId),
   })
-  const active =
-    options.mode === 'gaps'
+  if (isForestMode(options.mode)) {
+    const palette = FOREST_PALETTES[options.mode]
+    map.setPaintProperty('workflow-forest', 'fill-color', [
+      'interpolate',
+      ['linear'],
+      ['get', 'map_value'],
+      palette.min,
+      palette.colors[0],
+      (palette.min + palette.max) / 2,
+      palette.colors[1],
+      palette.max,
+      palette.colors[2],
+    ])
+  }
+  const active = isForestMode(options.mode)
+    ? ['workflow-forest', 'workflow-forest-lines']
+    : options.mode === 'gaps'
       ? ['workflow-gaps']
       : options.mode === 'plots'
         ? ['workflow-plots', 'workflow-plot-lines']
