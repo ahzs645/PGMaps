@@ -134,7 +134,7 @@ exit codes, stdout and timings.
 - `regularize_building_footprints`: candidate polygons, as described above.
 - `individual_tree_segmentation`: attempted on the same ROI with grid
   acceleration. It fails with `failed building thread pool: Not supported
-  (os error 58)` in this WASI runtime, even with one thread requested. No output
+(os error 58)` in this WASI runtime, even with one thread requested. No output
   from it is displayed. The full-tile watershed regions are explicitly separate.
 
 An exploratory full-surface GeoLibre tree-detection run was stopped after about
@@ -177,6 +177,12 @@ retain the 1 m UTM grid. A clicked height is labelled as a resampled web-grid
 value. Crown-region colours are categorical and never indicate species.
 Raw points use a display Z translation to place the lowest point at scene zero;
 that is a visual shift, not an elevation/datum conversion.
+
+The page shows processed height, terrain, GeoLibre slope and crown-region PNGs
+above the map, so products remain visible without WebGL. Selecting a preview
+opens that processed map layer. The native GeoLibre LiDAR control starts expanded
+with the original EPT cloud streaming; the prominent display buttons switch
+between processed layers and 3D points. Crown and roof candidates start enabled.
 
 The private Sites host uses the same compiled React entrypoint. Its small Worker
 proxies the two private static tile bundles using server-only service credentials.

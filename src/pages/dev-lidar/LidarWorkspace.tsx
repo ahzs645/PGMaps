@@ -15,9 +15,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [raster, setRaster] = useState<RasterKey>('height')
-  const [trees, setTrees] = useState(false)
+  const [trees, setTrees] = useState(true)
   const [buildings, setBuildings] = useState(true)
-  const [cloud, setCloud] = useState(false)
+  const [cloud, setCloud] = useState(true)
   const [reference, setReference] = useState(false)
   const [minTreeHeight, setMinTreeHeight] = useState(5)
   const [focus, setFocus] = useState({ index: -1, revision: 0 })
@@ -122,6 +122,43 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 </div>
               ))}
             </dl>
+            <section className="mb-5" aria-label="Processed LiDAR products">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold">Processed from your LiDAR</h2>
+                <p className="text-xs text-muted-foreground">Select a surface to explore it on the map.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {(
+                  [
+                    ['height', 'Height above ground', 'Canopy-height proxy · metres'],
+                    ['terrain', 'Ground terrain', 'Classified ground + bounded interpolation'],
+                    ['slope', 'Terrain slope', 'GeoLibre engine output · degrees'],
+                    ['crowns', 'Crown regions', 'Watershed candidates · not verified trees'],
+                  ] as const
+                ).map(([key, title, note]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={!cloud && raster === key}
+                    onClick={() => {
+                      setRaster(key)
+                      setCloud(false)
+                    }}
+                    className={`overflow-hidden rounded-xl border text-left transition-colors hover:border-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${!cloud && raster === key ? 'border-emerald-600 bg-emerald-500/5' : 'bg-card'}`}
+                  >
+                    <img
+                      src={new URL(summary.rasters[key].file, analysisBase).href}
+                      alt={`${title} computed from the supplied BC LiDAR tile`}
+                      className="h-36 w-full bg-slate-950 object-contain sm:h-44"
+                    />
+                    <span className="block px-3 pb-3 pt-2">
+                      <strong className="block text-xs">{title}</strong>
+                      <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{note}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
             <div className="grid items-start gap-4 lg:grid-cols-[290px_minmax(0,1fr)]">
               <MapSidebarShell
                 title="Layers & exploration"
@@ -139,7 +176,15 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                           key={key}
                           className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs ${raster === key ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'hover:bg-muted'}`}
                         >
-                          <input type="radio" name="surface" checked={raster === key} onChange={() => setRaster(key)} />
+                          <input
+                            type="radio"
+                            name="surface"
+                            checked={raster === key}
+                            onChange={() => {
+                              setRaster(key)
+                              setCloud(false)
+                            }}
+                          />
                           {layer.title}
                         </label>
                       ),
@@ -241,6 +286,25 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 </section>
               </MapSidebarShell>
               <div className="order-first min-w-0 lg:order-none">
+                <div className="mb-3 rounded-xl border bg-card p-3">
+                  <div className="flex flex-wrap gap-2" aria-label="Map display">
+                    <Button
+                      variant={!cloud ? 'default' : 'outline'}
+                      aria-pressed={!cloud}
+                      onClick={() => setCloud(false)}
+                    >
+                      <Layers3 className="mr-2 size-4" /> Processed layers
+                    </Button>
+                    <Button variant={cloud ? 'default' : 'outline'} aria-pressed={cloud} onClick={() => setCloud(true)}>
+                      GeoLibre 3D LiDAR
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    {cloud
+                      ? 'Native maplibre-gl-lidar control used by GeoLibre. Your original points stream directly into this map. Drag to pan; right-drag to orbit. Expand the control for point size, colour and inspection tools.'
+                      : 'Processed height and terrain surfaces, crown candidates and roof-like patches. Green markers are crown candidates; amber outlines are roof-like patches. Click a feature for its measured height.'}
+                  </p>
+                </div>
                 <FullscreenPanel title="Native MapLibre + GeoLibre LiDAR components" compact>
                   {(fullscreen) => (
                     <div className={fullscreen ? 'h-[calc(100dvh-7rem)]' : 'h-[680px] min-h-[460px]'}>

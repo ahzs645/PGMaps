@@ -163,8 +163,10 @@ export function NativeLidarMap(props: Props) {
         },
       })
       const control = new LidarControl({
-        title: 'Point cloud · advanced',
-        collapsed: true,
+        title: 'GeoLibre · 3D LiDAR',
+        collapsed: !latest.current.cloud,
+        panelWidth: 290,
+        maxHeight: 360,
         autoZoom: false,
         autoZOffset: true,
         pointSize: 2,
@@ -283,16 +285,29 @@ export function NativeLidarMap(props: Props) {
   }, [ready, props.cloud, props.cloudUrl, props.color])
 
   useEffect(() => {
+    if (!ready) return
+    if (props.cloud) lidar.current?.expand()
+    else lidar.current?.collapse()
+    map.current?.easeTo({ pitch: props.cloud ? 50 : 0, duration: 700 })
+  }, [ready, props.cloud])
+
+  useEffect(() => {
     if (!ready || !map.current) return
     const place = props.summary.highlights[props.focus.index]
-    if (place) map.current.easeTo({ center: place.center, zoom: place.zoom, pitch: 0, duration: 900 })
+    if (place)
+      map.current.easeTo({
+        center: place.center,
+        zoom: place.zoom,
+        pitch: latest.current.cloud ? 50 : 0,
+        duration: 900,
+      })
     else
       map.current.fitBounds(
         [
           [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
           [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
         ],
-        { padding: 35, pitch: 0 },
+        { padding: 35, pitch: latest.current.cloud ? 50 : 0 },
       )
   }, [ready, props.focus, props.summary])
 
