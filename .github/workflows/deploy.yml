@@ -96,6 +96,29 @@ jobs:
           VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
           VITE_NECHAKO_GATEWAY_URL: https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal
 
+      # EPT divides the 551 MB original into small browser-streamable tiles.
+      # Keep generated binaries out of Git and restore them after the app build.
+      - name: Restore prepared LiDAR tiles
+        id: lidar-cache
+        uses: actions/cache@v4
+        with:
+          path: dist/data/lidar/bc-093g086
+          key: pgmaps-lidar-ept-v1-${{ hashFiles('scripts/prepare-lidar.py', 'scripts/lidar-environment.yml') }}
+
+      - name: Install LiDAR indexing tools
+        if: steps.lidar-cache.outputs.cache-hit != 'true'
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: scripts/lidar-environment.yml
+          cache-environment: true
+
+      - name: Prepare full LiDAR cloud for streaming
+        if: steps.lidar-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
+
+      - name: Verify complete LiDAR tiles
+        run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
+
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html
 

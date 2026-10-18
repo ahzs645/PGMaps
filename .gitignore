@@ -156,3 +156,6 @@ public/data/bc/laep/
 # Local Worker simulator/cache; upstream sessions never become source artifacts.
 scripts/nechako-worker/.wrangler/
 scripts/nechako-worker/__pycache__/
+
+# Prepared LiDAR octree; generated and cached by the Pages build.
+public/data/lidar/bc-093g086/
