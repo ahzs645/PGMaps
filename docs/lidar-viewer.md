@@ -178,11 +178,19 @@ value. Crown-region colours are categorical and never indicate species.
 Raw points use a display Z translation to place the lowest point at scene zero;
 that is a visual shift, not an elevation/datum conversion.
 
-The page shows processed height, terrain, GeoLibre slope and crown-region PNGs
-above the map, so products remain visible without WebGL. Selecting a preview
-opens that processed map layer. The native GeoLibre LiDAR control starts expanded
-with the original EPT cloud streaming; the prominent display buttons switch
-between processed layers and 3D points. Crown and roof candidates start enabled.
+The workspace fills its host's available height with no document scrolling.
+The map uses the remaining space below the compact header and toolbar, without
+a fixed minimum height. A collapsible 310 px desktop sidebar holds Layers,
+Results, Methods and Files tabs; only its content scrolls. On phones the panel
+starts closed and opens into the bottom 42% of the workspace, leaving the map
+visible. Fullscreen uses the same mounted map and observes its resized container.
+
+Results contains processed height, terrain, GeoLibre slope and crown-region PNGs,
+which remain accessible without WebGL. Selecting a preview opens that map layer.
+The native GeoLibre LiDAR control starts collapsed with the original EPT cloud
+streaming. Its toolbar button opens tools on demand; panel dimensions track the
+available map space. Display buttons switch between processed layers and 3D
+points. Crown and roof candidates start enabled.
 
 The private Sites host uses the same compiled React entrypoint. Its small Worker
 proxies the two private static tile bundles using server-only service credentials.

@@ -1,6 +1,15 @@
+import { useEffect } from 'react'
 import { LidarWorkspace } from './dev-lidar/LidarWorkspace'
 
 export default function DevLidar() {
+  useEffect(() => {
+    const visibility = (hidden: boolean) =>
+      window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden } }))
+    visibility(true)
+    return () => {
+      visibility(false)
+    }
+  }, [])
   const origin = window.location.origin
   return (
     <LidarWorkspace

@@ -1,14 +1,24 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft, Download, Layers3, TreePine } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Crosshair, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
-import { DevPageHeader } from '@/components/DevPageHeader'
 import { Button } from '@/components/ui/button'
 import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
-import { MapSidebarShell } from '@/components/ui/map-panels'
-import { formatNumber } from '@/lib/format'
+import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { TabBar } from '@/components/ui/tab-bar'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { NativeLidarMap } from './NativeLidarMap'
+import { LidarDownloads, LidarMethods, LidarResults } from './AnalysisPanels'
 import type { AnalysisSummary, RasterKey } from './types'
 import { checkAnalysisSummary } from './data'
+
+type PanelTab = 'layers' | 'results' | 'methods' | 'files'
+const PANEL_TABS = [
+  { value: 'layers', label: 'Layers' },
+  { value: 'results', label: 'Results' },
+  { value: 'methods', label: 'Methods' },
+  { value: 'files', label: 'Files' },
+] as const
 
 export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: string; cloudBase: string }) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null)
@@ -22,6 +32,18 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [minTreeHeight, setMinTreeHeight] = useState(5)
   const [focus, setFocus] = useState({ index: -1, revision: 0 })
   const [color, setColor] = useState<ColorSchemeType>('elevation')
+  const [tab, setTab] = useState<PanelTab>('layers')
+  const [panelOpen, setPanelOpen] = useState<boolean | null>(null)
+  const [toolsOpen, setToolsOpen] = useState(false)
+  const sidebar = useRef<HTMLElement>(null)
+  const isMobile = useIsMobile()
+  const showPanel = panelOpen ?? !isMobile
+
+  useEffect(() => {
+    const content = sidebar.current?.querySelector<HTMLElement>('[data-map-sidebar-scroll]')
+    if (content) content.scrollTop = 0
+  }, [tab])
+
   useEffect(() => {
     document.title = 'LiDAR · Forest & structures · PGMaps'
     const controller = new AbortController()
@@ -51,148 +73,117 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       window.clearTimeout(timeout)
     }
   }, [analysisBase, attempt])
+
   const go = (index: number) => setFocus((previous) => ({ index, revision: previous.revision + 1 }))
+  const selectRaster = (key: RasterKey) => {
+    setRaster(key)
+    setCloud(false)
+    if (isMobile) setPanelOpen(false)
+  }
+  const openTools = () => {
+    setCloud(true)
+    setToolsOpen(true)
+    if (isMobile) setPanelOpen(false)
+  }
+  const legend = summary?.rasters[raster]
   return (
-    <div className="min-h-full bg-background text-foreground">
-      <div className="mx-auto max-w-[1800px] px-4 pb-8 pt-8 sm:px-6">
-        <a
-          href="https://pgmaps.ahmadjalil.com/dev/"
-          className="mb-4 inline-flex items-center gap-2 text-xs text-muted-foreground"
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-2 sm:px-3">
+        <Button asChild variant="ghost" size="icon" className="size-8 shrink-0">
+          <a href="https://pgmaps.ahmadjalil.com/dev/" aria-label="Back to PGMaps Dev" title="Back to PGMaps Dev">
+            <ArrowLeft className="size-4" />
+          </a>
+        </Button>
+        <TreePine className="hidden size-5 shrink-0 text-emerald-700 sm:block" />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-sm font-semibold">
+            Forest & structures <span className="hidden font-normal text-muted-foreground lg:inline">/ BC 093G086</span>
+          </h1>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+          aria-expanded={showPanel}
+          aria-controls="lidar-sidebar"
+          onClick={() => setPanelOpen(!showPanel)}
+          disabled={!summary}
         >
-          <ArrowLeft className="size-3.5" /> PGMaps / Dev
-        </a>
-        <DevPageHeader
-          compact
-          eyebrow="Native LiDAR workbench"
-          icon={TreePine}
-          title="Forest & structures"
-          description="A measured view of BC 093G086: terrain, height above ground, crown candidates and roof-like surfaces."
-          actions={
-            <Button asChild variant="outline" size="sm">
-              <a
-                href="https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Original LAZ ↗
-              </a>
-            </Button>
-          }
-        />
-        {!summary ? (
-          <div className="my-8 rounded-xl border p-10 text-center" role="status">
-            <Layers3 className="mx-auto mb-4 size-9 text-muted-foreground" />
-            <p>{error || 'Loading the completed LiDAR analysis…'}</p>
-            {error && (
-              <Button className="mt-4" onClick={() => setAttempt((v) => v + 1)}>
-                Retry
-              </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            <dl className="my-5 grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-4 lg:grid-cols-5">
-              {[
-                ['Observed footprint', `${summary.observed_area_ha.toFixed(1)} ha`, '84,608,005 source points'],
-                [
-                  'Elevated-return cover',
-                  `${summary.elevated_first_return_cover_percent.toFixed(1)}%`,
-                  'First returns >2 m; includes structures',
-                ],
-                [
-                  'Median elevated height',
-                  `${summary.elevated_surface_height_stats_m.median.toFixed(1)} m`,
-                  'Cells >2 m, excluding roof candidates',
-                ],
-                [
-                  'Crown candidates',
-                  formatNumber(summary.tree_candidate_count),
-                  'Local maxima + watershed; unvalidated',
-                ],
-                [
-                  'Roof-like patches',
-                  formatNumber(summary.building_candidate_count),
-                  'Planar patches; not a building count',
-                ],
-              ].map(([label, value, note]) => (
-                <div key={label}>
-                  <dt className="text-[11px] text-muted-foreground">{label}</dt>
-                  <dd className="mt-1 text-xl font-semibold tabular-nums">{value}</dd>
-                  <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{note}</p>
-                </div>
-              ))}
-            </dl>
-            <section className="mb-5" aria-label="Processed LiDAR products">
-              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold">Processed from your LiDAR</h2>
-                <p className="text-xs text-muted-foreground">Select a surface to explore it on the map.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {(
-                  [
-                    ['height', 'Height above ground', 'Canopy-height proxy · metres'],
-                    ['terrain', 'Ground terrain', 'Classified ground + bounded interpolation'],
-                    ['slope', 'Terrain slope', 'GeoLibre engine output · degrees'],
-                    ['crowns', 'Crown regions', 'Watershed candidates · not verified trees'],
-                  ] as const
-                ).map(([key, title, note]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={!cloud && raster === key}
-                    onClick={() => {
-                      setRaster(key)
-                      setCloud(false)
-                    }}
-                    className={`overflow-hidden rounded-xl border text-left transition-colors hover:border-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${!cloud && raster === key ? 'border-emerald-600 bg-emerald-500/5' : 'bg-card'}`}
-                  >
-                    <img
-                      src={new URL(summary.rasters[key].file, analysisBase).href}
-                      alt={`${title} computed from the supplied BC LiDAR tile`}
-                      className="h-36 w-full bg-slate-950 object-contain sm:h-44"
-                    />
-                    <span className="block px-3 pb-3 pt-2">
-                      <strong className="block text-xs">{title}</strong>
-                      <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{note}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-            <div className="grid items-start gap-4 lg:grid-cols-[290px_minmax(0,1fr)]">
-              <MapSidebarShell
-                title="Layers & exploration"
-                subtitle="Measured surfaces and candidate features"
-                className="h-auto rounded-xl border shadow-none lg:h-[830px]"
-                scrollClassName="space-y-4 p-4"
-                aria-label="Analysis layers and controls"
-              >
-                <section>
-                  <h2 className="mb-3 text-sm font-semibold">Surface layers</h2>
-                  <div className="space-y-1.5">
+          <PanelLeft className="size-3.5" />
+          {showPanel ? 'Hide panel' : 'Panels'}
+        </Button>
+      </header>
+      {!summary ? (
+        <div
+          className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center"
+          role="status"
+        >
+          <Layers3 className="size-8 text-muted-foreground" />
+          <p className="text-sm">{error || 'Loading the completed LiDAR analysis…'}</p>
+          {error && <Button onClick={() => setAttempt((v) => v + 1)}>Retry</Button>}
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+          <aside
+            ref={sidebar}
+            id="lidar-sidebar"
+            aria-label="LiDAR controls and results"
+            hidden={!showPanel}
+            className={`${showPanel ? 'flex' : 'hidden'} order-2 h-[42%] min-h-0 w-full shrink-0 flex-col overflow-hidden border-t md:order-1 md:h-full md:w-[310px] md:border-t-0`}
+          >
+            <MapSidebarShell
+              title="Analysis workspace"
+              headerClassName="shrink-0 p-2.5"
+              titleClassName="text-xs"
+              className="border-r-0 shadow-none md:border-r"
+              scrollClassName="overscroll-contain"
+              contentProps={{ tabIndex: 0, 'aria-label': `${tab} panel content` }}
+              actions={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  aria-label="Close side panel"
+                  onClick={() => setPanelOpen(false)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              }
+              metadata={
+                <TabBar
+                  value={tab}
+                  options={PANEL_TABS}
+                  onChange={setTab}
+                  label="LiDAR analysis panels"
+                  idPrefix="lidar"
+                  variant="underline"
+                  stretch
+                  className="shrink-0"
+                />
+              }
+            >
+              <div id="lidar-panel-layers" role="tabpanel" aria-labelledby="lidar-tab-layers" hidden={tab !== 'layers'}>
+                <SidebarSection title="Surface layers" className="p-3">
+                  <div className="space-y-1">
                     {(Object.entries(summary.rasters) as [RasterKey, AnalysisSummary['rasters'][RasterKey]][]).map(
                       ([key, layer]) => (
                         <label
                           key={key}
-                          className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs ${raster === key ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'hover:bg-muted'}`}
+                          className={`flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-xs ${raster === key ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'hover:bg-muted'}`}
                         >
                           <input
                             type="radio"
                             name="surface"
                             checked={raster === key}
-                            onChange={() => {
-                              setRaster(key)
-                              setCloud(false)
-                            }}
+                            onChange={() => selectRaster(key)}
                           />
                           {layer.title}
                         </label>
                       ),
                     )}
                   </div>
-                </section>
-                <section className="border-t pt-4">
-                  <h2 className="mb-3 text-sm font-semibold">Candidate overlays</h2>
+                </SidebarSection>
+                <SidebarSection title="Candidate overlays" className="p-3">
                   <div className="space-y-3 text-xs">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={trees} onChange={(e) => setTrees(e.target.checked)} />
@@ -219,40 +210,33 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                       />
                     </label>
                     <p className="text-[10px] leading-4 text-muted-foreground">
-                      This filters displayed candidates; it does not rerun detection. Click a marker or patch to inspect
-                      it.
+                      Filters displayed candidates; detection is not rerun. Green markers are crowns; amber outlines are
+                      roof-like patches.
                     </p>
                   </div>
-                </section>
-                <section className="border-t pt-4">
-                  <h2 className="mb-3 text-sm font-semibold">Original cloud</h2>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input type="checkbox" checked={cloud} onChange={(e) => setCloud(e.target.checked)} />
-                    Stream raw 3D points
+                </SidebarSection>
+                <SidebarSection title="GeoLibre point cloud" className="p-3">
+                  <label className="block text-xs">
+                    Point colour
+                    <select
+                      value={color}
+                      onChange={(e) => setColor(e.target.value as ColorSchemeType)}
+                      className="mt-1 w-full rounded border bg-background p-2"
+                    >
+                      <option value="elevation">Absolute elevation</option>
+                      <option value="intensity">Intensity</option>
+                      <option value="classification">Source classification</option>
+                    </select>
                   </label>
-                  {cloud && (
-                    <>
-                      <label className="mt-3 block text-xs">
-                        Point colour
-                        <select
-                          value={color}
-                          onChange={(e) => setColor(e.target.value as ColorSchemeType)}
-                          className="mt-1 w-full rounded border bg-background p-2"
-                        >
-                          <option value="elevation">Absolute elevation</option>
-                          <option value="intensity">Intensity</option>
-                          <option value="classification">Source classification</option>
-                        </select>
-                      </label>
-                      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-                        84.6 million points available; 750,000 displayed at once. Scene Z is shifted to the lowest point
-                        for viewing; source attributes retain their elevations.
-                      </p>
-                    </>
-                  )}
-                </section>
-                <section className="border-t pt-4">
-                  <h2 className="mb-3 text-sm font-semibold">Explore key places</h2>
+                  <Button className="mt-2 h-8 w-full text-xs" variant="outline" onClick={openTools}>
+                    Open native LiDAR tools
+                  </Button>
+                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                    84.6 million source points; display budget 750,000. Drag to pan; right-drag to orbit. Native point
+                    size, colour and inspection tools open on demand.
+                  </p>
+                </SidebarSection>
+                <SidebarSection title="Explore key places" className="p-3">
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => go(-1)}>
                       Whole tile
@@ -263,167 +247,129 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                       </Button>
                     ))}
                   </div>
-                </section>
-                <section className="border-t pt-4">
-                  <h2 className="mb-2 text-sm font-semibold">Return-height profile</h2>
-                  <p className="mb-3 text-[10px] leading-4 text-muted-foreground">
-                    Share of valid laser returns in each height band. This is not biomass or fuel load.
-                  </p>
-                  <div className="space-y-2">
-                    {summary.return_height_profile.counts.map((count, i, counts) => {
-                      const percent = (count / counts.reduce((a, b) => a + b, 0)) * 100
-                      return (
-                        <div key={i} className="grid grid-cols-[52px_1fr_38px] items-center gap-2 text-[10px]">
-                          <span>{summary.return_height_profile.bins_m[i]} m</span>
-                          <span className="h-2 rounded bg-muted">
-                            <span className="block h-2 rounded bg-emerald-600" style={{ width: `${percent}%` }} />
-                          </span>
-                          <span className="text-right tabular-nums">{percent.toFixed(1)}%</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </section>
-              </MapSidebarShell>
-              <div className="order-first min-w-0 lg:order-none">
-                <div className="mb-3 rounded-xl border bg-card p-3">
-                  <div className="flex flex-wrap gap-2" aria-label="Map display">
-                    <Button
-                      variant={!cloud ? 'default' : 'outline'}
-                      aria-pressed={!cloud}
-                      onClick={() => setCloud(false)}
-                    >
-                      <Layers3 className="mr-2 size-4" /> Processed layers
-                    </Button>
-                    <Button variant={cloud ? 'default' : 'outline'} aria-pressed={cloud} onClick={() => setCloud(true)}>
-                      GeoLibre 3D LiDAR
-                    </Button>
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    {cloud
-                      ? 'Native maplibre-gl-lidar control used by GeoLibre. Your original points stream directly into this map. Drag to pan; right-drag to orbit. Expand the control for point size, colour and inspection tools.'
-                      : 'Processed height and terrain surfaces, crown candidates and roof-like patches. Green markers are crown candidates; amber outlines are roof-like patches. Click a feature for its measured height.'}
-                  </p>
+                </SidebarSection>
+              </div>
+              <div
+                id="lidar-panel-results"
+                role="tabpanel"
+                aria-labelledby="lidar-tab-results"
+                hidden={tab !== 'results'}
+              >
+                <LidarResults summary={summary} analysisBase={analysisBase} selectRaster={selectRaster} />
+              </div>
+              <div
+                id="lidar-panel-methods"
+                role="tabpanel"
+                aria-labelledby="lidar-tab-methods"
+                hidden={tab !== 'methods'}
+              >
+                <LidarMethods summary={summary} />
+              </div>
+              <div id="lidar-panel-files" role="tabpanel" aria-labelledby="lidar-tab-files" hidden={tab !== 'files'}>
+                <LidarDownloads summary={summary} analysisBase={analysisBase} />
+              </div>
+            </MapSidebarShell>
+          </aside>
+          <FullscreenPanel
+            title={cloud ? '3D LiDAR' : 'Processed map'}
+            compact
+            dialogOptions={{ onOpenEffect: () => undefined }}
+            className="order-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 p-0 md:order-2 [&>div:first-child]:mb-0 [&>div:first-child]:shrink-0 [&>div:first-child]:border-b [&>div:first-child]:px-2 [&>div:first-child]:py-1 max-sm:[&>div:first-child>h2]:sr-only [&[data-fullscreen]]:overflow-hidden [&[data-fullscreen]]:p-0"
+            actions={
+              <>
+                <SegmentedControl
+                  value={cloud ? 'cloud' : 'processed'}
+                  options={[
+                    { value: 'processed', label: 'Layers' },
+                    { value: 'cloud', label: '3D LiDAR' },
+                  ]}
+                  onChange={(value) => setCloud(value === 'cloud')}
+                  label="Map display"
+                  size="sm"
+                  fullWidth={false}
+                />
+                <Button
+                  variant={toolsOpen && cloud ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-8"
+                  title="Native GeoLibre LiDAR tools"
+                  aria-label="Native GeoLibre LiDAR tools"
+                  aria-pressed={toolsOpen && cloud}
+                  onClick={() => {
+                    if (toolsOpen && cloud) setToolsOpen(false)
+                    else openTools()
+                  }}
+                >
+                  <Settings2 className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  title="Fit whole tile"
+                  aria-label="Fit whole tile"
+                  onClick={() => go(-1)}
+                >
+                  <Crosshair className="size-4" />
+                </Button>
+              </>
+            }
+          >
+            {() => (
+              <>
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                  <NativeLidarMap
+                    summary={summary}
+                    analysisBase={analysisBase}
+                    cloudUrl={new URL('ept.json', cloudBase).href}
+                    raster={raster}
+                    trees={trees}
+                    buildings={buildings}
+                    reference={reference}
+                    cloud={cloud}
+                    minTreeHeight={minTreeHeight}
+                    focus={focus}
+                    color={color}
+                    toolsOpen={toolsOpen}
+                    onToolsOpenChange={setToolsOpen}
+                  />
                 </div>
-                <FullscreenPanel title="Native MapLibre + GeoLibre LiDAR components" compact>
-                  {(fullscreen) => (
-                    <div className={fullscreen ? 'h-[calc(100dvh-7rem)]' : 'h-[680px] min-h-[460px]'}>
-                      <NativeLidarMap
-                        summary={summary}
-                        analysisBase={analysisBase}
-                        cloudUrl={new URL('ept.json', cloudBase).href}
-                        raster={raster}
-                        trees={trees}
-                        buildings={buildings}
-                        reference={reference}
-                        cloud={cloud}
-                        minTreeHeight={minTreeHeight}
-                        focus={focus}
-                        color={color}
+                {legend && (
+                  <div
+                    className="flex shrink-0 items-center gap-3 border-t px-3 py-2 text-[10px]"
+                    aria-label="Processed surface legend"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-medium" title={legend.title}>
+                      {legend.title}
+                    </span>
+                    <div className="w-20 shrink-0 sm:w-32">
+                      <div
+                        className="h-1.5 rounded"
+                        style={{ background: `linear-gradient(to right, ${legend.colors.join(',')})` }}
                       />
+                      <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
+                        {raster === 'crowns' ? (
+                          <span>Categorical regions</span>
+                        ) : (
+                          <>
+                            <span>{legend.min.toFixed(0)}</span>
+                            <span>
+                              {legend.max.toFixed(0)} {legend.unit}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </FullscreenPanel>
-                <div className="mt-3 rounded-lg border bg-card p-3">
-                  <div className="flex items-center justify-between gap-4 text-xs">
-                    <strong>{summary.rasters[raster].title}</strong>
-                    <span className="text-muted-foreground">
-                      {raster === 'crowns'
-                        ? 'Categorical regions'
-                        : `${summary.rasters[raster].min.toFixed(0)}–${summary.rasters[raster].max.toFixed(0)} ${summary.rasters[raster].unit}`}
+                    <span className="hidden text-muted-foreground lg:inline">
+                      Click map to inspect height · candidates unvalidated
                     </span>
                   </div>
-                  <div
-                    className="mt-2 h-2 rounded"
-                    style={{ background: `linear-gradient(to right, ${summary.rasters[raster].colors.join(',')})` }}
-                  />
-                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-                    {raster === 'height'
-                      ? 'DSM minus ground terrain. Canopy-height proxy: buildings and other elevated objects remain.'
-                      : raster === 'support'
-                        ? 'Distance to a cell with classified ground returns. Larger distances mean more interpolation, not a measured vertical error.'
-                        : raster === 'crowns'
-                          ? 'Categorical watershed regions seeded by local height maxima. Colours identify candidate regions; they do not indicate species.'
-                          : 'Analysis uses metre-based UTM coordinates. Web raster previews are resampled; download GeoTIFFs for source-grid values.'}{' '}
-                    Click the map to sample height.
-                  </p>
-                </div>
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                  {summary.ground_supported_percent.toFixed(2)}% of the observed footprint has a terrain-supported
-                  height estimate. The source contains ground and unclassified points, with no vegetation or building
-                  labels.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <details className="rounded-xl border p-4" open>
-                <summary className="cursor-pointer text-sm font-semibold">What ran, and what the results mean</summary>
-                <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
-                  <p>
-                    <strong className="text-foreground">Full tile:</strong> noise/overlap-class exclusion; 1 m ground
-                    and surface grids; bounded ground TIN filling; height above ground; local maxima and watershed
-                    crowns; planar, single-return roof screening.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Actual GeoLibre engine:</strong>{' '}
-                    {summary.geolibre?.tools.join(', ') || 'See downloadable execution record'}.{' '}
-                    {summary.geolibre?.tree_scope}
-                  </p>
-                  <p>
-                    Changing minimum crown separation changes detection substantially:{' '}
-                    {summary.tree_detection_sensitivity
-                      .map((s) => `${s.minimum_separation_m} m → ${formatNumber(s.local_maxima)} peaks`)
-                      .join('; ')}
-                    . These are algorithm outputs, not confidence intervals or verified tree totals.
-                  </p>
-                  <ul className="list-disc space-y-1 pl-4">
-                    {summary.limitations.map((note) => (
-                      <li key={note}>{note}</li>
-                    ))}
-                  </ul>
-                </div>
-              </details>
-              <section className="rounded-xl border p-4">
-                <h2 className="text-sm font-semibold">Downloads & reproducibility</h2>
-                <p className="mb-3 mt-2 text-xs leading-5 text-muted-foreground">
-                  Processing stays separate from rendering. Re-run the versioned pipeline as data or parameters change;
-                  this viewer reads the resulting manifest and products.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {summary.downloads.map((download) => (
-                    <a
-                      key={download.file}
-                      className="flex items-center gap-2 rounded border px-3 py-2 text-xs hover:bg-muted"
-                      href={new URL(download.file, analysisBase).href}
-                      download
-                    >
-                      <Download className="size-3.5" />
-                      {download.label}
-                    </a>
-                  ))}
-                </div>
-                <p className="mt-4 flex flex-wrap gap-3 text-xs underline">
-                  <a href="https://github.com/opengeos/GeoLibre" target="_blank" rel="noopener noreferrer">
-                    GeoLibre
-                  </a>
-                  <a href="https://github.com/opengeos/maplibre-gl-lidar" target="_blank" rel="noopener noreferrer">
-                    LiDAR rendering component
-                  </a>
-                  <a href="https://github.com/opengeos/geolibre-rust" target="_blank" rel="noopener noreferrer">
-                    Processing engine
-                  </a>
-                  <a href="https://github.com/opengeos/RustGIS" target="_blank" rel="noopener noreferrer">
-                    RustGIS companion
-                  </a>
-                  <a href="https://github.com/ahzs645/PGMaps/pull/37" target="_blank" rel="noopener noreferrer">
-                    PGMaps source
-                  </a>
-                </p>
-              </section>
-            </div>
-          </>
-        )}
-      </div>
+                )}
+              </>
+            )}
+          </FullscreenPanel>
+        </div>
+      )}
     </div>
   )
 }

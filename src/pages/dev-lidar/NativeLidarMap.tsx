@@ -18,6 +18,8 @@ interface Props {
   minTreeHeight: number
   focus: { index: number; revision: number }
   color: ColorSchemeType
+  toolsOpen: boolean
+  onToolsOpenChange: (open: boolean) => void
 }
 
 export function NativeLidarMap(props: Props) {
@@ -164,9 +166,9 @@ export function NativeLidarMap(props: Props) {
       })
       const control = new LidarControl({
         title: 'GeoLibre · 3D LiDAR',
-        collapsed: !latest.current.cloud,
+        collapsed: !latest.current.toolsOpen,
         panelWidth: 290,
-        maxHeight: 360,
+        closeOnOutsideClick: false,
         autoZoom: false,
         autoZOffset: true,
         pointSize: 2,
@@ -177,6 +179,12 @@ export function NativeLidarMap(props: Props) {
       })
       instance.addControl(control, 'top-left')
       lidar.current = control
+      control.on('expand', () => {
+        if (active) latest.current.onToolsOpenChange(true)
+      })
+      control.on('collapse', () => {
+        if (active) latest.current.onToolsOpenChange(false)
+      })
       control.on('loaderror', (event) => {
         if (active) setError(String(event.error ?? 'Point-cloud loading failed'))
       })
@@ -286,8 +294,16 @@ export function NativeLidarMap(props: Props) {
 
   useEffect(() => {
     if (!ready) return
-    if (props.cloud) lidar.current?.expand()
+    if (props.cloud && props.toolsOpen) lidar.current?.expand()
     else lidar.current?.collapse()
+  }, [ready, props.cloud, props.toolsOpen])
+
+  useEffect(() => {
+    if (!ready) return
+    setHeight(null)
+    setStatus(
+      props.cloud ? 'Streaming original 3D points · budget 750,000' : 'Processed layers · click to sample height',
+    )
     map.current?.easeTo({ pitch: props.cloud ? 50 : 0, duration: 700 })
   }, [ready, props.cloud])
 
@@ -312,17 +328,18 @@ export function NativeLidarMap(props: Props) {
   }, [ready, props.focus, props.summary])
 
   return (
-    <div className="relative h-full min-h-[460px] overflow-hidden rounded-lg">
+    <div className="relative h-full min-h-0 overflow-hidden" data-lidar-map>
       <div ref={container} className="absolute inset-0" aria-label="Interactive native LiDAR analysis map" />
       <div
-        className="pointer-events-none absolute bottom-9 left-3 right-14 rounded bg-background/90 px-3 py-2 text-xs text-foreground shadow"
+        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-[10px] text-foreground shadow"
         role="status"
+        title={height ?? status}
       >
         {height ?? status}
       </div>
       {error && (
         <div
-          className="absolute bottom-24 left-3 right-3 rounded border border-amber-500 bg-background/95 p-3 text-xs"
+          className="absolute bottom-20 left-3 right-3 max-h-[40%] overflow-y-auto overscroll-contain rounded border border-amber-500 bg-background/95 p-3 text-xs"
           role="alert"
         >
           {error}
