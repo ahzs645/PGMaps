@@ -24,7 +24,7 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 const devEntries: DevEntry[] = [
   {
     title: 'LiDAR explorer',
-    description: 'Explore 84.6 million BC LiDAR points in GeoLibre, with a RustGIS overview, elevation, intensity and classification views.',
+    description: 'Native LiDAR workbench with terrain, canopy-height proxy, crown and roof candidates, actual GeoLibre algorithm runs and full-cloud streaming.',
     href: '/dev/lidar',
     icon: MapPinned,
     color: 'bg-cyan-700',

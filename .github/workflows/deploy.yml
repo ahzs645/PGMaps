@@ -105,8 +105,15 @@ jobs:
           path: dist/data/lidar/bc-093g086
           key: pgmaps-lidar-ept-v1-${{ hashFiles('scripts/prepare-lidar.py', 'scripts/lidar-environment.yml') }}
 
+      - name: Restore processed forestry and building analysis
+        id: lidar-analysis-cache
+        uses: actions/cache@v4
+        with:
+          path: dist/data/lidar-analysis/bc-093g086
+          key: pgmaps-lidar-analysis-v1-${{ hashFiles('scripts/lidar/**', 'scripts/lidar-environment.yml') }}
+
       - name: Install LiDAR indexing tools
-        if: steps.lidar-cache.outputs.cache-hit != 'true'
+        if: steps.lidar-cache.outputs.cache-hit != 'true' || steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: scripts/lidar-environment.yml
@@ -115,6 +122,17 @@ jobs:
       - name: Prepare full LiDAR cloud for streaming
         if: steps.lidar-cache.outputs.cache-hit != 'true'
         run: micromamba run -n pgmaps-lidar python scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
+
+      - name: Install analysis dependencies
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python -m pip install -r scripts/lidar/requirements.txt
+
+      - name: Process terrain, canopy, crown and roof candidates
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify analysis provenance and products
+        run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086

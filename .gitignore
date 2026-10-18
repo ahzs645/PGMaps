@@ -159,3 +159,8 @@ scripts/nechako-worker/__pycache__/
 
 # Prepared LiDAR octree; generated and cached by the Pages build.
 public/data/lidar/bc-093g086/
+
+# Reproducible LiDAR analysis and standalone Sites preview output.
+public/data/lidar-analysis/
+dist-lidar-preview/
+scripts/lidar/__pycache__/

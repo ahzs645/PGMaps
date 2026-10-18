@@ -154,7 +154,9 @@
     "toolkit:lint": "eslint packages/geo-toolkit/src packages/geo-toolkit/scripts packages/geo-toolkit/tests packages/geo-toolkit/tailwind.config.js examples/toolkit-consumer/src examples/toolkit-consumer/tests scripts/toolkit",
     "toolkit:format:check": "prettier --check \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\" \"examples/toolkit-consumer/{src,tests}/**/*.{ts,tsx,css}\" \"scripts/toolkit/*.mjs\"",
     "toolkit:watch:check": "node scripts/toolkit/check-watch.mjs",
-    "toolkit:nested:test": "npm run toolkit:build && node scripts/toolkit/check-nested-workspace.mjs"
+    "toolkit:nested:test": "npm run toolkit:build && node scripts/toolkit/check-nested-workspace.mjs",
+    "lidar:process": "python3 scripts/lidar/run.py",
+    "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",
@@ -188,6 +190,7 @@
     "jszip": "^3.10.2",
     "lucide-react": "^0.562.0",
     "maplibre-gl": "^5.15.0",
+    "maplibre-gl-lidar": "^0.21.0",
     "next-themes": "^0.4.6",
     "pbf": "^4.0.1",
     "pmtiles": "^4.4.1",
