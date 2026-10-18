@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl'
+import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import 'maplibre-gl-lidar/style.css'
 import type { AnalysisSummary, RasterKey } from './types'
 import { heightAtLocation } from './data'
+import {
+  applyBasemap,
+  installVectorContext,
+  LABEL_ANCHOR,
+  prepareVectorContext,
+  SATELLITE_LAYER,
+  SATELLITE_TILES,
+  VECTOR_STYLE_URL,
+  type Basemap,
+} from './basemaps'
 
 interface Props {
   summary: AnalysisSummary
@@ -20,6 +30,9 @@ interface Props {
   color: ColorSchemeType
   toolsOpen: boolean
   onToolsOpenChange: (open: boolean) => void
+  basemap: Basemap
+  surfaceVisible: boolean
+  surfaceOpacity: number
 }
 
 export function NativeLidarMap(props: Props) {
@@ -34,12 +47,16 @@ export function NativeLidarMap(props: Props) {
   const [error, setError] = useState('')
   const [height, setHeight] = useState<string | null>(null)
   const loadingCloud = useRef(false)
+  const contextLayers = useRef<LayerSpecification[]>([])
+  const [contextError, setContextError] = useState('')
 
   useEffect(() => {
     if (!container.current) return
     let active = true
     let samples: Float32Array | null = null
     const abort = new AbortController()
+    const contextAbort = new AbortController()
+    let contextTimeout: number | undefined
     let instance: MapLibreMap
     try {
       instance = new maplibregl.Map({
@@ -47,15 +64,24 @@ export function NativeLidarMap(props: Props) {
         style: {
           version: 8,
           sources: {
-            osm: {
+            [SATELLITE_LAYER]: {
               type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tiles: [SATELLITE_TILES],
               tileSize: 256,
-              attribution: '© OpenStreetMap contributors',
+              maxzoom: 19,
+              attribution: 'Tiles © Esri — Esri, Vantor, Earthstar Geographics, and the GIS User Community',
             },
           },
           layers: [
-            { id: 'base', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.9, 'raster-opacity': 0.42 } },
+            { id: 'context-background', type: 'background', paint: { 'background-color': '#e8eeeb' } },
+            {
+              id: SATELLITE_LAYER,
+              type: 'raster',
+              source: SATELLITE_LAYER,
+              layout: { visibility: latest.current.basemap === 'satellite' ? 'visible' : 'none' },
+              paint: { 'raster-fade-duration': 0 },
+            },
+            { id: LABEL_ANCHOR, type: 'background', paint: { 'background-opacity': 0 } },
           ],
         },
         bounds: [
@@ -89,17 +115,20 @@ export function NativeLidarMap(props: Props) {
             [number, number],
           ],
         })
-        instance.addLayer({
-          id: `analysis-${key}`,
-          type: 'raster',
-          source: `analysis-${key}`,
-          layout: { visibility: key === latest.current.raster ? 'visible' : 'none' },
-          paint: {
-            'raster-opacity': 0.94,
-            'raster-resampling': key === 'crowns' ? 'nearest' : 'linear',
-            'raster-fade-duration': 0,
+        instance.addLayer(
+          {
+            id: `analysis-${key}`,
+            type: 'raster',
+            source: `analysis-${key}`,
+            layout: { visibility: latest.current.surfaceVisible && key === latest.current.raster ? 'visible' : 'none' },
+            paint: {
+              'raster-opacity': latest.current.surfaceOpacity,
+              'raster-resampling': key === 'crowns' ? 'nearest' : 'linear',
+              'raster-fade-duration': 0,
+            },
           },
-        })
+          LABEL_ANCHOR,
+        )
       }
       instance.addSource('roof-candidates', {
         type: 'geojson',
@@ -195,6 +224,25 @@ export function NativeLidarMap(props: Props) {
       })
       setReady(true)
       setStatus('Native MapLibre viewer · processed layers at 1 m source resolution')
+      // Fetch context independently: a provider outage must not block the LiDAR workspace.
+      contextTimeout = window.setTimeout(() => contextAbort.abort(), 20_000)
+      fetch(VECTOR_STYLE_URL, { signal: contextAbort.signal })
+        .then(async (response) => {
+          if (!response.ok) throw Error(`Vector basemap returned ${response.status}`)
+          return prepareVectorContext((await response.json()) as StyleSpecification)
+        })
+        .then((context) => {
+          if (!active) return
+          installVectorContext(instance, context)
+          contextLayers.current = context.layers
+          applyBasemap(instance, context.layers, latest.current.basemap)
+          setContextError('')
+        })
+        .catch(() => {
+          if (active)
+            setContextError('Vector context unavailable. Satellite is still available; LiDAR layers remain loaded.')
+        })
+        .finally(() => window.clearTimeout(contextTimeout))
     })
     fetch(new URL(props.summary.sample_grid.file, props.analysisBase), { signal: abort.signal })
       .then((r) => {
@@ -240,8 +288,11 @@ export function NativeLidarMap(props: Props) {
     return () => {
       active = false
       abort.abort()
+      contextAbort.abort()
+      window.clearTimeout(contextTimeout)
       observer.disconnect()
       lidar.current = null
+      contextLayers.current = []
       map.current = null
       instance.remove()
     }
@@ -250,15 +301,35 @@ export function NativeLidarMap(props: Props) {
   useEffect(() => {
     const instance = map.current
     if (!ready || !instance) return
-    for (const key of Object.keys(props.summary.rasters))
-      instance.setLayoutProperty(`analysis-${key}`, 'visibility', key === props.raster ? 'visible' : 'none')
+    for (const key of Object.keys(props.summary.rasters)) {
+      instance.setLayoutProperty(
+        `analysis-${key}`,
+        'visibility',
+        props.surfaceVisible && key === props.raster ? 'visible' : 'none',
+      )
+      instance.setPaintProperty(`analysis-${key}`, 'raster-opacity', props.surfaceOpacity)
+    }
     instance.setLayoutProperty('trees', 'visibility', props.trees ? 'visible' : 'none')
     instance.setFilter('trees', ['>=', ['get', 'height_m'], props.minTreeHeight])
     for (const id of ['reference-trees', 'reference-area'])
       instance.setLayoutProperty(id, 'visibility', props.reference ? 'visible' : 'none')
     for (const id of ['roofs-fill', 'roofs-line'])
       instance.setLayoutProperty(id, 'visibility', props.buildings ? 'visible' : 'none')
-  }, [ready, props.raster, props.trees, props.buildings, props.reference, props.minTreeHeight, props.summary])
+  }, [
+    ready,
+    props.raster,
+    props.surfaceVisible,
+    props.surfaceOpacity,
+    props.trees,
+    props.buildings,
+    props.reference,
+    props.minTreeHeight,
+    props.summary,
+  ])
+
+  useEffect(() => {
+    if (ready && map.current) applyBasemap(map.current, contextLayers.current, props.basemap)
+  }, [ready, props.basemap])
 
   useEffect(() => {
     const control = lidar.current
@@ -346,6 +417,11 @@ export function NativeLidarMap(props: Props) {
           <button className="ml-3 underline" onClick={() => setError('')}>
             Dismiss
           </button>
+        </div>
+      )}
+      {contextError && props.basemap === 'vector' && (
+        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-[10px]">
+          {contextError}
         </div>
       )}
     </div>

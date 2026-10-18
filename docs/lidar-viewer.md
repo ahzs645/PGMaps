@@ -192,6 +192,14 @@ streaming. Its toolbar button opens tools on demand; panel dimensions track the
 available map space. Display buttons switch between processed layers and 3D
 points. Crown and roof candidates start enabled.
 
+Context uses OpenFreeMap vector geometry by default and offers Esri satellite /
+aerial imagery with vector labels. The eye button and opacity slider reveal the
+basemap without hiding candidate features. Presets support canopy, roof and
+ground-support review, and imagery source dates are available at the study-tile
+centre. Switching context preserves the map and LiDAR session. See
+[the research and validation record](research/lidar-basemap-review.md) for sources,
+coverage checks, scientific limits and prioritized follow-on work.
+
 The private Sites host uses the same compiled React entrypoint. Its small Worker
 proxies the two private static tile bundles using server-only service credentials.
 The analysis products are partitioned alongside the existing EPT files to stay

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Crosshair, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
+import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
 import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
@@ -11,6 +11,9 @@ import { NativeLidarMap } from './NativeLidarMap'
 import { LidarDownloads, LidarMethods, LidarResults } from './AnalysisPanels'
 import type { AnalysisSummary, RasterKey } from './types'
 import { checkAnalysisSummary } from './data'
+import type { Basemap } from './basemaps'
+import { ImageryProvenance } from './ImageryProvenance'
+import { REVIEW_WORKFLOWS, type ReviewWorkflow } from './reviewWorkflows'
 
 type PanelTab = 'layers' | 'results' | 'methods' | 'files'
 const PANEL_TABS = [
@@ -35,6 +38,12 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [tab, setTab] = useState<PanelTab>('layers')
   const [panelOpen, setPanelOpen] = useState<boolean | null>(null)
   const [toolsOpen, setToolsOpen] = useState(false)
+  const [basemap, setBasemap] = useState<Basemap>('vector')
+  const [surfaceVisible, setSurfaceVisible] = useState(false)
+  const [surfaceOpacity, setSurfaceOpacity] = useState(0.65)
+  const [reviewNote, setReviewNote] = useState(
+    'Choose a review workflow to compare the measured data with its context.',
+  )
   const sidebar = useRef<HTMLElement>(null)
   const isMobile = useIsMobile()
   const showPanel = panelOpen ?? !isMobile
@@ -78,11 +87,28 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const selectRaster = (key: RasterKey) => {
     setRaster(key)
     setCloud(false)
+    setSurfaceVisible(true)
     if (isMobile) setPanelOpen(false)
   }
   const openTools = () => {
     setCloud(true)
     setToolsOpen(true)
+    if (isMobile) setPanelOpen(false)
+  }
+  const review = (workflow: ReviewWorkflow) => {
+    setBasemap(workflow.basemap)
+    setRaster(workflow.raster)
+    setSurfaceVisible(workflow.surfaceVisible)
+    setSurfaceOpacity(workflow.surfaceOpacity)
+    setTrees(workflow.trees)
+    setBuildings(workflow.buildings)
+    setCloud(workflow.cloud)
+    setReference(false)
+    setToolsOpen(false)
+    setColor('elevation')
+    setMinTreeHeight(5)
+    setReviewNote(workflow.note)
+    go(summary?.highlights.findIndex((place) => place.label === workflow.highlight) ?? -1)
     if (isMobile) setPanelOpen(false)
   }
   const legend = summary?.rasters[raster]
@@ -100,6 +126,18 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
             Forest & structures <span className="hidden font-normal text-muted-foreground lg:inline">/ BC 093G086</span>
           </h1>
         </div>
+        <label className="shrink-0">
+          <span className="sr-only">Basemap</span>
+          <select
+            value={basemap}
+            onChange={(event) => setBasemap(event.target.value as Basemap)}
+            className="h-8 w-[100px] rounded-md border bg-background px-2 text-xs"
+            aria-label="Basemap"
+          >
+            <option value="vector">Vector</option>
+            <option value="satellite">Satellite</option>
+          </select>
+        </label>
         <Button
           variant="outline"
           size="sm"
@@ -163,6 +201,45 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
               }
             >
               <div id="lidar-panel-layers" role="tabpanel" aria-labelledby="lidar-tab-layers" hidden={tab !== 'layers'}>
+                <SidebarSection title="Review workflows" className="p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {REVIEW_WORKFLOWS.map((workflow) => (
+                      <Button key={workflow.id} variant="outline" size="sm" onClick={() => review(workflow)}>
+                        {workflow.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground">{reviewNote}</p>
+                </SidebarSection>
+                <SidebarSection title="Map comparison" className="p-3">
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={surfaceVisible}
+                      onChange={(event) => setSurfaceVisible(event.target.checked)}
+                    />
+                    Show processed surface
+                  </label>
+                  <label className="mt-3 block text-xs">
+                    Surface opacity · {Math.round(surfaceOpacity * 100)}%
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={surfaceOpacity}
+                      onChange={(event) => setSurfaceOpacity(Number(event.target.value))}
+                      className="mt-2 w-full"
+                    />
+                  </label>
+                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                    {basemap === 'vector'
+                      ? 'OpenFreeMap vector roads, buildings and labels. OSM footprints are context, not verified building truth.'
+                      : 'Esri satellite/aerial imagery with vector labels. Hide the surface to see the imagery beneath candidate features.'}{' '}
+                    The eye button toggles the surface without hiding candidates.
+                  </p>
+                  {basemap === 'satellite' && <ImageryProvenance bounds={summary.bounds_wgs84} />}
+                </SidebarSection>
                 <SidebarSection title="Surface layers" className="p-3">
                   <div className="space-y-1">
                     {(Object.entries(summary.rasters) as [RasterKey, AnalysisSummary['rasters'][RasterKey]][]).map(
@@ -283,11 +360,25 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     { value: 'processed', label: 'Layers' },
                     { value: 'cloud', label: '3D LiDAR' },
                   ]}
-                  onChange={(value) => setCloud(value === 'cloud')}
+                  onChange={(value) => {
+                    setCloud(value === 'cloud')
+                    if (value === 'processed') setSurfaceVisible(true)
+                  }}
                   label="Map display"
                   size="sm"
                   fullWidth={false}
                 />
+                <Button
+                  variant={surfaceVisible ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-8"
+                  title={surfaceVisible ? 'Hide processed surface' : 'Show processed surface'}
+                  aria-label={surfaceVisible ? 'Hide processed surface' : 'Show processed surface'}
+                  aria-pressed={surfaceVisible}
+                  onClick={() => setSurfaceVisible((visible) => !visible)}
+                >
+                  {surfaceVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                </Button>
                 <Button
                   variant={toolsOpen && cloud ? 'secondary' : 'ghost'}
                   size="icon"
@@ -332,6 +423,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     color={color}
                     toolsOpen={toolsOpen}
                     onToolsOpenChange={setToolsOpen}
+                    basemap={basemap}
+                    surfaceVisible={surfaceVisible}
+                    surfaceOpacity={surfaceOpacity}
                   />
                 </div>
                 {legend && (
@@ -340,26 +434,30 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     aria-label="Processed surface legend"
                   >
                     <span className="min-w-0 flex-1 truncate font-medium" title={legend.title}>
-                      {legend.title}
+                      {surfaceVisible
+                        ? legend.title
+                        : `${basemap === 'vector' ? 'Vector' : 'Satellite'} context · surface hidden`}
                     </span>
-                    <div className="w-20 shrink-0 sm:w-32">
-                      <div
-                        className="h-1.5 rounded"
-                        style={{ background: `linear-gradient(to right, ${legend.colors.join(',')})` }}
-                      />
-                      <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
-                        {raster === 'crowns' ? (
-                          <span>Categorical regions</span>
-                        ) : (
-                          <>
-                            <span>{legend.min.toFixed(0)}</span>
-                            <span>
-                              {legend.max.toFixed(0)} {legend.unit}
-                            </span>
-                          </>
-                        )}
+                    {surfaceVisible && (
+                      <div className="w-20 shrink-0 sm:w-32">
+                        <div
+                          className="h-1.5 rounded"
+                          style={{ background: `linear-gradient(to right, ${legend.colors.join(',')})` }}
+                        />
+                        <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
+                          {raster === 'crowns' ? (
+                            <span>Categorical regions</span>
+                          ) : (
+                            <>
+                              <span>{legend.min.toFixed(0)}</span>
+                              <span>
+                                {legend.max.toFixed(0)} {legend.unit}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <span className="hidden text-muted-foreground lg:inline">
                       Click map to inspect height · candidates unvalidated
                     </span>

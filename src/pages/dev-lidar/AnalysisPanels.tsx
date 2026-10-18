@@ -104,6 +104,49 @@ export function LidarResults({
 export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
   return (
     <>
+      <SidebarSection title="How to use these views">
+        <div className="space-y-3 text-xs leading-5 text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Canopy review:</strong> compare height and crown candidates with
+            imagery; use the eye button to reveal individual crowns. Missed understory and merged or split crowns
+            require validation.
+          </p>
+          <p>
+            <strong className="text-foreground">Roof review:</strong> compare planar patches with imagery edges, then
+            inspect the original 3D points. A roof may have several patches; a tall object is not automatically a
+            building.
+          </p>
+          <p>
+            <strong className="text-foreground">Terrain quality:</strong> inspect ground-support distance before using
+            normalized heights in sparsely supported areas.
+          </p>
+          <p>
+            Vector roads and OSM building footprints provide orientation. Imagery provides visual evidence at a
+            different date. Neither independently establishes tree counts, species or height accuracy.
+          </p>
+        </div>
+        <div className="mt-3 space-y-2 text-xs underline">
+          <a
+            className="block"
+            href="https://r-lidar.github.io/lidRbook/itd.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            lidR: detection, segmentation and parameter sensitivity ↗
+          </a>
+          <a
+            className="block"
+            href="https://r-lidar.github.io/lidRbook/dsm.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            lidR: canopy-height models ↗
+          </a>
+          <a className="block" href="https://openfreemap.org/quick_start/" target="_blank" rel="noopener noreferrer">
+            OpenFreeMap vector context ↗
+          </a>
+        </div>
+      </SidebarSection>
       <SidebarSection title="Processing methods">
         <div className="space-y-3 text-xs leading-5 text-muted-foreground">
           <p>
