@@ -147,26 +147,29 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
           </a>
         </div>
       </SidebarSection>
-      <SidebarSection title="More analyses this tile can support">
+      <SidebarSection title="Additional workflows · available now">
         <div className="space-y-3 text-xs leading-5 text-muted-foreground">
           <p>
-            <strong className="text-foreground">Buildings · available now:</strong> the Roofs tab adds patch height,
-            whole-patch plane pitch/aspect, fit residual, terrain support and a ground/surface cross-section. Focus each
-            patch in the original 3D cloud.
+            <strong className="text-foreground">Analyze:</strong> select canopy openings at 2/5 m, 25/50 m plot
+            statistics, elevated-surface proximity to roof patches, or actual Roofer LoD2.2 meshes. Each workflow resets
+            the map context and unrelated overlays. Download filtered GeoJSON and the complete model products.
           </p>
           <p>
-            <strong className="text-foreground">Next for buildings:</strong> reviewed roofprints and roof-point
-            separation can support detailed LoD1/LoD2 building models, roof facets and vegetation-to-building proximity
-            screening. Current patches are not full building footprints.
+            <strong className="text-foreground">Building models:</strong> Roofer 1.0.0 reconstructed all 178 unverified
+            input patches from original point crops, producing 392 roof surfaces. Select a model, compare original
+            points, and keep browser-local review notes with import/export. Successful fitting and closed-edge topology
+            do not validate a building or footprint.
           </p>
           <p>
-            <strong className="text-foreground">Next for forestry:</strong> plot-level height percentiles, canopy
-            heterogeneity, opening/gap mapping and vertical-return structure. A forest mask is needed to distinguish
-            canopy gaps from roads, lawns and fields; inventory models need field reference.
+            <strong className="text-foreground">Forestry:</strong> enclosed-opening screening needs a reviewed forest
+            mask to become a forest-gap inventory. Plot height statistics use source-grid surface cells, not return
+            distributions or field inventory. Proximity measures horizontal distance to elevated cells outside a 2 m
+            roof exclusion buffer, not engineering clearance.
           </p>
           <p>
-            <strong className="text-foreground">Roof solar / runoff screening:</strong> first delineate and validate
-            roof facets. Whole-patch plane pitch is not sufficient for solar yield, roof engineering or drainage design.
+            <strong className="text-foreground">Roofs:</strong> the separate Roofs tab retains patch profiles and
+            whole-patch plane diagnostics. Solar yield, drainage, structural capacity, species and biomass remain
+            outside these measurements.
           </p>
         </div>
         <div className="mt-3 space-y-2 text-xs underline">

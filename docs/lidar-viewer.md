@@ -180,12 +180,12 @@ that is a visual shift, not an elevation/datum conversion.
 
 The workspace fills its host's available height with no document scrolling.
 The map uses the remaining space below the compact header and toolbar, without
-a fixed minimum height. A collapsible 310 px desktop sidebar holds Layers,
-Results, Roofs, Methods and Files tabs; only its content scrolls. On phones the panel
+a fixed minimum height. A collapsible 310 px desktop sidebar holds Map,
+Analyze, Stats, Roofs, About and Files tabs; only its content scrolls. On phones the panel
 starts closed and opens into the bottom 42% of the workspace, leaving the map
 visible. Fullscreen uses the same mounted map and observes its resized container.
 
-Results contains processed height, terrain, GeoLibre slope and crown-region PNGs,
+Stats contains processed height, terrain, GeoLibre slope and crown-region PNGs,
 which remain accessible without WebGL. Selecting a preview opens that map layer.
 The native GeoLibre LiDAR control starts collapsed with the original EPT cloud
 streaming. Its toolbar button opens tools on demand; panel dimensions track the
@@ -216,6 +216,13 @@ This adapter does not change the PGMaps GitHub Pages production publication.
 Browser-control tools were unavailable during authoring. Type/bundle checks,
 scientific output checks and authenticated production HTTP checks are recorded;
 visual/WebGL verification remains separate.
+
+The Analyze tab implements canopy-opening screening, 25/50 m plot statistics,
+horizontal elevated-surface proximity to roof patches, and actual Roofer LoD2.2
+meshes with local review notes and exports. Four deep links select workflows.
+Small versioned text snapshots are lazily loaded and checked against served
+product hashes. See [workflow methods and reproduction](research/lidar-building-inspection.md)
+for counts, thresholds, classification limits, all rerun commands and test coverage.
 
 ## Primary references
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
@@ -17,12 +17,24 @@ import { REVIEW_WORKFLOWS, type ReviewWorkflow } from './reviewWorkflows'
 import { RoofInspectionPanel } from './RoofInspectionPanel'
 import { defaultRoofOrigin, roofCentre, type RoofFeature, type RoofInspection } from './roofInspection'
 
-type PanelTab = 'layers' | 'results' | 'buildings' | 'methods' | 'files'
+import { WorkflowPanel } from './WorkflowPanel'
+import { useWorkflowData } from './useWorkflowData'
+import {
+  ANALYSIS_MODES,
+  analysisPresentation,
+  INITIAL_ANALYSIS,
+  sortedWorkflowFeatures,
+  featureCentre,
+  type AnalysisMode,
+} from './analysisWorkflows'
+
+type PanelTab = 'layers' | 'analysis' | 'results' | 'buildings' | 'methods' | 'files'
 const PANEL_TABS = [
-  { value: 'layers', label: 'Layers' },
-  { value: 'results', label: 'Results' },
+  { value: 'layers', label: 'Map' },
+  { value: 'analysis', label: 'Analyze' },
+  { value: 'results', label: 'Stats' },
   { value: 'buildings', label: 'Roofs', ariaLabel: 'Buildings and roof candidates' },
-  { value: 'methods', label: 'Methods' },
+  { value: 'methods', label: 'About' },
   { value: 'files', label: 'Files' },
 ] as const
 
@@ -52,6 +64,24 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [reviewNote, setReviewNote] = useState(
     'Choose a review workflow to compare the measured data with its context.',
   )
+  const [analysisOptions, setAnalysisOptions] = useState(INITIAL_ANALYSIS)
+  const [workflowsRequested, setWorkflowsRequested] = useState(false)
+  const [meshVisible, setMeshVisible] = useState(true)
+  const workflowProducts = useWorkflowData(workflowsRequested, analysisBase, summary?.source_sha256 ?? '')
+  const workflowRows = useMemo(
+    () => (workflowProducts.data ? sortedWorkflowFeatures(workflowProducts.data.workflows, analysisOptions) : []),
+    [workflowProducts.data, analysisOptions],
+  )
+  const selectedWorkflow =
+    workflowRows.find((f) => f.properties.id === analysisOptions.selectedId) ?? workflowRows[0] ?? null
+  const model = useMemo(() => {
+    const records = workflowProducts.data?.models.records
+    if (!records?.length) return null
+    return (
+      records.find((row) => row.id === analysisOptions.selectedId) ??
+      records.reduce((a, b) => (a.area_m2 > b.area_m2 ? a : b))
+    )
+  }, [workflowProducts.data, analysisOptions.selectedId])
   const sidebar = useRef<HTMLElement>(null)
   const isMobile = useIsMobile()
   const showPanel = panelOpen ?? !isMobile
@@ -96,6 +126,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
     setFocus((previous) => ({ index, revision: previous.revision + 1 }))
   }
   const selectRaster = (key: RasterKey) => {
+    setAnalysisOptions((previous) => ({ ...previous, mode: null }))
     setRaster(key)
     setCloud(false)
     setSurfaceVisible(true)
@@ -107,6 +138,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
     if (isMobile) setPanelOpen(false)
   }
   const review = (workflow: ReviewWorkflow) => {
+    setAnalysisOptions((previous) => ({ ...previous, mode: null }))
     setBasemap(workflow.basemap)
     setRaster(workflow.raster)
     setSurfaceVisible(workflow.surfaceVisible)
@@ -134,6 +166,67 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       zoom: mode === '3d' ? 18 : 19,
     }))
   }
+  const startAnalysis = (mode: AnalysisMode) => {
+    const preset = ANALYSIS_MODES.find((item) => item.id === mode)!
+    setWorkflowsRequested(true)
+    setAnalysisOptions((previous) => ({ ...previous, mode, selectedId: null }))
+    const presentation = analysisPresentation(mode)
+    setBasemap(presentation.basemap)
+    setLabels(presentation.labels)
+    setSurfaceVisible(presentation.surfaceVisible)
+    setSurfaceOpacity(presentation.surfaceOpacity)
+    setCloud(presentation.cloud)
+    setTrees(presentation.trees)
+    setBuildings(presentation.buildings)
+    setReference(presentation.reference)
+    setToolsOpen(presentation.toolsOpen)
+    setMinTreeHeight(presentation.minTreeHeight)
+    setColor(presentation.color)
+    setMeshVisible(true)
+    setReviewNote(preset.note)
+    setTab('analysis')
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', mode)
+    window.history.replaceState(null, '', url)
+    go(-1)
+    if (isMobile) setPanelOpen(false)
+  }
+  const selectWorkflow = (id: string) => {
+    setAnalysisOptions((previous) => ({ ...previous, selectedId: id }))
+    const selectedModel = workflowProducts.data?.models.records.find((row) => row.id === id)
+    const feature = workflowRows.find((row) => row.properties.id === id)
+    if (analysisOptions.mode === 'models' && selectedModel) {
+      setSceneGround(selectedModel.ground_m)
+      setFocus((previous) => ({ index: -1, revision: previous.revision + 1, center: selectedModel.centre, zoom: 19 }))
+    } else if (feature) {
+      setFocus((previous) => ({
+        index: -1,
+        revision: previous.revision + 1,
+        center: featureCentre(feature),
+        zoom: analysisOptions.mode === 'clearance' ? 19 : 17.5,
+      }))
+    }
+    if (isMobile) setPanelOpen(false)
+  }
+  useEffect(() => {
+    if (analysisOptions.mode !== 'models' || !model) return
+    setSceneGround(model.ground_m)
+    setFocus((previous) => ({ index: -1, revision: previous.revision + 1, center: model.centre, zoom: 19 }))
+  }, [analysisOptions.mode, model])
+  const initialViewApplied = useRef(false)
+  useEffect(() => {
+    if (!summary || initialViewApplied.current) return
+    initialViewApplied.current = true
+    const view = new URL(window.location.href).searchParams.get('view')
+    if (ANALYSIS_MODES.some((item) => item.id === view)) startAnalysis(view as AnalysisMode)
+    else if (view === 'inspection') {
+      setTab('buildings')
+      review(REVIEW_WORKFLOWS.find((item) => item.id === 'roofs')!)
+    } else if (view === 'analysis') {
+      setTab('analysis')
+      setWorkflowsRequested(true)
+    }
+  }, [summary])
   const legend = summary?.rasters[raster]
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -215,7 +308,10 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 <TabBar
                   value={tab}
                   options={PANEL_TABS}
-                  onChange={setTab}
+                  onChange={(value) => {
+                    setTab(value)
+                    if (value === 'analysis') setWorkflowsRequested(true)
+                  }}
                   label="LiDAR analysis panels"
                   idPrefix="lidar"
                   variant="underline"
@@ -225,6 +321,18 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
               }
             >
               <div id="lidar-panel-layers" role="tabpanel" aria-labelledby="lidar-tab-layers" hidden={tab !== 'layers'}>
+                <SidebarSection title="Analysis workflows" className="p-3">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setTab('analysis')
+                      setWorkflowsRequested(true)
+                    }}
+                  >
+                    Gaps · plots · proximity · 3D models
+                  </Button>
+                </SidebarSection>
                 <SidebarSection title="Review workflows" className="p-3">
                   <div className="grid grid-cols-2 gap-2">
                     {REVIEW_WORKFLOWS.map((workflow) => (
@@ -362,6 +470,33 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 </SidebarSection>
               </div>
               <div
+                id="lidar-panel-analysis"
+                role="tabpanel"
+                aria-labelledby="lidar-tab-analysis"
+                hidden={tab !== 'analysis'}
+              >
+                <WorkflowPanel
+                  data={workflowProducts.data}
+                  error={workflowProducts.error}
+                  retry={workflowProducts.retry}
+                  options={analysisOptions}
+                  features={workflowRows}
+                  selected={selectedWorkflow}
+                  model={model}
+                  meshVisible={meshVisible}
+                  onMeshVisible={setMeshVisible}
+                  onMode={startAnalysis}
+                  onOptions={(patch) => setAnalysisOptions((previous) => ({ ...previous, ...patch }))}
+                  onSelect={selectWorkflow}
+                  onPoints={() => {
+                    setCloud(true)
+                    setToolsOpen(true)
+                    if (model) setSceneGround(model.ground_m)
+                    if (isMobile) setPanelOpen(false)
+                  }}
+                />
+              </div>
+              <div
                 id="lidar-panel-results"
                 role="tabpanel"
                 aria-labelledby="lidar-tab-results"
@@ -396,7 +531,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
             </MapSidebarShell>
           </aside>
           <FullscreenPanel
-            title={cloud ? '3D LiDAR' : 'Processed map'}
+            title={analysisOptions.mode === 'models' ? 'Experimental 3D model' : cloud ? '3D LiDAR' : 'Processed map'}
             compact
             dialogOptions={{ onOpenEffect: () => undefined }}
             className="order-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 p-0 md:order-2 [&>div:first-child]:mb-0 [&>div:first-child]:shrink-0 [&>div:first-child]:border-b [&>div:first-child]:px-2 [&>div:first-child]:py-1 max-sm:[&>div:first-child>h2]:sr-only [&[data-fullscreen]]:overflow-hidden [&[data-fullscreen]]:p-0"
@@ -458,6 +593,12 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
               <>
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <NativeLidarMap
+                    workflowOptions={analysisOptions}
+                    workflowFeatures={workflowRows}
+                    selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
+                    onWorkflowSelect={selectWorkflow}
+                    buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
+                    modelActive={analysisOptions.mode === 'models'}
                     summary={summary}
                     analysisBase={analysisBase}
                     cloudUrl={new URL('ept.json', cloudBase).href}
@@ -484,9 +625,11 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     aria-label="Processed surface legend"
                   >
                     <span className="min-w-0 flex-1 truncate font-medium" title={legend.title}>
-                      {surfaceVisible
-                        ? legend.title
-                        : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
+                      {analysisOptions.mode
+                        ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
+                        : surfaceVisible
+                          ? legend.title
+                          : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
                     </span>
                     {surfaceVisible && (
                       <div className="w-20 shrink-0 sm:w-32">

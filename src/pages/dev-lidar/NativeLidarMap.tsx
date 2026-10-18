@@ -6,6 +6,9 @@ import 'maplibre-gl-lidar/style.css'
 import type { AnalysisSummary, RasterKey } from './types'
 import { heightAtLocation } from './data'
 import { applyAnalysisLayers, applyPointCloudVisibility } from './mapLayers'
+import { installWorkflowLayers, applyWorkflowLayers, WORKFLOW_LAYERS } from './workflowMapLayers'
+import { buildingMeshLayer } from './buildingMesh'
+import type { BuildingModel, WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 import { sceneOffset } from './roofInspection'
 import {
   applyBasemap,
@@ -18,6 +21,12 @@ import {
 } from './basemaps'
 
 interface Props {
+  workflowOptions: WorkflowOptions
+  workflowFeatures: WorkflowFeature[]
+  selectedWorkflowId: string | null
+  onWorkflowSelect: (id: string) => void
+  buildingModel: BuildingModel | null
+  modelActive: boolean
   summary: AnalysisSummary
   analysisBase: string
   cloudUrl: string
@@ -174,6 +183,7 @@ export function NativeLidarMap(props: Props) {
           'circle-stroke-width': 1,
         },
       })
+      installWorkflowLayers(instance)
       const control = new LidarControl({
         title: 'GeoLibre · 3D LiDAR',
         collapsed: !latest.current.toolsOpen,
@@ -238,6 +248,12 @@ export function NativeLidarMap(props: Props) {
       .catch(() => {})
     instance.on('click', (event) => {
       if (!active) return
+      const workflowHits = instance.getLayer('workflow-gaps')
+        ? instance.queryRenderedFeatures(event.point, {
+            layers: WORKFLOW_LAYERS.filter((id) => id !== 'workflow-selected'),
+          })
+        : []
+      if (workflowHits[0]?.properties?.id) latest.current.onWorkflowSelect(String(workflowHits[0].properties.id))
       const features = instance.getStyle()?.layers?.some((l) => l.id === 'trees')
         ? instance.queryRenderedFeatures(event.point, { layers: ['trees', 'roofs-fill', 'reference-trees'] })
         : []
@@ -298,6 +314,24 @@ export function NativeLidarMap(props: Props) {
   ])
 
   useEffect(() => {
+    if (!ready || !map.current) return
+    applyWorkflowLayers(map.current, props.workflowOptions, props.workflowFeatures, props.selectedWorkflowId)
+  }, [ready, props.workflowOptions, props.workflowFeatures, props.selectedWorkflowId])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!ready || !instance) return
+    if (instance.getLayer('analysis-building-model')) instance.removeLayer('analysis-building-model')
+    if (props.buildingModel) {
+      try {
+        instance.addLayer(buildingMeshLayer(props.buildingModel, -sceneOffset(props.sceneGround)))
+      } catch (e) {
+        setError(`Building mesh could not render: ${String(e)}`)
+      }
+    }
+  }, [ready, props.buildingModel, props.sceneGround])
+
+  useEffect(() => {
     if (ready && map.current) applyBasemap(map.current, contextLayers.current, props.basemap, props.labels)
   }, [ready, props.basemap, props.labels])
 
@@ -322,6 +356,9 @@ export function NativeLidarMap(props: Props) {
           if (lidar.current !== control) return
           cloudId.current = info.id
           loadingCloud.current = false
+          // Loading can replace the native automatic offset; restore the current local origin.
+          control.setZOffsetEnabled(true)
+          control.setZOffset(sceneOffset(latest.current.sceneGround))
           applyPointCloudVisibility(control, info.id, latest.current.cloud)
           if (latest.current.cloud) map.current?.easeTo({ pitch: 50, duration: 700 })
         })
@@ -346,10 +383,12 @@ export function NativeLidarMap(props: Props) {
     setStatus(
       props.cloud
         ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
-        : 'Processed layers · click to sample height',
+        : props.modelActive
+          ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
+          : 'Processed layers · click to sample height',
     )
-    map.current?.easeTo({ pitch: props.cloud ? 50 : 0, duration: 700 })
-  }, [ready, props.cloud, props.sceneGround])
+    map.current?.easeTo({ pitch: props.cloud || props.modelActive ? 50 : 0, duration: 700 })
+  }, [ready, props.cloud, props.modelActive, props.sceneGround])
 
   useEffect(() => {
     if (!ready || !map.current) return
@@ -358,14 +397,14 @@ export function NativeLidarMap(props: Props) {
       map.current.easeTo({
         center: props.focus.center,
         zoom: props.focus.zoom ?? 18,
-        pitch: latest.current.cloud ? 50 : 0,
+        pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0,
         duration: 900,
       })
     else if (place)
       map.current.easeTo({
         center: place.center,
         zoom: place.zoom,
-        pitch: latest.current.cloud ? 50 : 0,
+        pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0,
         duration: 900,
       })
     else
@@ -374,7 +413,7 @@ export function NativeLidarMap(props: Props) {
           [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
           [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
         ],
-        { padding: 35, pitch: latest.current.cloud ? 50 : 0 },
+        { padding: 35, pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0 },
       )
   }, [ready, props.focus, props.summary])
 

@@ -62,41 +62,101 @@ view afterward. Provider layers now use `basemap-vector-*` IDs, separate from
 the startup background, and installation checks existing sources/layers.
 Regression checks use the actual startup style and reject duplicate IDs.
 
-## Additional useful analyses
+## Implemented analysis workflows
 
-| Analysis                                           | What this tile provides                                 | What remains necessary                                                                                                                                                                                                                                                            |
-| -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Roof heights, profiles, plane consistency          | Implemented inspection snapshot                         | Validate candidate identity and terrain under roofs.                                                                                                                                                                                                                              |
-| Detailed LoD1/LoD2 buildings / CityJSON            | Dense original points and candidate locations           | Reviewed roofprint polygons, roof/ground point separation and reconstruction QA. [Roofer](https://innovation.3dbag.nl/roofer/) takes points plus roofprints; it does not turn arbitrary roof patches into verified building footprints. Roofer was researched, not executed here. |
-| Roof facet pitch/aspect, solar or runoff screening | Existing DSM and points; whole-patch diagnostics        | Segment/validate facets first, then account for occlusion, shading, irradiation/weather or drainage assumptions. Current plane fits are insufficient for design.                                                                                                                  |
-| Vegetation proximity to buildings                  | Crown candidates, normalized height and points          | Complete verified building outlines, suitable 3D geometry and an explicit clearance definition; current patches are incomplete.                                                                                                                                                   |
-| Plot-level forest structure and height percentiles | Normalized returns, height surface, ground-support grid | Plot boundaries, explicit denominators and independent inventory reference for stand attributes. [lidR metrics](https://r-lidar.github.io/lidRbook/metrics.html).                                                                                                                 |
-| Canopy gaps, edges and heterogeneity               | Height/cover grids and candidate crowns                 | Forest mask and thresholds; roads, fields and lawns are not automatically forest gaps. [INRAE forest-structure workflow](https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html).                                                                    |
-| Habitat / vertical structure metrics               | Height-binned returns and original 3D points            | Voxel/return-structure analysis and ecological validation; leaf area or habitat quality is not directly measured by a point count.                                                                                                                                                |
+The **Analyze** panel exposes all four workflows below. Selection resets basemap,
+labels, raster, candidates, reference points, cloud visibility and native tools.
+The map stays mounted. The sidebar owns scrolling; the document does not scroll.
+Deep links use `?view=gaps`, `?view=plots`, `?view=clearance` and `?view=models`.
 
-Building reconstruction requirements are described in the
-[Roofer input/architecture documentation](https://github.com/3DBAG/roofer/blob/main/ARCHITECTURE.md).
-[PDAL normalized-height processing](https://pdal.org/en/stable/stages/filters.hag_delaunay.html)
-and the [lidR area-based approach](https://r-lidar.github.io/lidRbook/modelling.html)
-provide maintained foundations for extending the current batch pipeline.
+| Workflow                | Actual processing and controls                                                                                                                                                                                                                                                                     | Interpretation                                                                                                                                                                                                                                                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canopy openings         | 4-connected supported 1 m cells at/below 2 or 5 m, minimum 25 m². Area filters 25/100/500 m². Roof patches plus 2 m excluded. 442/819 openings respectively; 377/696 pass the enclosed screen.                                                                                                     | Enclosed requires ≥80% high-cell boundary and no missing/tile boundary or roof contact. This is a geometric candidate screen; roads, fields, lawns and tile clipping remain possible. A reviewed forest mask is necessary for a forest-gap inventory.                                                                                     |
+| Plot statistics         | 3,693 plots at 25 m; 924 at 50 m. Tile-origin squares. Mean/median/P95/SD height, supported area/coverage, share of supported cells >2 m, crown-candidate density and ground-support P95. Coverage filters 0/80/95/100%.                                                                           | Surface-cell statistics, including structures; not return-height percentiles. Candidate density uses supported area and is not stem density. Partial squares retain a complete-square denominator. Both scales partition exactly 2,279,933 supported cells; the existing summary rounds hectares to 0.001 ha.                             |
+| Vegetation proximity    | For every roof patch, exact horizontal polygon-to-nearest elevated-cell-centre distance within 30 m at >2 or >5 m height. Roofs plus 2 m excluded. Filters at 5/10/30 m. Pink line connects the patch and selected cell.                                                                           | Elevated surfaces are vegetation candidates, not classified vegetation. The first 2 m outside patches are unassessed. Cell-edge range is centre distance ±0.707 m, bounded at zero; not uncertainty in measured elevation. No branch, wire, physical 3D clearance or compliance conclusion. Missing matches do not prove clearance.       |
+| Building reconstruction | Actual Roofer 1.0.0 (`bb2a85a`) on all 178 input roof patches and 508,201 original cropped points: 236,330 height-screened roof points, 271,871 ground points. All 178 return success, producing 392 LoD2.2 roof surfaces and 19,120 display triangles. LoD1.2 + LoD2.2 CityJSONSequence download. | Inputs remain unverified roof-like patches, may split one building or include non-buildings. Class 6 was assigned within patches at height >2 m; not a trained classifier. All models pass original-surface edge-incidence checks. This does not test self-intersection, dimensional accuracy, building identity or semantic correctness. |
+
+All distances and areas are processed in metric EPSG:3157. Gap display polygons
+are simplified by 0.75 m and coordinates rounded to 7 decimal places; reported
+area comes from original cells. Plot geometries are unsimplified square outlines.
+New snapshots contain input SHA-256 hashes and are loaded on first opening
+Analyze; they do not delay the initial map or rerun heavy algorithms in the browser.
+The interface compares all input hashes against the deployed checksums before
+showing results. CI also checks the snapshots, source identity and model export.
+
+The model view draws the **actual triangulated LoD2.2 surfaces**, with amber roofs,
+blue walls and a selected-patch ground viewing origin. It is not a height-only
+extrusion. Triangulation uses a local best-fit plane and constrained Delaunay
+triangles, preserving holes. Exports retain original CGVD2013 elevations. Compare
+original points using the native GeoLibre control; its local Z offset is restored
+after asynchronous cloud loading. Selecting another model changes the local origin.
+
+Each model supports a local review decision (unreviewed, retain for inspection,
+reject) and notes. Import/export checks source identity, candidate IDs and decision
+values. Storage is browser-local, not shared or authoritative. Review labels never
+silently edit footprints or regenerate model geometry. Editing roofprints requires
+rerunning the versioned batch script; no server claims to process arbitrary uploads.
+
+[Roofer](https://innovation.3dbag.nl/roofer/) is the executed reconstruction engine.
+Its [input requirements](https://innovation.3dbag.nl/roofer/input_data.html) and
+[architecture](https://github.com/3DBAG/roofer/blob/main/ARCHITECTURE.md) explain why
+reviewed roofprints and building/ground separation matter. The full point cloud
+has no original building or vegetation classes. A successful reconstruction from
+candidate geometry does not supply that missing validation.
+[lidR metrics](https://r-lidar.github.io/lidRbook/metrics.html) and
+[INRAE forest structure](https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html)
+provide the forestry context. Species, biomass, engineering clearance, solar yield,
+runoff design and structural capacity are not inferred by these workflows.
 
 ## Reproduction and tests
+
+Use the pinned scientific environment in `scripts/lidar/requirements.txt`.
+Roofer is optional for the base pipeline and required to regenerate models.
+Download the official Linux x86_64 **v1.0.0** release, extract it, make `bin/roofer`
+executable and verify `roofer --version` is `roofer 1.0.0 (bb2a85a)`.
+The package is GPLv3; this repository stores model products and scripts, not
+Roofer binaries. Other platforms can use the corresponding official release.
 
 ```sh
 python scripts/lidar/inspect_roofs.py \
   --analysis public/data/lidar-analysis/bc-093g086 \
   --output src/pages/dev-lidar/roofInspection.generated.json
-python scripts/lidar/test_roof_inspection.py
+python scripts/lidar/workflows.py \
+  --analysis public/data/lidar-analysis/bc-093g086 \
+  --output src/pages/dev-lidar/workflows.generated.json
+python scripts/lidar/reconstruct_buildings.py \
+  --analysis public/data/lidar-analysis/bc-093g086 \
+  --source /path/to/original.laz --work /path/to/roofer-work \
+  --roofer /path/to/roofer/bin/roofer
+python scripts/lidar/package_models.py \
+  --analysis public/data/lidar-analysis/bc-093g086 \
+  --work /path/to/roofer-work \
+  --output src/pages/dev-lidar/models.generated.json \
+  --city-output src/pages/dev-lidar/buildings.generated.city.jsonl
+python -m unittest discover -s scripts/lidar -p 'test_*.py'
 python scripts/lidar/validate.py \
   --analysis public/data/lidar-analysis/bc-093g086 \
   --roof-inspection src/pages/dev-lidar/roofInspection.generated.json
+python scripts/lidar/validate_workflows.py \
+  --analysis public/data/lidar-analysis/bc-093g086
 npx vitest run src/pages/dev-lidar
+npx tsc -b
+npm run lidar:preview:build
 ```
 
-Tests cover a known pitched plane, a gable that must have a poor single-plane
-fit, unknown aspect on flat planes, missing/outside profile samples, duplicate
-startup/provider IDs, repeated installation, full workflow visibility transitions,
-local viewing-origin arithmetic and existing height/provenance behavior. The
-actual provider style validates with the startup style in Vector/Satellite/None
-modes. Browser/WebGL visual acceptance and independent building validation remain
-unperformed because browser-control tools are unavailable in this session.
+Roofer runs with three jobs, EPSG:3157, the input `id` field, LoD1.2 + LoD2.2,
+and a 30-second expensive-reconstruction fallback budget per building. Other
+parameters use 1.0.0 defaults and are captured in its command record. Original
+LAZ SHA-256 is checked before cropping. Points within roof raster cells are
+height-screened; classified ground within an 8 m neighborhood is retained.
+Roofer further crops points to the roofprint itself. No input binary is modified.
+
+Tests cover known slopes, gables, no-data, gap connectivity and thresholds,
+plot denominators/percentiles, exact polygon proximity/search radius, constrained
+3D triangulation with holes, snapshot provenance, every mesh buffer, repeated
+layer transitions, duplicate IDs, review import, and server-rendered controls,
+metrics, errors and exports for all four workflows. Source plots partition the
+supported raster cells at both scales. CI validates tracked snapshots even when
+data products are cached. Browser/WebGL visual acceptance and independent
+building/forest validation remain unperformed because browser-control tools are
+unavailable in this session. HTTP and adapter tests do not substitute for them.

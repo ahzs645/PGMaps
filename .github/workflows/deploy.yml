@@ -134,6 +134,9 @@ jobs:
       - name: Verify analysis provenance and products
         run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086 --roof-inspection src/pages/dev-lidar/roofInspection.generated.json
 
+      - name: Verify gap, plot, proximity and reconstruction snapshots
+        run: python3 scripts/lidar/validate_workflows.py --analysis dist/data/lidar-analysis/bc-093g086
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 
