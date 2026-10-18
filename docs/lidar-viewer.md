@@ -181,7 +181,7 @@ that is a visual shift, not an elevation/datum conversion.
 The workspace fills its host's available height with no document scrolling.
 The map uses the remaining space below the compact header and toolbar, without
 a fixed minimum height. A collapsible 310 px desktop sidebar holds Layers,
-Results, Methods and Files tabs; only its content scrolls. On phones the panel
+Results, Roofs, Methods and Files tabs; only its content scrolls. On phones the panel
 starts closed and opens into the bottom 42% of the workspace, leaving the map
 visible. Fullscreen uses the same mounted map and observes its resized container.
 
@@ -191,6 +191,13 @@ The native GeoLibre LiDAR control starts collapsed with the original EPT cloud
 streaming. Its toolbar button opens tools on demand; panel dimensions track the
 available map space. Display buttons switch between processed layers and 3D
 points. Crown and roof candidates start enabled.
+
+The Roofs tab inspects every existing roof-like patch with height statistics,
+whole-patch plane diagnostics and a sampled terrain/surface profile. Focus 3D
+points uses a local ground viewing origin. The 3D workflow hides basemaps and
+labels as well as surface/crown overlays. See [building inspection and further
+LiDAR uses](research/lidar-building-inspection.md) for measured examples, exact
+snapshot provenance, reconstruction requirements and tests.
 
 Context uses OpenFreeMap vector geometry by default and offers Esri satellite /
 aerial imagery with vector labels. The eye button and opacity slider reveal the

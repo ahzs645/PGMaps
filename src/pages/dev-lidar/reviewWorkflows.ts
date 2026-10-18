@@ -12,6 +12,7 @@ export interface ReviewWorkflow {
   trees: boolean
   buildings: boolean
   cloud: boolean
+  labels: boolean
   highlight: string | null
 }
 
@@ -27,6 +28,7 @@ export const REVIEW_WORKFLOWS: ReviewWorkflow[] = [
     trees: true,
     buildings: false,
     cloud: false,
+    labels: false,
     highlight: 'High canopy',
   },
   {
@@ -40,6 +42,7 @@ export const REVIEW_WORKFLOWS: ReviewWorkflow[] = [
     trees: false,
     buildings: true,
     cloud: false,
+    labels: false,
     highlight: 'Roof candidates',
   },
   {
@@ -53,19 +56,21 @@ export const REVIEW_WORKFLOWS: ReviewWorkflow[] = [
     trees: false,
     buildings: false,
     cloud: false,
+    labels: true,
     highlight: null,
   },
   {
     id: 'structure',
     label: '3D structure',
-    note: 'Orbit the original cloud to inspect canopy, openings and planar roofs. Point colours are absolute elevation; the source does not label vegetation or buildings.',
-    basemap: 'vector',
+    note: 'Basemaps, labels, surfaces and crown markers are hidden to isolate the original cloud and roof-patch outlines. Orbit to inspect shapes. Point colours are absolute elevation, not building/vegetation labels.',
+    basemap: 'none',
     raster: 'height',
     surfaceVisible: false,
     surfaceOpacity: 0.65,
     trees: false,
     buildings: true,
     cloud: true,
+    labels: false,
     highlight: 'Roof candidates',
   },
 ]

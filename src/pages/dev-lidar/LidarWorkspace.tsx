@@ -14,11 +14,14 @@ import { checkAnalysisSummary } from './data'
 import type { Basemap } from './basemaps'
 import { ImageryProvenance } from './ImageryProvenance'
 import { REVIEW_WORKFLOWS, type ReviewWorkflow } from './reviewWorkflows'
+import { RoofInspectionPanel } from './RoofInspectionPanel'
+import { defaultRoofOrigin, roofCentre, type RoofFeature, type RoofInspection } from './roofInspection'
 
-type PanelTab = 'layers' | 'results' | 'methods' | 'files'
+type PanelTab = 'layers' | 'results' | 'buildings' | 'methods' | 'files'
 const PANEL_TABS = [
   { value: 'layers', label: 'Layers' },
   { value: 'results', label: 'Results' },
+  { value: 'buildings', label: 'Roofs', ariaLabel: 'Buildings and roof candidates' },
   { value: 'methods', label: 'Methods' },
   { value: 'files', label: 'Files' },
 ] as const
@@ -33,12 +36,17 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [cloud, setCloud] = useState(true)
   const [reference, setReference] = useState(false)
   const [minTreeHeight, setMinTreeHeight] = useState(5)
-  const [focus, setFocus] = useState({ index: -1, revision: 0 })
+  const [focus, setFocus] = useState<{ index: number; revision: number; center?: [number, number]; zoom?: number }>({
+    index: -1,
+    revision: 0,
+  })
+  const [sceneGround, setSceneGround] = useState<number | null>(null)
   const [color, setColor] = useState<ColorSchemeType>('elevation')
   const [tab, setTab] = useState<PanelTab>('layers')
   const [panelOpen, setPanelOpen] = useState<boolean | null>(null)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [basemap, setBasemap] = useState<Basemap>('vector')
+  const [labels, setLabels] = useState(true)
   const [surfaceVisible, setSurfaceVisible] = useState(false)
   const [surfaceOpacity, setSurfaceOpacity] = useState(0.65)
   const [reviewNote, setReviewNote] = useState(
@@ -83,7 +91,10 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
     }
   }, [analysisBase, attempt])
 
-  const go = (index: number) => setFocus((previous) => ({ index, revision: previous.revision + 1 }))
+  const go = (index: number) => {
+    setSceneGround(null)
+    setFocus((previous) => ({ index, revision: previous.revision + 1 }))
+  }
   const selectRaster = (key: RasterKey) => {
     setRaster(key)
     setCloud(false)
@@ -103,13 +114,25 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
     setTrees(workflow.trees)
     setBuildings(workflow.buildings)
     setCloud(workflow.cloud)
+    setLabels(workflow.labels)
     setReference(false)
     setToolsOpen(false)
     setColor('elevation')
     setMinTreeHeight(5)
     setReviewNote(workflow.note)
     go(summary?.highlights.findIndex((place) => place.label === workflow.highlight) ?? -1)
+    setSceneGround(workflow.cloud ? defaultRoofOrigin : null)
     if (isMobile) setPanelOpen(false)
+  }
+  const inspectRoof = (feature: RoofFeature, mode: '2d' | '3d', record: RoofInspection | null) => {
+    review(REVIEW_WORKFLOWS.find((workflow) => workflow.id === (mode === '3d' ? 'structure' : 'roofs'))!)
+    setSceneGround(mode === '3d' && record ? record.terrain_median_m : null)
+    setFocus((previous) => ({
+      index: -1,
+      revision: previous.revision + 1,
+      center: roofCentre(feature),
+      zoom: mode === '3d' ? 18 : 19,
+    }))
   }
   const legend = summary?.rasters[raster]
   return (
@@ -136,6 +159,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
           >
             <option value="vector">Vector</option>
             <option value="satellite">Satellite</option>
+            <option value="none">None</option>
           </select>
         </label>
         <Button
@@ -220,6 +244,15 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     />
                     Show processed surface
                   </label>
+                  <label className="mt-3 flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={labels}
+                      onChange={(event) => setLabels(event.target.checked)}
+                      disabled={basemap === 'none'}
+                    />
+                    Basemap labels
+                  </label>
                   <label className="mt-3 block text-xs">
                     Surface opacity · {Math.round(surfaceOpacity * 100)}%
                     <input
@@ -235,7 +268,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                   <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
                     {basemap === 'vector'
                       ? 'OpenFreeMap vector roads, buildings and labels. OSM footprints are context, not verified building truth.'
-                      : 'Esri satellite/aerial imagery with vector labels. Hide the surface to see the imagery beneath candidate features.'}{' '}
+                      : basemap === 'satellite'
+                        ? 'Esri satellite/aerial imagery. Hide the surface to see imagery beneath candidate features.'
+                        : 'Basemap geometry and labels are hidden to isolate the measured data.'}{' '}
                     The eye button toggles the surface without hiding candidates.
                   </p>
                   {basemap === 'satellite' && <ImageryProvenance bounds={summary.bounds_wgs84} />}
@@ -335,6 +370,19 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 <LidarResults summary={summary} analysisBase={analysisBase} selectRaster={selectRaster} />
               </div>
               <div
+                id="lidar-panel-buildings"
+                role="tabpanel"
+                aria-labelledby="lidar-tab-buildings"
+                hidden={tab !== 'buildings'}
+              >
+                <RoofInspectionPanel
+                  analysisBase={analysisBase}
+                  sourceHash={summary.source_sha256}
+                  active={tab === 'buildings'}
+                  onView={inspectRoof}
+                />
+              </div>
+              <div
                 id="lidar-panel-methods"
                 role="tabpanel"
                 aria-labelledby="lidar-tab-methods"
@@ -426,6 +474,8 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     basemap={basemap}
                     surfaceVisible={surfaceVisible}
                     surfaceOpacity={surfaceOpacity}
+                    labels={labels}
+                    sceneGround={sceneGround}
                   />
                 </div>
                 {legend && (
@@ -436,7 +486,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                     <span className="min-w-0 flex-1 truncate font-medium" title={legend.title}>
                       {surfaceVisible
                         ? legend.title
-                        : `${basemap === 'vector' ? 'Vector' : 'Satellite'} context · surface hidden`}
+                        : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
                     </span>
                     {surfaceVisible && (
                       <div className="w-20 shrink-0 sm:w-32">

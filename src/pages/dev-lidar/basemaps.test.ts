@@ -4,6 +4,7 @@ import {
   applyBasemap,
   imageryCitationUrl,
   installVectorContext,
+  initialLidarStyle,
   LABEL_ANCHOR,
   parseImageryCitations,
   prepareVectorContext,
@@ -40,7 +41,9 @@ describe('LiDAR vector and satellite integration', () => {
     const context = prepareVectorContext(provider)
     expect(Object.values(context.sources).map((source) => source.type)).toEqual(['vector'])
     expect(context.layers.find((layer) => layer.type === 'raster')).toBeUndefined()
-    expect(context.layers.find((layer) => layer.id === 'context-roads')).toMatchObject({ source: 'context-roads' })
+    expect(context.layers.find((layer) => layer.id === 'basemap-vector-roads')).toMatchObject({
+      source: 'basemap-vector-roads',
+    })
     expect(JSON.stringify(provider)).toBe(before)
     expect(() => prepareVectorContext({ version: 8, sources: {}, layers: [] })).toThrow('no vector tile source')
   })
@@ -61,15 +64,48 @@ describe('LiDAR vector and satellite integration', () => {
       setGlyphs: vi.fn(),
       setSprite: vi.fn(),
       addSource: vi.fn(),
+      getSource: vi.fn(() => undefined),
+      getLayer: (id: string) => (order.includes(id) ? { id } : undefined),
       addLayer: vi.fn((layer: { id: string }, before?: string) => {
         order.splice(before ? order.indexOf(before) : order.length, 0, layer.id)
       }),
     }
     installVectorContext(map as unknown as Parameters<typeof installVectorContext>[0], prepareVectorContext(provider))
-    expect(order.indexOf('context-roads')).toBeLessThan(order.indexOf('analysis-height'))
-    expect(order.indexOf('context-labels')).toBeGreaterThan(order.indexOf('analysis-slope'))
-    expect(order.indexOf('context-labels')).toBeLessThan(order.indexOf('trees'))
+    expect(order.indexOf('basemap-vector-roads')).toBeLessThan(order.indexOf('analysis-height'))
+    expect(order.indexOf('basemap-vector-labels')).toBeGreaterThan(order.indexOf('analysis-slope'))
+    expect(order.indexOf('basemap-vector-labels')).toBeLessThan(order.indexOf('trees'))
     expect(order.filter((id) => id.startsWith('analysis-') || id === 'lidar-custom-layer')).toEqual(originalAnalysis)
+  })
+
+  it('installs over the actual startup background without duplicate IDs and is safe to call twice', () => {
+    const startup = initialLidarStyle('vector')
+    const layers = new Map(startup.layers.map((layer) => [layer.id, layer]))
+    layers.set('analysis-height', { id: 'analysis-height', type: 'background' })
+    const sources = new Map(Object.entries(startup.sources))
+    const map = {
+      setGlyphs: vi.fn(),
+      setSprite: vi.fn(),
+      getLayer: (id: string) => layers.get(id),
+      getSource: (id: string) => sources.get(id),
+      addSource: (id: string, source: never) => {
+        if (sources.has(id)) throw Error(`Source ${id} exists`)
+        sources.set(id, source)
+      },
+      addLayer: (layer: (typeof provider.layers)[number], before?: string) => {
+        if (layers.has(layer.id)) throw Error(`Layer ${layer.id} already exists`)
+        if (before && !layers.has(before)) throw Error(`Missing anchor ${before}`)
+        layers.set(layer.id, layer)
+      },
+    }
+    const context = prepareVectorContext(provider)
+    installVectorContext(map as unknown as Parameters<typeof installVectorContext>[0], context)
+    const count = layers.size
+    expect(layers.has('context-background')).toBe(true)
+    expect(layers.has('basemap-vector-background')).toBe(true)
+    expect(() =>
+      installVectorContext(map as unknown as Parameters<typeof installVectorContext>[0], context),
+    ).not.toThrow()
+    expect(layers.size).toBe(count)
   })
 
   it('switches basemaps repeatedly while preserving overlays, hidden labels and the original label colours', () => {
@@ -91,14 +127,14 @@ describe('LiDAR vector and satellite integration', () => {
     for (let i = 0; i < 3; i++) {
       applyBasemap(map as unknown as Parameters<typeof applyBasemap>[0], context.layers, 'satellite')
       expect(visibility[SATELLITE_LAYER]).toBe('visible')
-      expect(visibility['context-roads']).toBe('none')
-      expect(visibility['context-labels']).toBe('visible')
-      expect(visibility['context-hidden-labels']).toBe('none')
-      expect(paint['context-labels:text-color']).toBe('#f8fafc')
+      expect(visibility['basemap-vector-roads']).toBe('none')
+      expect(visibility['basemap-vector-labels']).toBe('visible')
+      expect(visibility['basemap-vector-hidden-labels']).toBe('none')
+      expect(paint['basemap-vector-labels:text-color']).toBe('#f8fafc')
       applyBasemap(map as unknown as Parameters<typeof applyBasemap>[0], context.layers, 'vector')
       expect(visibility[SATELLITE_LAYER]).toBe('none')
-      expect(visibility['context-roads']).toBe('visible')
-      expect(paint['context-labels:text-color']).toBe('#333333')
+      expect(visibility['basemap-vector-roads']).toBe('visible')
+      expect(paint['basemap-vector-labels:text-color']).toBe('#333333')
       expect([visibility['analysis-height'], visibility.trees, visibility['lidar-custom-layer']]).toEqual([
         'visible',
         'visible',

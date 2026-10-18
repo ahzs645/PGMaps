@@ -132,7 +132,7 @@ jobs:
         run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086
 
       - name: Verify analysis provenance and products
-        run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086
+        run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086 --roof-inspection src/pages/dev-lidar/roofInspection.generated.json
 
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086

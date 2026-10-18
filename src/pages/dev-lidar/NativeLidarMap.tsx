@@ -5,13 +5,14 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import 'maplibre-gl-lidar/style.css'
 import type { AnalysisSummary, RasterKey } from './types'
 import { heightAtLocation } from './data'
+import { applyAnalysisLayers, applyPointCloudVisibility } from './mapLayers'
+import { sceneOffset } from './roofInspection'
 import {
   applyBasemap,
   installVectorContext,
+  initialLidarStyle,
   LABEL_ANCHOR,
   prepareVectorContext,
-  SATELLITE_LAYER,
-  SATELLITE_TILES,
   VECTOR_STYLE_URL,
   type Basemap,
 } from './basemaps'
@@ -26,13 +27,15 @@ interface Props {
   reference: boolean
   cloud: boolean
   minTreeHeight: number
-  focus: { index: number; revision: number }
+  focus: { index: number; revision: number; center?: [number, number]; zoom?: number }
   color: ColorSchemeType
   toolsOpen: boolean
   onToolsOpenChange: (open: boolean) => void
   basemap: Basemap
   surfaceVisible: boolean
   surfaceOpacity: number
+  labels: boolean
+  sceneGround: number | null
 }
 
 export function NativeLidarMap(props: Props) {
@@ -61,29 +64,7 @@ export function NativeLidarMap(props: Props) {
     try {
       instance = new maplibregl.Map({
         container: container.current,
-        style: {
-          version: 8,
-          sources: {
-            [SATELLITE_LAYER]: {
-              type: 'raster',
-              tiles: [SATELLITE_TILES],
-              tileSize: 256,
-              maxzoom: 19,
-              attribution: 'Tiles © Esri — Esri, Vantor, Earthstar Geographics, and the GIS User Community',
-            },
-          },
-          layers: [
-            { id: 'context-background', type: 'background', paint: { 'background-color': '#e8eeeb' } },
-            {
-              id: SATELLITE_LAYER,
-              type: 'raster',
-              source: SATELLITE_LAYER,
-              layout: { visibility: latest.current.basemap === 'satellite' ? 'visible' : 'none' },
-              paint: { 'raster-fade-duration': 0 },
-            },
-            { id: LABEL_ANCHOR, type: 'background', paint: { 'background-opacity': 0 } },
-          ],
-        },
+        style: initialLidarStyle(latest.current.basemap),
         bounds: [
           [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
           [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
@@ -220,7 +201,9 @@ export function NativeLidarMap(props: Props) {
       control.on('streamingprogress', () => {
         const progress = control.getStreamingProgress()
         if (active && latest.current.cloud && progress)
-          setStatus(`3D points stream as you explore · display budget 750,000 points`)
+          setStatus(
+            `Original points · ${latest.current.sceneGround === null ? 'whole-tile origin' : `local ground origin ${latest.current.sceneGround.toFixed(1)} m`} · budget 750,000`,
+          )
       })
       setReady(true)
       setStatus('Native MapLibre viewer · processed layers at 1 m source resolution')
@@ -235,7 +218,7 @@ export function NativeLidarMap(props: Props) {
           if (!active) return
           installVectorContext(instance, context)
           contextLayers.current = context.layers
-          applyBasemap(instance, context.layers, latest.current.basemap)
+          applyBasemap(instance, context.layers, latest.current.basemap, latest.current.labels)
           setContextError('')
         })
         .catch(() => {
@@ -301,20 +284,7 @@ export function NativeLidarMap(props: Props) {
   useEffect(() => {
     const instance = map.current
     if (!ready || !instance) return
-    for (const key of Object.keys(props.summary.rasters)) {
-      instance.setLayoutProperty(
-        `analysis-${key}`,
-        'visibility',
-        props.surfaceVisible && key === props.raster ? 'visible' : 'none',
-      )
-      instance.setPaintProperty(`analysis-${key}`, 'raster-opacity', props.surfaceOpacity)
-    }
-    instance.setLayoutProperty('trees', 'visibility', props.trees ? 'visible' : 'none')
-    instance.setFilter('trees', ['>=', ['get', 'height_m'], props.minTreeHeight])
-    for (const id of ['reference-trees', 'reference-area'])
-      instance.setLayoutProperty(id, 'visibility', props.reference ? 'visible' : 'none')
-    for (const id of ['roofs-fill', 'roofs-line'])
-      instance.setLayoutProperty(id, 'visibility', props.buildings ? 'visible' : 'none')
+    applyAnalysisLayers(instance, Object.keys(props.summary.rasters), props)
   }, [
     ready,
     props.raster,
@@ -328,18 +298,21 @@ export function NativeLidarMap(props: Props) {
   ])
 
   useEffect(() => {
-    if (ready && map.current) applyBasemap(map.current, contextLayers.current, props.basemap)
-  }, [ready, props.basemap])
+    if (ready && map.current) applyBasemap(map.current, contextLayers.current, props.basemap, props.labels)
+  }, [ready, props.basemap, props.labels])
+
+  useEffect(() => {
+    const control = lidar.current
+    if (!ready || !control) return
+    control.setZOffsetEnabled(true)
+    control.setZOffset(sceneOffset(props.sceneGround))
+  }, [ready, props.sceneGround])
 
   useEffect(() => {
     const control = lidar.current
     if (!ready || !control) return
     control.setColorScheme(props.color)
-    control.setOpacity(props.cloud ? 1 : 0)
-    if (cloudId.current) {
-      if (props.cloud) control.resumeStreaming(cloudId.current)
-      else control.pauseStreaming(cloudId.current)
-    }
+    applyPointCloudVisibility(control, cloudId.current, props.cloud)
     if (props.cloud && !cloudId.current && !loadingCloud.current) {
       loadingCloud.current = true
       setStatus('Loading the original full-resolution cloud…')
@@ -349,10 +322,8 @@ export function NativeLidarMap(props: Props) {
           if (lidar.current !== control) return
           cloudId.current = info.id
           loadingCloud.current = false
-          if (!latest.current.cloud) {
-            control.setOpacity(0)
-            control.pauseStreaming(info.id)
-          } else map.current?.easeTo({ pitch: 50, duration: 700 })
+          applyPointCloudVisibility(control, info.id, latest.current.cloud)
+          if (latest.current.cloud) map.current?.easeTo({ pitch: 50, duration: 700 })
         })
         .catch((e) => {
           if (lidar.current === control) {
@@ -373,15 +344,24 @@ export function NativeLidarMap(props: Props) {
     if (!ready) return
     setHeight(null)
     setStatus(
-      props.cloud ? 'Streaming original 3D points · budget 750,000' : 'Processed layers · click to sample height',
+      props.cloud
+        ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
+        : 'Processed layers · click to sample height',
     )
     map.current?.easeTo({ pitch: props.cloud ? 50 : 0, duration: 700 })
-  }, [ready, props.cloud])
+  }, [ready, props.cloud, props.sceneGround])
 
   useEffect(() => {
     if (!ready || !map.current) return
     const place = props.summary.highlights[props.focus.index]
-    if (place)
+    if (props.focus.center)
+      map.current.easeTo({
+        center: props.focus.center,
+        zoom: props.focus.zoom ?? 18,
+        pitch: latest.current.cloud ? 50 : 0,
+        duration: 900,
+      })
+    else if (place)
       map.current.easeTo({
         center: place.center,
         zoom: place.zoom,

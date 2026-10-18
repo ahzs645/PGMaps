@@ -147,6 +147,50 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
           </a>
         </div>
       </SidebarSection>
+      <SidebarSection title="More analyses this tile can support">
+        <div className="space-y-3 text-xs leading-5 text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Buildings · available now:</strong> the Roofs tab adds patch height,
+            whole-patch plane pitch/aspect, fit residual, terrain support and a ground/surface cross-section. Focus each
+            patch in the original 3D cloud.
+          </p>
+          <p>
+            <strong className="text-foreground">Next for buildings:</strong> reviewed roofprints and roof-point
+            separation can support detailed LoD1/LoD2 building models, roof facets and vegetation-to-building proximity
+            screening. Current patches are not full building footprints.
+          </p>
+          <p>
+            <strong className="text-foreground">Next for forestry:</strong> plot-level height percentiles, canopy
+            heterogeneity, opening/gap mapping and vertical-return structure. A forest mask is needed to distinguish
+            canopy gaps from roads, lawns and fields; inventory models need field reference.
+          </p>
+          <p>
+            <strong className="text-foreground">Roof solar / runoff screening:</strong> first delineate and validate
+            roof facets. Whole-patch plane pitch is not sufficient for solar yield, roof engineering or drainage design.
+          </p>
+        </div>
+        <div className="mt-3 space-y-2 text-xs underline">
+          <a className="block" href="https://innovation.3dbag.nl/roofer/" target="_blank" rel="noopener noreferrer">
+            Roofer: building reconstruction from points + roofprints ↗
+          </a>
+          <a
+            className="block"
+            href="https://r-lidar.github.io/lidRbook/metrics.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            lidR: plot, pixel, crown and voxel metrics ↗
+          </a>
+          <a
+            className="block"
+            href="https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            INRAE: forest structure, gaps and edges ↗
+          </a>
+        </div>
+      </SidebarSection>
       <SidebarSection title="Processing methods">
         <div className="space-y-3 text-xs leading-5 text-muted-foreground">
           <p>

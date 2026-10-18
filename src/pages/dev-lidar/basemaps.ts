@@ -1,40 +1,67 @@
 import type { LayerSpecification, Map, SourceSpecification, StyleSpecification } from 'maplibre-gl'
 
-export type Basemap = 'vector' | 'satellite'
+export type Basemap = 'vector' | 'satellite' | 'none'
 export const VECTOR_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
 export const SATELLITE_SERVICE = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
 export const SATELLITE_TILES = `${SATELLITE_SERVICE}/tile/{z}/{y}/{x}`
 export const LABEL_ANCHOR = 'basemap-label-anchor'
 export const SATELLITE_LAYER = 'basemap-satellite'
 
+export function initialLidarStyle(basemap: Basemap): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      [SATELLITE_LAYER]: {
+        type: 'raster',
+        tiles: [SATELLITE_TILES],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: 'Tiles © Esri — Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+      },
+    },
+    layers: [
+      { id: 'context-background', type: 'background', paint: { 'background-color': '#e8eeeb' } },
+      {
+        id: SATELLITE_LAYER,
+        type: 'raster',
+        source: SATELLITE_LAYER,
+        layout: { visibility: basemap === 'satellite' ? 'visible' : 'none' },
+        paint: { 'raster-fade-duration': 0 },
+      },
+      { id: LABEL_ANCHOR, type: 'background', paint: { 'background-opacity': 0 } },
+    ],
+  }
+}
+
 /** Retain only real vector sources; namespace provider IDs away from analysis layers. */
 export function prepareVectorContext(style: StyleSpecification) {
   if (style.version !== 8 || !Array.isArray(style.layers) || !style.sources) throw Error('Invalid vector basemap style')
   const sources: Record<string, SourceSpecification> = {}
   for (const [id, source] of Object.entries(style.sources))
-    if (source.type === 'vector') sources[`context-${id}`] = source
+    if (source.type === 'vector') sources[`basemap-vector-${id}`] = source
   if (!Object.keys(sources).length) throw Error('The basemap has no vector tile source')
   const layers: LayerSpecification[] = []
   for (const layer of style.layers) {
-    if ('source' in layer && (typeof layer.source !== 'string' || !sources[`context-${layer.source}`])) continue
+    if ('source' in layer && (typeof layer.source !== 'string' || !sources[`basemap-vector-${layer.source}`])) continue
     if (layer.type === 'raster') continue
     layers.push({
       ...layer,
-      id: `context-${layer.id}`,
-      ...('source' in layer ? { source: `context-${layer.source}` } : {}),
+      id: `basemap-vector-${layer.id}`,
+      ...('source' in layer ? { source: `basemap-vector-${layer.source}` } : {}),
     } as LayerSpecification)
   }
   return { sources, layers, glyphs: style.glyphs, sprite: typeof style.sprite === 'string' ? style.sprite : undefined }
 }
 
 export function installVectorContext(
-  map: Pick<Map, 'setGlyphs' | 'setSprite' | 'addSource' | 'addLayer'>,
+  map: Pick<Map, 'setGlyphs' | 'setSprite' | 'getSource' | 'getLayer' | 'addSource' | 'addLayer'>,
   context: ReturnType<typeof prepareVectorContext>,
 ) {
   if (context.glyphs) map.setGlyphs(context.glyphs)
   if (context.sprite) map.setSprite(context.sprite)
-  for (const [id, source] of Object.entries(context.sources)) map.addSource(id, source)
-  for (const layer of context.layers) map.addLayer(layer, layer.type === 'symbol' ? LABEL_ANCHOR : 'analysis-height')
+  for (const [id, source] of Object.entries(context.sources)) if (!map.getSource(id)) map.addSource(id, source)
+  for (const layer of context.layers)
+    if (!map.getLayer(layer.id)) map.addLayer(layer, layer.type === 'symbol' ? LABEL_ANCHOR : 'analysis-height')
 }
 
 /** Change context visibility in place: never replace the style or unload LiDAR layers. */
@@ -42,10 +69,11 @@ export function applyBasemap(
   map: Pick<Map, 'setLayoutProperty' | 'setPaintProperty'>,
   layers: LayerSpecification[],
   basemap: Basemap,
+  labels = true,
 ) {
   map.setLayoutProperty(SATELLITE_LAYER, 'visibility', basemap === 'satellite' ? 'visible' : 'none')
   for (const layer of layers) {
-    const visible = basemap === 'vector' || layer.type === 'symbol'
+    const visible = layer.type === 'symbol' ? labels && basemap !== 'none' : basemap === 'vector'
     map.setLayoutProperty(layer.id, 'visibility', visible ? (layer.layout?.visibility ?? 'visible') : 'none')
     if (layer.type === 'symbol') {
       map.setPaintProperty(layer.id, 'text-color', basemap === 'satellite' ? '#f8fafc' : layer.paint?.['text-color'])

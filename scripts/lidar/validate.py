@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Validate the saved analysis using only Python's standard library (also on cache hits)."""
 
-import argparse, hashlib, json, struct
+import argparse, hashlib, json, math
 from pathlib import Path
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--analysis", type=Path, required=True)
+p.add_argument("--roof-inspection", type=Path)
 args = p.parse_args()
 root = args.analysis
 summary = json.loads((root / "summary.json").read_text())
@@ -44,6 +45,20 @@ for tool in [
     "regularize_building_footprints",
 ]:
     assert any(r["tool"] == tool and r["exit_code"] == 0 for r in runs), tool
+if args.roof_inspection:
+    snapshot = json.loads(args.roof_inspection.read_text())
+    assert snapshot["source_sha256"] == summary["source_sha256"]
+    for name, digest in snapshot["input_sha256"].items():
+        assert hashlib.file_digest((root / name).open("rb"), "sha256").hexdigest() == digest, f"Regenerate roof inspection snapshot: {name} differs"
+    roofs = json.loads((root / "building-candidates.geojson").read_text())["features"]
+    assert {row["id"] for row in snapshot["records"]} == {row["properties"]["id"] for row in roofs}
+    for row in snapshot["records"]:
+        assert row["cells"] > 0 and row["sampled_area_m2"] > 0
+        assert row["height_p95_m"] >= row["height_median_m"]
+        assert row["plane"] is None or row["plane"]["plane_rmse_m"] >= 0
+        assert len(row["profile"]) <= 65
+        for point in row["profile"]:
+            assert all(point[key] is None or math.isfinite(point[key]) for key in ["terrain_m", "surface_m"])
 print(
     f"Validated {len(hashes)} products, {summary['tree_candidate_count']:,} crown candidates and {summary['building_candidate_count']:,} roof-like patches."
 )
