@@ -1,0 +1,352 @@
+{
+  "checked_at_utc": "2026-10-18T18:35:00.155Z",
+  "study_bounds_wgs84": [-122.82507874513217, 53.887458234452545, -122.79993490032967, 53.90005178491424],
+  "vector_style": "https://tiles.openfreemap.org/styles/positron",
+  "vector_source_maxzoom": 14,
+  "vector_tiles": [
+    {
+      "z": 14,
+      "x": 2602,
+      "y": 5268,
+      "layer_feature_counts": {
+        "building": 2,
+        "housenumber": 2,
+        "landcover": 5,
+        "landuse": 5,
+        "place": 1,
+        "poi": 27,
+        "transportation": 18,
+        "transportation_name": 17,
+        "water_name": 2,
+        "waterway": 6
+      }
+    },
+    {
+      "z": 14,
+      "x": 2602,
+      "y": 5269,
+      "layer_feature_counts": {
+        "building": 2,
+        "housenumber": 1,
+        "landcover": 1,
+        "landuse": 1,
+        "place": 1,
+        "poi": 16,
+        "transportation": 16,
+        "transportation_name": 26,
+        "water_name": 2,
+        "waterway": 11
+      }
+    },
+    {
+      "z": 14,
+      "x": 2603,
+      "y": 5268,
+      "layer_feature_counts": {
+        "building": 3,
+        "housenumber": 291,
+        "landcover": 10,
+        "landuse": 13,
+        "place": 1,
+        "poi": 104,
+        "transportation": 52,
+        "transportation_name": 66,
+        "water": 1,
+        "waterway": 3
+      }
+    },
+    {
+      "z": 14,
+      "x": 2603,
+      "y": 5269,
+      "layer_feature_counts": {
+        "building": 1,
+        "housenumber": 118,
+        "landcover": 5,
+        "landuse": 5,
+        "mountain_peak": 1,
+        "place": 2,
+        "poi": 46,
+        "transportation": 29,
+        "transportation_name": 39,
+        "water": 1,
+        "waterway": 24
+      }
+    }
+  ],
+  "imagery_service": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+  "imagery_tiles": [
+    {
+      "z": 18,
+      "x": 41642,
+      "y": 84301,
+      "bytes": 14077,
+      "sha256": "fcdd27ae832197afa602b1bd5b10b69cfa3a4a6747110f4b52b5e2ada006ed26"
+    },
+    {
+      "z": 18,
+      "x": 41637,
+      "y": 84307,
+      "bytes": 12533,
+      "sha256": "aab1be7f94154b2b4b0d995089bb109915764f5b58e453c48ae734d0b94e54d5"
+    },
+    {
+      "z": 18,
+      "x": 41641,
+      "y": 84297,
+      "bytes": 11863,
+      "sha256": "f65186afa164df8f64b505f00edc564472dbca73600d12e48533406b8769b2cf"
+    },
+    {
+      "z": 18,
+      "x": 41642,
+      "y": 84302,
+      "bytes": 13146,
+      "sha256": "16a006063525592f79891af2c8726e653c41511366de932221cfc0dd1cb0ab34"
+    },
+    {
+      "z": 18,
+      "x": 41647,
+      "y": 84302,
+      "bytes": 17240,
+      "sha256": "b9f87c6ea6db9a1202a58ba3b7dc31f5bf31e42c44aedc7523ce76b0ad0a68db"
+    }
+  ],
+  "imagery_citations": [
+    {
+      "label": "Tile centre",
+      "longitude": -122.81250682273092,
+      "latitude": 53.89375500968339,
+      "cache_level": 18,
+      "sources": [
+        {
+          "SRC_DATE": 20230515,
+          "SRC_RES": 0.075,
+          "SRC_ACC": 99999,
+          "NICE_DESC": "City of Prince George",
+          "NICE_NAME": "Prince George2023",
+          "MinMapLevel": 12,
+          "MaxMapLevel": 18
+        }
+      ]
+    },
+    {
+      "label": "High canopy",
+      "longitude": -122.82018323,
+      "latitude": 53.88843651,
+      "cache_level": 18,
+      "sources": [
+        {
+          "SRC_DATE": 20230515,
+          "SRC_RES": 0.075,
+          "SRC_ACC": 99999,
+          "NICE_DESC": "City of Prince George",
+          "NICE_NAME": "Prince George2023",
+          "MinMapLevel": 12,
+          "MaxMapLevel": 18
+        }
+      ]
+    },
+    {
+      "label": "Open ground",
+      "longitude": -122.813651282636,
+      "latitude": 53.89633607263051,
+      "cache_level": 18,
+      "sources": [
+        {
+          "SRC_DATE": 20230515,
+          "SRC_RES": 0.075,
+          "SRC_ACC": 99999,
+          "NICE_DESC": "City of Prince George",
+          "NICE_NAME": "Prince George2023",
+          "MinMapLevel": 12,
+          "MaxMapLevel": 18
+        }
+      ]
+    },
+    {
+      "label": "Roof candidates",
+      "longitude": -122.81323256542984,
+      "latitude": 53.89297387587416,
+      "cache_level": 18,
+      "sources": [
+        {
+          "SRC_DATE": 20230515,
+          "SRC_RES": 0.075,
+          "SRC_ACC": 99999,
+          "NICE_DESC": "City of Prince George",
+          "NICE_NAME": "Prince George2023",
+          "MinMapLevel": 12,
+          "MaxMapLevel": 18
+        }
+      ]
+    },
+    {
+      "label": "GeoLibre test area",
+      "longitude": -122.8060059339366,
+      "latitude": 53.89269726805096,
+      "cache_level": 18,
+      "sources": [
+        {
+          "SRC_DATE": 20230515,
+          "SRC_RES": 0.075,
+          "SRC_ACC": 99999,
+          "NICE_DESC": "City of Prince George",
+          "NICE_NAME": "Prince George2023",
+          "MinMapLevel": 12,
+          "MaxMapLevel": 18
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "purpose": "Vector style",
+      "url": "https://tiles.openfreemap.org/styles/positron",
+      "bytes": 25153,
+      "sha256": "a0f5b8487480a47ba5a5eaf25e165a19789dfa422f9ef9442f04da79c7d216db",
+      "cors": "*"
+    },
+    {
+      "purpose": "Vector TileJSON",
+      "url": "https://tiles.openfreemap.org/planet",
+      "bytes": 19254,
+      "sha256": "6da5604000f11b01be50b7767c6a781fe7b880a1e6c8d0500fb153eb6d7cc51d",
+      "cors": "*"
+    },
+    {
+      "purpose": "Study-area vector tile 14/2602/5268",
+      "url": "https://tiles.openfreemap.org/planet/20261011_080001_pt/14/2602/5268.pbf",
+      "bytes": 9651,
+      "sha256": "68c2d3f4ff0a129d41028cb79d9fac2c3096c02b99ecbfc5c9af08858e5c7ffb",
+      "cors": "*"
+    },
+    {
+      "purpose": "Study-area vector tile 14/2602/5269",
+      "url": "https://tiles.openfreemap.org/planet/20261011_080001_pt/14/2602/5269.pbf",
+      "bytes": 9094,
+      "sha256": "dec404818cfd286ed9e0ac279dd1ee4e372fc4f499aa57c6911ad00493b5b572",
+      "cors": "*"
+    },
+    {
+      "purpose": "Study-area vector tile 14/2603/5268",
+      "url": "https://tiles.openfreemap.org/planet/20261011_080001_pt/14/2603/5268.pbf",
+      "bytes": 43851,
+      "sha256": "f86d0bb352b79f217ab3ecbada500d924a23643315e30af47c22253a24572a91",
+      "cors": "*"
+    },
+    {
+      "purpose": "Study-area vector tile 14/2603/5269",
+      "url": "https://tiles.openfreemap.org/planet/20261011_080001_pt/14/2603/5269.pbf",
+      "bytes": 24819,
+      "sha256": "d619a174fe89e5b358b5f35eea706333c5b6c847b5745f0f76bc7c1e6835d63f",
+      "cors": "*"
+    },
+    {
+      "purpose": "Font Noto Sans Italic",
+      "url": "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/0-255.pbf",
+      "bytes": 79907,
+      "sha256": "ae9c8894b4d2b6297da76a2e875685046f1f037f1a571ae006160a5540406086",
+      "cors": "*"
+    },
+    {
+      "purpose": "Font Noto Sans Regular",
+      "url": "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 76580,
+      "sha256": "ef1f38a3f1978591e846e9eaddf8a54f7047f546fc6aaed7872cc53151a5de78",
+      "cors": "*"
+    },
+    {
+      "purpose": "Font Noto Sans Bold",
+      "url": "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Bold/0-255.pbf",
+      "bytes": 81170,
+      "sha256": "f60ce4cb899455c2203bd8293b550394ade53ffce8032bf9cc7f59255e49259c",
+      "cors": "*"
+    },
+    {
+      "purpose": "Sprite index",
+      "url": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm.json",
+      "bytes": 27737,
+      "sha256": "73e75e58d8c7bb62cc25d9d150660500552f4d04f6eac5efa4e236076773c356",
+      "cors": "*"
+    },
+    {
+      "purpose": "Sprite image",
+      "url": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm.png",
+      "bytes": 49454,
+      "sha256": "8996a519d218dc5f98015267709dae272a77bb74ef0ecc5a0992dcf276c1be4c",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery tile · Tile centre",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/84301/41642",
+      "bytes": 14077,
+      "sha256": "fcdd27ae832197afa602b1bd5b10b69cfa3a4a6747110f4b52b5e2ada006ed26",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery metadata · Tile centre",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/4/query?f=json&where=1%3D1&geometry=-122.81250682273092%2C53.89375500968339&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SRC_DATE%2CSRC_RES%2CSRC_ACC%2CNICE_DESC%2CNICE_NAME%2CMinMapLevel%2CMaxMapLevel&returnGeometry=false",
+      "bytes": 1349,
+      "sha256": "3d44aee5f6bb186aceedc8a578334dcb4f38335bdc621857a2746ca13b031ca2",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery tile · High canopy",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/84307/41637",
+      "bytes": 12533,
+      "sha256": "aab1be7f94154b2b4b0d995089bb109915764f5b58e453c48ae734d0b94e54d5",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery metadata · High canopy",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/4/query?f=json&where=1%3D1&geometry=-122.82018323%2C53.88843651&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SRC_DATE%2CSRC_RES%2CSRC_ACC%2CNICE_DESC%2CNICE_NAME%2CMinMapLevel%2CMaxMapLevel&returnGeometry=false",
+      "bytes": 1349,
+      "sha256": "3d44aee5f6bb186aceedc8a578334dcb4f38335bdc621857a2746ca13b031ca2",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery tile · Open ground",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/84297/41641",
+      "bytes": 11863,
+      "sha256": "f65186afa164df8f64b505f00edc564472dbca73600d12e48533406b8769b2cf",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery metadata · Open ground",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/4/query?f=json&where=1%3D1&geometry=-122.813651282636%2C53.89633607263051&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SRC_DATE%2CSRC_RES%2CSRC_ACC%2CNICE_DESC%2CNICE_NAME%2CMinMapLevel%2CMaxMapLevel&returnGeometry=false",
+      "bytes": 1349,
+      "sha256": "3d44aee5f6bb186aceedc8a578334dcb4f38335bdc621857a2746ca13b031ca2",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery tile · Roof candidates",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/84302/41642",
+      "bytes": 13146,
+      "sha256": "16a006063525592f79891af2c8726e653c41511366de932221cfc0dd1cb0ab34",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery metadata · Roof candidates",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/4/query?f=json&where=1%3D1&geometry=-122.81323256542984%2C53.89297387587416&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SRC_DATE%2CSRC_RES%2CSRC_ACC%2CNICE_DESC%2CNICE_NAME%2CMinMapLevel%2CMaxMapLevel&returnGeometry=false",
+      "bytes": 1349,
+      "sha256": "3d44aee5f6bb186aceedc8a578334dcb4f38335bdc621857a2746ca13b031ca2",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery tile · GeoLibre test area",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/84302/41647",
+      "bytes": 17240,
+      "sha256": "b9f87c6ea6db9a1202a58ba3b7dc31f5bf31e42c44aedc7523ce76b0ad0a68db",
+      "cors": "*"
+    },
+    {
+      "purpose": "Imagery metadata · GeoLibre test area",
+      "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/4/query?f=json&where=1%3D1&geometry=-122.8060059339366%2C53.89269726805096&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SRC_DATE%2CSRC_RES%2CSRC_ACC%2CNICE_DESC%2CNICE_NAME%2CMinMapLevel%2CMaxMapLevel&returnGeometry=false",
+      "bytes": 1349,
+      "sha256": "3d44aee5f6bb186aceedc8a578334dcb4f38335bdc621857a2746ca13b031ca2",
+      "cors": "*"
+    }
+  ],
+  "interpretation": "HTTP/CORS, source-schema and data-coverage checks only. Tile feature counts cover containing vector tiles and may include buffers/areas outside the LiDAR footprint. These checks do not verify WebGL rendering, registration accuracy or tree/building detection accuracy. Imagery source resolution is not positional accuracy."
+}

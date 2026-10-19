@@ -18,6 +18,7 @@ const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default:
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
+const DevLidar = lazy(() => import('@/pages/DevLidar'))
 const DevNechako = lazy(() => import('@/pages/DevNechako'))
 const DevNechakoPortal = lazy(() => import('@/pages/DevNechakoPortal'))
 const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
@@ -123,6 +124,7 @@ function App() {
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
+            <Route path="/dev/lidar/*" element={<DevLidar />} />
             <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/nechako/portal" element={<DevNechakoPortal />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />

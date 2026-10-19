@@ -12,6 +12,12 @@ export default defineConfig({
     environment: 'node',
     // Only pick up co-located unit tests; tests/e2e/ contains Playwright specs.
     // The forestry regression suite is plain ESM (.mjs) against the real modules.
-    include: ['src/**/*.test.ts', 'src/**/*.test.mjs', 'packages/geo-toolkit/src/**/*.test.ts', 'packages/geo-toolkit/src/**/*.test.mjs'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'src/**/*.test.mjs',
+      'packages/geo-toolkit/src/**/*.test.ts',
+      'packages/geo-toolkit/src/**/*.test.mjs',
+    ],
   },
 })

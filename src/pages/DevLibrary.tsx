@@ -23,6 +23,14 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'LiDAR explorer',
+    description: 'Native LiDAR workbench with terrain, canopy-height proxy, crown and roof candidates, actual GeoLibre algorithm runs and full-cloud streaming.',
+    href: '/dev/lidar',
+    icon: MapPinned,
+    color: 'bg-cyan-700',
+    label: '/dev/lidar',
+  },
+  {
     title: 'Viewshed',
     description: 'Drag an observer across 3D terrain, compare seated and standing visibility, check the sun against ridges, or import a local DEM.',
     href: '/dev/viewshed',

@@ -1,0 +1,7 @@
+name: pgmaps-lidar
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - entwine=3.2.1
+  - pip

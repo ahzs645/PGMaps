@@ -1,0 +1,12 @@
+numpy==2.5.4
+laspy[lazrs]==2.7.0
+pyproj==3.8.0
+scipy==1.18.1
+rasterio==1.5.2
+scikit-image==0.26.0
+shapely==2.2.0
+Pillow==13.0.0
+matplotlib==3.11.2
+pyshp==3.1.6
+geolibre-wasm==1.7.1
+wasmtime==49.0.0

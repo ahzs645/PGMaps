@@ -96,6 +96,71 @@ jobs:
           VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
           VITE_NECHAKO_GATEWAY_URL: https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal
 
+      # EPT divides the 551 MB original into small browser-streamable tiles.
+      # Keep generated binaries out of Git and restore them after the app build.
+      - name: Restore prepared LiDAR tiles
+        id: lidar-cache
+        uses: actions/cache@v4
+        with:
+          path: dist/data/lidar/bc-093g086
+          key: pgmaps-lidar-ept-v1-${{ hashFiles('scripts/prepare-lidar.py', 'scripts/lidar-environment.yml') }}
+
+      - name: Restore processed forestry and building analysis
+        id: lidar-analysis-cache
+        uses: actions/cache@v4
+        with:
+          path: dist/data/lidar-analysis/bc-093g086
+          key: pgmaps-lidar-analysis-v1-${{ hashFiles('scripts/lidar/**', 'scripts/lidar-environment.yml') }}
+
+      - name: Install LiDAR indexing tools
+        if: steps.lidar-cache.outputs.cache-hit != 'true' || steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: scripts/lidar-environment.yml
+          cache-environment: true
+
+      - name: Prepare full LiDAR cloud for streaming
+        if: steps.lidar-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
+
+      - name: Install analysis dependencies
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python -m pip install -r scripts/lidar/requirements.txt
+
+      - name: Process terrain, canopy, crown and roof candidates
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify analysis provenance and products
+        run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086 --roof-inspection src/pages/dev-lidar/roofInspection.generated.json
+
+      - name: Verify gap, plot, proximity and reconstruction snapshots
+        run: python3 scripts/lidar/validate_workflows.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify forestry structure snapshots
+        run: python3 scripts/lidar/validate_forestry.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify canopy heatmap previews
+        run: python3 scripts/lidar/validate_heatmaps.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify species inventory and model snapshot
+        run: python3 scripts/lidar/validate_species.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify species plot context
+        run: python3 scripts/lidar/validate_species_context.py
+
+      - name: Verify tree isolation and native-height detail
+        run: python3 scripts/lidar/validate_tree_detail.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Verify tree segmentation benchmark provenance
+        run: python3 scripts/lidar/validate_tree_benchmarks.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Test LiDAR inspection and workflow interfaces
+        run: npx vitest run src/pages/dev-lidar
+
+      - name: Verify complete LiDAR tiles
+        run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
+
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html
 

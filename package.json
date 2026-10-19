@@ -154,7 +154,10 @@
     "toolkit:lint": "eslint packages/geo-toolkit/src packages/geo-toolkit/scripts packages/geo-toolkit/tests packages/geo-toolkit/tailwind.config.js examples/toolkit-consumer/src examples/toolkit-consumer/tests scripts/toolkit",
     "toolkit:format:check": "prettier --check \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\" \"examples/toolkit-consumer/{src,tests}/**/*.{ts,tsx,css}\" \"scripts/toolkit/*.mjs\"",
     "toolkit:watch:check": "node scripts/toolkit/check-watch.mjs",
-    "toolkit:nested:test": "npm run toolkit:build && node scripts/toolkit/check-nested-workspace.mjs"
+    "toolkit:nested:test": "npm run toolkit:build && node scripts/toolkit/check-nested-workspace.mjs",
+    "lidar:process": "python3 scripts/lidar/run.py",
+    "lidar:inspector:browser": "node scripts/lidar/check_inspector_browser.cjs",
+    "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",
@@ -188,6 +191,7 @@
     "jszip": "^3.10.2",
     "lucide-react": "^0.562.0",
     "maplibre-gl": "^5.15.0",
+    "maplibre-gl-lidar": "^0.21.0",
     "next-themes": "^0.4.6",
     "pbf": "^4.0.1",
     "pmtiles": "^4.4.1",
@@ -207,6 +211,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@types/react-test-renderer": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.17",
     "eslint": "^9.39.4",
@@ -214,6 +219,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.4.35",
     "prettier": "^3.8.2",
+    "react-test-renderer": "^18.3.1",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.20.0",
     "typescript": "^5.4.0",
