@@ -152,6 +152,12 @@ jobs:
       - name: Verify tree isolation and native-height detail
         run: python3 scripts/lidar/validate_tree_detail.py --analysis dist/data/lidar-analysis/bc-093g086
 
+      - name: Verify tree segmentation benchmark provenance
+        run: python3 scripts/lidar/validate_tree_benchmarks.py --analysis dist/data/lidar-analysis/bc-093g086
+
+      - name: Test LiDAR inspection and workflow interfaces
+        run: npx vitest run src/pages/dev-lidar
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 

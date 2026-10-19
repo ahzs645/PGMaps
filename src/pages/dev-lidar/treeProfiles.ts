@@ -1,11 +1,13 @@
 import { toMetric } from './sourceGrids'
 import type { TreeCrop } from './treeIsolation'
+import type { IsolatedPoint } from './treeIsolation'
+import { TREE_COLOURS } from './treeIsolation'
 
 export const MAX_PROFILE_PINS = 4
 export const MAX_PINNED_RETURNS = 150000
 export interface TreeProfile {
   crop: TreeCrop
-  points: { east: number; north: number; height: number }[]
+  points: { east: number; north: number; height: number; original: IsolatedPoint }[]
   radius: number
   maximum: number
   minimum: number
@@ -24,7 +26,7 @@ export function prepareTreeProfile(crop: TreeCrop): TreeProfile {
     if (![x, y].every(Number.isFinite)) continue
     const east = x - cx,
       north = y - cy
-    points.push({ east, north, height: p.height })
+    points.push({ east, north, height: p.height, original: p })
     radius = Math.max(radius, Math.hypot(east, north))
     maximum = Math.max(maximum, p.height)
     minimum = Math.min(minimum, p.height)
@@ -49,7 +51,19 @@ const xml = (value: string) =>
 const number = (value: number) => value.toFixed(2)
 
 /** Standalone scientific figure, also used by the interface; no invented stems or fills. */
-export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured = false) {
+export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured = false, inspection?: unknown) {
+  const view = inspection as
+    | { settings?: { colour?: string; pointSize?: number }; assignments?: Record<string, string> }
+    | undefined
+  const strokeWidth = view?.settings?.pointSize ? Math.max(1, Math.min(12, view.settings.pointSize * 2)) : 1.3
+  const colourFor = (key: string) =>
+    key === 'black'
+      ? '#111111'
+      : key.startsWith('group:')
+        ? key === 'group:0'
+          ? '#a3a3a3'
+          : TREE_COLOURS[[...key.slice(6)].reduce((n, c) => n + c.charCodeAt(0), 0) % TREE_COLOURS.length]
+        : `hsl(${240 - ((Number(key) + 0.5) / 40) * 240},85%,38%)`
   const { height, halfWidth, pixelsPerMetre: scale } = profileScale(profiles)
   const width = Math.max(1, profiles.length) * 260,
     baseline = 340
@@ -58,6 +72,7 @@ export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured
       'Orthographic projection of original EPT crown-column returns; per-return height above source 1 m DTM; 2–80 m crop; no inferred stems or branches',
     horizontal_axis_degrees_east_toward_north: angle,
     equal_metric_axes: true,
+    inspection,
     crops: profiles.map((p) => ({ ...p.crop, points: undefined, plotted_returns: p.points.length })),
   })
   const cards = profiles
@@ -72,7 +87,12 @@ export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured
         left = Math.min(left, horizontal)
         right = Math.max(right, horizontal)
         // A tiny round-ended stroke gives each observed return a visible point, with no connecting lines.
-        const key = coloured ? String(Math.min(39, Math.floor(p.height))) : 'black'
+        const key =
+          view?.settings?.colour === 'segment'
+            ? `group:${view.assignments?.[`${p.original.node}:${p.original.index}`] ?? profile.crop.id}`
+            : coloured
+              ? String(Math.min(39, Math.floor(p.height)))
+              : 'black'
         const group = paths.get(key) ?? []
         group.push(`M${number(centre + horizontal * scale)} ${number(y(p.height))}h0.01`)
         paths.set(key, group)
@@ -95,7 +115,7 @@ export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured
       ${ticks.join('')}
       <text x="${centre - halfWidth * scale}" y="${y(height) - 8}">Height above terrain (m)</text>
       <path d="M${centre - halfWidth * scale} ${y(2)}h${halfWidth * 2 * scale}" stroke="#b45309" stroke-dasharray="3 3"/>
-      ${[...paths].map(([key, values]) => `<path d="${values.join('')}" fill="none" stroke="${key === 'black' ? '#111111' : `hsl(${240 - ((Number(key) + 0.5) / 40) * 240},85%,38%)`}" stroke-width="1.3" stroke-linecap="round"/>`).join('')}
+      ${[...paths].map(([key, values]) => `<path d="${values.join('')}" fill="none" stroke="${colourFor(key)}" stroke-width="${strokeWidth}" stroke-linecap="round"/>`).join('')}
       <path d="M${centre - halfWidth * scale} ${baseline}h${halfWidth * 2 * scale}" stroke="#374151"/>
       ${[-halfWidth, 0, halfWidth].map((x) => `<text x="${centre + x * scale}" y="${baseline + 16}" text-anchor="middle">${x}</text>`).join('')}
       <text x="${centre}" y="${baseline + 33}" text-anchor="middle">Horizontal offset from treetop (m)</text>
@@ -116,6 +136,7 @@ export function treeProfilesSVG(profiles: TreeProfile[], angle: number, coloured
         <text x="12" y="466" fill="#374151">Axis ${angle}° east toward north · equal metre axes.</text>
         <text x="12" y="482" fill="#374151">All depths projected · observed returns only.</text>
         ${coloured ? '<text x="12" y="498" fill="#374151">Height 0–40+ m: blue → cyan → green → red.</text>' : ''}
+        ${view?.settings?.colour === 'segment' ? '<text x="12" y="498" fill="#374151">Colours distinguish manual candidate groups.</text>' : ''}
       </g>
     </g>
   </svg>`

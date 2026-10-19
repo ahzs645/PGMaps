@@ -1,6 +1,6 @@
 # Forestry profile viewers: precedents and interface recommendations
 
-Reviewed 2026-10-19 against official documentation, upstream source and the current PGMaps implementation. These are recommendations, not additional implemented features. No external viewer was run against our tile, and browser interaction testing was unavailable.
+Reviewed 2026-10-19 against official documentation, upstream source and the current PGMaps implementation. This record describes the design precedents and recommendations. The linked inspector, slices, review/editing, saved comparisons, native transects and bounded algorithm comparisons are now implemented; see [the implementation and verification record](lidar-linked-tree-inspector.md). The external viewer interfaces were reviewed from documentation/source rather than browser operation.
 
 ## Closest precedents
 
@@ -28,7 +28,7 @@ The upstream [control](https://github.com/opengeos/maplibre-gl-lidar/blob/main/s
 
 Use its line-drawing interaction for a native transect mode. Label a profile derived from the displayed cloud as a loaded-point preview. Quantitative forestry inspection should request a bounded source crop, normalize each retained return with our verified DTM and retain node/point identity. A plugin buffer distance is a distance from the centre line; expose **total slice width** unambiguously as twice that distance. Keep our source-metric calculations for short quantitative cuts rather than silently treating latitude/longitude degrees as equal-length axes.
 
-## Current interface gaps
+## Gaps identified before implementation
 
 The existing `TreeProfilePanel` is inside the sidebar. Expansion helps comparisons, but it covers the map used to select the next candidate. Pinning requires repeated navigation, and pins disappear when the workflow changes. Profiles project all depths in the crown columns; rotation cannot separate points that overlap along the viewing direction. There is no candidate review record or link from an individual profile point to its map position.
 
@@ -76,4 +76,4 @@ Actual split/merge editing can follow this comparison, using a versioned point-a
 6. Saving/reloading a review restores IDs and view settings without retaining unbounded point data. Mismatched source/segmentation imports fail clearly; undo restores prior labels.
 7. Algorithm comparison reports unassigned points, boundary buffering, parameter sensitivity and manually reviewed false/merged/split detections. Runtime/memory and field accuracy are measured separately.
 
-The first three stages improve inspection with the existing data. The fourth requires new processing and a reviewed benchmark. Retain MapLibre/GeoLibre/EPT as the maintained rendering and data-loading base; adopt interaction patterns from these references rather than introducing a second embedded viewer.
+The first three stages are implemented for the existing data. The fourth now includes twelve actual bounded method runs; independently reviewed tree-instance references remain needed for accuracy validation. Retain MapLibre/GeoLibre/EPT as the maintained rendering and data-loading base; adopt interaction patterns from these references rather than introducing a second embedded viewer.

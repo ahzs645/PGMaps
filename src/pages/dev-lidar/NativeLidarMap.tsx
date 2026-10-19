@@ -5,8 +5,13 @@ import {
   applyHeightDetail,
   detailedHeightAt,
 } from './heightDetail'
-import { treePointLayer } from './treePointLayer'
-import type { TreeCrop } from './treeIsolation'
+import { treePointLayer, type PointAppearance } from './treePointLayer'
+import type { IsolatedPoint, TreeCrop } from './treeIsolation'
+import type { FeatureCollection, Polygon, Point } from 'geojson'
+import type { ElevationProfile } from 'maplibre-gl-lidar'
+import type { TransectControl } from './NativeTransect'
+import { startNativeTransect, refreshNativeTransect } from './NativeTransect'
+import { applyTreeInspectionMap, inspectionPitch } from './treeInspectionMap'
 import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
@@ -38,6 +43,13 @@ import {
 } from './basemaps'
 
 interface Props {
+  inspectionView?: 'top' | '3d'
+  pointStatus?: string
+  pointAppearance?: PointAppearance
+  inspectionOverlay?: FeatureCollection<Polygon | Point> | null
+  pickedReturn?: IsolatedPoint | null
+  transectControl?: TransectControl
+  onTransectProfile?: (p: ElevationProfile | null) => void
   treeCrop: TreeCrop | null
   heatmaps: CanopyHeatmaps | null
   workflowOptions: WorkflowOptions
@@ -269,6 +281,7 @@ export function NativeLidarMap(props: Props) {
       .catch(() => {})
     instance.on('click', (event) => {
       if (!active) return
+      if (latest.current.transectControl?.active) return
       const workflowHits = instance.getLayer('workflow-gaps')
         ? instance.queryRenderedFeatures(event.point, {
             layers: WORKFLOW_LAYERS.filter((id) => id !== 'workflow-selected'),
@@ -429,11 +442,42 @@ export function NativeLidarMap(props: Props) {
     if (instance.getLayer('analysis-tree-points')) instance.removeLayer('analysis-tree-points')
     if (props.treeCrop)
       try {
-        instance.addLayer(treePointLayer(props.treeCrop))
+        instance.addLayer(treePointLayer(props.treeCrop, props.pointAppearance))
       } catch (error) {
         setError(`Tree points could not render: ${String(error)}`)
       }
-  }, [ready, props.treeCrop])
+  }, [ready, props.treeCrop, props.pointAppearance])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!ready || !instance) return
+    applyTreeInspectionMap(instance, props.inspectionOverlay, props.pickedReturn)
+  }, [ready, props.inspectionOverlay, props.pickedReturn])
+
+  useEffect(() => {
+    const control = lidar.current
+    if (!ready || !control || !props.transectControl?.active) return
+    latest.current.onTransectProfile?.(null)
+    startNativeTransect(control, props.transectControl.width)
+    let previous: ElevationProfile | null = null
+    const update = () => {
+      const next = control.getCrossSectionProfile()
+      if (next !== previous) {
+        previous = next
+        latest.current.onTransectProfile?.(next)
+      }
+    }
+    update()
+    const timer = setInterval(update, 500)
+    return () => {
+      clearInterval(timer)
+      control.disableCrossSection()
+    }
+  }, [ready, props.transectControl?.active, props.transectControl?.revision])
+  useEffect(() => {
+    if (ready && props.transectControl?.active)
+      if (lidar.current) refreshNativeTransect(lidar.current, props.transectControl.width)
+  }, [ready, props.transectControl?.active, props.transectControl?.width, props.transectControl?.refresh])
 
   useEffect(() => {
     const instance = map.current
@@ -477,7 +521,8 @@ export function NativeLidarMap(props: Props) {
           control.setZOffsetEnabled(true)
           control.setZOffset(sceneOffset(latest.current.sceneGround))
           applyPointCloudVisibility(control, info.id, latest.current.cloud)
-          if (latest.current.cloud) map.current?.easeTo({ pitch: 50, duration: 700 })
+          if (latest.current.cloud)
+            map.current?.easeTo({ pitch: inspectionPitch(latest.current.inspectionView, true), duration: 700 })
         })
         .catch((e) => {
           if (lidar.current === control) {
@@ -499,7 +544,8 @@ export function NativeLidarMap(props: Props) {
     setHeight(null)
     setStatus(
       props.treeCrop
-        ? `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`
+        ? (props.pointStatus ??
+            `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`)
         : props.cloud
           ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
           : props.modelActive
@@ -508,12 +554,17 @@ export function NativeLidarMap(props: Props) {
               ? 'Canopy heatmap · click map to inspect height or cover'
               : 'Processed layers · click to sample height',
     )
-    map.current?.easeTo({ pitch: props.cloud || props.modelActive || props.treeCrop ? 50 : 0, duration: 700 })
+    map.current?.easeTo({
+      pitch: inspectionPitch(props.inspectionView, !!(props.cloud || props.modelActive || props.treeCrop)),
+      duration: 700,
+    })
   }, [
     ready,
     props.cloud,
     props.modelActive,
     props.treeCrop,
+    props.inspectionView,
+    props.pointStatus,
     props.sceneGround,
     props.workflowOptions.mode,
     props.workflowOptions.threshold,
@@ -526,14 +577,20 @@ export function NativeLidarMap(props: Props) {
       map.current.easeTo({
         center: props.focus.center,
         zoom: props.focus.zoom ?? 18,
-        pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0,
+        pitch: inspectionPitch(
+          latest.current.inspectionView,
+          !!(latest.current.cloud || latest.current.modelActive || latest.current.treeCrop),
+        ),
         duration: 900,
       })
     else if (place)
       map.current.easeTo({
         center: place.center,
         zoom: place.zoom,
-        pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0,
+        pitch: inspectionPitch(
+          latest.current.inspectionView,
+          !!(latest.current.cloud || latest.current.modelActive || latest.current.treeCrop),
+        ),
         duration: 900,
       })
     else
@@ -542,7 +599,13 @@ export function NativeLidarMap(props: Props) {
           [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
           [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
         ],
-        { padding: 35, pitch: latest.current.cloud || latest.current.modelActive ? 50 : 0 },
+        {
+          padding: 35,
+          pitch: inspectionPitch(
+            latest.current.inspectionView,
+            !!(latest.current.cloud || latest.current.modelActive || latest.current.treeCrop),
+          ),
+        },
       )
   }, [ready, props.focus, props.summary])
 

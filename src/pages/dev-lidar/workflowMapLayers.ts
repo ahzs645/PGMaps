@@ -137,7 +137,22 @@ export function applyWorkflowLayers(
     features: features.filter((f) => f.properties.id === selectedId),
   })
   map.setPaintProperty('workflow-forest', 'fill-opacity', isSpeciesMode(options.mode) ? options.speciesOpacity : 0.65)
-  if (options.mode === 'trees') map.setPaintProperty('workflow-forest', 'fill-color', ['get', 'tree_colour'])
+  if (options.mode === 'trees') {
+    map.setPaintProperty(
+      'workflow-forest',
+      'fill-color',
+      options.treeShowPoints
+        ? ['case', ['==', ['get', 'id'], selectedId ?? ''], '#f59e0b', '#64748b']
+        : ['get', 'tree_colour'],
+    )
+    if (options.treeShowPoints)
+      map.setPaintProperty('workflow-forest', 'fill-opacity', [
+        'case',
+        ['==', ['get', 'id'], selectedId ?? ''],
+        0.2,
+        0.06,
+      ])
+  }
   if (isSpeciesMode(options.mode)) {
     const legend = speciesLegend(options)
     const colour = legend.categorical

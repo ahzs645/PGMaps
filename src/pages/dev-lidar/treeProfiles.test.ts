@@ -1,10 +1,7 @@
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import proj4 from 'proj4'
 import { describe, expect, it } from 'vitest'
 import { METRIC_CRS } from './sourceGrids'
 import type { TreeCrop } from './treeIsolation'
-import { TreeProfilePanel } from './TreeProfilePanel'
 import { canPinProfile, prepareTreeProfile, profileHorizontal, profileScale, treeProfilesSVG } from './treeProfiles'
 
 const metricCentre = [511819.5, 5971123.5]
@@ -88,36 +85,21 @@ describe('observed tree side profiles', () => {
     const large = { ...p, crop: { ...crop, points: Array(150001).fill(crop.points[0]) } }
     expect(canPinProfile([], large)).toBe(false)
   })
+  it('exports manual group colours and point size with review assignments in figure metadata', () => {
+    const p = prepareTreeProfile(crop)
+    const svg = treeProfilesSVG([p], 45, false, {
+      settings: { colour: 'segment', pointSize: 2 },
+      assignments: { '0-0-0-0:0': '0' },
+    })
+    expect(svg).toContain('stroke="#a3a3a3"')
+    expect(svg).toContain('stroke-width="4"')
+    expect(svg).toContain('manual candidate groups')
+    expect(svg.match(/h0\.01/g)).toHaveLength(2)
+  })
   it('keeps empty or wholly excluded crops finite', () => {
     const p = prepareTreeProfile({ ...crop, points: [] })
     expect(p.points).toEqual([])
     expect(treeProfilesSVG([p], 0)).toContain('No eligible returns')
     expect(treeProfilesSVG([p], 0)).not.toMatch(/NaN|Infinity/)
-  })
-  it('renders the real profile, rotation, comparison and export controls through the shared panel', () => {
-    const html = renderToStaticMarkup(
-      createElement(TreeProfilePanel, {
-        crop,
-        sourceHash: crop.source_sha256,
-        selectedId: crop.id,
-        loading: false,
-        onLoad: () => {},
-      }),
-    )
-    for (const label of [
-      'Tree side profiles',
-      'Tree profile rotation',
-      'Pin for comparison',
-      'Download profiles SVG',
-      'Fullscreen Tree side profiles',
-      'Partial crop',
-      'Height above terrain (m)',
-    ])
-      expect(html).toContain(label)
-    const unavailable = renderToStaticMarkup(
-      createElement(TreeProfilePanel, { crop, sourceHash: 'different', loading: false, onLoad: () => {} }),
-    )
-    expect(unavailable).not.toContain('Tree candidate side profiles · shared metre scale')
-    expect(unavailable).toContain('Load selected tree profile')
   })
 })

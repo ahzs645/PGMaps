@@ -1,7 +1,14 @@
 import { useTreeIsolation, useTreeCrop } from './useTreeIsolation'
 import { treeFeatures } from './treeIsolation'
+import type { IsolatedPoint } from './treeIsolation'
+import type { ElevationProfile } from 'maplibre-gl-lidar'
+import { useTreeInspection } from './useTreeInspection'
+import { inProfile, pointKey, sliceOverlay, revealCrown } from './treeInspection'
+import { TreeInspector } from './TreeInspector'
+import { NativeTransect, type TransectControl } from './NativeTransect'
+import { TreeBenchmarks, type BenchmarkPreview } from './TreeBenchmarks'
 import { isSpeciesMode, speciesLegend, SPECIES_COLOURS } from './species'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
@@ -72,6 +79,17 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [analysisOptions, setAnalysisOptions] = useState(INITIAL_ANALYSIS)
   const [workflowsRequested, setWorkflowsRequested] = useState(false)
   const [meshVisible, setMeshVisible] = useState(true)
+  const [pickedReturn, setPickedReturn] = useState<IsolatedPoint | null>(null)
+  const [transectControl, setTransectControl] = useState<TransectControl>({ active: false, width: 2, revision: 0 })
+  const [transectProfile, setTransectProfile] = useState<ElevationProfile | null>(null)
+  const [benchmarkPreview, setBenchmarkPreview] = useState<BenchmarkPreview | null>(null)
+  const [inspectorWidth, setInspectorWidth] = useState(44)
+  const [treeView, setTreeView] = useState<'top' | '3d'>('top')
+  const focusBenchmark = useCallback((centre: [number, number], ground: number) => {
+    setSceneGround(ground)
+    setCloud(false)
+    setFocus((p) => ({ index: -1, revision: p.revision + 1, center: centre, zoom: 19 }))
+  }, [])
   const workflowProducts = useWorkflowData(
     workflowsRequested && analysisOptions.mode !== 'trees',
     analysisBase,
@@ -104,11 +122,52 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const treeCrop = useTreeCrop(
     treeProduct.data,
     selectedCrown,
-    analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints,
+    analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints && !transectControl.active,
     analysisBase,
     new URL('ept.json', cloudBase).href,
   )
   const activeTreeCrop = treeCrop.crop?.id === selectedCrown?.properties.id ? treeCrop.crop : null
+  const inspection = useTreeInspection(
+    treeProduct.data,
+    activeTreeCrop,
+    analysisBase,
+    new URL('ept.json', cloudBase).href,
+  )
+  const visibleTreeCrop = useMemo(
+    () =>
+      activeTreeCrop
+        ? {
+            ...activeTreeCrop,
+            points: activeTreeCrop.points.filter((p) =>
+              inProfile(p, activeTreeCrop, inspection.state.settings, inspection.state.assignments),
+            ),
+          }
+        : null,
+    [activeTreeCrop, inspection.state.settings, inspection.state.assignments],
+  )
+  const cutOverlay = useMemo(
+    () => sliceOverlay(activeTreeCrop, inspection.state.settings),
+    [
+      activeTreeCrop,
+      inspection.state.settings.mode,
+      inspection.state.settings.angle,
+      inspection.state.settings.width,
+      inspection.state.settings.offset,
+    ],
+  )
+  useEffect(() => {
+    if (analysisOptions.mode !== 'trees' || !selectedCrown || transectControl.active || !analysisOptions.treeShowPoints)
+      return
+    setSceneGround(selectedCrown.properties.ground_m)
+    setCloud(false)
+    setSurfaceVisible(false)
+    setFocus((previous) => ({
+      index: -1,
+      revision: previous.revision + 1,
+      center: selectedCrown.properties.centre,
+      zoom: treeView === '3d' ? 19 : 20,
+    }))
+  }, [analysisOptions.mode, selectedCrown, transectControl.active, analysisOptions.treeShowPoints])
   const model = useMemo(() => {
     const records = workflowProducts.data?.models.records
     if (!records?.length) return null
@@ -204,7 +263,14 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const startAnalysis = (mode: AnalysisMode) => {
     const preset = ANALYSIS_MODES.find((item) => item.id === mode)!
     setWorkflowsRequested(true)
-    setAnalysisOptions((previous) => ({ ...previous, mode, selectedId: null }))
+    setAnalysisOptions((previous) => ({
+      ...previous,
+      mode,
+      selectedId: null,
+      treeShowPoints: mode === 'trees',
+      treeOnlySelected: false,
+    }))
+    setTransectControl((previous) => ({ ...previous, active: false }))
     const presentation = analysisPresentation(mode)
     setBasemap(presentation.basemap)
     setLabels(presentation.labels)
@@ -227,9 +293,23 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
     if (isMobile) setPanelOpen(false)
   }
   const selectWorkflow = (id: string) => {
-    setAnalysisOptions((previous) => ({ ...previous, selectedId: id }))
+    const restoreCrown =
+      analysisOptions.mode === 'trees' ? treeProduct.data?.crowns.features.find((f) => f.properties.id === id) : null
+    setAnalysisOptions((previous) =>
+      restoreCrown
+        ? revealCrown(previous, restoreCrown)
+        : {
+            ...previous,
+            selectedId: id,
+            ...(previous.mode === 'trees' ? { treeShowPoints: true, treeOnlySelected: false } : {}),
+          },
+    )
     const selectedModel = workflowProducts.data?.models.records.find((row) => row.id === id)
-    const feature = workflowRows.find((row) => row.properties.id === id)
+    const feature =
+      workflowRows.find((row) => row.properties.id === id) ??
+      (restoreCrown
+        ? { ...restoreCrown, properties: { ...restoreCrown.properties, focus: restoreCrown.properties.centre } }
+        : null)
     if (analysisOptions.mode === 'models' && selectedModel) {
       setSceneGround(selectedModel.ground_m)
       setFocus((previous) => ({ index: -1, revision: previous.revision + 1, center: selectedModel.centre, zoom: 19 }))
@@ -533,66 +613,73 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 aria-labelledby="lidar-tab-analysis"
                 hidden={tab !== 'analysis'}
               >
-                <WorkflowPanel
-                  treeProduct={{
-                    ...treeProduct,
-                    crop: activeTreeCrop,
-                    cropError: treeCrop.error,
-                    cropStatus: treeCrop.status,
-                    retryCrop: treeCrop.retry,
-                  }}
-                  selectedCrown={selectedCrown}
-                  onIsolateTree={() => {
-                    if (!selectedCrown) return
-                    setCloud(false)
-                    setSurfaceVisible(false)
-                    setAnalysisOptions((previous) => ({ ...previous, treeShowPoints: true, treeOnlySelected: true }))
-                    setSceneGround(selectedCrown.properties.ground_m)
-                    setFocus((previous) => ({
-                      index: -1,
-                      revision: previous.revision + 1,
-                      center: selectedCrown.properties.centre,
-                      zoom: 20,
-                    }))
-                  }}
-                  onAllTrees={() => {
-                    setAnalysisOptions((previous) => ({ ...previous, treeShowPoints: false, treeOnlySelected: false }))
-                    go(-1)
-                  }}
-                  data={workflowProducts.data}
-                  error={workflowProducts.error}
-                  retry={workflowProducts.retry}
-                  options={analysisOptions}
-                  features={workflowRows}
-                  selected={selectedWorkflow}
-                  model={model}
-                  meshVisible={meshVisible}
-                  onMeshVisible={setMeshVisible}
-                  onMode={startAnalysis}
-                  onOptions={(patch) => setAnalysisOptions((previous) => ({ ...previous, ...patch }))}
-                  onSelect={selectWorkflow}
-                  onForestPoints={(plot) => {
-                    setCloud(true)
-                    setSurfaceVisible(false)
-                    setToolsOpen(true)
-                    setSceneGround(plot.ground_m)
-                    const feature = workflowRows.find((row) => row.properties.id === plot.id)
-                    if (feature)
+                {showPanel && tab === 'analysis' && (
+                  <WorkflowPanel
+                    treeProduct={{
+                      ...treeProduct,
+                      crop: activeTreeCrop,
+                      cropError: treeCrop.error,
+                      cropStatus: treeCrop.status,
+                      retryCrop: treeCrop.retry,
+                    }}
+                    selectedCrown={selectedCrown}
+                    onIsolateTree={() => {
+                      if (!selectedCrown) return
+                      setCloud(false)
+                      setSurfaceVisible(false)
+                      setTransectControl((previous) => ({ ...previous, active: false }))
+                      setAnalysisOptions((previous) => ({ ...previous, treeShowPoints: true, treeOnlySelected: false }))
+                      setSceneGround(selectedCrown.properties.ground_m)
                       setFocus((previous) => ({
                         index: -1,
                         revision: previous.revision + 1,
-                        center: featureCentre(feature),
-                        zoom: 18,
+                        center: selectedCrown.properties.centre,
+                        zoom: 20,
                       }))
-                    if (isMobile) setPanelOpen(false)
-                  }}
-                  onPoints={() => {
-                    setCloud(true)
-                    setToolsOpen(true)
-                    if (model) setSceneGround(model.ground_m)
-                    if (isMobile) setPanelOpen(false)
-                  }}
-                />
+                    }}
+                    onAllTrees={() => {
+                      setAnalysisOptions((previous) => ({
+                        ...previous,
+                        treeShowPoints: false,
+                        treeOnlySelected: false,
+                      }))
+                      go(-1)
+                    }}
+                    data={workflowProducts.data}
+                    error={workflowProducts.error}
+                    retry={workflowProducts.retry}
+                    options={analysisOptions}
+                    features={workflowRows}
+                    selected={selectedWorkflow}
+                    model={model}
+                    meshVisible={meshVisible}
+                    onMeshVisible={setMeshVisible}
+                    onMode={startAnalysis}
+                    onOptions={(patch) => setAnalysisOptions((previous) => ({ ...previous, ...patch }))}
+                    onSelect={selectWorkflow}
+                    onForestPoints={(plot) => {
+                      setCloud(true)
+                      setSurfaceVisible(false)
+                      setToolsOpen(true)
+                      setSceneGround(plot.ground_m)
+                      const feature = workflowRows.find((row) => row.properties.id === plot.id)
+                      if (feature)
+                        setFocus((previous) => ({
+                          index: -1,
+                          revision: previous.revision + 1,
+                          center: featureCentre(feature),
+                          zoom: 18,
+                        }))
+                      if (isMobile) setPanelOpen(false)
+                    }}
+                    onPoints={() => {
+                      setCloud(true)
+                      setToolsOpen(true)
+                      if (model) setSceneGround(model.ground_m)
+                      if (isMobile) setPanelOpen(false)
+                    }}
+                  />
+                )}
               </div>
               <div
                 id="lidar-panel-results"
@@ -629,19 +716,54 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
             </MapSidebarShell>
           </aside>
           <FullscreenPanel
-            title={analysisOptions.mode === 'models' ? 'Experimental 3D model' : cloud ? '3D LiDAR' : 'Processed map'}
+            title={
+              analysisOptions.mode === 'trees'
+                ? 'Linked tree workspace'
+                : analysisOptions.mode === 'models'
+                  ? 'Experimental 3D model'
+                  : cloud
+                    ? '3D LiDAR'
+                    : 'Processed map'
+            }
             compact
             dialogOptions={{ onOpenEffect: () => undefined }}
             className="order-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 p-0 md:order-2 [&>div:first-child]:mb-0 [&>div:first-child]:shrink-0 [&>div:first-child]:border-b [&>div:first-child]:px-2 [&>div:first-child]:py-1 max-sm:[&>div:first-child>h2]:sr-only [&[data-fullscreen]]:overflow-hidden [&[data-fullscreen]]:p-0"
             actions={
               <>
                 <SegmentedControl
-                  value={cloud ? 'cloud' : 'processed'}
-                  options={[
-                    { value: 'processed', label: 'Layers' },
-                    { value: 'cloud', label: '3D LiDAR' },
-                  ]}
+                  value={
+                    analysisOptions.mode === 'trees' && !transectControl.active
+                      ? treeView
+                      : cloud
+                        ? 'cloud'
+                        : 'processed'
+                  }
+                  options={
+                    analysisOptions.mode === 'trees' && !transectControl.active
+                      ? [
+                          { value: 'top', label: 'Top map' },
+                          { value: '3d', label: '3D points' },
+                        ]
+                      : [
+                          { value: 'processed', label: 'Layers' },
+                          { value: 'cloud', label: '3D LiDAR' },
+                        ]
+                  }
                   onChange={(value) => {
+                    if (value === 'top' || value === '3d') {
+                      setTreeView(value)
+                      const centre = benchmarkPreview?.crop.centre ?? selectedCrown?.properties.centre
+                      if (centre)
+                        setFocus((p) => ({
+                          index: -1,
+                          revision: p.revision + 1,
+                          center: centre,
+                          zoom: value === '3d' ? 19 : 20,
+                        }))
+                      setCloud(false)
+                      setSurfaceVisible(false)
+                      return
+                    }
                     setCloud(value === 'cloud')
                     if (value === 'processed' && !isHeatmapMode(analysisOptions.mode)) setSurfaceVisible(true)
                   }}
@@ -684,42 +806,133 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 >
                   <Crosshair className="size-4" />
                 </Button>
+                {analysisOptions.mode === 'trees' && (
+                  <label className="hidden items-center gap-1 text-[10px] lg:flex">
+                    Inspector width
+                    <input
+                      aria-label="Inspector pane width"
+                      className="w-20"
+                      type="range"
+                      min={32}
+                      max={65}
+                      step={1}
+                      value={inspectorWidth}
+                      onChange={(e) => setInspectorWidth(+e.target.value)}
+                    />
+                  </label>
+                )}
               </>
             }
           >
             {() => (
               <>
-                <div className="relative min-h-0 flex-1 overflow-hidden">
-                  <NativeLidarMap
-                    treeCrop={
-                      analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints ? activeTreeCrop : null
-                    }
-                    heatmaps={workflowProducts.data?.heatmaps ?? null}
-                    workflowOptions={analysisOptions}
-                    workflowFeatures={workflowRows}
-                    selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
-                    onWorkflowSelect={selectWorkflow}
-                    buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
-                    modelActive={analysisOptions.mode === 'models'}
-                    summary={summary}
-                    analysisBase={analysisBase}
-                    cloudUrl={new URL('ept.json', cloudBase).href}
-                    raster={raster}
-                    trees={trees}
-                    buildings={buildings}
-                    reference={reference}
-                    cloud={cloud}
-                    minTreeHeight={minTreeHeight}
-                    focus={focus}
-                    color={color}
-                    toolsOpen={toolsOpen}
-                    onToolsOpenChange={setToolsOpen}
-                    basemap={basemap}
-                    surfaceVisible={surfaceVisible}
-                    surfaceOpacity={surfaceOpacity}
-                    labels={labels}
-                    sceneGround={sceneGround}
-                  />
+                <div
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row"
+                  style={{ '--tree-pane': `${inspectorWidth}%` } as React.CSSProperties}
+                >
+                  <div className="relative min-h-[25dvh] flex-1 overflow-hidden lg:min-w-[200px]">
+                    <NativeLidarMap
+                      treeCrop={
+                        analysisOptions.mode === 'trees' &&
+                        !transectControl.active &&
+                        !cloud &&
+                        analysisOptions.treeShowPoints
+                          ? (benchmarkPreview?.crop ?? visibleTreeCrop)
+                          : null
+                      }
+                      inspectionView={
+                        analysisOptions.mode === 'trees' ? (transectControl.active ? 'top' : treeView) : undefined
+                      }
+                      pointStatus={
+                        benchmarkPreview
+                          ? 'Deterministic benchmark display sample · method A · grey points unassigned'
+                          : undefined
+                      }
+                      pointAppearance={{
+                        picked: pickedReturn ? pointKey(pickedReturn) : null,
+                        assignments: benchmarkPreview?.assignments ?? inspection.state.assignments,
+                        colour: benchmarkPreview ? 'segment' : inspection.state.settings.colour,
+                        pointSize: inspection.state.settings.pointSize,
+                      }}
+                      inspectionOverlay={
+                        analysisOptions.mode === 'trees' && !transectControl.active
+                          ? (benchmarkPreview?.features ?? cutOverlay)
+                          : null
+                      }
+                      pickedReturn={analysisOptions.mode === 'trees' ? pickedReturn : null}
+                      transectControl={analysisOptions.mode === 'trees' ? transectControl : undefined}
+                      onTransectProfile={setTransectProfile}
+                      heatmaps={workflowProducts.data?.heatmaps ?? null}
+                      workflowOptions={analysisOptions}
+                      workflowFeatures={analysisOptions.mode === 'trees' && benchmarkPreview ? [] : workflowRows}
+                      selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
+                      onWorkflowSelect={selectWorkflow}
+                      buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
+                      modelActive={analysisOptions.mode === 'models'}
+                      summary={summary}
+                      analysisBase={analysisBase}
+                      cloudUrl={new URL('ept.json', cloudBase).href}
+                      raster={raster}
+                      trees={trees}
+                      buildings={buildings}
+                      reference={reference}
+                      cloud={cloud}
+                      minTreeHeight={minTreeHeight}
+                      focus={focus}
+                      color={color}
+                      toolsOpen={toolsOpen}
+                      onToolsOpenChange={setToolsOpen}
+                      basemap={basemap}
+                      surfaceVisible={surfaceVisible}
+                      surfaceOpacity={surfaceOpacity}
+                      labels={labels}
+                      sceneGround={sceneGround}
+                    />
+                  </div>
+                  {analysisOptions.mode === 'trees' && (
+                    <div className="h-[52%] min-h-0 shrink-0 lg:h-full lg:w-[var(--tree-pane)]">
+                      <TreeInspector
+                        isMobile={isMobile}
+                        controller={inspection}
+                        crop={activeTreeCrop}
+                        crown={selectedCrown}
+                        ids={workflowRows.map((f) => f.properties.id)}
+                        error={treeProduct.error || treeCrop.error}
+                        status={
+                          analysisOptions.treeShowPoints
+                            ? treeCrop.status
+                            : 'Select a crown on the map or list to load its original returns.'
+                        }
+                        onSelect={selectWorkflow}
+                        onRetry={treeProduct.error ? treeProduct.retry : treeCrop.retry}
+                        picked={pickedReturn}
+                        onPick={setPickedReturn}
+                        onTransect={(active) => {
+                          setTransectControl((s) => ({ ...s, active }))
+                          setCloud(active)
+                          if (active) setSceneGround(null)
+                        }}
+                        transect={
+                          <NativeTransect
+                            profile={transectProfile}
+                            data={treeProduct.data}
+                            base={analysisBase}
+                            control={transectControl}
+                            onControl={setTransectControl}
+                          />
+                        }
+                        benchmark={
+                          <TreeBenchmarks
+                            source={treeProduct.data}
+                            onPreview={setBenchmarkPreview}
+                            onPick={setPickedReturn}
+                            picked={pickedReturn}
+                            onFocus={focusBenchmark}
+                          />
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
                 {legend && (
                   <div

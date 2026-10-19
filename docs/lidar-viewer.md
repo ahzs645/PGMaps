@@ -245,3 +245,9 @@ spread field-check shortlist. [Methods, findings, metric definitions and reruns]
 describe the actual 82.6 million accepted returns and the evidence needed for
 forest boundaries, inventory modelling and change detection. The workflow
 selector keeps navigation compact, with legends visible below the map.
+
+## Linked tree inspection and segmentation comparisons
+
+The tree workflow keeps map and profile visible together, with top/3D views, thin slices, original-return picking, persistent comparisons, reversible point-group review/editing and native GeoLibre transects. The Methods tab compares twelve actual watershed/lidR/PointTree runs on three buffered plots with preserved unassigned returns and source-bound exports. See [the inspector guide](research/lidar-linked-tree-inspector.md) and [benchmark methods/results](research/lidar-segmentation-benchmarks.md).
+
+The linked-inspector implementation now has a repeatable real-source Chromium acceptance check (`npm run lidar:inspector:browser`). It covers actual pointer picking, PNG download, saved review/comparisons, method switching, GeoLibre transect drawing, and desktop/phone viewport bounds. This supersedes earlier browser-tool availability limits for those paths; it does not validate forest/building identity or field accuracy.
