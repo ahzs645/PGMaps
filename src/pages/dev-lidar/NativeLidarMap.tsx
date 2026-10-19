@@ -9,6 +9,14 @@ import { applyAnalysisLayers, applyPointCloudVisibility } from './mapLayers'
 import { installWorkflowLayers, applyWorkflowLayers, WORKFLOW_LAYERS } from './workflowMapLayers'
 import { buildingMeshLayer } from './buildingMesh'
 import type { BuildingModel, WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
+import {
+  installCanopyHeatmaps,
+  applyCanopyHeatmaps,
+  isHeatmapMode,
+  heatmapKey,
+  sampleHeatmap,
+  type CanopyHeatmaps,
+} from './canopyHeatmaps'
 import { sceneOffset } from './roofInspection'
 import {
   applyBasemap,
@@ -21,6 +29,7 @@ import {
 } from './basemaps'
 
 interface Props {
+  heatmaps: CanopyHeatmaps | null
   workflowOptions: WorkflowOptions
   workflowFeatures: WorkflowFeature[]
   selectedWorkflowId: string | null
@@ -273,7 +282,17 @@ export function NativeLidarMap(props: Props) {
         content.append(title, detail)
         new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(content).addTo(instance)
       }
-      if (samples) {
+      if (isHeatmapMode(latest.current.workflowOptions.mode) && latest.current.heatmaps) {
+        const options = latest.current.workflowOptions
+        const value = sampleHeatmap(latest.current.heatmaps, heatmapKey(options), event.lngLat.lng, event.lngLat.lat)
+        setHeight(
+          value === null
+            ? 'No supported heatmap value here · masked or insufficient coverage'
+            : options.mode === 'canopy-height'
+              ? `≈${value.toFixed(0)} m above terrain · heatmap display sample`
+              : `≈${value.toFixed(0)}% canopy cover >${options.threshold} m · 21 m window`,
+        )
+      } else if (samples) {
         const value = heightAtLocation(samples, props.summary.sample_grid, event.lngLat.lng, event.lngLat.lat)
         setHeight(
           value !== null
@@ -317,6 +336,13 @@ export function NativeLidarMap(props: Props) {
     if (!ready || !map.current) return
     applyWorkflowLayers(map.current, props.workflowOptions, props.workflowFeatures, props.selectedWorkflowId)
   }, [ready, props.workflowOptions, props.workflowFeatures, props.selectedWorkflowId])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!ready || !instance) return
+    if (props.heatmaps) installCanopyHeatmaps(instance, props.heatmaps)
+    applyCanopyHeatmaps(instance, props.workflowOptions)
+  }, [ready, props.heatmaps, props.workflowOptions])
 
   useEffect(() => {
     const instance = map.current
@@ -385,10 +411,19 @@ export function NativeLidarMap(props: Props) {
         ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
         : props.modelActive
           ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
-          : 'Processed layers · click to sample height',
+          : isHeatmapMode(props.workflowOptions.mode)
+            ? 'Canopy heatmap · click map to inspect height or cover'
+            : 'Processed layers · click to sample height',
     )
     map.current?.easeTo({ pitch: props.cloud || props.modelActive ? 50 : 0, duration: 700 })
-  }, [ready, props.cloud, props.modelActive, props.sceneGround])
+  }, [
+    ready,
+    props.cloud,
+    props.modelActive,
+    props.sceneGround,
+    props.workflowOptions.mode,
+    props.workflowOptions.threshold,
+  ])
 
   useEffect(() => {
     if (!ready || !map.current) return

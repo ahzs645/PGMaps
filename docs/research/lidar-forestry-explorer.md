@@ -126,3 +126,44 @@ Field plots could calibrate stocking, species or volume models. A second dated,
 co-registered point cloud could support height/gap change; acquisition differences
 would require explicit controls. Those inputs add evidence that cannot be
 recovered reliably from this single unclassified tile alone.
+
+## Canopy height and density heatmaps
+
+The workflow selector also offers `?view=canopy-height` and
+`?view=canopy-density`. These are continuous colour raster previews rather than
+coloured 50 m plot squares. A shared five-stop ramp runs purple/blue → teal →
+yellow → red. Height uses 0/10/20/30/40 m stops, clipping colour above 40 m while
+retaining source/sample heights. Density uses 0/25/50/75/100% stops. Legends
+appear in the panel and map footer; opacity and the toolbar eye affect the
+active heatmap. Context can be Vector, Satellite or None.
+
+Density means **surface canopy cover**, not stem density or point density:
+count eligible 1 m cells above 2 m or 5 m in a 21×21 m square and divide by
+eligible cells in that square. Require at least 80% of the square to be eligible.
+Known roof patches plus 2 m and missing terrain are excluded, including as
+window centres. Missing/excluded cells remain transparent, never zero canopy.
+Unrecognized structures can remain. Height uses the same eligible normalized
+height surface, including low vegetation/open surfaces.
+
+`scripts/lidar/heatmaps.py` generates three PNGs and byte display samples inside
+the bounded `heatmaps.generated.json` text snapshot. Inputs are hashed. Previews
+use nearest source-grid samples on a 6 m Web Mercator display grid (about 3.5 m
+on the ground here); no-data masks are preserved. Raster rendering uses nearest
+colour sampling, avoiding artificial colours through transparent gaps. Click
+values are labelled approximate and rounded to whole metres/percent: the display
+quantization is 80/254 m for height and 100/254 percentage points for cover;
+source grids retain their original values. Coloured PNG downloads are previews,
+not georeferenced numerical rasters.
+
+```sh
+python scripts/lidar/heatmaps.py \
+  --analysis public/data/lidar-analysis/bc-093g086 \
+  --output src/pages/dev-lidar/heatmaps.generated.json
+python scripts/lidar/validate_heatmaps.py \
+  --analysis public/data/lidar-analysis/bc-093g086
+```
+
+Validation checks input hashes, PNG/sample grid dimensions, threshold nesting,
+colour endpoints/clipping, strict threshold comparisons, coverage denominators,
+missing/zero distinctions, idempotent layer installation, opacity and workflow
+transitions. Browser/WebGL visual acceptance remains unperformed.

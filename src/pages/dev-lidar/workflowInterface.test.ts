@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { isHeatmapMode, type CanopyHeatmaps } from './canopyHeatmaps'
 import { isForestMode, type ForestData } from './forestry'
 import { WorkflowPanel } from './WorkflowPanel'
 import {
@@ -18,6 +19,7 @@ vi.mock('@/components/ui/virtual-result-list', () => ({
     createElement('div', null, ...(items.slice(0, 2).map(children) as never[])),
 }))
 const data = {
+  heatmaps: JSON.parse(readFileSync(new URL('./heatmaps.generated.json', import.meta.url), 'utf8')) as CanopyHeatmaps,
   forestry: JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData,
   workflows: JSON.parse(readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8')) as WorkflowData,
   models: JSON.parse(readFileSync(new URL('./models.generated.json', import.meta.url), 'utf8')) as ModelData,
@@ -51,14 +53,20 @@ describe('workflow interface rendering', () => {
       for (const label of ANALYSIS_MODES.map((item) => item.label)) expect(html).toContain(label.replace(/&/g, '&amp;'))
       expect(html).toContain('Reproduce &amp; download')
       expect(html).toContain('Roofer CityJSONSequence')
-      if (isForestMode(mode.id)) {
+      if (isHeatmapMode(mode.id)) {
+        expect(html).toContain('Canopy heatmap opacity')
+        expect(html).toContain('Canopy heatmap colour legend')
+        expect(html).toContain('Download coloured PNG')
+        expect(html).toContain(mode.id === 'canopy-height' ? '40 m' : 'Canopy density threshold')
+        expect(html.replace(/<[^>]*>/g, '')).not.toContain('NaN')
+      } else if (isForestMode(mode.id)) {
         expect(html).toContain('Vertical return fingerprint')
         expect(html).toContain('Pin as comparison B')
         expect(html).toContain('Download field-check CSV')
         expect(html).toContain('Inspect 3D points')
         expect(html).toContain(features[0].properties.id)
         expect(html).not.toContain('undefined')
-        expect(html).not.toContain('NaN')
+        expect(html.replace(/<[^>]*>/g, '')).not.toContain('NaN')
       } else if (mode.id === 'models') {
         expect(html).toContain('Review decision')
         expect(html).toContain('Review notes')

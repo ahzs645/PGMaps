@@ -16,12 +16,14 @@ import {
   type WorkflowFeature,
   type WorkflowOptions,
 } from './analysisWorkflows'
+import { CanopyHeatmapPanel } from './CanopyHeatmapPanel'
+import { isHeatmapMode, type CanopyHeatmaps } from './canopyHeatmaps'
 import { ForestryPanel } from './ForestryPanel'
 import { isForestMode, type ForestData, type ForestProperties } from './forestry'
 import { cityJsonUrl, modelUrl, workflowUrl, forestUrl } from './useWorkflowData'
 
 interface Props {
-  data: { workflows: WorkflowData; models: ModelData; forestry: ForestData } | null
+  data: { workflows: WorkflowData; models: ModelData; forestry: ForestData; heatmaps: CanopyHeatmaps } | null
   error: string
   retry: () => void
   options: WorkflowOptions
@@ -109,14 +111,14 @@ export function WorkflowPanel(props: Props) {
               Choose an analysis…
             </option>
             <optgroup label="Forestry lab">
-              {ANALYSIS_MODES.filter((item) => isForestMode(item.id)).map((item) => (
+              {ANALYSIS_MODES.filter((item) => isForestMode(item.id) || isHeatmapMode(item.id)).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Gaps, plots & structures">
-              {ANALYSIS_MODES.filter((item) => !isForestMode(item.id)).map((item) => (
+              {ANALYSIS_MODES.filter((item) => !isForestMode(item.id) && !isHeatmapMode(item.id)).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -138,6 +140,9 @@ export function WorkflowPanel(props: Props) {
           </Button>
         )}
       </SidebarSection>
+      {data && isHeatmapMode(options.mode) && (
+        <CanopyHeatmapPanel data={data.heatmaps} options={options} onOptions={props.onOptions} onMode={props.onMode} />
+      )}
       {data && isForestMode(options.mode) && (
         <ForestryPanel
           data={data.forestry}
@@ -149,7 +154,7 @@ export function WorkflowPanel(props: Props) {
           onPoints={props.onForestPoints}
         />
       )}
-      {data && options.mode && !isForestMode(options.mode) && (
+      {data && options.mode && !isForestMode(options.mode) && !isHeatmapMode(options.mode) && (
         <>
           <SidebarSection title={mode?.label} subtitle={mode?.note}>
             {(options.mode === 'gaps' || options.mode === 'clearance') && (

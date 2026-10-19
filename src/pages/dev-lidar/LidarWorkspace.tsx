@@ -17,6 +17,7 @@ import { REVIEW_WORKFLOWS, type ReviewWorkflow } from './reviewWorkflows'
 import { RoofInspectionPanel } from './RoofInspectionPanel'
 import { defaultRoofOrigin, roofCentre, type RoofFeature, type RoofInspection } from './roofInspection'
 
+import { isHeatmapMode, heatmapLegend } from './canopyHeatmaps'
 import { isForestMode, FOREST_PALETTES } from './forestry'
 import { WorkflowPanel } from './WorkflowPanel'
 import { useWorkflowData } from './useWorkflowData'
@@ -231,7 +232,17 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       setWorkflowsRequested(true)
     }
   }, [summary])
-  const forestLegend = isForestMode(analysisOptions.mode) ? FOREST_PALETTES[analysisOptions.mode] : null
+  const displayedSurface = isHeatmapMode(analysisOptions.mode) ? analysisOptions.heatOpacity > 0 : surfaceVisible
+  const toggleDisplayedSurface = () => {
+    if (isHeatmapMode(analysisOptions.mode))
+      setAnalysisOptions((previous) => ({ ...previous, heatOpacity: previous.heatOpacity > 0 ? 0 : 0.8 }))
+    else setSurfaceVisible((previous) => !previous)
+  }
+  const forestLegend = isHeatmapMode(analysisOptions.mode)
+    ? heatmapLegend(analysisOptions)
+    : isForestMode(analysisOptions.mode)
+      ? FOREST_PALETTES[analysisOptions.mode]
+      : null
   const legend = summary?.rasters[raster]
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -565,22 +576,22 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                   ]}
                   onChange={(value) => {
                     setCloud(value === 'cloud')
-                    if (value === 'processed') setSurfaceVisible(true)
+                    if (value === 'processed' && !isHeatmapMode(analysisOptions.mode)) setSurfaceVisible(true)
                   }}
                   label="Map display"
                   size="sm"
                   fullWidth={false}
                 />
                 <Button
-                  variant={surfaceVisible ? 'secondary' : 'ghost'}
+                  variant={displayedSurface ? 'secondary' : 'ghost'}
                   size="icon"
                   className="size-8"
-                  title={surfaceVisible ? 'Hide processed surface' : 'Show processed surface'}
-                  aria-label={surfaceVisible ? 'Hide processed surface' : 'Show processed surface'}
-                  aria-pressed={surfaceVisible}
-                  onClick={() => setSurfaceVisible((visible) => !visible)}
+                  title={displayedSurface ? 'Hide processed surface' : 'Show processed surface'}
+                  aria-label={displayedSurface ? 'Hide processed surface' : 'Show processed surface'}
+                  aria-pressed={displayedSurface}
+                  onClick={toggleDisplayedSurface}
                 >
-                  {surfaceVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                  {displayedSurface ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                 </Button>
                 <Button
                   variant={toolsOpen && cloud ? 'secondary' : 'ghost'}
@@ -613,6 +624,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
               <>
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <NativeLidarMap
+                    heatmaps={workflowProducts.data?.heatmaps ?? null}
                     workflowOptions={analysisOptions}
                     workflowFeatures={workflowRows}
                     selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
@@ -667,9 +679,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                               <span>{forestLegend.min}</span>
                               <span>
                                 {forestLegend.max}
-                                {analysisOptions.mode === 'texture'
+                                {analysisOptions.mode === 'texture' || analysisOptions.mode === 'canopy-height'
                                   ? ' m'
-                                  : analysisOptions.mode === 'edges'
+                                  : analysisOptions.mode === 'edges' || analysisOptions.mode === 'canopy-density'
                                     ? '%'
                                     : ''}
                               </span>

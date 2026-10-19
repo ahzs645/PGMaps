@@ -2,8 +2,18 @@ import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { forestFeatures, isForestMode, type ForestData, type ReturnMode } from './forestry'
 import type { Basemap } from './basemaps'
 
-export type AnalysisMode = 'gaps' | 'plots' | 'clearance' | 'models' | 'strata' | 'texture' | 'edges'
+export type AnalysisMode =
+  | 'gaps'
+  | 'plots'
+  | 'clearance'
+  | 'models'
+  | 'strata'
+  | 'texture'
+  | 'edges'
+  | 'canopy-height'
+  | 'canopy-density'
 export interface WorkflowOptions {
+  heatOpacity: number
   returnMode: ReturnMode
   canopyMinimum: number
   edgeDistance: 10 | 20 | 30
@@ -17,6 +27,7 @@ export interface WorkflowOptions {
   selectedId: string | null
 }
 export const INITIAL_ANALYSIS: WorkflowOptions = {
+  heatOpacity: 0.8,
   returnMode: 'all',
   canopyMinimum: 40,
   edgeDistance: 20,
@@ -95,6 +106,18 @@ export interface ModelData {
   limitations: string[]
 }
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string; basemap: Basemap; note: string }[] = [
+  {
+    id: 'canopy-height',
+    label: 'Canopy height heatmap',
+    basemap: 'satellite',
+    note: 'Continuous height colours · blue/purple low, yellow/red tall · 0–40+ m above terrain.',
+  },
+  {
+    id: 'canopy-density',
+    label: 'Canopy density heatmap',
+    basemap: 'satellite',
+    note: 'Continuous canopy cover · 0–100% of eligible area above the selected height within 21 m neighbourhoods.',
+  },
   {
     id: 'strata',
     label: 'Vertical layers',
