@@ -92,8 +92,11 @@ self.addEventListener('fetch', (event) => {
 
 async function putResponse(cacheName, request, response) {
   if (!response.ok) return
+  // Navigation returns the original response while this write runs in the
+  // background. Clone before yielding so the browser cannot consume it first.
+  const cachedResponse = response.clone()
   const cache = await caches.open(cacheName)
-  await cache.put(request, response.clone())
+  await cache.put(request, cachedResponse)
 }
 
 async function cacheFirst(request, cacheName) {
