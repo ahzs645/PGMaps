@@ -7,6 +7,11 @@ parser = argparse.ArgumentParser(
     description="Check an original EPT crown-column crop offline; no species or stem inference."
 )
 parser.add_argument("--crown", default="crown-1")
+parser.add_argument(
+    "--output",
+    type=Path,
+    help="Optional original-return TreeCrop JSON for offline profile checks",
+)
 args = parser.parse_args()
 root = Path.cwd()
 d = json.loads((root / "src/pages/dev-lidar/treeIsolation.generated.json").read_text())
@@ -50,6 +55,8 @@ assert (
 metric = Transformer.from_crs(3857, 3157, always_xy=True)
 accepted = 0
 points = 0
+crop_points = []
+geographic = Transformer.from_crs(3857, 4326, always_xy=True)
 with rasterio.open(root / "public/data/lidar-analysis/bc-093g086/dtm-1m.tif") as src:
     dtm = src.read(1)
 for key, n in nodes:
@@ -69,10 +76,54 @@ for key, n in nodes:
         (h >= 2)
         & (h <= 80)
         & ~np.isin(cls, [2, 7, 12, 18])
-        & ~np.asarray(las.withheld)[indexes]
+        & ~np.asarray(las.withheld, dtype=bool)[indexes]
+        & ~(
+            np.asarray(las.overlap, dtype=bool)[indexes]
+            if hasattr(las, "overlap")
+            else np.zeros(len(indexes), dtype=bool)
+        )
     )
     accepted += int(keep.sum())
+    if args.output:
+        selected_indexes = indexes[keep]
+        lon, lat = geographic.transform(
+            np.asarray(las.x)[selected_indexes], np.asarray(las.y)[selected_indexes]
+        )
+        for i, longitude, latitude, height in zip(selected_indexes, lon, lat, h[keep]):
+            i = int(i)
+            crop_points.append(
+                dict(
+                    lon=float(longitude),
+                    lat=float(latitude),
+                    z=float(las.z[i]),
+                    height=float(height),
+                    classification=int(las.classification[i]),
+                    node=key,
+                    index=int(i),
+                )
+            )
 assert accepted > 0
+if args.output:
+    assert len(crop_points) == accepted
+    assert len({(p["node"], p["index"]) for p in crop_points}) == accepted
+    assert all(2 <= p["height"] <= 80 for p in crop_points)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(
+            dict(
+                id=c["id"],
+                points=crop_points,
+                loaded_points=points,
+                loaded_nodes=len(nodes),
+                available_nodes=len(nodes),
+                budget_limited=False,
+                withheld_filtered=True,
+                ground_m=c["ground_m"],
+                centre=c["centre"],
+                source_sha256=d["source_sha256"],
+            )
+        )
+    )
 print(
     json.dumps(
         {

@@ -23,6 +23,23 @@ An offline check for `crown-1` read six intersecting EPT nodes containing 308,05
 
 The offline check expects the prepared EPT tree under `public/data/lidar/bc-093g086` and enforces the same 750,000-input-return cost bound. Source grids/candidate files are verified by deployment; raw LAZ/EPT binaries are not duplicated in Git.
 
+## Observed side profiles
+
+In `?view=trees`, **Tree side profiles → Load selected tree profile** uses the same original-return crop as the native 3D view. Black points on white show an orthographic horizontal-offset/height projection. Rotate the horizontal axis from east–west (0°) to north–south (90°), or switch to height colours. Each point uses its source-DTM-normalized height; this is a terrain-normalized profile, rather than a perspective rendering or constant-elevation cross-section. All depths inside the crown columns are projected; there is no synthetic stem, connecting line, filled silhouette or shape inferred from height.
+
+**Pin for comparison** keeps up to four crops / 150,000 original returns, plus the current selection. Select another crown on the map or list, then load/pin its profile. Expand the shared chart frame to compare a gallery sorted by observed maximum height. Both axes and every candidate use exactly the same metres-to-pixels scale, which stays fixed through rotation. Pins clear when changing workflow or reloading. **Download profiles SVG** exports the same figure with source identity, node coverage, crop flags, viewing angle and method in its metadata. Existing isolated-return CSV exports retain individual point lineage.
+
+The shaded 0–2 m band is deliberately empty because the crop excludes those heights. Airborne scanning can also miss trunks, lower branches and suppressed trees; absent points cannot establish a bare stem, crown-base height or DBH. Projected width is angle-dependent and includes any neighbouring foliage/understory in the crown columns. Profiles help compare observed height/asymmetry and review sparse, merged or structure-like candidates, but do not validate tree identity or species. The `crown-1` offline figure, for example, preserves all 3,122 screened returns and exposes a narrow lattice-like form requiring review as a possible structure. It is not a confirmed tree or confirmed tower classification.
+
+For an independent profile input with original node/point IDs:
+
+```sh
+/path/to/venv/bin/python scripts/lidar/inspect_tree_ept.py \
+  --crown crown-1 --output /tmp/crown-1-original-returns.json
+```
+
+The optional output validates unique node/point identities, the accepted-return count and 2–80 m heights. LAS flag arrays are converted to Boolean before selection, avoiding integer-array indexing of binary flags. The browser still loads its own crop through GeoLibre; no precomputed silhouettes or additional raw-point hosting copies are used.
+
 ## Native canopy-height detail
 
 The previous coloured overview has 6 m Web Mercator pixels, about 3.5 m on the ground at this tile. **Automatic 1 m detail** is enabled by default in the height workflow. At zoom 16 and above, the browser loads the existing `height-1m.tif`, verifies its SHA-256 and grid metadata, and renders its original cells with nearest-neighbour sampling and the same 0–40+ m colour scale. It preserves the overview while detail is loading or unavailable, switches only when the image source is ready, and restores overview coverage when detail is disabled or the map zooms out. No measurements finer than 1 m are synthesized.
@@ -43,5 +60,7 @@ python3 scripts/lidar/validate_tree_detail.py \
 ## Verification and maintenance
 
 The validator checks source/input identities, all crown IDs/metrics against the original candidate product, exact cell counts, nonoverlapping assignments, grid agreement, mask byte/count integrity and agreement with the existing heatmap mask. Tests cover height/area/edge filtering, coordinate conversion, exact membership, bounded crop loading/cancellation, class/height/withheld screening, node-identity exports, finite GPU buffers, real GeoTIFF decoding/NoData/hash rejection and overview/detail transitions. The small tracked TIFF is synthetic test data, not a duplicate of the real source raster.
+
+Profile tests cover the metric projection and rotation, per-return normalized heights, shared undistorted scale, point preservation/exclusions, empty crops, XML-safe self-contained export, bounded same-source pins and rendered inspection/export controls. An actual-source SVG was rasterized and visually inspected separately; this verifies the figure output, not browser interactions or WebGL.
 
 Crown metadata is lazy-loaded only for tree inspection. The real source height/terrain grids are fetched on demand and cached by URL and hash. Individual crown crops use the existing private EPT data route; no new external data service or raw-point hosting copy is introduced. Independent field validation and visual browser/WebGL acceptance remain separate from data, adapter and SSR checks.

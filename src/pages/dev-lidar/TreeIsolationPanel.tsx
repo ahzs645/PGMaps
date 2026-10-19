@@ -5,6 +5,7 @@ import { ResultRow } from '@/components/ui/result-list'
 import { downloadText } from '@/lib/download'
 import type { WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 import { treeCropCSV, type CrownFeature, type TreeCrop, type TreeIsolation } from './treeIsolation'
+import { TreeProfilePanel } from './TreeProfilePanel'
 export interface TreePanelData {
   data: TreeIsolation | null
   error: string
@@ -127,6 +128,13 @@ export function TreeIsolationPanel({
           </>
         )}
       </SidebarSection>
+      <TreeProfilePanel
+        crop={crop}
+        sourceHash={product.data?.source_sha256 ?? ''}
+        selectedId={p?.id}
+        loading={options.treeShowPoints && !crop && !product.cropError}
+        onLoad={onIsolate}
+      />
       {p && (
         <SidebarSection title={p.id} subtitle="Selected crown · unvalidated tree candidate">
           <KeyValueRows
