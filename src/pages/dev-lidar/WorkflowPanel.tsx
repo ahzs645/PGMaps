@@ -1,3 +1,5 @@
+import { TreeIsolationPanel, type TreePanelData } from './TreeIsolationPanel'
+import type { CrownFeature } from './treeIsolation'
 import { SpeciesPanel } from './SpeciesPanel'
 import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { useEffect, useRef, useState } from 'react'
@@ -25,6 +27,10 @@ import { isForestMode, type ForestData, type ForestProperties } from './forestry
 import { cityJsonUrl, modelUrl, workflowUrl, forestUrl } from './useWorkflowData'
 
 interface Props {
+  treeProduct?: TreePanelData
+  selectedCrown?: CrownFeature | null
+  onIsolateTree?: () => void
+  onAllTrees?: () => void
   data: {
     workflows: WorkflowData
     models: ModelData
@@ -121,7 +127,8 @@ export function WorkflowPanel(props: Props) {
             </option>
             <optgroup label="Forestry lab">
               {ANALYSIS_MODES.filter(
-                (item) => isForestMode(item.id) || isHeatmapMode(item.id) || isSpeciesMode(item.id),
+                (item) =>
+                  isForestMode(item.id) || isHeatmapMode(item.id) || isSpeciesMode(item.id) || item.id === 'trees',
               ).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -130,7 +137,12 @@ export function WorkflowPanel(props: Props) {
             </optgroup>
             <optgroup label="Gaps, plots & structures">
               {ANALYSIS_MODES.filter(
-                (item) => !isForestMode(item.id) && !isHeatmapMode(item.id) && !isSpeciesMode(item.id),
+                (item) =>
+                  (!isForestMode(item.id) &&
+                    !isHeatmapMode(item.id) &&
+                    !isSpeciesMode(item.id) &&
+                    item.id !== 'trees') ||
+                  item.id === 'trees',
               ).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -142,7 +154,7 @@ export function WorkflowPanel(props: Props) {
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
           Map context and overlays follow the selected workflow.
         </p>
-        {!data && (
+        {!data && options.mode !== 'trees' && (
           <p className="mt-3 text-xs" role="status">
             {props.error || 'Loading and checking workflow products…'}
           </p>
@@ -153,6 +165,18 @@ export function WorkflowPanel(props: Props) {
           </Button>
         )}
       </SidebarSection>
+      {options.mode === 'trees' && props.treeProduct && (
+        <TreeIsolationPanel
+          product={props.treeProduct}
+          options={options}
+          features={features}
+          selected={props.selectedCrown ?? null}
+          onOptions={props.onOptions}
+          onSelect={choose}
+          onIsolate={props.onIsolateTree!}
+          onAll={props.onAllTrees!}
+        />
+      )}
       {data && isSpeciesMode(options.mode) && (
         <SpeciesPanel
           data={data.species}
@@ -185,7 +209,8 @@ export function WorkflowPanel(props: Props) {
         options.mode &&
         !isForestMode(options.mode) &&
         !isHeatmapMode(options.mode) &&
-        !isSpeciesMode(options.mode) && (
+        !isSpeciesMode(options.mode) &&
+        options.mode !== 'trees' && (
           <>
             <SidebarSection title={mode?.label} subtitle={mode?.note}>
               {(options.mode === 'gaps' || options.mode === 'clearance') && (
@@ -533,7 +558,7 @@ export function WorkflowPanel(props: Props) {
             </VirtualResultList>
           </>
         )}
-      {data && (
+      {data && options.mode !== 'trees' && (
         <SidebarSection title="Reproduce & download">
           <div className="space-y-2 text-xs underline">
             <a className="block" href={forestUrl} download="forestry-structure.json">

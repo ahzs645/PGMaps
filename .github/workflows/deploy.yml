@@ -149,6 +149,9 @@ jobs:
       - name: Verify species plot context
         run: python3 scripts/lidar/validate_species_context.py
 
+      - name: Verify tree isolation and native-height detail
+        run: python3 scripts/lidar/validate_tree_detail.py --analysis dist/data/lidar-analysis/bc-093g086
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 

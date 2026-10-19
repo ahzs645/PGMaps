@@ -12,11 +12,13 @@ export const WORKFLOW_LAYERS = [
   'workflow-clearance',
   'workflow-forest',
   'workflow-forest-lines',
+  'workflow-tree-tops',
   'workflow-selected',
 ]
 export function installWorkflowLayers(map: Map) {
   if (!map.getSource('workflow-features')) map.addSource('workflow-features', { type: 'geojson', data: EMPTY })
   if (!map.getSource('workflow-selection')) map.addSource('workflow-selection', { type: 'geojson', data: EMPTY })
+  if (!map.getSource('workflow-tree-tops')) map.addSource('workflow-tree-tops', { type: 'geojson', data: EMPTY })
   // Put thematic fills below context labels; retain selection outlines above candidates.
   const add = (layer: LayerSpecification) => map.addLayer(layer, layer.type === 'fill' ? LABEL_ANCHOR : undefined)
   const hidden = { visibility: 'none' } as const
@@ -86,6 +88,19 @@ export function installWorkflowLayers(map: Map) {
       layout: hidden,
       paint: { 'line-color': '#64748b', 'line-width': 0.5 },
     })
+  if (!map.getLayer('workflow-tree-tops'))
+    add({
+      id: 'workflow-tree-tops',
+      type: 'circle',
+      source: 'workflow-tree-tops',
+      layout: hidden,
+      paint: {
+        'circle-color': '#ffffff',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 1.5, 19, 4],
+        'circle-stroke-color': '#14532d',
+        'circle-stroke-width': 1,
+      },
+    })
   if (!map.getLayer('workflow-selected'))
     add({
       id: 'workflow-selected',
@@ -101,12 +116,28 @@ export function applyWorkflowLayers(
   features: WorkflowFeature[],
   selectedId: string | null,
 ) {
-  ;(map.getSource('workflow-features') as GeoJSONSource).setData({ type: 'FeatureCollection', features })
+  const shown =
+    options.mode === 'trees' && options.treeOnlySelected
+      ? features.filter((f) => f.properties.id === selectedId)
+      : features
+  ;(map.getSource('workflow-tree-tops') as GeoJSONSource).setData({
+    type: 'FeatureCollection',
+    features:
+      options.mode === 'trees'
+        ? shown.map((f) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: f.properties.focus! },
+            properties: { id: f.properties.id },
+          }))
+        : [],
+  })
+  ;(map.getSource('workflow-features') as GeoJSONSource).setData({ type: 'FeatureCollection', features: shown })
   ;(map.getSource('workflow-selection') as GeoJSONSource).setData({
     type: 'FeatureCollection',
     features: features.filter((f) => f.properties.id === selectedId),
   })
   map.setPaintProperty('workflow-forest', 'fill-opacity', isSpeciesMode(options.mode) ? options.speciesOpacity : 0.65)
+  if (options.mode === 'trees') map.setPaintProperty('workflow-forest', 'fill-color', ['get', 'tree_colour'])
   if (isSpeciesMode(options.mode)) {
     const legend = speciesLegend(options)
     const colour = legend.categorical
@@ -149,15 +180,17 @@ export function applyWorkflowLayers(
     ])
   }
   const active =
-    isForestMode(options.mode) || isSpeciesMode(options.mode)
-      ? ['workflow-forest', 'workflow-forest-lines']
-      : options.mode === 'gaps'
-        ? ['workflow-gaps']
-        : options.mode === 'plots'
-          ? ['workflow-plots', 'workflow-plot-lines']
-          : options.mode === 'clearance'
-            ? ['workflow-clearance']
-            : []
+    options.mode === 'trees'
+      ? ['workflow-forest', 'workflow-forest-lines', 'workflow-tree-tops']
+      : isForestMode(options.mode) || isSpeciesMode(options.mode)
+        ? ['workflow-forest', 'workflow-forest-lines']
+        : options.mode === 'gaps'
+          ? ['workflow-gaps']
+          : options.mode === 'plots'
+            ? ['workflow-plots', 'workflow-plot-lines']
+            : options.mode === 'clearance'
+              ? ['workflow-clearance']
+              : []
   if (features.length && selectedId && options.mode !== 'models') active.push('workflow-selected')
   for (const id of WORKFLOW_LAYERS) map.setLayoutProperty(id, 'visibility', active.includes(id) ? 'visible' : 'none')
 }

@@ -11,6 +11,7 @@ import { forestFeatures, isForestMode, type ForestData, type ReturnMode } from '
 import type { Basemap } from './basemaps'
 
 export type AnalysisMode =
+  | 'trees'
   | 'gaps'
   | 'plots'
   | 'clearance'
@@ -22,6 +23,12 @@ export type AnalysisMode =
   | 'canopy-density'
   | SpeciesMode
 export interface WorkflowOptions {
+  treeMinimum: number
+  treeAreaMinimum: number
+  treeHideEdge: boolean
+  treeOnlySelected: boolean
+  treeShowPoints: boolean
+  heightDetail: boolean
   speciesCode: string
   speciesCompare: string
   speciesFilter: string
@@ -48,6 +55,12 @@ export interface WorkflowOptions {
   selectedId: string | null
 }
 export const INITIAL_ANALYSIS: WorkflowOptions = {
+  treeMinimum: 5,
+  treeAreaMinimum: 4,
+  treeHideEdge: false,
+  treeOnlySelected: false,
+  treeShowPoints: false,
+  heightDetail: true,
   speciesCode: 'EP',
   speciesCompare: 'broadleaf',
   speciesFilter: 'all',
@@ -143,6 +156,12 @@ export interface ModelData {
   limitations: string[]
 }
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string; basemap: Basemap; note: string }[] = [
+  {
+    id: 'trees',
+    label: 'Tree crowns & isolation',
+    basemap: 'satellite',
+    note: 'Crown footprints and treetops · colours distinguish candidates, not species · select a crown to isolate original returns.',
+  },
   ...SPECIES_VIEWS.map((view) => ({
     ...view,
     basemap: (view.id === 'species-structure' || view.id === 'species-regeneration'

@@ -1,3 +1,4 @@
+import { treeFeatures, type TreeIsolation } from './treeIsolation'
 import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
@@ -19,6 +20,9 @@ vi.mock('@/components/ui/virtual-result-list', () => ({
   VirtualResultList: ({ items, children }: { items: unknown[]; children: (item: unknown) => unknown }) =>
     createElement('div', null, ...(items.slice(0, 2).map(children) as never[])),
 }))
+const trees = JSON.parse(
+  readFileSync(new URL('./treeIsolation.generated.json', import.meta.url), 'utf8'),
+) as TreeIsolation
 const data = {
   speciesContext: JSON.parse(
     readFileSync(new URL('./species-context.generated.json', import.meta.url), 'utf8'),
@@ -42,10 +46,25 @@ describe('workflow interface rendering', () => {
   for (const mode of ANALYSIS_MODES)
     it(`renders real ${mode.id} results, parameters, focus and downloads`, () => {
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const features = sortedWorkflowFeatures(data.workflows, options, data.forestry, data.species, data.speciesContext)
+      const features =
+        mode.id === 'trees'
+          ? treeFeatures(trees, options)
+          : sortedWorkflowFeatures(data.workflows, options, data.forestry, data.species, data.speciesContext)
       const html = renderToStaticMarkup(
         createElement(WorkflowPanel, {
           ...callbacks,
+          treeProduct: {
+            data: trees,
+            error: '',
+            retry: vi.fn(),
+            crop: null,
+            cropError: '',
+            cropStatus: '',
+            retryCrop: vi.fn(),
+          },
+          selectedCrown: trees.crowns.features.find((f) => f.properties.id === features[0]?.properties.id) ?? null,
+          onIsolateTree: vi.fn(),
+          onAllTrees: vi.fn(),
           data,
           error: '',
           options,
@@ -56,9 +75,13 @@ describe('workflow interface rendering', () => {
         }),
       )
       for (const label of ANALYSIS_MODES.map((item) => item.label)) expect(html).toContain(label.replace(/&/g, '&amp;'))
-      expect(html).toContain('Reproduce &amp; download')
-      expect(html).toContain('Roofer CityJSONSequence')
-      if (isSpeciesMode(mode.id)) {
+      if (mode.id !== 'trees') expect(html).toContain('Reproduce &amp; download')
+      if (mode.id !== 'trees') expect(html).toContain('Roofer CityJSONSequence')
+      if (mode.id === 'trees') {
+        expect(html).toContain('Isolate original returns in 3D')
+        expect(html).toContain('Download shown crowns')
+        expect(html).toContain('Minimum tree candidate height')
+      } else if (isSpeciesMode(mode.id)) {
         expect(html).toContain('Species mix source')
         expect(html).toContain('Download predictions, folds &amp; provenance')
         expect(html).toContain(

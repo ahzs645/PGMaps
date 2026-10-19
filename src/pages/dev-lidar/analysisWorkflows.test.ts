@@ -1,3 +1,4 @@
+import { treeFeatures, type TreeIsolation } from './treeIsolation'
 import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -21,6 +22,9 @@ const species = JSON.parse(readFileSync(new URL('./species.generated.json', impo
 const context = JSON.parse(
   readFileSync(new URL('./species-context.generated.json', import.meta.url), 'utf8'),
 ) as SpeciesContext
+const trees = JSON.parse(
+  readFileSync(new URL('./treeIsolation.generated.json', import.meta.url), 'utf8'),
+) as TreeIsolation
 const forestry = JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData
 const workflows = JSON.parse(
   readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8'),
@@ -153,7 +157,10 @@ describe('workflow map integration', () => {
       expect(state.buildings).toBe(mode.id === 'clearance')
       expect(state.basemap).toBe(mode.basemap)
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const rows = sortedWorkflowFeatures(workflows, options, forestry, species, context)
+      const rows =
+        mode.id === 'trees'
+          ? treeFeatures(trees, options)
+          : sortedWorkflowFeatures(workflows, options, forestry, species, context)
       for (const id of WORKFLOW_LAYERS) visibility[id] = 'visible'
       applyWorkflowLayers(map as never, options, rows, rows[0]?.properties.id ?? null)
       const active = Object.entries(visibility)
@@ -161,15 +168,17 @@ describe('workflow map integration', () => {
         .map(([k]) => k)
       expect(validateStyleMin(style)).toEqual([])
       expect(active).toEqual(
-        isForestMode(mode.id) || isSpeciesMode(mode.id)
-          ? ['workflow-forest', 'workflow-forest-lines', 'workflow-selected']
-          : mode.id === 'gaps'
-            ? ['workflow-gaps', 'workflow-selected']
-            : mode.id === 'plots'
-              ? ['workflow-plots', 'workflow-plot-lines', 'workflow-selected']
-              : mode.id === 'clearance'
-                ? ['workflow-clearance', 'workflow-selected']
-                : [],
+        mode.id === 'trees'
+          ? ['workflow-forest', 'workflow-forest-lines', 'workflow-tree-tops', 'workflow-selected']
+          : isForestMode(mode.id) || isSpeciesMode(mode.id)
+            ? ['workflow-forest', 'workflow-forest-lines', 'workflow-selected']
+            : mode.id === 'gaps'
+              ? ['workflow-gaps', 'workflow-selected']
+              : mode.id === 'plots'
+                ? ['workflow-plots', 'workflow-plot-lines', 'workflow-selected']
+                : mode.id === 'clearance'
+                  ? ['workflow-clearance', 'workflow-selected']
+                  : [],
       )
     }
     for (const speciesStructureMetric of ['height', 'density', 'texture', 'layers'] as const) {

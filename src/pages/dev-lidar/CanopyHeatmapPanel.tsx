@@ -35,6 +35,22 @@ export function CanopyHeatmapPanel({
             ? 'Height above terrain from the measured surface. Blue/purple is lower canopy; yellow/red is taller canopy. Heights above 40 m use the top colour.'
             : 'Density here means canopy cover: the share of eligible area above the chosen height in a 21 × 21 m square. It is not trees per hectare or LiDAR point density.'}
         </p>
+        {height && (
+          <label className="mt-3 flex gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={options.heightDetail}
+              onChange={(e) => onOptions({ heightDetail: e.target.checked })}
+            />
+            Automatic 1 m detail when zoomed in
+          </label>
+        )}
+        {height && (
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            At zoom 16+, load the original 1 m grid. The map status confirms the active resolution. Zooming farther
+            cannot reveal features smaller than the source cells.
+          </p>
+        )}
         {!height && (
           <label className="mt-3 block text-xs">
             Canopy height threshold
@@ -94,8 +110,8 @@ export function CanopyHeatmapPanel({
           Download coloured PNG
         </a>
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          This PNG is the coloured preview. Source grids use 1 m cells; display pixels are about 3.5 m on the ground
-          here. Click values are rounded display samples.
+          This download is the overview PNG (about 3.5 m display cells). The height map switches to 1 m source detail
+          when zoomed in; its click values come from the source grid. Density remains the 21 m neighbourhood product.
         </p>
       </SidebarSection>
     </>

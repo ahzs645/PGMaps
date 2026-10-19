@@ -1,3 +1,12 @@
+import {
+  DETAIL_LAYER,
+  loadHeightDetail,
+  installHeightDetail,
+  applyHeightDetail,
+  detailedHeightAt,
+} from './heightDetail'
+import { treePointLayer } from './treePointLayer'
+import type { TreeCrop } from './treeIsolation'
 import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
@@ -29,6 +38,7 @@ import {
 } from './basemaps'
 
 interface Props {
+  treeCrop: TreeCrop | null
   heatmaps: CanopyHeatmaps | null
   workflowOptions: WorkflowOptions
   workflowFeatures: WorkflowFeature[]
@@ -63,6 +73,8 @@ export function NativeLidarMap(props: Props) {
   const cloudId = useRef<string | null>(null)
   const latest = useRef(props)
   latest.current = props
+  const detailRef = useRef<Awaited<ReturnType<typeof loadHeightDetail>> | null>(null)
+  const [detailStatus, setDetailStatus] = useState('Overview · about 3.5 m display cells')
   const [ready, setReady] = useState(false)
   const [status, setStatus] = useState('Loading map and analysis layers…')
   const [error, setError] = useState('')
@@ -284,12 +296,23 @@ export function NativeLidarMap(props: Props) {
       }
       if (isHeatmapMode(latest.current.workflowOptions.mode) && latest.current.heatmaps) {
         const options = latest.current.workflowOptions
-        const value = sampleHeatmap(latest.current.heatmaps, heatmapKey(options), event.lngLat.lng, event.lngLat.lat)
+        const native =
+          options.mode === 'canopy-height' &&
+          options.heightDetail &&
+          detailRef.current &&
+          instance.getZoom() >= 16 &&
+          !!instance.getSource(DETAIL_LAYER) &&
+          instance.isSourceLoaded(DETAIL_LAYER)
+        const value = native
+          ? detailedHeightAt(detailRef.current!, event.lngLat.lng, event.lngLat.lat)
+          : sampleHeatmap(latest.current.heatmaps, heatmapKey(options), event.lngLat.lng, event.lngLat.lat)
         setHeight(
           value === null
             ? 'No supported heatmap value here · masked or insufficient coverage'
             : options.mode === 'canopy-height'
-              ? `≈${value.toFixed(0)} m above terrain · heatmap display sample`
+              ? native
+                ? `${value.toFixed(2)} m above terrain · 1 m source cell`
+                : `≈${value.toFixed(0)} m above terrain · heatmap display sample`
               : `≈${value.toFixed(0)}% canopy cover >${options.threshold} m · 21 m window`,
         )
       } else if (samples) {
@@ -343,6 +366,74 @@ export function NativeLidarMap(props: Props) {
     if (props.heatmaps) installCanopyHeatmaps(instance, props.heatmaps)
     applyCanopyHeatmaps(instance, props.workflowOptions)
   }, [ready, props.heatmaps, props.workflowOptions])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!ready || !instance) return
+    let active = true,
+      loading = false
+    const update = () => {
+      const enabled =
+        latest.current.workflowOptions.mode === 'canopy-height' && latest.current.workflowOptions.heightDetail
+      const painted = !!instance.getSource(DETAIL_LAYER) && instance.isSourceLoaded(DETAIL_LAYER)
+      applyHeightDetail(instance, enabled, latest.current.workflowOptions.heatOpacity, painted)
+      if (!enabled || instance.getZoom() < 16) {
+        setDetailStatus('Overview · about 3.5 m display cells')
+        return
+      }
+      if (detailRef.current) {
+        if (!instance.getLayer(DETAIL_LAYER)) installHeightDetail(instance, detailRef.current)
+        setDetailStatus(painted ? 'Native detail · 1 m source cells' : 'Overview retained · preparing 1 m image…')
+        return
+      }
+      if (loading) return
+      loading = true
+      setDetailStatus('Loading verified 1 m source detail…')
+      loadHeightDetail(props.analysisBase, props.summary.source_sha256)
+        .then((data) => {
+          if (!active) return
+          detailRef.current = data
+          installHeightDetail(instance, data)
+          update()
+        })
+        .catch((error) => {
+          if (active) setDetailStatus(`Overview retained · native detail unavailable: ${String(error)}`)
+        })
+        .finally(() => {
+          loading = false
+        })
+    }
+    update()
+    instance.on('zoomend', update)
+    const sourced = (event: { sourceId?: string }) => {
+      if (event.sourceId === DETAIL_LAYER) update()
+    }
+    instance.on('sourcedata', sourced)
+    return () => {
+      active = false
+      instance.off('zoomend', update)
+      instance.off('sourcedata', sourced)
+    }
+  }, [
+    ready,
+    props.analysisBase,
+    props.summary.source_sha256,
+    props.workflowOptions.mode,
+    props.workflowOptions.heightDetail,
+    props.workflowOptions.heatOpacity,
+    props.heatmaps,
+  ])
+  useEffect(() => {
+    const instance = map.current
+    if (!ready || !instance) return
+    if (instance.getLayer('analysis-tree-points')) instance.removeLayer('analysis-tree-points')
+    if (props.treeCrop)
+      try {
+        instance.addLayer(treePointLayer(props.treeCrop))
+      } catch (error) {
+        setError(`Tree points could not render: ${String(error)}`)
+      }
+  }, [ready, props.treeCrop])
 
   useEffect(() => {
     const instance = map.current
@@ -407,19 +498,22 @@ export function NativeLidarMap(props: Props) {
     if (!ready) return
     setHeight(null)
     setStatus(
-      props.cloud
-        ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
-        : props.modelActive
-          ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
-          : isHeatmapMode(props.workflowOptions.mode)
-            ? 'Canopy heatmap · click map to inspect height or cover'
-            : 'Processed layers · click to sample height',
+      props.treeCrop
+        ? `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`
+        : props.cloud
+          ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
+          : props.modelActive
+            ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
+            : isHeatmapMode(props.workflowOptions.mode)
+              ? 'Canopy heatmap · click map to inspect height or cover'
+              : 'Processed layers · click to sample height',
     )
-    map.current?.easeTo({ pitch: props.cloud || props.modelActive ? 50 : 0, duration: 700 })
+    map.current?.easeTo({ pitch: props.cloud || props.modelActive || props.treeCrop ? 50 : 0, duration: 700 })
   }, [
     ready,
     props.cloud,
     props.modelActive,
+    props.treeCrop,
     props.sceneGround,
     props.workflowOptions.mode,
     props.workflowOptions.threshold,
@@ -458,9 +552,9 @@ export function NativeLidarMap(props: Props) {
       <div
         className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-[10px] text-foreground shadow"
         role="status"
-        title={height ?? status}
+        title={height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       >
-        {height ?? status}
+        {height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       </div>
       {error && (
         <div

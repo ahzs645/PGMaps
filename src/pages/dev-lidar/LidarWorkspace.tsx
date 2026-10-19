@@ -1,3 +1,5 @@
+import { useTreeIsolation, useTreeCrop } from './useTreeIsolation'
+import { treeFeatures } from './treeIsolation'
 import { isSpeciesMode, speciesLegend, SPECIES_COLOURS } from './species'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
@@ -70,22 +72,43 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const [analysisOptions, setAnalysisOptions] = useState(INITIAL_ANALYSIS)
   const [workflowsRequested, setWorkflowsRequested] = useState(false)
   const [meshVisible, setMeshVisible] = useState(true)
-  const workflowProducts = useWorkflowData(workflowsRequested, analysisBase, summary?.source_sha256 ?? '')
+  const workflowProducts = useWorkflowData(
+    workflowsRequested && analysisOptions.mode !== 'trees',
+    analysisBase,
+    summary?.source_sha256 ?? '',
+  )
+  const treeProduct = useTreeIsolation(analysisOptions.mode === 'trees', analysisBase, summary?.source_sha256 ?? '')
   const workflowRows = useMemo(
     () =>
-      workflowProducts.data
-        ? sortedWorkflowFeatures(
-            workflowProducts.data.workflows,
-            analysisOptions,
-            workflowProducts.data.forestry,
-            workflowProducts.data.species,
-            workflowProducts.data.speciesContext,
-          )
-        : [],
-    [workflowProducts.data, analysisOptions],
+      analysisOptions.mode === 'trees'
+        ? treeProduct.data
+          ? treeFeatures(treeProduct.data, analysisOptions)
+          : []
+        : workflowProducts.data
+          ? sortedWorkflowFeatures(
+              workflowProducts.data.workflows,
+              analysisOptions,
+              workflowProducts.data.forestry,
+              workflowProducts.data.species,
+              workflowProducts.data.speciesContext,
+            )
+          : [],
+    [workflowProducts.data, treeProduct.data, analysisOptions],
   )
   const selectedWorkflow =
     workflowRows.find((f) => f.properties.id === analysisOptions.selectedId) ?? workflowRows[0] ?? null
+  const selectedCrown = useMemo(
+    () => treeProduct.data?.crowns.features.find((f) => f.properties.id === selectedWorkflow?.properties.id) ?? null,
+    [treeProduct.data, selectedWorkflow?.properties.id],
+  )
+  const treeCrop = useTreeCrop(
+    treeProduct.data,
+    selectedCrown,
+    analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints,
+    analysisBase,
+    new URL('ept.json', cloudBase).href,
+  )
+  const activeTreeCrop = treeCrop.crop?.id === selectedCrown?.properties.id ? treeCrop.crop : null
   const model = useMemo(() => {
     const records = workflowProducts.data?.models.records
     if (!records?.length) return null
@@ -211,11 +234,15 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       setSceneGround(selectedModel.ground_m)
       setFocus((previous) => ({ index: -1, revision: previous.revision + 1, center: selectedModel.centre, zoom: 19 }))
     } else if (feature) {
+      if (analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints) {
+        const crown = treeProduct.data?.crowns.features.find((f) => f.properties.id === id)
+        if (crown) setSceneGround(crown.properties.ground_m)
+      }
       setFocus((previous) => ({
         index: -1,
         revision: previous.revision + 1,
         center: featureCentre(feature),
-        zoom: analysisOptions.mode === 'clearance' ? 19 : 17.5,
+        zoom: analysisOptions.mode === 'trees' ? 20 : analysisOptions.mode === 'clearance' ? 19 : 17.5,
       }))
     }
     if (isMobile) setPanelOpen(false)
@@ -507,6 +534,31 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                 hidden={tab !== 'analysis'}
               >
                 <WorkflowPanel
+                  treeProduct={{
+                    ...treeProduct,
+                    crop: activeTreeCrop,
+                    cropError: treeCrop.error,
+                    cropStatus: treeCrop.status,
+                    retryCrop: treeCrop.retry,
+                  }}
+                  selectedCrown={selectedCrown}
+                  onIsolateTree={() => {
+                    if (!selectedCrown) return
+                    setCloud(false)
+                    setSurfaceVisible(false)
+                    setAnalysisOptions((previous) => ({ ...previous, treeShowPoints: true, treeOnlySelected: true }))
+                    setSceneGround(selectedCrown.properties.ground_m)
+                    setFocus((previous) => ({
+                      index: -1,
+                      revision: previous.revision + 1,
+                      center: selectedCrown.properties.centre,
+                      zoom: 20,
+                    }))
+                  }}
+                  onAllTrees={() => {
+                    setAnalysisOptions((previous) => ({ ...previous, treeShowPoints: false, treeOnlySelected: false }))
+                    go(-1)
+                  }}
                   data={workflowProducts.data}
                   error={workflowProducts.error}
                   retry={workflowProducts.retry}
@@ -639,6 +691,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
               <>
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <NativeLidarMap
+                    treeCrop={
+                      analysisOptions.mode === 'trees' && analysisOptions.treeShowPoints ? activeTreeCrop : null
+                    }
                     heatmaps={workflowProducts.data?.heatmaps ?? null}
                     workflowOptions={analysisOptions}
                     workflowFeatures={workflowRows}
