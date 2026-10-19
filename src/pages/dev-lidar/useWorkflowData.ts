@@ -1,3 +1,5 @@
+import speciesUrl from './species.generated.json?url'
+import type { SpeciesData } from './species'
 import { useEffect, useState } from 'react'
 import heatmapUrl from './heatmaps.generated.json?url'
 import type { CanopyHeatmaps } from './canopyHeatmaps'
@@ -7,13 +9,14 @@ import type { ForestData } from './forestry'
 import modelUrl from './models.generated.json?url'
 import type { ModelData, WorkflowData } from './analysisWorkflows'
 export { default as cityJsonUrl } from './buildings.generated.city.jsonl?url'
-export { workflowUrl, modelUrl, forestUrl }
+export { workflowUrl, modelUrl, forestUrl, speciesUrl }
 
 export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHash: string) {
   const [data, setData] = useState<{
     workflows: WorkflowData
     models: ModelData
     forestry: ForestData
+    species: SpeciesData
     heatmaps: CanopyHeatmaps
   } | null>(null)
   const [error, setError] = useState('')
@@ -25,10 +28,18 @@ export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHa
     let active = true
     setData(null)
     setError('')
+    let forestryDigest = ''
     const read = async (url: string) => {
       const response = await fetch(url, { signal: abort.signal })
       if (!response.ok) throw Error('Workflow data unavailable')
-      return response.json()
+      const body = await response.text()
+      if (url === forestUrl) {
+        const bytes = new TextEncoder().encode(body)
+        forestryDigest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
+          b.toString(16).padStart(2, '0'),
+        ).join('')
+      }
+      return JSON.parse(body)
     }
     Promise.all([
       read(workflowUrl),
@@ -36,16 +47,20 @@ export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHa
       read(new URL('checksums.json', analysisBase).href),
       read(forestUrl),
       read(heatmapUrl),
+      read(speciesUrl),
     ])
       .then(
-        ([workflows, models, checksums, forestry, heatmaps]: [
+        ([workflows, models, checksums, forestry, heatmaps, species]: [
           WorkflowData,
           ModelData,
           Record<string, { sha256: string }>,
           ForestData,
           CanopyHeatmaps,
+          SpeciesData,
         ]) => {
           if (
+            species.schema_version !== 1 ||
+            species.source_sha256 !== sourceHash ||
             workflows.schema_version !== 1 ||
             models.schema_version !== 1 ||
             forestry.schema_version !== 1 ||
@@ -57,6 +72,7 @@ export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHa
           )
             throw Error('Workflow source version mismatch. Results are hidden.')
           for (const [name, hash] of [
+            ...Object.entries(species.input_sha256),
             ...Object.entries(workflows.input_sha256),
             ...Object.entries(forestry.input_sha256),
             ...Object.entries(heatmaps.input_sha256),
@@ -64,7 +80,9 @@ export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHa
             if (checksums[name]?.sha256 !== hash) throw Error(`Workflow input mismatch: ${name}. Results are hidden.`)
           if (models.candidate_sha256 !== checksums['building-candidates.geojson']?.sha256)
             throw Error('Model candidate version mismatch')
-          if (active) setData({ workflows, models, forestry, heatmaps })
+          if (species.forestry_sha256 !== forestryDigest)
+            throw Error('Species model forestry input mismatch. Results are hidden.')
+          if (active) setData({ workflows, models, forestry, heatmaps, species })
         },
       )
       .catch((e) => {

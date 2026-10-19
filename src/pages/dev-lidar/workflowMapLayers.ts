@@ -1,3 +1,4 @@
+import { isSpeciesMode, SPECIES_PALETTE } from './species'
 import type { GeoJSONSource, Map, LayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { LABEL_ANCHOR } from './basemaps'
@@ -105,6 +106,24 @@ export function applyWorkflowLayers(
     type: 'FeatureCollection',
     features: features.filter((f) => f.properties.id === selectedId),
   })
+  if (isSpeciesMode(options.mode)) {
+    map.setPaintProperty('workflow-forest', 'fill-color', [
+      'case',
+      ['==', ['get', 'map_value'], null],
+      '#94a3b8',
+      [
+        'interpolate',
+        ['linear'],
+        ['get', 'map_value'],
+        0,
+        SPECIES_PALETTE.colors[0],
+        50,
+        SPECIES_PALETTE.colors[1],
+        100,
+        SPECIES_PALETTE.colors[2],
+      ],
+    ])
+  }
   if (isForestMode(options.mode)) {
     const palette = FOREST_PALETTES[options.mode]
     map.setPaintProperty('workflow-forest', 'fill-color', [
@@ -119,15 +138,16 @@ export function applyWorkflowLayers(
       palette.colors[2],
     ])
   }
-  const active = isForestMode(options.mode)
-    ? ['workflow-forest', 'workflow-forest-lines']
-    : options.mode === 'gaps'
-      ? ['workflow-gaps']
-      : options.mode === 'plots'
-        ? ['workflow-plots', 'workflow-plot-lines']
-        : options.mode === 'clearance'
-          ? ['workflow-clearance']
-          : []
+  const active =
+    isForestMode(options.mode) || isSpeciesMode(options.mode)
+      ? ['workflow-forest', 'workflow-forest-lines']
+      : options.mode === 'gaps'
+        ? ['workflow-gaps']
+        : options.mode === 'plots'
+          ? ['workflow-plots', 'workflow-plot-lines']
+          : options.mode === 'clearance'
+            ? ['workflow-clearance']
+            : []
   if (features.length && selectedId && options.mode !== 'models') active.push('workflow-selected')
   for (const id of WORKFLOW_LAYERS) map.setLayoutProperty(id, 'visibility', active.includes(id) ? 'visible' : 'none')
 }

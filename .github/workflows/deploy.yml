@@ -143,6 +143,9 @@ jobs:
       - name: Verify canopy heatmap previews
         run: python3 scripts/lidar/validate_heatmaps.py --analysis dist/data/lidar-analysis/bc-093g086
 
+      - name: Verify species inventory and model snapshot
+        run: python3 scripts/lidar/validate_species.py --analysis dist/data/lidar-analysis/bc-093g086
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 

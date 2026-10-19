@@ -1,3 +1,4 @@
+import { isSpeciesMode, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec'
@@ -16,6 +17,7 @@ import { applyWorkflowLayers, installWorkflowLayers, WORKFLOW_LAYERS } from './w
 import { isForestMode, type ForestData } from './forestry'
 import { meshVertices } from './buildingMesh'
 
+const species = JSON.parse(readFileSync(new URL('./species.generated.json', import.meta.url), 'utf8')) as SpeciesData
 const forestry = JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData
 const workflows = JSON.parse(
   readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8'),
@@ -126,7 +128,10 @@ describe('workflow map integration', () => {
           )
         else style.layers.push(layer)
       },
-      setPaintProperty: () => {},
+      setPaintProperty: (id: string, key: string, value: unknown) => {
+        const layer = style.layers.find((l) => l.id === id)!
+        ;(layer.paint as Record<string, unknown>)[key] = value
+      },
       setLayoutProperty: (id: string, _key: string, value: unknown) => {
         visibility[id] = value
       },
@@ -145,14 +150,15 @@ describe('workflow map integration', () => {
       expect(state.buildings).toBe(mode.id === 'clearance')
       expect(state.basemap).toBe(mode.basemap)
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const rows = sortedWorkflowFeatures(workflows, options, forestry)
+      const rows = sortedWorkflowFeatures(workflows, options, forestry, species)
       for (const id of WORKFLOW_LAYERS) visibility[id] = 'visible'
       applyWorkflowLayers(map as never, options, rows, rows[0]?.properties.id ?? null)
       const active = Object.entries(visibility)
         .filter(([, v]) => v === 'visible')
         .map(([k]) => k)
+      expect(validateStyleMin(style)).toEqual([])
       expect(active).toEqual(
-        isForestMode(mode.id)
+        isForestMode(mode.id) || isSpeciesMode(mode.id)
           ? ['workflow-forest', 'workflow-forest-lines', 'workflow-selected']
           : mode.id === 'gaps'
             ? ['workflow-gaps', 'workflow-selected']

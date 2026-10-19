@@ -1,3 +1,4 @@
+import { isSpeciesMode, SPECIES_PALETTE } from './species'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
@@ -73,7 +74,12 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
   const workflowRows = useMemo(
     () =>
       workflowProducts.data
-        ? sortedWorkflowFeatures(workflowProducts.data.workflows, analysisOptions, workflowProducts.data.forestry)
+        ? sortedWorkflowFeatures(
+            workflowProducts.data.workflows,
+            analysisOptions,
+            workflowProducts.data.forestry,
+            workflowProducts.data.species,
+          )
         : [],
     [workflowProducts.data, analysisOptions],
   )
@@ -238,11 +244,19 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       setAnalysisOptions((previous) => ({ ...previous, heatOpacity: previous.heatOpacity > 0 ? 0 : 0.8 }))
     else setSurfaceVisible((previous) => !previous)
   }
-  const forestLegend = isHeatmapMode(analysisOptions.mode)
-    ? heatmapLegend(analysisOptions)
-    : isForestMode(analysisOptions.mode)
-      ? FOREST_PALETTES[analysisOptions.mode]
-      : null
+  const forestLegend = isSpeciesMode(analysisOptions.mode)
+    ? {
+        ...SPECIES_PALETTE,
+        label:
+          analysisOptions.mode === 'species'
+            ? SPECIES_PALETTE.label
+            : 'Held-out model broadleaf composition · grey: unavailable',
+      }
+    : isHeatmapMode(analysisOptions.mode)
+      ? heatmapLegend(analysisOptions)
+      : isForestMode(analysisOptions.mode)
+        ? FOREST_PALETTES[analysisOptions.mode]
+        : null
   const legend = summary?.rasters[raster]
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -681,7 +695,9 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                                 {forestLegend.max}
                                 {analysisOptions.mode === 'texture' || analysisOptions.mode === 'canopy-height'
                                   ? ' m'
-                                  : analysisOptions.mode === 'edges' || analysisOptions.mode === 'canopy-density'
+                                  : isSpeciesMode(analysisOptions.mode) ||
+                                      analysisOptions.mode === 'edges' ||
+                                      analysisOptions.mode === 'canopy-density'
                                     ? '%'
                                     : ''}
                               </span>

@@ -1,3 +1,4 @@
+import { isSpeciesMode, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -19,6 +20,7 @@ vi.mock('@/components/ui/virtual-result-list', () => ({
     createElement('div', null, ...(items.slice(0, 2).map(children) as never[])),
 }))
 const data = {
+  species: JSON.parse(readFileSync(new URL('./species.generated.json', import.meta.url), 'utf8')) as SpeciesData,
   heatmaps: JSON.parse(readFileSync(new URL('./heatmaps.generated.json', import.meta.url), 'utf8')) as CanopyHeatmaps,
   forestry: JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData,
   workflows: JSON.parse(readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8')) as WorkflowData,
@@ -37,7 +39,7 @@ describe('workflow interface rendering', () => {
   for (const mode of ANALYSIS_MODES)
     it(`renders real ${mode.id} results, parameters, focus and downloads`, () => {
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const features = sortedWorkflowFeatures(data.workflows, options, data.forestry)
+      const features = sortedWorkflowFeatures(data.workflows, options, data.forestry, data.species)
       const html = renderToStaticMarkup(
         createElement(WorkflowPanel, {
           ...callbacks,
@@ -53,7 +55,13 @@ describe('workflow interface rendering', () => {
       for (const label of ANALYSIS_MODES.map((item) => item.label)) expect(html).toContain(label.replace(/&/g, '&amp;'))
       expect(html).toContain('Reproduce &amp; download')
       expect(html).toContain('Roofer CityJSONSequence')
-      if (isHeatmapMode(mode.id)) {
+      if (isSpeciesMode(mode.id)) {
+        expect(html).toContain('Species mix source')
+        expect(html).toContain('Download predictions, folds &amp; provenance')
+        expect(html).toContain('Focus selected stand')
+        expect(html).toContain('21 stands')
+        expect(html).not.toContain('undefined')
+      } else if (isHeatmapMode(mode.id)) {
         expect(html).toContain('Canopy heatmap opacity')
         expect(html).toContain('Canopy heatmap colour legend')
         expect(html).toContain('Download coloured PNG')

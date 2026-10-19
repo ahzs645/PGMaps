@@ -1,3 +1,4 @@
+import { speciesFeatures, isSpeciesMode, type SpeciesData } from './species'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { forestFeatures, isForestMode, type ForestData, type ReturnMode } from './forestry'
 import type { Basemap } from './basemaps'
@@ -12,6 +13,8 @@ export type AnalysisMode =
   | 'edges'
   | 'canopy-height'
   | 'canopy-density'
+  | 'species'
+  | 'species-model'
 export interface WorkflowOptions {
   heatOpacity: number
   returnMode: ReturnMode
@@ -106,6 +109,18 @@ export interface ModelData {
   limitations: string[]
 }
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string; basemap: Basemap; note: string }[] = [
+  {
+    id: 'species',
+    label: 'Species mix · inventory',
+    basemap: 'vector',
+    note: 'Recorded VRI broadleaf composition · purple conifers, green broadleaf, grey unavailable.',
+  },
+  {
+    id: 'species-model',
+    label: 'Species mix · model experiment',
+    basemap: 'vector',
+    note: 'Held-out LiDAR model broadleaf composition · experimental agreement with inventory, not field accuracy.',
+  },
   {
     id: 'canopy-height',
     label: 'Canopy height heatmap',
@@ -228,7 +243,13 @@ export function readReviewLedger(value: string, sourceHash: string, ids: Set<str
   return result
 }
 
-export function sortedWorkflowFeatures(data: WorkflowData, options: WorkflowOptions, forest?: ForestData) {
+export function sortedWorkflowFeatures(
+  data: WorkflowData,
+  options: WorkflowOptions,
+  forest?: ForestData,
+  species?: SpeciesData,
+) {
+  if (isSpeciesMode(options.mode)) return species ? speciesFeatures(species, options) : []
   if (isForestMode(options.mode)) return forest ? forestFeatures(forest, options) : []
   return workflowFeatures(data, options)
     .slice()
@@ -244,7 +265,7 @@ export function sortedWorkflowFeatures(data: WorkflowData, options: WorkflowOpti
 export function analysisPresentation(mode: AnalysisMode) {
   return {
     basemap: ANALYSIS_MODES.find((item) => item.id === mode)!.basemap,
-    labels: mode === 'plots' || mode === 'strata',
+    labels: isSpeciesMode(mode) || mode === 'plots' || mode === 'strata',
     surfaceVisible: false,
     surfaceOpacity: 0.65,
     trees: false,
