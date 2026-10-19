@@ -1,4 +1,4 @@
-import { isSpeciesMode, SPECIES_PALETTE } from './species'
+import { isSpeciesMode, speciesLegend, SPECIES_COLOURS } from './species'
 import type { GeoJSONSource, Map, LayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { LABEL_ANCHOR } from './basemaps'
@@ -106,23 +106,33 @@ export function applyWorkflowLayers(
     type: 'FeatureCollection',
     features: features.filter((f) => f.properties.id === selectedId),
   })
+  map.setPaintProperty('workflow-forest', 'fill-opacity', isSpeciesMode(options.mode) ? options.speciesOpacity : 0.65)
   if (isSpeciesMode(options.mode)) {
-    map.setPaintProperty('workflow-forest', 'fill-color', [
-      'case',
-      ['==', ['get', 'map_value'], null],
-      '#94a3b8',
-      [
-        'interpolate',
-        ['linear'],
-        ['get', 'map_value'],
-        0,
-        SPECIES_PALETTE.colors[0],
-        50,
-        SPECIES_PALETTE.colors[1],
-        100,
-        SPECIES_PALETTE.colors[2],
-      ],
-    ])
+    const legend = speciesLegend(options)
+    const colour = legend.categorical
+      ? [
+          'match',
+          ['coalesce', ['get', 'leading'], ''],
+          ...Object.entries(SPECIES_COLOURS).flatMap(([code, colour]) => [code, colour]),
+          '#94a3b8',
+        ]
+      : [
+          'case',
+          ['==', ['get', 'map_value'], null],
+          '#94a3b8',
+          [
+            'interpolate',
+            ['linear'],
+            ['get', 'map_value'],
+            legend.min,
+            legend.colors[0],
+            (legend.min + legend.max) / 2,
+            legend.colors[1],
+            legend.max,
+            legend.colors[2],
+          ],
+        ]
+    map.setPaintProperty('workflow-forest', 'fill-color', colour as import('maplibre-gl').ExpressionSpecification)
   }
   if (isForestMode(options.mode)) {
     const palette = FOREST_PALETTES[options.mode]

@@ -1,4 +1,4 @@
-import { isSpeciesMode, SPECIES_PALETTE } from './species'
+import { isSpeciesMode, speciesLegend, SPECIES_COLOURS } from './species'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Crosshair, Eye, EyeOff, Layers3, PanelLeft, Settings2, TreePine, X } from 'lucide-react'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
@@ -79,6 +79,7 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
             analysisOptions,
             workflowProducts.data.forestry,
             workflowProducts.data.species,
+            workflowProducts.data.speciesContext,
           )
         : [],
     [workflowProducts.data, analysisOptions],
@@ -238,20 +239,20 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
       setWorkflowsRequested(true)
     }
   }, [summary])
-  const displayedSurface = isHeatmapMode(analysisOptions.mode) ? analysisOptions.heatOpacity > 0 : surfaceVisible
+  const displayedSurface = isSpeciesMode(analysisOptions.mode)
+    ? analysisOptions.speciesOpacity > 0
+    : isHeatmapMode(analysisOptions.mode)
+      ? analysisOptions.heatOpacity > 0
+      : surfaceVisible
   const toggleDisplayedSurface = () => {
-    if (isHeatmapMode(analysisOptions.mode))
+    if (isSpeciesMode(analysisOptions.mode))
+      setAnalysisOptions((previous) => ({ ...previous, speciesOpacity: previous.speciesOpacity > 0 ? 0 : 0.72 }))
+    else if (isHeatmapMode(analysisOptions.mode))
       setAnalysisOptions((previous) => ({ ...previous, heatOpacity: previous.heatOpacity > 0 ? 0 : 0.8 }))
     else setSurfaceVisible((previous) => !previous)
   }
   const forestLegend = isSpeciesMode(analysisOptions.mode)
-    ? {
-        ...SPECIES_PALETTE,
-        label:
-          analysisOptions.mode === 'species'
-            ? SPECIES_PALETTE.label
-            : 'Held-out model broadleaf composition · grey: unavailable',
-      }
+    ? speciesLegend(analysisOptions)
     : isHeatmapMode(analysisOptions.mode)
       ? heatmapLegend(analysisOptions)
       : isForestMode(analysisOptions.mode)
@@ -679,42 +680,64 @@ export function LidarWorkspace({ analysisBase, cloudBase }: { analysisBase: stri
                             ? legend.title
                             : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
                     </span>
-                    {(surfaceVisible || forestLegend) && (
-                      <div className="w-20 shrink-0 sm:w-32">
-                        <div
-                          className="h-1.5 rounded"
-                          style={{
-                            background: `linear-gradient(to right, ${(forestLegend?.colors ?? legend.colors).join(',')})`,
-                          }}
-                        />
-                        <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
-                          {forestLegend ? (
-                            <>
-                              <span>{forestLegend.min}</span>
-                              <span>
-                                {forestLegend.max}
-                                {analysisOptions.mode === 'texture' || analysisOptions.mode === 'canopy-height'
-                                  ? ' m'
-                                  : isSpeciesMode(analysisOptions.mode) ||
-                                      analysisOptions.mode === 'edges' ||
-                                      analysisOptions.mode === 'canopy-density'
-                                    ? '%'
-                                    : ''}
-                              </span>
-                            </>
-                          ) : raster === 'crowns' ? (
-                            <span>Categorical regions</span>
-                          ) : (
-                            <>
-                              <span>{legend.min.toFixed(0)}</span>
-                              <span>
-                                {legend.max.toFixed(0)} {legend.unit}
-                              </span>
-                            </>
-                          )}
-                        </div>
+                    {isSpeciesMode(analysisOptions.mode) && speciesLegend(analysisOptions).categorical && (
+                      <div
+                        className="flex max-w-[65%] shrink items-center gap-2 overflow-x-auto"
+                        aria-label="Species colour legend"
+                      >
+                        {Object.entries(SPECIES_COLOURS).map(([code, colour]) => (
+                          <span
+                            key={code}
+                            className="flex shrink-0 items-center gap-1"
+                            title={workflowProducts.data?.species.species[code]}
+                          >
+                            <i className="size-2.5 rounded-sm" style={{ backgroundColor: colour }} />
+                            {code}
+                          </span>
+                        ))}
+                        <span className="flex shrink-0 items-center gap-1">
+                          <i className="size-2.5 rounded-sm bg-slate-400" />
+                          Unknown
+                        </span>
                       </div>
                     )}
+                    {(surfaceVisible || forestLegend) &&
+                      !(isSpeciesMode(analysisOptions.mode) && speciesLegend(analysisOptions).categorical) && (
+                        <div className="w-20 shrink-0 sm:w-32">
+                          <div
+                            className="h-1.5 rounded"
+                            style={{
+                              background: `linear-gradient(to right, ${(forestLegend?.colors ?? legend.colors).join(',')})`,
+                            }}
+                          />
+                          <div className="mt-0.5 flex justify-between text-[9px] tabular-nums text-muted-foreground">
+                            {forestLegend ? (
+                              <>
+                                <span>{forestLegend.min}</span>
+                                <span>
+                                  {forestLegend.max}
+                                  {isSpeciesMode(analysisOptions.mode)
+                                    ? speciesLegend(analysisOptions).unit
+                                    : analysisOptions.mode === 'texture' || analysisOptions.mode === 'canopy-height'
+                                      ? ' m'
+                                      : analysisOptions.mode === 'edges' || analysisOptions.mode === 'canopy-density'
+                                        ? '%'
+                                        : ''}
+                                </span>
+                              </>
+                            ) : raster === 'crowns' ? (
+                              <span>Categorical regions</span>
+                            ) : (
+                              <>
+                                <span>{legend.min.toFixed(0)}</span>
+                                <span>
+                                  {legend.max.toFixed(0)} {legend.unit}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     <span className="hidden text-muted-foreground lg:inline">
                       Click map to inspect height · candidates unvalidated
                     </span>

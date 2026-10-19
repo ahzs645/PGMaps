@@ -146,6 +146,9 @@ jobs:
       - name: Verify species inventory and model snapshot
         run: python3 scripts/lidar/validate_species.py --analysis dist/data/lidar-analysis/bc-093g086
 
+      - name: Verify species plot context
+        run: python3 scripts/lidar/validate_species_context.py
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 

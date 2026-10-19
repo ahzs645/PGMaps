@@ -1,4 +1,4 @@
-import { isSpeciesMode, type SpeciesData } from './species'
+import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec'
@@ -18,6 +18,9 @@ import { isForestMode, type ForestData } from './forestry'
 import { meshVertices } from './buildingMesh'
 
 const species = JSON.parse(readFileSync(new URL('./species.generated.json', import.meta.url), 'utf8')) as SpeciesData
+const context = JSON.parse(
+  readFileSync(new URL('./species-context.generated.json', import.meta.url), 'utf8'),
+) as SpeciesContext
 const forestry = JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData
 const workflows = JSON.parse(
   readFileSync(new URL('./workflows.generated.json', import.meta.url), 'utf8'),
@@ -150,7 +153,7 @@ describe('workflow map integration', () => {
       expect(state.buildings).toBe(mode.id === 'clearance')
       expect(state.basemap).toBe(mode.basemap)
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const rows = sortedWorkflowFeatures(workflows, options, forestry, species)
+      const rows = sortedWorkflowFeatures(workflows, options, forestry, species, context)
       for (const id of WORKFLOW_LAYERS) visibility[id] = 'visible'
       applyWorkflowLayers(map as never, options, rows, rows[0]?.properties.id ?? null)
       const active = Object.entries(visibility)
@@ -169,6 +172,32 @@ describe('workflow map integration', () => {
                 : [],
       )
     }
+    for (const speciesStructureMetric of ['height', 'density', 'texture', 'layers'] as const) {
+      const options = {
+        ...INITIAL_ANALYSIS,
+        mode: 'species-structure' as const,
+        speciesColour: 'metric' as const,
+        speciesStructureMetric,
+        speciesOpacity: 0.3,
+      }
+      const rows = sortedWorkflowFeatures(workflows, options, forestry, species, context)
+      applyWorkflowLayers(map as never, options, rows, rows[0]?.properties.id ?? null)
+      expect(validateStyleMin(style)).toEqual([])
+      expect(
+        (style.layers.find((l) => l.id === 'workflow-forest')!.paint as Record<string, unknown>)['fill-opacity'],
+      ).toBe(0.3)
+    }
+    for (const code of species.species_order)
+      for (const mode of ['species-share', 'species-model', 'species-disagreement'] as const) {
+        const options = { ...INITIAL_ANALYSIS, mode, speciesCode: code, speciesCompare: code }
+        applyWorkflowLayers(
+          map as never,
+          options,
+          sortedWorkflowFeatures(workflows, options, forestry, species, context),
+          null,
+        )
+        expect(validateStyleMin(style)).toEqual([])
+      }
     applyWorkflowLayers(map as never, INITIAL_ANALYSIS, [], null)
     expect(Object.values(visibility).every((value) => value === 'none')).toBe(true)
     expect(datasets.get('workflow-features')).toEqual({ type: 'FeatureCollection', features: [] })

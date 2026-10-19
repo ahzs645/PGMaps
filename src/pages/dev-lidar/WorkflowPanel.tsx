@@ -1,5 +1,5 @@
 import { SpeciesPanel } from './SpeciesPanel'
-import { isSpeciesMode, type SpeciesData } from './species'
+import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
@@ -31,6 +31,7 @@ interface Props {
     forestry: ForestData
     heatmaps: CanopyHeatmaps
     species: SpeciesData
+    speciesContext: SpeciesContext
   } | null
   error: string
   retry: () => void
@@ -155,6 +156,11 @@ export function WorkflowPanel(props: Props) {
       {data && isSpeciesMode(options.mode) && (
         <SpeciesPanel
           data={data.species}
+          forest={data.forestry}
+          context={data.speciesContext}
+          features={features}
+          onOptions={props.onOptions}
+          onPoints={props.onForestPoints}
           options={options}
           selectedId={selected?.properties.id ?? null}
           onMode={props.onMode}

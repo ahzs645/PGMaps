@@ -1,4 +1,4 @@
-import { isSpeciesMode, type SpeciesData } from './species'
+import { isSpeciesMode, type SpeciesContext, type SpeciesData } from './species'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -20,6 +20,9 @@ vi.mock('@/components/ui/virtual-result-list', () => ({
     createElement('div', null, ...(items.slice(0, 2).map(children) as never[])),
 }))
 const data = {
+  speciesContext: JSON.parse(
+    readFileSync(new URL('./species-context.generated.json', import.meta.url), 'utf8'),
+  ) as SpeciesContext,
   species: JSON.parse(readFileSync(new URL('./species.generated.json', import.meta.url), 'utf8')) as SpeciesData,
   heatmaps: JSON.parse(readFileSync(new URL('./heatmaps.generated.json', import.meta.url), 'utf8')) as CanopyHeatmaps,
   forestry: JSON.parse(readFileSync(new URL('./forestry.generated.json', import.meta.url), 'utf8')) as ForestData,
@@ -39,7 +42,7 @@ describe('workflow interface rendering', () => {
   for (const mode of ANALYSIS_MODES)
     it(`renders real ${mode.id} results, parameters, focus and downloads`, () => {
       const options = { ...INITIAL_ANALYSIS, mode: mode.id }
-      const features = sortedWorkflowFeatures(data.workflows, options, data.forestry, data.species)
+      const features = sortedWorkflowFeatures(data.workflows, options, data.forestry, data.species, data.speciesContext)
       const html = renderToStaticMarkup(
         createElement(WorkflowPanel, {
           ...callbacks,
@@ -58,7 +61,11 @@ describe('workflow interface rendering', () => {
       if (isSpeciesMode(mode.id)) {
         expect(html).toContain('Species mix source')
         expect(html).toContain('Download predictions, folds &amp; provenance')
-        expect(html).toContain('Focus selected stand')
+        expect(html).toContain(
+          mode.id === 'species-structure' || mode.id === 'species-regeneration'
+            ? 'Focus selected plot'
+            : 'Focus selected stand',
+        )
         expect(html).toContain('21 stands')
         expect(html).not.toContain('undefined')
       } else if (isHeatmapMode(mode.id)) {

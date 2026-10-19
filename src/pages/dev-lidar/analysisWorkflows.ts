@@ -1,4 +1,11 @@
-import { speciesFeatures, isSpeciesMode, type SpeciesData } from './species'
+import {
+  speciesFeatures,
+  isSpeciesMode,
+  SPECIES_VIEWS,
+  type SpeciesContext,
+  type SpeciesMode,
+  type SpeciesData,
+} from './species'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { forestFeatures, isForestMode, type ForestData, type ReturnMode } from './forestry'
 import type { Basemap } from './basemaps'
@@ -13,9 +20,20 @@ export type AnalysisMode =
   | 'edges'
   | 'canopy-height'
   | 'canopy-density'
-  | 'species'
-  | 'species-model'
+  | SpeciesMode
 export interface WorkflowOptions {
+  speciesCode: string
+  speciesCompare: string
+  speciesFilter: string
+  speciesShareMinimum: number
+  speciesHeightMinimum: number
+  speciesCoverMinimum: number
+  speciesLowMaximum: number
+  speciesLowCoverMaximum: number
+  speciesColour: 'species' | 'metric'
+  speciesStructureMetric: 'height' | 'density' | 'texture' | 'layers'
+  speciesDifferenceMinimum: number
+  speciesOpacity: number
   heatOpacity: number
   returnMode: ReturnMode
   canopyMinimum: number
@@ -30,6 +48,18 @@ export interface WorkflowOptions {
   selectedId: string | null
 }
 export const INITIAL_ANALYSIS: WorkflowOptions = {
+  speciesCode: 'EP',
+  speciesCompare: 'broadleaf',
+  speciesFilter: 'all',
+  speciesShareMinimum: 0,
+  speciesHeightMinimum: 20,
+  speciesCoverMinimum: 70,
+  speciesLowMaximum: 10,
+  speciesLowCoverMaximum: 40,
+  speciesColour: 'species',
+  speciesStructureMetric: 'height',
+  speciesDifferenceMinimum: 0,
+  speciesOpacity: 0.72,
   heatOpacity: 0.8,
   returnMode: 'all',
   canopyMinimum: 40,
@@ -47,6 +77,10 @@ export type WorkflowFeature = Feature<
   Geometry,
   {
     id: string
+    leading?: string | null
+    stand_id?: string | null
+    focus?: [number, number]
+    difference_pp?: number | null
     map_value?: number | null
     area_m2?: number
     threshold_m?: number
@@ -109,18 +143,12 @@ export interface ModelData {
   limitations: string[]
 }
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string; basemap: Basemap; note: string }[] = [
-  {
-    id: 'species',
-    label: 'Species mix · inventory',
-    basemap: 'vector',
-    note: 'Recorded VRI broadleaf composition · purple conifers, green broadleaf, grey unavailable.',
-  },
-  {
-    id: 'species-model',
-    label: 'Species mix · model experiment',
-    basemap: 'vector',
-    note: 'Held-out LiDAR model broadleaf composition · experimental agreement with inventory, not field accuracy.',
-  },
+  ...SPECIES_VIEWS.map((view) => ({
+    ...view,
+    basemap: (view.id === 'species-structure' || view.id === 'species-regeneration'
+      ? 'satellite'
+      : 'vector') as Basemap,
+  })),
   {
     id: 'canopy-height',
     label: 'Canopy height heatmap',
@@ -196,6 +224,7 @@ export function workflowFeatures(data: WorkflowData, options: WorkflowOptions): 
   return []
 }
 export function featureCentre(feature: WorkflowFeature): [number, number] {
+  if (feature.properties.focus) return feature.properties.focus
   const points: number[][] = []
   const collect = (value: unknown) => {
     if (!Array.isArray(value)) return
@@ -248,8 +277,9 @@ export function sortedWorkflowFeatures(
   options: WorkflowOptions,
   forest?: ForestData,
   species?: SpeciesData,
+  context?: SpeciesContext,
 ) {
-  if (isSpeciesMode(options.mode)) return species ? speciesFeatures(species, options) : []
+  if (isSpeciesMode(options.mode)) return species ? speciesFeatures(species, options, forest, context) : []
   if (isForestMode(options.mode)) return forest ? forestFeatures(forest, options) : []
   return workflowFeatures(data, options)
     .slice()
