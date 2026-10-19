@@ -63,4 +63,6 @@ The validator checks source/input identities, all crown IDs/metrics against the 
 
 Profile tests cover the metric projection and rotation, per-return normalized heights, shared undistorted scale, point preservation/exclusions, empty crops, XML-safe self-contained export, bounded same-source pins and rendered inspection/export controls. An actual-source SVG was rasterized and visually inspected separately; this verifies the figure output, not browser interactions or WebGL.
 
+[Viewer precedents and proposed interface improvements](lidar-profile-interface-precedents.md) compares LiDAR360, Potree, CloudCompare, FORA and forestry tools, documents the existing GeoLibre cross-section APIs, and sequences linked inspection, slices, review and segmentation comparison. These follow-on recommendations are separate from the implemented profile view.
+
 Crown metadata is lazy-loaded only for tree inspection. The real source height/terrain grids are fetched on demand and cached by URL and hash. Individual crown crops use the existing private EPT data route; no new external data service or raw-point hosting copy is introduced. Independent field validation and visual browser/WebGL acceptance remain separate from data, adapter and SSR checks.
