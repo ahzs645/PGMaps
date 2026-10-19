@@ -18,6 +18,7 @@ const spaRoutes = [
   'bc-assessment',
   'dev',
   'dev/lidar',
+  ...['canopy', 'trees', 'forestry', 'species', 'buildings', 'transects'].map((tool) => `dev/lidar/${tool}`),
   'dev/forestry/visual-quality',
   'dev/viewshed',
   'dev/viewshed/terrain',

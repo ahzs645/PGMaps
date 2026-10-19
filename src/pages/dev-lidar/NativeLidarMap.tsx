@@ -337,6 +337,13 @@ export function NativeLidarMap(props: Props) {
         )
       }
     })
+    // Read-only camera diagnostics let acceptance checks verify preservation across tool routes.
+    const reportCamera = () => {
+      container.current?.setAttribute('data-map-center', instance.getCenter().toArray().join(','))
+      container.current?.setAttribute('data-map-zoom', String(instance.getZoom()))
+    }
+    reportCamera()
+    instance.on('moveend', reportCamera)
     const observer = new ResizeObserver(() => instance.resize())
     observer.observe(container.current)
     return () => {

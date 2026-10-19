@@ -10,7 +10,7 @@ import type { ForestData } from './forestry'
 import modelUrl from './models.generated.json?url'
 import type { ModelData, WorkflowData } from './analysisWorkflows'
 export { default as cityJsonUrl } from './buildings.generated.city.jsonl?url'
-export { workflowUrl, modelUrl, forestUrl, speciesUrl, contextUrl }
+export { workflowUrl, modelUrl, forestUrl, speciesUrl, contextUrl, heatmapUrl }
 
 export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHash: string) {
   const [data, setData] = useState<{

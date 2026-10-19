@@ -37,6 +37,7 @@ export function TreeInspector({
   transect,
   benchmark,
   isMobile = false,
+  showTransect = true,
 }: {
   controller: TreeInspectionController
   crop: TreeCrop | null
@@ -52,6 +53,7 @@ export function TreeInspector({
   transect: React.ReactNode
   benchmark?: React.ReactNode
   isMobile?: boolean
+  showTransect?: boolean
 }) {
   const { state, setState, commit } = controller,
     settings = state.settings
@@ -199,7 +201,7 @@ export function TreeInspector({
           options={[
             { value: 'profile', label: 'Profile' },
             { value: 'review', label: 'Review / edit' },
-            { value: 'transect', label: 'Transect' },
+            ...(showTransect ? [{ value: 'transect', label: 'Transect' }] : []),
             { value: 'methods', label: 'Methods' },
           ]}
         />

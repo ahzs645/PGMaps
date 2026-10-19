@@ -8,7 +8,7 @@ The map stays mounted beside a resizable inspector on desktop. On smaller screen
 
 Selecting a crown on the map or candidate list automatically requests its bounded original-return crop. The inspector also provides candidate-ID search and Previous/Next navigation within the filtered/review queue. Selecting a saved comparison broadens height/area/edge filters as needed to reveal that candidate. Changing candidates cancels obsolete requests; source loading limits and retries remain visible.
 
-The **Profile** tab provides:
+The Trees workspace’s **Profile** tab provides:
 
 - Black, height or manual-group colours, point size, cardinal-angle rotation, fit/shared-scale lock and independent pan/zoom.
 - **Whole crown** or **Thin slice**, with explicit total width and perpendicular offset. The source-metric cut band appears on the map, and the 3D point layer uses the same filtered returns. A 0.5 m slice selects original points; it does not imply 0.5 m measurement accuracy or improve the 1 m segmentation grid.
@@ -33,7 +33,7 @@ Undo/redo retains twenty edit/review steps in the current session. Reviews, assi
 
 ## Native transects
 
-The **Transect** tab enables GeoLibre's own cross-section drawing API and streams the original full-cloud view. It temporarily pauses crown selection/isolation. Pick two endpoints on the map, change the total width, or draw a replacement. The adapter passes half of the displayed width as GeoLibre's perpendicular buffer distance. **Refresh loaded points** re-extracts the current cut without restarting the drawing.
+The dedicated **Transects** workspace (`/dev/lidar/transects/`) enables GeoLibre's own cross-section drawing API and streams the original full-cloud view. It has its own map/profile pane; crown selection/isolation belongs to the Trees workspace. Pick two endpoints on the map, change the total width, or draw a replacement. The adapter passes half of the displayed width as GeoLibre's perpendicular buffer distance. **Refresh loaded points** re-extracts the current cut without restarting the drawing.
 
 These transects use the currently loaded streaming cloud, with a 750,000-input-return budget, and are labelled as previews. Source 1 m DTM values normalize the retained points. Classes 7/12/18, nonfinite values and supported heights outside −0.5–80 m are screened; source ground points remain available. Individual withheld/overlap flags are not exposed by this native profile API. Unsupported terrain stays blank in the exported CSV rather than becoming height zero. Charts draw at most 50,000 deterministically selected supported points; CSV retains all screened loaded returns. Export the geographic cut line with its total width and preview provenance.
 
@@ -54,3 +54,5 @@ The native adapter tests check half-width conversion, replacement versus refresh
 The repeatable local Chromium check is `npm run lidar:inspector:browser`, after `npm run lidar:preview:build` and preparation of the original EPT/analysis files. It uses the actual compiled app and original data through a temporary loopback server, saves screenshots/downloads in ignored `test-results/lidar-inspector`, and fails on page errors or failed HTTP responses. An installed Chromium or Playwright browser is required; `LIDAR_CHROMIUM_PATH` selects another executable. It exercises desktop/phone bounds, top/3D views, slices, actual canvas point picking, PNG download, persistent comparison IDs, review notes/undo/redo, real method outputs and GeoLibre's drawn transect. The completed run loaded 3,095 original returns for crown-1, downloaded a 97,129-byte PNG, compared actual saved method outputs, drew a terrain-normalized native transect, restored two saved comparison IDs, and passed desktop/390×844 phone no-document-scroll checks with no page errors or failed HTTP responses. Screenshots were inspected; the phone controls fold above the visible profile. The candidate virtual list mounts only while its panel is visible, avoiding synchronous zero-height remeasurement during resizing. This local browser check is separate from Actions' unit suite.
 
 Future changes should preserve source precision, the no-document-scroll layout, bounded reads, distinct preview/measurement states and original-return lineage. Browser acceptance does not establish field accuracy, full-tree completeness, calibrated species identification or engineering clearance.
+
+Navigation and code are organized into [focused tool workspaces](lidar-tool-workspaces.md). Use the header tool switcher for transects; the Trees task tabs remain Profile, Review/edit and Methods.

@@ -124,7 +124,7 @@ function App() {
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
-            <Route path="/dev/lidar" element={<DevLidar />} />
+            <Route path="/dev/lidar/*" element={<DevLidar />} />
             <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/nechako/portal" element={<DevNechakoPortal />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />

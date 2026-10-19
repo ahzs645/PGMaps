@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { isHeatmapMode, type CanopyHeatmaps } from './canopyHeatmaps'
 import { isForestMode, type ForestData } from './forestry'
 import { WorkflowPanel } from './WorkflowPanel'
+import { toolForMode } from './workspaceTools'
 import {
   ANALYSIS_MODES,
   INITIAL_ANALYSIS,
@@ -53,6 +54,7 @@ describe('workflow interface rendering', () => {
       const html = renderToStaticMarkup(
         createElement(WorkflowPanel, {
           ...callbacks,
+          allowedModes: toolForMode(mode.id)!.modes,
           treeProduct: {
             data: trees,
             error: '',
@@ -74,9 +76,16 @@ describe('workflow interface rendering', () => {
           meshVisible: true,
         }),
       )
-      for (const label of ANALYSIS_MODES.map((item) => item.label)) expect(html).toContain(label.replace(/&/g, '&amp;'))
+      const selector = html.match(/<select aria-label="LiDAR workflow"[\s\S]*?<\/select>/)![0]
+      for (const item of ANALYSIS_MODES) {
+        const expected = toolForMode(mode.id)!.modes.includes(item.id)
+        expect(selector.includes(`value="${item.id}"`), `${item.id} is scoped to ${toolForMode(mode.id)!.id}`).toBe(
+          expected,
+        )
+      }
       if (mode.id !== 'trees') expect(html).toContain('Reproduce &amp; download')
-      if (mode.id !== 'trees') expect(html).toContain('Roofer CityJSONSequence')
+      if (mode.id === 'models') expect(html).toContain('Roofer CityJSONSequence')
+      else expect(html).not.toContain('Roofer CityJSONSequence')
       if (mode.id === 'trees') {
         expect(html).toContain('Isolate original returns in 3D')
         expect(html).toContain('Download shown crowns')
