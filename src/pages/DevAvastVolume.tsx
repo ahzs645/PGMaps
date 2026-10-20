@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TreePine } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MapSidebarShell, InlineAlert } from '@/components/ui/map-panels'
+import { Button } from '@/components/ui/button'
 import { StepMarker, type StepStatus } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { downloadBlob } from '@/lib/download'
@@ -10,18 +11,21 @@ import { AvastMap, type MapView } from './dev-avast/AvastMap'
 import { InputsPanel } from './dev-avast/InputsPanel'
 import { ResultsPanel } from './dev-avast/ResultsPanel'
 import { SettingsPanel } from './dev-avast/SettingsPanel'
+import { VriWhatIfPanel, whatIfRows, type WhatIfRow } from './dev-avast/VriWhatIfPanel'
+import { useVriFill } from './dev-avast/useVriFill'
+import { DEFAULT_VRI_RULES, describeVriRules, vriDensity, vriFillTotals, type VriPiece, type VriRules } from './dev-avast/vriFill'
 import { buildWorkbook } from './dev-avast/excel'
 import { writeGeodatabase } from './dev-avast/gdal'
 import { guessProjectName } from './dev-avast/inputs'
 import { datasetName, geodatabaseLayers } from './dev-avast/outputs'
 import { albersBoxToLngLat, multiPolygonToLngLat } from './dev-avast/projection'
-import { DEFAULT_SETTINGS, reportRows, summarize } from './dev-avast/report'
+import { DEFAULT_SETTINGS, summarize } from './dev-avast/report'
 import { useAvastInputs, useCandidates } from './dev-avast/useAvastInputs'
 import { runSignature, useAvastRun } from './dev-avast/useAvastRun'
-import { blockRow, blockRowsTsv } from './dev-avast/workbookRows'
+import { blockRowsTsv, exportBlockRows } from './dev-avast/workbookRows'
 import type { AvastSettings, BBox, GeometrySettings, MultiPolygonCoords } from './dev-avast/types'
 
-type Tab = 'inputs' | 'settings' | 'results'
+type Tab = 'inputs' | 'settings' | 'results' | 'vri'
 const SETTINGS_KEY = 'pgmaps:avast-volume:settings'
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -80,6 +84,18 @@ function useProjected<T extends object>(items: readonly T[], version: number, to
   }, [items, version, items.length])
 }
 
+/** What the block hover card shows about the VRI what-if. */
+function whatIfProperties(row: WhatIfRow | undefined) {
+  if (!row) return {}
+  return {
+    vriFill: row.withVri - row.avastVolume,
+    withVri: row.withVri,
+    m3haWithVri: row.m3haWithVri,
+    coverageWithVri: row.coverageWithVri,
+    flagged: row.belowMinimum,
+  }
+}
+
 const unionBox = (boxes: BBox[]): BBox | null => boxes.length
   ? [Math.min(...boxes.map((box) => box[0])), Math.min(...boxes.map((box) => box[1])), Math.max(...boxes.map((box) => box[2])), Math.max(...boxes.map((box) => box[3]))]
   : null
@@ -93,8 +109,12 @@ export default function DevAvastVolume() {
   const [view, setView] = useState<MapView>('density')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   // Picking a block from the list zooms to it; clicking it on the map does not move the camera.
-  const [focusKey, setFocusKey] = useState<string | null>(null)
+  const [focusBox, setFocusBox] = useState<BBox | null>(null)
+  const [showVri, setShowVri] = useState(false)
+  const [highlightLow, setHighlightLow] = useState(false)
   const { state: run, results, version, run: startRun, cancel } = useAvastRun()
+  const vri = useVriFill()
+  const [vriRules, setVriRules] = useState<VriRules>(DEFAULT_VRI_RULES)
 
   useEffect(() => {
     const previous = document.title
@@ -133,6 +153,14 @@ export default function DevAvastVolume() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [candidates, version])
 
+  const vriTotals = useMemo(() => vriFillTotals(vri.pieces, vri.byFid, vriRules, summary?.factor ?? null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vri.pieces, vri.byFid, vri.version, vriRules, summary?.factor])
+  const whatIf = useMemo(() => (summary ? whatIfRows(summary, vriTotals, vriRules.minimumM3ha) : []), [summary, vriTotals, vriRules.minimumM3ha])
+  const vriDone = vri.state.status === 'done'
+  const whatIfByKey = useMemo(() => new Map(vriDone ? whatIf.map((row) => [row.key, row]) : []), [whatIf, vriDone])
+  // Blocks under the merchantability minimum once VRI fills the gaps; outlined yellow while highlighted.
+  const flaggedKeys = useMemo(() => whatIf.filter((row) => vriDone && row.belowMinimum).map((row) => row.key), [whatIf, vriDone])
   const candidateFc = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
     features: candidates.map((candidate) => {
@@ -147,10 +175,12 @@ export default function DevAvastVolume() {
           key: candidate.key, blockId: candidate.id, operatingArea: candidate.operatingArea || row?.operatingArea || '', state,
           grossHa: row?.grossHa ?? candidate.fieldHa ?? candidate.geometryHa,
           ...(row && { coveragePct: row.avastCoveragePct, volume: row.reportedVolume }),
+          ...(row?.classVolume && { class1: row.classVolume[0], class2: row.classVolume[1], class3: row.classVolume[2] }),
+          ...whatIfProperties(whatIfByKey.get(candidate.key)),
         },
       }
     }),
-  }), [candidates, rowsByKey, run.currentKey])
+  }), [candidates, rowsByKey, run.currentKey, whatIfByKey])
 
   const idOf = useCallback((key: string) => candidates.find((candidate) => candidate.key === key)?.id ?? '', [candidates])
   const pieceFc = useProjected(results.pieces.avastPieces, version, (piece) => ({
@@ -183,12 +213,43 @@ export default function DevAvastVolume() {
     type: 'Feature', geometry: multiPolygonToLngLat(feature.geometry), properties: { density: feature.density ?? 0 },
   }))
 
+  const vriGeometry = useRef(new WeakMap<VriPiece, GeoJSON.Geometry>())
+  const vriFc = useMemo<GeoJSON.FeatureCollection>(() => {
+    const lidarKeys = new Set(summary?.candidates.filter((row) => row.volumeSource === 'LiDAR').map((row) => row.key) ?? [])
+    const scale = vriRules.applyFactor && summary?.factor != null ? summary.factor : 1
+    const features: GeoJSON.Feature[] = []
+    for (const piece of vri.pieces) {
+      if (lidarKeys.has(piece.candidateKey) || (piece.source === 'zero' && !vriRules.fillZeroAvast)) continue
+      const feature = vri.byFid.get(piece.fid)
+      let geometry = vriGeometry.current.get(piece)
+      if (!geometry) {
+        geometry = multiPolygonToLngLat(piece.geometry)
+        vriGeometry.current.set(piece, geometry)
+      }
+      const density = feature ? vriDensity(feature, vriRules) * scale : 0
+      features.push({ type: 'Feature', geometry, properties: {
+        blockId: idOf(piece.candidateKey), source: piece.source, density, areaHa: piece.areaHa, volume: density * piece.areaHa,
+        species: feature?.species ?? '', age: feature?.age ?? null,
+      } })
+    }
+    return { type: 'FeatureCollection', features }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vri.pieces, vri.byFid, vri.version, vriRules, summary, idOf])
+
   const bounds = useMemo(() => {
     const box = unionBox(candidates.map((candidate) => candidate.bbox))
     return box ? albersBoxToLngLat(box) : null
   }, [candidates])
-  const focusCandidate = candidates.find((candidate) => candidate.key === focusKey)
-  const focus = useMemo(() => (focusCandidate ? albersBoxToLngLat(focusCandidate.bbox) : null), [focusCandidate])
+  const focus = useMemo(() => (focusBox ? albersBoxToLngLat(focusBox) : null), [focusBox])
+  const focusKeys = (keys: string[]) => {
+    const box = unionBox(candidates.filter((candidate) => keys.includes(candidate.key)).map((candidate) => candidate.bbox))
+    if (box) setFocusBox(box)
+  }
+  const toggleHighlight = () => {
+    const next = !highlightLow
+    setHighlightLow(next)
+    if (next) focusKeys(flaggedKeys)
+  }
 
   const canRun = !candidates.length
     ? (candidateState.loading ? 'Reading candidate blocks…' : 'Add candidate blocks first.')
@@ -201,6 +262,8 @@ export default function DevAvastVolume() {
           : null
 
   const onRun = () => {
+    vri.reset()
+    setHighlightLow(false)
     setTab('results')
     setSelectedKey(null)
     void startRun({ candidates, entries: inputs.entries, datasets: inputs.datasets, settings: geometrySettings })
@@ -219,6 +282,10 @@ export default function DevAvastVolume() {
     generatedAt: new Date(),
     avastPieces: results.pieces.avastPieces,
     candidateIds: new Map(candidates.map((candidate) => [candidate.key, { id: candidate.id, operatingArea: rowsByKey.get(candidate.key)?.operatingArea ?? candidate.operatingArea }])),
+    vri: settings.excelIncludeVri && vriDone ? {
+      rows: new Map(whatIf.map((row) => [row.key, row])),
+      description: describeVriRules(vriRules, summary?.factor ?? null, vri.state.projectedDate),
+    } : undefined,
   })
 
   const onDownloadExcel = async () => {
@@ -236,7 +303,9 @@ export default function DevAvastVolume() {
     downloadBlob(await writeGeodatabase(name, layers), `${name}.gdb.zip`)
   }
   const pasteRows = (startRow: number, formulas: boolean) => {
-    const rows = summary ? reportRows(summary, effectiveSettings).map(blockRow) : []
+    // Same rows as the workbook, including step 4's VRI fill in F when that export option is on.
+    const vriRows = settings.excelIncludeVri && vriDone ? new Map(whatIf.map((row) => [row.key, row])) : undefined
+    const rows = summary ? exportBlockRows(summary, effectiveSettings, vriRows).map((entry) => entry.row) : []
     return { rows, text: blockRowsTsv(rows, { startRow, formulas }) }
   }
   const onCopyRows = async ({ startRow, formulas }: { startRow: number; formulas: boolean }) => {
@@ -266,6 +335,8 @@ export default function DevAvastVolume() {
         factor: summary?.factor ?? null,
         byOperatingArea: summary?.byOperatingArea ?? [],
         qa: summary?.qa ?? [],
+        vriWhatIf: { status: vri.state.status, error: vri.state.error, polygons: vri.state.featureCount, projectedDate: vri.state.projectedDate, rules: vriRules,
+          avastVolume: whatIf.reduce((sum, row) => sum + row.avastVolume, 0), withVri: whatIf.reduce((sum, row) => sum + row.withVri, 0) },
         blocks: summary?.candidates.map((row) => ({
           id: row.id, operatingArea: row.operatingArea, grossHa: row.grossHa, avastHa: row.avastCoveredHa, coveragePct: row.avastCoveragePct,
           rawVolume: row.avastRawVolume, finalVolume: row.finalVolume, reportedVolume: row.reportedVolume, classVolume: row.classVolume,
@@ -281,6 +352,7 @@ export default function DevAvastVolume() {
     inputs: inputsDone ? 'done' : 'current',
     settings: run.status === 'done' && !stale ? 'done' : inputsDone ? 'current' : 'todo',
     results: run.status === 'done' && !stale ? 'done' : run.status === 'idle' ? 'todo' : 'current',
+    vri: vri.state.status === 'done' ? 'done' : vri.state.status === 'fetching' || vri.state.status === 'intersecting' ? 'current' : 'todo',
   }
   const panel = (id: Tab) => ({ role: 'tabpanel' as const, id: `avast-steps-panel-${id}`, 'aria-labelledby': `avast-steps-tab-${id}`, hidden: tab !== id })
   const totalHa = candidates.reduce((sum, candidate) => sum + (candidate.fieldHa ?? candidate.geometryHa), 0)
@@ -290,8 +362,9 @@ export default function DevAvastVolume() {
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 px-2 pt-1 backdrop-blur">
         <TabBar label="Procedure steps" variant="underline" stretch stacked idPrefix="avast-steps" className="border-b-0"
           value={tab} onChange={setTab}
-          options={([['inputs', 'Inputs', 1], ['settings', 'Settings', 2], ['results', 'Run & results', 3]] as const).map(([value, label, step]) => ({
+          options={([['inputs', 'Inputs', 1], ['settings', 'Settings', 2], ['results', 'Run & results', 3], ['vri', 'VRI (optional)', 4]] as const).map(([value, label, step]) => ({
             value, label, marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-[11px]" />,
+            ...(value === 'vri' && { ariaLabel: 'Step 4, optional: fill AVAST gaps with VRI' }),
           }))}
           getTabProps={(option) => ({ 'data-avast-tab': option.value })} />
       </div>
@@ -319,8 +392,41 @@ export default function DevAvastVolume() {
       </div>
       <div {...panel('results')}>
         <ResultsPanel run={run} summary={summary} settings={effectiveSettings} canRun={canRun} stale={stale}
-          onRun={onRun} onCancel={cancel} selectedKey={selectedKey} onSelect={(key) => { setSelectedKey(key); setFocusKey(key) }}
-          onDownloadExcel={onDownloadExcel} onDownloadGdb={onDownloadGdb} onCopyRows={onCopyRows} onDownloadTsv={onDownloadTsv} onSettings={updateSettings} />
+          onRun={onRun} onCancel={cancel} selectedKey={selectedKey} onSelect={(key) => { setSelectedKey(key); if (key) focusKeys([key]) }}
+          onDownloadExcel={onDownloadExcel} onDownloadGdb={onDownloadGdb} onCopyRows={onCopyRows} onDownloadTsv={onDownloadTsv} onSettings={updateSettings}
+          exportNote={settings.excelIncludeVri && vriDone ? (
+            <InlineAlert tone="warning" title="Exports include VRI">Direct Est. Vol (F), the Management Summary and Copy rows include step 4's audit-adjusted VRI fill. Turn it off in step 4 for AVAST-only volumes.</InlineAlert>
+          ) : null}
+          whatIf={summary && run.status === 'done' ? (
+            <div className="px-4 pb-3">
+              <InlineAlert title="Optional step 4: fill AVAST gaps with VRI">
+                <p>Estimate the ground AVAST leaves empty from the provincial VRI, kept apart from these totals.</p>
+                <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => setTab('vri')} data-avast-open-vri>Open step 4</Button>
+              </InlineAlert>
+            </div>
+          ) : null} />
+      </div>
+      <div {...panel('vri')}>
+        {summary && run.status === 'done' ? (
+          <VriWhatIfPanel state={vri.state} summary={summary} rows={whatIf} rules={vriRules} settings={effectiveSettings}
+            onRules={(patch) => setVriRules((current) => ({ ...current, ...patch }))}
+            onRun={() => {
+              const ran = new Set(results.raws.keys())
+              void vri.run(candidates.filter((candidate) => ran.has(candidate.key)), results.pieces.avastPieces, run.signature ?? '', settings.minPieceHa)
+              setShowVri(true)
+              if (view === 'coverage') setView('density')
+            }}
+            stale={vri.state.runSignature !== null && vri.state.runSignature !== run.signature}
+            selectedKey={selectedKey} canRun={!stale}
+            highlight={highlightLow} onHighlight={toggleHighlight}
+            onSelect={(key) => { setSelectedKey(key); focusKeys([key]) }}
+            excelIncludeVri={settings.excelIncludeVri} onExcelIncludeVri={(excelIncludeVri) => updateSettings({ excelIncludeVri })}
+            onDownloadExcel={onDownloadExcel} />
+        ) : (
+          <div className="p-4">
+            <InlineAlert title="Run step 3 first">VRI fills the gaps in a finished AVAST run, so it opens once step 3 has run.</InlineAlert>
+          </div>
+        )}
       </div>
     </MapSidebarShell>
   )
@@ -332,7 +438,9 @@ export default function DevAvastVolume() {
       <AvastMap candidates={candidates.length ? candidateFc : EMPTY} pieces={pieceFc} slope={slopeFc} context={contextFc}
         bounds={bounds} focus={focus} view={view} onViewChange={setView} selectedKey={selectedKey}
         onSelect={(key) => { setSelectedKey(key); if (key) setTab('results') }}
-        slopeBreaks={settings.slopeBreaks} slopeAvailable={run.slopeAssessed && slopeFc.features.length > 0} />
+        slopeBreaks={settings.slopeBreaks} slopeAvailable={run.slopeAssessed && slopeFc.features.length > 0}
+        vriFill={vriDone || vri.state.status === 'intersecting' ? vriFc : EMPTY} showVri={showVri} onShowVriChange={setShowVri}
+        highlight={highlightLow && flaggedKeys.length > 0} highlightLabel={`Below ${vriRules.minimumM3ha} m³/ha with VRI`} />
     </MapSectionLayout>
   )
 }

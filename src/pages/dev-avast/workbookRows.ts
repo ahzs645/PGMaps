@@ -3,7 +3,8 @@
  * has it (A–K), shared by the Excel export and the paste-into-an-existing-
  * sheet clipboard text. Pure: no DOM or network access.
  */
-import type { CandidateSummary } from './types'
+import { roundTo } from './report'
+import type { CandidateSummary, RunSummary } from './types'
 
 export const BLOCK_COLUMNS = [
   'Operating Area',
@@ -94,4 +95,40 @@ export function blockRowsTsv(rows: BlockRow[], options: { startRow: number; form
     ].join('\t')
   })
   return [...(options.header ? [BLOCK_COLUMNS.join('\t')] : []), ...lines].join('\n')
+}
+
+/** Per-block VRI what-if figures from step 4; `WhatIfRow` in the panel has this shape. */
+export type VriExportRow = {
+  avastVolume: number
+  withVriAudit: number
+}
+
+/**
+ * Step 4's opt-in export: Direct Est. Vol (F) becomes the AVAST volume plus the
+ * VRI fill scaled by the Prince George TSA audit ratios. J keeps the AVAST-only
+ * volume, and E is restated as F ÷ merch area, the convention the workbook
+ * already uses for blocks whose volume does not come from AVAST.
+ */
+export function withVriVolume(row: BlockRow, vri: VriExportRow | undefined, vphDecimals: number): BlockRow {
+  const fill = vri ? vri.withVriAudit - vri.avastVolume : 0
+  if (fill <= 0) return row
+  const directVolume = row.directVolume + fill
+  return {
+    ...row,
+    directVolume,
+    preferredVph: row.merchHa > 0 ? roundTo(directVolume / row.merchHa, vphDecimals) : row.preferredVph,
+    estimateSource: `${row.estimateSource} + VRI fill (audit-adjusted)`,
+    notes: `${row.notes} VRI fill adds ${Math.round(fill).toLocaleString('en-CA')} m³ (audit-adjusted) where AVAST is empty or 0 m³/ha.`,
+  }
+}
+
+/** The Block Volume Inputs rows the workbook and the paste text share, with their candidate keys. */
+export function exportBlockRows(
+  summary: RunSummary,
+  settings: { duplicates: 'flag' | 'drop'; vphDecimals: number },
+  vri?: Map<string, VriExportRow>,
+): Array<{ key: string; row: BlockRow }> {
+  return summary.candidates
+    .filter((candidate) => !candidate.excluded && !(candidate.duplicate && settings.duplicates === 'drop'))
+    .map((candidate) => ({ key: candidate.key, row: withVriVolume(blockRow(candidate), vri?.get(candidate.key), settings.vphDecimals) }))
 }

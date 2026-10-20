@@ -180,6 +180,8 @@ describe('inputs and outputs', () => {
     const fields = ['FID_blocks', 'OBJECTID', 'LICENSEE', 'BLOCK_ID', 'MERCH_AREA', 'BCTS_OPER', 'OPERATING_']
     expect(guessCandidateFields(fields)).toEqual({ idField: 'BLOCK_ID', operatingAreaField: 'OPERATING_', areaField: 'MERCH_AREA', sourceTypeField: null })
     expect(guessProjectName(['Dunkley_PG.shp', 'Dunkley_Tsn.shp'])).toBe('Dunkley')
+    expect(guessCandidateFields(['Shape_Leng', 'Shape_Area', 'Blob_ID', 'OA', 'Gross_Ha']).idField).toBe('Blob_ID')
+    expect(guessCandidateFields(['Shape_Leng', 'OBJECTID', 'Unit']).idField).toBe('Unit')
   })
 
   it('drops non-positive merch areas so the polygon area is used', () => {
@@ -267,5 +269,34 @@ describe('inputs and outputs', () => {
       ['gdb', 'PG_Avast_June30_2026.gdb', 2],
       ['shapefile', 'Dunkley_PG.shp', 3],
     ])
+  })
+
+  it('folds the audit-adjusted VRI fill into Direct Est. Vol and hides zeros', async () => {
+    const block = candidate('BH1432', box(0, 0, 2 * HA, HA), { operatingArea: 'Buffalohead' })
+    const empty = candidate('BH1499', box(5 * HA, 0, 6 * HA, HA), { operatingArea: 'Buffalohead' })
+    const index = buildDensityIndex([density(1, box(0, 0, HA, HA), 278)])
+    const overlays = [block, empty].map((item) => overlayCandidate(item, index, null, { source: 'none' }, geometrySettings))
+    const settings = { ...DEFAULT_SETTINGS, projectName: 'Dunkley', slopeSource: 'none' as const }
+    const summary = summarize([block, empty], new Map(overlays.map((overlay) => [overlay.raw.key, overlay.raw])), settings, { avastLayerNames: ['PG_Avast'], lidarLayerNames: [], slopeAssessed: false })
+    const buffer = await buildWorkbook(summary, settings, {
+      projectName: 'Dunkley', candidateSources: [], avastLayerNames: ['PG_Avast'], lidarLayerNames: [], densityField: 'CMM_m3ha',
+      lidarDensityField: null, slopeDescription: null, generatedAt: new Date('2026-10-19T12:00:00Z'), avastPieces: overlays.flatMap((overlay) => overlay.avastPieces),
+      candidateIds: new Map([block, empty].map((item) => [item.key, { id: item.id, operatingArea: item.operatingArea }])),
+      vri: { rows: new Map([[block.key, { avastVolume: 278, withVriAudit: 467 }]]), description: 'Test rules.' },
+    })
+    const { default: ExcelJS } = await import('exceljs')
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer)
+    const inputs = workbook.getWorksheet('Block Volume Inputs')!
+    expect(inputs.getCell('L5').value).toBeNull()
+    expect(inputs.getCell('F6').value).toBeCloseTo(467, 6)
+    expect(inputs.getCell('J6').value).toBeCloseTo(278, 6)
+    expect(inputs.getCell('E6').value).toBe(234)
+    expect(String(inputs.getCell('H6').value)).toContain('VRI fill (audit-adjusted)')
+    // The empty block keeps its 0 values but shows them blank.
+    expect(inputs.getCell('F7').value).toBe(0)
+    expect(inputs.getCell('F7').numFmt).toBe('#,##0;-#,##0;')
+    const management = workbook.getWorksheet('Management Summary')!
+    expect((management.getCell('C6').value as { result: number }).result).toBeCloseTo(467, 6)
   })
 })

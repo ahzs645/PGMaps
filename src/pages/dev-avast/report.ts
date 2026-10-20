@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: AvastSettings = {
   notesIncludeSlope: false,
   duplicates: 'flag',
   excludedOperatingAreas: [],
+  excelIncludeVri: false,
 }
 
 /** The wording the Dunkley workbook uses, so pasted rows read the same as existing ones. */

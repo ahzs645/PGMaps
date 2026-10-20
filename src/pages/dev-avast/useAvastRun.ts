@@ -150,7 +150,7 @@ export function useAvastRun() {
             bump()
           } else if (message.type === 'done') resolve()
           else if (message.type === 'cancelled') reject(new DOMException('Run cancelled', 'AbortError'))
-          else reject(new Error(message.message))
+          else if (message.type === 'error') reject(new Error(message.message))
         }
         worker.onerror = (event) => reject(new Error(event.message || 'The analysis worker failed.'))
         setState((current) => ({ ...current, currentKey: candidates[0]?.key ?? null }))

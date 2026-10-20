@@ -171,7 +171,8 @@ export function SettingsPanel({ settings, onChange, operatingAreas, lidarAvailab
             onChange={(referenceTargetM3) => onChange({ referenceTargetM3 })} />
         </div>
         <ToggleRow active={settings.notesIncludeSlope} onClick={() => onChange({ notesIncludeSlope: !settings.notesIncludeSlope })}
-          label="Add the slope split to planning notes" description="Appends “Slope: 78% of volume <35%, …” to column I." />
+          label="Add the slope split to planning notes" description="Appends “Slope: 78% of volume <35%, …” to column I."
+          title="Add the slope split to planning notes — appends “Slope: 78% of volume <35%, …” to column I." />
         <SegmentedControl label="Duplicate Block IDs" value={settings.duplicates} onChange={(duplicates) => onChange({ duplicates })} options={[
           { value: 'flag', label: 'Keep, flag DUPLICATE' },
           { value: 'drop', label: 'Drop repeats' },

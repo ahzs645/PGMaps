@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ClipboardCopy, Database, FileSpreadsheet, Play, Square } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,10 @@ export function ResultsPanel(props: {
   onCopyRows: (options: { startRow: number; formulas: boolean }) => Promise<number>
   onDownloadTsv: (options: { startRow: number; formulas: boolean }) => Promise<void>
   onSettings: (patch: Partial<AvastSettings>) => void
+  /** Exploratory sections shown after the totals; never part of the exports. */
+  whatIf?: ReactNode
+  /** Shown above the export buttons, e.g. that step 4's VRI fill is in column F. */
+  exportNote?: ReactNode
 }) {
   const { run, summary, settings } = props
   const [busy, setBusy] = useState<string | null>(null)
@@ -133,7 +137,10 @@ export function ResultsPanel(props: {
             )}
           </SidebarSection>
 
+          {props.whatIf}
+
           <SidebarSection title="Outputs" className="space-y-3">
+            {props.exportNote}
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" disabled={!!busy || running} onClick={() => action('excel', props.onDownloadExcel)} data-avast-download="excel">
                 <FileSpreadsheet className="mr-1.5 h-4 w-4" />{busy === 'excel' ? 'Building…' : 'Excel workbook'}

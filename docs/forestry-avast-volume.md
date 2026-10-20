@@ -83,6 +83,60 @@ own `-clipsrc` on the Dunkley blocks to the hundredth of a hectare.
   `_AVAST_Volume_Intersect`, `_AVAST_Slope_Intersect`, `_Slope_Class_Polygon`,
   `_LiDAR_*` and the summary tables, zipped as `[Project]_AVAST_Volume.gdb`.
 
+## What-if: VRI fallback (not exported)
+
+After a run, optional step 4 fills the ground AVAST leaves empty with VRI
+rank-1 fetched live from DataBC (`vriFill.ts`, `useVriFill.ts`). It stays out
+of the totals, paste rows and geodatabase unless "Add VRI volume to the
+export" is on. Then Direct Est. Vol (F) — and so G, the Management Summary and
+Copy rows — becomes AVAST plus the audit-adjusted VRI fill
+(`withVriVolume` in `workbookRows.ts`); AVAST-only Ref. (J) keeps AVAST alone,
+E is restated as F ÷ merch area, H and I say VRI was added, and Method & QA
+records the rules. The geodatabase stays AVAST-only.
+- Workbook zeros display blank (`hideZeros` in `excel.ts`): the cell still
+  holds 0 so formulas work; only the number format's zero section is empty.
+
+- In the June 2026 PG geodatabase, every `CMM_m3ha > 0` equals VRI
+  `LIVE_STAND_VOLUME_175`, or live + `DEAD_STAND_VOLUME_175` where VRI records
+  dead volume, on stands aged 60 or more. AVAST also zeroes about 40% of
+  mature, unharvested treed area for reasons its attributes do not show, so
+  0 m³/ha AVAST pieces can be refilled too.
+- The defaults follow the Prince George TSA rather than AVAST: pine-leading
+  stands at 12.5 cm and dead volume on the shelf-life curve, age ≥ 60, treed
+  only. Choose 17.5 cm and "All dead" to reproduce AVAST's own rule.
+- DataBC's WFS answers browser requests from the live site
+  (`pgmaps.ahmadjalil.com`) without a proxy; checked from a real browser on
+  that origin.
+- The query box is BC Albers in `CQL_FILTER`, with `srsName=EPSG:3005` (the
+  layer's native CRS), paged by `FEATURE_ID`. Blocks within 30 m share a request.
+- The fill is a map overlay (the "VRI fill" chip beside the view switcher)
+  over the m³/ha and slope views, not a view of its own. The block hover card
+  is the only tooltip on the map — layers stacked under the pointer would each
+  open one — so it carries the VRI figures while the overlay is on.
+- The geometry (which VRI polygon covers which uncovered or zero piece) is
+  computed once in the worker; utilization, dead volume, age, treed-only and
+  the factor re-total instantly. Direct-LiDAR blocks are never filled.
+- Rules from the Prince George TSA (see the research summary the planning
+  team keeps beside the sample outputs):
+  - **Utilization "Pine 12.5"** — pine-leading stands at 12.5 cm, others at
+    17.5 cm, the TSA's merchantability rule. AVAST uses 17.5 cm throughout.
+  - **Dead volume "Shelf life"** — VRI dead volume is "at year of death", so it
+    is discounted by years since `EARLIEST_NONLOGGING_DIST_DATE` (mostly `IBM`,
+    mountain pine beetle) on the TSR curve: 100% in year 1, 80% in year 2,
+    linear to 40% at year 15, held at 40% after (`shelfLife`). Stands with no
+    disturbance year use the "years dead if unrecorded" setting.
+  - **Flag below** 182 m³/ha (TSR minimum harvestable volume) or 140 m³/ha
+    (beetle salvage), on volume with VRI fill ÷ merch area. Clicking the
+    "Below … m³/ha" tile outlines those blocks yellow, dims the rest and zooms
+    to them.
+  - **Audit-adjusted** — VRI fill × the 2018 PG TSA VRI audit's ground ÷
+    inventory ratio by leading species (pine 0.836, spruce 0.946, balsam
+    1.246, other 1.159; `auditRatio`), shown beside the unadjusted figure.
+- VRI is a VDYP projection of photo-interpreted attributes, designed for
+  management-unit totals. The Prince George TSA VRI audit found it unbiased in
+  total but biased by leading species (pine low, balsam high), so a single
+  block's VRI volume can be well off.
+
 ## GDAL in the browser
 
 - gdal3.js runs GDAL in its own worker and mounts inputs with WORKERFS, which

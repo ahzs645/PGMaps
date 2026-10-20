@@ -136,6 +136,8 @@ export type ReportSettings = {
   duplicates: 'flag' | 'drop'
   /** Operating areas left out of the report, e.g. Gaffney in the Dunkley workbook. */
   excludedOperatingAreas: string[]
+  /** Append the VRI what-if as columns after K of Block Volume Inputs (never in G or the totals). */
+  excelIncludeVri: boolean
 }
 
 export type AvastSettings = GeometrySettings & ReportSettings

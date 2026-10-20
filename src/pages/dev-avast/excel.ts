@@ -7,7 +7,7 @@
 import type { Workbook, Worksheet, Style } from 'exceljs'
 import { slopeClassLabel } from './slope'
 import { reportRows } from './report'
-import { BLOCK_COLUMNS, FIRST_DATA_ROW, blockRow, duplicateCheckFormula, evaluatedChecks, reportedVolumeFormula } from './workbookRows'
+import { BLOCK_COLUMNS, FIRST_DATA_ROW, duplicateCheckFormula, evaluatedChecks, exportBlockRows, reportedVolumeFormula, type VriExportRow } from './workbookRows'
 import type { AvastSettings, Piece, RunSummary } from './types'
 
 export type WorkbookContext = {
@@ -21,7 +21,10 @@ export type WorkbookContext = {
   generatedAt: Date
   avastPieces: Piece[]
   candidateIds: Map<string, { id: string; operatingArea: string }>
+  /** Step 4's VRI fill, added into Direct Est. Vol (F) when the export option is on. */
+  vri?: { rows: Map<string, VriExportRow>; description: string }
 }
+
 
 const FONT = 'Carlito'
 const DARK = 'FF193F35'
@@ -93,15 +96,42 @@ function plainTable(
 
 const pct = (value: number | null) => (value === null ? null : value / 100)
 
+/**
+ * Zeros display as blank cells. The value stays 0, so SUMIFS, the duplicate
+ * check and anything typed against it still work: only the number format's
+ * zero section is empty (`#,##0;-#,##0;`).
+ */
+function hideZeros(workbook: Workbook) {
+  workbook.eachSheet((sheet) => {
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        const format = cell.numFmt
+        const numeric = typeof cell.value === 'number' || (typeof cell.value === 'object' && cell.value !== null && 'formula' in cell.value)
+        if (!numeric) return
+        if (!format || format === 'General') cell.numFmt = 'General;-General;'
+        else if (!format.includes(';')) cell.numFmt = `${format};-${format};`
+      })
+    })
+  })
+}
+
 export async function buildWorkbook(summary: RunSummary, settings: AvastSettings, context: WorkbookContext): Promise<ArrayBuffer> {
   const { default: ExcelJS } = await import('exceljs')
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'PGMaps AVAST volume utility'
   workbook.created = context.generatedAt
   const project = (context.projectName || 'Project').toUpperCase()
-  const rows = reportRows(summary, settings).map(blockRow)
+  const reportedRows = reportRows(summary, settings)
+  const rows = exportBlockRows(summary, settings, context.vri?.rows).map((entry) => entry.row)
   const checks = evaluatedChecks(rows)
   const areas = summary.byOperatingArea.map((entry) => entry.operatingArea)
+  // Cached results for the Management Summary formulas, from the rows actually written (F may carry VRI).
+  const counted = rows.filter((_row, index) => checks[index].duplicate === 'OK')
+  const areaTotals = new Map(areas.map((area) => [area, {
+    blocks: counted.filter((row) => row.operatingArea === area).length,
+    volume: counted.filter((row) => row.operatingArea === area).reduce((sum, row) => sum + row.directVolume, 0),
+  }]))
+  const grandVolume = counted.reduce((sum, row) => sum + row.directVolume, 0)
   const allAreas = [...new Set([...areas, ...rows.map((row) => row.operatingArea)])].filter(Boolean)
   const lastRow = Math.max(205, FIRST_DATA_ROW + rows.length + 100)
   const inputs = `'Block Volume Inputs'`
@@ -126,7 +156,7 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
   areas.forEach((area, index) => {
     const rowNumber = 6 + index
     const row = management.getRow(rowNumber)
-    const entry = summary.byOperatingArea[index]
+    const entry = areaTotals.get(area)!
     row.getCell(1).value = area
     row.getCell(2).value = {
       formula: `COUNTIFS(${inputs}!$A$${FIRST_DATA_ROW}:$A$${lastRow},A${rowNumber},${inputs}!$K$${FIRST_DATA_ROW}:$K$${lastRow},"OK")`,
@@ -148,7 +178,7 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
   const total = management.getRow(totalRow)
   total.getCell(1).value = 'TOTAL'
   total.getCell(2).value = { formula: areas.length ? `SUM(B6:B${totalRow - 1})` : '0', result: summary.totals.blocks }
-  total.getCell(3).value = { formula: areas.length ? `SUM(C6:C${totalRow - 1})` : '0', result: summary.totals.volume }
+  total.getCell(3).value = { formula: areas.length ? `SUM(C6:C${totalRow - 1})` : '0', result: grandVolume }
   for (const column of [1, 2, 3]) {
     const cell = total.getCell(column)
     cell.font = font(12, { bold: true, color: { argb: DARK } })
@@ -162,7 +192,7 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
   management.getCell(`A${targetRow + 1}`).value = 'VOLUME ABOVE TARGET (m³)'
   management.getCell(`B${targetRow + 1}`).value = {
     formula: `IF(ISNUMBER(B${targetRow}),C${totalRow}-B${targetRow},"")`,
-    result: settings.referenceTargetM3 === null ? '' : summary.totals.volume - settings.referenceTargetM3,
+    result: settings.referenceTargetM3 === null ? '' : grandVolume - settings.referenceTargetM3,
   }
   for (const rowNumber of [targetRow, targetRow + 1]) {
     management.getCell(`A${rowNumber}`).font = font(10, { bold: true, color: { argb: DARK } })
@@ -173,11 +203,12 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
   const basis = summary.factor !== null
     ? `Reporting basis: ${avastName} ${context.densityField} × intersected area${context.lidarLayerNames.length ? `; LiDAR volume (${context.lidarLayerNames.join(' + ')}) used directly where it covers ≥${settings.directLidarMinCoveragePct}% of a block` : ''}; other blocks AVAST × LiDAR factor ${factorText}.`
     : `Reporting basis: ${avastName} ${context.densityField} × intersected area (raw AVAST, no LiDAR adjustment).`
+  const vriBasis = context.vri ? ' Blocks AVAST leaves empty or at 0 m³/ha are filled from VRI (audit-adjusted).' : ''
   const caveat = settings.volumeBasis === 'total'
     ? 'Planning-level gross volume only — not confirmed net merchantable/operable volume. Further slope, access and constraint screening is required.'
     : `Planning-level volume on ${settings.volumeBasis === 'class1' ? slopeClassLabel(1, breaks) : `≤${breaks[1]}%`} slope only — a desktop screen, not confirmed operable volume. Access, constraint and field review are still required.`
   const notes: Array<[string, string, string, number]> = [
-    [basis, DARK, BLUE_PALE, 30],
+    [basis + vriBasis, DARK, BLUE_PALE, 30],
     [caveat, 'FF684A22', 'FFFFF5DF', 33.95],
   ]
   notes.forEach(([value, color, background, height], index) => {
@@ -258,7 +289,7 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
   method.getColumn(1).width = 26
   method.getColumn(2).width = 102
   method.getColumn(3).width = 12
-  const reportable = reportRows(summary, settings)
+  const reportable = reportedRows
   const zeroCoverage = reportable.filter((row) => row.avastCoveredHa === 0).map((row) => row.id)
   const counts = summary.byOperatingArea.map((entry) => `${entry.operatingArea || '(blank)'} (${entry.blocks})`).join(', ')
   const lowerSlope = slopeClassLabel(1, breaks)
@@ -281,6 +312,7 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
     ['GROSS AREA', settings.grossArea === 'field' ? 'Merch area from the candidate attribute; polygon area where the attribute is blank or zero.' : 'Merch area is the candidate polygon\'s planar BC Albers area.'],
     ['ZERO AVAST COVERAGE', zeroCoverage.length ? `${zeroCoverage.join(', ')} have no AVAST area.` : 'Every block has some AVAST coverage.'],
     ['QA FLAGS', summary.qa.join(' ') || 'No QA flags raised.'],
+    ...(context.vri ? [['VRI FILL IN F', `Direct Est. Vol (F), and so G and the Management Summary, include step 4's VRI fill scaled by the Prince George TSA audit ratios by leading species. AVAST-only Ref. (J) keeps the AVAST volume alone; E is F ÷ merch area on those rows. ${context.vri.description}`] as [string, string]] : []),
     ['LIMITATIONS', 'Planning gross estimate only. Not a timber cruise volume or confirmed operable/net harvestable volume. Review access, slope, constraints and area adjustments.'],
     ['PRE-REPORT REVIEW', 'Verify the AVAST vintage and gross/net assumptions are the ones intended, and that any LiDAR factor is suitable for these operating areas.'],
     ['GENERATED', `${context.generatedAt.toLocaleString('en-CA')} · PGMaps /dev/forestry/avast-volume`],
@@ -377,5 +409,8 @@ export async function buildWorkbook(summary: RunSummary, settings: AvastSettings
     return [owner?.id ?? '', owner?.operatingArea ?? '', context.avastLayerNames[piece.layerIndex] ?? '', piece.fid, piece.density, piece.areaHa, piece.volume, piece.densityMissing ? 'YES' : '']
   }))
 
+  hideZeros(workbook)
+  // F can change after formulas were cached; have Excel recalculate on open.
+  workbook.calcProperties = { ...workbook.calcProperties, fullCalcOnLoad: true }
   return workbook.xlsx.writeBuffer() as Promise<ArrayBuffer>
 }
