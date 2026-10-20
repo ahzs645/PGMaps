@@ -4,6 +4,7 @@
  * Original vector text and the three reference pages are retained. No OCR,
  * image tracing, third-party fonts, server upload or runtime PDF dependency.
  */
+import { downloadBlob } from '@/lib/download'
 import { canonicalInput } from '../integrity'
 import { templateManifest as m } from './templateManifest'
 import type { AnalysisResult, TargetPolygon } from '../types'
@@ -208,7 +209,5 @@ export async function downloadFs1252(request: Omit<ExportRequest,'template'>): P
   const response=await fetch(`${import.meta.env.BASE_URL}forms/fs1252-2008-04.pdf`)
   if(!response.ok) throw new Error(`Could not load the local FS1252 template (${response.status}).`)
   const bytes=await exportFs1252({...request,template:new Uint8Array(await response.arrayBuffer())})
-  const blob=new Blob([new Uint8Array(bytes).buffer],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a')
-  a.href=url;a.download=`FS1252-simulation-${request.generatedAt.slice(0,10)}.pdf`;document.body.append(a);a.click();a.remove()
-  window.setTimeout(()=>URL.revokeObjectURL(url),60000)
+  downloadBlob(new Blob([new Uint8Array(bytes).buffer],{type:'application/pdf'}),`FS1252-simulation-${request.generatedAt.slice(0,10)}.pdf`)
 }

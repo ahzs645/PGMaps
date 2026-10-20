@@ -1,3 +1,4 @@
+import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { parseCsvRows } from '@/lib/parseCsv'
 
 export function checkedCsv(text: string, delimiter = ',') {
@@ -21,13 +22,7 @@ export function checkedCsv(text: string, delimiter = ',') {
 
 /** Quote every cell and stop spreadsheet formula execution in textual exports. */
 export function csvExport(headers: string[], rows: unknown[][]) {
-  const cell = (value: unknown) => {
-    const text =
-      value === null || value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
-    const safe = typeof value === 'number' ? text : /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text
-    return `"${safe.replace(/"/g, '""')}"`
-  }
-  return [headers, ...rows].map((row) => row.map(cell).join(',')).join('\r\n')
+  return toCsv(headers, rows)
 }
 
 export type MonitoringDateFormat = 'iso' | 'dmy' | 'mdy' | 'ymd'

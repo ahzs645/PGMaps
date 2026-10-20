@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { withBase } from '@/lib/dataUrl'
+import { downloadText } from '@/lib/download'
 import type { ForestryScene } from './scene'
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import { metersPerDegree, polygonBounds } from './visibility'
@@ -37,9 +38,7 @@ export function LandformSuggestions({ scene, onShow, onAdopt }: { scene: Forestr
   const downloadNearby = () => {
     if (!data) return
     const collection = { type: 'FeatureCollection', metadata: { source: data.manifest.source, retrievedAt: data.manifest.retrievedAt, scope: 'Inventory bounding boxes intersecting the 25 km search envelope; candidate boundaries only' }, features: data.units.map(({ geometry, ...properties }) => ({ type: 'Feature', geometry, properties })) }
-    const url = URL.createObjectURL(new Blob([JSON.stringify(collection)], { type: 'application/geo+json' }))
-    const a = document.createElement('a'); a.href = url; a.download = 'bc-nearby-visual-inventory.geojson'; a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    downloadText(JSON.stringify(collection), 'bc-nearby-visual-inventory.geojson', 'application/geo+json')
   }
   return <details className="rounded-lg border p-3 text-xs" data-forestry-disclosure="inventory-landforms">
     <summary className="cursor-pointer font-medium">Find a landform in the BC inventory</summary>
