@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Pull requests run the full build and verification without deploying, so a
+  # snapshot that no longer matches CI's products fails the PR, not main.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +15,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
   cancel-in-progress: true
 
 jobs:
@@ -98,19 +102,24 @@ jobs:
 
       # EPT divides the 551 MB original into small browser-streamable tiles.
       # Keep generated binaries out of Git and restore them after the app build.
+      # Restore and save are separate steps: products are saved as soon as they
+      # are built, so a later verification failure no longer forces every run
+      # to rebuild them (actions/cache only saves when the whole job succeeds).
       - name: Restore prepared LiDAR tiles
         id: lidar-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: dist/data/lidar/bc-093g086
           key: pgmaps-lidar-ept-v1-${{ hashFiles('scripts/prepare-lidar.py', 'scripts/lidar-environment.yml') }}
 
+      # Keyed on the scripts that produce the products only. Editing a test,
+      # validator or browser check must not throw away a known-good build.
       - name: Restore processed forestry and building analysis
         id: lidar-analysis-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: dist/data/lidar-analysis/bc-093g086
-          key: pgmaps-lidar-analysis-v1-${{ hashFiles('scripts/lidar/**', 'scripts/lidar-environment.yml') }}
+          key: pgmaps-lidar-analysis-v2-${{ hashFiles('scripts/lidar/run.py', 'scripts/lidar/process.py', 'scripts/lidar/geolibre_tools.py', 'scripts/lidar/reference_tools.py', 'scripts/lidar/publish.py', 'scripts/lidar/requirements.txt', 'scripts/lidar-environment.yml') }}
 
       - name: Install LiDAR indexing tools
         if: steps.lidar-cache.outputs.cache-hit != 'true' || steps.lidar-analysis-cache.outputs.cache-hit != 'true'
@@ -123,6 +132,13 @@ jobs:
         if: steps.lidar-cache.outputs.cache-hit != 'true'
         run: micromamba run -n pgmaps-lidar python scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 
+      - name: Save prepared LiDAR tiles
+        if: steps.lidar-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/data/lidar/bc-093g086
+          key: ${{ steps.lidar-cache.outputs.cache-primary-key }}
+
       - name: Install analysis dependencies
         if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         run: micromamba run -n pgmaps-lidar python -m pip install -r scripts/lidar/requirements.txt
@@ -131,31 +147,57 @@ jobs:
         if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086
 
+      - name: Save processed analysis
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/data/lidar-analysis/bc-093g086
+          key: ${{ steps.lidar-analysis-cache.outputs.cache-primary-key }}
+
+      # The products CI built, for regenerating the committed snapshots from
+      # exactly what gets deployed.
+      - name: Keep the built analysis products
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lidar-analysis-bc-093g086
+          path: dist/data/lidar-analysis/bc-093g086
+          retention-days: 14
+
       - name: Verify analysis provenance and products
         run: python3 scripts/lidar/validate.py --analysis dist/data/lidar-analysis/bc-093g086 --roof-inspection src/pages/dev-lidar/roofInspection.generated.json
 
+      # Each snapshot check reports even after an earlier one fails, so one run lists every stale snapshot.
       - name: Verify gap, plot, proximity and reconstruction snapshots
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_workflows.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify forestry structure snapshots
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_forestry.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify canopy heatmap previews
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_heatmaps.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify species inventory and model snapshot
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_species.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify species plot context
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_species_context.py
 
       - name: Verify tree isolation and native-height detail
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_tree_detail.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Verify tree segmentation benchmark provenance
+        if: ${{ !cancelled() }}
         run: python3 scripts/lidar/validate_tree_benchmarks.py --analysis dist/data/lidar-analysis/bc-093g086
 
       - name: Test LiDAR inspection and workflow interfaces
+        if: ${{ !cancelled() }}
         run: npx vitest run src/pages/dev-lidar
 
       - name: Verify complete LiDAR tiles
@@ -165,11 +207,13 @@ jobs:
         run: cp dist/index.html dist/404.html
 
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: dist
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
