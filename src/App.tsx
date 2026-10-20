@@ -41,6 +41,7 @@ const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const DevViewshed = lazy(() => import('@/pages/DevViewshed'))
 const DevViewshedTerrain = lazy(() => import('@/pages/DevViewshedTerrain'))
+const DevAvastVolume = lazy(() => import('@/pages/DevAvastVolume'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
@@ -144,6 +145,7 @@ function App() {
             <Route path="/dev/fallout" element={<DevFallout />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
             <Route path="/dev/forestry/cciss-suitability" element={<DevCcissSuitability />} />
+            <Route path="/dev/forestry/avast-volume" element={<DevAvastVolume />} />
             <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />

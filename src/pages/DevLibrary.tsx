@@ -210,6 +210,15 @@ const devEntries: DevEntry[] = [
     label: '/dev/forestry/visual-quality',
   },
   {
+    title: 'AVAST volume',
+    description:
+      'Drop in candidate blocks and the AVAST geodatabase to run the AVAST volume procedure — intersect, LiDAR factor and slope classes — and export the planning workbook and a File Geodatabase.',
+    href: '/dev/forestry/avast-volume',
+    icon: TreePine,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/avast-volume',
+  },
+  {
     title: 'CCISS suitability',
     description: 'Inspect CCISS historical suitability tiles and exact numeric GeoTIFF cells for a selected BC location.',
     href: '/dev/forestry/cciss-suitability',
