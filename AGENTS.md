@@ -46,6 +46,14 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `landformFromTerrain.ts` returns a **candidate**; never adopt it into a scene without the reviewer's click, and keep `blockOnly` honest — a block on a valley floor has no landform to take a share of.
 - Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `landformFromTerrain.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`, `roadSnap.ts`, and `forest.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser. `roadSnap.ts` takes a structural `RoadQueryMap` rather than a MapLibre map for the same reason.
 
+## AVAST volume
+
+- `docs/forestry-avast-volume.md` is the contract for `/dev/forestry/avast-volume`, which runs the AVAST Volume Calculation procedure (Parts 1–3) and exports the planning workbook and a File Geodatabase.
+- Volume is Σ(piece area × piece density) in BC Albers hectares — never a sum or mean of `CMM_m3ha`, never gross area × one density. The LiDAR factor scales AVAST volume only: never area, never a direct-LiDAR block, and a derived factor is total LiDAR ÷ total AVAST over the common footprint.
+- The first three workbook sheets mirror `Dunkley_Volume_Summary_All_Blocks.xlsx` (sheet order, row 5 headers, `G`/`K` formulas, Management Summary `SUMIFS` on `K = "OK"`) so rows paste between them; change `workbookRows.ts` and `excel.ts` together.
+- Every gdal3.js call goes through `gdal.ts` (`exclusive` queue, one WORKERFS mount for all inputs). Type geodatabase columns through `layerGeoJson`, not SQLite-dialect CASTs, which type computed columns from the first row.
+- Keep `geometry.ts`, `slope.ts`, `overlay.ts`, `report.ts`, `run.ts`, `inputs.ts`, `workbookRows.ts`, `outputs.ts` and `projection.ts` free of DOM and network access.
+
 ## Shared UI
 
 - `docs/shared-ui.md` lists the shared sidebar, list, dialog, legend and formatting building blocks. Use them before hand-rolling markup; when a page needs something they cannot express, add an opt-in prop to the shared piece instead of copying it.
