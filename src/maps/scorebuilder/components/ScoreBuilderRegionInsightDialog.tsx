@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { csvRows } from '@pgmaps/geo-toolkit/export'
 import { downloadText } from '@/lib/download'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -83,11 +84,6 @@ function formatLiftPhrase(row: { weight: number; label: string }): string {
 
 function formatDragPhrase(row: { weight: number; label: string }): string {
   return row.weight < 0 ? `higher ${row.label.toLowerCase()}` : `lower ${row.label.toLowerCase()}`
-}
-
-function csvEscape(value: string | number | null | undefined): string {
-  const text = value == null ? '' : String(value)
-  return `"${text.split('"').join('""')}"`
 }
 
 function createRegionReportCsv({
@@ -181,7 +177,7 @@ function createRegionReportCsv({
       row.hasData ? 'yes' : 'no',
     ]),
   ]
-  return lines.map((line) => line.map(csvEscape).join(',')).join('\n')
+  return csvRows(lines)
 }
 
 export function ScoreBuilderRegionInsightDialog({

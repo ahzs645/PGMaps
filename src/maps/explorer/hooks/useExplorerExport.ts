@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { ExplorerItem } from '../types'
+import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { downloadText } from '@/lib/download'
 
 export type ExplorerExportFormat = 'csv' | 'geojson'
@@ -18,11 +19,7 @@ export function useExplorerExport(filteredItems: ExplorerItem[]) {
           item.subtitle,
           item.summary,
         ])
-        const csv = [
-          header.join(','),
-          ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')),
-        ].join('\n')
-        downloadText(csv, 'explorer-items.csv', 'text/csv')
+        downloadText(toCsv(header, rows), 'explorer-items.csv', 'text/csv')
       } else {
         const fc: GeoJSON.FeatureCollection = {
           type: 'FeatureCollection',

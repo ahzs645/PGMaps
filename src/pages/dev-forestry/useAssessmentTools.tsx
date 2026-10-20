@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, GitCompareArrows } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { downloadText } from '@/lib/download'
 import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { ToolFieldPanel, ToolField, TOOL_INPUT } from './ToolFieldPanel'
 import { SightlineProfileChart } from './SightlineProfileChart'
@@ -34,14 +35,6 @@ type Props = {
   onRun: (scene: ForestryScene) => void
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
-}
-function download(name: string, body: string, type: string) {
-  const url = URL.createObjectURL(new Blob([body], { type })),
-    a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 export function useAssessmentTools({
   scene,
@@ -642,7 +635,7 @@ export function useAssessmentTools({
             variant="outline"
             disabled={!loaded}
             onClick={() =>
-              perform(() => download('forestry-via-evidence.html', buildEvidenceHtml(parseTools(d)), 'text/html'))
+              perform(() => downloadText(buildEvidenceHtml(parseTools(d)), 'forestry-via-evidence.html', 'text/html'))
             }
           >
             Export printable evidence
@@ -655,9 +648,9 @@ export function useAssessmentTools({
             disabled={!loaded}
             onClick={() =>
               perform(() =>
-                download(
-                  'forestry-assessment-workspace.json',
+                downloadText(
                   serializeTools({ ...d, currentScene: scene }),
+                  'forestry-assessment-workspace.json',
                   'application/json',
                 ),
               )

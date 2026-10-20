@@ -26,6 +26,7 @@ import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from 
 import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { TabBar } from '@/components/ui/tab-bar'
+import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { fetchJson } from '@/lib/fetchJson'
 import {
@@ -172,19 +173,6 @@ function loadStoredPlan(): OutdoorsPlan | null {
   } catch {
     return null
   }
-}
-
-function downloadTextFile(fileName: string, text: string, mimeType: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: mimeType }))
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = fileName
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  // Revoking synchronously can cancel the download in WebKit and embedded
-  // Chromium shells before they have consumed the object URL.
-  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 function planBounds(plan: OutdoorsPlan): [[number, number], [number, number]] | null {
@@ -629,13 +617,13 @@ function DevOutdoors() {
   }, [plan])
 
   const handleExportPlan = useCallback(() => {
-    downloadTextFile(planFileName(plan, 'plan.json'), serializeOutdoorsPlan(plan), 'application/json')
+    downloadText(serializeOutdoorsPlan(plan), planFileName(plan, 'plan.json'), 'application/json')
   }, [plan])
 
   const handleExportGeoJson = useCallback(() => {
-    downloadTextFile(
-      planFileName(plan, 'geojson'),
+    downloadText(
       `${JSON.stringify(planToGeoJson(plan), null, 2)}\n`,
+      planFileName(plan, 'geojson'),
       'application/geo+json',
     )
   }, [plan])

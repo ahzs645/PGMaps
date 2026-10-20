@@ -1,3 +1,5 @@
+import { csvRows } from '@pgmaps/geo-toolkit/export'
+
 export interface Station {
   station_id: string
   station_code: string
@@ -196,10 +198,6 @@ export function seasonalPoints(data: Observation[]) {
     }))
 }
 
-function csvCell(value: string | number | null) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`
-}
-
 export function observationsCsv(series: Series[], range: DateRange, updated: string | null) {
   const rows = [
     [
@@ -227,5 +225,5 @@ export function observationsCsv(series: Series[], range: DateRange, updated: str
       ]),
     ),
   ]
-  return rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
+  return csvRows(rows)
 }

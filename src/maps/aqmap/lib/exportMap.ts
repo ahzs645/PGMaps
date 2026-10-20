@@ -1,4 +1,5 @@
 import type maplibregl from 'maplibre-gl'
+import { downloadBlob } from '@/lib/download'
 
 export type ExportFormat = 'png' | 'pngOverlay' | 'jpeg' | 'pdf'
 
@@ -6,17 +7,6 @@ interface ExportOptions {
   map: maplibregl.Map
   container: HTMLElement | null
   baseName?: string
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
