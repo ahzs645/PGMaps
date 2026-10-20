@@ -160,6 +160,9 @@ for (const width of [1440, 390]) {
     const csvPath = await (await csvDownload).path()
     expect(readFileSync(csvPath!, 'utf8').split('\r\n')).toHaveLength(55)
     await page.getByRole('tab', { name: 'Search', exact: true }).click()
+    // Search opens on the unified public-content search; the portal's own
+    // expression and geographic search is the "Live portal submissions" type.
+    await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
     await page.getByLabel('Search geographic limit').selectOption('extent')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('button', { name: '73', exact: true })).toBeVisible()
@@ -169,13 +172,19 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: '73', exact: true }).click()
     await page.getByText('Metadata', { exact: true }).click()
     await page.getByRole('button', { name: 'Load metadata', exact: true }).click()
-    await expect(page.getByText('"submission_name": "Synthetic metadata"', { exact: false })).toBeVisible()
+    // Metadata renders as a term/value list, with values as text rather than markup.
+    const submission = page.getByRole('dialog', { name: 'Portal submission 73' })
+    await expect(submission.getByRole('definition').filter({ hasText: 'Synthetic metadata' })).toBeVisible()
+    await expect(submission.getByRole('definition').filter({ hasText: '<script>do not execute</script>' })).toBeVisible()
     expect(
       new URLSearchParams(requests.find((item) => item.path.endsWith('getSubmissionMetadata.php'))!.body!).get(
         'submissionId',
       ),
     ).toBe('73')
     expect(await page.locator('script').filter({ hasText: 'do not execute' }).count()).toBe(0)
+    // Submission resources open in a modal; close it before returning to the tabs.
+    await submission.getByRole('contentinfo').getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(submission).toBeHidden()
     await page.getByRole('tab', { name: 'Monitoring', exact: true }).click()
     await expect(
       page.getByText('54 valid observations · 1 rejected rows · 0 duplicate station/timestamps'),
