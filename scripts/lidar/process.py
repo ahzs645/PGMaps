@@ -92,6 +92,17 @@ def interpolate_ground(dtm, observed, res, max_distance=30.0, max_edge=60.0):
     cx = np.bincount(inverse, weights=cc + 0.5) / count
     cy = np.bincount(inverse, weights=rr + 0.5) / count
     cz = np.bincount(inverse, weights=dtm[rr, cc]) / count
+    # Fully observed 3×3 blocks put their centroids on an exact grid, so every
+    # square of four is cocircular and either diagonal is a valid Delaunay
+    # edge. Which one qhull picks then depends on floating-point details of
+    # the machine, and the same build moved 229 terrain cells by up to 0.6 m
+    # between a Mac and CI. A tiny offset hashed from each block's index puts
+    # the points in general position the same way everywhere; at ±1e-4 cell it
+    # dwarfs rounding error yet barely moves the surface.
+    hashed_x = (unique.astype(np.uint64) * np.uint64(2654435761)) % np.uint64(2**32)
+    hashed_y = (unique.astype(np.uint64) * np.uint64(2246822519)) % np.uint64(2**32)
+    cx = cx + (hashed_x.astype(np.float64) / 2**32 - 0.5) * 2e-4
+    cy = cy + (hashed_y.astype(np.float64) / 2**32 - 0.5) * 2e-4
     tri = Delaunay(np.column_stack((cx, cy)))
     fr, fc = np.where((~ground_observed) & observed & (distance <= max_distance))
     query = np.column_stack((fc + 0.5, fr + 0.5))
@@ -114,7 +125,10 @@ def interpolate_ground(dtm, observed, res, max_distance=30.0, max_edge=60.0):
     delta = query[inside] - tri.transform[selected, 2]
     bary = np.einsum("ijk,ik->ij", matrix, delta)
     weights = np.column_stack((bary, 1 - bary.sum(axis=1)))
-    z = np.sum(cz[verts] * weights, axis=1)
+    # Millimetre rounding absorbs last-bit differences in the barycentric sums
+    # (cell centres on a shared edge can resolve to either triangle), so
+    # dtm-1m.tif and height-1m.tif come out byte-identical on every machine.
+    z = np.round(np.sum(cz[verts] * weights, axis=1), 3)
     bounded = edge <= max_edge
     dtm[fr[inside][bounded], fc[inside][bounded]] = z[bounded]
     # A two-cell nearest fill only repairs the coarsened TIN's outer rim.

@@ -49,7 +49,8 @@ if args.roof_inspection:
     snapshot = json.loads(args.roof_inspection.read_text())
     assert snapshot["source_sha256"] == summary["source_sha256"]
     for name, digest in snapshot["input_sha256"].items():
-        assert hashlib.file_digest((root / name).open("rb"), "sha256").hexdigest() == digest, f"Regenerate roof inspection snapshot: {name} differs"
+        actual = hashlib.file_digest((root / name).open("rb"), "sha256").hexdigest()
+        assert actual == digest, f"Regenerate roof inspection snapshot: {name} differs (snapshot {digest}, built {actual})"
     roofs = json.loads((root / "building-candidates.geojson").read_text())["features"]
     assert {row["id"] for row in snapshot["records"]} == {row["properties"]["id"] for row in roofs}
     for row in snapshot["records"]:

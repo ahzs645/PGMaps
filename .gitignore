@@ -164,3 +164,6 @@ public/data/lidar/bc-093g086/
 public/data/lidar-analysis/
 dist-lidar-preview/
 scripts/lidar/__pycache__/
+
+# Intermediate LiDAR grids kept for snapshot regeneration (scripts/lidar/run.py --work)
+.lidar-work/
