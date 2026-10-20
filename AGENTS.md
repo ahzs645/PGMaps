@@ -46,6 +46,12 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `landformFromTerrain.ts` returns a **candidate**; never adopt it into a scene without the reviewer's click, and keep `blockOnly` honest — a block on a valley floor has no landform to take a share of.
 - Keep `terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `landformFromTerrain.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`, `roadSnap.ts`, and `forest.ts` free of DOM and network access. They carry the unit tests, and `analysis.ts` runs against any `ElevationSource`, which is what lets a run be checked outside a browser. `roadSnap.ts` takes a structural `RoadQueryMap` rather than a MapLibre map for the same reason.
 
+## LiDAR snapshots
+
+- `src/pages/dev-lidar/*.generated.json` pin the exact bytes of the analysis products CI builds and deploys. Regenerate them from CI's products, never from a local build: the same code on macOS differs in nearly every product's bytes. When a snapshot check fails, the deploy job regenerates them from its own products and uploads `lidar-snapshots-regenerated`; commit that artifact.
+- `scripts/lidar/regenerate_snapshots.py` runs every product-based generator in dependency order. The tree benchmark (R/lidR/PointTree) and building models (Roofer) are not rerun in CI; re-pin them only after checking their plots or footprints are unaffected.
+- `process.py` jitters the ground TIN's block centroids by a hashed ±1e-4 cell and rounds interpolated terrain to the millimetre. Without that, cocircular centroids triangulate differently per machine and moved terrain by up to 0.6 m between builds. Keep workflows on `ubuntu-24.04` rather than `ubuntu-latest`.
+
 ## AVAST volume
 
 - `docs/forestry-avast-volume.md` is the contract for `/dev/forestry/avast-volume`, which runs the AVAST Volume Calculation procedure (Parts 1–3) and exports the planning workbook and a File Geodatabase.
