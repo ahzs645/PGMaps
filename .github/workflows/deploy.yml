@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,10 +118,15 @@ jobs:
         id: lidar-analysis-cache
         uses: actions/cache/restore@v4
         with:
-          path: dist/data/lidar-analysis/bc-093g086
+          # The intermediate grids stay outside dist (not deployed); snapshot
+          # regeneration needs them alongside the products they came from.
+          path: |
+            dist/data/lidar-analysis/bc-093g086
+            .lidar-work/analysis-grids.npz
           key: pgmaps-lidar-analysis-v2-${{ hashFiles('scripts/lidar/run.py', 'scripts/lidar/process.py', 'scripts/lidar/geolibre_tools.py', 'scripts/lidar/reference_tools.py', 'scripts/lidar/publish.py', 'scripts/lidar/requirements.txt', 'scripts/lidar-environment.yml') }}
 
       - name: Install LiDAR indexing tools
+        id: lidar-env
         if: steps.lidar-cache.outputs.cache-hit != 'true' || steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         uses: mamba-org/setup-micromamba@v2
         with:
@@ -145,13 +150,15 @@ jobs:
 
       - name: Process terrain, canopy, crown and roof candidates
         if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
-        run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086
+        run: micromamba run -n pgmaps-lidar python scripts/lidar/run.py --output dist/data/lidar-analysis/bc-093g086 --work .lidar-work
 
       - name: Save processed analysis
         if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: dist/data/lidar-analysis/bc-093g086
+          path: |
+            dist/data/lidar-analysis/bc-093g086
+            .lidar-work/analysis-grids.npz
           key: ${{ steps.lidar-analysis-cache.outputs.cache-primary-key }}
 
       # The products CI built, for regenerating the committed snapshots from
@@ -200,6 +207,36 @@ jobs:
         if: ${{ !cancelled() }}
         run: npx vitest run src/pages/dev-lidar
 
+      # Snapshots must be computed from the exact products CI deploys (another
+      # machine's build differs in its bytes), so when any check above fails,
+      # regenerate them here from this run's products and upload the set to
+      # commit. The tree benchmark needs R/PointTree and is not rerun; see
+      # scripts/lidar/regenerate_snapshots.py --repin-benchmarks.
+      - name: Install LiDAR tools for snapshot regeneration
+        if: failure() && steps.lidar-env.outcome == 'skipped' && hashFiles('.lidar-work/analysis-grids.npz') != ''
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: scripts/lidar-environment.yml
+          cache-environment: true
+
+      - name: Regenerate stale LiDAR snapshots
+        id: regenerate-snapshots
+        if: failure() && hashFiles('.lidar-work/analysis-grids.npz') != ''
+        run: |
+          curl -sSL --retry 5 -o "$RUNNER_TEMP/source.laz" "https://drive.usercontent.google.com/download?id=12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI&export=download&confirm=t"
+          echo "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf  $RUNNER_TEMP/source.laz" | sha256sum --check
+          micromamba run -n pgmaps-lidar python -m pip install -r scripts/lidar/requirements-species.txt
+          micromamba run -n pgmaps-lidar python scripts/lidar/regenerate_snapshots.py --analysis dist/data/lidar-analysis/bc-093g086 --grids .lidar-work/analysis-grids.npz --source "$RUNNER_TEMP/source.laz"
+          git status --short src/pages/dev-lidar
+
+      - name: Upload regenerated LiDAR snapshots
+        if: failure() && steps.regenerate-snapshots.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lidar-snapshots-regenerated
+          path: src/pages/dev-lidar/*.generated.json
+          retention-days: 14
+
       - name: Verify complete LiDAR tiles
         run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
 
@@ -214,7 +251,7 @@ jobs:
   deploy:
     needs: build
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
