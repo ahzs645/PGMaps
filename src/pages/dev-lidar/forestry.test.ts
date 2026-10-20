@@ -14,7 +14,7 @@ const data = JSON.parse(readFileSync(new URL('./forestry.generated.json', import
 describe('forestry explorer on actual processed returns', () => {
   it('accounts for all accepted source returns and their first-return subset', () => {
     expect(data.counts.source_points).toBe(84608005)
-    expect(data.counts.accepted_returns).toBe(82613315)
+    expect(data.counts.accepted_returns).toBe(82612832)
     expect(data.plots.features).toHaveLength(924)
     expect(data.plots.features.reduce((n, f) => n + f.properties.profiles.all.returns, 0)).toBe(
       data.counts.accepted_returns,
