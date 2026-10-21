@@ -621,6 +621,13 @@ function Layers(
     const move = (e: MapMouseEvent) => {
       if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
       else {
+        // Match click precedence: hovering a spoke above the road must not
+        // move the landing station and invalidate the fan before its click.
+        if (
+          onOverlaySelect &&
+          map.queryRenderedFeatures(e.point, { layers: ['road-exploration-line', 'road-exploration-point'] }).length
+        )
+          return
         const hit = map.queryRenderedFeatures(e.point, { layers: ['road-alignments'] })[0]?.properties
         if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
       }

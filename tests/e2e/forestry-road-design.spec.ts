@@ -65,12 +65,25 @@ async function mapState(page: Page) {
           structures: source('road-structures'),
           cables: source('road-cable'),
           overlay: source('road-overlay'),
+          overlayLoaded: !!map.getSource('road-overlay') && map.isSourceLoaded('road-overlay'),
           overlayClicks: (source('road-overlay')?.features ?? []).flatMap((feature) => {
             if (feature.geometry.type !== 'LineString') return []
             const first = feature.geometry.coordinates[0],
               last = feature.geometry.coordinates.at(-1)!
             const position = map.project([first[0] * 0.2 + last[0] * 0.8, first[1] * 0.2 + last[1] * 0.8])
-            return [{ properties: feature.properties, x: rectangle.x + position.x, y: rectangle.y + position.y }]
+            const x = rectangle.x + position.x,
+              y = rectangle.y + position.y
+            const layers = ['road-exploration-line', 'road-exploration-point'].filter((id) => map.getLayer(id))
+            const hit = layers.length ? map.queryRenderedFeatures(position, { layers })[0] : undefined
+            return [
+              {
+                properties: feature.properties,
+                x,
+                y,
+                rendered: !!feature.properties?.spokeId && hit?.properties?.spokeId === feature.properties.spokeId,
+                receivesPointer: document.elementFromPoint(x, y) === map.getCanvas(),
+              },
+            ]
           }),
         }
       }
@@ -701,9 +714,19 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   await expect(page.getByTestId('radial-spoke-table').locator('tr[aria-selected="true"]')).toContainText('90.0°')
   const overlay = (await mapState(page))!
   expect(overlay.overlay?.features.filter((f) => f.geometry.type === 'LineString')).toHaveLength(8)
-  const target = overlay.overlayClicks.find((p) => p.properties?.bearing_deg === 180)!
-  expect(target).toBeTruthy()
-  await page.mouse.click(target.x, target.y)
+  let target = overlay.overlayClicks.find((p) => p.properties?.bearing_deg === 180)
+  // GeoJSON serialize().data changes before its worker tile and hit index.
+  // Wait for this exact spoke to be rendered under an unobscured canvas point.
+  await expect
+    .poll(async () => {
+      const state = await mapState(page)
+      target = state?.overlayClicks.find((p) => p.properties?.bearing_deg === 180)
+      return !!state?.overlayLoaded && !!target?.rendered && !!target?.receivesPointer
+    })
+    .toBe(true)
+  await page.mouse.move(target!.x, target!.y)
+  await linkedStation(page, 300)
+  await page.mouse.click(target!.x, target!.y)
   await expect(page.getByTestId('radial-spoke-table').locator('tr[aria-selected="true"]')).toContainText('180.0°')
   const radialChart = page.getByTestId('radial-selected-profile').getByTestId('road-cable-chart')
   await radialChart.focus()
