@@ -44,7 +44,6 @@ import {
   loadRegionalTerrain,
 } from './dev-forestry-roads/terrain'
 import { suggestRoute } from './dev-forestry-roads/routing'
-import { optimizeRoadCorridor, type RoadOptimizationObjective } from './dev-forestry-roads/corridorOptimizer'
 import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import type {
@@ -732,28 +731,6 @@ export default function DevForestryRoads() {
       setFitRevision((n) => n + 1)
       w.setNotice(result.message)
     })
-  const optimize = (objective: RoadOptimizationObjective, corridorHalfWidthM: number) =>
-    void run('Optimizing sketched road corridor…', async () => {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      const result = optimizeRoadCorridor(
-        alignment.points.map((point) => point.coordinate),
-        source,
-        project.settings,
-        project.context,
-        { objective, corridorHalfWidthM },
-      )
-      const next = newAlignment(
-        result.coordinates,
-        alignment.name + ' · ' + objective + ' corridor',
-        alignment.template,
-      )
-      // The candidate goes through the same project validator and linked view
-      // state as manually pegged alignments. Never replace the sketched guide.
-      w.commit(parseProject({ ...project, alignments: [...project.alignments, next], activeAlignmentId: next.id }))
-      setActiveProfile(null)
-      setFitRevision((n) => n + 1)
-      w.setNotice(result.message)
-    })
   const shiftSection = (metres: number) => {
     if (busy || !at || terrainProfile || draftAlignment) return
     const target = offsetCoordinate(at.coordinate, at.bearing + 90, metres)
@@ -1042,7 +1019,6 @@ export default function DevForestryRoads() {
               }))
             }
             onSuggest={suggest}
-            onOptimize={optimize}
             onSave={save}
             onPreviewTemplate={(template, name) => {
               setPegPreview(null)
