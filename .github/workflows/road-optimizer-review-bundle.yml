@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: optimizer-review-bundle
+  cancel-in-progress: true
 jobs:
   bundle:
     runs-on: ubuntu-24.04
@@ -20,15 +23,24 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build && npm --prefix vendor/json-url run build
-      - name: Include the published native terrain for reproducible tests
+      - name: Include native terrain for reproducible tests
         run: |
           mkdir -p optimizer-review-data
           for name in dtm-1m.tif checksums.json summary.json; do
             curl --fail --retry 2 --location "https://pgmaps.ahmadjalil.com/data/lidar-analysis/bc-093g086/$name" -o "optimizer-review-data/$name"
           done
-      - name: Package source and installed dependencies, never Git credentials
+      - name: Package source and installed dependencies without Git credentials
         run: |
-          tar --exclude='./.git' --exclude='*/.git' --exclude='./.github' --exclude='./optimizer-review-bundle.tar.gz' -czf /tmp/optimizer-review-bundle.tar.gz src packages vendor node_modules public tests scripts package.json package-lock.json tsconfig*.json vite.config.* vitest.config.* playwright.config.* eslint.config.* index.html optimizer-review-data .prettierrc* .prettierignore .gitignore
+          python3 - <<'PY'
+          import pathlib, tarfile
+          root = pathlib.Path('.')
+          paths = [p for p in root.iterdir() if p.is_file() and not p.name.startswith('.env')]
+          paths += [root / name for name in ('src', 'packages', 'vendor', 'node_modules', 'tests', 'scripts', 'optimizer-review-data')]
+          with tarfile.open('/tmp/optimizer-review-bundle.tar.gz', 'w:gz') as archive:
+              for p in paths:
+                  if p.exists():
+                      archive.add(str(p), filter=lambda info: None if '.git' in pathlib.PurePosixPath(info.name).parts else info)
+          PY
           cp /tmp/optimizer-review-bundle.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
