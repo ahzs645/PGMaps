@@ -23,7 +23,7 @@ export const LIDAR_TOOLS: LidarTool[] = [
     id: 'compare',
     title: 'Compare models',
     description: 'Compare executed model variants on linked maps and review their performance.',
-    outputs: 'LiDAR labels · RGB masks · 3D shape review · model status',
+    outputs: 'Neural models · LiDAR labels · RGB masks · 3D shape review',
     modes: [],
     defaultMode: null,
   },
@@ -98,6 +98,10 @@ export function resolveLidarRoute(pathname: string, search: string) {
   const mode = tool?.modes.includes(legacy as AnalysisMode) ? (legacy as AnalysisMode) : (tool?.defaultMode ?? null)
   const panel = legacy === 'inspection' || params.get('panel') === 'roofs' ? 'buildings' : null
   const valid = atRoot || !!tool
-  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}`
+  const family =
+    tool?.id === 'compare' && ['lidar', 'neural', 'rgb', 'shapes'].includes(params.get('family') ?? '')
+      ? params.get('family')
+      : null
+  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}`
   return { tool, mode, panel, valid, canonical }
 }

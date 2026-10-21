@@ -1,9 +1,9 @@
-export type ComparisonFamily = 'lidar' | 'rgb' | 'shapes'
+export type ComparisonFamily = 'lidar' | 'neural' | 'rgb' | 'shapes'
 export interface ComparisonModel {
   id: string
   name: string
   family: ComparisonFamily
-  status: 'completed' | 'blocked' | 'unreleased' | 'not-run'
+  status: 'completed' | 'partial' | 'blocked' | 'unreleased' | 'not-run'
   input: string
   output: string
   note: string
@@ -51,12 +51,22 @@ export const COMPARISON_MODELS: ComparisonModel[] = [
   {
     id: 'segment-any-tree',
     name: 'SegmentAnyTree',
-    family: 'lidar',
-    status: 'blocked',
-    input: '3D point cloud · GPU runtime',
+    family: 'neural',
+    status: 'partial',
+    input: 'BC tile · matched CPU inference snapshot',
     output: 'Tree-instance point labels',
-    note: 'Weights verified and plot preprocessing passed. Neural inference has not run: no usable GPU job service in this session.',
+    note: 'Official weights executed on CPU. Compare the shared completed chunks; full-tile inference and final boundary merging remain in progress.',
     url: 'https://github.com/SmartForest-no/SegmentAnyTree',
+  },
+  {
+    id: 'forainet',
+    name: 'ForAINet',
+    family: 'neural',
+    status: 'partial',
+    input: 'BC tile · matched CPU inference snapshot',
+    output: 'Tree instances and five point classes',
+    note: 'Original ForAINet weights executed using the shared PGMaps inference adapter. Compare completed chunks and matched original-point samples; final tree totals are pending.',
+    url: 'https://github.com/prs-eth/ForAINet',
   },
   {
     id: 'forestformer3d',
@@ -141,6 +151,7 @@ export const COMPARISON_MODELS: ComparisonModel[] = [
 export const modelById = (id: string) => COMPARISON_MODELS.find((model) => model.id === id)
 export const STATUS_LABELS = {
   completed: 'Output available',
+  partial: 'Preliminary',
   blocked: 'Blocked',
   unreleased: 'Unreleased',
   'not-run': 'Not run',

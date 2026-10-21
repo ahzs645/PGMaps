@@ -23,6 +23,27 @@ state.data = {
   provenance: read('./provenance.generated.json'),
 }
 describe('comparison workspace interactions', () => {
+  it('opens the preliminary model comparison directly from its shareable URL', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => read('./neural.generated.json') }))
+    let renderer: ReturnType<typeof create>
+    try {
+      await act(async () => {
+        renderer = create(
+          <MemoryRouter initialEntries={['/dev/lidar/compare/?family=neural']}>
+            <ModelComparisonWorkspace summary={null} error="" basemap="none" />
+          </MemoryRouter>,
+        )
+      })
+      expect(renderer!.root.findAllByProps({ 'aria-label': 'Preliminary neural comparison' })).toHaveLength(1)
+      expect(
+        renderer!.root.findByProps({ 'aria-label': 'SegmentAnyTree preliminary map' }).props['data-feature-count'],
+      ).toBe(416)
+      expect(renderer!.root.findAllByProps({ 'aria-label': 'Model run status' })).toHaveLength(0)
+      await act(async () => renderer!.unmount())
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('switches real variants and datasets, and clears maps when an unrun model is chosen', async () => {
     const storage = new Map<string, string>()
     vi.stubGlobal('localStorage', {
@@ -50,8 +71,10 @@ describe('comparison workspace interactions', () => {
         'pointtree-treex',
       )
       const catalogueButton = (name: string) =>
-        renderer!.root.findAllByType('button').find((b) => b.findAllByType('strong').some(node => node.children.join('').includes(name)))!
-      await act(async () => catalogueButton('SegmentAnyTree').props.onClick())
+        renderer!.root
+          .findAllByType('button')
+          .find((b) => b.findAllByType('strong').some((node) => node.children.join('').includes(name)))!
+      await act(async () => catalogueButton('ForestFormer3D').props.onClick())
       expect(renderer!.root.findAllByProps({ 'aria-label': 'LiDAR comparison map A' })).toHaveLength(0)
       expect(renderer!.root.findAllByProps({ 'aria-label': 'Model run status' })).toHaveLength(1)
       await act(async () => catalogueButton('DeepForest').props.onClick())

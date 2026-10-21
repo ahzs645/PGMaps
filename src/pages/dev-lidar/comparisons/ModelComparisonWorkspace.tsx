@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
@@ -12,6 +12,7 @@ import { useComparisonData } from './useComparisonData'
 import { LidarComparison } from './LidarComparison'
 import { RgbComparison } from './RgbComparison'
 import { ShapeComparison } from './ShapeComparison'
+import { NeuralComparison } from './NeuralComparison'
 
 export function ModelComparisonWorkspace({
   summary,
@@ -25,13 +26,25 @@ export function ModelComparisonWorkspace({
   onRetry?: () => void
 }) {
   const { data, error: loadError, retry } = useComparisonData(summary?.source_sha256)
-  const [family, setFamily] = useState<ComparisonFamily>('lidar'),
-    [selected, setSelected] = useState<string | undefined>(),
+  const [params, setParams] = useSearchParams()
+  const family: ComparisonFamily = ['lidar', 'neural', 'rgb', 'shapes'].includes(params.get('family') ?? '')
+    ? (params.get('family') as ComparisonFamily)
+    : 'lidar'
+  const setFamily = (value: ComparisonFamily) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.set('family', value)
+        return next
+      },
+      { replace: true },
+    )
+  const [selected, setSelected] = useState<string | undefined>(),
     [catalogue, setCatalogue] = useState<boolean | null>(null)
   const isMobile = useIsMobile(),
     showCatalogue = catalogue ?? !isMobile,
     model = selected ? modelById(selected) : undefined
-  const blocked = model && model.status !== 'completed'
+  const blocked = model && model.status !== 'completed' && model.status !== 'partial'
   const switchFamily = (value: string) => {
     setFamily(value as ComparisonFamily)
     setSelected(undefined)
@@ -48,6 +61,7 @@ export function ModelComparisonWorkspace({
           onChange={switchFamily}
           options={[
             { value: 'lidar', label: 'LiDAR segmentation' },
+            { value: 'neural', label: 'Neural models' },
             { value: 'rgb', label: 'RGB crowns' },
             { value: 'shapes', label: '3D shape review' },
           ]}
@@ -145,6 +159,8 @@ export function ModelComparisonWorkspace({
                 Compare available {family === 'lidar' ? 'LiDAR' : 'RGB'} outputs
               </Button>
             </section>
+          ) : family === 'neural' ? (
+            <NeuralComparison basemap={basemap} sourceSha={summary?.source_sha256} />
           ) : !data ? (
             <div className="flex h-full items-center justify-center p-6 text-sm" role="status">
               <div>
