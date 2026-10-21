@@ -1,0 +1,38 @@
+name: Road optimizer review bundle
+on:
+  push:
+    branches: [codex/forestry-road-corridor-optimizer]
+    paths: [.github/workflows/road-optimizer-review-bundle.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build && npm --prefix vendor/json-url run build
+      - name: Include the published native terrain for reproducible tests
+        run: |
+          mkdir -p optimizer-review-data
+          for name in dtm-1m.tif checksums.json summary.json; do
+            curl --fail --retry 2 --location "https://pgmaps.ahmadjalil.com/data/lidar-analysis/bc-093g086/$name" -o "optimizer-review-data/$name"
+          done
+      - name: Package source and installed dependencies, never Git credentials
+        run: |
+          tar --exclude='./.git' --exclude='*/.git' --exclude='./.github' --exclude='./optimizer-review-bundle.tar.gz' -czf /tmp/optimizer-review-bundle.tar.gz src packages vendor node_modules public tests scripts package.json package-lock.json tsconfig*.json vite.config.* vitest.config.* playwright.config.* eslint.config.* index.html optimizer-review-data .prettierrc* .prettierignore .gitignore
+          cp /tmp/optimizer-review-bundle.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: road-optimizer-review-bundle
+          path: optimizer-review-bundle.tar.gz
+          retention-days: 2
+          compression-level: 0
