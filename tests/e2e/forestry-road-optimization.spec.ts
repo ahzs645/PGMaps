@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Download } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
+import { distance, positionAt } from '../../src/pages/dev-forestry-roads/engine'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(150000)
@@ -63,7 +64,12 @@ async function actualMap(page: Page) {
         const map = value && typeof value === 'object' && 'current' in value ? value.current : value as Map | undefined
         if (typeof map?.getTerrain !== 'function') continue
         const source = map.getSource('road-section')
+        const roads = map.getSource('road-roads')
+        const selected = roads?.type === 'geojson'
+          ? (roads.serialize().data as GeoJSON.FeatureCollection<GeoJSON.LineString>).features.filter(f => f.properties?.selected)
+          : []
         return {
+          selected: selected.map(f => ({ id: String(f.properties?.id), chainage: Number(f.properties?.chainage), coordinates: f.geometry.coordinates })),
           roads: map.getLayer('road-alignments') ? map.queryRenderedFeatures({ layers: ['road-alignments'] }).length : 0,
           section: source?.type === 'geojson' ? (source.serialize().data as GeoJSON.FeatureCollection).features[0]?.geometry : null,
         }
@@ -98,6 +104,13 @@ test('corridor review, adoption, linked station, report, undo and reopen retain 
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '60')
   await expect.poll(async () => (await actualMap(page))?.roads ?? 0).toBeGreaterThan(0)
   expect((await actualMap(page))?.section).toBeTruthy()
+  // The NEW candidate, not merely some road, must be the selected rendered source.
+  await expect.poll(async () => [...new Set((await actualMap(page))?.selected.map(f => f.id) ?? [])]).toEqual([adopted.activeAlignmentId])
+  const rendered = (await actualMap(page))!.selected.find(f => Math.abs(f.chainage - 60) < 0.001)
+  expect(rendered).toBeTruthy()
+  const last = rendered!.coordinates[rendered!.coordinates.length - 1]
+  const expected = positionAt(adopted.alignments[1], 60).coordinate
+  expect(distance([last[0], last[1]], expected)).toBeLessThan(0.002)
   await page.screenshot({ path: info.outputPath('corridor-linked-adopted.png'), fullPage: true })
   await page.getByRole('button', { name: 'Undo road edit' }).click()
   expect((await saved(page)).alignments).toHaveLength(1)
@@ -114,13 +127,24 @@ test('discard and cancellation never change the saved road', async ({ page }) =>
   const review = await optimize(page)
   await review.getByRole('button', { name: 'Discard candidate' }).click()
   expect(await saved(page)).toEqual(project)
+  // A tiny feasible route can finish before a person (or Playwright) reaches
+  // Cancel. Use a larger, genuinely expensive blocked search, not a fake delay.
+  const cancellationProject = structuredClone(project)
+  const frame = corridorFrame([-122.72, 53.89])
+  cancellationProject.alignments[0].points = [[0, 0], [1000, 500]].map((p, i) => ({ id: 'cancel-peg-' + i, coordinate: frame.fromXY([p[0], p[1]]), radiusM: 0 }))
+  cancellationProject.context = [{ id: 'cancel-barrier', name: 'Cancellation test exclusion', kind: 'avoid', geometry: { type: 'Polygon', coordinates: [[frame.fromXY([450, -500]), frame.fromXY([550, -500]), frame.fromXY([550, 1000]), frame.fromXY([450, 1000]), frame.fromXY([450, -500])]] } }]
+  await openProject(page, cancellationProject)
+  const beforeCancellation = await saved(page)
+  await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption('contour')
+  await page.getByLabel('Corridor half-width metres', { exact: true }).fill('300')
   await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
   const cancel = page.getByRole('button', { name: 'Cancel road optimization', exact: true })
   await expect(cancel).toBeVisible()
   await cancel.click()
   await expect(cancel).not.toBeVisible()
   await expect(page.getByTestId('road-optimization-review')).not.toBeVisible()
-  expect(await saved(page)).toEqual(project)
+  await expect(page.getByText('Optimization cancelled. No road was changed.', { exact: true })).toBeVisible()
+  expect(await saved(page)).toEqual(beforeCancellation)
   expect(errors).toEqual([])
 })
 
