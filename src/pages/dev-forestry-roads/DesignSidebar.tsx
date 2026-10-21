@@ -1,0 +1,776 @@
+import { useState } from 'react'
+import { Copy, Download, Mountain, Plus, Route, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { TabBar } from '@/components/ui/tab-bar'
+import { Field, NumberField, roadFieldClass } from './Controls'
+import { formatRoadStation } from './Charts'
+import { distance } from './engine'
+import type { DrawMode } from './PlanView'
+import type { RoadWorkspace } from './useRoadWorkspace'
+import type { RoadTemplate, WidthOverride } from './types'
+
+export type FileKind = 'project' | 'terrain' | 'alignment' | 'context'
+export interface SidebarProps {
+  workspace: RoadWorkspace
+  mode: DrawMode
+  onMode: (mode: DrawMode) => void
+  onFile: (kind: FileKind) => void
+  onTerrain: (kind: 'lidar' | 'regional' | 'demo') => void
+  verticalReference: string
+  onVerticalReference: (value: string) => void
+  selectedPoint: string | null
+  onPoint: (id: string | null) => void
+  onDuplicate: () => void
+  onRemoveAlignment: () => void
+  onSuggest: () => void
+  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report') => void
+  onProfile: (id: string) => void
+  activeProfile: string | null
+}
+const id = () => crypto.randomUUID()
+export function DesignSidebar(p: SidebarProps) {
+  const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'review' | 'files'>('design')
+  const { project, alignment, analysis, update, updateAlignment, source } = p.workspace
+  const point = alignment.points.find((x) => x.id === p.selectedPoint)
+  const tweakTemplate = (key: keyof RoadTemplate, value: number) =>
+    updateAlignment((a) => ({ ...a, template: { ...a.template, [key]: value } }))
+  const tweakOverride = (key: string, changes: Partial<WidthOverride>) =>
+    updateAlignment((a) => ({ ...a, overrides: a.overrides.map((x) => (x.id === key ? { ...x, ...changes } : x)) }))
+  const addWidening = (kind: WidthOverride['kind']) =>
+    updateAlignment((a) => ({
+      ...a,
+      overrides: [
+        ...a.overrides,
+        {
+          id: id(),
+          name: kind === 'landing' ? 'New landing' : 'New turnout',
+          kind,
+          side: 'left',
+          start: Math.min(p.workspace.station, Math.max(0, analysis.length - 60)),
+          end: Math.min(analysis.length, Math.min(p.workspace.station, Math.max(0, analysis.length - 60)) + 60),
+          taper: 10,
+          extraWidth: kind === 'landing' ? 9 : 4,
+        },
+      ],
+    }))
+  const addPvi = () => {
+    const at = analysis.stations.reduce(
+      (best, s) =>
+        Math.abs(s.chainage - p.workspace.station) < Math.abs(best.chainage - p.workspace.station) ? s : best,
+      analysis.stations[0],
+    )
+    if (!at || at.groundElevation === null) return
+    updateAlignment((a) => ({
+      ...a,
+      vertical: [
+        ...a.vertical.filter((v) => Math.abs(v.chainage - at.chainage) > 0.05),
+        { id: id(), chainage: at.chainage, elevation: at.designElevation ?? at.groundElevation!, curveLength: 0 },
+      ].sort((a, b) => a.chainage - b.chainage),
+    }))
+  }
+  return (
+    <aside
+      aria-label="Road design controls"
+      className="flex min-h-0 min-w-0 max-h-[60vh] lg:max-h-none flex-col rounded-xl border bg-card"
+    >
+      <fieldset disabled={!!p.workspace.busy} className="contents">
+        <div className="border-b p-2">
+          <TabBar
+            label="Road workflow"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'terrain', label: 'Terrain', icon: Mountain },
+              { value: 'design', label: 'Design', icon: Route },
+              { value: 'template', label: 'Section', icon: SlidersHorizontal },
+              { value: 'review', label: 'Review' },
+              { value: 'files', label: 'Files' },
+            ]}
+          />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+          <div hidden={tab !== 'terrain'} className="space-y-4">
+            <SidebarSection title="Terrain source">
+              <p className="mb-2 text-sm font-medium">{project.terrain.name}</p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                {project.terrain.resolutionM.toFixed(2)} m cells ·{' '}
+                {project.terrain.epsg ? `EPSG:${project.terrain.epsg}` : 'training coordinates'}
+                <br />
+                {project.terrain.verticalReference}
+              </p>
+              <Button
+                className="mt-3 w-full"
+                size="sm"
+                disabled={!!p.workspace.busy}
+                onClick={() => p.onTerrain('lidar')}
+              >
+                Load BC 1 m LiDAR sample
+              </Button>
+              <div className="mt-3 space-y-2">
+                <Field label="Imported DEM vertical datum (metres)">
+                  <input
+                    className={roadFieldClass}
+                    value={p.verticalReference}
+                    placeholder="e.g. CGVD2013 / EPSG:6647"
+                    onChange={(e) => p.onVerticalReference(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => p.onFile('terrain')}
+                  disabled={!!p.workspace.busy}
+                >
+                  <Upload className="mr-2 size-3" />
+                  Import terrain GeoTIFF
+                </Button>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB. Crop large
+                  LAS/LAZ datasets to a DEM first. Resolution and no-data are preserved.
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!!p.workspace.busy}
+                  onClick={() => p.onTerrain('regional')}
+                >
+                  Regional DEM
+                </Button>
+                <Button variant="ghost" size="sm" disabled={!!p.workspace.busy} onClick={() => p.onTerrain('demo')}>
+                  Training example
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Regional DEM is coarse reconnaissance terrain. It is not a 1 m LiDAR source.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Context & terrain profiles">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => p.onFile('context')}>
+                Import streams / constraints
+              </Button>
+              <p className="my-2 text-[11px] leading-4 text-muted-foreground">
+                GeoJSON or a zipped shapefile. GeoJSON kind: stream, avoid, existing-road or harvest. A selected line
+                can also be sampled as a terrain profile.
+              </p>
+              <div className="flex flex-wrap gap-1">
+                <Button variant="outline" size="sm" onClick={() => p.onMode('profile')}>
+                  Draw terrain profile
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onMode('stream')}>
+                  Draw stream
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onMode('avoid')}>
+                  Draw avoidance area
+                </Button>
+              </div>
+              <div className="mt-3 space-y-1">
+                {project.context.map((feature) => (
+                  <div key={feature.id} className="flex items-center gap-1 rounded border px-2 py-1">
+                    <button
+                      className="min-w-0 flex-1 truncate text-left text-xs"
+                      disabled={feature.geometry.type !== 'LineString'}
+                      onClick={() => p.onProfile(feature.id)}
+                    >
+                      {feature.name} <span className="text-muted-foreground">· {feature.kind}</span>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-6"
+                      aria-label={`Remove context ${feature.name}`}
+                      onClick={() => update((x) => ({ ...x, context: x.context.filter((c) => c.id !== feature.id) }))}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {(project.profiles ?? []).map((profile) => (
+                <div key={profile.id} className="mt-1 flex items-center gap-1 rounded border px-2 py-1">
+                  <button className="flex-1 text-left text-xs" onClick={() => p.onProfile(profile.id)}>
+                    {profile.name}
+                  </button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    aria-label={`Remove profile ${profile.name}`}
+                    onClick={() => update((x) => ({ ...x, profiles: x.profiles?.filter((v) => v.id !== profile.id) }))}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ))}
+            </SidebarSection>
+          </div>
+
+          <div hidden={tab !== 'design'} className="space-y-4">
+            <SidebarSection title="Alignment alternatives">
+              <Field label="Active road">
+                <select
+                  aria-label="Active road"
+                  className={roadFieldClass}
+                  value={alignment.id}
+                  onChange={(e) => {
+                    update((x) => ({ ...x, activeAlignmentId: e.target.value }))
+                    p.onProfile('')
+                    p.onPoint(null)
+                  }}
+                >
+                  {project.alignments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Road name">
+                <input
+                  className={`${roadFieldClass} mt-1`}
+                  maxLength={200}
+                  value={alignment.name}
+                  onChange={(e) => updateAlignment((a) => ({ ...a, name: e.target.value }))}
+                />
+              </Field>
+              <div className="mt-2 flex flex-wrap gap-1">
+                <Button size="sm" onClick={() => p.onMode('road')} disabled={project.alignments.length >= 20}>
+                  <Plus className="mr-1 size-3" />
+                  Peg road
+                </Button>
+                <Button
+                  size="sm"
+                  variant={p.mode === 'edit' ? 'secondary' : 'outline'}
+                  onClick={() => p.onMode(p.mode === 'edit' ? 'inspect' : 'edit')}
+                >
+                  Edit points
+                </Button>
+                <Button
+                  size="icon"
+                  className="size-8"
+                  variant="outline"
+                  aria-label="Duplicate active alignment"
+                  onClick={p.onDuplicate}
+                  disabled={project.alignments.length >= 20}
+                >
+                  <Copy className="size-3" />
+                </Button>
+                <Button
+                  size="icon"
+                  className="size-8"
+                  variant="ghost"
+                  aria-label="Delete active alignment"
+                  onClick={p.onRemoveAlignment}
+                  disabled={project.alignments.length <= 1}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                Peg points on the plan. Drag numbered controls to edit. The profile, section and quantities update
+                together. Sharp corners need a fitted radius before use as a road design.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                disabled={project.alignments.length >= 20}
+                onClick={p.onSuggest}
+              >
+                Suggest terrain-cost alternative
+              </Button>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Bounded terrain-cost search between this road’s endpoints; grade limit, gaps and avoidance areas
+                constrain the route.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Horizontal points">
+              <select
+                aria-label="Selected horizontal point"
+                className={roadFieldClass}
+                value={point?.id ?? ''}
+                onChange={(e) => {
+                  p.onPoint(e.target.value)
+                  p.onMode('edit')
+                }}
+              >
+                <option value="">Select a control point</option>
+                {alignment.points.map((x, i) => (
+                  <option key={x.id} value={x.id}>
+                    Point {i + 1} · radius {x.radiusM} m
+                  </option>
+                ))}
+              </select>
+              {point && (
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberField
+                      label="Longitude"
+                      value={point.coordinate[0]}
+                      min={-180}
+                      max={180}
+                      step={0.00001}
+                      onChange={(value) =>
+                        updateAlignment((a) => ({
+                          ...a,
+                          points: a.points.map((x) =>
+                            x.id === point.id ? { ...x, coordinate: [value, x.coordinate[1]] } : x,
+                          ),
+                        }))
+                      }
+                    />
+                    <NumberField
+                      label="Latitude"
+                      value={point.coordinate[1]}
+                      min={-85}
+                      max={85}
+                      step={0.00001}
+                      onChange={(value) =>
+                        updateAlignment((a) => ({
+                          ...a,
+                          points: a.points.map((x) =>
+                            x.id === point.id ? { ...x, coordinate: [x.coordinate[0], value] } : x,
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <NumberField
+                    label="Horizontal radius (m)"
+                    value={point.radiusM}
+                    max={1000}
+                    step={1}
+                    onChange={(radiusM) =>
+                      updateAlignment((a) => ({
+                        ...a,
+                        points: a.points.map((x) => (x.id === point.id ? { ...x, radiusM } : x)),
+                      }))
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={alignment.points.length <= 2}
+                    onClick={() => {
+                      updateAlignment((a) => ({ ...a, points: a.points.filter((x) => x.id !== point.id) }))
+                      p.onPoint(null)
+                    }}
+                  >
+                    Remove selected point
+                  </Button>
+                </div>
+              )}
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs">Segment distances & ground grades</summary>
+                <div className="mt-2 max-h-48 overflow-auto">
+                  <table className="w-full text-right text-[11px]">
+                    <thead>
+                      <tr>
+                        <th>Leg</th>
+                        <th>Distance m</th>
+                        <th>Ground %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {alignment.points.slice(1).map((b, i) => {
+                        const a = alignment.points[i],
+                          length = distance(a.coordinate, b.coordinate),
+                          za = source.elevationAt(...a.coordinate),
+                          zb = source.elevationAt(...b.coordinate),
+                          grade = length > 0 && Number.isFinite(za + zb) ? ((zb - za) / length) * 100 : null
+                        return (
+                          <tr key={b.id}>
+                            <td>
+                              {i + 1}–{i + 2}
+                            </td>
+                            <td>{length.toFixed(1)}</td>
+                            <td
+                              className={
+                                grade !== null && Math.abs(grade) > project.settings.maxGradePercent
+                                  ? 'text-red-600'
+                                  : ''
+                              }
+                            >
+                              {grade?.toFixed(1) ?? '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </SidebarSection>
+            <SidebarSection title="Vertical alignment">
+              <div className="mb-2 flex flex-wrap gap-1">
+                <Button size="sm" variant="outline" onClick={addPvi}>
+                  Add PVI at station
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => updateAlignment((a) => ({ ...a, vertical: [] }))}>
+                  Follow ground
+                </Button>
+              </div>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Drag diamonds in the profile or edit the points below. Elevations are formation centre levels; curve
+                lengths are metres. Double-click the profile to add a PVI.
+              </p>
+              {!alignment.vertical.length && (
+                <InlineAlert tone="warning">
+                  Ground-following reconnaissance; add a vertical alignment to design formation levels.
+                </InlineAlert>
+              )}
+              <div className="mt-2 space-y-3">
+                {alignment.vertical.map((v, i) => (
+                  <div key={v.id} className="rounded border p-2">
+                    <div className="mb-1 flex items-center justify-between">
+                      <button className="text-xs font-medium" onClick={() => p.workspace.setStation(v.chainage)}>
+                        PVI {i + 1} · {formatRoadStation(v.chainage)}
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-5"
+                        aria-label={`Remove PVI ${i + 1}`}
+                        onClick={() =>
+                          updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))
+                        }
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
+                        <NumberField
+                          key={key}
+                          label={
+                            key === 'chainage'
+                              ? `PVI ${i + 1} station`
+                              : key === 'elevation'
+                                ? `PVI ${i + 1} level`
+                                : `PVI ${i + 1} curve`
+                          }
+                          value={v[key]}
+                          min={key === 'elevation' ? -1000 : 0}
+                          max={
+                            key === 'elevation'
+                              ? 9000
+                              : key === 'chainage'
+                                ? Math.max(analysis.length, v.chainage)
+                                : 2000
+                          }
+                          step={key === 'elevation' ? 0.1 : 1}
+                          onChange={(value) =>
+                            updateAlignment((a) => ({
+                              ...a,
+                              vertical: a.vertical
+                                .map((x) => (x.id === v.id ? { ...x, [key]: value } : x))
+                                .sort((a, b) => a.chainage - b.chainage),
+                            }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SidebarSection>
+          </div>
+
+          <div hidden={tab !== 'template'} className="space-y-4">
+            <SidebarSection title="Road cross-section">
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['leftWidth', 'Left half-width (m)', 0.1, 50],
+                    ['rightWidth', 'Right half-width (m)', 0.1, 50],
+                    ['crossfallPercent', 'Crown crossfall (%)', 0, 20],
+                    ['cutSlope', 'Cut batter (H:V)', 0.1, 10],
+                    ['fillSlope', 'Fill batter (H:V)', 0.1, 10],
+                    ['ditchWidth', 'Ditch width (m)', 0, 10],
+                    ['ditchDepth', 'Ditch depth (m)', 0, 5],
+                    ['surfaceDepth', 'Surfacing depth (m)', 0, 2],
+                  ] as [keyof RoadTemplate, string, number, number][]
+                ).map(([key, label, min, max]) => (
+                  <NumberField
+                    key={key}
+                    label={label}
+                    value={alignment.template[key]}
+                    min={min}
+                    max={max}
+                    onChange={(value) => tweakTemplate(key, value)}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                Formation geometry uses a crown, cut-side ditch and ground-intersecting batters. The surfacing layer is
+                a separate quantity. Batters and costs are editable planning assumptions.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Landings & turnouts">
+              <div className="mb-2 flex gap-1">
+                <Button size="sm" variant="outline" onClick={() => addWidening('landing')}>
+                  + Landing
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => addWidening('turnout')}>
+                  + Turnout
+                </Button>
+              </div>
+              {alignment.overrides.map((v) => (
+                <div key={v.id} className="mb-3 space-y-2 rounded border p-2">
+                  <div className="flex gap-1">
+                    <input
+                      aria-label="Widening name"
+                      className={roadFieldClass}
+                      value={v.name}
+                      maxLength={200}
+                      onChange={(e) => tweakOverride(v.id, { name: e.target.value })}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0"
+                      aria-label={`Duplicate ${v.name}`}
+                      onClick={() =>
+                        updateAlignment((a) => ({
+                          ...a,
+                          overrides: [...a.overrides, { ...v, id: id(), name: `${v.name} copy` }],
+                        }))
+                      }
+                    >
+                      <Copy className="size-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0"
+                      aria-label={`Remove ${v.name}`}
+                      onClick={() =>
+                        updateAlignment((a) => ({ ...a, overrides: a.overrides.filter((x) => x.id !== v.id) }))
+                      }
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Widening type">
+                      <select
+                        className={roadFieldClass}
+                        value={v.kind}
+                        onChange={(e) => tweakOverride(v.id, { kind: e.target.value as WidthOverride['kind'] })}
+                      >
+                        <option value="landing">Landing · unsurfaced</option>
+                        <option value="turnout">Turnout · surfaced</option>
+                      </select>
+                    </Field>
+                    <Field label="Widening side">
+                      <select
+                        className={roadFieldClass}
+                        value={v.side}
+                        onChange={(e) => tweakOverride(v.id, { side: e.target.value as WidthOverride['side'] })}
+                      >
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                        <option value="both">Both</option>
+                      </select>
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['start', 'end', 'taper', 'extraWidth'] as const).map((key) => (
+                      <NumberField
+                        key={key}
+                        label={`${key === 'extraWidth' ? 'Extra width' : key[0].toUpperCase() + key.slice(1)} (m)`}
+                        value={v[key]}
+                        max={key === 'extraWidth' ? 50 : key === 'taper' ? 1000 : 100000}
+                        onChange={(value) => tweakOverride(v.id, { [key]: value })}
+                      />
+                    ))}
+                  </div>
+                  {v.end <= v.start && (
+                    <p role="alert" className="text-xs text-red-600">
+                      End station must be after start.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </SidebarSection>
+          </div>
+
+          <div hidden={tab !== 'review'} className="space-y-4">
+            <SidebarSection title="Screening & sampling">
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['stationInterval', 'Station spacing (m)', 2, 100],
+                    ['crossSectionHalfWidth', 'Section reach each side (m)', 5, 100],
+                    ['maxGradePercent', 'Grade limit (%)', 0.1, 100],
+                    ['minRadius', 'Minimum radius (m)', 0, 10000],
+                  ] as const
+                ).map(([key, label, min, max]) => (
+                  <NumberField
+                    key={key}
+                    label={label}
+                    value={project.settings[key]}
+                    min={min}
+                    max={max}
+                    step={1}
+                    onChange={(value) => update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Thresholds are project inputs, not a claim of compliance with a road standard.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Crossings & review flags">
+              <p className="mb-2 text-xs">
+                {analysis.coveragePercent.toFixed(1)}% of road length has complete earthwork sections.
+              </p>
+              {analysis.crossings.map((c) => (
+                <button
+                  key={c.id}
+                  className="mb-1 block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+                  onClick={() => p.workspace.setStation(c.chainage)}
+                >
+                  {c.name} · {formatRoadStation(c.chainage)}
+                  <span className="block text-muted-foreground">{c.kind} crossing · field review</span>
+                </button>
+              ))}
+              {analysis.warnings.map((w, i) => (
+                <p key={i} className="mb-1 border-l-2 border-amber-500 pl-2 text-xs">
+                  {w}
+                </p>
+              ))}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Stream intersections flag crossing sites. Culvert sizing, hydraulic capacity and geotechnical stability
+                require additional inputs and are not computed.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Earthwork cost assumptions">
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['cutRate', 'Cut ($/m³)'],
+                    ['fillRate', 'Fill ($/m³)'],
+                    ['surfacingRate', 'Surfacing ($/m³)'],
+                    ['clearingRate', 'Clearing ($/m²)'],
+                    ['shrinkFactor', 'Reusable cut factor'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <NumberField
+                    key={key}
+                    label={label}
+                    value={project.settings[key]}
+                    min={key === 'shrinkFactor' ? 0.1 : 0}
+                    max={key === 'shrinkFactor' ? 2 : 10000}
+                    onChange={(value) => update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                Example unit rates in CAD. Includes covered cut, fill, surfacing and clearing only. Excludes structures,
+                haul allocation, mobilization, rock classification and contingencies.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="D-line / cable geometry">
+              <Button variant="outline" size="sm" onClick={() => p.onMode('cable')}>
+                Draw landing-to-tailhold line
+              </Button>
+              {project.cables.map((c) => (
+                <div key={c.id} className="mt-2 space-y-2 rounded border p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">{c.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-6"
+                      aria-label={`Remove ${c.name}`}
+                      onClick={() => update((x) => ({ ...x, cables: x.cables.filter((a) => a.id !== c.id) }))}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (
+                      <NumberField
+                        key={key}
+                        label={key === 'startHeight' ? 'Yarder m' : key === 'endHeight' ? 'Tailhold m' : 'Sag %'}
+                        value={c[key]}
+                        max={key === 'deflectionPercent' ? 25 : 100}
+                        onChange={(value) =>
+                          update((x) => ({
+                            ...x,
+                            cables: x.cables.map((a) => (a.id === c.id ? { ...a, [key]: value } : a)),
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Assumed-sag clearance only. This does not calculate cable tension or payload capacity.
+              </p>
+            </SidebarSection>
+          </div>
+
+          <div hidden={tab !== 'files'} className="space-y-4">
+            <SidebarSection title="Project & exports">
+              <Field label="Project name">
+                <input
+                  className={roadFieldClass}
+                  value={project.name}
+                  maxLength={200}
+                  onChange={(e) => update((x) => ({ ...x, name: e.target.value }))}
+                />
+              </Field>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" onClick={() => p.onFile('project')}>
+                  Open project
+                </Button>
+                <Button size="sm" onClick={() => p.onSave('project')}>
+                  Save project JSON
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onFile('alignment')}>
+                  Import road lines
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('geojson')}>
+                  Export GeoJSON
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('csv')}>
+                  Station CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('report')}>
+                  <Download className="mr-1 size-3" />
+                  Print report
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                Projects preserve alternatives, PVIs, templates, context, profiles and terrain provenance. Imported DEM
+                cells are included; published LiDAR is restored from its recorded checksum. Autosave stays on this
+                device.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Reference workflow">
+              <p className="text-xs leading-5">
+                Linked plan/profile/section and station editing follow the RoadEng examples. Road pegging, segment grade
+                and stream profiles follow the Forsite LiDAR demonstrations. The computations here are documented,
+                independently implemented planning methods.
+              </p>
+              <a
+                className="mt-2 block text-xs text-primary underline"
+                href="https://github.com/ahzs645/PGMaps/blob/codex/forestry-road-design/docs/forestry-road-design.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Methods, reference mapping & calculation limits
+              </a>
+            </SidebarSection>
+          </div>
+        </div>
+      </fieldset>
+    </aside>
+  )
+}

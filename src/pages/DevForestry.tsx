@@ -1,10 +1,19 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Eye, Layers, Sprout, TreePine, Trees } from 'lucide-react'
+import { ArrowLeft, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
+  {
+    title: 'Road design',
+    description:
+      'Peg road alternatives on LiDAR terrain. Link plan, profile, cross-section and 3D views; design grades, landings and turnouts, compare earthworks and export a road project.',
+    href: '/dev/forestry/road-design',
+    icon: Route,
+    color: 'bg-amber-700',
+    label: '/dev/forestry/road-design',
+  },
   {
     title: 'AVAST volume',
     description:
@@ -25,7 +34,8 @@ const forestryTools: DevEntry[] = [
   },
   {
     title: 'CCISS suitability',
-    description: 'Inspect CCISS historical suitability tiles and exact numeric GeoTIFF cells for a selected BC location.',
+    description:
+      'Inspect CCISS historical suitability tiles and exact numeric GeoTIFF cells for a selected BC location.',
     href: '/dev/forestry/cciss-suitability',
     icon: Sprout,
     color: 'bg-emerald-700',
@@ -33,7 +43,8 @@ const forestryTools: DevEntry[] = [
   },
   {
     title: 'LiDAR forestry',
-    description: 'Review openings, plot statistics and stand structure from the LiDAR sample: gaps, plots, texture, edges and vegetation proximity.',
+    description:
+      'Review openings, plot statistics and stand structure from the LiDAR sample: gaps, plots, texture, edges and vegetation proximity.',
     href: '/dev/lidar/forestry/',
     icon: Trees,
     color: 'bg-cyan-700',
@@ -41,7 +52,8 @@ const forestryTools: DevEntry[] = [
   },
   {
     title: 'LiDAR canopy',
-    description: 'Explore canopy height, density and vertical layers from the LiDAR sample, with heatmaps and 1 m height profiles.',
+    description:
+      'Explore canopy height, density and vertical layers from the LiDAR sample, with heatmaps and 1 m height profiles.',
     href: '/dev/lidar/canopy/',
     icon: TreePine,
     color: 'bg-cyan-700',
@@ -53,13 +65,18 @@ export default function DevForestry() {
   useEffect(() => {
     const previous = document.title
     document.title = 'Forestry tools · PGMaps Dev'
-    return () => { document.title = previous }
+    return () => {
+      document.title = previous
+    }
   }, [])
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
         <div className="mb-8 sm:mb-10">
-          <Link to="/dev" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <Link
+            to="/dev"
+            className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
             Dev library
           </Link>
@@ -69,7 +86,8 @@ export default function DevForestry() {
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Forestry tools</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-            Planning utilities for cutblocks and stands: volume, visual quality, climate suitability and LiDAR structure.
+            Planning utilities for forest roads, cutblocks and stands: terrain, volume, visual quality, climate
+            suitability and LiDAR structure.
           </p>
         </div>
 
