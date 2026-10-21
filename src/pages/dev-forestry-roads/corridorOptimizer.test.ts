@@ -45,7 +45,7 @@ describe('sketch-guided, heading-aware road optimization',()=>{
     expect(a.nominalTurnRadiusM).toBeGreaterThanOrEqual(settings.minRadius)
     expect(a.lengthM).toBeGreaterThanOrEqual(a.directM-0.2)
     expect(a.explored).toBeLessThan(70000)
-    expect(a.message).toContain('Not a certified').toBe(false)
+    expect(a.message).toContain('design PIs')
   })
   it('goes around a mapped exclusion rather than taking a shortcut through it',()=>{
     const source=ground(()=>700)
