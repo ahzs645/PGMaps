@@ -8,6 +8,7 @@ import { Field, NumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
 import { distance } from './engine'
+import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { RoadTemplate, WidthOverride } from './types'
@@ -26,6 +27,7 @@ export interface SidebarProps {
   onDuplicate: () => void
   onRemoveAlignment: () => void
   onSuggest: () => void
+  onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
   onSave: (kind: 'project' | 'geojson' | 'csv' | 'report') => void
   onProfile: (id: string) => void
   activeProfile: string | null
@@ -36,6 +38,8 @@ export interface SidebarProps {
 const id = () => crypto.randomUUID()
 export function DesignSidebar(p: SidebarProps) {
   const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'engineering' | 'review' | 'files'>('design')
+  const [routeObjective, setRouteObjective] = useState<RoadOptimizationObjective>('balanced')
+  const [corridorHalfWidthM, setCorridorHalfWidthM] = useState(180)
   const { project, alignment, analysis, update, updateAlignment, source } = p.workspace
   const point = alignment.points.find((x) => x.id === p.selectedPoint)
   const tweakTemplate = (key: keyof RoadTemplate, value: number) =>
@@ -314,9 +318,51 @@ export function DesignSidebar(p: SidebarProps) {
                 Suggest terrain-cost alternative
               </Button>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Bounded terrain-cost search between this road’s endpoints; grade limit, gaps and avoidance areas
-                constrain the route.
+                Baseline eight-neighbour terrain-cost search between endpoints, without curve constraints.
               </p>
+              <div className="mt-3 space-y-2 rounded-md border p-2" data-testid="road-corridor-optimizer">
+                <p className="text-xs font-semibold">Optimize sketched road corridor</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Peg two endpoints and optional intermediate guide points first. The sketched shape defines the
+                  centre of a search corridor; all results remain editable road alternatives.
+                </p>
+                <Field label="Preference">
+                  <select
+                    aria-label="Corridor optimization objective"
+                    className={roadFieldClass}
+                    value={routeObjective}
+                    onChange={(e) => setRouteObjective(e.target.value as RoadOptimizationObjective)}
+                  >
+                    <option value="shortest">Shortest (less grade penalty)</option>
+                    <option value="balanced">Balanced (grade, length, curves)</option>
+                    <option value="contour">Contour-friendly (gentler terrain)</option>
+                  </select>
+                </Field>
+                <Field label="Corridor half-width (m)">
+                  <input
+                    aria-label="Corridor half-width metres"
+                    type="number"
+                    min={25}
+                    max={1000}
+                    step={25}
+                    className={roadFieldClass}
+                    value={corridorHalfWidthM}
+                    onChange={(e) => setCorridorHalfWidthM(Number(e.target.value))}
+                  />
+                </Field>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  disabled={project.alignments.length >= 20 || corridorHalfWidthM < 25 || corridorHalfWidthM > 1000 || !Number.isFinite(corridorHalfWidthM)}
+                  onClick={() => p.onOptimize(routeObjective, corridorHalfWidthM)}
+                >
+                  Optimize sketched corridor
+                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  Uses the current grade and minimum-radius settings as screening inputs. Not a certified road
+                  design: inspect each candidate’s vertical profile, geometric curves, crossings and earthworks.
+                </p>
+              </div>
             </SidebarSection>
             <SidebarSection title="Horizontal points">
               <select
