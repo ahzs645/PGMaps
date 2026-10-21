@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IsolatedPoint, TreeCrop } from './treeIsolation'
 import { TREE_COLOURS } from './treeIsolation'
-import { prepareTreeProfile } from './treeProfiles'
+import { prepareTreeProfileRange } from './treeProfiles'
 import { inPolygon, pointKey, type InspectionState, type ProfileSettings } from './treeInspection'
 export type ProfileInteraction = 'pick' | 'pan' | 'polygon' | 'seed'
 export function ProfileCanvas({
@@ -39,7 +39,7 @@ export function ProfileCanvas({
     [polygon, setPolygon] = useState<[number, number][]>([])
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
   const prepared = useMemo(
-    () => prepareTreeProfile(crop, { minHeight: settings.minHeight, maxHeight: settings.maxHeight }),
+    () => prepareTreeProfileRange(crop, { minHeight: settings.minHeight, maxHeight: settings.maxHeight }),
     [crop, settings.minHeight, settings.maxHeight],
   )
   const points = useMemo(() => {

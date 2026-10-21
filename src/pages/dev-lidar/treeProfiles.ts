@@ -14,7 +14,11 @@ export interface TreeProfile {
 }
 
 /** Project original returns once; subsequent rotations stay in metric coordinates. */
-export function prepareTreeProfile(crop: TreeCrop, range = { minHeight: 2, maxHeight: 80 }): TreeProfile {
+export function prepareTreeProfile(crop: TreeCrop): TreeProfile {
+  return prepareTreeProfileRange(crop, { minHeight: 2, maxHeight: 80 })
+}
+
+export function prepareTreeProfileRange(crop: TreeCrop, range: { minHeight: number; maxHeight: number }): TreeProfile {
   const [cx, cy] = toMetric(...crop.centre)
   const points: TreeProfile['points'] = []
   let radius = 1,
