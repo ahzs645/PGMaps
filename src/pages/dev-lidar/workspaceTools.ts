@@ -14,8 +14,8 @@ export const LIDAR_TOOLS: LidarTool[] = [
   {
     id: 'volume',
     title: 'Forest volume',
-    description: 'Calibrate plot-based stem-volume estimates and explore harvest scenarios.',
-    outputs: 'Reference CSV · m³/ha maps · cross-validation diagnostics · selected-area totals',
+    description: 'Open a completed volume example, learn the methods, or calibrate your BC tile.',
+    outputs: 'Completed Québec example · timber volume practices · local calibration',
     modes: [],
     defaultMode: null,
   },

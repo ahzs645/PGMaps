@@ -14,7 +14,7 @@ import { LidarSidebar } from './LidarSidebar'
 import { LidarToolLibrary } from './LidarToolLibrary'
 import { useLidarWorkspace } from './useLidarWorkspace'
 import { ModelComparisonWorkspace } from './comparisons/ModelComparisonWorkspace'
-import { ForestVolumeWorkspace } from './volume/ForestVolumeWorkspace'
+import { VolumeWorkspace } from './volume/VolumeWorkspace'
 
 export function LidarWorkspace(props: { analysisBase: string; cloudBase: string }) {
   const controller = useLidarWorkspace(props)
@@ -75,7 +75,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
         <LidarHeader controller={controller} />
-        <ForestVolumeWorkspace summary={summary} error={error} basemap={basemap} />
+        <VolumeWorkspace summary={summary} error={error} basemap={basemap} />
       </div>
     )
   if (tool?.id === 'compare')

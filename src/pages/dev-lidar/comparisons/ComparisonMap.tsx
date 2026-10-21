@@ -49,6 +49,7 @@ interface Props {
   pointSize?: number
   overlayOpacity?: number
   onFeaturePick?: (id: string) => void
+  onReferencePick?: (id: string) => void
 }
 export function ComparisonMap(props: Props) {
   const container = useRef<HTMLDivElement>(null),
@@ -149,7 +150,10 @@ export function ComparisonMap(props: Props) {
       }
       instance.on('click', 'comparison-output-fill', (event) => {
         const p = event.features?.[0]?.properties
-        if (typeof p?.id === 'string') latest.current.onFeaturePick?.(p.id)
+        if (typeof p?.id === 'string' && latest.current.onFeaturePick) {
+          latest.current.onFeaturePick(p.id)
+          return
+        }
         if (p)
           new maplibregl.Popup()
             .setLngLat(event.lngLat)
@@ -157,6 +161,10 @@ export function ComparisonMap(props: Props) {
               `${p.id ?? p.part ?? 'Output'}${typeof p.score === 'number' ? ` · score ${p.score.toFixed(3)}` : ''}`,
             )
             .addTo(instance)
+      })
+      instance.on('click', 'comparison-reference-tops', (event) => {
+        const p = event.features?.[0]?.properties
+        if (typeof p?.id === 'string') latest.current.onReferencePick?.(p.id)
       })
       setReady(true)
       fetch(VECTOR_STYLE_URL, { signal: abort.signal })

@@ -155,7 +155,7 @@ export function ForestVolumeWorkspace({
     )
   }
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Forest volume workspace">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Forest volume workspace">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2">
         <h1 className="mr-auto text-sm font-semibold">Forest volume & harvest scenarios</h1>
         <Badge tone={model ? 'warning' : 'neutral'}>
@@ -473,6 +473,6 @@ export function ForestVolumeWorkspace({
           </div>
         </div>
       </div>
-    </main>
+    </section>
   )
 }

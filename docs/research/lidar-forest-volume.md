@@ -2,7 +2,30 @@
 
 The practical next step for this airborne tile is an **area-based, field-calibrated volume model**. Counting candidate crowns and multiplying by height would also count some structures and would not provide stem diameter or wood volume.
 
-The implemented workspace is `/dev/lidar/volume/`. It exposes the existing 50 × 50 m LiDAR-derived plot metrics, a ground-reference CSV template and matching GeoJSON footprints, a browser-local experimental regression, cross-validation diagnostics, mapped estimates and a selected-area harvest scenario. **No observed reference volumes were available for this tile, so the initial page does not report timber volumes.** It shows height context until the user supplies matching measurements. Test-suite responses are explicitly synthetic and are never loaded into the website as field data.
+The implemented workspace is `/dev/lidar/volume/`. It opens with a completed, field-backed **Québec teaching example**, so a visitor can see a volume map and totals without uploading anything. Separate views explain measurement practices and calibrate the original BC tile. **No observed reference volumes were available for the BC tile**: that calibration view shows height context until the user supplies matching measurements. Synthetic test-suite responses are never loaded into the website as field data.
+
+## Completed example: Forêt Montmorency
+
+The [UBC IRSS 2026 workshop](https://james-f-mcglade.github.io/2026_lidRtutorial/07_aba.html) supplies field-derived merchantable volumes, plot locations and precomputed normalized-return metrics. Inputs are pinned to [commit 20ee191](https://github.com/james-f-mcglade/2026_lidRtutorial/tree/20ee19167c317e2f7209bf2f61170bf71f4a8148); the generator verifies five SHA-256 checksums before processing. The CSV and field geometry contain **169** matched records, despite introductory prose referring to 162. Field measurements are described as 2015–2016 and ALS as 2016.
+
+We reproduced the tutorial's linear-model specification: merchantable stem m³/ha as a function of return-height p95, height skewness and the percentage of returns above 2 m. These are the source's point metrics, not the BC tile's CHM-surface predictors. We refitted the model and added five-fold spatial cross-validation, holding out consecutive geographic bands determined from sorted plot eastings. Each reference is predicted once without its band; there is no response-driven fold selection. The final display model is a refit on all 169 plots. These diagnostics are not an independent operational validation or confidence intervals.
+
+The map preserves the source raster's **20 m cells** over the 2 × 2 km tutorial tile subset. The supplied forest mask is transformed from EPSG:32187 to the metric raster CRS EPSG:2949 and applied at pixel centres. Missing cells, non-forest cells, predictions outside the three-dimensional training predictor hull and negative predictions are excluded. Totals use complete grid-cell area; boundary cells are not corrected for partial forest area. No raw-cloud inference is claimed: the workshop computed the metrics; our processing reruns regression, diagnostics, masking and predictions.
+
+| Completed result | Value |
+| --- | --- |
+| Subset area | 400 ha |
+| Missing / non-forest cells | 2 / 925 |
+| Out-of-domain / negative cells | 1,302 / 132 |
+| Supported native cells | 7,639 |
+| Supported grid area | 305.56 ha |
+| Modelled merchantable stem volume | 35,272.22 m³ |
+| Mean predicted volume | 115.43 m³/ha |
+| Five-band CV RMSE / bias / R² | 53.84 m³/ha / −0.76 m³/ha / 0.561 |
+
+The display provides volume/height switching, field-reference inspection with held-out predictions, cell inspection, an explicit retention/recovery scenario and GeoJSON export with provenance. The initial 20% retained and 90% recovery are demonstration assumptions, not inferred practices. The tutorial's merchantable-volume definition is retained; no gross-to-merchantable factor is introduced. This historical example is never applied to the BC tile or described as a current harvest appraisal.
+
+Rebuild with `python scripts/lidar/build_volume_example.py --inputs /path/to/volume-inputs --download --output src/pages/dev-lidar/volume/example.generated.json`. The download option fetches missing public inputs at the pinned commit; dependencies are NumPy, SciPy, rasterio, shapely and pyproj. The generated snapshot is app-owned; raw tutorial rasters/GPKGs are not copied into the repository. Tests recompute error and volume totals, verify fold membership and native support, and exercise default results, inspection, scenario export and view switching.
 
 ## Research findings
 
