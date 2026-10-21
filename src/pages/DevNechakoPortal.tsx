@@ -23,7 +23,11 @@ import learningJson from '../../public/data/projects/nechako-learning-module.jso
 import { PortalUnifiedSearch } from '@/maps/nechako/PortalUnifiedSearch'
 import { PortalSubmissionSearch } from '@/maps/nechako/PortalSubmissionSearch'
 import { LocalPortalConnection } from '@/maps/nechako/LocalPortalConnection'
-import { PortalAdministration } from '@/maps/nechako/PortalAdministration'
+import {
+  PortalAdministration,
+  parsePortalAdministrationView,
+  type PortalAdministrationView,
+} from '@/maps/nechako/PortalAdministration'
 import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
 import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
 import { portalWrite } from '@/lib/nechakoPortal'
@@ -51,6 +55,7 @@ const PANELS = [
   'options',
   'project-viewer',
   'administration',
+  'map-export',
 ] as const
 type Panel = (typeof PANELS)[number]
 const TITLES: Record<Panel, string> = {
@@ -71,6 +76,7 @@ const TITLES: Record<Panel, string> = {
   options: 'All portal options',
   'project-viewer': 'Project reader',
   administration: 'Administration and workflow',
+  'map-export': 'Export map image',
 }
 
 export default function DevNechakoPortal() {
@@ -84,6 +90,7 @@ export default function DevNechakoPortal() {
   const [params, setParams] = useSearchParams()
   const requested = params.get('panel')
   const panel = PANELS.includes(requested as Panel) ? (requested as Panel) : undefined
+  const adminView = parsePortalAdministrationView(params.get('admin'))
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
   const clearSessionWorkspace = useCallback(
     () =>
@@ -156,6 +163,13 @@ export default function DevNechakoPortal() {
     }
   }, [retry])
 
+  const showAdministration = (view: PortalAdministrationView) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('panel', 'administration')
+      next.set('admin', view)
+      return next
+    })
   const close = () => showPanel()
   const openProject = (project: ProjectPackage) => {
     setSelectedProject(project)
@@ -264,6 +278,9 @@ export default function DevNechakoPortal() {
             initialBounds={initialBounds}
             projectsOpen={panel === 'projects'}
             onProjectsClose={close}
+            exportOpen={panel === 'map-export'}
+            onOpenExport={() => showPanel('map-export')}
+            onExportClose={close}
             onOpenFiles={() => showPanel('files')}
             requestedPane={requestedPane}
           />
@@ -280,7 +297,7 @@ export default function DevNechakoPortal() {
           </Link>
         </span>
       </footer>
-      {panel && panel !== 'projects' && (
+      {panel && panel !== 'projects' && panel !== 'map-export' && (
         <DialogShell
           title={panel === 'project-viewer' && selectedProject ? selectedProject.title : TITLES[panel]}
           onClose={close}
@@ -366,6 +383,7 @@ export default function DevNechakoPortal() {
           {panel === 'options' && (
             <PortalOptions
               onOpen={showPanel}
+              onAdministration={showAdministration}
               onMapPane={(pane) => {
                 setRequestedPane((current) => ({ pane, revision: (current?.revision ?? 0) + 1 }))
                 close()
@@ -436,7 +454,13 @@ export default function DevNechakoPortal() {
               canWrite={session.canWrite}
             />
           )}
-          {panel === 'administration' && <PortalAdministration key={session.revision} write={portalWrite} />}
+          {panel === 'administration' && (
+            <PortalAdministration
+              key={`${session.revision}:${adminView ?? 'dashboard'}`}
+              initialView={adminView ?? undefined}
+              write={portalWrite}
+            />
+          )}
           {panel === 'links' && (
             <div className="space-y-4 text-sm">
               <a className="block text-primary underline" href={NECHAKO_PORTAL} target="_blank" rel="noreferrer">
@@ -457,8 +481,8 @@ export default function DevNechakoPortal() {
             <div className="space-y-4 text-sm">
               <LocalPortalConnection />
               <p>
-                Account registration, login, publishing and permissions are managed by the original portal. Open it to
-                use your account.
+                Sign in above to read records allowed by your original portal account. Registration, password changes
+                and publication remain available at the original portal.
               </p>
               <Button asChild>
                 <a href={NECHAKO_PORTAL} target="_blank" rel="noreferrer">
@@ -474,9 +498,9 @@ export default function DevNechakoPortal() {
                 toolkit.
               </p>
               <p>
-                Search the 1,408 bundled research records, explore 46 reference locations, add layers from 32 WMS
-                services, import files, draw and process geometry, save workspaces, and chart local monitoring CSV
-                files.
+                Search captured public submissions and research, load source projects, add WMS layers, import files,
+                draw and process geometry, save workspaces, compose map images and chart monitoring observations. All
+                options maps the original menus to the available workflows.
               </p>
               <p>
                 Research locations are reference points, not study footprints. The repository snapshot was captured
@@ -487,9 +511,10 @@ export default function DevNechakoPortal() {
                 50-metre simplified snapshot. It loads locally and can be used as the submission search area.
               </p>
               <InlineAlert tone="warning" title="Portal integration limits">
-                The original portal’s search and saved projects work in its own interface. PGMaps requests still receive
-                registration errors. Data inventory distinguishes observed collections, available local files and
-                unknown source storage; imported exports remain in this browser session.
+                The portal connection supports permitted reads and native downloads. Administrator reads require a
+                verified administrator session and the updated connection service. Hosted source writes remain disabled.
+                Direct requests may still encounter source registration or CORS errors. The options directory identifies
+                workflows that remain in the original portal; imported collections remain in this browser session.
               </InlineAlert>
               <Link className="block text-primary underline" to="/dev/nechako?view=compare">
                 Review the full comparison

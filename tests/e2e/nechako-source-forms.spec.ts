@@ -24,7 +24,11 @@ const sourceReport = {
       Basin: 'Upper fixture',
       Count: 0,
     },
+    '1478': { Basin: 'Missing fixture', Count: null },
+    '1479': { Basin: 'Boolean fixture', Count: false },
+    '1480': { Basin: 'Precision fixture', Count: '9007199254740993' },
   },
+  statistics: { results: 7, sum: { Count: 0, Unavailable: null }, unsupported: { nested: {} } },
 }
 
 for (const width of [1440, 390])
@@ -99,6 +103,49 @@ for (const width of [1440, 390])
     await page.getByLabel('Report label Observation Count').fill('Count')
     await page.getByRole('button', { name: 'Generate source report', exact: true }).click()
     await expect(page.getByText('Upper fixture', { exact: true })).toBeVisible()
+    await page.getByRole('tab', { name: 'Graphs', exact: true }).click()
+    const graphs = page.getByRole('region', { name: 'Form report graphs' })
+    await expect(
+      graphs.getByText(
+        '1 numeric values plotted from 4 returned entries · 3 missing, nonnumeric or unsafe numeric values excluded.',
+      ),
+    ).toBeVisible()
+    await expect(
+      graphs.getByText(
+        '1 source statistic group(s) have no supported numeric shape. The original values remain in Table.',
+      ),
+    ).toBeVisible()
+    const plotted = graphs.locator('canvas')
+    await expect(plotted).toBeVisible()
+    const hoverValue = async (fraction: number) => {
+      await plotted.scrollIntoViewIfNeeded()
+      const bounds = await plotted.boundingBox()
+      expect(bounds).not.toBeNull()
+      // The toolkit's transparent interaction overlay owns pointer events.
+      await page.mouse.move(bounds!.x + bounds!.width * fraction, bounds!.y + bounds!.height / 2)
+    }
+    // The one measured zero is row 1 of 4, halfway up the [-1, 1] axis.
+    await hoverValue(1 / 8)
+    await expect(graphs.getByText('Submission 1477', { exact: true })).toBeVisible()
+    await expect(graphs.getByText('Count: 0', { exact: true })).toBeVisible()
+    await graphs.getByLabel('Report graph dataset', { exact: true }).selectOption('statistics:results')
+    await expect(
+      graphs.getByText(
+        '1 numeric values plotted from 1 returned entries · 0 missing, nonnumeric or unsafe numeric values excluded.',
+      ),
+    ).toBeVisible()
+    await hoverValue(1 / 2)
+    // The source says results=7, despite returning 4 rows; the graph must retain 7.
+    await expect(graphs.getByText('results: 7', { exact: true })).toBeVisible()
+    await graphs.getByLabel('Report graph dataset', { exact: true }).selectOption('statistics:sum')
+    await expect(
+      graphs.getByText(
+        '1 numeric values plotted from 2 returned entries · 1 missing, nonnumeric or unsafe numeric values excluded.',
+      ),
+    ).toBeVisible()
+    await page.getByRole('tab', { name: 'Table', exact: true }).click()
+    await expect(page.getByText('Upper fixture', { exact: true })).toBeVisible()
+    await expect(page.getByText('9007199254740993', { exact: true })).toBeVisible()
     const reportZip = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download form review ZIP', exact: true }).click()
     await expect((await reportZip).suggestedFilename()).toBe('source-form-review.zip')

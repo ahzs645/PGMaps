@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import worker, { NechakoRegistry, NechakoSession, SOURCE, BASE, TTL, MEMORY_TICK, validateRead } from './worker.mjs'
 
 const origin = 'https://pgmaps.ahmadjalil.com'
-function setup() {
+function setup({ sourceAdmin = true } = {}) {
   let now = 1000,
     sourceCalls = [],
     delayed
@@ -38,7 +38,7 @@ function setup() {
             status: good ? 'success' : 'failure',
             loggedIn: good,
             error: good ? undefined : 'Fixture sign-in denied',
-            attributes: { isAdmin: true, secret_contact: 'NOT EXPOSED' },
+            attributes: { isAdmin: sourceAdmin, secret_contact: 'NOT EXPOSED' },
           },
           {
             headers: {
@@ -172,7 +172,7 @@ test('only minted capabilities work; isolated jars bootstrap source root and kee
   assert.equal(ctx.sourceCalls[1].options.body.get('parentId'), '9')
 })
 
-test('login rotates/revokes old capability and returns readonly flags without source login attributes', async () => {
+test('login rotates/revokes old capability and reports verified admin reads without write access or native identity', async () => {
   const ctx = setup(),
     old = await allocate(ctx)
   const response = await ctx.call('login', { username: 'fixture-user', password: 'fixture-only' }, old),
@@ -182,7 +182,7 @@ test('login rotates/revokes old capability and returns readonly flags without so
   assert.equal(value.loggedIn, true)
   assert.equal(value.canWrite, false)
   assert.equal(value.readOnly, true)
-  assert.equal(value.isAdmin, false)
+  assert.equal(value.isAdmin, true)
   assert.equal(JSON.stringify(value).includes('NOT EXPOSED'), false)
   assert.equal(value.attributes, undefined)
   assert.equal((await ctx.call('read', read, old)).status, 401)
@@ -191,6 +191,7 @@ test('login rotates/revokes old capability and returns readonly flags without so
   assert.equal(second.status, 401)
   assert.notEqual(failed.sessionToken, value.sessionToken)
   assert.equal(failed.loggedIn, false)
+  assert.equal(failed.isAdmin, false)
   assert.equal((await ctx.call('read', read, value.sessionToken)).status, 401)
   assert.equal((await ctx.call('read', read, failed.sessionToken)).status, 200)
 })
@@ -242,7 +243,7 @@ test('disconnect revokes in-flight reads even when upstream ignores abort', asyn
   assert.equal((await response.text()).includes('OLD PRIVATE FIXTURE'), false)
 })
 
-test('all mutations/admin paths/unsafe associations are rejected; monitoring is bounded', async () => {
+test('all mutations/unverified admin paths/unsafe associations are rejected; monitoring is bounded', async () => {
   const ctx = setup(),
     capability = await allocate(ctx)
   assert.equal((await ctx.call('write', {}, capability)).status, 404)
@@ -271,6 +272,193 @@ test('all mutations/admin paths/unsafe associations are rejected; monitoring is 
     filename: '/verified/source.map',
     layername: 'verified_layer',
   })
+})
+
+const administratorReads = [
+  { path: 'rest/portal/getUsers.php', params: { page: '1', start: '0', limit: '100' } },
+  { path: 'rest/portal/admin/getGroups.php', params: {} },
+  { path: 'rest/portal/admin/getGroupMembers.php', params: { gid: '1', includePrimaryGroupStatus: 'true' } },
+  { path: 'rest/portal/admin/getUserDetails.php', params: { uid: '7' } },
+  { path: 'rest/portal/admin/getUserPermissionsCheckbox.php', params: { uid: '7', mode: 'form' } },
+  { path: 'rest/portal/admin/getUserForms.php', params: { form_id: '39' } },
+  { path: 'rest/portal/admin/getLinkableLayers.php', params: { page: '1', start: '0', limit: '100' } },
+  { path: 'rest/portal/admin/getLayerSharedLayersManager.php', params: { layerId: '386' } },
+  { path: 'rest/portal/admin/getAllBaseLayers.php', params: {} },
+  { path: 'rest/portal/admin/getContents.php', params: {} },
+  { path: 'rest/portal/admin/getSubmissions.php', params: { page: '1', start: '0', limit: '100' } },
+  {
+    path: 'rest/portal/getMonitorSchemaLayers.php',
+    params: { schemaId: '13', getDraftSubmissions: 'true', getDisabled: 'true' },
+  },
+]
+
+test('anonymous and nonadmin sessions cannot forward administrator reads, including an admin username', async () => {
+  const ctx = setup({ sourceAdmin: false }),
+    anonymous = await allocate(ctx)
+  for (const payload of administratorReads) assert.equal((await ctx.call('read', payload, anonymous)).status, 403)
+  assert.equal(ctx.sourceCalls.length, 0)
+  const login = await ctx.call('login', { username: 'admin', password: 'fixture-only' }, anonymous),
+    user = await login.json(),
+    before = ctx.sourceCalls.length
+  assert.equal(user.loggedIn, true)
+  assert.equal(user.isAdmin, false)
+  assert.equal(user.canWrite, false)
+  for (const payload of administratorReads)
+    assert.equal((await ctx.call('read', payload, user.sessionToken)).status, 403)
+  assert.equal(ctx.sourceCalls.length, before)
+})
+
+test('verified administrators can inspect every allowed resource while writes and unknown routes stay blocked', async () => {
+  const ctx = setup(),
+    login = await ctx.call('login', { username: 'fixture', password: 'fixture-only' }),
+    user = await login.json(),
+    peek = await (await ctx.call('status', undefined, user.sessionToken)).json()
+  assert.equal(peek.isAdmin, true)
+  assert.equal(peek.canWrite, false)
+  assert.equal(peek.readOnly, true)
+  assert.equal(peek.attributes, undefined)
+  for (const payload of administratorReads) {
+    const response = await ctx.call('read', payload, user.sessionToken)
+    assert.equal(response.status, 200)
+    assert.equal((await response.json()).loggedIn, true)
+    const forwarded = ctx.sourceCalls.at(-1)
+    assert.equal(forwarded.url, SOURCE + payload.path)
+    assert.deepEqual(Object.fromEntries(forwarded.options.body), payload.params)
+    assert.equal(response.headers.get('Set-Cookie'), null)
+    assert.equal(response.headers.get('Cache-Control'), 'no-store')
+  }
+  const before = ctx.sourceCalls.length
+  assert.equal(
+    (await ctx.call('write', { path: 'rest/portal/admin/updateUser.php', params: {} }, user.sessionToken)).status,
+    404,
+  )
+  for (const path of [
+    'rest/portal/admin/updateUser.php',
+    'rest/portal/admin/setContent.php',
+    'rest/portal/admin/getServerVariables.php',
+    'rest/portal/admin/getUsers.php',
+    'rest/portal/startSubmission.php',
+  ])
+    assert.equal((await ctx.call('read', { path, params: {} }, user.sessionToken)).status, 400)
+  assert.equal(ctx.sourceCalls.length, before)
+})
+
+test('admin identity requires a strict boolean from source login, not truthy strings or client parameters', async () => {
+  for (const sourceAdmin of ['true', 1, null]) {
+    const ctx = setup({ sourceAdmin }),
+      login = await ctx.call('login', { username: 'admin', password: 'fixture-only' }),
+      user = await login.json()
+    assert.equal(user.isAdmin, false)
+    assert.equal((await ctx.call('read', administratorReads[0], user.sessionToken)).status, 403)
+    assert.equal((await ctx.call('read', { ...administratorReads[0], isAdmin: true }, user.sessionToken)).status, 400)
+  }
+})
+
+test('a contradictory failed source login cannot grant administrator access', async () => {
+  const ctx = setup()
+  ctx.delay(async () =>
+    Response.json({ success: false, status: 'success', loggedIn: true, attributes: { isAdmin: true } }),
+  )
+  const response = await ctx.call('login', { username: 'admin', password: 'fixture-only' })
+  assert.equal(response.status, 401)
+  const denied = await response.json()
+  assert.equal(denied.loggedIn, false)
+  assert.equal(denied.isAdmin, false)
+  assert.equal(denied.canWrite, false)
+  const before = ctx.sourceCalls.length
+  assert.equal((await ctx.call('read', administratorReads[0], denied.sessionToken)).status, 403)
+  assert.equal(ctx.sourceCalls.length, before)
+  for (const session of ctx.env.NECHAKO_SESSIONS.objects.values()) {
+    assert.equal(session.admin, false)
+    assert.equal(session.loggedIn, false)
+    assert.equal(session.cookies.size, 0)
+  }
+})
+
+test('administrator IDs, permission modes, membership flags and page sizes are bounded', () => {
+  for (const payload of administratorReads) assert.deepEqual(validateRead(payload), payload)
+  for (const params of [
+    { gid: '0' },
+    { gid: '-1' },
+    { gid: '2147483648' },
+    { gid: '1; DROP' },
+    { gid: '1', includePrimaryGroupStatus: '1' },
+  ])
+    assert.throws(() => validateRead({ path: 'rest/portal/admin/getGroupMembers.php', params }))
+  for (const uid of ['0', 'NaN', '7.5', '2147483648'])
+    assert.throws(() => validateRead({ path: 'rest/portal/admin/getUserDetails.php', params: { uid } }))
+  for (const mode of ['form', 'submission', 'match_preset', 'shared_style', 'shared_project'])
+    assert.doesNotThrow(() =>
+      validateRead({ path: 'rest/portal/admin/getUserPermissionsCheckbox.php', params: { uid: '7', mode } }),
+    )
+  assert.throws(() =>
+    validateRead({ path: 'rest/portal/admin/getUserPermissionsCheckbox.php', params: { uid: '7', mode: 'all' } }),
+  )
+  for (const limit of ['0', '501', '1000000', '-1', 'all'])
+    assert.throws(() => validateRead({ path: 'rest/portal/admin/getSubmissions.php', params: { limit } }))
+  assert.doesNotThrow(() =>
+    validateRead({ path: 'rest/portal/admin/getSubmissions.php', params: { limit: '500', page: '1', start: '0' } }),
+  )
+  assert.throws(() => validateRead({ path: 'rest/portal/admin/getContents.php', params: { mode: 'save' } }))
+  assert.throws(() => validateRead({ path: 'rest/portal/getUsers.php', params: { limit: '501' } }))
+  assert.throws(() => validateRead({ path: 'rest/portal/admin/getUserForms.php', params: { form_id: '2147483648' } }))
+  const monitor = administratorReads.at(-1)
+  assert.throws(() => validateRead({ ...monitor, params: { ...monitor.params, getDisabled: 'all' } }))
+  assert.throws(() => validateRead({ ...monitor, params: { schemaId: '13' } }))
+})
+
+test('a source sign-out removes admin access and the next protected read never reaches upstream', async () => {
+  const ctx = setup(),
+    login = await ctx.call('login', { username: 'fixture', password: 'fixture-only' }),
+    user = await login.json()
+  ctx.delay(async () =>
+    Response.json({
+      success: false,
+      status: 'failure',
+      loggedIn: false,
+      error: 'Fixture session ended',
+      attributes: [],
+    }),
+  )
+  const lost = await ctx.call('read', administratorReads[0], user.sessionToken)
+  assert.equal((await lost.json()).loggedIn, false)
+  const peek = await (await ctx.call('status', undefined, user.sessionToken)).json(),
+    before = ctx.sourceCalls.length
+  assert.equal(peek.loggedIn, false)
+  assert.equal(peek.isAdmin, false)
+  assert.equal(peek.canWrite, false)
+  assert.equal((await ctx.call('read', administratorReads[0], user.sessionToken)).status, 403)
+  assert.equal(ctx.sourceCalls.length, before)
+})
+
+test('disconnect clears administrator rights and suppresses an in-flight private administrator response', async () => {
+  const ctx = setup(),
+    login = await ctx.call('login', { username: 'fixture', password: 'fixture-only' }),
+    user = await login.json()
+  let release, started
+  const begin = new Promise((resolve) => {
+    started = resolve
+  })
+  ctx.delay(async () => {
+    started()
+    return new Promise((resolve) => {
+      release = resolve
+    })
+  })
+  const pending = ctx.call('read', administratorReads[2], user.sessionToken)
+  await begin
+  const disconnected = await (await ctx.call('disconnect', {}, user.sessionToken)).json()
+  assert.equal(disconnected.isAdmin, false)
+  assert.equal(disconnected.loggedIn, false)
+  release(Response.json({ status: 'success', loggedIn: true, attributes: { private_user: 'ADMIN PRIVATE FIXTURE' } }))
+  const stale = await pending
+  assert.equal(stale.status, 401)
+  assert.equal((await stale.text()).includes('ADMIN PRIVATE FIXTURE'), false)
+  assert.equal((await ctx.call('read', administratorReads[2], user.sessionToken)).status, 401)
+  for (const session of ctx.env.NECHAKO_SESSIONS.objects.values()) {
+    assert.equal(session.admin, false)
+    assert.equal(session.cookies.size, 0)
+  }
 })
 
 test('native PDF/HTML fragment/CSV/ZIP use signature checks, controlled names, no-store and HTML sandbox', async () => {
@@ -430,7 +618,10 @@ test('bounded memory timers retain independent idle jars without extending expir
     assert.equal(b.loggedIn, false)
     assert.equal(a.sessionReset, undefined)
     assert.equal(b.sessionReset, undefined)
-    assert.deepEqual(Array.from(registry.sessions.values(), (item) => item.expires), deadlines)
+    assert.deepEqual(
+      Array.from(registry.sessions.values(), (item) => item.expires),
+      deadlines,
+    )
   }
   const controllers = []
   for (const session of ctx.env.NECHAKO_SESSIONS.objects.values()) {

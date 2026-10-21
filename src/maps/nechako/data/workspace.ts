@@ -11,6 +11,8 @@ proj4.defs(
 
 export type ActiveWms = {
   id: string
+  /** Optional local presentation name; keep the service layer name/title intact. */
+  displayName?: string
   source: PortalSource
   layer: WmsLayer
   style: string
@@ -19,6 +21,12 @@ export type ActiveWms = {
   visible?: boolean
   native?: NativeWmsReference
 }
+export function checkedLayerDisplayName(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > 200)
+    throw new Error('A layer name must contain 1–200 characters.')
+  return value.trim()
+}
+export const wmsDisplayName = (layer: ActiveWms) => layer.displayName ?? layer.layer.title
 export type VectorData = {
   id: string
   name: string
@@ -201,7 +209,12 @@ export function importWorkspace(input: unknown): Workspace {
         !Array.isArray(layer.formats)
       )
         throw new Error('Invalid WMS workspace layer.')
-      return { ...layer, visible: layer.visible !== false } as ActiveWms
+      const displayName = layer.displayName === undefined ? undefined : checkedLayerDisplayName(layer.displayName)
+      return {
+        ...layer,
+        ...(displayName === undefined ? {} : { displayName }),
+        visible: layer.visible !== false,
+      } as ActiveWms
     })
     const vectors = object.vectors.map((value) => {
       const vector = record(value)

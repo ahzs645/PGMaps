@@ -9,10 +9,17 @@ import { DialogShell } from '@/components/ui/dialog-shell'
 import { PortalDock } from './PortalDock'
 import { downloadText } from '@/lib/download'
 import { PortalProjectManager } from './PortalProjectManager'
+import { PortalMapExport } from './PortalMapExport'
 import { PortalVectors, VectorLayers } from './PortalVectors'
 import { refreshSharedLayer, workspaceRenderOrder } from './data/nativeLayers'
 import { checkedSldUrl } from './data/vectorStyle'
-import { importWorkspace, type ActiveWms, type Workspace } from './data/workspace'
+import {
+  checkedLayerDisplayName,
+  importWorkspace,
+  wmsDisplayName,
+  type ActiveWms,
+  type Workspace,
+} from './data/workspace'
 import { loadSnapshotCapabilities, loadSnapshotSources, type CatalogueSource } from './data/showcase'
 import {
   errorText,
@@ -30,6 +37,68 @@ import {
 type ActiveLayer = ActiveWms
 type Inspection = { layer: string; text: string; loading?: boolean; error?: boolean }
 
+function LayerRename({ name, onSave }: { name: string; onSave: (name: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(name)
+  const [error, setError] = useState('')
+  if (!editing)
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        aria-label={`Rename ${name}`}
+        onClick={() => {
+          setDraft(name)
+          setError('')
+          setEditing(true)
+        }}
+      >
+        Rename
+      </Button>
+    )
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs">
+        Layer name
+        <input
+          aria-label={`New name for ${name}`}
+          className="mt-1 w-full rounded border bg-background p-2 text-base"
+          maxLength={200}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      </label>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={() => {
+            try {
+              onSave(checkedLayerDisplayName(draft))
+              setEditing(false)
+              setError('')
+            } catch (reason) {
+              setError(errorText(reason))
+            }
+          }}
+        >
+          Save layer name
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setEditing(false)
+            setError('')
+          }}
+        >
+          Cancel rename
+        </Button>
+      </div>
+      {error && <InlineAlert tone="error">{error}</InlineAlert>}
+    </div>
+  )
+}
+
 function Identify({
   selected,
   onResult,
@@ -44,6 +113,7 @@ function Identify({
   const layer = selected?.layer
   const style = selected?.style
   const formats = selected?.formats
+  const name = selected ? wmsDisplayName(selected) : ''
   useEffect(() => {
     if (!map || !isLoaded) return
     const controller = new AbortController()
@@ -53,7 +123,7 @@ function Identify({
       request?.abort()
       request = new AbortController()
       const current = request
-      onResult({ layer: layer.title, text: 'Looking up this location…', loading: true })
+      onResult({ layer: name, text: 'Looking up this location…', loading: true })
       const width = Math.round(map.getCanvas().clientWidth)
       const height = Math.round(map.getCanvas().clientHeight)
       // Use the exact Web Mercator tile containing the click. This works at any
@@ -108,10 +178,10 @@ function Identify({
               : JSON.stringify(value, null, 2)
         }
         if (request === current && !controller.signal.aborted)
-          onResult({ layer: layer.title, text: readable || 'No attributes returned.' })
+          onResult({ layer: name, text: readable || 'No attributes returned.' })
       } catch (error) {
         if (request === current && !controller.signal.aborted)
-          onResult({ layer: layer.title, text: errorText(error), error: true })
+          onResult({ layer: name, text: errorText(error), error: true })
       } finally {
         clearTimeout(timeout)
       }
@@ -125,7 +195,7 @@ function Identify({
       map.off('click', click)
       map.off('error', fail)
     }
-  }, [map, isLoaded, source, layer, style, formats, onResult, onMapError])
+  }, [map, isLoaded, source, layer, style, formats, name, onResult, onMapError])
   return null
 }
 
@@ -133,13 +203,13 @@ function LayerLegend({ active }: { active: ActiveLayer }) {
   const [failed, setFailed] = useState(false)
   return (
     <div className="rounded-md border p-3">
-      <p className="mb-2 text-sm font-medium">{active.layer.title}</p>
+      <p className="mb-2 text-sm font-medium">{wmsDisplayName(active)}</p>
       {failed ? (
         <p className="text-xs text-muted-foreground">The service could not provide a legend.</p>
       ) : (
         <img
           src={wmsLegend(active.source.resource, active.layer.name, active.style)}
-          alt={`Legend for ${active.layer.title}`}
+          alt={`Legend for ${wmsDisplayName(active)}`}
           onError={() => setFailed(true)}
           className="max-h-72 max-w-full bg-white"
         />
@@ -159,6 +229,9 @@ export function PortalLayers({
   onOpenFiles,
   initialBounds,
   requestedPane,
+  exportOpen = false,
+  onExportClose,
+  onOpenExport,
 }: {
   workspace: Workspace
   setWorkspace: React.Dispatch<React.SetStateAction<Workspace>>
@@ -170,6 +243,9 @@ export function PortalLayers({
   onOpenFiles?: () => void
   initialBounds?: [number, number, number, number]
   requestedPane?: { pane: 'tools' | 'layers'; revision: number }
+  exportOpen?: boolean
+  onExportClose?: () => void
+  onOpenExport?: () => void
 }) {
   const [sources, setSources] = useState<PortalSource[]>([])
   const [sourceUrl, setSourceUrl] = useState('')
@@ -186,6 +262,7 @@ export function PortalLayers({
   const [picked, setPicked] = useState<{ id: string; index: number }>()
   const [toolsOpen, setToolsOpen] = useState(false)
   const [layersOpen, setLayersOpen] = useState(false)
+  const [localExportOpen, setLocalExportOpen] = useState(false)
   useEffect(() => {
     if (requestedPane?.pane === 'tools') setToolsOpen(true)
     if (requestedPane?.pane === 'layers') setLayersOpen(true)
@@ -456,13 +533,14 @@ export function PortalLayers({
         <div key={item.id} className="space-y-2 rounded-md border p-3">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold">{item.layer.title}</p>
+              <p className="text-sm font-semibold">{wmsDisplayName(item)}</p>
               <p className="text-xs text-muted-foreground">{item.source.name}</p>
+              {item.displayName && <p className="text-xs text-muted-foreground">Source layer: {item.layer.title}</p>}
             </div>
             <Button
               size="sm"
               variant="ghost"
-              aria-label={`Remove ${item.layer.title}`}
+              aria-label={`Remove ${wmsDisplayName(item)}`}
               onClick={() => {
                 setActive((current) => current.filter((value) => value.id !== item.id))
                 if (identifyId === item.id) {
@@ -474,10 +552,18 @@ export function PortalLayers({
               Remove
             </Button>
           </div>
+          <LayerRename
+            name={wmsDisplayName(item)}
+            onSave={(name) =>
+              setActive((current) =>
+                current.map((value) => (value.id === item.id ? { ...value, displayName: name } : value)),
+              )
+            }
+          />
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs">
               <input
-                aria-label={`Show ${item.layer.title}`}
+                aria-label={`Show ${wmsDisplayName(item)}`}
                 type="checkbox"
                 checked={item.visible !== false}
                 onChange={(event) =>
@@ -494,7 +580,7 @@ export function PortalLayers({
               variant="outline"
               size="sm"
               disabled={index === 0}
-              aria-label={`Lower ${item.layer.title}`}
+              aria-label={`Lower ${wmsDisplayName(item)}`}
               onClick={() =>
                 setActive((current) => {
                   const next = [...current]
@@ -509,7 +595,7 @@ export function PortalLayers({
               variant="outline"
               size="sm"
               disabled={index === active.length - 1}
-              aria-label={`Raise ${item.layer.title}`}
+              aria-label={`Raise ${wmsDisplayName(item)}`}
               onClick={() =>
                 setActive((current) => {
                   const next = [...current]
@@ -602,7 +688,7 @@ export function PortalLayers({
             <label className="block text-xs">
               Advertised WMS style
               <select
-                aria-label={`WMS style for ${item.layer.title}`}
+                aria-label={`WMS style for ${wmsDisplayName(item)}`}
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={item.style}
                 onChange={(event) =>
@@ -634,7 +720,7 @@ export function PortalLayers({
               HTTPS SLD URL
               <input
                 key={item.source.resource}
-                aria-label={`SLD URL for ${item.layer.title}`}
+                aria-label={`SLD URL for ${wmsDisplayName(item)}`}
                 className="mt-1 w-full rounded border bg-background p-2"
                 defaultValue={new URL(item.source.resource).searchParams.get('SLD') ?? ''}
                 onBlur={(event) => {
@@ -666,7 +752,7 @@ export function PortalLayers({
               min="0"
               max="1"
               step="0.05"
-              aria-label={`Opacity for ${item.layer.title}`}
+              aria-label={`Opacity for ${wmsDisplayName(item)}`}
               value={item.opacity}
               onChange={(event) =>
                 setActive((current) =>
@@ -760,6 +846,7 @@ export function PortalLayers({
           ]}
         />
         <MapScaleBar />
+        <PointerCoordinates />
         {layout === 'portal' && <InitialWatershedView bounds={initialBounds} />}
         <CameraObserver onCamera={onCamera} onBounds={onBounds} />
         <Identify
@@ -878,21 +965,32 @@ export function PortalLayers({
         </ul>
       )}
       {workspace.tiles.map((item) => (
-        <label key={item.id} className="mt-2 block text-sm">
-          <input
-            type="checkbox"
-            checked={item.visible}
-            onChange={(event) =>
+        <div key={item.id} className="mt-2 space-y-2 rounded border p-2 text-sm">
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={item.visible}
+              onChange={(event) =>
+                setWorkspace((current) => ({
+                  ...current,
+                  tiles: current.tiles.map((value) =>
+                    value.id === item.id ? { ...value, visible: event.target.checked } : value,
+                  ),
+                }))
+              }
+            />{' '}
+            {item.name}
+          </label>
+          <LayerRename
+            name={item.name}
+            onSave={(name) =>
               setWorkspace((current) => ({
                 ...current,
-                tiles: current.tiles.map((value) =>
-                  value.id === item.id ? { ...value, visible: event.target.checked } : value,
-                ),
+                tiles: current.tiles.map((value) => (value.id === item.id ? { ...value, name } : value)),
               }))
             }
-          />{' '}
-          {item.name}
-        </label>
+          />
+        </div>
       ))}
     </details>
   )
@@ -941,7 +1039,7 @@ export function PortalLayers({
             .filter((item) => item.layer.queryable && item.visible !== false)
             .map((item) => (
               <option key={item.id} value={item.id}>
-                {item.source.name} — {item.layer.title}
+                {item.source.name} — {wmsDisplayName(item)}
               </option>
             ))}
         </select>
@@ -972,6 +1070,20 @@ export function PortalLayers({
       )}
     </>
   )
+  const exportDialog = (
+    <DialogShell
+      title="Export Map"
+      subtitle="Compose and download the current map as a PNG image."
+      open={exportOpen || localExportOpen}
+      onClose={() => {
+        setLocalExportOpen(false)
+        onExportClose?.()
+      }}
+      size="xl"
+    >
+      {(exportOpen || localExportOpen) && <PortalMapExport map={mapRef} workspace={workspace} mapWarning={mapError} />}
+    </DialogShell>
+  )
 
   if (layout === 'portal') {
     return (
@@ -980,6 +1092,13 @@ export function PortalLayers({
           <Button variant="outline" className="w-full" onClick={onOpenFiles}>
             Import files
           </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => (onOpenExport ? onOpenExport() : setLocalExportOpen(true))}
+          >
+            Export map image
+          </Button>
           {cataloguePanel}
           {vectorPanel}
         </PortalDock>
@@ -987,25 +1106,36 @@ export function PortalLayers({
         <PortalDock side="right" title="Map" open={layersOpen} onOpenChange={setLayersOpen}>
           {activePanel}
           {workspace.vectors.map((vector) => (
-            <label key={vector.id} className="flex items-start gap-2 rounded-md border p-3 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                aria-label={`Show ${vector.name}`}
-                checked={vector.visible}
-                onChange={(event) =>
+            <div key={vector.id} className="space-y-2 rounded-md border p-3 text-sm">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  aria-label={`Show ${vector.name}`}
+                  checked={vector.visible}
+                  onChange={(event) =>
+                    setWorkspace((current) => ({
+                      ...current,
+                      vectors: current.vectors.map((item) =>
+                        item.id === vector.id ? { ...item, visible: event.target.checked } : item,
+                      ),
+                    }))
+                  }
+                />
+                <span>
+                  {vector.name} ({vector.data.features.length} features)
+                </span>
+              </label>
+              <LayerRename
+                name={vector.name}
+                onSave={(name) =>
                   setWorkspace((current) => ({
                     ...current,
-                    vectors: current.vectors.map((item) =>
-                      item.id === vector.id ? { ...item, visible: event.target.checked } : item,
-                    ),
+                    vectors: current.vectors.map((item) => (item.id === vector.id ? { ...item, name } : item)),
                   }))
                 }
               />
-              <span>
-                {vector.name} ({vector.data.features.length} features)
-              </span>
-            </label>
+            </div>
           ))}
           {inspectionPanel}
         </PortalDock>
@@ -1018,6 +1148,7 @@ export function PortalLayers({
         >
           {workspacePanel}
         </DialogShell>
+        {exportDialog}
       </div>
     )
   }
@@ -1030,10 +1161,63 @@ export function PortalLayers({
       <div className="min-w-0 space-y-3">
         {mapSurface}
         {workspacePanel}
+        <Button variant="outline" onClick={() => setLocalExportOpen(true)}>
+          Export map image
+        </Button>
+        {exportDialog}
         {vectorPanel}
         {inspectionPanel}
       </div>
     </div>
+  )
+}
+
+function PointerCoordinates() {
+  const { map, isLoaded } = useMap()
+  const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null)
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    let frame: number | undefined
+    let pending: { latitude: number; longitude: number } | null = null
+    const move = (event: MapMouseEvent) => {
+      const { lat, lng } = event.lngLat
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+      pending = { latitude: lat, longitude: ((((lng + 180) % 360) + 360) % 360) - 180 }
+      if (frame === undefined)
+        frame = requestAnimationFrame(() => {
+          frame = undefined
+          setPosition(pending)
+        })
+    }
+    const leave = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame)
+      frame = undefined
+      pending = null
+      setPosition(null)
+    }
+    map.on('mousemove', move)
+    map.on('mouseout', leave)
+    return () => {
+      map.off('mousemove', move)
+      map.off('mouseout', leave)
+      if (frame !== undefined) cancelAnimationFrame(frame)
+    }
+  }, [map, isLoaded])
+  return (
+    <output
+      aria-label="Map pointer coordinates"
+      aria-live="off"
+      className="pointer-events-none absolute bottom-12 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-background/85 px-2 py-1 text-[11px] leading-tight text-foreground shadow-sm"
+    >
+      Pointer (EPSG:4326):{' '}
+      {position ? (
+        <span className="tabular-nums">
+          lat {position.latitude.toFixed(5)}°, lon {position.longitude.toFixed(5)}°
+        </span>
+      ) : (
+        'move over the map'
+      )}
+    </output>
   )
 }
 

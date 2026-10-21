@@ -223,6 +223,75 @@ const tick = async () => {
 
 describe('hosted portal capabilities', () => {
   beforeEach(() => vi.stubEnv('VITE_NECHAKO_GATEWAY_URL', HOSTED))
+  it('preserves source-verified administrator inspection while rejecting both hosted write paths', async () => {
+    const connection = await import('./nechakoConnection')
+    const fetch = vi.fn().mockImplementation((url) =>
+      Promise.resolve(
+        response({
+          ...hostedStatus,
+          loggedIn: true,
+          isAdmin: true,
+          readOnly: false,
+          canWrite: true,
+          ...(url.endsWith('/login') ? { sessionToken: SIGNED } : {}),
+        }),
+      ),
+    )
+    vi.stubGlobal('fetch', fetch)
+    // A status without a capability cannot establish a hosted administrator.
+    expect(await connection.getPortalConnectionStatus()).toMatchObject({ isAdmin: false, canWrite: false })
+    expect(await connection.connectPortalSession('fixture-user', 'fixture-password')).toMatchObject({
+      loggedIn: true,
+      isAdmin: true,
+      canWrite: false,
+      readOnly: true,
+    })
+    expect(await connection.getPortalConnectionStatus()).toMatchObject({ isAdmin: true, canWrite: false })
+    expect(fetch.mock.calls.at(-1)?.[1].headers['X-Nechako-Session']).toBe(SIGNED)
+    const before = fetch.mock.calls.length
+    await expect(connection.gatewayWrite('rest/portal/admin/setContent.php', {})).rejects.toThrow('read-only')
+    await expect(connection.gatewayRequest('write', {})).rejects.toThrow('read-only')
+    expect(fetch).toHaveBeenCalledTimes(before)
+  })
+  it.each([undefined, false, 'true', 1, null])(
+    'does not infer an administrator from username or a nonboolean role (%s)',
+    async (isAdmin) => {
+      const connection = await import('./nechakoConnection')
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(response({ ...hostedStatus, loggedIn: true, isAdmin, sessionToken: SIGNED })),
+      )
+      expect(await connection.connectPortalSession('admin', 'fixture-password')).toMatchObject({
+        loggedIn: true,
+        isAdmin: false,
+        readOnly: true,
+        canWrite: false,
+      })
+    },
+  )
+  it('suppresses administrator status during logout and after a contradictory anonymous status', async () => {
+    const connection = await import('./nechakoConnection')
+    let finishLogout!: (value: Response) => void
+    let loggedIn = true
+    const fetch = vi.fn().mockImplementation((url) => {
+      if (url.endsWith('/login'))
+        return Promise.resolve(response({ ...hostedStatus, loggedIn: true, isAdmin: true, sessionToken: SIGNED }))
+      if (url.endsWith('/disconnect'))
+        return new Promise((resolve) => {
+          finishLogout = resolve
+        })
+      return Promise.resolve(response({ ...hostedStatus, loggedIn, isAdmin: true }))
+    })
+    vi.stubGlobal('fetch', fetch)
+    await connection.connectPortalSession('fixture-user', 'fixture-password')
+    const disconnect = connection.disconnectPortalSession()
+    expect(await connection.getPortalConnectionStatus()).toMatchObject({ loggedIn: false, isAdmin: false })
+    expect(fetch.mock.calls.at(-1)?.[1].headers['X-Nechako-Session']).toBeUndefined()
+    finishLogout(response({ ...hostedStatus, isAdmin: true }))
+    expect(await disconnect).toMatchObject({ loggedIn: false, isAdmin: false, canWrite: false })
+    loggedIn = false
+    expect(await connection.getPortalConnectionStatus()).toMatchObject({ loggedIn: false, isAdmin: false })
+  })
   it('defaults hosted access to the connection, respects explicit public mode, and rejects insecure bases', async () => {
     const connection = await import('./nechakoConnection')
     expect(connection.getPortalConnectionMode()).toBe('gateway')
@@ -312,8 +381,8 @@ describe('hosted portal capabilities', () => {
     const readFailure = expect(oldRead).rejects.toMatchObject({ name: 'AbortError' })
     await tick()
     const next = await connection.connectPortalSession('fixture-user', 'fixture-password')
-    expect(next).toMatchObject({ loggedIn: true, readOnly: true, canWrite: false, isAdmin: false })
-    lateStatus(response({ ...hostedStatus, sessionToken: ANON }))
+    expect(next).toMatchObject({ loggedIn: true, readOnly: true, canWrite: false, isAdmin: true })
+    lateStatus(response({ ...hostedStatus, loggedIn: true, isAdmin: true, sessionToken: ANON }))
     lateRead(response({ status: 'success', loggedIn: true, attributes: [{ secret: 'previous identity' }] }))
     await Promise.all([statusFailure, readFailure])
     await connection.getPortalConnectionStatus()

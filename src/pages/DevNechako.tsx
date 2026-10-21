@@ -18,7 +18,11 @@ import { PortalOptions } from '@/maps/nechako/PortalOptions'
 import { PortalPublicProjects } from '@/maps/nechako/PortalPublicProjects'
 import { PortalUnifiedSearch } from '@/maps/nechako/PortalUnifiedSearch'
 import { LocalPortalConnection } from '@/maps/nechako/LocalPortalConnection'
-import { PortalAdministration } from '@/maps/nechako/PortalAdministration'
+import {
+  PortalAdministration,
+  parsePortalAdministrationView,
+  type PortalAdministrationView,
+} from '@/maps/nechako/PortalAdministration'
 import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
 import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
 import { portalWrite } from '@/lib/nechakoPortal'
@@ -72,15 +76,16 @@ function Comparison() {
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Stewardship Portal ↔ PGMaps</h2>
       <p className="max-w-3xl text-sm text-muted-foreground">
-        Updated October 12, 2026 after an authorized administrator interface audit. Public services, existing records,
-        saved projects, forms and monitoring tables were inspected. PGMaps provides public exploration and local-file
-        viewers; the original portal controls publication and permissions.
+        Updated October 21, 2026 from the public interface, source client definitions and the earlier October 12
+        authenticated audit. The supplied login was rejected during the latest check, so new administrator views have
+        contract and fixture verification; protected live behavior still needs a working account.
       </p>
       <InlineAlert title="What loads today">
-        Public WMS maps and identify responses, the format registry, search contexts, and the existing literature
-        dataset, nine bundled public saved projects and a playable learning adaptation. The PGMaps live submission and
-        project bridge still returns registration errors; the original portal works. Private submissions, attachments,
-        monitoring records and administration need authenticated integration.
+        Captured public submissions and research, nine public map definitions, a learning adaptation, local GIS tools
+        and live map services are available. The hosted portal connection supports permitted source reads and downloads;
+        the updated service adds verified administrator reads. Form, schema, submission, system and schedule inspectors
+        and map-image composition extend the native interface. Source mutations remain restricted to existing reviewed
+        development adapters or the original portal.
       </InlineAlert>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[1000px] text-left text-sm">
@@ -153,12 +158,12 @@ function Comparison() {
           X-Requested-With were blocked in browser tests.
         </li>
         <li>
-          This view uses anonymous reads and form POST. Protected cross-site access requires a deliberate authentication
-          design and corresponding server CORS configuration.
+          The hosted connection keeps source cookies in an isolated temporary session and uses an in-memory browser
+          capability. It does not rely on cross-site source cookies.
         </li>
         <li>
-          PGMaps search and project requests still receive registration errors. The original portal now returns real
-          search results and exposes saved projects; its request/session contract needs to be reconciled with PGMaps.
+          Direct source requests may still receive registration errors. Use the configured portal connection for
+          permitted source reads; the earlier registration-blocked observations do not describe that connection.
         </li>
         <li>
           Local GIS conversion, CSV monitoring, workspace conversion and submission-resource reads are now available.
@@ -171,7 +176,12 @@ function Comparison() {
 }
 
 export default function DevNechako() {
-  const [monitoringContext, setMonitoringContext] = useState<{ submissionId: string; formId: string; layerId?: string; recId?: string }>()
+  const [monitoringContext, setMonitoringContext] = useState<{
+    submissionId: string
+    formId: string
+    layerId?: string
+    recId?: string
+  }>()
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
   const clearSessionWorkspace = useCallback(
     () =>
@@ -209,6 +219,13 @@ export default function DevNechako() {
       next.set('source', 'snapshot')
       return next
     })
+  const showAdministration = (admin: PortalAdministrationView) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('view', 'administration')
+      next.set('admin', admin)
+      return next
+    })
   const openPanel = (panel: InventoryPanel) => {
     const views: Partial<Record<InventoryPanel, View>> = {
       search: 'search',
@@ -223,6 +240,7 @@ export default function DevNechako() {
       stories: 'stories',
       account: 'connection',
       administration: 'administration',
+      inventory: 'inventory',
     }
     if (views[panel]) showView(views[panel])
     else window.location.assign(`/dev/nechako/portal?panel=${panel}`)
@@ -384,10 +402,22 @@ export default function DevNechako() {
             />
           )}
           {view === 'connection' && <LocalPortalConnection />}
-          {view === 'administration' && <PortalAdministration key={session.revision} write={portalWrite} />}
+          {view === 'administration' && (
+            <PortalAdministration
+              key={`${session.revision}:${parsePortalAdministrationView(params.get('admin'))}`}
+              initialView={parsePortalAdministrationView(params.get('admin'))}
+              write={portalWrite}
+            />
+          )}
           {view === 'reports' && <PortalFormReports key={session.revision} />}
           {view === 'inventory' && <PortalInventory onOpen={openPanel} importedFiles={collectionSession.files} />}
-          {view === 'options' && <PortalOptions onOpen={openPanel} onMapPane={() => showView('layers')} />}
+          {view === 'options' && (
+            <PortalOptions
+              onAdministration={showAdministration}
+              onOpen={openPanel}
+              onMapPane={() => showView('layers')}
+            />
+          )}
           {(view === 'collections' || view === 'stories') && (
             <div className="space-y-6">
               {view === 'collections' && (

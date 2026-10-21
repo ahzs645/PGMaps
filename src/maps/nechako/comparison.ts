@@ -1,4 +1,5 @@
-// Updated 2026-10-12. Live evidence and deployment limits: docs/nechako-portal-assessment.md.
+// Updated 2026-10-21. Current public/client evidence and remaining gaps:
+// docs/nechako/2026-10-21-parity-audit.md. Older authenticated counts are dated observations.
 export const FEATURE_COMPARISON = [
   {
     feature: 'Map, layers, visibility, legends, camera',
@@ -21,9 +22,9 @@ export const FEATURE_COMPARISON = [
     feature: 'Portal-wide submission search',
     portal: 'Original catalogue exposed 1,585 searchable submissions; local gateway query nechako returns 419 results',
     pgmaps: 'Global site search and literature search cover different sources',
-    next: 'Local gateway reads real results; direct browser mode can fail registration. Production deployment and permission-scoped area acceptance remain.',
+    next: 'The hosted gateway supports permitted live reads; direct browser mode can fail registration. Current administrator sign-in was rejected, so protected production acceptance remains.',
     devView:
-      'Unified public-content search and native submission search; nested visual expressions, local saved queries, geographic limits, paged results/CSV and form detail dialogs.',
+      'Unified public-content search, native submission search and a captured form/year browser; form-scoped field selectors, nested visual expressions, local saved queries, geographic limits, paged results/CSV and form detail dialogs.',
   },
   {
     feature: 'Submission detail',
@@ -65,14 +66,15 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'App-owned public snapshot with per-file manifest hashes and byte counts',
     next: 'Measure original GIS archives, monitoring exports, attachments and private collections from permitted exports; do not infer bytes from record counts.',
     devView:
-      '52 snapshot files / 7,513,926 bytes; separate learning-package and browser-import sizes; searchable collection inventory and options directory.',
+      'Per-capture manifest file/byte totals; separate learning-package and browser-import sizes; searchable collection inventory and 77 explicitly scoped workflow options. Client-module audit bytes are separate from data/storage totals.',
   },
   {
     feature: 'Collaborative project ownership/sharing/history/defaults',
     portal: 'Portal client and SOP',
     pgmaps: 'Local storage/file/share capabilities; no equivalent portal account/group synchronization found',
     next: 'Source ownership stays authoritative. Reviewed native project adapters need disposable-record and multi-user production acceptance.',
-    devView: 'Live source projects/shares/history/defaults and review-gated owner save/rename/share/default adapters; browser versions and original-preserving exports.',
+    devView:
+      'Live source projects/shares/history/defaults and review-gated owner save/rename/share/default adapters; browser versions and original-preserving exports.',
   },
   {
     feature: 'Point/line/polygon data and attributes',
@@ -122,25 +124,40 @@ export const FEATURE_COMPARISON = [
       'Local drawing, GeoJSON geometry/property editing, measurement, bounded undo, buffer, polygon union/intersection/difference, point/line/polygon clipping and line/polygon splitting; output exports.',
   },
   {
+    feature: 'Map image composition and layer names',
+    portal:
+      'Public Export window has title, dimensions, Same as Map, two north-arrow styles, scale distance, legend scale and attribution.',
+    pgmaps: 'Shared MapLibre map, canvas and export primitives',
+    next: 'PNG composition uses the current rendered extent and reports missing imagery/legends. It does not retrieve vector data or increase the source map resolution.',
+    devView:
+      'PNG preview/download with source credits and complete-map aspect ratio; local WMS/vector/tile display-name editing preserves source identifiers and workspace round trips.',
+  },
+  {
     feature: 'Reporting and statistics',
-    portal: 'Live Reports UI; no forms visible anonymously; client presets/statistics/CSV',
+    portal:
+      'Source form/statistics, presets, CSV and Table/Graphs controls; the current client Graphs handler is a placeholder.',
     pgmaps: 'Charts and export building blocks',
-    next: 'Original form/statistics reads are integrated; static-node/report format coverage and production permissions remain limits.',
-    devView: 'Original dynamic form reports, source field labels, local presets and CSV/HTML/PDF/ZIP exports; separate monitoring statistics.',
+    next: 'Native graphs adapt exact returned numeric rows/statistics; unsupported shapes stay in the table. Source preset sharing, static-node/report coverage and current authenticated acceptance remain limits.',
+    devView:
+      'Original dynamic form reports, Table/Graphs, source field labels, local presets and CSV/HTML/PDF/ZIP exports; measured zero, missing values and source counts remain distinct.',
   },
   {
     feature: 'Forms, schemas, users, groups, approvals, shared-layer review',
-    portal: 'Administrator interface and Data Manager SOP: 31 forms, 13 schemas, 77 accounts and five groups.',
-    pgmaps: 'Reusable UI primitives; no matching portal admin subsystem found',
-    next: 'Local gateway supports reviewed existing permissions/groups/moderation/help changes; contracts mocked only. Source form/schema edits and publication remain original workflows.',
-    devView: 'Dashboard/forms/schemas reads; reviewed existing user permissions, group membership, shared-layer approval/active state and editable help content.',
+    portal:
+      'Earlier authenticated audit recorded 31 forms, 13 schemas, 77 accounts and five groups. The October 21 source login could not be revalidated.',
+    pgmaps:
+      'Native inspectors for source forms, schema field links, users, permissions, groups, submissions and system registries.',
+    next: 'The updated hosted connection exposes verified administrator reads and remains read-only. Local reviewed permission/group/moderation/help updates are preserved. Form/schema editing, account creation and publication remain original workflows; fresh authenticated acceptance is pending.',
+    devView:
+      'Searchable tables with local paging and CSV/JSON export; form field/schema/group/user relationships; schema monitoring associations; native submission catalogue; source registry defaults, flags, task statuses, priorities and holidays.',
   },
   {
     feature: 'Notifications, schedules and relationship nodes',
     portal: 'Loaded client modules/SOP',
-    pgmaps: 'No portal-equivalent workflow found',
-    next: 'Maintain in portal. Confirm active workflows and obtain authorized samples before a further integration.',
-    devView: 'Original portal handoff; no notification/schedule writes in PGMaps.',
+    pgmaps: 'Native calendar, selected-day task and notification inspectors use the source request contracts.',
+    next: 'Live authenticated schedule acceptance remains pending. Scheduling, assignment and notification changes remain in the original dashboard.',
+    devView:
+      'Calendar month highlights, tasks for a selected local date, and separate new-task/near-deadline categories retain original task and submission IDs; no workflow writes.',
   },
   {
     feature: 'Payments and BOSS',

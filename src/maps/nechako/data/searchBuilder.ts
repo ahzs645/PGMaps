@@ -9,8 +9,18 @@ export type SearchClause =
       operator: '=' | '!=' | '~' | '>' | '>=' | '<' | '<='
       value: string
       valueType: 'text' | 'number' | 'boolean'
+      /** A captured field can be scoped to its supplied form using the existing Form ID column. */
+      scopeFormId?: string
     }
   | { kind: 'group'; operator: 'AND' | 'OR'; clauses: SearchClause[] }
+export type SearchFieldOption = {
+  id: string
+  field: string
+  label: string
+  valueType: 'text' | 'number' | 'boolean'
+  scopeFormId?: string
+}
+export type SearchFieldGroup = { id: string; label: string; fields: SearchFieldOption[] }
 export type SavedSearch = {
   id: string
   name: string
@@ -42,7 +52,13 @@ export function compileSearchClause(clause: SearchClause, depth = 0): string {
             : (() => {
                 throw new Error('Enter a valid nonnegative number or true/false value.')
               })()
-    return `{${clause.field}} ${clause.operator} ${value}`
+    const comparison = `{${clause.field}} ${clause.operator} ${value}`
+    if (clause.scopeFormId !== undefined) {
+      if (!/^[1-9]\d*$/.test(clause.scopeFormId) || !Number.isSafeInteger(Number(clause.scopeFormId)))
+        throw new Error('Choose a valid captured form ID.')
+      return `({Form ID} = ${clause.scopeFormId} AND ${comparison})`
+    }
+    return comparison
   }
   if (!clause.clauses.length || clause.clauses.length > 50 || !['AND', 'OR'].includes(clause.operator))
     throw new Error('A group needs between one and 50 rules.')

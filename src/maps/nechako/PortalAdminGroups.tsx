@@ -114,7 +114,7 @@ export function PortalAdminGroups({
                       <td key={key} className="p-2 text-center">
                         <input
                           type="checkbox"
-                          disabled={busy || (key === 'primary' && !user.member)}
+                          disabled={!canWrite || busy || (key === 'primary' && !user.member)}
                           aria-label={`${key} user ${user.uid}`}
                           checked={user[key]}
                           onChange={(e) => {
@@ -142,7 +142,7 @@ export function PortalAdminGroups({
           </div>
           <Button
             variant="outline"
-            disabled={busy}
+            disabled={!canWrite || busy}
             onClick={() => {
               const added = edited
                   .filter((row) => row.member && !original.find((old) => old.uid === row.uid)?.member)
