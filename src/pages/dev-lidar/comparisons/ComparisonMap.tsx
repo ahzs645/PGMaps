@@ -51,6 +51,8 @@ interface Props {
   pointColour?: 'height' | 'segment' | 'black'
   overlayOpacity?: number
   onFeaturePick?: (id: string) => void
+  onMapClick?: (point: [number, number]) => void
+  drawing?: boolean
   onReferencePick?: (id: string) => void
 }
 export function ComparisonMap(props: Props) {
@@ -151,6 +153,7 @@ export function ComparisonMap(props: Props) {
         )
       }
       instance.on('click', 'comparison-output-fill', (event) => {
+        if (latest.current.drawing) return
         const p = event.features?.[0]?.properties
         if (typeof p?.id === 'string' && latest.current.onFeaturePick) {
           latest.current.onFeaturePick(p.id)
@@ -165,6 +168,7 @@ export function ComparisonMap(props: Props) {
             .addTo(instance)
       })
       instance.on('click', 'comparison-output-tops', (event) => {
+        if (latest.current.drawing) return
         const p = event.features?.[0]?.properties
         if (typeof p?.id === 'string') latest.current.onFeaturePick?.(p.id)
       })
@@ -190,6 +194,7 @@ export function ComparisonMap(props: Props) {
         })
         .finally(() => clearTimeout(timer))
     })
+    instance.on('click', (event) => latest.current.onMapClick?.([event.lngLat.lng, event.lngLat.lat]))
     instance.on('moveend', () => {
       if (applying.current) return
       const p = latest.current,
@@ -214,6 +219,11 @@ export function ComparisonMap(props: Props) {
       context.current = []
     }
   }, [])
+  useEffect(() => {
+    const m = map.current
+    if (!ready || !m) return
+    m.getCanvas().style.cursor = props.drawing ? 'crosshair' : ''
+  }, [ready, props.drawing])
   useEffect(() => {
     const m = map.current
     if (!ready || !m) return

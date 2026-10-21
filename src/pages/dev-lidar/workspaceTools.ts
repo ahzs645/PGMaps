@@ -1,7 +1,16 @@
 import { ANALYSIS_MODES, type AnalysisMode } from './analysisWorkflows'
 
 export const LIDAR_BASE = '/dev/lidar/'
-export type LidarToolId = 'canopy' | 'trees' | 'forestry' | 'species' | 'buildings' | 'transects' | 'compare' | 'volume'
+export type LidarToolId =
+  | 'canopy'
+  | 'trees'
+  | 'forestry'
+  | 'species'
+  | 'buildings'
+  | 'transects'
+  | 'compare'
+  | 'volume'
+  | 'inventory'
 export interface LidarTool {
   id: LidarToolId
   title: string
@@ -11,6 +20,14 @@ export interface LidarTool {
   defaultMode: AnalysisMode | null
 }
 export const LIDAR_TOOLS: LidarTool[] = [
+  {
+    id: 'inventory',
+    title: 'Tree inventory',
+    description: 'Inspect crown attributes, modelled diameter and volume, and polygon summaries.',
+    outputs: 'ForestTools · neural candidates · stand tables · reviews',
+    modes: [],
+    defaultMode: null,
+  },
   {
     id: 'volume',
     title: 'Forest volume',

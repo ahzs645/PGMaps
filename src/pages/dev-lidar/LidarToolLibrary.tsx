@@ -29,6 +29,7 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
             context. No upload or setup required to view these results.
           </p>
           <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium underline">
+            <Link to={toolPath('inventory')}>Tree inventory & polygon summaries</Link>
             <Link to={toolPath('canopy')}>BC canopy map</Link>
             <Link to={toolPath('compare')}>Tree model results & 3D</Link>
             <Link to={toolPath('volume')}>BC inventory volume & harvest scenarios</Link>

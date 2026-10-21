@@ -46,7 +46,7 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
             <option value="satellite">Satellite</option>
             <option value="none">None</option>
           </select>
-          {c.tool?.id !== 'compare' && c.tool?.id !== 'volume' && (
+          {c.tool?.id !== 'compare' && c.tool?.id !== 'volume' && c.tool?.id !== 'inventory' && (
             <Button
               variant="outline"
               size="sm"
