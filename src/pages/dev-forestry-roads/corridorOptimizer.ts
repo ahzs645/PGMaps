@@ -182,7 +182,7 @@ function* search(
   options: RoadOptimizationOptions, control: CorridorRunControl = {},
 ): Generator<CorridorProgress, RoadOptimizationResult> {
   if (!Array.isArray(guide) || guide.length < 2 || guide.length > 100 || !guide.every(validCoordinate)) throw Error('Sketch between 2 and 100 valid road points.')
-  if (!Object.hasOwn(profiles, options.objective)) throw Error('Choose a valid optimization preference.')
+  if (!Object.prototype.hasOwnProperty.call(profiles, options.objective)) throw Error('Choose a valid optimization preference.')
   const width = options.corridorHalfWidthM, clearance = options.avoidanceClearanceM ?? 0
   const uphill = options.maxUphillGradePercent ?? settings.maxGradePercent
   const downhill = options.maxDownhillGradePercent ?? settings.maxGradePercent
