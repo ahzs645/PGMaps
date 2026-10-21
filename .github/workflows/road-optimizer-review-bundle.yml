@@ -3,12 +3,8 @@ on:
   push:
     branches: [codex/forestry-road-corridor-optimizer]
     paths: [.github/workflows/road-optimizer-review-bundle.yml]
-  workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: optimizer-review-bundle
-  cancel-in-progress: true
 jobs:
   bundle:
     runs-on: ubuntu-24.04
@@ -16,35 +12,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run toolkit:build && npm --prefix vendor/json-url run build
-      - name: Include native terrain for reproducible tests
+      - name: Obtain the two pinned scraper-owned imports without changing their revision
         run: |
-          mkdir -p optimizer-review-data
-          for name in dtm-1m.tif checksums.json summary.json; do
-            curl --fail --retry 2 --location "https://pgmaps.ahmadjalil.com/data/lidar-analysis/bc-093g086/$name" -o "optimizer-review-data/$name"
+          revision=$(git ls-tree HEAD vendor/bcdatamapper | awk '{print $3}')
+          base=vendor/bcdatamapper/datascrapers/manual/output/acknowledgement
+          mkdir -p "$base"
+          for name in fpcc-language-map.json nation-registry.json; do
+            curl --fail --retry 2 --location "https://raw.githubusercontent.com/ahzs645/bcdatamapper/$revision/datascrapers/manual/output/acknowledgement/$name" -o "$base/$name"
           done
-      - name: Package source and installed dependencies without Git credentials
+      - name: Package original application data imports
         run: |
-          python3 - <<'PY'
-          import pathlib, tarfile
-          root = pathlib.Path('.')
-          paths = [p for p in root.iterdir() if p.is_file() and not p.name.startswith('.env')]
-          paths += [root / name for name in ('src', 'packages/geo-toolkit', 'vendor/json-url', 'node_modules', 'tests', 'scripts', 'optimizer-review-data')]
-          with tarfile.open('/tmp/optimizer-review-bundle.tar.gz', 'w:gz') as archive:
-              for p in paths:
-                  if p.exists():
-                      archive.add(str(p), filter=lambda info: None if '.git' in pathlib.PurePosixPath(info.name).parts else info)
-          PY
-          cp /tmp/optimizer-review-bundle.tar.gz .
+          tar -czf /tmp/road-original-build-inputs.tar.gz public/data/projects public/data/nechako-showcase/manifest.json vendor/bcdatamapper/datascrapers/manual/output/acknowledgement
       - uses: actions/upload-artifact@v4
         with:
-          name: road-optimizer-review-bundle
-          path: optimizer-review-bundle.tar.gz
+          name: road-original-build-inputs
+          path: /tmp/road-original-build-inputs.tar.gz
           retention-days: 1
           compression-level: 0
