@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -35,7 +35,7 @@ jobs:
           import pathlib, tarfile
           root = pathlib.Path('.')
           paths = [p for p in root.iterdir() if p.is_file() and not p.name.startswith('.env')]
-          paths += [root / name for name in ('src', 'packages', 'vendor', 'node_modules', 'tests', 'scripts', 'optimizer-review-data')]
+          paths += [root / name for name in ('src', 'packages/geo-toolkit', 'vendor/json-url', 'node_modules', 'tests', 'scripts', 'optimizer-review-data')]
           with tarfile.open('/tmp/optimizer-review-bundle.tar.gz', 'w:gz') as archive:
               for p in paths:
                   if p.exists():
@@ -46,5 +46,5 @@ jobs:
         with:
           name: road-optimizer-review-bundle
           path: optimizer-review-bundle.tar.gz
-          retention-days: 2
+          retention-days: 1
           compression-level: 0
