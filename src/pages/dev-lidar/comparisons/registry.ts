@@ -1,0 +1,147 @@
+export type ComparisonFamily = 'lidar' | 'rgb' | 'shapes'
+export interface ComparisonModel {
+  id: string
+  name: string
+  family: ComparisonFamily
+  status: 'completed' | 'blocked' | 'unreleased' | 'not-run'
+  input: string
+  output: string
+  note: string
+  url?: string
+}
+export const COMPARISON_MODELS: ComparisonModel[] = [
+  {
+    id: 'watershed',
+    name: 'CHM watershed',
+    family: 'lidar',
+    status: 'completed',
+    input: 'BC tile · 1 m canopy surface',
+    output: 'Crown-column point labels',
+    note: 'Existing surface memberships; timing covers lookup, not a fresh watershed run.',
+  },
+  {
+    id: 'dalponte2016',
+    name: 'lidR · Dalponte 2016',
+    family: 'lidar',
+    status: 'completed',
+    input: 'BC tile · original buffered plots',
+    output: 'Height-surface crown growth',
+    note: 'Full accepted plot returns processed. Review splits and merged neighbours.',
+    url: 'https://r-lidar.github.io/lidRbook/itd.html',
+  },
+  {
+    id: 'li2012',
+    name: 'lidR · Li 2012',
+    family: 'lidar',
+    status: 'completed',
+    input: 'BC tile · original buffered plots',
+    output: 'Point-based tree instances',
+    note: 'Can split structures or branches into many instances. More instances do not establish better quality.',
+  },
+  {
+    id: 'pointtree-treex',
+    name: 'PointTree · treeX',
+    family: 'lidar',
+    status: 'completed',
+    input: 'BC tile · ULS stem-search preset',
+    output: 'Stem-supported tree instances',
+    note: 'Completed with zero supported stems on these plots. Unassigned points are retained.',
+    url: 'https://github.com/ai4trees/pointtree',
+  },
+  {
+    id: 'segment-any-tree',
+    name: 'SegmentAnyTree',
+    family: 'lidar',
+    status: 'blocked',
+    input: '3D point cloud · GPU runtime',
+    output: 'Tree-instance point labels',
+    note: 'Weights verified and plot preprocessing passed. Neural inference has not run: no usable GPU job service in this session.',
+    url: 'https://github.com/SmartForest-no/SegmentAnyTree',
+  },
+  {
+    id: 'forestformer3d',
+    name: 'ForestFormer3D',
+    family: 'lidar',
+    status: 'blocked',
+    input: '3D point cloud · GPU runtime',
+    output: 'Semantic and tree-instance labels',
+    note: 'Weights and input conversion checked; neural inference not run. Repository and checkpoint licence terms also need clarification.',
+    url: 'https://github.com/SmartForest-no/ForestFormer3D',
+  },
+  {
+    id: 'forpt',
+    name: 'ForPT · tree instances',
+    family: 'lidar',
+    status: 'unreleased',
+    input: 'Forest point cloud',
+    output: 'Instance task not yet released',
+    note: 'Semantic, species and age checkpoints are released; the instance checkpoint and implementation remain “Coming soon”.',
+    url: 'https://huggingface.co/prs-eth/ForPT',
+  },
+  {
+    id: 'treelearn',
+    name: 'TreeLearn',
+    family: 'lidar',
+    status: 'not-run',
+    input: 'Dense point cloud with trunk evidence',
+    output: 'Tree-instance point labels',
+    note: 'Research lead only; no executed output. This ALS tile has limited stem observations.',
+    url: 'https://github.com/ecker-lab/TreeLearn',
+  },
+  {
+    id: 'deepforest',
+    name: 'DeepForest · RetinaNet',
+    family: 'rgb',
+    status: 'completed',
+    input: 'Public OSBS / SJER RGB imagery',
+    output: 'Crown bounding boxes',
+    note: 'Actual CPU inference on two georeferenced samples. These development fixtures are not independent validation of this tile.',
+    url: 'https://huggingface.co/weecology/deepforest-tree',
+  },
+  {
+    id: 'canopy-maskrcnn',
+    name: 'CanopyRS · Mask R-CNN',
+    family: 'rgb',
+    status: 'completed',
+    input: 'Public OSBS / SJER RGB imagery',
+    output: 'Crown masks and boxes',
+    note: 'Actual tropical SelvaMask checkpoint. Transfer to these non-tropical samples was poor; inspect masks and missed references.',
+    url: 'https://huggingface.co/CanopyRS/maskrcnn-resnet50-multi-selvamask',
+  },
+  {
+    id: 'canopy-mask2former',
+    name: 'CanopyRS · Mask2Former',
+    family: 'rgb',
+    status: 'not-run',
+    input: 'RGB orthomosaic · Detrex runtime',
+    output: 'Crown masks',
+    note: 'No executed output for this variant. The completed Mask R-CNN test does not evaluate Mask2Former.',
+    url: 'https://huggingface.co/CanopyRS/mask2former-swin-l-384-multi-selvamask',
+  },
+  {
+    id: 'canopy-sam3',
+    name: 'CanopyRS · SAM3',
+    family: 'rgb',
+    status: 'not-run',
+    input: 'RGB imagery · SAM3 runtime',
+    output: 'Crown masks',
+    note: 'Discovered checkpoint; inference not executed.',
+    url: 'https://huggingface.co/CanopyRS/sam3-multi-selvabox-selvamask-FT',
+  },
+  {
+    id: 'original-crops',
+    name: 'Original-return shape review',
+    family: 'shapes',
+    status: 'completed',
+    input: 'Five BC crown-column selections',
+    output: 'Observed 3D points and side profiles',
+    note: 'All 7,109 returns retained. These selections include structure-shaped candidates and are not neural segmentation.',
+  },
+]
+export const modelById = (id: string) => COMPARISON_MODELS.find((model) => model.id === id)
+export const STATUS_LABELS = {
+  completed: 'Output available',
+  blocked: 'Blocked',
+  unreleased: 'Unreleased',
+  'not-run': 'Not run',
+}

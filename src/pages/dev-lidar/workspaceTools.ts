@@ -1,7 +1,7 @@
 import { ANALYSIS_MODES, type AnalysisMode } from './analysisWorkflows'
 
 export const LIDAR_BASE = '/dev/lidar/'
-export type LidarToolId = 'canopy' | 'trees' | 'forestry' | 'species' | 'buildings' | 'transects'
+export type LidarToolId = 'canopy' | 'trees' | 'forestry' | 'species' | 'buildings' | 'transects' | 'compare' | 'volume'
 export interface LidarTool {
   id: LidarToolId
   title: string
@@ -11,6 +11,22 @@ export interface LidarTool {
   defaultMode: AnalysisMode | null
 }
 export const LIDAR_TOOLS: LidarTool[] = [
+  {
+    id: 'volume',
+    title: 'Forest volume',
+    description: 'Calibrate plot-based stem-volume estimates and explore harvest scenarios.',
+    outputs: 'Reference CSV · m³/ha maps · cross-validation diagnostics · selected-area totals',
+    modes: [],
+    defaultMode: null,
+  },
+  {
+    id: 'compare',
+    title: 'Compare models',
+    description: 'Compare executed model variants on linked maps and review their performance.',
+    outputs: 'LiDAR labels · RGB masks · 3D shape review · model status',
+    modes: [],
+    defaultMode: null,
+  },
   {
     id: 'canopy',
     title: 'Canopy',

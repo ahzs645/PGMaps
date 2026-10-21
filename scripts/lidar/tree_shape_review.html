@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Original LiDAR · tree-shape review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f8f7;color:#173b30;font:14px system-ui,sans-serif;overflow:hidden}main{height:100dvh;display:grid;grid-template-columns:290px minmax(0,1fr)}aside{overflow:auto;padding:20px;border-right:1px solid #d9e3dd;background:white}h1{font-size:21px;margin:4px 0 10px}h2{font-size:14px;margin:24px 0 8px}p{line-height:1.5}.muted{color:#53675e;font-size:12px}label{display:block;margin:14px 0 6px;font-weight:600}select{width:100%;padding:8px;border:1px solid #b9c9bf;border-radius:6px;background:white;font:inherit;color:inherit}input[type=range]{width:100%}.stats{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:13px;margin:20px 0}.stats dt{color:#53675e}.stats dd{margin:0;font-variant-numeric:tabular-nums}#note{padding:12px;background:#fff4d9;border-radius:7px;font-size:13px}#plot{height:100%;min-width:0;min-height:0}a{color:#006f4c}button{padding:6px 9px;border:1px solid #b9c9bf;background:#fff;border-radius:5px;color:inherit;cursor:pointer;font:inherit}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #51b38b;outline-offset:2px}@media(max-width:650px){main{grid-template-columns:1fr;grid-template-rows:minmax(170px,32dvh) minmax(0,1fr)}aside{padding:12px;border-right:0;border-bottom:1px solid #d9e3dd}h1{font-size:17px}aside>p{margin:5px 0}h2{margin-top:12px}}
+</style>
+<script>/*PLOTLY_LIBRARY*/</script>
+</head>
+<body><main>
+<aside>
+<p class="muted">PG Maps · original-return review</p><h1>Look inside the selections</h1>
+<p class="muted">Drag to rotate. Scroll to zoom. Hover over a return for its source identity.</p>
+<label for="candidate">Candidate</label><select id="candidate"></select>
+<label for="camera">View</label><select id="camera"><option value="oblique">3D oblique</option><option value="east">East–height side profile</option><option value="north">North–height side profile</option><option value="top">Top view</option></select>
+<label for="vertical">Vertical coordinate</label><select id="vertical"><option value="h">Height above local terrain</option><option value="z">Elevation relative to centre ground</option></select>
+<label for="shared"><input id="shared" type="checkbox"> Shared metre scale across candidates</label>
+<label for="size">Point size <output id="sizeValue">2</output></label><input id="size" type="range" min="1" max="5" value="2" step=".5">
+<button id="reset" type="button">Reset view</button>
+<dl class="stats" id="stats"></dl>
+<h2>Visual review observation</h2><p id="note" role="status"></p>
+<p class="muted">These are CHM crown-column selections. They may include structures or neighbouring plants. They are not newly inferred 3D tree instances.</p>
+<p class="muted">Ground returns and heights below 2 m were excluded by the crop. Missing points do not establish a bare stem, stem diameter or absence of branches.</p>
+<p class="muted">Every selected point is included. This self-contained artifact sends no point data to a server.</p>
+</aside><div id="plot" role="img" aria-label="Rotatable original LiDAR points"></div>
+</main>
+<script>
+const crops=/*CROP_DATA*/;
+const byId=id=>document.getElementById(id);
+const sharedHeight=Math.ceil(Math.max(...crops.flatMap(c=>c.h))/5)*5+5;
+const sharedWidth=Math.ceil(Math.max(...crops.flatMap(c=>[...c.x,...c.y].map(Math.abs))))+1;
+for(const c of crops){const o=document.createElement('option');o.value=c.id;o.textContent=c.id;byId('candidate').append(o)}
+let current=crops[0];
+function camera(){const view=byId('camera').value;const eye={oblique:{x:1.7,y:-2.2,z:.6},east:{x:0,y:-2.5,z:0},north:{x:2.5,y:0,z:0},top:{x:0,y:0,z:2.5}}[view];return {eye,up:view==='top'?{x:0,y:1,z:0}:{x:0,y:0,z:1},projection:{type:'orthographic'}}}
+function draw(){
+ const c=current, vertical=byId('vertical').value, heights=c[vertical], shared=byId('shared').checked;
+ const half=shared?sharedWidth:Math.max(3,Math.ceil(Math.max(...c.x.map(Math.abs),...c.y.map(Math.abs)))+1);
+ const lower=Math.min(0,Math.floor(Math.min(...heights))), upper=shared?Math.max(sharedHeight,Math.max(...heights)+1):Math.ceil(Math.max(...heights))+2;
+ const custom=c.identity.map((p,i)=>[...p,c.h[i],c.z[i]+c.ground_m]);
+ const trace={type:'scatter3d',mode:'markers',x:c.x,y:c.y,z:heights,customdata:custom,marker:{size:+byId('size').value,color:c.h,colorscale:'Viridis',cmin:0,cmax:sharedHeight,opacity:1,colorbar:{title:{text:'Height (m)'},thickness:12,len:.6}},hovertemplate:'East %{x:.2f} m<br>North %{y:.2f} m<br>Height %{customdata[3]:.2f} m<br>Source elevation %{customdata[4]:.2f} m<br>EPT %{customdata[0]}:%{customdata[1]}<br>Source class %{customdata[2]}<extra></extra>'};
+ const axis={gridcolor:'#e0e8e2',zerolinecolor:'#b1c7b9',backgroundcolor:'#f8faf9',showbackground:true};
+ const layout={margin:{l:5,r:30,t:40,b:0},paper_bgcolor:'#f6f8f7',font:{family:'system-ui',color:'#173b30'},title:{text:c.id+' · '+c.returns.toLocaleString()+' original returns',font:{size:16}},scene:{xaxis:{...axis,title:{text:'East offset (m)'},range:[-half,half]},yaxis:{...axis,title:{text:'North offset (m)'},range:[-half,half]},zaxis:{...axis,title:{text:vertical==='h'?'Height above terrain (m)':'Elevation − centre ground (m)'},range:[lower,upper]},aspectmode:'manual',aspectratio:{x:half*2/(upper-lower),y:half*2/(upper-lower),z:1},camera:camera()},showlegend:false};
+ Plotly.react(byId('plot'),[trace],layout,{responsive:true,displaylogo:false,scrollZoom:true,toImageButtonOptions:{filename:c.id+'-original-returns',format:'png'}});
+ byId('note').textContent=c.review_note;
+ const facts=[['Returns',c.returns.toLocaleString()],['Observed maximum',c.height_max_m.toFixed(2)+' m'],['Height p95',c.height_p95_m.toFixed(2)+' m'],['East × north span',c.east_span_m.toFixed(1)+' × '+c.north_span_m.toFixed(1)+' m'],['Returns at 2–5 m',c.returns_2_to_5m.toLocaleString()],['Latitude',c.centre[1].toFixed(6)],['Longitude',c.centre[0].toFixed(6)],['Point-node loading','Complete crop']];
+ byId('stats').replaceChildren();for(const [name,value]of facts){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=name;dd.textContent=value;byId('stats').append(dt,dd)}
+}
+byId('candidate').addEventListener('change',()=>{current=crops.find(c=>c.id===byId('candidate').value);draw()});
+for(const id of ['vertical','shared'])byId(id).addEventListener('change',draw);
+byId('camera').addEventListener('change',()=>Plotly.relayout(byId('plot'),{'scene.camera':camera()}));
+byId('size').addEventListener('input',()=>{byId('sizeValue').value=byId('size').value;Plotly.restyle(byId('plot'),{'marker.size':+byId('size').value})});
+byId('reset').addEventListener('click',draw);
+new ResizeObserver(()=>Plotly.Plots.resize(byId('plot'))).observe(byId('plot'));
+draw();
+</script></body></html>

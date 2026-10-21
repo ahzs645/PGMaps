@@ -1,0 +1,42 @@
+[
+  {
+    "file": "deepforest-config.json",
+    "url": "https://huggingface.co/weecology/deepforest-tree/resolve/cc21436bc5d572dde8ff5f93c1e71a32f563cace/config.json",
+    "bytes": 235,
+    "sha256": "521e0149f0b060237c6994a69bffdff53ce5deb3beb854dad2752a3f8dd49bc4",
+    "seconds": 0.375,
+    "status": "downloaded"
+  },
+  {
+    "file": "deepforest.safetensors",
+    "url": "https://huggingface.co/weecology/deepforest-tree/resolve/cc21436bc5d572dde8ff5f93c1e71a32f563cace/model.safetensors",
+    "bytes": 129049980,
+    "sha256": "d37a7af0b5ba2754282a80d41b4c7b66e8c7149234df5bf3f41bdaf57d329fc8",
+    "seconds": 8.216,
+    "status": "downloaded"
+  },
+  {
+    "file": "canopy-maskrcnn.pth",
+    "url": "https://huggingface.co/CanopyRS/maskrcnn-resnet50-multi-selvamask/resolve/b5aa5c02254b713f47ed7292497b809547425c76/model_best_maskrcnn_r50_selvamask.pth",
+    "bytes": 351017956,
+    "sha256": "a942acc6ba3303e5e6aa0240f0a459749bda500398c35150b6ff0a5abd5885e0",
+    "seconds": 20.49,
+    "status": "downloaded"
+  },
+  {
+    "file": "segment-any-tree.pt",
+    "url": "https://media.githubusercontent.com/media/SmartForest-no/SegmentAnyTree/main/model_file/PointGroup-PAPER.pt",
+    "bytes": 665666007,
+    "sha256": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a",
+    "seconds": 21.429,
+    "status": "downloaded"
+  },
+  {
+    "file": "forestformer.zip",
+    "url": "https://zenodo.org/records/16742708/files/clean_forestformer.zip?download=1",
+    "bytes": 197823601,
+    "sha256": "916ad481d2136a840f08a0aea983ece78866e8b659eb7e3b1027aefa21396ce0",
+    "seconds": 160.55,
+    "status": "downloaded"
+  }
+]

@@ -1,0 +1,78 @@
+{
+  "scope": "Five original LiDAR crown-column crops; no new neural segmentation",
+  "points_omitted_from_artifact": 0,
+  "height_limit_m": 60.0,
+  "half_width_m": 12.0,
+  "examples": [
+    {
+      "id": "crown-85",
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+      "crop_sha256": "3ac0465bd36c6645f52596c2841b6402b8aa110b1d01a4179ab312d6ad6c9727",
+      "returns": 1479,
+      "height_max_m": 39.947495117187486,
+      "height_p95_m": 37.34698632812498,
+      "east_span_m": 7.667445478611626,
+      "north_span_m": 7.979131494648755,
+      "returns_2_to_5m": 56,
+      "all_nodes_loaded": true,
+      "budget_limited": false,
+      "review_note": "Tree-shaped crown; sparse lower returns. Species and individual-tree membership unverified."
+    },
+    {
+      "id": "crown-3146",
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+      "crop_sha256": "b03661b4a5481342c4b27daf1f7364a22fa32534a62eb4488638c2603ff9bbad",
+      "returns": 1115,
+      "height_max_m": 29.997617187500055,
+      "height_p95_m": 27.529509765624983,
+      "east_span_m": 5.929537908232305,
+      "north_span_m": 6.972811533138156,
+      "returns_2_to_5m": 14,
+      "all_nodes_loaded": true,
+      "budget_limited": false,
+      "review_note": "Tree-shaped crown. Individual-tree membership unverified."
+    },
+    {
+      "id": "crown-12323",
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+      "crop_sha256": "25781c56c7ef82511e90cde8ca1899a338c7d4c6c85c6a1e11f9f6aeb181d637",
+      "returns": 655,
+      "height_max_m": 20.72801025390629,
+      "height_p95_m": 19.903024414062497,
+      "east_span_m": 6.470593358506449,
+      "north_span_m": 7.610705473460257,
+      "returns_2_to_5m": 55,
+      "all_nodes_loaded": true,
+      "budget_limited": false,
+      "review_note": "Structure review: straight/sloping linear features resemble a pole and crossarm or wires. Unverified."
+    },
+    {
+      "id": "crown-15190",
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+      "crop_sha256": "f37b9651f505aa2bbbbcf81fe2e5051644732bb5491460b32dffa3617b5f3124",
+      "returns": 738,
+      "height_max_m": 10.009999999999991,
+      "height_p95_m": 9.491481201171904,
+      "east_span_m": 7.088548132509459,
+      "north_span_m": 8.376017206348479,
+      "returns_2_to_5m": 264,
+      "all_nodes_loaded": true,
+      "budget_limited": false,
+      "review_note": "Low, broad vegetation-shaped selection; may contain more than one plant. Unverified."
+    },
+    {
+      "id": "crown-1",
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+      "crop_sha256": "d371a784ea6b1ac870eb9e67491267a960f3bdcb315d6e1cc4c97e083cf2df1d",
+      "returns": 3122,
+      "height_max_m": 59.98800537109378,
+      "height_p95_m": 46.30497204589841,
+      "east_span_m": 14.152377704449464,
+      "north_span_m": 13.598067753948271,
+      "returns_2_to_5m": 688,
+      "all_nodes_loaded": true,
+      "budget_limited": false,
+      "review_note": "Structure review: lattice and horizontal features resemble a utility tower. Unverified."
+    }
+  ]
+}

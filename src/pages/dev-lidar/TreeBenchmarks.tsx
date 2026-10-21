@@ -96,7 +96,10 @@ export function benchmarkPreview(data: BenchmarkData, plot: BenchmarkPlot, metho
     },
   }
 }
-export function checkBenchmarks(data: BenchmarkData, source: TreeIsolation) {
+export function checkBenchmarks(
+  data: BenchmarkData,
+  source: Pick<TreeIsolation, 'source_sha256' | 'label_grid_sha256' | 'input_sha256'>,
+) {
   if (
     data.schema_version !== 1 ||
     data.source_sha256 !== source.source_sha256 ||
