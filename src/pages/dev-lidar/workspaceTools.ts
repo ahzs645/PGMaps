@@ -14,8 +14,8 @@ export const LIDAR_TOOLS: LidarTool[] = [
   {
     id: 'volume',
     title: 'Forest volume',
-    description: 'Open a completed volume example, learn the methods, or calibrate your BC tile.',
-    outputs: 'Completed Québec example · timber volume practices · local calibration',
+    description: 'See BC inventory volume with LiDAR context and adjustable harvest assumptions.',
+    outputs: 'BC VRI baseline · utilization & dead volume · harvest scenarios · Québec example',
     modes: [],
     defaultMode: null,
   },

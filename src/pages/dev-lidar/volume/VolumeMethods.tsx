@@ -93,7 +93,26 @@ export function VolumeMethods() {
             </div>
           </dl>
         </SidebarSection>
-        <SidebarSection title="What to do with your BC tile">
+        <SidebarSection title="Estimate the BC tile without new fieldwork">
+          <p className="text-sm leading-6">
+            The BC VRI view starts with the province's existing modelled net volumes. It clips original inventory
+            polygons to the LiDAR footprint, then sums density × supported area. No field CSV is needed for this
+            baseline.
+          </p>
+          <p className="mt-2 text-xs leading-5">
+            Utilization, age and reported-dead-volume choices follow the existing PGMaps AVAST tool on main. Missing
+            dead volumes remain unreported; a live-only partial sum is clearly labelled when dead inclusion is
+            requested. LiDAR heights provide structural context without silently changing the inventory estimate.
+          </p>
+          <a
+            className="mt-2 block text-xs underline"
+            href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Compare PGMaps AVAST's VRI planning rules
+          </a>
+          <h3 className="mt-3 text-sm font-semibold">Optional local calibration</h3>
           <ol className="list-decimal space-y-2 pl-4 text-sm leading-6">
             <li>Download the matching 50 × 50 m reference footprints from the calibration view.</li>
             <li>Compile measured plot volumes using one definition and compatible field/LiDAR dates.</li>

@@ -7,6 +7,7 @@ import type { VolumeExample } from './example'
 const download = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
 vi.mock('@/lib/download', () => ({ downloadText: download }))
+vi.mock('./VriVolumeWorkspace', () => ({ VriVolumeWorkspace: () => <section aria-label="BC VRI volume workspace" /> }))
 vi.mock('../comparisons/ComparisonMap', () => ({
   ComparisonMap: (p: {
     label: string
@@ -44,6 +45,13 @@ describe('completed example first', () => {
           </MemoryRouter>,
         )
       })
+      expect(hiddenAncestor(renderer!.root.findByProps({ 'aria-label': 'BC VRI volume workspace' }))).toBe(false)
+      await act(async () =>
+        renderer!.root
+          .findAllByType('button')
+          .find((b) => b.children.join('') === 'Completed example')!
+          .props.onClick(),
+      )
       const example = renderer!.root.findByProps({ 'aria-label': 'Completed forest volume example' })
       expect(hiddenAncestor(example)).toBe(false)
       const map = () => renderer!.root.findByProps({ 'aria-label': 'Completed merchantable volume map' })

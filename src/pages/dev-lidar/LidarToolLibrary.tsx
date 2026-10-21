@@ -25,13 +25,13 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
         >
           <h2 className="font-semibold">Start with a completed example</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Open the processed BC canopy and tree results immediately, or explore a field-calibrated timber-volume
-            example from Québec. No upload or setup required to view these results.
+            Open the processed BC canopy and tree results immediately, or inspect BC VRI timber volume with LiDAR
+            context. No upload or setup required to view these results.
           </p>
           <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium underline">
             <Link to={toolPath('canopy')}>BC canopy map</Link>
             <Link to={toolPath('compare')}>Tree model results & 3D</Link>
-            <Link to={toolPath('volume')}>Completed timber-volume example</Link>
+            <Link to={toolPath('volume')}>BC inventory volume & harvest scenarios</Link>
           </div>
         </section>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

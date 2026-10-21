@@ -2,7 +2,31 @@
 
 The practical next step for this airborne tile is an **area-based, field-calibrated volume model**. Counting candidate crowns and multiplying by height would also count some structures and would not provide stem diameter or wood volume.
 
-The implemented workspace is `/dev/lidar/volume/`. It opens with a completed, field-backed **Québec teaching example**, so a visitor can see a volume map and totals without uploading anything. Separate views explain measurement practices and calibrate the original BC tile. **No observed reference volumes were available for the BC tile**: that calibration view shows height context until the user supplies matching measurements. Synthetic test-suite responses are never loaded into the website as field data.
+The implemented workspace is `/dev/lidar/volume/`. It opens with a completed **BC VRI inventory baseline** over the actual tile; no field CSV is required. A separate Québec teaching example shows a field-backed LiDAR regression. Other views explain measurement practices and offer optional local calibration. No observed plot volumes were available for the BC tile, so the VRI baseline is explicitly an existing inventory estimate rather than local field truth. Synthetic test-suite responses are never loaded into the website as field data.
+
+## BC VRI baseline and existing PGMaps conventions
+
+The implementation was checked against `origin/main` at `0c5e454`, including `src/pages/dev-avast/vriFill.ts`, `VriWhatIfPanel.tsx`, `docs/forestry-avast-volume.md` and `src/pages/dev-forestry/bcVegetationInventory.ts`. It reuses the forestry WFS query builder (rank-1 endpoint, bounded longitude-first CQL filter, narrow fields) and follows AVAST's **sum of piece hectares × density**, with EPSG:3005 planar hectares. Geometry intersection is computed once; rule and selection changes only re-total those pieces.
+
+`scripts/lidar/fetch_vri_volume.ts` explicitly refreshes a complete public WFS snapshot; it refuses truncation and preserves the response and request metadata under `scripts/lidar/sources/volume-vri.*`. `build_vri_volume.py` intersects original inventory polygons with the exact valid native LiDAR-height footprint, checks overlap before summing, preserves all net volume fields and computes CHM height/cover context separately. Neither VRI density nor stand volume is automatically scaled by LiDAR height or canopy cover. Within each piece, the inventory density is assumed uniform. Non-treed, unmapped, age-excluded and unavailable areas are reported separately from supported volume; missing values are not invented.
+
+The fetched envelope contains 40 records, including 33 treed ones; only **30 inventory pieces, 24 treed**, intersect the supported tile. At 17.5 cm utilization, live only, all recorded ages:
+
+| Result | Value |
+| --- | --- |
+| Supported LiDAR footprint, BC Albers | 228.17497 ha |
+| Treed inventory area | 169.38973 ha |
+| Non-treed inventory area | 58.78523 ha |
+| Inventory net live volume | 36,796.19 m³ |
+| Inventory projected date | 2025-12-31 |
+
+The [VRI data dictionary](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/stewardship/forest-analysis-inventory/data-management/standards/vegcomp_poly_rank1_data_dictionaryv5_2019.pdf) defines `LIVE_STAND_VOLUME_125/175/225` and the corresponding dead fields as **net m³/ha** at the respective utilization levels, already deducting decay, waste and breakage. The UI therefore applies no second defect deduction or gross-to-merchantable conversion. All 22.5 cm volumes are unreported here; selecting that option clears volume numbers to unavailable. Dead volumes are mostly null; requesting dead inclusion adds only reported components and labels the live-only remainder as a **partial known sum**.
+
+The pure shared module `src/lib/forestry/vriVolume.ts` carries the AVAST-aligned utilization and scenario arithmetic: pine-leading 12.5 cm versus other 17.5 cm, optional age ≥60, reported-dead inclusion and its PG shelf-life curve. The inventory baseline uses 17.5 cm/live only/all ages; **PG planning rules** are a separate preset. Shelf life uses earliest disturbance as a declared proxy for death, with an editable fallback when unavailable; this does not establish tree death dates or project inventory growth. Historical PG audit ratios (pine 0.836, spruce 0.946, balsam 1.246, other 1.159) are an optional, separately labelled sensitivity comparison, matching the AVAST tool; they are not local calibration or confidence intervals. No AVAST-derived LiDAR volume factor or automatic harvestability threshold is applied to this tile.
+
+Selection, utilization, age, dead-volume and retention/recovery changes update the map and totals immediately. Exports preserve original inventory fields, nullable components, rule results, source/grid hashes, area method and scenario assumptions. The default 0% retained and 100% extraction recovery are neutral planning assumptions. The projected date is distinct from the inventory reference/interpretation dates and LiDAR acquisition; later disturbance is not automatically depleted.
+
+Refresh/rebuild with `npx tsx scripts/lidar/fetch_vri_volume.ts`, then `python scripts/lidar/build_vri_volume.py` in the geospatial environment. The raw snapshot and generated products are app-owned, like the earlier local species snapshot; no scraper-owned vendor datasets are modified. Tests independently project output polygon rings back to BC Albers, account for holes, reconcile coverage and weighted volume, match raw snapshot attributes/hashes, check height-grid provenance and exercise rule changes, partial/missing data, selection and scenario export.
 
 ## Completed example: Forêt Montmorency
 

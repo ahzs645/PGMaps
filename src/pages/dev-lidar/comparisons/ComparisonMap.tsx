@@ -37,6 +37,7 @@ interface Props {
   centre: [number, number]
   focusKey: string
   zoom?: number
+  bounds?: [number, number, number, number]
   view: 'top' | '3d'
   basemap: Basemap
   crop?: TreeCrop | null
@@ -261,10 +262,18 @@ export function ComparisonMap(props: Props) {
     const m = map.current
     if (!ready || !m) return
     applying.current = true
-    m.jumpTo({ center: props.centre, zoom: props.zoom ?? 19, pitch: props.view === '3d' ? 50 : 0, bearing: 0 })
+    if (props.bounds)
+      m.fitBounds(props.bounds, {
+        padding: 20,
+        maxZoom: props.zoom ?? 19,
+        pitch: props.view === '3d' ? 50 : 0,
+        bearing: 0,
+        duration: 0,
+      })
+    else m.jumpTo({ center: props.centre, zoom: props.zoom ?? 19, pitch: props.view === '3d' ? 50 : 0, bearing: 0 })
     applying.current = false
     // focusKey deliberately owns re-fitting; model/point styling updates retain the user's camera.
-  }, [ready, props.focusKey, props.view])
+  }, [ready, props.focusKey, props.view, props.bounds])
   useEffect(() => {
     const m = map.current,
       c = props.camera
