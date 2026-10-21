@@ -835,7 +835,7 @@ function Layers(
       {display && (props.showContours || props.terrainLayer !== 'none') && (
         <details
           key={props.terrainLayer}
-          open={props.terrainLayer === 'slope' || props.terrainLayer === 'aspect'}
+          open={props.terrainLayer === 'slope' || props.terrainLayer === 'aspect' || props.terrainLayer === 'elevation'}
           className="absolute bottom-10 left-2 z-10 max-w-[min(20rem,calc(100%_-_1rem))] rounded border bg-background/95 px-2 py-1 text-[10px] shadow-sm"
           data-testid="road-terrain-legend"
           onPointerDown={(event) => event.stopPropagation()}
