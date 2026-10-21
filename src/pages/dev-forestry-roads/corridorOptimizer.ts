@@ -238,10 +238,15 @@ function* search(
     if (b[0] > b[2] || b[1] > b[3]) return
     for (const key of bucketKeys(b)) { const ids = buckets.get(key) ?? []; ids.push(i); buckets.set(key, ids) }
   })
+  const guideDistances = new Map<string, number>()
   const guideOffset = (p: XY) => {
+    const key = p[0] + ',' + p[1]
+    const cached = guideDistances.get(key)
+    if (cached !== undefined) return cached
     geometryBudget(sketch.length)
     let min = Infinity
     for (let i = 1; i < sketch.length; i++) min = Math.min(min, segmentDistance(p, sketch[i - 1], sketch[i]))
+    if (guideDistances.size < 200000) guideDistances.set(key, min)
     return min
   }
   const pointAllowed = (p: XY, margin = 0) => {
@@ -253,6 +258,7 @@ function* search(
     })
   }
   const segmentAllowed = (a: XY, b: XY, sagitta: number, contacts: Set<string>, enforce = true) => {
+    if (!segments.length) return true
     const area = bounds(a, b, clearance + sagitta + EPS)
     const candidates = new Set(bucketKeys(area).flatMap(key => buckets.get(key) ?? []))
     for (const index of candidates) {
@@ -323,12 +329,27 @@ function* search(
     if (col < 0 || row < 0 || col >= columns || row >= rows) return -1
     return (row * columns + col) * BINS + Math.round(mod(heading) / TURN) % BINS
   }
+  // A lower bound includes unavoidable net elevation travel. By convexity of
+  // the directional squared-grade cost, L + C/L is a lower bound for any path
+  // of length L. Minimize it over L >= distance and the hard net-grade bound.
+  // This prevents a uniform climb from exhausting the search just to prove
+  // that its unavoidable elevation gain cannot be avoided.
+  const lowerBound = (at: XY) => {
+    const dz = endpointsZ[1] - read(at)
+    if (!Number.isFinite(dz)) return Infinity
+    const limit = dz >= 0 ? uphill : downhill
+    const gradedDistance = Math.abs(dz) * 100 / limit
+    const minimum = Math.max(norm(delta(end, at)), gradedDistance)
+    const c = weights.grade * gradedDistance ** 2
+    const length = Math.max(minimum, Math.sqrt(c))
+    return length + (length > EPS ? c / length : 0) + weights.vertical * Math.abs(dz)
+  }
   const records: RecordNode[] = [], best = new Map<number, number>(), heap = new Queue()
   const enqueue = (record: RecordNode) => {
     const old = best.get(record.key)
     if (old !== undefined && records[old].cost <= record.cost + EPS) return
     const id = records.length; records.push(record); best.set(record.key, id)
-    heap.push({ id, f: record.cost + norm(delta(end, record.at)) })
+    heap.push({ id, f: record.cost + lowerBound(record.at) })
   }
   const headings = [Math.atan2(end[1], end[0]), Math.atan2(sketch[1][1], sketch[1][0]), ...Array.from({ length: BINS }, (_, i) => i * TURN)]
   for (const heading of headings) enqueue({ at: [0, 0], heading, cost: 0, parent: -1, pieces: [], length: 0, key: keyOf([0, 0], heading) })
@@ -376,7 +397,7 @@ function* search(
       const existing = best.get(key)
       if (existing !== undefined && records[existing].cost <= p.cost + step) continue
       const edge = evaluate(pieces, true)
-      if (!edge || p.cost + edge.cost + norm(delta(end, next)) >= goalCost) continue
+      if (!edge || p.cost + edge.cost + lowerBound(next) >= goalCost) continue
       enqueue({ at: next, heading, cost: p.cost + edge.cost, parent: top.id, pieces, length, key })
     }
   }
