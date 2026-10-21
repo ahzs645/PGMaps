@@ -365,6 +365,10 @@ remaining differences are listed explicitly in the second-pass review.
   After the final legend and template-preview presentation refinements, six
   relevant existing browser cases were rerun and passed; this is a subset rerun,
   not six additional cases.
+  The radial map-selection case also passed three consecutive runs after making
+  hover respect overlay selection and waiting for the exact rendered spoke before
+  the test clicks it. The test verifies that moving the pointer onto a spoke does
+  not move its landing station.
 - **Native-source browser check passed:** the published 1 m DTM returned HTTP
   200, matched its pinned checksum, populated the real map and raised no runtime
   errors. This is distinct from the synthetic fixtures and does not convert 1 m
@@ -375,7 +379,7 @@ remaining differences are listed explicitly in the second-pass review.
   readable, repeated table headers were present, and no clipped columns or rows
   were found on those pages. Text extraction was checked across all pages. This
   records the inspected outputs, not a guarantee for every page size or printer.
-  The six-image native-source gallery records actual application views with
+  The eight-image native-source gallery records actual application views with
   materials, inverts and rates explicitly identified as demonstration inputs.
 - **Full TypeScript check passed.** The production `vite build` passed in
   7.32 seconds; existing dependency, Browserslist and large-chunk warnings remain.
