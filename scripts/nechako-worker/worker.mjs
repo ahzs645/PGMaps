@@ -39,6 +39,9 @@ const READS = {
     ['fieldId', 'fieldIndex', 'submissionId'],
   ],
   'rest/portal/getSchemas.php': [['limit', 'page', 'start'], []],
+  'rest/portal/getSchemas_TBD.php': [[], []],
+  'rest/portal/getSubmissionLayersAddLayer.php': [[], []],
+  'rest/portal/getLinkedLayers.php': [[], []],
   'rest/portal/getSchemaFields.php': [['schemaId'], ['schemaId']],
   // SchemaManager.js requests draft/disabled associations in its Monitors tab.
   // This administrative contract is gated even though the route has no /admin/.

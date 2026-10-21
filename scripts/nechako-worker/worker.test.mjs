@@ -3,6 +3,14 @@ import assert from 'node:assert/strict'
 import worker, { NechakoRegistry, NechakoSession, SOURCE, BASE, TTL, MEMORY_TICK, validateRead } from './worker.mjs'
 
 const origin = 'https://pgmaps.ahmadjalil.com'
+test('source layer catalogues allow only exact read endpoints without write or query parameters', () => {
+  for (const name of ['getSchemas_TBD', 'getSubmissionLayersAddLayer', 'getLinkedLayers']) {
+    const path = `rest/portal/${name}.php`
+    assert.doesNotThrow(() => validateRead({ path, params: {} }))
+    for (const params of [{ mode: 'delete' }, { query: 'SELECT *' }, { layerId: '1' }])
+      assert.throws(() => validateRead({ path, params }))
+  }
+})
 function setup({ sourceAdmin = true } = {}) {
   let now = 1000,
     sourceCalls = [],

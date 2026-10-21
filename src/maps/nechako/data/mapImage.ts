@@ -2,6 +2,7 @@ import type { Geometry } from 'geojson'
 import { scaleBarFor, type ScaleBar } from '@/components/ui/map-scale'
 import { wmsLegend } from '@/lib/nechakoPortal'
 import { categoryLabel } from './vectorStyle'
+import { vectorStyleLegend, type GradientStop, type StyleSymbol } from './vectorRules'
 import { workspaceRenderOrder } from './nativeLayers'
 import { wmsDisplayName, type Workspace } from './workspace'
 
@@ -103,7 +104,8 @@ export type MapImageLegend = {
   id: string
   title: string
   symbols: MapImageSymbol[]
-  rows: { label: string; color: string }[]
+  rows: { label: string; color: string; symbol?: StyleSymbol }[]
+  gradient?: { property: string; stops: GradientStop[]; channel: string }
   fillOpacity: number
   lineOpacity: number
   lineWidth: number
@@ -142,25 +144,31 @@ export function mapImageLegends(workspace: Workspace): MapImageLegend[] {
       if (entry.kind !== 'vector') return []
       const vector = workspace.vectors.find((item) => item.id === entry.id)
       if (!vector?.visible) return []
-      const symbols = [...new Set(vector.data.features.flatMap((feature) => geometrySymbols(feature.geometry)))]
+      const symbols = [...new Set(vector.data.features.flatMap((feature) => geometrySymbols(feature.geometry)))].filter(
+        (symbol) => !vector.style || vector.style.geometry === 'any' || vector.style.geometry === symbol,
+      )
       if (!symbols.length) return []
+      const styled = vector.style ? vectorStyleLegend(vector.style) : undefined
       return [
         {
           id: vector.id,
           title: vector.name,
           symbols,
-          rows: vector.categories?.rules.length
-            ? [
-                ...vector.categories.rules.map((rule) => ({
-                  label: `${vector.categories!.property}: ${categoryLabel(rule.value)}`,
-                  color: rule.color,
-                })),
-                { label: 'Other values', color: vector.categories.fallback },
-              ]
-            : [{ label: '', color: vector.color }],
-          fillOpacity: vector.fillOpacity ?? 0.35,
-          lineOpacity: vector.lineOpacity ?? 1,
-          lineWidth: vector.lineWidth ?? 2,
+          rows: styled
+            ? styled.rows.map((row) => ({ label: row.label, color: row.symbol.fillColor, symbol: row.symbol }))
+            : vector.categories?.rules.length
+              ? [
+                  ...vector.categories.rules.map((rule) => ({
+                    label: `${vector.categories!.property}: ${categoryLabel(rule.value)}`,
+                    color: rule.color,
+                  })),
+                  { label: 'Other values', color: vector.categories.fallback },
+                ]
+              : [{ label: '', color: vector.color }],
+          ...(styled?.gradient && { gradient: styled.gradient }),
+          fillOpacity: vector.style?.base.fillOpacity ?? vector.fillOpacity ?? 0.35,
+          lineOpacity: vector.style?.base.strokeOpacity ?? vector.lineOpacity ?? 1,
+          lineWidth: vector.style?.base.strokeWidth ?? vector.lineWidth ?? 2,
         },
       ]
     })

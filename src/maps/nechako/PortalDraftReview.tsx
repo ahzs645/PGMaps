@@ -9,6 +9,9 @@ import { checkedReviewJson } from './PortalSubmissionReader'
 import { uploadSelectedNativeDrafts, type DraftWrite, type NativeDraftResult } from './data/nativeDraftUpload'
 import { ExternalLink } from '@/components/ui/text-button'
 import { NECHAKO_PORTAL } from '@/lib/nechakoPortal'
+import { useLocalWorkbenchRecords } from './data/useLocalWorkbench'
+import { importLocalWorkbench, listLocalWorkbench, saveLocalWorkbench } from './data/localWorkbench'
+import { attachmentRecord, mappedDraftRecords } from './data/localIngestion'
 
 export function PortalDraftReview({
   rows: suppliedRows,
@@ -23,7 +26,7 @@ export function PortalDraftReview({
   write?: DraftWrite
   canWrite?: boolean
 }) {
-  const [csv, setCsv] = useState<{ name: string; rows: Record<string, unknown>[] }>()
+  const [csv, setCsv] = useState<{ name: string; rows: Record<string, unknown>[]; file: File }>()
   const rows = useMemo(() => suppliedRows ?? csv?.rows ?? [], [suppliedRows, csv])
   const name = suppliedRows ? sourceName : (csv?.name ?? 'No CSV selected')
   const columns = useMemo(() => [...new Set(rows.flatMap((row) => Object.keys(row)))], [rows])
@@ -45,6 +48,10 @@ export function PortalDraftReview({
     [loading, setLoading] = useState(false),
     [page, setPage] = useState(0)
   const request = useRef<AbortController>()
+  const localSchemas = useLocalWorkbenchRecords('schema')
+  const localPresets = useLocalWorkbenchRecords('match-preset')
+  const [cacheBusy, setCacheBusy] = useState(false)
+  const [cacheNotice, setCacheNotice] = useState('')
   useEffect(() => () => request.current?.abort(), [])
   const review = useMemo(() => {
     if (!form || !rows.length) return undefined
@@ -122,8 +129,8 @@ export function PortalDraftReview({
       <h3 className="font-semibold">Match fields and prepare a local draft review</h3>
       <p className="text-sm text-muted-foreground">
         Match source CSV or spatial attributes to an existing form/schema, preserve all original columns, review
-        validation and duplicate identifiers, then choose records. This creates a downloadable local review artifact. It
-        does not create source submission IDs, portal drafts or publication.
+        validation and duplicate identifiers, then choose records. Save mapped drafts and presets in this browser or
+        download a review. Local saves keep the originals and do not allocate source submission IDs or publish records.
       </p>
       {!suppliedRows && (
         <label className="block text-sm">
@@ -140,7 +147,7 @@ export function PortalDraftReview({
                 if (file.size > 20 * 1024 * 1024) throw new Error('CSV exceeds 20 MiB.')
                 const table = checkedCsv(await file.text())
                 if (table.records.length > 10_000) throw new Error('Review at most 10,000 CSV rows.')
-                setCsv({ name: file.name, rows: table.records })
+                setCsv({ name: file.name, rows: table.records, file })
                 setForm(undefined)
                 setSelected([])
                 setPage(0)
@@ -158,6 +165,33 @@ export function PortalDraftReview({
           ? ' · geometry retained in the artifact; source CRS/display conversion remains with the GIS import'
           : ''}
       </p>
+      {!!localSchemas.records.length && (
+        <label className="block text-sm">
+          Cached local schema
+          <select
+            aria-label="Draft cached schema"
+            defaultValue=""
+            className="ml-2 max-w-full rounded border bg-background p-2"
+            onChange={(event) => {
+              const saved = localSchemas.records.find((item) => item.id === event.target.value)
+              if (!saved) return
+              try {
+                install(parseReviewForm(saved.data))
+                setCacheNotice(`Using cached schema ${saved.name}.`)
+              } catch (reason) {
+                setError(errorText(reason))
+              }
+            }}
+          >
+            <option value="">Choose a cached field definition</option>
+            {localSchemas.records.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-sm">
           Existing form/schema ID{' '}
@@ -211,6 +245,10 @@ export function PortalDraftReview({
       </Button>
       {loading && <InlineAlert loading>Reading existing field definitions…</InlineAlert>}
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
+      {(localSchemas.error || localPresets.error) && (
+        <InlineAlert tone="warning">{localSchemas.error || localPresets.error}</InlineAlert>
+      )}
+      {cacheNotice && <InlineAlert tone="success">{cacheNotice}</InlineAlert>}
       {form && (
         <>
           <h4 className="font-medium">
@@ -265,6 +303,79 @@ export function PortalDraftReview({
             </select>
           </label>
           <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={cacheBusy}
+              onClick={async () => {
+                setCacheBusy(true)
+                setError('')
+                setCacheNotice('')
+                try {
+                  await saveLocalWorkbench({
+                    kind: 'match-preset',
+                    name: `${form.title} — ${name}`.slice(0, 200),
+                    data: {
+                      schema: 'nechako-field-match-v1',
+                      formId: form.id,
+                      fieldIds: form.fields.map((field) => field.id),
+                      mapping,
+                      duplicateColumn,
+                    },
+                  })
+                  setCacheNotice('Saved this field mapping in the browser cache.')
+                } catch (reason) {
+                  setError(errorText(reason))
+                } finally {
+                  setCacheBusy(false)
+                }
+              }}
+            >
+              Cache mapping preset
+            </Button>
+            {!!localPresets.records.length && (
+              <label className="text-sm">
+                Cached mapping
+                <select
+                  aria-label="Draft cached mapping preset"
+                  defaultValue=""
+                  className="ml-2 max-w-full rounded border bg-background p-2"
+                  onChange={(event) => {
+                    const saved = localPresets.records.find((item) => item.id === event.target.value)
+                    if (!saved) return
+                    const value = saved.data as {
+                      schema?: string
+                      formId?: string
+                      fieldIds?: string[]
+                      mapping?: Record<string, string>
+                      duplicateColumn?: string
+                    }
+                    if (
+                      value.schema !== 'nechako-field-match-v1' ||
+                      value.formId !== form.id ||
+                      value.fieldIds?.join('|') !== form.fields.map((field) => field.id).join('|') ||
+                      !value.mapping ||
+                      Object.values(value.mapping).some((column) => column && !columns.includes(column))
+                    ) {
+                      setError('Cached mapping target IDs or source columns do not match this review.')
+                      return
+                    }
+                    setMapping(value.mapping)
+                    setDuplicateColumn(value.duplicateColumn ?? '')
+                    setSelected([])
+                    setError('')
+                    setCacheNotice(`Loaded ${saved.name}.`)
+                  }}
+                >
+                  <option value="">Choose a saved mapping</option>
+                  {localPresets.records.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -393,6 +504,39 @@ export function PortalDraftReview({
               Next review rows
             </Button>
           </div>
+          <Button
+            disabled={cacheBusy || !selected.length}
+            onClick={async () => {
+              setCacheBusy(true)
+              setError('')
+              setCacheNotice('')
+              try {
+                const records = mappedDraftRecords(review, selected, geometry)
+                if (csv?.file && !suppliedRows) {
+                  const original = await attachmentRecord(csv.file)
+                  for (const record of records)
+                    (record.data as { relationships: unknown[] }).relationships.push({
+                      kind: 'attachment',
+                      id: original.id,
+                      role: 'original-source',
+                    })
+                  if (!(await listLocalWorkbench('attachment')).some((item) => item.id === original.id))
+                    records.push(original)
+                }
+                await importLocalWorkbench(records)
+                setCacheNotice(
+                  `Saved ${selected.length} mapped local drafts with their original values${geometry ? ' and geometry' : ''}.`,
+                )
+                setSelected([])
+              } catch (reason) {
+                setError(errorText(reason))
+              } finally {
+                setCacheBusy(false)
+              }
+            }}
+          >
+            Save selected drafts to browser cache
+          </Button>
           <Button
             size="sm"
             onClick={() =>

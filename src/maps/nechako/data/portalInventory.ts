@@ -7,6 +7,8 @@ export const PORTAL_AUDIT_DATE = '2026-10-12'
 export const ORIGINAL_PORTAL_URL = 'https://nechakowatershed-portal.ca/'
 
 export type InventoryPanel =
+  | 'source-layers'
+  | 'local-workbench'
   | 'inventory'
   | 'map-export'
   | 'search'

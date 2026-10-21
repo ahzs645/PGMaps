@@ -136,7 +136,7 @@ test('the options directory distinguishes source handoffs and navigates to the s
 }) => {
   const { errors, unexpected } = await localMap(page)
   await page.goto('/dev/nechako/portal?panel=options')
-  await expect(page.getByText('77 of 77 options', { exact: true })).toBeVisible()
+  await expect(page.getByText('78 of 78 options', { exact: true })).toBeVisible()
   await page.getByLabel('Option availability').selectOption('original')
   await page.getByLabel('Find a portal option').fill('impersonation')
   const impersonation = page.locator('[data-portal-option="impersonate"]')

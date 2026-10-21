@@ -14,6 +14,14 @@ import portal_gateway as gateway
 
 
 class GatewayContracts(unittest.TestCase):
+    def test_source_layer_catalogues_are_read_only_without_extra_parameters(self):
+        for name in ['getSchemas_TBD', 'getSubmissionLayersAddLayer', 'getLinkedLayers']:
+            path = f'rest/portal/{name}.php'
+            self.assertEqual(gateway.validate_read(path, {})[1], {})
+            for params in [{'mode': 'delete'}, {'query': 'SELECT *'}, {'layerId': '1'}]:
+                with self.subTest(path=path, params=params), self.assertRaises(ValueError):
+                    gateway.validate_read(path, params)
+
     def test_manager_reads_require_exact_ids_flags_and_bounded_pages(self):
         monitor = {'schemaId': '13', 'getDraftSubmissions': 'true', 'getDisabled': 'true'}
         self.assertEqual(gateway.validate_read('rest/portal/getMonitorSchemaLayers.php', monitor)[1], monitor)

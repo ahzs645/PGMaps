@@ -1,6 +1,7 @@
 import proj4 from 'proj4'
 import { nativeWmsResource, type NativeWmsReference } from './nativeLayers'
 import { checkedCategoryStyle, checkedSldUrl, type CategoryStyle } from './vectorStyle'
+import { checkedVectorStyle, type VectorStyle } from './vectorRules'
 import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type { PortalSource, WmsLayer } from '@/lib/nechakoPortal'
 
@@ -38,6 +39,9 @@ export type VectorData = {
   lineWidth?: number
   pointRadius?: number
   categories?: CategoryStyle
+  /** Versioned browser-local styling; source IDs, attributes and geometry remain unchanged. */
+  style?: VectorStyle
+  styleSource?: { format: 'sld'; original: string; diagnostics: string[] }
   original?: unknown
 }
 export type TileData = { id: string; name: string; urls: string[]; attribution: string; visible: boolean }
@@ -236,7 +240,25 @@ export function importWorkspace(input: unknown): Workspace {
           throw new Error('Invalid vector workspace style.')
       }
       if (vector.categories !== undefined) checkedCategoryStyle(vector.categories)
-      return { ...vector, data: normalizeGeojson(vector.data), visible: vector.visible !== false } as VectorData
+      const style = vector.style === undefined ? undefined : checkedVectorStyle(vector.style)
+      if (vector.styleSource !== undefined) {
+        const source = record(vector.styleSource)
+        if (
+          source.format !== 'sld' ||
+          typeof source.original !== 'string' ||
+          new TextEncoder().encode(source.original).length > 2 * 1024 * 1024 ||
+          !Array.isArray(source.diagnostics) ||
+          source.diagnostics.length > 100 ||
+          source.diagnostics.some((message) => typeof message !== 'string' || message.length > 4000)
+        )
+          throw new Error('Invalid retained SLD style source.')
+      }
+      return {
+        ...vector,
+        ...(style && { style }),
+        data: normalizeGeojson(vector.data),
+        visible: vector.visible !== false,
+      } as VectorData
     })
     const tiles = object.tiles.map((value) => {
       const tile = record(value)

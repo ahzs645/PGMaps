@@ -227,6 +227,8 @@ export function PortalLayers({
   projectsOpen = false,
   onProjectsClose,
   onOpenFiles,
+  onOpenSourceLayers,
+  onOpenWorkbench,
   initialBounds,
   requestedPane,
   exportOpen = false,
@@ -241,6 +243,8 @@ export function PortalLayers({
   projectsOpen?: boolean
   onProjectsClose?: () => void
   onOpenFiles?: () => void
+  onOpenSourceLayers?: () => void
+  onOpenWorkbench?: () => void
   initialBounds?: [number, number, number, number]
   requestedPane?: { pane: 'tools' | 'layers'; revision: number }
   exportOpen?: boolean
@@ -1092,6 +1096,16 @@ export function PortalLayers({
           <Button variant="outline" className="w-full" onClick={onOpenFiles}>
             Import files
           </Button>
+          {onOpenSourceLayers && (
+            <Button variant="outline" className="w-full" onClick={onOpenSourceLayers}>
+              Source layers and queries
+            </Button>
+          )}
+          {onOpenWorkbench && (
+            <Button variant="outline" className="w-full" onClick={onOpenWorkbench}>
+              Local workbench and packages
+            </Button>
+          )}
           <Button
             variant="outline"
             className="w-full"
@@ -1155,6 +1169,16 @@ export function PortalLayers({
   return (
     <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
       <div className="space-y-4">
+        {onOpenSourceLayers && (
+          <Button variant="outline" className="w-full" onClick={onOpenSourceLayers}>
+            Source layers and queries
+          </Button>
+        )}
+        {onOpenWorkbench && (
+          <Button variant="outline" className="w-full" onClick={onOpenWorkbench}>
+            Local workbench and packages
+          </Button>
+        )}
         {cataloguePanel}
         {activePanel}
       </div>

@@ -48,7 +48,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Local package repository and outdoors JSON/share/save workflows',
     next: '130 of 131 WMS references convert: 19 native references use the verified MapServer prefix and supplied mapfile/layer names, with existing HTTPS SLDs. Teacher resources retain 9/9 WMS. One empty WMS name and 18 HTTP XYZ basemaps remain omitted; temporary references may expire. Native cross-type order is preserved; full SLD symbolizers remain partial.',
     devView:
-      'Versioned local workspace JSON, browser save/restore and native project conversion; retains original styles/IDs/unsupported sources with warnings.',
+      'Versioned workspaces, IndexedDB cache, hashed backup/restore and actual GIS/SMASH package exports; retains original styles/IDs/unsupported sources with warnings.',
   },
   {
     feature: 'Stories and learning modules',
@@ -66,7 +66,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'App-owned public snapshot with per-file manifest hashes and byte counts',
     next: 'Measure original GIS archives, monitoring exports, attachments and private collections from permitted exports; do not infer bytes from record counts.',
     devView:
-      'Per-capture manifest file/byte totals; separate learning-package and browser-import sizes; searchable collection inventory and 77 explicitly scoped workflow options. Client-module audit bytes are separate from data/storage totals.',
+      'Per-capture manifest file/byte totals; separate learning-package and browser-import sizes; searchable collection inventory and 78 explicitly scoped workflow options. Client-module audit bytes are separate from data/storage totals.',
   },
   {
     feature: 'Collaborative project ownership/sharing/history/defaults',
@@ -82,7 +82,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Typed map layers, interaction tools, bottom tables, specialized imports',
     next: 'Verify schema-linked portal vector exports with authorized samples. Geometry validation is not a complete topology audit.',
     devView:
-      'Validated/reprojected GeoJSON and GDAL imports; point/line/polygon maps, attributes/CSV, local geometry/property edits and measurement.',
+      'Browser GDAL imports/exports; dedicated source schema/submission/shared-layer pickers; file/count-verified WFS materialization; typed local feature queries, geometry/property edits and measurement.',
   },
   {
     feature: 'WMS identify',
@@ -95,9 +95,9 @@ export const FEATURE_COMPARISON = [
     feature: 'Monitoring tables and charts',
     portal: 'CSV/schema/station links, pagination, time-zone matching, line/bar chart builder in client/SOP',
     pgmaps: '`/dev/water-temperature`, reusable time series/scatter/range charts and exports',
-    next: 'Actual layer 386/record 1 read returns 500 rows of 25,933; page exports/charts are scoped to the loaded page. Full database size and production access remain unknown.',
+    next: 'Historical layer 386/record 1 read returned 500 rows of 25,933. Full extraction now verifies paging/counts and stores complete or explicitly partial copies; live anonymous acceptance is blocked by the current source Website not registered response.',
     devView:
-      'Live station/schema/Attributes relationships and bounded observations; local CSV/time-zone quality review, chart presets, dual axes and page CSV/JSON.',
+      'Live station/schema/Attributes relationships, complete paginated extraction, local CSV ingestion/cache, time-zone quality review, chart presets, dual axes and typed-value-preserving exports.',
   },
   {
     feature: 'Attachments and archives',
@@ -105,15 +105,15 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Story/document displays and shared cards can be reused',
     next: 'Protected attachment retrieval/previews and server whitelist/limits require authorization; unsupported document formats retain originals.',
     devView:
-      'Local raster image/PDF/audio/video preview, original downloads, GIS archive inventory and anonymous attachment metadata resource reads.',
+      'Persistent local raster image/PDF/audio/video attachments and original downloads, local draft/media links, hashed package backups and permitted source attachment metadata reads.',
   },
   {
     feature: 'Bulk CSV/Zotero and GeoPaparazzi import',
     portal: 'Client and SOP described',
     pgmaps: 'Specialized import paths and scraper infrastructure',
-    next: 'Portal draft publishing stays authoritative. GeoPaparazzi form/note/photo/track mapping needs a real sample; inventory is not full import parity.',
+    next: 'Portal publication remains authoritative. GPAP notes/forms/media/tracks now parse from actual SQLite with retained originals, relationship diagnostics and local drafts; source-specific form assignment/transaction acceptance is separate.',
     devView:
-      'Source-form CSV/spatial mapping, typed validation, local draft review/exports; optional signed-in CSV draft adapter, GeoPaparazzi table inventory.',
+      'Persistent local GIS/CSV/schema matching, monitoring ingestion, attachments, mapping presets, editable drafts and actual GPAP note/form/media/track relationships; optional source draft adapter stays separate.',
   },
   {
     feature: 'GIS editing/processing',
@@ -179,13 +179,13 @@ export const FORMAT_COMPARISON = [
     format: 'ESRI Shapefile (`.shp`, `.shx`, `.dbf`, `.prj`)',
     evidence: 'Enabled registry and upload chooser',
     pgmaps: 'Specialized forestry import uses shpjs',
-    next: 'Implemented GDAL sidecar/ZIP import and homogeneous geometry Shapefile ZIP export; original sidecars retained. Requires the optional conversion service.',
+    next: 'Implemented GDAL sidecar/ZIP import and homogeneous geometry Shapefile ZIP export; original sidecars retained. Uses the browser WebAssembly converter.',
   },
   {
     format: 'GML',
     evidence: 'Enabled registry',
     pgmaps: 'No generic portal ingestion found',
-    next: 'Implemented GDAL GML import/export and CRS normalization; XML document types/entities rejected. Service deployment and real portal samples still required.',
+    next: 'Implemented GDAL GML import/export and CRS normalization; XML document types/entities rejected. Browser conversion is available; representative portal samples still need acceptance.',
   },
   {
     format: 'GPX',
@@ -209,13 +209,13 @@ export const FORMAT_COMPARISON = [
     format: 'SQLite / SpatiaLite',
     evidence: 'Enabled registry',
     pgmaps: 'No generic browser database reader found',
-    next: 'Implemented GDAL spatial SQLite/SpatiaLite import/export. Non-spatial tables/unknown CRS are not silently treated as vectors. Requires conversion service.',
+    next: 'Implemented GDAL spatial SQLite/SpatiaLite import/export. Non-spatial tables/unknown CRS are not silently treated as vectors. Uses the browser WebAssembly converter.',
   },
   {
     format: 'GeoPackage',
     evidence: 'Enabled registry',
     pgmaps: 'No general multi-layer GeoPackage loader found',
-    next: 'Implemented GDAL multi-layer GeoPackage import, layer selection and export; three-layer BC Albers reprojection round trip verified. Requires conversion service.',
+    next: 'Implemented GDAL multi-layer GeoPackage import, layer selection and export; three-layer BC Albers reprojection round trip verified. Uses the browser WebAssembly converter.',
   },
   {
     format: 'WMS: hosted QGIS and DataBC',
@@ -233,7 +233,7 @@ export const FORMAT_COMPARISON = [
     format: 'WFS/raw feature export',
     evidence: 'Referenced capabilities/related tools; no full portal vector-export audit',
     pgmaps: 'PGMaps uses bounded feature queries elsewhere',
-    next: 'Add only when the source explicitly supports it; validate paging, geometry and permission scope',
+    next: 'Implemented public WFS 2.0 materialization with count/page/boundary verification, explicit caps and persistent local geometry; the source must support CORS, JSON and paging.',
   },
   {
     format: 'Historical map rasters',
@@ -263,13 +263,13 @@ export const FORMAT_COMPARISON = [
     format: 'GeoPaparazzi (.gpap)',
     evidence: 'Field-form, spatial and attachment matching in GeoPaparazziLoader client',
     pgmaps: 'No generic GeoPaparazzi importer verified',
-    next: 'Implemented read-only SQLite table/column/row inventory for .gpap. Form/note/photo/track semantics and portal publishing remain unverified without a real sample.',
+    next: 'Implemented actual GPAP SQLite parsing, note/form/media/track relationships, large-ID preservation, original bytes, local drafts and explicit relationship diagnostics. Source publication and actual SMASH mobile-app acceptance remain separate.',
   },
   {
     format: 'Documents, photos, audio/video and archives',
     evidence: 'Attachment workflow in client and guides; no complete server whitelist or size limits verified',
     pgmaps: 'Reusable document/story/dialog presentation; no portal attachment browser',
-    next: 'Implemented local image/PDF/audio/video preview and original downloads; anonymous portal attachment metadata reads. Protected files and whitelist/limits remain server integration work.',
+    next: 'Implemented persistent local image/PDF/audio/video attachment storage, previews, original downloads, draft links and portable package backups; permitted portal attachment metadata reads. Protected files and whitelist/limits remain server integration work.',
   },
   {
     format: 'Native portal project JSON',

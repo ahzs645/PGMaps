@@ -11,9 +11,12 @@ import { PortalResearchMap } from '@/maps/nechako/PortalResearch'
 import { PortalSearch } from '@/maps/nechako/PortalChecks'
 import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
+import { PortalSourceLayers } from '@/maps/nechako/PortalSourceLayers'
+import { PortalLocalWorkbench } from '@/maps/nechako/PortalLocalWorkbench'
+import { applyLocalDefaultStyle } from '@/maps/nechako/data/styleLibrary'
 import { SHOWCASE_BASE } from '@/maps/nechako/data/showcase'
 import { loadNechakoBoundary } from '@/maps/nechako/data/boundary'
-import { EMPTY_WORKSPACE, importWorkspace, type Workspace } from '@/maps/nechako/data/workspace'
+import { EMPTY_WORKSPACE, importWorkspace, type VectorData, type Workspace } from '@/maps/nechako/data/workspace'
 import { PortalInventory } from '@/maps/nechako/PortalInventory'
 import { PortalCollections, EMPTY_COLLECTION_SESSION, type CollectionSession } from '@/maps/nechako/PortalCollections'
 import { PortalOptions } from '@/maps/nechako/PortalOptions'
@@ -38,6 +41,8 @@ const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWork
 const learningProject = normalizeProjectPackage(learningJson)
 
 const PANELS = [
+  'source-layers',
+  'local-workbench',
   'search',
   'submissions',
   'reports',
@@ -59,6 +64,8 @@ const PANELS = [
 ] as const
 type Panel = (typeof PANELS)[number]
 const TITLES: Record<Panel, string> = {
+  'source-layers': 'Source layers and local queries',
+  'local-workbench': 'Local workbench and project packages',
   search: 'Find Submissions : SEARCH',
   submissions: 'Portal submissions',
   reports: 'Reporting and statistics',
@@ -180,6 +187,25 @@ export default function DevNechakoPortal() {
     setWorkspace(imported)
     close()
   }
+  const addLocalVectors = async (vectors: VectorData[]) => {
+    const warnings: string[] = []
+    const styled = await Promise.all(
+      vectors.map(async (vector) => {
+        try {
+          return await applyLocalDefaultStyle(vector)
+        } catch (reason) {
+          warnings.push(`Default style unavailable for ${vector.name}: ${errorText(reason)}`)
+          return vector
+        }
+      }),
+    )
+    setWorkspace((current) => ({
+      ...current,
+      vectors: [...current.vectors, ...styled],
+      warnings: [...(current.warnings ?? []), ...warnings],
+    }))
+    close()
+  }
   const toolbarClass =
     'h-10 shrink-0 gap-1.5 rounded-sm border border-white/20 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white'
   return (
@@ -226,6 +252,12 @@ export default function DevNechakoPortal() {
         <Button className={toolbarClass} onClick={() => showPanel('files')}>
           <Upload className="h-4 w-4" />
           Import
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('source-layers')}>
+          Source layers
+        </Button>
+        <Button className={toolbarClass} onClick={() => showPanel('local-workbench')}>
+          Local workbench
         </Button>
         <Button className={toolbarClass} onClick={() => showPanel('research-map')}>
           <BookOpen className="h-4 w-4" />
@@ -282,6 +314,8 @@ export default function DevNechakoPortal() {
             onOpenExport={() => showPanel('map-export')}
             onExportClose={close}
             onOpenFiles={() => showPanel('files')}
+            onOpenSourceLayers={() => showPanel('source-layers')}
+            onOpenWorkbench={() => showPanel('local-workbench')}
             requestedPane={requestedPane}
           />
         )}
@@ -438,12 +472,18 @@ export default function DevNechakoPortal() {
             <PortalFiles
               write={portalWrite}
               canWrite={session.canWrite}
-              onVectors={(vectors) => {
-                setWorkspace((current) => ({ ...current, vectors: [...current.vectors, ...vectors] }))
-                close()
-              }}
+              onVectors={(vectors) => void addLocalVectors(vectors)}
             />
           )}
+          {panel === 'source-layers' && (
+            <PortalSourceLayers
+              workspace={workspace}
+              onVectors={(vectors) => void addLocalVectors(vectors)}
+              onOpenFiles={() => showPanel('files')}
+              onOpenWorkbench={() => showPanel('local-workbench')}
+            />
+          )}
+          {panel === 'local-workbench' && <PortalLocalWorkbench workspace={workspace} onWorkspace={loadWorkspace} />}
           {panel === 'research-map' && <PortalResearchMap onBack={close} fill backLabel="Watershed map" />}
           {panel === 'saved-projects' && (
             <PortalProjectManager

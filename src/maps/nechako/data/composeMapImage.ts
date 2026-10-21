@@ -111,33 +111,45 @@ async function prepareLegends(legends: MapImageLegend[], signal: AbortSignal): P
 function drawSymbol(
   context: CanvasRenderingContext2D,
   legend: MapImageLegend,
-  color: string,
+  row: MapImageLegend['rows'][number],
   x: number,
   y: number,
   unit: number,
 ) {
   context.save()
-  context.strokeStyle = color
-  context.fillStyle = color
-  context.lineWidth = Math.min(4, Math.max(0.5, legend.lineWidth)) * unit
+  context.strokeStyle = row.symbol?.strokeColor ?? row.color
+  context.fillStyle = row.symbol?.fillColor ?? row.color
+  const strokeWidth = row.symbol?.strokeWidth ?? legend.lineWidth
   legend.symbols.forEach((symbol, index) => {
+    context.lineWidth = Math.min(4, Math.max(0.5, strokeWidth)) * unit
     const left = x + index * 17 * unit
     if (symbol === 'polygon') {
-      context.globalAlpha = legend.fillOpacity
+      context.globalAlpha = row.symbol?.fillOpacity ?? legend.fillOpacity
       context.fillRect(left, y + 2 * unit, 13 * unit, 10 * unit)
-      context.globalAlpha = legend.lineOpacity
-      context.strokeRect(left, y + 2 * unit, 13 * unit, 10 * unit)
+      context.globalAlpha = row.symbol?.strokeOpacity ?? legend.lineOpacity
+      if (strokeWidth > 0) context.strokeRect(left, y + 2 * unit, 13 * unit, 10 * unit)
     } else if (symbol === 'line') {
-      context.globalAlpha = legend.lineOpacity
+      context.globalAlpha = row.symbol?.strokeOpacity ?? legend.lineOpacity
       context.beginPath()
       context.moveTo(left, y + 12 * unit)
       context.lineTo(left + 13 * unit, y + 2 * unit)
-      context.stroke()
+      if (strokeWidth > 0) context.stroke()
     } else {
-      context.globalAlpha = 1
+      context.globalAlpha = row.symbol?.pointOpacity ?? 1
       context.beginPath()
-      context.arc(left + 7 * unit, y + 7 * unit, 5 * unit, 0, Math.PI * 2)
+      context.arc(
+        left + 7 * unit,
+        y + 7 * unit,
+        (row.symbol ? Math.min(6, row.symbol.pointRadius) : 5) * unit,
+        0,
+        Math.PI * 2,
+      )
       context.fill()
+      if (row.symbol && row.symbol.pointStrokeWidth > 0) {
+        context.globalAlpha = row.symbol.strokeOpacity
+        context.lineWidth = Math.min(4, row.symbol.pointStrokeWidth) * unit
+        context.stroke()
+      }
     }
   })
   context.restore()
@@ -303,12 +315,30 @@ export async function composeMapImage(
     for (const entry of legends) {
       drawText(textLines(entry.title, legendWidth, true), legendX)
       cursor += 4 * legendUnit
+      if (entry.gradient) {
+        const stops = entry.gradient.stops
+        const first = stops[0].value,
+          last = stops[stops.length - 1].value
+        drawText(
+          textLines(entry.gradient.property + ' · ' + entry.gradient.channel + ' gradient', legendWidth),
+          legendX,
+        )
+        if (cursor + 20 * legendUnit > body.y + body.height)
+          throw new Error('The gradient legend does not fit. Increase image height or reduce legend scale.')
+        const gradient = context.createLinearGradient(legendX, 0, legendX + legendWidth, 0)
+        for (const stop of stops) gradient.addColorStop((stop.value - first) / (last - first), stop.color)
+        context.fillStyle = gradient
+        context.fillRect(legendX, cursor + 3 * legendUnit, legendWidth, 10 * legendUnit)
+        cursor += 20 * legendUnit
+        drawText(textLines('Stops: ' + stops.map((stop) => String(stop.value)).join(' · '), legendWidth), legendX)
+        cursor += 4 * legendUnit
+      }
       for (const row of entry.rows) {
         const symbolWidth = entry.symbols.length * 17 * legendUnit + 5 * legendUnit
         const lines = textLines(row.label || ' ', Math.max(12, legendWidth - symbolWidth))
         const y = cursor
         drawText(lines.length ? lines : [''], legendX + symbolWidth)
-        drawSymbol(context, entry, row.color, legendX, y, legendUnit)
+        drawSymbol(context, entry, row, legendX, y, legendUnit)
       }
       if (entry.image) {
         const imageScale = Math.min(legendUnit, legendWidth / entry.image.width)

@@ -58,7 +58,7 @@ export function checkedPortalAttributes(value: unknown): unknown {
 
 export async function portalRead(path: string, params?: Record<string, string>, signal?: AbortSignal) {
   if (
-    !/^rest\/(?:portal|openmap)\/[a-zA-Z][a-zA-Z0-9]*\.php$/.test(path) &&
+    !/^rest\/(?:portal|openmap)\/[a-zA-Z][a-zA-Z0-9_]*\.php$/.test(path) &&
     !/^rest\/portal\/admin\/[a-zA-Z][a-zA-Z0-9]*\.php$/.test(path)
   ) {
     throw new Error('Portal reads require a relative native REST endpoint.')

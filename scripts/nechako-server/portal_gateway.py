@@ -41,6 +41,9 @@ READS = {
     'rest/portal/getSubmissionForm.php': ({'submissionId'}, {'submissionId'}),
     'rest/portal/getFieldValue.php': ({'fieldId', 'submissionId', 'fieldIndex'}, {'fieldId', 'submissionId', 'fieldIndex'}),
     'rest/portal/getSchemas.php': ({'page', 'start', 'limit'}, set()),
+    'rest/portal/getSchemas_TBD.php': (set(), set()),
+    'rest/portal/getSubmissionLayersAddLayer.php': (set(), set()),
+    'rest/portal/getLinkedLayers.php': (set(), set()),
     'rest/portal/getSchemaFields.php': ({'schemaId'}, {'schemaId'}),
     # SchemaManager.js Monitors tab; includes draft/disabled associations, so
     # authorize_read requires the same administrator role as /admin/ routes.

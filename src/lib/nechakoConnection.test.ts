@@ -473,11 +473,16 @@ describe('hosted portal capabilities', () => {
   it('binds binary downloads to the current capability and rejects a completed body from an older identity', async () => {
     const connection = await import('./nechakoConnection')
     let finishBlob!: (value: Blob) => void
+    let beginBlob!: () => void
+    const blobStarted = new Promise<void>((resolve) => {
+      beginBlob = resolve
+    })
     const pdf = new Response('%PDF-fixture', { headers: { 'Content-Type': 'application/pdf' } })
     vi.spyOn(pdf, 'blob').mockImplementation(
       () =>
         new Promise((resolve) => {
           finishBlob = resolve
+          beginBlob()
         }),
     )
     const fetch = vi
@@ -492,8 +497,7 @@ describe('hosted portal capabilities', () => {
     vi.stubGlobal('fetch', fetch)
     const pending = connection.portalDownloadSubmission('9', 'pdf')
     const denied = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
-    await tick()
-    await tick()
+    await blobStarted
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/download'))!
     expect(call[1].credentials).toBe('omit')
     expect(call[1].headers['X-Nechako-Session']).toBe(ANON)

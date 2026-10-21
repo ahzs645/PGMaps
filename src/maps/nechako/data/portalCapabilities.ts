@@ -25,6 +25,16 @@ export const PORTAL_SUPPORT_LABELS: Record<PortalCapabilitySupport, string> = {
 // A source-menu entry is never evidence that its workflow is implemented here.
 export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   {
+    id: 'local-workbench',
+    name: 'Local workbench, schemas and cache backups',
+    group: 'Projects and exports',
+    support: 'local',
+    sourcePath: 'Local equivalent of project, schema, attachment and import storage',
+    description:
+      'Keep layers, styles, schemas, drafts, attachments and observations on this browser. Save or reopen projects, inspect storage, request persistence and restore integrity-checked ZIP backups with explicit conflict handling.',
+    panel: 'local-workbench',
+  },
+  {
     id: 'research',
     name: 'Research records and citations',
     group: 'Read and explore',
@@ -124,33 +134,33 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'schema-layers',
-    name: 'Schema layers and station relationships',
+    name: 'Source schema picker and cached features',
     group: 'Map tools',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map Tools → Add Layer → Portal Schema',
     description:
-      'Inspect schemas, fields and linked monitor associations. Adding arbitrary schema sources to the map remains in the original portal.',
-    administrationView: 'schemas',
+      'Browse source schemas by original ID, save catalogue references, materialize features from authorized exports or counted WFS pages, and reopen local geometry. Remote source access remains permission-dependent.',
+    panel: 'source-layers',
   },
   {
     id: 'submission-layers',
-    name: 'Submission spatial layers',
+    name: 'Submission layer picker and cached features',
     group: 'Map tools',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map Tools → Add Layer → Portal Submission',
     description:
-      'Inspect permitted submission layers and source Attributes records. The original portal owns arbitrary native layer creation and temporary mapfiles.',
-    panel: 'submissions',
+      'Select source submission layers by layer, schema and submission IDs; retain source metadata and materialize authorized feature exports for local queries, styling and packages.',
+    panel: 'source-layers',
   },
   {
     id: 'shared-layers',
-    name: 'Shared layer catalogue and review',
+    name: 'Shared source layer picker',
     group: 'Map tools',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map Tools → Add Layer → Shared Layer / Admin Panel → Shared Layer Manager',
     description:
-      'Inspect the source review queue and layer state with an administrator connection. Native Add To Map and shared-style publication remain source workflows.',
-    administrationView: 'moderation',
+      'Browse the public shared-layer catalogue, retain native layer IDs and cache actual feature exports. Source approval and publication remain separate administrator workflows.',
+    panel: 'source-layers',
   },
   {
     id: 'draw',
@@ -182,23 +192,23 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'styles',
-    name: 'Single and categorized vector styling',
+    name: 'Comparison, range and gradient vector styles',
     group: 'Map tools',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map → Stylize → Single / Categorized',
     description:
-      'Style local vectors and attribute categories, or select server-advertised WMS styles. Full native symbolizer and gradient rules remain partial.',
+      'Edit typed equality/comparison/range rules, ordered symbols and numeric color gradients with explicit fallback values. Styles render on the map, export legend and saved workspaces.',
     mapPane: 'tools',
   },
   {
     id: 'sld',
-    name: 'SLD references and source style library',
+    name: 'Local SLD library and default styles',
     group: 'Map tools',
     support: 'partial',
     sourcePath: 'Map → Stylize → Load / Upload / Download SLD / Save SLD to Portal',
     description:
-      'Apply an existing HTTPS SLD reference to a WMS layer. Source SLD upload, editing, saving, sharing and gallery management remain in the original.',
-    mapPane: 'layers',
+      'Import, save, apply, export or delete local SLD styles; set schema or geometry defaults. Supported symbolizers and filters are validated, while unsupported originals remain downloadable. Source-account library publication remains in the original portal.',
+    mapPane: 'tools',
   },
   {
     id: 'buffer',
@@ -258,12 +268,13 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'query',
-    name: 'Native layer definition query',
+    name: 'Layer queries over cached features',
     group: 'Map tools',
-    support: 'original',
+    support: 'local',
     sourcePath: 'Map → layer context menu → Query',
     description:
-      'The source has attribute/value selection and a SQL-backed query. PGMaps does not submit arbitrary SQL or invent an equivalent source filter.',
+      'Build typed comparisons, inclusive ranges, text tests and nested AND/OR/NOT groups over actual cached features. Preview, save and export results with unchanged feature IDs; source database SQL execution is separate.',
+    panel: 'source-layers',
   },
   {
     id: 'layer-share',
@@ -277,19 +288,20 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
     id: 'spatial-import',
     name: 'Import spatial files',
     group: 'Files and submissions',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map Tools → Add Layer → Upload File',
     description:
-      'Read GeoJSON locally; an optional GDAL converter handles Shapefile, GeoPackage, SQLite, GML, GPX and KML/KMZ.',
+      'Read GeoJSON and convert supported Shapefile, GeoPackage, SQLite, GML, GPX and KML/KMZ in this browser using GDAL WebAssembly. Cache converted features and retain originals without an application backend.',
     panel: 'files',
   },
   {
     id: 'media',
-    name: 'Preview documents and media',
+    name: 'Persistent attachments and media previews',
     group: 'Files and submissions',
     support: 'local',
     sourcePath: 'Submission → Attachments',
-    description: 'Preview local images, PDFs, audio and video; retain the original download for unsupported formats.',
+    description:
+      'Save original image, PDF, audio, video and other attachment files in the local cache; preview supported formats, retain metadata and link files to local drafts. Downloads preserve original bytes.',
     panel: 'files',
   },
   {
@@ -313,21 +325,23 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'new-submission',
-    name: 'Start a new submission',
+    name: 'Start a local draft from a cached schema',
     group: 'Files and submissions',
-    support: 'original',
+    support: 'partial',
     sourcePath: 'Fill a Form → Start New Submission',
     description:
-      'Select the original form and complete its submission workflow. Opening a new form immediately creates a source draft.',
+      'Create a blank local draft from a cached schema, retain its field definitions and validation issues, then edit values and attachments. Creating an authoritative source submission remains a separate portal action.',
+    panel: 'files',
   },
   {
     id: 'resume-submission',
-    name: 'Resume or edit a draft submission',
+    name: 'Reopen and edit cached local drafts',
     group: 'Files and submissions',
-    support: 'original',
+    support: 'partial',
     sourcePath: 'Fill a Form → Resume a Draft Submission',
     description:
-      'Resume a source draft, review parent links, attachments, spatial data, monitoring and permissions, then hold or submit it.',
+      'Resume saved local CSV, GIS or GPAP drafts; edit typed values, title and local review state, retain edit history/originals and manage attachment links. Source submission lifecycle and permissions remain separate.',
+    panel: 'files',
   },
   {
     id: 'bulk-csv',
@@ -350,22 +364,22 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'schema-upload',
-    name: 'Schema-matched spatial upload',
+    name: 'Local schema-matched GIS ingestion',
     group: 'Files and submissions',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Submission → Spatial Data → Upload and Match to Schema',
     description:
-      'Review spatial/schema mappings and local files. Source ingestion, key matching and publication require the original workflow.',
+      'Match GIS or CSV attributes to a source or local schema, validate typed fields and geometry, retain the original files and mapping presets, and save local drafts. Remote publication remains a source action.',
     panel: 'files',
   },
   {
     id: 'gpap',
     name: 'GeoPaparazzi notes, tracks and media',
     group: 'Files and submissions',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Fill a Form → Open GeoPaparazzi Loader',
     description:
-      'PGMaps inventories the GPAP database. Match Forms, Match Fields, record selection, media ingestion and duplicate protection remain in the original.',
+      'Read the actual GPAP SQLite database in the browser; preserve forms, note IDs, media IDs, GPS logs, original blobs and relationship issues. Select and cache local note drafts and map layers without publishing to the source.',
     panel: 'files',
   },
   {
@@ -394,17 +408,18 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
     support: 'connected',
     sourcePath: 'Schema Manager → Monitors / submission → Monitoring',
     description:
-      'Follow verified schema, station and submission IDs; page source observations and transfer a loaded page to charts or CSV.',
+      'Follow verified schema, station and submission IDs; preview source pages, download all observations with count checks and reopen explicitly saved copies for local charts.',
     panel: 'monitoring',
   },
   {
     id: 'monitor-full',
-    name: 'Download all source monitoring records',
+    name: 'Complete monitoring downloads and local cache',
     group: 'Monitoring and reports',
-    support: 'original',
+    support: 'connected',
     sourcePath: 'Schema Manager → Monitors → View Data → Download CSV (All Records)',
     description:
-      'PGMaps exports each loaded source page. Use the original for a full-table export; page counts are not complete database sizes.',
+      'Read every 500-row page up to a selected limit, verify stable totals/columns, boundary pages and an empty terminal page, and optionally check unique IDs. Partial results stay labelled partial; the source does not offer an atomic snapshot.',
+    panel: 'monitoring',
   },
   {
     id: 'reports',
@@ -473,21 +488,22 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'project-gis',
-    name: 'Original project spatial downloads and SMASH',
+    name: 'GIS and SMASH project packages',
     group: 'Projects and exports',
-    support: 'original',
+    support: 'local',
     sourcePath: 'Map Tools → Project → Download Project Files',
     description:
-      'Generate original GIS project files in the selected format, with the source SMASH option. A workspace JSON export is a different artifact.',
+      'Export actual GeoPackage, Shapefile, KML, GPX or GeoJSON from materialized vectors. SMASH packages include a native GPAP database for supported point notes, companion maps, originals and provenance; remote WMS references remain references.',
+    panel: 'local-workbench',
   },
   {
     id: 'vector-download',
     name: 'Download local vector layers',
     group: 'Projects and exports',
-    support: 'partial',
+    support: 'local',
     sourcePath: 'Map Tools → Download',
     description:
-      'Export local GeoJSON or attributes CSV; optional GDAL conversion provides supported spatial formats. WMS imagery does not supply source vector geometry.',
+      'Export GeoJSON/CSV or convert actual local features to supported native GIS formats using browser GDAL. Field/geometry limitations are reported and originals retained; WMS imagery alone does not contain vector geometry.',
     mapPane: 'tools',
   },
   {
@@ -596,12 +612,13 @@ export const PORTAL_CAPABILITIES: readonly PortalCapability[] = [
   },
   {
     id: 'schema-edit',
-    name: 'Create, copy or edit schemas and defaults',
+    name: 'Local schema editing and source schema administration',
     group: 'Administration',
-    support: 'original',
+    support: 'partial',
     sourcePath: 'Schema Manager → New / Copy / Delete / Add Field / Default Style',
     description:
-      'Source schema structure and default SLD writes remain in the original, preserving existing data relationships.',
+      'Create, validate, copy, export and delete local schema definitions for field matching; local style defaults live in the style library. Editing the source database schema remains a source administrator action.',
+    panel: 'local-workbench',
   },
   {
     id: 'submission-manager',

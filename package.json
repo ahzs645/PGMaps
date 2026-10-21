@@ -205,6 +205,7 @@
     "react-router-dom": "^6.22.0",
     "recharts": "^3.8.1",
     "shpjs": "^6.2.0",
+    "sql.js": "1.15.1",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
@@ -215,11 +216,13 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/react-test-renderer": "^18.3.1",
+    "@types/sql.js": "1.4.11",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.17",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "fake-indexeddb": "6.2.6",
     "postcss": "^8.4.35",
     "prettier": "^3.8.2",
     "react-test-renderer": "^18.3.1",
