@@ -1,6 +1,6 @@
 # Tree-model execution checks — 20 October 2026
 
-**Two RGB models completed real inference. SegmentAnyTree and ForestFormer3D passed preprocessing on our LiDAR plots, but their neural inference remains untested. ForPT has no released tree-instance checkpoint.** The live site and its existing segmentation results have not changed.
+**Update, 21 October 2026 UTC: SegmentAnyTree and original ForAINet have now completed bounded CPU inference on three BC crops.** See the [new run record, point outputs and side-profile figures](lidar-pointgroup-cpu-results.md). ForestFormer3D remains preprocessing-only; ForPT has no released tree-instance checkpoint. The sections below preserve the earlier preflight and RGB execution record.
 
 ## What ran
 

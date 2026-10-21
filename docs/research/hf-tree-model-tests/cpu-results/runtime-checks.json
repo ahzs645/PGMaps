@@ -1,0 +1,36 @@
+{
+  "repo_pins": {
+    "SegmentAnyTree": "a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9",
+    "ForAINet": "5fe600ae8f2fe913ae8740f475f0261a702f2a72",
+    "MinkowskiEngine": "02fc608bea4c0549b0a7b00ca1bf15dee4a0b228",
+    "torch-points-kernels": "db05fae14b85d335c829e0ab744dea8c841f0e41"
+  },
+  "hf_jobs_status": "UNAVAILABLE: MCP tool hf_jobs was not returned by tools/list",
+  "hf_account_pro": true,
+  "public_spaces_keyword_searches": {
+    "SegmentAnyTree": [],
+    "ForAINet": [],
+    "ForestSens": []
+  },
+  "device": "cpu",
+  "cuda_available": false,
+  "checks": {
+    "cpu_region_grow": "passed: [[0,1],[2]]",
+    "cpu_sparse_convolution": "passed: [[3],[3],[3]]",
+    "cpu_proposal_filtering_both_models": "passed: proposals [0,2]",
+    "all_six_strict_checkpoint_loads": "passed",
+    "all_six_backbone_coordinate_order_checks": "passed",
+    "original_xyz_and_source_rows_all_three_crops": "passed",
+    "identical_representative_ids_and_interpolation_distances_across_models": "passed",
+    "saved_instance_counts_match_summaries_all_six_runs": "passed"
+  },
+  "compatibility": [
+    "MinkowskiEngine CPU-only build linked to system BLAS through a user-local sysroot",
+    "torch-points-kernels missing C++ <memory> include added for GCC 14",
+    "One hard-coded .cuda() allocation in each model replaced with cluster.device",
+    "spawn multiprocessing avoids CPU OpenMP fork deadlock",
+    "PRNG reset after model construction gives identical sampled inputs across models"
+  ],
+  "uploaded_user_data_to_hugging_face": false,
+  "paid_job_submitted": false
+}

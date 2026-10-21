@@ -1,0 +1,7 @@
+diff --git a/PointCloudSegmentation/torch_points3d/models/panoptic/structure_3heads.py b/PointCloudSegmentation/torch_points3d/models/panoptic/structure_3heads.py
+index 14d0bb7..184e878 100644
+--- a/PointCloudSegmentation/torch_points3d/models/panoptic/structure_3heads.py
++++ b/PointCloudSegmentation/torch_points3d/models/panoptic/structure_3heads.py
+@@ -47 +47 @@ class PanopticResults(NamedTuple):
+-            proposal_id = torch.ones(len(cluster)).cuda()*i
++            proposal_id = torch.ones(len(cluster), device=cluster.device)*i

@@ -1,0 +1,49 @@
+{
+  "stage": "bounded_cpu_network_inference_completed",
+  "scope": "One cylinder; not upstream whole-plot tiling, voting or merging",
+  "plot": "crown-85",
+  "radius_m": 8.0,
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "input_sha256": "33c8e99d77f19ba891562905830b70101f60095b822515fce89abe78b0aff27e",
+  "checkpoint_sha256": "97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861",
+  "weight_name": "latest",
+  "repo_commit": "5fe600ae8f2fe913ae8740f475f0261a702f2a72",
+  "runtime": {
+    "python": "3.10.22",
+    "torch": "1.13.1+cpu",
+    "device": "cpu",
+    "threads": 2
+  },
+  "coordinate_frame": "XYZ minus buffered plot XYZ minimum; local elevation, not DTM-normalised height",
+  "offset_xyz": [
+    512782.0002032271,
+    5971326.000291238,
+    696.0
+  ],
+  "centre_utm": [
+    512804.5,
+    5971348.5
+  ],
+  "input_returns_in_cylinder": 7464,
+  "network_representatives": 6806,
+  "accepted_tree_instances": 5,
+  "candidate_clusters": 45,
+  "semantic_representative_counts": {
+    "0": 823,
+    "1": 322,
+    "2": 3,
+    "3": 4629,
+    "4": 1029
+  },
+  "load_seconds": 0.181881586991949,
+  "inference_seconds": 4.689810121024493,
+  "raw_point_interpolation_max_m": 0.5588783053377029,
+  "instance_ground_truth_available": false,
+  "accuracy_measured": false,
+  "backbone_output_coordinate_order_verified": true,
+  "nms": {
+    "iou_threshold": 0.3,
+    "minimum_cluster_points_exclusive": 100,
+    "minimum_score_exclusive": 0.6
+  }
+}

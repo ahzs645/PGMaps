@@ -1,0 +1,9 @@
+diff --git a/setup.py b/setup.py
+index 452ea57..b41988f 100644
+--- a/setup.py
++++ b/setup.py
+@@ -122,2 +122,2 @@ def _argparse(pattern, argv, is_flag=True, is_list=False):
+-run_command("rm", "-rf", "build")
+-run_command("pip", "uninstall", "MinkowskiEngine", "-y")
++# Keep build objects for incremental CPU builds.
++# Do not uninstall packages from a different Python environment.
