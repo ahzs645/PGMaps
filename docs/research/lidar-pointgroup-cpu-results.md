@@ -1,5 +1,7 @@
 # SegmentAnyTree and original ForAINet: completed CPU inference
 
+**Full-source follow-up:** both models now have checkpointed full-tile CPU jobs running against all 84,608,005 returns. See the [live-job paths, throughput evidence and full-run adapter](lidar-full-tile-comparison.md). The results below remain the earlier bounded crop tests.
+
 Both official networks completed inference on three bounded crops of the user's BC LiDAR on 21 October 2026 UTC. These are actual neural predictions, including grouping and proposal scoring. They are separate from the earlier coordinate-loader checks and from ForestFormer3D's ForAINetV2 loader.
 
 Hugging Face authentication succeeded with a Pro account and Jobs scope. The connector's `hf_jobs` operation still returned `UNAVAILABLE: MCP tool hf_jobs was not returned by tools/list`. Keyword searches of the public Spaces API for SegmentAnyTree, ForAINet and ForestSens returned no matches. No paid job was submitted and no user points were uploaded to Hugging Face. The runs below used this workspace's CPU.

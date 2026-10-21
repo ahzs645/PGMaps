@@ -1,0 +1,9 @@
+{
+  "stage": "all_original_source_rows_verified",
+  "point_count": 84608005,
+  "unique_core_tiles": 969,
+  "missing_rows": 0,
+  "duplicate_rows": 0,
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "seconds": 0.6874405609851237
+}

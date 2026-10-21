@@ -1,0 +1,9 @@
+{
+  "core_returns": 103663,
+  "buffered_returns": 275802,
+  "windows": 72,
+  "reference_blas_seconds": 199.32442182599334,
+  "openblas_seconds": 88.16778111600433,
+  "all_saved_arrays_equal_to_reference": true,
+  "core_missing_returns": 0
+}
