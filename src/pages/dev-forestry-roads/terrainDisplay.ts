@@ -1,7 +1,7 @@
 /**
  * Bounded display products made from the selected analytical terrain source.
  * The image/contour grid is a preview; it never replaces the native source used
- * for stationing and quantities. All three PNGs retain transparent no-data.
+ * for stationing and quantities. All four PNGs retain transparent no-data.
  */
 import type { Coordinate, TerrainSource } from './types'
 
@@ -9,6 +9,8 @@ export interface TerrainDisplay {
   hillshade: string
   slope: string
   elevation: string
+  /** Downslope bearing clockwise from geographic north; flat terrain is neutral grey. */
+  aspect: string
   /** MapLibre image source corners: north-west, north-east, south-east, south-west. */
   coordinates: Coordinate[]
   contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString>
@@ -26,6 +28,36 @@ export const TERRAIN_SLOPE_STOPS = [
   { value: 60, color: '#69373e' },
 ] as const
 
+/** Cyclic compass colors: 0° and 360° share north's color. */
+export const TERRAIN_ASPECT_STOPS = [
+  { value: 0, label: 'N', color: '#dc2626' },
+  { value: 45, label: 'NE', color: '#f97316' },
+  { value: 90, label: 'E', color: '#eab308' },
+  { value: 135, label: 'SE', color: '#84cc16' },
+  { value: 180, label: 'S', color: '#16a34a' },
+  { value: 225, label: 'SW', color: '#06b6d4' },
+  { value: 270, label: 'W', color: '#2563eb' },
+  { value: 315, label: 'NW', color: '#a855f7' },
+  { value: 360, label: 'N', color: '#dc2626' },
+] as const
+export const TERRAIN_ASPECT_FLAT_COLOR = '#cbd5e1'
+
+export type TerrainAspect = { state: 'aspect'; degrees: number } | { state: 'flat' | 'no-data'; degrees: null }
+
+/**
+ * dz/deast and dz/dnorth use the same metric gradient convention as hillshade.
+ * Aspect points downhill, opposite that gradient, clockwise from north.
+ * The tiny flat threshold suppresses numerical noise, not a slope-class rule.
+ */
+export function terrainAspectFromGradient(eastGradient: number, northGradient: number): TerrainAspect {
+  if (!Number.isFinite(eastGradient) || !Number.isFinite(northGradient)) return { state: 'no-data', degrees: null }
+  if (Math.hypot(eastGradient, northGradient) <= 1e-10) return { state: 'flat', degrees: null }
+  return {
+    state: 'aspect',
+    degrees: ((Math.atan2(-eastGradient, -northGradient) * 180) / Math.PI + 360) % 360,
+  }
+}
+
 const MAX_CONTOUR_SEGMENTS = 60_000
 const clamp = (n: number, low: number, high: number) => Math.max(low, Math.min(high, n))
 type Color = [number, number, number]
@@ -35,6 +67,8 @@ const rgb = (hex: string): Color => [
   Number.parseInt(hex.slice(5, 7), 16),
 ]
 const slopeColors = TERRAIN_SLOPE_STOPS.map((stop) => ({ value: stop.value, rgb: rgb(stop.color) }))
+const aspectColors = TERRAIN_ASPECT_STOPS.map((stop) => ({ value: stop.value, rgb: rgb(stop.color) }))
+const flatAspectColor = rgb(TERRAIN_ASPECT_FLAT_COLOR)
 const elevationColors: Color[] = ['#dce7c6', '#a7bea0', '#698d79', '#baa77c', '#d5cbb2', '#f0eee9'].map(rgb)
 
 function mix(a: Color, b: Color, t: number): Color {
@@ -51,6 +85,12 @@ function elevationColor(value: number, min: number, max: number): Color {
   const position = clamp((value - min) / Math.max(0.01, max - min), 0, 1) * (elevationColors.length - 1)
   const index = Math.min(elevationColors.length - 2, Math.floor(position))
   return mix(elevationColors[index], elevationColors[index + 1], position - index)
+}
+function aspectColor(degrees: number): Color {
+  const index = Math.min(aspectColors.length - 2, Math.floor(degrees / 45))
+  const a = aspectColors[index],
+    b = aspectColors[index + 1]
+  return mix(a.rgb, b.rgb, (degrees - a.value) / (b.value - a.value))
 }
 function encodePng(pixels: Uint8ClampedArray, width: number, height: number): string {
   const canvas = document.createElement('canvas')
@@ -126,9 +166,9 @@ export function buildTerrainDisplay(
   const midLat = (bounds[1] + bounds[3]) / 2
   const widthMeters = (((bounds[2] - bounds[0]) * Math.PI) / 180) * 6371008.8 * Math.cos((midLat * Math.PI) / 180)
   const heightMeters = (((bounds[3] - bounds[1]) * Math.PI) / 180) * 6371008.8
-  const aspect = widthMeters / heightMeters
-  const width = Math.max(8, aspect >= 1 ? maxSide : Math.round(maxSide * aspect))
-  const height = Math.max(8, aspect <= 1 ? maxSide : Math.round(maxSide / aspect))
+  const aspectRatio = widthMeters / heightMeters
+  const width = Math.max(8, aspectRatio >= 1 ? maxSide : Math.round(maxSide * aspectRatio))
+  const height = Math.max(8, aspectRatio <= 1 ? maxSide : Math.round(maxSide / aspectRatio))
   const dx = widthMeters / width,
     dy = heightMeters / height
   const lonStep = (bounds[2] - bounds[0]) / width,
@@ -152,6 +192,7 @@ export function buildTerrainDisplay(
   const hillshade = new Uint8ClampedArray(width * height * 4)
   const slope = new Uint8ClampedArray(width * height * 4)
   const elevation = new Uint8ClampedArray(width * height * 4)
+  const aspect = new Uint8ClampedArray(width * height * 4)
   const write = (buffer: Uint8ClampedArray, index: number, color: Color) => {
     buffer.set([...color, 255], index * 4)
   }
@@ -180,6 +221,9 @@ export function buildTerrainDisplay(
       const shade = Math.round(55 + light * 200)
       write(hillshade, index, [shade, shade, shade])
       write(slope, index, slopeColor((Math.atan(Math.hypot(zx, zy)) * 180) / Math.PI))
+      const direction = terrainAspectFromGradient(zx, zy)
+      if (direction.state === 'aspect') write(aspect, index, aspectColor(direction.degrees))
+      else if (direction.state === 'flat') write(aspect, index, flatAspectColor)
     }
 
   // Count edge crossings before allocating line coordinates (two per segment).
@@ -271,6 +315,7 @@ export function buildTerrainDisplay(
     hillshade: encodePng(hillshade, width, height),
     slope: encodePng(slope, width, height),
     elevation: encodePng(elevation, width, height),
+    aspect: encodePng(aspect, width, height),
     coordinates: [
       [bounds[0], bounds[3]],
       [bounds[2], bounds[3]],

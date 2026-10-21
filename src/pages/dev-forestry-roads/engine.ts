@@ -20,6 +20,9 @@ import type {
   TerrainSource,
   VerticalPoint,
 } from './types'
+import { engineeringKnots, sideValue, templateAt, validateEngineering, validateTemplate } from './templates'
+import { calculateEngineering } from './engineering'
+import { resolvedCableLine } from './cableGeometry'
 
 const R = 6371008.8
 const RAD = Math.PI / 180
@@ -255,6 +258,21 @@ function location(
 }
 
 export const alignmentLength = (alignment: Alignment): number => compile(alignment).length
+/** Only actual fitted circular arcs; rejected radii remain sharp PIs and are absent. */
+export function horizontalCurveSummary(alignment: Alignment) {
+  return compile(alignment).pieces.flatMap((p) =>
+    p.radius === null
+      ? []
+      : [
+          {
+            start: p.station,
+            end: p.station + p.length,
+            length: p.length,
+            radius: p.radius,
+          },
+        ],
+  )
+}
 export function positionAt(alignment: Alignment, chainage: number): { coordinate: Coordinate; bearing: number } {
   const p = location(compile(alignment), chainage)
   return { coordinate: p.coordinate, bearing: p.bearing }
@@ -290,7 +308,8 @@ function widthExtras(alignment: Alignment, chainage: number, surfacedOnly = fals
 /** Overlapping widenings use the greatest requested extra width on each side. */
 export function effectiveWidths(alignment: Alignment, chainage: number): { leftWidth: number; rightWidth: number } {
   const [left, right] = widthExtras(alignment, chainage)
-  return { leftWidth: alignment.template.leftWidth + left, rightWidth: alignment.template.rightWidth + right }
+  const t = templateAt(alignment, chainage).template
+  return { leftWidth: t.leftWidth + left, rightWidth: t.rightWidth + right }
 }
 
 function verticalProfile(points: VerticalPoint[], warnings: string[]) {
@@ -336,6 +355,22 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
     )
   }
   return {
+    curves: pv
+      .map((p, i) => ({
+        pviId: p.id,
+        chainage: p.chainage,
+        start: p.chainage - p.curveLength / 2,
+        end: p.chainage + p.curveLength / 2,
+        length: p.curveLength,
+        g1: i > 0 ? slope(i - 1) * 100 : null,
+        g2: i < pv.length - 1 ? slope(i) * 100 : null,
+        k:
+          i > 0 && i < pv.length - 1 && Math.abs(slope(i) - slope(i - 1)) > EPS
+            ? p.curveLength / (100 * Math.abs(slope(i) - slope(i - 1)))
+            : null,
+        valid: curves[i] !== null,
+      }))
+      .filter((p) => p.length > 0),
     knots: pv.flatMap((p, i) => (curves[i] ? [curves[i]!.start, p.chainage, curves[i]!.end] : [p.chainage])),
     value(s: number): { elevation: number; grade: number } | null {
       if (!pv.length) return null
@@ -353,6 +388,11 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
       return { elevation: pv[i].elevation + slope(i) * (s - pv[i].chainage), grade: 100 * slope(i) }
     },
   }
+}
+
+/** Grades are percent; K is metres per percentage-point of grade change. */
+export function verticalCurveSummary(alignment: Alignment) {
+  return verticalProfile(alignment.vertical, []).curves
 }
 
 function validate(alignment: Alignment, settings: RoadSettings) {
@@ -374,27 +414,8 @@ function validate(alignment: Alignment, settings: RoadSettings) {
     [settings.cutRate, settings.fillRate, settings.surfacingRate, settings.clearingRate].some((v) => v < 0)
   )
     throw new Error('Design limits, material factors and unit rates are outside their supported ranges.')
-  const t = alignment.template
-  if (
-    Object.values(t).some((v) => !Number.isFinite(v)) ||
-    t.leftWidth <= 0 ||
-    t.rightWidth <= 0 ||
-    t.leftWidth > 50 ||
-    t.rightWidth > 50 ||
-    t.crossfallPercent < 0 ||
-    t.crossfallPercent > 20 ||
-    t.cutSlope <= 0 ||
-    t.fillSlope <= 0 ||
-    t.cutSlope > 10 ||
-    t.fillSlope > 10 ||
-    t.ditchWidth < 0 ||
-    t.ditchWidth > 10 ||
-    t.ditchDepth < 0 ||
-    t.ditchDepth > 5 ||
-    t.surfaceDepth < 0 ||
-    t.surfaceDepth > 2
-  )
-    throw new Error('Road template dimensions or side slopes are outside their supported ranges.')
+  validateTemplate(alignment.template)
+  if (alignment.engineering) validateEngineering(alignment.engineering)
   if (
     alignment.overrides.length > 200 ||
     alignment.overrides.some(
@@ -425,7 +446,7 @@ function sectionAt(
   terrain: TerrainSource,
 ): SectionResult {
   const { leftWidth, rightWidth } = effectiveWidths(alignment, s),
-    t = alignment.template
+    t = templateAt(alignment, s).template
   const step = Math.max(0.25, (2 * halfWidth) / 220)
   const cache = new Map<number, number | null>()
   const ground = (x: number) => {
@@ -436,12 +457,26 @@ function sectionAt(
     return v
   }
   const flags: string[] = []
-  type Side = { width: number; outer: number; edgeZ: number; ditch: boolean; slope: number; daylight: number | null }
+  type Side = {
+    width: number
+    outer: number
+    edgeZ: number
+    ditch: boolean
+    slope: number
+    daylight: number | null
+    crossfall: number
+    ditchWidth: number
+    ditchDepth: number
+  }
   const side = (sign: number, width: number): Side => {
-    const edgeZ = (z ?? NaN) - (width * t.crossfallPercent) / 100
+    const name = sign < 0 ? 'left' : 'right'
+    const crossfall = sideValue(t, name, 'CrossfallPercent'),
+      ditchWidth = sideValue(t, name, 'DitchWidth'),
+      ditchDepth = sideValue(t, name, 'DitchDepth')
+    const edgeZ = (z ?? NaN) - (width * crossfall) / 100
     const atEdge = ground(sign * width)
-    const ditch = atEdge !== null && atEdge > edgeZ + EPS && t.ditchWidth > 0 && t.ditchDepth > 0
-    const outer = width + (ditch ? t.ditchWidth : 0),
+    const ditch = atEdge !== null && atEdge > edgeZ + EPS && ditchWidth > 0 && ditchDepth > 0
+    const outer = width + (ditch ? ditchWidth : 0),
       g = ground(sign * outer)
     let slope = 0,
       daylight: number | null = null
@@ -449,7 +484,7 @@ function sectionAt(
       const difference = g - edgeZ
       if (Math.abs(difference) < EPS) daylight = outer
       else {
-        slope = difference > 0 ? 1 / t.cutSlope : -1 / t.fillSlope
+        slope = difference > 0 ? 1 / sideValue(t, name, 'CutSlope') : -1 / sideValue(t, name, 'FillSlope')
         let a = outer,
           da = difference
         while (a < halfWidth - EPS) {
@@ -485,7 +520,7 @@ function sectionAt(
         }
       }
     }
-    return { width, outer, edgeZ, ditch, slope, daylight }
+    return { width, outer, edgeZ, ditch, slope, daylight, crossfall, ditchWidth, ditchDepth }
   }
   const left = side(-1, leftWidth),
     right = side(1, rightWidth)
@@ -493,8 +528,8 @@ function sectionAt(
   const count = Math.ceil((2 * halfWidth) / step)
   for (let i = 0; i <= count; i++) offsets.push(-halfWidth + (2 * halfWidth * i) / count)
   offsets.push(0, -leftWidth, rightWidth, -left.outer, right.outer)
-  if (left.ditch) offsets.push(-(leftWidth + t.ditchWidth / 2))
-  if (right.ditch) offsets.push(rightWidth + t.ditchWidth / 2)
+  if (left.ditch) offsets.push(-(leftWidth + left.ditchWidth / 2))
+  if (right.ditch) offsets.push(rightWidth + right.ditchWidth / 2)
   if (left.daylight !== null) offsets.push(-left.daylight)
   if (right.daylight !== null) offsets.push(right.daylight)
   const ordered = [
@@ -504,9 +539,9 @@ function sectionAt(
     if (z === null) return null
     const d = Math.abs(x),
       side = x < 0 ? left : right
-    if (d <= side.width + EPS) return z - (d * t.crossfallPercent) / 100
+    if (d <= side.width + EPS) return z - (d * side.crossfall) / 100
     if (side.ditch && d <= side.outer + EPS)
-      return side.edgeZ - t.ditchDepth * (1 - Math.abs((2 * (d - side.width)) / t.ditchWidth - 1))
+      return side.edgeZ - side.ditchDepth * (1 - Math.abs((2 * (d - side.width)) / side.ditchWidth - 1))
     if (side.daylight !== null && d > side.daylight + EPS) return null
     return side.edgeZ + side.slope * (d - side.outer)
   }
@@ -742,7 +777,14 @@ export function analyzeRoad(
     warnings.push('No vertical alignment: formation follows the sampled ground at the centreline.')
   if (alignment.vertical.some((p) => p.chainage > path.length + EPS))
     warnings.push('A vertical point lies beyond the current road end; its tangent still defines the intervening grade.')
-  const knots = [0, path.length, ...path.boundaries, ...profile.knots, ...crossings.map((c) => c.chainage)]
+  const knots = [
+    0,
+    path.length,
+    ...path.boundaries,
+    ...profile.knots,
+    ...crossings.map((c) => c.chainage),
+    ...engineeringKnots(alignment),
+  ]
   for (const r of alignment.overrides) {
     const taper = Math.min(r.taper, (r.end - r.start) / 2)
     knots.push(r.start, r.start + taper, r.end - taper, r.end)
@@ -805,9 +847,13 @@ export function analyzeRoad(
     completeLength = 0,
     mass = 0,
     massKnown = stations[0]?.complete ?? false
-  const surfaceWidth = (s: number) => {
-    const e = widthExtras(alignment, s, true)
-    return alignment.template.leftWidth + alignment.template.rightWidth + e[0] + e[1]
+  const surfaceArea = (s: number) => {
+    const e = widthExtras(alignment, s, true),
+      t = templateAt(alignment, s).template
+    return (
+      (t.leftWidth + e[0]) * sideValue(t, 'left', 'SurfaceDepth') +
+      (t.rightWidth + e[1]) * sideValue(t, 'right', 'SurfaceDepth')
+    )
   }
   for (let i = 0; i < stations.length; i++) {
     const p = stations[i],
@@ -833,8 +879,9 @@ export function analyzeRoad(
       cutVolumeM3 += p.cutVolumeM3
       fillVolumeM3 += p.fillVolumeM3
       completeLength += ds
+      // Width and surface depth may both transition linearly: their product is quadratic.
       surfaceVolumeM3 +=
-        ((surfaceWidth(a.chainage) + surfaceWidth(p.chainage)) / 2) * ds * alignment.template.surfaceDepth
+        ((surfaceArea(a.chainage) + 4 * surfaceArea((a.chainage + p.chainage) / 2) + surfaceArea(p.chainage)) / 6) * ds
       clearingAreaM2 += ((a.leftDaylightM! + a.rightDaylightM! + p.leftDaylightM! + p.rightDaylightM!) / 2) * ds
       if (massKnown) {
         mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
@@ -854,7 +901,7 @@ export function analyzeRoad(
   if (stations.some((s) => s.flags.some((v) => v.startsWith('Avoidance area:'))))
     warnings.push('The alignment enters a supplied avoidance area.')
   const balanceM3 = cutVolumeM3 * settings.shrinkFactor - fillVolumeM3
-  return {
+  const result: RoadAnalysis = {
     stations,
     centerline: flat.map((p) => path.frame.fromXY(p.xy)),
     crossings,
@@ -874,10 +921,28 @@ export function analyzeRoad(
     coveragePercent,
     warnings: [...new Set(warnings)],
   }
+  if (alignment.engineering) {
+    const engineering = calculateEngineering(alignment, result, settings, terrain, {
+      positionAt: (s) => location(path, s),
+      offsetCoordinate,
+      designElevationAt: (s) =>
+        profile.value(s)?.elevation ?? finite(terrain.elevationAt(...location(path, s).coordinate)),
+      widthsAt: (s) => effectiveWidths(alignment, s),
+    })
+    result.engineering = engineering
+    result.estimatedCost = engineering.costs.total
+    result.balanceM3 = engineering.balanceM3
+    result.stations.forEach((station, i) => {
+      station.massM3 = engineering.stations[i].massM3
+    })
+    result.warnings = [...new Set([...result.warnings, ...engineering.warnings])]
+  }
+  return result
 }
 
 /** Assumed parabolic sag: geometric clearance only, not cable tension or payload. */
-export function analyzeCable(line: CableLine, terrain: TerrainSource): CableAnalysis {
+export function analyzeCable(input: CableLine, terrain: TerrainSource): CableAnalysis {
+  const line = resolvedCableLine(input)
   if (
     ![...line.start, ...line.end, line.startHeight, line.endHeight, line.deflectionPercent].every(Number.isFinite) ||
     line.startHeight < 0 ||

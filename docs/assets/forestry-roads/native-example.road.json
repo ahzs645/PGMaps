@@ -1,0 +1,279 @@
+{
+  "schema": "pgmaps-road-project-v1",
+  "name": "BC LiDAR · road-planning example",
+  "activeAlignmentId": "lidar-example",
+  "alignments": [
+    {
+      "id": "lidar-example",
+      "name": "Access road · entered design assumptions",
+      "color": "#d97706",
+      "points": [
+        {
+          "id": "lidar-example-p0",
+          "coordinate": [
+            -122.82129897142148,
+            53.89189050471024
+          ],
+          "radiusM": 0
+        },
+        {
+          "id": "lidar-example-p1",
+          "coordinate": [
+            -122.81753480349023,
+            53.89251221193281
+          ],
+          "radiusM": 30
+        },
+        {
+          "id": "lidar-example-p2",
+          "coordinate": [
+            -122.81376885058181,
+            53.89351021970725
+          ],
+          "radiusM": 30
+        },
+        {
+          "id": "lidar-example-p3",
+          "coordinate": [
+            -122.81000499499436,
+            53.89400621758975
+          ],
+          "radiusM": 30
+        },
+        {
+          "id": "lidar-example-p4",
+          "coordinate": [
+            -122.80623872886757,
+            53.89500398865429
+          ],
+          "radiusM": 0
+        }
+      ],
+      "vertical": [
+        {
+          "id": "lidar-example-v0",
+          "chainage": 0,
+          "elevation": 798.8606817627345,
+          "curveLength": 0
+        },
+        {
+          "id": "lidar-example-v1",
+          "chainage": 251.9958096484716,
+          "elevation": 784.3928127506017,
+          "curveLength": 40
+        },
+        {
+          "id": "lidar-example-v2",
+          "chainage": 524.9912701009825,
+          "elevation": 765.3606843731491,
+          "curveLength": 40
+        },
+        {
+          "id": "lidar-example-v3",
+          "chainage": 797.9867305534934,
+          "elevation": 747.7785492225448,
+          "curveLength": 40
+        },
+        {
+          "id": "lidar-example-v4",
+          "chainage": 984.9825402019651,
+          "elevation": 699.786611943637,
+          "curveLength": 40
+        },
+        {
+          "id": "lidar-example-v5",
+          "chainage": 1049.982540201965,
+          "elevation": 700.286611943847,
+          "curveLength": 0
+        }
+      ],
+      "template": {
+        "leftWidth": 3,
+        "rightWidth": 3,
+        "crossfallPercent": 3,
+        "cutSlope": 0.75,
+        "fillSlope": 1.5,
+        "ditchWidth": 1,
+        "ditchDepth": 0.5,
+        "surfaceDepth": 0.25
+      },
+      "overrides": [
+        {
+          "id": "lidar-example-turnout",
+          "name": "Passing turnout",
+          "kind": "turnout",
+          "side": "left",
+          "start": 200,
+          "end": 260,
+          "taper": 10,
+          "extraWidth": 4
+        },
+        {
+          "id": "lidar-example-landing",
+          "name": "Terminal landing",
+          "kind": "landing",
+          "side": "left",
+          "start": 989.9825402019651,
+          "end": 1049.982540201965,
+          "taper": 12,
+          "extraWidth": 9
+        }
+      ],
+      "engineering": {
+        "templates": [
+          {
+            "id": "example-template",
+            "name": "Wider road · example",
+            "template": {
+              "leftWidth": 4.5,
+              "rightWidth": 3.5,
+              "crossfallPercent": 3,
+              "cutSlope": 0.75,
+              "fillSlope": 1.5,
+              "ditchWidth": 1,
+              "ditchDepth": 0.5,
+              "surfaceDepth": 0.25,
+              "leftDitchDepth": 0.6,
+              "rightDitchDepth": 0.4
+            }
+          }
+        ],
+        "assignments": [
+          {
+            "id": "example-assignment",
+            "start": 200,
+            "end": 450,
+            "templateId": "example-template",
+            "side": "both",
+            "transitionM": 20
+          }
+        ],
+        "materials": [
+          {
+            "id": "example-till",
+            "name": "Till · assumed",
+            "color": "#a16207",
+            "cutRate": 18,
+            "reusableFraction": 0.75,
+            "compactionFactor": 0.9,
+            "purpose": "earthwork"
+          },
+          {
+            "id": "example-rock",
+            "name": "Rock · assumed",
+            "color": "#64748b",
+            "cutRate": 65,
+            "reusableFraction": 0.35,
+            "compactionFactor": 1.1,
+            "purpose": "earthwork"
+          }
+        ],
+        "strata": [
+          {
+            "id": "example-till-range",
+            "start": 0,
+            "end": 2000,
+            "materialId": "example-till",
+            "topDepthM": 0,
+            "bottomDepthM": 1.5
+          },
+          {
+            "id": "example-rock-range",
+            "start": 0,
+            "end": 2000,
+            "materialId": "example-rock",
+            "topDepthM": 1.5,
+            "bottomDepthM": null
+          }
+        ],
+        "culverts": [
+          {
+            "id": "example-drain",
+            "name": "Cross-drain A · example",
+            "chainage": 300,
+            "skewDegrees": 15,
+            "lengthM": 22,
+            "diameterM": 0.8,
+            "inletInvertM": 778.146157,
+            "outletInvertM": 777.646157,
+            "minCoverM": 0.6,
+            "unitCost": 320,
+            "fixedCost": 1500,
+            "kind": "cross-drain"
+          }
+        ],
+        "sites": [
+          {
+            "id": "example-borrow",
+            "name": "Borrow access · assumed",
+            "kind": "borrow",
+            "chainage": 200,
+            "accessDistanceM": 150,
+            "capacityM3": null,
+            "unitRate": 32,
+            "fixedCost": 2500
+          },
+          {
+            "id": "example-waste",
+            "name": "Waste access · assumed",
+            "kind": "waste",
+            "chainage": 800,
+            "accessDistanceM": 250,
+            "capacityM3": null,
+            "unitRate": 12,
+            "fixedCost": 1500
+          }
+        ],
+        "haul": {
+          "enabled": true,
+          "freeHaulDistanceM": 25,
+          "overhaulDistanceM": 150,
+          "overhaulRate": 6,
+          "endHaulRate": 8,
+          "borrowRate": 32,
+          "wasteRate": 12,
+          "mobilizationCost": 12000,
+          "contingencyPercent": 15
+        }
+      }
+    }
+  ],
+  "terrain": {
+    "kind": "geotiff",
+    "name": "BC 093G086 · classified-ground LiDAR DTM · 1 m (July 2024)",
+    "resolutionM": 1,
+    "verticalReference": "CGVD2013 (CGG2013), EPSG:6647; metres",
+    "epsg": 3157,
+    "sha256": "b1259f310ceed97a11f25883d7df609390b977a293b622f9e4946a7853ad00e2",
+    "sourceUrl": "https://pgmaps.ahmadjalil.com/data/lidar-analysis/bc-093g086/dtm-1m.tif"
+  },
+  "settings": {
+    "stationInterval": 10,
+    "crossSectionHalfWidth": 35,
+    "maxGradePercent": 12,
+    "minRadius": 25,
+    "cutRate": 12,
+    "fillRate": 8,
+    "surfacingRate": 40,
+    "clearingRate": 1.5,
+    "shrinkFactor": 0.9
+  },
+  "context": [],
+  "cables": [
+    {
+      "id": "424d4a9e-f30b-4bbd-a9f9-d17a9ab71e5a",
+      "name": "Landing D-line 90.0°",
+      "start": [
+        -122.81414088635029,
+        53.89341163460771
+      ],
+      "end": [
+        -122.81185172102943,
+        53.89341161283564
+      ],
+      "startHeight": 18,
+      "endHeight": 8,
+      "deflectionPercent": 3
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/re
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
+import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import type { Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
 
 interface Vertex {
@@ -84,15 +85,7 @@ function localFrame(origin: Coordinate) {
 }
 
 function sampleSection(station: RoadStation, offset: number): number | null {
-  for (let i = 1; i < station.section.length; i++) {
-    const a = station.section[i - 1],
-      b = station.section[i]
-    if (offset >= a.offset && offset <= b.offset && finite(a.design) && finite(b.design)) {
-      const f = (offset - a.offset) / Math.max(0.00001, b.offset - a.offset)
-      return a.design + f * (b.design - a.design)
-    }
-  }
-  return null
+  return sectionSampleAt(station, offset).design
 }
 
 function sideways(station: RoadStation, offset: number, frame: ReturnType<typeof localFrame>): Vertex | null {
@@ -131,6 +124,8 @@ export function TerrainPreview({
   playing = false,
   terrainOnly = false,
   sourceLabel = 'Project terrain',
+  selectedCulvertId,
+  onSelectCulvert,
 }: {
   analysis: RoadAnalysis
   terrain: TerrainSource
@@ -139,12 +134,15 @@ export function TerrainPreview({
   playing?: boolean
   terrainOnly?: boolean
   sourceLabel?: string
+  selectedCulvertId?: string
+  onSelectCulvert?: (id: string) => void
 }) {
   const [mode, setMode] = useState<'orbit' | 'follow'>('orbit')
   const [yaw, setYaw] = useState(28)
   const [pitch, setPitch] = useState(42)
   const [exaggeration, setExaggeration] = useState(1)
   const [wireframe, setWireframe] = useState(false)
+  const [showEarthwork, setShowEarthwork] = useState(true)
   const drag = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null)
   const active = analysis.stations.reduce<RoadStation | undefined>(
     (best, candidate) =>
@@ -152,6 +150,9 @@ export function TerrainPreview({
     undefined,
   )
   const followingStation = mode === 'follow' ? active : undefined
+  const selectedCulvert = terrainOnly
+    ? undefined
+    : analysis.engineering?.culverts.find((c) => c.id === selectedCulvertId)
   const sourceGeometry = useMemo(() => {
     if (!analysis.stations.length) return null
     const origin = analysis.stations[0].coordinate
@@ -200,6 +201,7 @@ export function TerrainPreview({
     const step = Math.max(1, Math.ceil(analysis.stations.length / 180))
     const selected = analysis.stations.filter((_, i) => i % step === 0 || i === analysis.stations.length - 1)
     const road: Face[] = []
+    const earthwork: Face[] = []
     const line: Array<{ vertex: Vertex | null; chainage: number; connected: boolean }> = []
     for (let i = 0; i < selected.length; i++) {
       const s = selected[i]
@@ -233,17 +235,69 @@ export function TerrainPreview({
         const vertices = clipFace([leftA, rightA, rightB, leftB], bounds)
         if (vertices.length >= 3) road.push({ vertices, fill: '#e8c886', station: (a.chainage + b.chainage) / 2 })
       }
+      if (analysis.stations.slice(a.index, b.index + 1).every((sample) => sample.complete)) {
+        for (const side of [-1, 1]) {
+          const edgeA = side < 0 ? -a.leftWidth : a.rightWidth
+          const edgeB = side < 0 ? -b.leftWidth : b.rightWidth
+          const daylightA = side < 0 ? (a.leftDaylightM === null ? null : -Math.abs(a.leftDaylightM)) : a.rightDaylightM
+          const daylightB = side < 0 ? (b.leftDaylightM === null ? null : -Math.abs(b.leftDaylightM)) : b.rightDaylightM
+          if (!finite(daylightA) || !finite(daylightB)) continue
+          for (let part = 0; part < 6; part++) {
+            const t0 = part / 6,
+              t1 = (part + 1) / 6
+            const face = [
+              sideways(a, edgeA + (daylightA - edgeA) * t0, frame),
+              sideways(a, edgeA + (daylightA - edgeA) * t1, frame),
+              sideways(b, edgeB + (daylightB - edgeB) * t1, frame),
+              sideways(b, edgeB + (daylightB - edgeB) * t0, frame),
+            ]
+            if (!face.every((vertex): vertex is Vertex => vertex !== null)) continue
+            const vertices = clipFace(face, bounds)
+            const midpoint = edgeA + ((daylightA - edgeA) * (t0 + t1)) / 2
+            const sample = a.section.reduce(
+              (best, value) => (Math.abs(value.offset - midpoint) < Math.abs(best.offset - midpoint) ? value : best),
+              a.section[0],
+            )
+            if (vertices.length >= 3 && sample && finite(sample.ground) && finite(sample.design))
+              earthwork.push({
+                vertices,
+                fill: sample.ground >= sample.design ? '#dca365' : '#79a9d9',
+                station: (a.chainage + b.chainage) / 2,
+              })
+          }
+        }
+      }
     }
     const zValues = vertices
       .flat()
       .filter((p): p is Vertex => p !== null)
       .map((p) => p.z)
+    const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
+    const ditchPoints = analysis.stations.map((s) => {
+      const template = templates.get(s.chainage)
+      return !terrainOnly && template ? sectionCodePoints(s, template) : []
+    })
+    const ditches = analysis.stations.slice(1).flatMap((b, index) => {
+      const a = analysis.stations[index]
+      return (['left', 'right'] as const).flatMap((side) => {
+        const pa = ditchPoints[index].find((p) => p.code === `${side}-ditch-bottom`),
+          pb = ditchPoints[index + 1].find((p) => p.code === `${side}-ditch-bottom`)
+        if (!pa || !pb || !finite(pa.ground) || !finite(pb.ground) || !finite(pa.design) || !finite(pb.design))
+          return []
+        const va = sideways(a, pa.offset, frame),
+          vb = sideways(b, pb.offset, frame)
+        const clipped = va && vb ? clipLine(va, vb, bounds) : null
+        return clipped ? [{ a: clipped[0], b: clipped[1], chainage: (a.chainage + b.chainage) / 2, side }] : []
+      })
+    })
     const medianZ = zValues.length ? [...zValues].sort((a, b) => a - b)[Math.floor(zValues.length / 2)] : 0
     return {
       frame,
       bounds,
       ground,
       road,
+      earthwork,
+      ditches,
       line,
       medianZ,
       low: zValues.length ? Math.min(...zValues) : 0,
@@ -272,6 +326,31 @@ export function TerrainPreview({
           size="sm"
           fullWidth={false}
         />
+        {!terrainOnly && !!analysis.engineering?.culverts.length && (
+          <label className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+            Structure
+            <select
+              aria-label="3D structure"
+              className="max-w-[190px] rounded border bg-background px-1 py-1 text-xs text-foreground"
+              value={selectedCulvert?.id ?? ''}
+              onChange={(event) => {
+                const culvert = analysis.engineering?.culverts.find((c) => c.id === event.target.value)
+                if (!culvert) return
+                onSelectCulvert?.(culvert.id)
+                onStation(culvert.chainage)
+              }}
+            >
+              <option value="" disabled>
+                Select a culvert
+              </option>
+              {analysis.engineering.culverts.map((culvert) => (
+                <option key={culvert.id} value={culvert.id}>
+                  {culvert.name} · {formatRoadStation(culvert.chainage)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="flex items-center gap-1">
           <Button
             size="sm"
@@ -302,6 +381,17 @@ export function TerrainPreview({
           >
             Mesh
           </Button>
+          {!terrainOnly && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-[11px]"
+              aria-pressed={showEarthwork}
+              onClick={() => setShowEarthwork((value) => !value)}
+            >
+              Batters
+            </Button>
+          )}
           <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
             Vertical
             <select
@@ -396,6 +486,23 @@ export function TerrainPreview({
                       return project({ x, y, z: activeElevation })
                     })()
                   : null
+              const culverts = terrainOnly
+                ? []
+                : (analysis.engineering?.culverts ?? []).map((culvert) => {
+                    const segments = culvert.profile.slice(1).flatMap((p, i) => {
+                      const previous = culvert.profile[i]
+                      if (!finite(previous.crownElevation) || !finite(p.crownElevation)) return []
+                      const [ax, ay] = frame.point(previous.coordinate),
+                        [bx, by] = frame.point(p.coordinate)
+                      const clipped = clipLine(
+                        { x: ax, y: ay, z: previous.crownElevation },
+                        { x: bx, y: by, z: p.crownElevation },
+                        bounds,
+                      )
+                      return clipped ? [{ a: project(clipped[0]), b: project(clipped[1]) }] : []
+                    })
+                    return { culvert, segments }
+                  })
               return (
                 <svg
                   width={width}
@@ -454,21 +561,95 @@ export function TerrainPreview({
                       strokeOpacity={wireframe ? 0.45 : 1}
                     />
                   ))}
-                  {faces(sourceGeometry.road).map((face, i) => (
-                    <polygon
-                      key={`road${i}`}
-                      points={face.points}
-                      fill={face.fill}
-                      stroke="#94744a"
-                      strokeWidth={0.3}
-                      opacity={0.95}
-                      className="cursor-pointer"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => onStation(face.station ?? 0)}
-                    >
-                      <title>Formation at {formatRoadStation(face.station ?? 0)}; click to inspect</title>
-                    </polygon>
-                  ))}
+                  {faces([...(showEarthwork ? sourceGeometry.earthwork : []), ...sourceGeometry.road]).map(
+                    (face, i) => (
+                      <polygon
+                        key={`road${i}`}
+                        points={face.points}
+                        fill={face.fill}
+                        stroke="#94744a"
+                        strokeWidth={0.3}
+                        opacity={0.95}
+                        className="cursor-pointer"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={() => onStation(face.station ?? 0)}
+                      >
+                        <title>Design surface at {formatRoadStation(face.station ?? 0)}; click to inspect</title>
+                      </polygon>
+                    ),
+                  )}
+                  {culverts
+                    .sort(
+                      (a, b) => Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
+                    )
+                    .map(({ culvert, segments }) => (
+                      <g
+                        key={culvert.id}
+                        role="button"
+                        tabIndex={segments.length ? 0 : undefined}
+                        aria-label={`Inspect 3D culvert ${culvert.name}`}
+                        aria-pressed={selectedCulvertId === culvert.id}
+                        className="cursor-pointer"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={() => {
+                          onSelectCulvert?.(culvert.id)
+                          onStation(culvert.chainage)
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            onSelectCulvert?.(culvert.id)
+                            onStation(culvert.chainage)
+                          }
+                        }}
+                      >
+                        {segments.map(({ a, b }, index) => (
+                          <line
+                            key={index}
+                            x1={a.x}
+                            y1={a.y}
+                            x2={b.x}
+                            y2={b.y}
+                            stroke={
+                              selectedCulvertId === culvert.id
+                                ? ROAD_CHART_COLORS.selected
+                                : culvert.warnings.length
+                                  ? '#b45309'
+                                  : '#0284c7'
+                            }
+                            strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
+                          />
+                        ))}
+                        <title>
+                          {culvert.name} · {formatRoadStation(culvert.chainage)} · entered barrel crown geometry
+                        </title>
+                      </g>
+                    ))}
+                  {showEarthwork &&
+                    sourceGeometry.ditches.map((segment, index) => {
+                      const a = project(segment.a),
+                        b = project(segment.b)
+                      return (
+                        <line
+                          key={`ditch-${index}`}
+                          x1={a.x}
+                          y1={a.y}
+                          x2={b.x}
+                          y2={b.y}
+                          stroke={ROAD_CHART_COLORS.ditch}
+                          strokeWidth={1.5}
+                          strokeDasharray="3 2"
+                          className="cursor-pointer"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => onStation(segment.chainage)}
+                        >
+                          <title>
+                            {segment.side} ditch bottom at {formatRoadStation(segment.chainage)}
+                          </title>
+                        </line>
+                      )
+                    })}
                   {route.map((segment, i) => (
                     <line
                       key={`line${i}`}
@@ -549,6 +730,16 @@ export function TerrainPreview({
         {sourceLabel} · ground mesh · {terrainOnly ? 'sampled terrain transect' : 'formation overlay'} ·{' '}
         {sourceGeometry ? `${sourceGeometry.meshSpacing.toFixed(1)} m preview spacing` : 'no surface'} · vertical ×
         {exaggeration}. Analysis retains the source resolution. Terrain gaps stay open.
+        {!terrainOnly &&
+          showEarthwork &&
+          ' Batters use computed sections (amber cut, blue fill); blue dashed lines mark actual cut-side ditch bottoms. Design surfaces are overlaid on original ground.'}
+        {selectedCulvert && (
+          <p className="text-rose-700 dark:text-rose-300" data-testid="road-3d-selected-culvert">
+            Selected: {selectedCulvert.name} · {formatRoadStation(selectedCulvert.chainage)} · cover{' '}
+            {selectedCulvert.coverM === null ? 'unknown' : `${selectedCulvert.coverM.toFixed(2)} m`}.{' '}
+            {selectedCulvert.warnings.join(' ')}
+          </p>
+        )}
       </div>
     </div>
   )

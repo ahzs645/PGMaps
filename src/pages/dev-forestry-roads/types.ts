@@ -1,5 +1,7 @@
 import type { LocalRaster } from '../dev-forestry/types'
 import type { ElevationSource } from '../dev-forestry/terrain'
+import type { AlignmentEngineering, EngineeringAnalysis } from './engineeringTypes'
+export type * from './engineeringTypes'
 
 export type Coordinate = [number, number]
 export interface RoadPoint {
@@ -22,6 +24,19 @@ export interface RoadTemplate {
   ditchWidth: number
   ditchDepth: number
   surfaceDepth: number
+  /** Optional side-specific values; omitted values inherit the symmetric base setting. */
+  leftCrossfallPercent?: number
+  rightCrossfallPercent?: number
+  leftCutSlope?: number
+  rightCutSlope?: number
+  leftFillSlope?: number
+  rightFillSlope?: number
+  leftDitchWidth?: number
+  rightDitchWidth?: number
+  leftDitchDepth?: number
+  rightDitchDepth?: number
+  leftSurfaceDepth?: number
+  rightSurfaceDepth?: number
 }
 export interface WidthOverride {
   id: string
@@ -41,6 +56,7 @@ export interface Alignment {
   vertical: VerticalPoint[]
   template: RoadTemplate
   overrides: WidthOverride[]
+  engineering?: AlignmentEngineering
 }
 export interface ContextFeature {
   id: string
@@ -56,6 +72,11 @@ export interface CableLine {
   startHeight: number
   endHeight: number
   deflectionPercent: number
+  /** Positive offsets inset each original endpoint; negative offsets extend it. */
+  startOffsetM?: number
+  endOffsetM?: number
+  /** startHeight is the yarder height; endHeight is the tailhold height. */
+  yarderAt?: 'start' | 'end'
 }
 export interface RoadSettings {
   stationInterval: number
@@ -140,6 +161,7 @@ export interface RoadAnalysis {
   completeLength: number
   coveragePercent: number
   warnings: string[]
+  engineering?: EngineeringAnalysis
 }
 export interface CableSample {
   distance: number

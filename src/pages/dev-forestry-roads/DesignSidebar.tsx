@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Copy, Download, Mountain, Plus, Route, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
+import { EngineeringControls } from './EngineeringControls'
 import { distance } from './engine'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -27,10 +29,13 @@ export interface SidebarProps {
   onSave: (kind: 'project' | 'geojson' | 'csv' | 'report') => void
   onProfile: (id: string) => void
   activeProfile: string | null
+  onPreviewTemplate: (template: RoadTemplate, name: string) => void
+  onCloseTemplatePreview: () => void
+  onQuantities: () => void
 }
 const id = () => crypto.randomUUID()
 export function DesignSidebar(p: SidebarProps) {
-  const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'review' | 'files'>('design')
+  const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'engineering' | 'review' | 'files'>('design')
   const { project, alignment, analysis, update, updateAlignment, source } = p.workspace
   const point = alignment.points.find((x) => x.id === p.selectedPoint)
   const tweakTemplate = (key: keyof RoadTemplate, value: number) =>
@@ -84,6 +89,7 @@ export function DesignSidebar(p: SidebarProps) {
               { value: 'terrain', label: 'Terrain', icon: Mountain },
               { value: 'design', label: 'Design', icon: Route },
               { value: 'template', label: 'Section', icon: SlidersHorizontal },
+              { value: 'engineering', label: 'Engineering' },
               { value: 'review', label: 'Review' },
               { value: 'files', label: 'Files' },
             ]}
@@ -205,6 +211,31 @@ export function DesignSidebar(p: SidebarProps) {
                   </Button>
                 </div>
               ))}
+            </SidebarSection>
+            <SidebarSection title="Related LiDAR workspaces">
+              <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
+                The reference's individual-tree and species tables use inventory observations. The ground DEM cannot
+                provide DBH, species or merchantable volume. These workspaces inspect the published BC sample's
+                available canopy and tree products.
+              </p>
+              <div className="space-y-2 text-xs">
+                <Link className="block text-primary underline" to="/dev/lidar/forestry/" target="_blank">
+                  Open forest structure & plots
+                </Link>
+                <Link className="block text-primary underline" to="/dev/lidar/canopy/" target="_blank">
+                  Open canopy heights & density
+                </Link>
+                <Link className="block text-primary underline" to="/dev/lidar/trees/" target="_blank">
+                  Open individual-tree inspection
+                </Link>
+                <Link className="block text-primary underline" to="/dev/lidar/transects/" target="_blank">
+                  Open source point-cloud transects
+                </Link>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                The road project stays open here. These links open the published sample; they do not relabel an imported
+                DEM as an inventory dataset.
+              </p>
             </SidebarSection>
           </div>
 
@@ -497,7 +528,7 @@ export function DesignSidebar(p: SidebarProps) {
                   <NumberField
                     key={key}
                     label={label}
-                    value={alignment.template[key]}
+                    value={alignment.template[key] ?? 0}
                     min={min}
                     max={max}
                     onChange={(value) => tweakTemplate(key, value)}
@@ -508,6 +539,9 @@ export function DesignSidebar(p: SidebarProps) {
                 Formation geometry uses a crown, cut-side ditch and ground-intersecting batters. The surfacing layer is
                 a separate quantity. Batters and costs are editable planning assumptions.
               </p>
+              <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => setTab('engineering')}>
+                Template library & station assignments
+              </Button>
             </SidebarSection>
             <SidebarSection title="Landings & turnouts">
               <div className="mb-2 flex gap-1">
@@ -598,6 +632,14 @@ export function DesignSidebar(p: SidebarProps) {
             </SidebarSection>
           </div>
 
+          <div hidden={tab !== 'engineering'} className="space-y-4">
+            <EngineeringControls
+              workspace={p.workspace}
+              onPreviewTemplate={p.onPreviewTemplate}
+              onClosePreview={p.onCloseTemplatePreview}
+              onQuantities={p.onQuantities}
+            />
+          </div>
           <div hidden={tab !== 'review'} className="space-y-4">
             <SidebarSection title="Screening & sampling">
               <div className="grid grid-cols-2 gap-2">
@@ -644,8 +686,8 @@ export function DesignSidebar(p: SidebarProps) {
                 </p>
               ))}
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Stream intersections flag crossing sites. Culvert sizing, hydraulic capacity and geotechnical stability
-                require additional inputs and are not computed.
+                Stream intersections flag crossing sites. Engineering → Drainage adds culvert dimensions, inverts, cover
+                checks and costs at these stations. Hydraulic capacity requires additional site inputs.
               </p>
             </SidebarSection>
             <SidebarSection title="Earthwork cost assumptions">
@@ -670,9 +712,12 @@ export function DesignSidebar(p: SidebarProps) {
                 ))}
               </div>
               <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                Example unit rates in CAD. Includes covered cut, fill, surfacing and clearing only. Excludes structures,
-                haul allocation, mobilization, rock classification and contingencies.
+                Base unit rates in CAD. Engineering inputs add material-specific excavation, structures, haul,
+                borrow/waste, mobilization and contingency. Unassigned excavation uses this cut rate.
               </p>
+              <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => setTab('engineering')}>
+                Materials, drainage & haul inputs
+              </Button>
             </SidebarSection>
             <SidebarSection title="D-line / cable geometry">
               <Button variant="outline" size="sm" onClick={() => p.onMode('cable')}>
@@ -681,7 +726,18 @@ export function DesignSidebar(p: SidebarProps) {
               {project.cables.map((c) => (
                 <div key={c.id} className="mt-2 space-y-2 rounded border p-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">{c.name}</span>
+                    <input
+                      className={roadFieldClass}
+                      aria-label="D-line name"
+                      value={c.name}
+                      maxLength={200}
+                      onChange={(e) =>
+                        update((x) => ({
+                          ...x,
+                          cables: x.cables.map((a) => (a.id === c.id ? { ...a, name: e.target.value } : a)),
+                        }))
+                      }
+                    />
                     <Button
                       variant="ghost"
                       size="icon"
@@ -692,6 +748,23 @@ export function DesignSidebar(p: SidebarProps) {
                       <Trash2 className="size-3" />
                     </Button>
                   </div>
+                  <Field label="Yarder position">
+                    <select
+                      className={roadFieldClass}
+                      value={c.yarderAt ?? 'start'}
+                      onChange={(e) =>
+                        update((x) => ({
+                          ...x,
+                          cables: x.cables.map((a) =>
+                            a.id === c.id ? { ...a, yarderAt: e.target.value as 'start' | 'end' } : a,
+                          ),
+                        }))
+                      }
+                    >
+                      <option value="start">Start endpoint</option>
+                      <option value="end">End endpoint</option>
+                    </select>
+                  </Field>
                   <div className="grid grid-cols-3 gap-1">
                     {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (
                       <NumberField
@@ -708,10 +781,78 @@ export function DesignSidebar(p: SidebarProps) {
                       />
                     ))}
                   </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {(['startOffsetM', 'endOffsetM'] as const).map((key) => (
+                      <NumberField
+                        key={key}
+                        label={key === 'startOffsetM' ? 'Start inset (m)' : 'End inset (m)'}
+                        value={c[key] ?? 0}
+                        min={-200}
+                        max={200}
+                        onChange={(value) =>
+                          update((x) => ({
+                            ...x,
+                            cables: x.cables.map((a) => (a.id === c.id ? { ...a, [key]: value } : a)),
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                  <details className="rounded border p-2">
+                    <summary className="cursor-pointer text-xs">Edit original endpoints</summary>
+                    <div className="mt-2 grid grid-cols-2 gap-1">
+                      {(['start', 'end'] as const).flatMap((endpoint) =>
+                        ([0, 1] as const).map((axis) => (
+                          <NumberField
+                            key={`${endpoint}-${axis}`}
+                            label={`${endpoint} ${axis === 0 ? 'longitude' : 'latitude'}`}
+                            value={c[endpoint][axis]}
+                            min={axis === 0 ? -180 : -84.999999}
+                            max={axis === 0 ? 180 : 84.999999}
+                            step={0.00001}
+                            onChange={(value) =>
+                              update((x) => ({
+                                ...x,
+                                cables: x.cables.map((a) =>
+                                  a.id === c.id
+                                    ? { ...a, [endpoint]: a[endpoint].map((n, i) => (i === axis ? value : n)) }
+                                    : a,
+                                ),
+                              }))
+                            }
+                          />
+                        )),
+                      )}
+                    </div>
+                  </details>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      update((x) => ({
+                        ...x,
+                        cables: x.cables.map((a) =>
+                          a.id === c.id
+                            ? {
+                                ...a,
+                                start: a.end,
+                                end: a.start,
+                                startOffsetM: a.endOffsetM ?? 0,
+                                endOffsetM: a.startOffsetM ?? 0,
+                                yarderAt: a.yarderAt === 'end' ? 'start' : 'end',
+                              }
+                            : a,
+                        ),
+                      }))
+                    }
+                  >
+                    Reverse line direction
+                  </Button>
                 </div>
               ))}
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Assumed-sag clearance only. This does not calculate cable tension or payload capacity.
+                Positive offsets inset supports; negative offsets extend the span. Heights follow the selected yarder
+                and tailhold ends. Assumed parabolic sag screens clearance; it does not calculate tension or payload.
               </p>
             </SidebarSection>
           </div>

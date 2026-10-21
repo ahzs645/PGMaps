@@ -1,5 +1,8 @@
 /** Versioned, bounded project and interchange formats; no network or DOM access. */
-import { distance } from './engine'
+import { distance, positionAt } from './engine'
+import { parseEngineering } from './engineeringProject'
+import { createEngineeringDesign } from './engineeringTypes'
+import { resolvedCableLine } from './cableGeometry'
 import { localRasterResolution } from '../dev-forestry/localRaster'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, roadProjection, validateRoadRaster } from './terrain'
 import type {
@@ -56,7 +59,7 @@ function unique(items: Array<{ id: string }>, label: string) {
 }
 function parseTemplate(raw: unknown): RoadTemplate {
   const r = object(raw, 'Road template')
-  return {
+  const result: RoadTemplate = {
     leftWidth: number(r.leftWidth, 'Left width', 0.1, 50),
     rightWidth: number(r.rightWidth, 'Right width', 0.1, 50),
     crossfallPercent: number(r.crossfallPercent, 'Crossfall', 0, 20),
@@ -66,6 +69,22 @@ function parseTemplate(raw: unknown): RoadTemplate {
     ditchDepth: number(r.ditchDepth, 'Ditch depth', 0, 5),
     surfaceDepth: number(r.surfaceDepth, 'Surface depth', 0, 2),
   }
+  const optional = [
+    ['leftCrossfallPercent', -20, 20],
+    ['rightCrossfallPercent', -20, 20],
+    ['leftCutSlope', 0.1, 10],
+    ['rightCutSlope', 0.1, 10],
+    ['leftFillSlope', 0.1, 10],
+    ['rightFillSlope', 0.1, 10],
+    ['leftDitchWidth', 0, 10],
+    ['rightDitchWidth', 0, 10],
+    ['leftDitchDepth', 0, 5],
+    ['rightDitchDepth', 0, 5],
+    ['leftSurfaceDepth', 0, 2],
+    ['rightSurfaceDepth', 0, 2],
+  ] as const
+  for (const [key, min, max] of optional) if (r[key] !== undefined) result[key] = number(r[key], key, min, max)
+  return result
 }
 function parseSettings(raw: unknown): RoadSettings {
   const r = object(raw, 'Settings')
@@ -145,6 +164,7 @@ function parseAlignment(raw: unknown): Alignment {
     vertical,
     template: parseTemplate(r.template),
     overrides,
+    ...(r.engineering === undefined ? {} : { engineering: parseEngineering(r.engineering, parseTemplate) }),
   }
 }
 function parseTerrain(raw: unknown): TerrainMetadata {
@@ -233,7 +253,7 @@ function validateContextBudget(context: ContextFeature[]) {
 }
 function parseCable(raw: unknown): CableLine {
   const r = object(raw, 'D-line')
-  return {
+  const result: CableLine = {
     id: id(r.id, 'D-line ID'),
     name: text(r.name, 'D-line name'),
     start: coordinate(r.start, 'D-line start'),
@@ -241,7 +261,20 @@ function parseCable(raw: unknown): CableLine {
     startHeight: number(r.startHeight, 'Yarder height', 0, 100),
     endHeight: number(r.endHeight, 'Tailhold height', 0, 100),
     deflectionPercent: number(r.deflectionPercent, 'Deflection', 0, 30),
+    ...(r.startOffsetM === undefined ? {} : { startOffsetM: number(r.startOffsetM, 'D-line start offset', -200, 200) }),
+    ...(r.endOffsetM === undefined ? {} : { endOffsetM: number(r.endOffsetM, 'D-line end offset', -200, 200) }),
+    ...(r.yarderAt === undefined
+      ? {}
+      : {
+          yarderAt: (() => {
+            if (r.yarderAt !== 'start' && r.yarderAt !== 'end')
+              throw Error('D-line yarder position must be start or end.')
+            return r.yarderAt
+          })(),
+        }),
   }
+  resolvedCableLine(result)
+  return result
 }
 export function parseProject(raw: unknown): RoadProject {
   if (typeof raw === 'string') {
@@ -302,6 +335,61 @@ export function serializeProject(project: RoadProject): string {
   return JSON.stringify(parseProject(project), null, project.terrain.raster ? 0 : 2) + '\n'
 }
 
+/** A portable PGMaps library contains definitions only, never road geometry. */
+export function serializeRoadLibrary(alignment: Alignment): string {
+  const design = alignment.engineering ?? createEngineeringDesign()
+  const validated = parseEngineering(design, parseTemplate)
+  return (
+    JSON.stringify(
+      { schema: 'pgmaps-road-library-v1', templates: validated.templates, materials: validated.materials },
+      null,
+      2,
+    ) + '\n'
+  )
+}
+export function importRoadLibrary(alignment: Alignment, raw: unknown, mode: 'merge' | 'replace'): Alignment {
+  if (typeof raw === 'string') {
+    if (raw.length > 2000000) throw Error('Template libraries must be at most 2 MB.')
+    try {
+      raw = JSON.parse(raw)
+    } catch {
+      throw Error('The template library is not valid JSON.')
+    }
+  }
+  const r = object(raw, 'Road library')
+  if (r.schema !== 'pgmaps-road-library-v1') throw Error('Use a pgmaps-road-library-v1 JSON library.')
+  const imported = parseEngineering(
+    { ...createEngineeringDesign(), templates: r.templates, materials: r.materials },
+    parseTemplate,
+  )
+  const existing = alignment.engineering ?? createEngineeringDesign()
+  if (mode === 'replace')
+    return {
+      ...alignment,
+      engineering: {
+        ...existing,
+        templates: imported.templates,
+        materials: imported.materials,
+        assignments: [],
+        strata: [],
+      },
+    }
+  const ids = new Set([...existing.templates, ...existing.materials].map((v) => v.id))
+  let nextId = 1
+  const uniqueId = (original: string) => {
+    let value = original
+    while (ids.has(value)) value = `library-${nextId++}`
+    ids.add(value)
+    return value
+  }
+  const engineering = {
+    ...existing,
+    templates: [...existing.templates, ...imported.templates.map((t) => ({ ...t, id: uniqueId(t.id) }))],
+    materials: [...existing.materials, ...imported.materials.map((m) => ({ ...m, id: uniqueId(m.id) }))],
+  }
+  return { ...alignment, engineering: parseEngineering(engineering, parseTemplate) }
+}
+
 function features(raw: unknown): Array<{ geometry: Record<string, unknown>; properties: Record<string, unknown> }> {
   if (typeof raw === 'string') {
     if (raw.length > 20_000_000) throw Error('Crop GeoJSON imports to at most 20 MB.')
@@ -349,6 +437,9 @@ export function importAlignmentGeoJson(raw: unknown): Alignment[] {
     'crossing-review',
     'geometric-dline',
     'terrain-profile',
+    'culvert',
+    'borrow-site',
+    'waste-site',
   ])
   for (const feature of features(raw)) {
     const g = feature.geometry
@@ -423,6 +514,10 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
   const output: GeoJSON.Feature[] = []
   for (const a of project.alignments) {
     const analysis = analyses.get(a.id)
+    if (analysis && !analysis.stations.length)
+      throw Error(
+        `No calculated geometry is available for ${a.name}. Resolve its model errors before exporting results.`,
+      )
     output.push({
       type: 'Feature',
       id: a.id,
@@ -439,11 +534,15 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
         coverage_percent: analysis?.coveragePercent ?? null,
         cut_m3: analysis?.cutVolumeM3 ?? null,
         fill_m3: analysis?.fillVolumeM3 ?? null,
-        status: analysis && analysis.coveragePercent >= 99.999 ? 'preliminary-complete' : 'partial-or-not-calculated',
+        status:
+          analysis && analysis.coveragePercent >= 99.999 && analysis.engineering?.complete !== false
+            ? 'preliminary-complete'
+            : 'partial-or-not-calculated',
         horizontal_controls: a.points,
         vertical_controls: a.vertical,
         template: a.template,
         widening: a.overrides,
+        engineering: a.engineering ?? null,
       },
       geometry: {
         type: 'LineString',
@@ -465,23 +564,67 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
           note: 'Geometric intersection only; structure type and capacity are not designed.',
         },
       })
+    for (const c of analysis?.engineering?.culverts ?? [])
+      output.push({
+        type: 'Feature',
+        id: `${a.id}-${c.id}`,
+        geometry: { type: 'LineString', coordinates: [c.start, c.end] },
+        properties: {
+          kind: 'culvert',
+          alignment_id: a.id,
+          name: c.name,
+          chainage_m: c.chainage,
+          grade_percent: c.gradePercent,
+          cover_m: c.coverM,
+          required_length_m: c.requiredLengthM,
+          installed_cost_cad: c.installedCost,
+          complete: c.complete,
+          warnings: c.warnings,
+          vertical_reference: project.terrain.verticalReference,
+        },
+      })
+    for (const site of a.engineering?.sites ?? []) {
+      if (site.chainage > (analysis?.length ?? 0)) continue
+      output.push({
+        type: 'Feature',
+        id: `${a.id}-${site.id}`,
+        geometry: { type: 'Point', coordinates: positionAt(a, site.chainage).coordinate },
+        properties: {
+          kind: `${site.kind}-site`,
+          alignment_id: a.id,
+          name: site.name,
+          chainage_m: site.chainage,
+          access_distance_m: site.accessDistanceM,
+          capacity_m3: site.capacityM3,
+          volume_basis: site.kind === 'borrow' ? 'compacted' : 'bank',
+          note: 'Road access station; the off-road pit footprint has not been surveyed.',
+        },
+      })
+    }
   }
   for (const f of project.context)
     output.push({ type: 'Feature', id: f.id, properties: { kind: f.kind, name: f.name }, geometry: f.geometry })
-  for (const c of project.cables)
+  for (const c of project.cables) {
+    const physical = resolvedCableLine(c)
     output.push({
       type: 'Feature',
       id: c.id,
-      geometry: { type: 'LineString', coordinates: [c.start, c.end] },
+      geometry: { type: 'LineString', coordinates: [physical.start, physical.end] },
       properties: {
         kind: 'geometric-dline',
         name: c.name,
         yarder_height_m: c.startHeight,
         tailhold_height_m: c.endHeight,
         assumed_deflection_percent: c.deflectionPercent,
+        start_offset_m: c.startOffsetM ?? 0,
+        end_offset_m: c.endOffsetM ?? 0,
+        yarder_at: c.yarderAt ?? 'start',
+        original_start: c.start,
+        original_end: c.end,
         note: 'Geometric clearance screen; no tension, load or anchor-capacity solution.',
       },
     })
+  }
   for (const profile of project.profiles ?? [])
     output.push({
       type: 'Feature',
@@ -505,6 +648,8 @@ function csvValue(value: string | number | null | undefined): string {
   return `"${guarded.replace(/"/g, '""')}"`
 }
 export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): string {
+  if (!analysis.stations.length)
+    throw Error('The road analysis is unavailable. Resolve the model errors before exporting results.')
   const header = [
     'station_m',
     'longitude',
@@ -556,6 +701,131 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
   )
   return header.join(',') + '\r\n' + rows.join('\r\n') + '\r\n'
 }
+export function engineeringCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): string {
+  if (!analysis.stations.length)
+    throw Error('Engineering quantities are unavailable. Resolve the model errors before exporting results.')
+  const header = [
+    'record_type',
+    'id',
+    'name',
+    'from_station_m',
+    'to_station_m',
+    'bank_m3',
+    'compacted_m3',
+    'haul_distance_m',
+    'quantity',
+    'unit',
+    'cost_cad',
+    'status',
+    'terrain',
+    'terrain_resolution_m',
+    'vertical_reference',
+    'terrain_sha256',
+  ]
+  const rows: (string | number | null | undefined)[][] = []
+  const engineering = analysis.engineering
+  const status =
+    analysis.coveragePercent >= 99.999 && engineering?.complete !== false
+      ? 'preliminary-covered'
+      : 'partial-covered-subtotal'
+  for (const material of engineering?.materials ?? [])
+    rows.push([
+      'material',
+      material.materialId,
+      material.name,
+      null,
+      null,
+      material.bankCutM3,
+      material.usableCompactedM3,
+      null,
+      material.unusableBankM3,
+      'unusable bank m3',
+      material.excavationCost,
+      status,
+    ])
+  for (const culvert of engineering?.culverts ?? [])
+    rows.push([
+      'culvert',
+      culvert.id,
+      culvert.name,
+      culvert.chainage,
+      culvert.chainage,
+      null,
+      null,
+      null,
+      culvert.barrelLengthM ?? culvert.profile.at(-1)?.distanceM,
+      culvert.barrelLengthM === null ? 'provisional horizontal barrel m' : 'inclined barrel m',
+      culvert.installedCost,
+      culvert.warnings.join('; ') || (culvert.complete ? 'geometry-covered' : 'incomplete'),
+    ])
+  for (const movement of engineering?.movements ?? [])
+    rows.push([
+      'haul',
+      movement.id,
+      movement.kind,
+      movement.fromChainage,
+      movement.toChainage,
+      movement.bankVolumeM3,
+      movement.compactedVolumeM3,
+      movement.distanceM,
+      movement.transportedVolumeM3,
+      `${movement.volumeBasis} m3`,
+      movement.haulCost,
+      movement.category,
+    ])
+  for (const [key, value] of Object.entries(engineering?.costs ?? { total: analysis.estimatedCost }))
+    rows.push(['cost', key, key, null, null, null, null, null, null, 'CAD', value, status])
+  return (
+    header.join(',') +
+    '\r\n' +
+    rows
+      .map((row) =>
+        [...row, metadata.name, metadata.resolutionM, metadata.verticalReference, metadata.sha256]
+          .map(csvValue)
+          .join(','),
+      )
+      .join('\r\n') +
+    '\r\n'
+  )
+}
+export function terrainProfileCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): string {
+  if (!analysis.stations.length)
+    throw Error('The terrain profile is unavailable. Resolve the model errors before exporting results.')
+  const header = [
+    'station_m',
+    'longitude',
+    'latitude',
+    'ground_elevation_m',
+    'ground_grade_percent',
+    'interval_length_m',
+    'terrain',
+    'terrain_resolution_m',
+    'vertical_reference',
+    'terrain_sha256',
+  ]
+  return (
+    header.join(',') +
+    '\r\n' +
+    analysis.stations
+      .map((station, index) =>
+        [
+          station.chainage,
+          ...station.coordinate,
+          station.groundElevation,
+          station.groundGradePercent,
+          index ? station.chainage - analysis.stations[index - 1].chainage : 0,
+          metadata.name,
+          metadata.resolutionM,
+          metadata.verticalReference,
+          metadata.sha256,
+        ]
+          .map(csvValue)
+          .join(','),
+      )
+      .join('\r\n') +
+    '\r\n'
+  )
+}
 const html = (value: unknown) =>
   String(value ?? '').replace(
     /[&<>"']/g,
@@ -564,6 +834,7 @@ const html = (value: unknown) =>
 const fmt = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
 function reportProfile(analysis: RoadAnalysis) {
+  const hasDesign = analysis.stations.some((s) => s.designElevation !== null)
   const elevations = analysis.stations
     .flatMap((s) => [s.groundElevation, s.designElevation])
     .filter((n): n is number => n !== null && Number.isFinite(n))
@@ -588,9 +859,47 @@ function reportProfile(analysis: RoadAnalysis) {
       })
       .join(' ')
   }
-  return `<svg viewBox="0 0 960 270" role="img" aria-label="Ground and design longitudinal elevation profile"><rect width="960" height="270" fill="#f8fafc"/><path d="M55 30V220H930" fill="none" stroke="#94a3b8"/><path d="${path('groundElevation')}" fill="none" stroke="#64748b" stroke-width="2"/><path d="${path('designElevation')}" fill="none" stroke="#c2410c" stroke-width="3"/><g font-size="12" fill="#334155"><text x="6" y="45">${fmt(high)} m</text><text x="6" y="218">${fmt(low)} m</text><text x="55" y="242">0 m</text><text x="850" y="242">${fmt(analysis.length)} m</text><text x="60" y="20">Ground (grey) · design (orange) · chainage in horizontal metres</text></g></svg>`
+  return `<svg viewBox="0 0 960 270" role="img" aria-label="${hasDesign ? 'Ground and design' : 'Ground'} longitudinal elevation profile"><rect width="960" height="270" fill="#f8fafc"/><path d="M55 30V220H930" fill="none" stroke="#94a3b8"/><path d="${path('groundElevation')}" fill="none" stroke="#64748b" stroke-width="2"/><path d="${path('designElevation')}" fill="none" stroke="#c2410c" stroke-width="3"/><g font-size="12" fill="#334155"><text x="6" y="45">${fmt(high)} m</text><text x="6" y="218">${fmt(low)} m</text><text x="55" y="242">0 m</text><text x="850" y="242">${fmt(analysis.length)} m</text><text x="60" y="20">Ground (grey)${hasDesign ? ' · design (orange)' : ''} · chainage in horizontal metres</text></g></svg>`
+}
+function reportEngineering(analysis: RoadAnalysis): string {
+  const e = analysis.engineering
+  if (!e) return ''
+  return `<h2>Engineering cost breakdown</h2><table><thead><tr><th>Item</th><th>CAD</th></tr></thead><tbody>${Object.entries(
+    e.costs,
+  )
+    .map(([key, value]) => `<tr><td>${html(key)}</td><td>$${fmt(value, 2)}</td></tr>`)
+    .join(
+      '',
+    )}</tbody></table><h2>Material quantities</h2><p>Ground horizons are entered assumptions or measurements. They are not inferred from the terrain model. Excavated stripping is classified cut only; undercut beneath fill is not included.</p><table><thead><tr><th>Material</th><th>Bank cut m³</th><th>Usable compacted m³</th><th>Unusable bank m³</th><th>Excavation CAD</th></tr></thead><tbody>${e.materials.map((m) => `<tr><td>${html(m.name)}</td><td>${fmt(m.bankCutM3)}</td><td>${fmt(m.usableCompactedM3)}</td><td>${fmt(m.unusableBankM3)}</td><td>${fmt(m.excavationCost, 2)}</td></tr>`).join('')}</tbody></table><h2>Culvert geometry</h2>${e.culverts.length ? `<table><thead><tr><th>Name</th><th>Station m</th><th>Grade %</th><th>Minimum cover m</th><th>Required horizontal span m</th><th>Inclined barrel m</th><th>Flags</th></tr></thead><tbody>${e.culverts.map((c) => `<tr><td>${html(c.name)}</td><td>${fmt(c.chainage)}</td><td>${fmt(c.gradePercent, 2)}</td><td>${fmt(c.coverM, 2)}</td><td>${fmt(c.requiredLengthM)}</td><td>${fmt(c.barrelLengthM)}</td><td>${html(c.warnings.join('; '))}</td></tr>`).join('')}</tbody></table>` : '<p>No culvert inventory supplied.</p>'}<h2>Haul scenario</h2><p>${e.haul.enabled ? 'Deterministic nearest-source allocation within covered runs enabled.' : 'Haul allocation disabled.'} Borrow: ${fmt(e.haul.borrowCompactedM3)} compacted m³; waste: ${fmt(e.haul.wasteBankM3)} bank m³; cut/fill and borrow haul: ${fmt(e.haul.haulM3Km)} compacted m³·km; waste haul: ${fmt(e.haul.wasteHaulM3Km)} bank m³·km. Unallocated borrow: ${fmt(e.haul.unallocatedBorrowM3)} compacted m³; unallocated waste: ${fmt(e.haul.unallocatedWasteM3)} bank m³. Haul distances follow road chainage plus site access; this is not a global haul optimizer.</p>${e.warnings.length ? `<ul>${e.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}`
+}
+export function terrainProfileReportHtml(name: string, analysis: RoadAnalysis, metadata: TerrainMetadata): string {
+  if (!analysis.stations.length)
+    throw Error('The terrain profile is unavailable. Resolve the model errors before exporting results.')
+  const known = analysis.stations.filter((s) => s.groundElevation !== null)
+  let ascent = 0,
+    descent = 0,
+    covered = 0
+  for (let i = 1; i < analysis.stations.length; i++) {
+    const a = analysis.stations[i - 1],
+      b = analysis.stations[i]
+    if (a.groundElevation === null || b.groundElevation === null) continue
+    const delta = b.groundElevation - a.groundElevation
+    ascent += Math.max(0, delta)
+    descent += Math.max(0, -delta)
+    covered += b.chainage - a.chainage
+  }
+  const rows = analysis.stations
+    .map(
+      (s, i) =>
+        `<tr><td>${fmt(s.chainage)}</td><td>${fmt(s.groundElevation, 2)}</td><td>${fmt(s.groundGradePercent, 2)}</td><td>${fmt(i ? s.chainage - analysis.stations[i - 1].chainage : 0)}</td></tr>`,
+    )
+    .join('')
+  const groundOnly = { ...analysis, stations: analysis.stations.map((s) => ({ ...s, designElevation: null })) }
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(name)} · Terrain profile</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#172b25}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:right}svg{width:100%}h2{font-size:19px}thead{display:table-header-group}tr{break-inside:avoid}@media print{body{margin:0}}</style></head><body><h1>${html(name)}</h1><p>Ground-only stream / slope transect</p><p>Length ${fmt(analysis.length)} m · supported intervals ${fmt(covered)} m (${fmt(analysis.length ? (100 * covered) / analysis.length : 0)}%) · ground range ${known.length ? `${fmt(Math.min(...known.map((s) => s.groundElevation!)))}–${fmt(Math.max(...known.map((s) => s.groundElevation!)))} m` : 'unknown'} · sampled ascent ${fmt(ascent)} m · sampled descent ${fmt(descent)} m</p><p>${html(metadata.name)} · ${fmt(metadata.resolutionM, 2)} m source spacing · ${html(metadata.verticalReference)} · SHA-256 ${html(metadata.sha256 ?? 'not applicable')}</p>${reportProfile(groundOnly)}<p>No road formation, cut/fill or construction costs are assigned. Missing terrain remains a gap. Ground grades describe sampled intervals; source resolution and sampling determine which terrain features can be resolved.</p><h2>Profile stations</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Ground grade %</th><th>Interval m</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
 }
 export function projectReportHtml(project: RoadProject, analysis: RoadAnalysis): string {
+  if (!analysis.stations.length)
+    throw Error('The road analysis is unavailable. Resolve the model errors before exporting results.')
   const active = project.alignments.find((a) => a.id === project.activeAlignmentId),
     metadata = project.terrain
   const rows = analysis.stations
@@ -599,7 +908,7 @@ export function projectReportHtml(project: RoadProject, analysis: RoadAnalysis):
         `<tr><td>${fmt(s.chainage)}</td><td>${fmt(s.groundElevation, 2)}</td><td>${fmt(s.designElevation, 2)}</td><td>${fmt(s.gradePercent, 2)}</td><td>${fmt(s.cutAreaM2, 2)}</td><td>${fmt(s.fillAreaM2, 2)}</td><td>${fmt(s.massM3)}</td><td>${html(s.flags.join('; ') || (s.complete ? 'Complete' : 'Partial'))}</td></tr>`,
     )
     .join('')
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f1f5f2}.metric strong{display:block;font-size:23px}.muted{color:#53665e}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">PGMAPS · FORESTRY ROAD PLANNING</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p><p class="status"><strong>${analysis.coveragePercent >= 99.999 ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p><div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Scenario cost<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd><dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd><dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Review thresholds</dt><dd>Grade ${fmt(project.settings.maxGradePercent)}%; minimum radius ${fmt(project.settings.minRadius)} m (user assumptions)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd></dl><h2>Longitudinal profile</h2>${reportProfile(analysis)}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. No-data or unclosed daylight sections leave an interval incomplete. Mass balance applies the entered reusable-cut factor; it is not a haul-optimization result. Costs use the entered unit rates and omit site-specific structures, mobilization, geotechnical treatments and hauling. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry without cable tension, load or anchor analysis. Crossings are intersections requiring review, not designed culverts.</p>${analysis.warnings.length ? `<h2>Model flags</h2><ul>${analysis.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr><th>Station m</th><th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr><td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}<h2>Station schedule</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table><p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f1f5f2}.metric strong{display:block;font-size:23px}.muted{color:#53665e}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">PGMAPS · FORESTRY ROAD PLANNING</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p><p class="status"><strong>${analysis.coveragePercent >= 99.999 ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p><div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Scenario cost<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd><dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd><dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Review thresholds</dt><dd>Grade ${fmt(project.settings.maxGradePercent)}%; minimum radius ${fmt(project.settings.minRadius)} m (user assumptions)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd></dl><h2>Longitudinal profile</h2>${reportProfile(analysis)}${reportEngineering(analysis)}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. No-data or unclosed daylight sections leave an interval incomplete. Mass balance applies entered material reuse and compaction factors, or the default reusable-cut factor for unclassified ground. Costs use the entered rates, structures, haul scenario, mobilization and contingency where supplied; zero rates remain unpriced. Geotechnical treatments are not modeled. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry without cable tension, load or anchor analysis. Crossing intersections require review. Entered culverts provide geometry and cover checks, not a hydraulic or fish-passage design.</p>${analysis.warnings.length ? `<h2>Model flags</h2><ul>${analysis.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr><th>Station m</th><th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr><td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}<h2>Station schedule</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table><p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
 }
 
 export { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE }

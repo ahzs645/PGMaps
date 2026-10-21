@@ -9,7 +9,7 @@ on:
       - 'src/pages/dev-forestry-roads/**'
       - 'src/pages/dev-lidar/sourceGrids.ts'
       - 'src/pages/dev-viewshed/analysis.ts'
-      - 'tests/e2e/forestry-road-design.spec.ts'
+      - 'tests/e2e/forestry-road-*.spec.ts'
       - '.github/workflows/forestry-roads.yml'
   workflow_dispatch:
 
@@ -38,7 +38,7 @@ jobs:
       - name: Check road geometry, terrain, routing and project files
         run: npx vitest run src/pages/dev-forestry-roads
       - name: Check road workspace code
-        run: npx eslint src/pages/DevForestryRoads.tsx src/pages/dev-forestry-roads tests/e2e/forestry-road-design.spec.ts
+        run: npx eslint src/pages/DevForestryRoads.tsx src/pages/dev-forestry-roads tests/e2e/forestry-road-*.spec.ts
       - name: Build browser bundles
         run: npx vite build
       - run: npx playwright install --with-deps chromium
@@ -49,7 +49,7 @@ jobs:
             if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
             sleep 1
           done
-          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forestry-road-design.spec.ts --workers=1
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forestry-road-*.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

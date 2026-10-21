@@ -20,6 +20,36 @@ const local = (p: Coordinate) => ({
   north: (((p[1] - origin[1]) * Math.PI) / 180) * 6371008.8,
 })
 const flat: TerrainSource = { elevationAt: () => 800 }
+
+it('resolves D-line offsets and reversed yarder roles before sampling terrain and sag', () => {
+  const line: CableLine = {
+    id: 'offset-cable',
+    name: 'Offset cable',
+    start: origin,
+    end: north(100),
+    startHeight: 25,
+    endHeight: 7,
+    deflectionPercent: 5,
+    startOffsetM: 20,
+    endOffsetM: 30,
+    yarderAt: 'end',
+  }
+  const samples: Coordinate[] = []
+  const result = analyzeCable(line, {
+    elevationAt: (lng, lat) => {
+      samples.push([lng, lat])
+      return 800
+    },
+  })
+  expect(result.length).toBeCloseTo(50, 5)
+  expect(distance(samples[0], north(20))).toBeLessThan(1e-5)
+  expect(distance(samples[1], north(70))).toBeLessThan(1e-5)
+  expect(result.samples[0].cable).toBe(807)
+  expect(result.samples.at(-1)!.cable).toBe(825)
+  const middle = result.samples.find((p) => Math.abs(p.distance - 25) < 1e-4)!
+  expect(middle.cable).toBeCloseTo(813.5, 5)
+  expect(() => analyzeCable({ ...line, endOffsetM: 90 }, flat)).toThrow(/collapse|reverse/)
+})
 const settings: RoadSettings = {
   stationInterval: 10,
   crossSectionHalfWidth: 30,
