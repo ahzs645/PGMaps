@@ -17,3 +17,11 @@ The builder reads only completed chunk pairs, verifies checkpoint hashes and mat
 The frozen asset has its own UTC snapshot timestamp; it is not a live progress feed. The full-source workers continue independently. Rebuild a later snapshot with `scripts/lidar/build_preliminary_pointgroup.py` after more chunks complete. The existing full-tile exporter remains responsible for final outputs.
 
 Source SHA256: `f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf`.
+
+## Individual candidate inspection
+
+`/dev/lidar/compare/?family=neural&inspect=trees` opens the individual-tree inspector. A location map selects candidates; the 3D pane and rotatable side profile show the same original core returns, with a silhouette preset and optional predicted point classes. Nearby points are optional, sampled context and appear grey. Individual point CSV downloads preserve original source-row IDs and model classes.
+
+`export_neural_tree_examples.py` exports 147 examples (74 SegmentAnyTree, 73 ForAINet), containing 210,336 original returns. For each of the seven cached chunks and each model it selects up to 12 candidates with at least 100 core returns and a 95th-percentile height of at least 5 m, preferring candidates clear of the core boundary and then larger return counts. This is a bounded example gallery, not a representative forest inventory or a final tree count. It retains every assigned core return of each selected candidate, with no display thinning; halo points are excluded and boundary examples are flagged.
+
+All 147 exported source-row sets were independently checked against their original core shard and saved model labels; their coordinates match the original shard within export precision. Heights are relative to the existing DTM. Observed maximum height, p95 height and horizontal diagonal describe the candidate points, not measured DBH, surveyed crown size or verified tree identity. Multiple crowns and sparse stems remain possible.

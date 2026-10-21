@@ -25,6 +25,11 @@ const crop: TreeCrop = {
   }),
 }
 describe('observed tree side profiles', () => {
+  it('allows the individual-tree inspector to include returns down to ground level', () => {
+    const points = crop.points.map((p) => ({ ...p, height: 1 }))
+    expect(prepareTreeProfile({ ...crop, points }).points).toHaveLength(0)
+    expect(prepareTreeProfile({ ...crop, points }, { minHeight: 0, maxHeight: 80 }).points).toHaveLength(points.length)
+  })
   it('uses the source metric frame and per-return terrain heights', () => {
     const p = prepareTreeProfile(crop)
     expect(p.points[0].east).toBeCloseTo(-3, 3)

@@ -27,6 +27,12 @@ describe('focused LiDAR routes', () => {
     expect(resolveLidarRoute('/dev/lidar', '?view=inspection').canonical).toBe('/dev/lidar/buildings/?panel=roofs')
   })
   it('preserves valid comparison family links during canonical navigation', () => {
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=neural&inspect=trees').canonical).toBe(
+      '/dev/lidar/compare/?family=neural&inspect=trees',
+    )
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=rgb&inspect=trees').canonical).toBe(
+      '/dev/lidar/compare/?family=rgb',
+    )
     expect(resolveLidarRoute('/dev/lidar/compare/', '?family=neural').canonical).toBe(
       '/dev/lidar/compare/?family=neural',
     )

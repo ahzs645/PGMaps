@@ -10,6 +10,8 @@ export function ComparisonProfile({
   radius,
   picked,
   onPick,
+  colour,
+  minHeight,
 }: {
   crop: TreeCrop
   assignments: Record<string, string>
@@ -18,6 +20,8 @@ export function ComparisonProfile({
   radius: number
   picked: IsolatedPoint | null
   onPick: (p: IsolatedPoint | null) => void
+  minHeight?: number
+  colour?: 'height' | 'segment' | 'black'
 }) {
   return (
     <ProfileCanvas
@@ -26,7 +30,9 @@ export function ComparisonProfile({
       settings={{
         ...DEFAULT_PROFILE,
         angle,
-        colour: Object.keys(assignments).length ? 'segment' : 'height',
+        colour: colour ?? (Object.keys(assignments).length ? 'segment' : 'height'),
+        minHeight: minHeight ?? DEFAULT_PROFILE.minHeight,
+        maxHeight: Math.max(DEFAULT_PROFILE.maxHeight, height),
         showRejected: true,
       }}
       picked={picked ? pointKey(picked) : null}

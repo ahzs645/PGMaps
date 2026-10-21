@@ -48,6 +48,7 @@ interface Props {
   camera?: ComparisonCamera | null
   onCamera?: (camera: ComparisonCamera) => void
   pointSize?: number
+  pointColour?: 'height' | 'segment' | 'black'
   overlayOpacity?: number
   onFeaturePick?: (id: string) => void
   onReferencePick?: (id: string) => void
@@ -140,8 +141,8 @@ export function ComparisonMap(props: Props) {
             source: id,
             filter: ['==', ['geometry-type'], 'Point'],
             paint: {
-              'circle-radius': 3,
-              'circle-color': colour,
+              'circle-radius': ['case', ['==', ['get', 'selected'], true], 6, 3],
+              'circle-color': ['coalesce', ['get', 'colour'], colour],
               'circle-stroke-width': 1,
               'circle-stroke-color': '#ffffff',
             },
@@ -162,6 +163,10 @@ export function ComparisonMap(props: Props) {
               `${p.id ?? p.part ?? 'Output'}${typeof p.score === 'number' ? ` · score ${p.score.toFixed(3)}` : ''}`,
             )
             .addTo(instance)
+      })
+      instance.on('click', 'comparison-output-tops', (event) => {
+        const p = event.features?.[0]?.properties
+        if (typeof p?.id === 'string') latest.current.onFeaturePick?.(p.id)
       })
       instance.on('click', 'comparison-reference-tops', (event) => {
         const p = event.features?.[0]?.properties
@@ -228,12 +233,12 @@ export function ComparisonMap(props: Props) {
     if (props.crop)
       m.addLayer(
         treePointLayer(props.crop, {
-          colour: props.assignments ? 'segment' : 'height',
+          colour: props.pointColour ?? (props.assignments ? 'segment' : 'height'),
           assignments: props.assignments,
           pointSize: props.pointSize ?? 2,
         }),
       )
-  }, [ready, props.crop, props.assignments, props.pointSize])
+  }, [ready, props.crop, props.assignments, props.pointSize, props.pointColour])
   useEffect(() => {
     const m = map.current
     if (!ready || !m) return

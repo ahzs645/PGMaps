@@ -23,6 +23,35 @@ state.data = {
   provenance: read('./provenance.generated.json'),
 }
 describe('comparison workspace interactions', () => {
+  it('loads the individual-tree view directly with full candidate points', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(async (url: string) => ({
+          ok: true,
+          json: async () =>
+            read(url.includes('neural-trees') ? './neural-trees.generated.json' : './neural.generated.json'),
+        })),
+    )
+    let renderer: ReturnType<typeof create>
+    try {
+      await act(async () => {
+        renderer = create(
+          <MemoryRouter initialEntries={['/dev/lidar/compare/?family=neural&inspect=trees']}>
+            <ModelComparisonWorkspace summary={null} error="" basemap="none" />
+          </MemoryRouter>,
+        )
+      })
+      expect(renderer!.root.findAllByProps({ 'aria-label': 'Individual segmented tree inspector' })).toHaveLength(1)
+      expect(renderer!.root.findByProps({ 'aria-label': 'Isolated neural tree 3D map' }).props['data-crop']).toBe(
+        'sat:1-19:164',
+      )
+      await act(async () => renderer!.unmount())
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('opens the preliminary model comparison directly from its shareable URL', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => read('./neural.generated.json') }))
     let renderer: ReturnType<typeof create>

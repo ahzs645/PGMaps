@@ -102,6 +102,7 @@ export function resolveLidarRoute(pathname: string, search: string) {
     tool?.id === 'compare' && ['lidar', 'neural', 'rgb', 'shapes'].includes(params.get('family') ?? '')
       ? params.get('family')
       : null
-  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}`
+  const inspect = family === 'neural' && params.get('inspect') === 'trees' ? '&inspect=trees' : ''
+  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}${inspect}`
   return { tool, mode, panel, valid, canonical }
 }
