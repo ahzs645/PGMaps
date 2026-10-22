@@ -89,7 +89,9 @@ export function CostBreakdown({
   onHaul,
   onMaterialRate,
   portalContainer,
+  processMs,
 }: {
+  processMs?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   analysis: RoadAnalysis
@@ -256,6 +258,16 @@ export function CostBreakdown({
       size="lg"
       title="Covered estimate"
       subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
+      summary={
+        <p className="text-[11px] text-muted-foreground" data-testid="road-cost-status">
+          Cost status:{' '}
+          {analysis.coveragePercent >= 99.999 && result?.complete !== false ? 'current, complete' : 'current, partial'}{' '}
+          · recalculated on every edit
+          {processMs === undefined
+            ? ''
+            : ` · process time ${processMs < 1000 ? `${Math.max(1, Math.round(processMs))} ms` : `${(processMs / 1000).toFixed(1)} s`}`}
+        </p>
+      }
       contentProps={{ 'data-testid': 'road-cost-dialog' }}
     >
       <div className="space-y-3 text-xs">

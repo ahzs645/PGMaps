@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
-import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { AppSelect } from '@/components/ui/select'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { downloadText } from '@/lib/download'
@@ -23,6 +22,7 @@ import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
+import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
@@ -51,23 +51,13 @@ import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/rou
 import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, stakeoutCsv } from './dev-forestry-roads/designExports'
-import { RoadPaneLayout, ROAD_LAYOUT_OPTIONS, type RoadLayout } from './dev-forestry-roads/RoadPaneLayout'
-import type {
-  Alignment,
-  Coordinate,
-  RoadAnalysis,
-  RoadProject,
-  RoadTemplate,
-  TerrainSource,
-} from './dev-forestry-roads/types'
+import { RoadPaneLayout } from './dev-forestry-roads/RoadPaneLayout'
+import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
+import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
   v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-CA', { maximumFractionDigits: decimals })
-const fixedNumber = (v: number | null | undefined, decimals: number) =>
-  v == null || !Number.isFinite(v)
-    ? '—'
-    : v.toLocaleString('en-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
 function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEMPLATE): Alignment {
   return {
@@ -90,185 +80,6 @@ const boundsOf = (p: RoadProject): [number, number, number, number] => {
   ]
 }
 
-function StationTable({
-  analysis,
-  station,
-  onStation,
-  terrainOnly = false,
-}: {
-  analysis: RoadAnalysis
-  station: number
-  onStation: (value: number) => void
-  terrainOnly?: boolean
-}) {
-  const active = nearestStation(analysis.stations, station)
-  const [flagged, setFlagged] = useState(false)
-  const [range, setRange] = useState<{ start: number; end: number | null }>({ start: 0, end: null })
-  const [coordinates, setCoordinates] = useState(false)
-  const scroller = useRef<HTMLDivElement>(null)
-  // Keep the selected row in view inside the table's own scroll port, never scrolling the page.
-  useEffect(() => {
-    const port = scroller.current
-    const row = port?.querySelector<HTMLElement>('tbody tr[aria-selected="true"]')
-    if (!port || !row) return
-    const box = port.getBoundingClientRect(),
-      target = row.getBoundingClientRect()
-    const header = port.querySelector('thead')?.getBoundingClientRect().height ?? 0
-    if (target.top < box.top + header) port.scrollTop -= box.top + header - target.top
-    else if (target.bottom > box.bottom) port.scrollTop += target.bottom - box.bottom
-  }, [active?.index])
-  const end = Math.min(analysis.length, range.end ?? analysis.length)
-  const shown = analysis.stations.filter(
-    (s) => s.chainage >= range.start - 0.001 && s.chainage <= end + 0.001 && (!flagged || s.flags.length),
-  )
-  const intervals = shown.filter(
-    (s) =>
-      s.index > 0 &&
-      analysis.stations[s.index - 1]?.chainage >= range.start - 0.001 &&
-      s.cutVolumeM3 !== null &&
-      s.fillVolumeM3 !== null,
-  )
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />
-          Show flagged stations only
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={coordinates} onChange={(e) => setCoordinates(e.target.checked)} />
-          Coordinates
-        </label>
-        <label>
-          From{' '}
-          <input
-            aria-label="Station table range start"
-            className="w-20 rounded border bg-background px-1 text-base md:text-xs"
-            type="number"
-            min={0}
-            max={end}
-            value={range.start}
-            onChange={(e) => {
-              const n = Number(e.target.value)
-              if (Number.isFinite(n)) setRange((r) => ({ ...r, start: Math.max(0, Math.min(end, n)) }))
-            }}
-          />
-        </label>
-        <label>
-          To{' '}
-          <input
-            aria-label="Station table range end"
-            className="w-20 rounded border bg-background px-1 text-base md:text-xs"
-            type="number"
-            min={range.start}
-            max={analysis.length}
-            value={end}
-            onChange={(e) => {
-              const n = Number(e.target.value)
-              if (Number.isFinite(n))
-                setRange((r) => ({ ...r, end: Math.max(range.start, Math.min(analysis.length, n)) }))
-            }}
-          />
-        </label>
-        <button className="underline" onClick={() => setRange({ start: 0, end: null })}>
-          Full range
-        </button>
-      </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
-        <EngineeringTable data-testid="road-station-table">
-          <thead className="sticky top-0 z-10">
-            <tr>
-              {[
-                ['L-Stn', 'm'],
-                ['Ground', 'm'],
-                ...(terrainOnly
-                  ? [
-                      ['Gnd grade', '%'],
-                      ['Interval', 'm'],
-                    ]
-                  : [
-                      ['Formation', 'm'],
-                      ['Grade', '%'],
-                      ['Cut A', 'm²'],
-                      ['Fill A', 'm²'],
-                      ['Cut vol', 'm³'],
-                      ['Fill vol', 'm³'],
-                    ]),
-                ...(coordinates
-                  ? [
-                      ['Longitude', '°'],
-                      ['Latitude', '°'],
-                    ]
-                  : []),
-                ['Flags', ''],
-              ].map(([label, unit]) => (
-                <ColumnHeader
-                  key={label}
-                  label={label}
-                  unit={unit}
-                  title={
-                    label === 'Cut vol' || label === 'Fill vol'
-                      ? 'Interval volume since the previous station'
-                      : undefined
-                  }
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((s) => (
-              <tr key={s.index} aria-selected={active?.index === s.index}>
-                <td>
-                  <button
-                    className="font-mono underline decoration-dotted"
-                    aria-label={`Select station ${s.chainage.toFixed(1)}`}
-                    onClick={() => onStation(s.chainage)}
-                  >
-                    {formatRoadStation(s.chainage)}
-                  </button>
-                </td>
-                {[
-                  s.groundElevation,
-                  ...(terrainOnly
-                    ? [s.groundGradePercent, s.index ? s.chainage - analysis.stations[s.index - 1].chainage : 0]
-                    : [s.designElevation, s.gradePercent, s.cutAreaM2, s.fillAreaM2, s.cutVolumeM3, s.fillVolumeM3]),
-                  ...(coordinates ? s.coordinate : []),
-                ].map((v, i) => (
-                  <td key={i}>
-                    {fixedNumber(
-                      v,
-                      coordinates && i >= (terrainOnly ? 3 : 7) ? 6 : i === 0 || (!terrainOnly && i === 1) ? 2 : 1,
-                    )}
-                  </td>
-                ))}
-                <td
-                  className="max-w-64 truncate text-left text-amber-700 dark:text-amber-400"
-                  title={s.flags.join('; ')}
-                >
-                  {s.flags.join('; ') || '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </EngineeringTable>
-      </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        {shown.length} rows
-        {terrainOnly ? (
-          ' · Ground elevations and sampled interval slopes only; no road quantities assigned.'
-        ) : (
-          <>
-            {' '}
-            · fully included supported intervals: cut{' '}
-            {number(intervals.reduce((sum, s) => sum + (s.cutVolumeM3 ?? 0), 0))} m³ / fill{' '}
-            {number(intervals.reduce((sum, s) => sum + (s.fillVolumeM3 ?? 0), 0))} m³
-          </>
-        )}
-      </p>
-    </div>
-  )
-}
-
 export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
@@ -283,14 +94,15 @@ export default function DevForestryRoads() {
   const [detail, setDetail] = useState<
     'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing'
   >('section')
-  const [layout, setLayout] = useState<RoadLayout>(() => {
+  const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(readSavedLayouts)
+  const [layoutSelection, setLayoutSelection] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem('pgmaps-road-layout')
-      return saved === 'engineering' || saved === 'pegging' ? saved : 'linked'
+      return localStorage.getItem('pgmaps-road-layout') ?? 'linked'
     } catch {
       return 'linked'
     }
   })
+  const { base: layout, storageId: layoutStorageId } = resolveLayout(layoutSelection, savedLayouts)
   const [overlay, setOverlay] = useState<GeoJSON.FeatureCollection>({ type: 'FeatureCollection', features: [] })
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
   const [templatePreview, setTemplatePreview] = useState<{ template: RoadTemplate; name: string } | null>(null)
@@ -311,11 +123,11 @@ export default function DevForestryRoads() {
   const operation = useRef<AbortController | null>(null)
   useEffect(() => {
     try {
-      localStorage.setItem('pgmaps-road-layout', layout)
+      localStorage.setItem('pgmaps-road-layout', layoutSelection)
     } catch {
       /* View preferences are optional. */
     }
-  }, [layout])
+  }, [layoutSelection])
   useEffect(() => {
     const previous = document.title
     document.title = 'Forest road design · PGMaps'
@@ -940,16 +752,15 @@ export default function DevForestryRoads() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          <AppSelect
-            value={layout}
-            onValueChange={(value) => {
-              setLayout(value as RoadLayout)
-              if (value !== 'linked') setDetail('section')
+          <LayoutPicker
+            selection={layoutSelection}
+            onSelect={(value) => {
+              setLayoutSelection(value)
+              if (resolveLayout(value, savedLayouts).base !== 'linked') setDetail('section')
             }}
-            options={ROAD_LAYOUT_OPTIONS}
-            triggerAriaLabel="Road view layout"
-            triggerClassName="h-8 w-[min(15rem,60vw)] text-xs"
-            contentClassName="text-xs"
+            saved={savedLayouts}
+            onSaved={setSavedLayouts}
+            portalContainer={ref.current}
           />
           <span className="mx-1 hidden max-w-40 truncate text-[10px] text-muted-foreground xl:inline" title={w.saving}>
             {w.saving}
@@ -1001,6 +812,7 @@ export default function DevForestryRoads() {
         alignment={displayedAlignment}
         settings={project.settings}
         portalContainer={ref.current}
+        processMs={w.processMs}
         onSettings={(patch) => update((p) => ({ ...p, settings: { ...p.settings, ...patch } }))}
         onHaul={
           busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
@@ -1267,6 +1079,7 @@ export default function DevForestryRoads() {
                 )}
                 <RoadPaneLayout
                   layout={layout}
+                  storageId={layoutStorageId}
                   plan={
                     <FullscreenPanel
                       title="Plan · alignment & terrain"

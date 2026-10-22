@@ -9,7 +9,9 @@ export const ROAD_LAYOUT_OPTIONS: { value: RoadLayout; label: string }[] = [
   { value: 'pegging', label: 'Plan · profile · section · pegging' },
 ]
 
-const key = (layout: RoadLayout, split: string) => `pgmaps-road-panes:${layout}:${split}`
+/** The splits a layout remembers; a saved layout copies these under its own id. */
+export const ROAD_PANE_SPLITS = ['columns', 'plan-data', 'views'] as const
+export const roadPaneKey = (storageId: string, split: string) => `pgmaps-road-panes:${storageId}:${split}`
 
 /**
  * The connected views: (plan / data) | (profile / detail), with no data pane in the linked
@@ -22,8 +24,11 @@ export function RoadPaneLayout({
   profile,
   detail,
   data,
+  storageId = layout,
 }: {
   layout: RoadLayout
+  /** Where pane sizes are remembered: the preset id, or a saved layout's own id. */
+  storageId?: string
   plan: ReactNode
   profile: ReactNode
   detail: ReactNode
@@ -33,7 +38,7 @@ export function RoadPaneLayout({
   return (
     <ResizableSplit
       direction="row"
-      storageKey={key(layout, 'columns')}
+      storageKey={roadPaneKey(storageId, 'columns')}
       className="min-h-0 flex-1"
       data-testid="road-connected-layout"
       data-layout={layout}
@@ -47,7 +52,7 @@ export function RoadPaneLayout({
           content: (
             <ResizableSplit
               direction="column"
-              storageKey={key(layout, 'plan-data')}
+              storageKey={roadPaneKey(storageId, 'plan-data')}
               className="h-full"
               panes={[
                 { id: 'plan', label: 'plan', content: plan, size: 1.1, min: 200, stackedHeight: 440 },
@@ -67,7 +72,7 @@ export function RoadPaneLayout({
           content: (
             <ResizableSplit
               direction="column"
-              storageKey={key(layout, 'views')}
+              storageKey={roadPaneKey(storageId, 'views')}
               className="h-full"
               panes={[
                 { id: 'profile', label: 'profile', content: profile, size: 0.9, min: 170, stackedHeight: 430 },

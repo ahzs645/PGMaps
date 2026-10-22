@@ -173,16 +173,17 @@ export function useRoadWorkspace() {
     return () => window.clearTimeout(timer)
   }, [project, ready, canPersist, busy, error])
 
-  const analyses = useMemo(
-    () =>
-      new Map(
-        project.alignments.map((a): [string, RoadAnalysis] => [
-          a.id,
-          safeAnalyzeRoad(a, source, project.settings, project.context),
-        ]),
-      ),
-    [project.alignments, project.settings, project.context, source],
-  )
+  // Every edit recalculates every alternative; the time is reported as the cost process time.
+  const { analyses, processMs } = useMemo(() => {
+    const started = performance.now()
+    const analyses = new Map(
+      project.alignments.map((a): [string, RoadAnalysis] => [
+        a.id,
+        safeAnalyzeRoad(a, source, project.settings, project.context),
+      ]),
+    )
+    return { analyses, processMs: performance.now() - started }
+  }, [project.alignments, project.settings, project.context, source])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!
   const undo = () => {
@@ -218,6 +219,7 @@ export function useRoadWorkspace() {
     alignment,
     analysis,
     analyses,
+    processMs,
     station,
     setStation,
     commit,
