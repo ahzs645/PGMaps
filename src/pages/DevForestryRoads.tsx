@@ -26,13 +26,8 @@ import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
-import { DrainagePanel } from './dev-forestry-roads/DrainagePanel'
-import {
-  DEFAULT_DRAINAGE_SETTINGS,
-  runDrainage,
-  type DrainageRun,
-  type DrainageSettings,
-} from './dev-forestry-roads/drainageRun'
+import { DRAINAGE_SETTINGS_KEY, DrainagePanel, readDrainageSettings } from './dev-forestry-roads/DrainagePanel'
+import { runDrainage, type DrainageRun, type DrainageSettings } from './dev-forestry-roads/drainageRun'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
@@ -58,19 +53,12 @@ import {
   exportGrid,
 } from './dev-forestry-roads/terrain'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
-import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout } from './dev-forestry-roads/RoadPaneLayout'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
-import type {
-  Alignment,
-  Coordinate,
-  RoadAnalysis,
-  RoadProject,
-  RoadTemplate,
-  TerrainSource,
-} from './dev-forestry-roads/types'
+import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
@@ -113,13 +101,17 @@ export default function DevForestryRoads() {
   const [detail, setDetail] = useState<
     'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing' | 'drainage'
   >('section')
-  const [drainageSettings, setDrainageSettings] = useState<DrainageSettings>(DEFAULT_DRAINAGE_SETTINGS)
-  const [drainage, setDrainage] = useState<{
-    run: DrainageRun
-    analysis: RoadAnalysis
-    source: TerrainSource
-    alignmentId: string
-  } | null>(null)
+  const [drainageSettings, setDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
+  // One run per road, with the inputs it was computed from: a run is stale when any of them changes.
+  const [drainage, setDrainage] = useState<
+    Map<
+      string,
+      {
+        run: DrainageRun
+        inputs: { alignment: Alignment; settings: RoadProject['settings']; source: TerrainSource; drainage: string }
+      }
+    >
+  >(() => new Map())
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(readSavedLayouts)
   const [layoutSelection, setLayoutSelection] = useState<string>(() => {
     try {
@@ -499,13 +491,43 @@ export default function DevForestryRoads() {
         resolutionM: project.terrain.resolutionM,
         settings: drainageSettings,
       })
-      setDrainage({ run: result, analysis, source, alignmentId: alignment.id })
+      // Keep runs only for roads that still exist, and at most three: each holds tens of
+      // megabytes of grids, and an older run is a few seconds to recompute.
+      setDrainage((runs) =>
+        new Map(
+          [...runs].filter(([id]) => id !== alignment.id && project.alignments.some((a) => a.id === id)).slice(-2),
+        ).set(alignment.id, {
+          run: result,
+          inputs: {
+            alignment,
+            settings: project.settings,
+            source,
+            drainage: JSON.stringify(drainageSettings),
+          },
+        }),
+      )
       const redirected = result.crossings.filter((c) => c.redirected && !c.throughCulvertId).length
       w.setNotice(
         `Drainage: ${result.crossings.length} stream crossing${result.crossings.length === 1 ? '' : 's'}, ${redirected} carried along the road, ${result.lowPoints.filter((p) => !p.throughCulvert).length} low points without a culvert.`,
       )
     })
-  const drainageRun = drainage?.alignmentId === alignment.id ? drainage : null
+  const drainageEntry = drainage.get(alignment.id)
+  const drainageStale =
+    !!drainageEntry &&
+    (drainageEntry.inputs.alignment !== alignment ||
+      drainageEntry.inputs.settings !== project.settings ||
+      drainageEntry.inputs.source !== source ||
+      drainageEntry.inputs.drainage !== JSON.stringify(drainageSettings))
+  /** Drawn on the plan only while current, so an outdated run never reads as the present road. */
+  const drainageOnPlan = drainageEntry && !drainageStale && !terrainProfile ? drainageEntry.run.plan : undefined
+  const changeDrainageSettings = (next: DrainageSettings) => {
+    setDrainageSettings(next)
+    try {
+      localStorage.setItem(DRAINAGE_SETTINGS_KEY, JSON.stringify(next))
+    } catch {
+      // Storage can be unavailable (private windows); the settings still apply to this session.
+    }
+  }
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
     void run('Loading terrain…', async (signal) => {
       if (kind === 'demo') {
@@ -648,7 +670,8 @@ export default function DevForestryRoads() {
             const lng = analysis.centerline.map((c) => c[0]),
               lat = analysis.centerline.map((c) => c[1])
             const margin = 0.002
-            let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined
+            let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
+              contourError = ''
             try {
               contours = buildTerrainDisplay(
                 source,
@@ -660,8 +683,9 @@ export default function DevForestryRoads() {
                 ],
                 256,
               ).contours
-            } catch {
+            } catch (error) {
               contours = undefined
+              contourError = error instanceof Error ? error.message : 'unknown error'
             }
             downloadText(
               plotBookHtml({
@@ -675,6 +699,11 @@ export default function DevForestryRoads() {
               `${basename}-plot-book.html`,
               'text/html;charset=utf-8',
             )
+            w.setNotice(
+              contourError
+                ? `Plot book downloaded without contours (${contourError}). Open it and use Print / Save as PDF.`
+                : 'Plot book downloaded. Open it and use Print / Save as PDF.',
+            )
           } catch (error) {
             w.setError(error instanceof Error ? error.message : 'Could not build the plot book.')
           }
@@ -682,14 +711,23 @@ export default function DevForestryRoads() {
       } else if (kind === 'shapefile') {
         void (async () => {
           try {
-            const [{ default: JSZip }, { writeShapefile }] = await Promise.all([
+            const [{ default: JSZip }, { writeShapefileLayer }] = await Promise.all([
               import('jszip'),
               import('./dev-forestry-roads/shapefile'),
             ])
-            const zip = new JSZip()
-            for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id))
-              for (const [name, bytes] of Object.entries(writeShapefile(layer))) zip.file(name, bytes)
+            const zip = new JSZip(),
+              warnings: string[] = []
+            for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id)) {
+              const written = writeShapefileLayer(layer)
+              warnings.push(...written.warnings)
+              for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
+            }
             downloadBlob(await zip.generateAsync({ type: 'blob' }), `${basename}-shapefiles.zip`)
+            w.setNotice(
+              warnings.length
+                ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
+                : 'Shapefiles downloaded.',
+            )
           } catch (error) {
             w.setError(error instanceof Error ? error.message : 'Could not write the shapefiles.')
           }
@@ -725,10 +763,13 @@ export default function DevForestryRoads() {
           `${basename}-report.html`,
           'text/html;charset=utf-8',
         )
+      // The plot book and shapefiles build asynchronously and report their own outcome.
       w.setNotice(
-        kind === 'report' || kind === 'plotbook'
-          ? `${kind === 'plotbook' ? 'Plot book' : 'Report'} downloaded. Open it and use Print / Save as PDF.`
-          : 'Export downloaded.',
+        kind === 'plotbook' || kind === 'shapefile'
+          ? `Building the ${kind === 'plotbook' ? 'plot book' : 'shapefiles'}…`
+          : kind === 'report'
+            ? 'Report downloaded. Open it and use Print / Save as PDF.'
+            : 'Export downloaded.',
       )
       w.setError('')
     } catch (error) {
@@ -899,6 +940,15 @@ export default function DevForestryRoads() {
           <span className="mx-1 hidden max-w-40 truncate text-[10px] text-muted-foreground xl:inline" title={w.saving}>
             {w.saving}
           </span>
+          {/* Narrower headers keep the autosave state as a dot whose title and label carry the text. */}
+          {w.saving && (
+            <span
+              role="img"
+              aria-label={w.saving}
+              title={w.saving}
+              className="mx-1 size-2 shrink-0 rounded-full bg-muted-foreground/60 xl:hidden"
+            />
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -1022,7 +1072,7 @@ export default function DevForestryRoads() {
               ]
             : [
                 {
-                  label: displayedAnalysis.coveragePercent < 99.99 ? 'Covered cut / fill' : 'Cut / fill',
+                  label: !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
                   value: displayedAnalysis.stations.length
                     ? `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`
                     : 'Unavailable',
@@ -1040,7 +1090,7 @@ export default function DevForestryRoads() {
                 {
                   label: 'Complete sections',
                   value: `${number(displayedAnalysis.coveragePercent)}%`,
-                  tone: displayedAnalysis.coveragePercent < 99.99 ? ('warning' as const) : ('default' as const),
+                  tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
                 },
               ]),
         ]}
@@ -1225,9 +1275,11 @@ export default function DevForestryRoads() {
                       className="flex min-h-0 flex-1 flex-col"
                       actions={
                         <span className="text-[10px] text-muted-foreground">
-                          {drainageRun && !terrainProfile
+                          {drainageOnPlan
                             ? 'Blue design streams · dashed existing · red redirected · amber low point'
-                            : 'Orange road · red grade flag'}
+                            : drainageStale && !terrainProfile
+                              ? 'Drainage out of date · re-run it to show flow'
+                              : 'Orange road · red grade flag'}
                         </span>
                       }
                     >
@@ -1257,7 +1309,7 @@ export default function DevForestryRoads() {
                             cableDistance={cableDistance}
                             onCableDistance={setCableDistance}
                             overlay={overlay}
-                            drainage={drainageRun && !terrainProfile ? drainageRun.run.plan : undefined}
+                            drainage={drainageOnPlan}
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
                             }}
@@ -1496,12 +1548,10 @@ export default function DevForestryRoads() {
                             )}
                             {detail === 'drainage' && !terrainProfile && (
                               <DrainagePanel
-                                run={drainageRun?.run ?? null}
-                                stale={
-                                  !!drainageRun && (drainageRun.analysis !== analysis || drainageRun.source !== source)
-                                }
+                                run={drainageEntry?.run ?? null}
+                                stale={drainageStale}
                                 settings={drainageSettings}
-                                onSettings={setDrainageSettings}
+                                onSettings={changeDrainageSettings}
                                 onRun={checkDrainage}
                                 busy={!!busy}
                                 onStation={w.setStation}

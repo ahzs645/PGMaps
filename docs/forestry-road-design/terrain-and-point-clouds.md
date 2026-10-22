@@ -62,6 +62,8 @@ companion.
 | LAS/LAZ file size                     | 1,000,000,000 bytes                                   | `terrain.ts`, `loadLas`                                                                | Refused: crop first                                                                      |
 | Points kept after reading             | 3,000,000                                             | `pointCloud.ts`, `DEFAULT_MAX_POINTS`                                                  | Thinned to one point per cell (ground first, then lowest); the summary says so           |
 | Ground-filter run size                | 40,000 points per tile; one run up to 60,000          | `pointCloud.ts`, `classifyGround` (`tilePoints`)                                       | Larger clouds run in tiles overlapping by max(6 m, 3 × search radius)                    |
+| Ground-filter tile side               | 1,000 km (`MAX_TILE_SIDE_M`)                          | `pointCloud.ts`, `classifyGround`                                                      | A wider cloud is tiled even when it has few points                                       |
+| Coordinates sent to the filter        | 0.001 m steps per axis, int32 (about 2,147 km)        | `pointCloud.ts`, `encodeLas`                                                           | That axis coarsens tenfold (0.01 m, 0.1 m…) rather than overflow                         |
 | Point-cloud grid                      | 4,194,304 cells, starting at 1 m                      | `terrain.ts` → `gridGroundPoints` (`lasSurface.ts`) / `rasterizeTin` (`tinSurface.ts`) | Cell grows by 1.25× steps until it fits; the summary and terrain name show the cell      |
 | Cell-mean gap fill                    | 3 passes, each needing 3 of 8 known neighbours        | `terrain.ts` (`gapCells: 3`), `lasSurface.ts`                                          | Wider gaps stay missing                                                                  |
 | TIN input points                      | 1,500,000                                             | `tinSurface.ts`, `MAX_POINTS`                                                          | Thinned to the lowest point per 0.5 m cell (`THIN_CELL_M`), grown by 1.25× until it fits |
@@ -78,9 +80,10 @@ companion.
 | Section half-width                    | 5–100 m, default 35 m                                 | `project.ts`; `terrain.ts`, `DEFAULT_ROAD_SETTINGS`                                    | Sections that daylight beyond the terrain stay incomplete                                |
 | Project JSON                          | 120,000,000 bytes (file) / characters (text)          | `DevForestryRoads.tsx`, `importFile`; `project.ts`, `parseProject`                     | Refused on import                                                                        |
 
-No limit above caps memory. A LAS/LAZ import holds the file, a copy sent to the worker and every
-point's coordinates before thinning, so a large file can exhaust the browser tab before the 1 GB
-check matters. The practical ceiling has not been measured.
+No limit above caps memory. A LAS/LAZ import reads the file once on the page, then transfers it
+to the worker rather than copying it (`loadLas` in `terrain.ts`, `transfer: true`). The worker
+holds the file and every point's coordinates before thinning, so a large file can still exhaust
+the browser tab before the 1 GB check matters. The practical ceiling has not been measured.
 
 ## Built-in assumptions
 
@@ -107,7 +110,12 @@ geometry after switching between them.
 NAD83(CSRS) UTM 10N (3157) only (`localRaster.ts`, `rasterProjection`). BC data in NAD83(CSRS)
 UTM zones 8, 9 or 11 (EPSG:3155, 3156, 2955) is refused; reproject it to EPSG:3005 or 3157 first.
 For LAS/LAZ only a projected CRS is read, from the GeoTIFF keys VLR or the OGC WKT VLR (EVLRs
-included).
+included). An uncompressed LAS without one is refused at once. A LAZ without one is decoded first:
+the worker asks WhiteboxTools' `lidar_info` for the CRS and reports it back before the ground
+filter runs, and breaklines are projected into that CRS (`readPointCloud` in `pointCloud.ts`, the
+`crs` message in `pointCloud.worker.ts`). Only if that also finds none is the LAZ refused. The page
+takes no vertical datum from that fallback, so for such a file type the datum unless the header
+carries a vertical key.
 
 **Vertical datum from a point cloud.** When the field is empty, the file's vertical EPSG key is
 used and recorded as `EPSG:<code>; metres`. "Metres" is written, not checked.
@@ -131,8 +139,9 @@ used and recorded as `EPSG:<code>; metres`. "Metres" is written, not checked.
   class 2 points in each cell. With "Re-classify here", a wrongly classified file still shapes
   which points survive thinning.
 
-**Gridding.** The grid covers the bounding box of every point read, any class, so a stray point
-far from the corridor enlarges the grid and can coarsen the cell. _Ground cell mean_ averages the
+**Gridding.** The grid covers the bounding box of the ground (class 2) points only
+(`gridSurface` in `pointCloud.worker.ts`), so a stray non-ground return far from the corridor
+does not enlarge the grid. A stray point classified as ground still does. _Ground cell mean_ averages the
 ground heights in each cell (rounded to the millimetre) and fills gaps up to three cells in from
 known neighbours, which also smooths across a narrow gap from both sides (up to about six cells).
 _TIN with breaklines_ keeps the lowest point where points coincide within 1 mm, takes each cell
@@ -159,15 +168,16 @@ cells.
 | "Use WGS84, Web Mercator, BC Albers, or NAD83/WGS84 UTM zones 7–11."                                        | A CRS outside the list, including NAD83(CSRS) UTM other than zone 10                                                                          | Reproject to EPSG:3005 or 3157                                                                                                |
 | "Invalid terrain raster…" for a file that opens in GIS                                                      | A no-data sentinel such as −32768 or −3.4e38, undeclared or declared with a value that does not match the cells exactly, is outside ±12,000 m | Set the no-data value in the file (for example `gdal_translate -a_nodata`)                                                    |
 | Deep pits or cliffs to −9999 m                                                                              | No-data sentinel without a `GDAL_NODATA` tag                                                                                                  | Same as above, then import again                                                                                              |
-| "This point cloud has no projected CRS key."                                                                | No GeoTIFF keys or WKT VLR, or a geographic CRS                                                                                               | Assign a projected CRS, for example with PDAL, before importing                                                               |
+| "This point cloud has no projected CRS key."                                                                | No GeoTIFF keys or WKT VLR, or a geographic CRS; for a LAZ, the decoder found none either (after reading the file)                            | Assign a projected CRS, for example with PDAL, before importing                                                               |
 | "No ground-classified (class 2) points" or "Fewer than three ground points"                                 | "Use the file's only" on an unclassified cloud                                                                                                | Choose "Use the file's; classify if none" or classify externally                                                              |
 | Classification takes minutes                                                                                | Millions of points; tiles of a long diagonal corridor hold more points than average                                                           | Crop to the corridor, or classify once externally and import the classified file                                              |
 | Surface lifted by shrubs or slash, or hollow on steep cut banks                                             | Filter thresholds do not suit this cloud                                                                                                      | Classify externally with tuned settings and use "Use the file's only"                                                         |
 | Holes in a TIN surface                                                                                      | Ground spacing wider than eight cells (dense canopy, water, no-return patches)                                                                | This is intended. The cell mean fills only three cells, so it will not close them either. Get better ground or route around   |
 | Summary reports skipped breakline segments                                                                  | Line off the cloud with no z, a z conflict above 0.01 m, or an overlap Constrainautor cannot hold                                             | Add z values, clip lines to the cloud, or fix the overlapping geometry                                                        |
 | Breaklines seem to have no effect                                                                           | GeoJSON not in WGS84, the surface set to cell mean, or the file loaded after the import                                                       | Reproject the GeoJSON, choose the TIN surface, and import the cloud again                                                     |
-| Grid cell above 1.00 m in the summary                                                                       | Extent over about 2,048 × 2,048 m, or stray points far outside the corridor                                                                   | Crop the cloud and remove outliers                                                                                            |
+| Grid cell above 1.00 m in the summary                                                                       | Ground extent over about 2,048 × 2,048 m, or stray ground-classified points far outside the corridor                                          | Crop the cloud and remove outliers                                                                                            |
 | Browser tab crashes or freezes during a LAS/LAZ import                                                      | Memory: the whole file and all points are held before thinning                                                                                | Crop or thin the cloud externally                                                                                             |
+| "… returned point _k_ of _n_ in a tile _d_ m from where it was sent …"                                      | The ground filter reordered the points or changed their coordinates, so classes cannot be matched back                                        | Classify externally and import with "Use the file's only"; report the file                                                    |
 | Saved project will not reopen: "needs its original terrain" or a checksum error                             | Published DTM bytes changed, the source host is unreachable, or the file was edited                                                           | There is no control to rebind a project to other terrain bytes. Keep the project JSON; a failed restore does not overwrite it |
 | Regional project reopens with different ground or missing tiles                                             | Tiles are fetched again for the current alignment extent; nothing is embedded or checksummed                                                  | Check the missing-tile count in the terrain name; do not compare quantities across sessions                                   |
 | Contours drawn at 2 m or 4 m                                                                                | The 1 m layer would exceed 60,000 segments                                                                                                    | Zoom the extent or accept it; calculations do not use contours                                                                |

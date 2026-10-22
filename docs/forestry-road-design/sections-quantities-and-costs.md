@@ -35,35 +35,37 @@ this page says when their results can be trusted and what they quietly assume.
 
 ## Limits and budgets
 
-| Limit                                | Value                                                            | Enforced in                                                                | When exceeded                                                                    |
-| ------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Station spacing                      | 2–100 m                                                          | `engine.ts` `validate`                                                     | Calculation error                                                                |
-| Calculation stations                 | 3,000 including breakpoints                                      | `engine.ts` `MAX_STATIONS`                                                 | Spacing widens with a warning; too many breakpoints is an error (split the road) |
-| Section reach each side (half-width) | 5–100 m                                                          | `engine.ts` `validate`                                                     | Calculation error                                                                |
-| Section sampling pitch               | larger of 0.25 m and 2 × half-width / 220                        | `engine.ts` `sectionAt` (`step`)                                           | Fixed; template and daylight breakpoints are added exactly                       |
-| Lane width per side                  | 0.1–50 m                                                         | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Crossfall                            | base crown 0–20 %; side value −20 to 20 %                        | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Cut and fill batters                 | 0.1–10 H:V in the editor and project files (engine 0.05–10)      | `TemplateComponents.tsx`, `project.ts` `parseTemplate`, `validateTemplate` | Field clamps; file rejected                                                      |
-| Ditch                                | width 0–10 m, depth 0–5 m, bottom width 0–ditch width            | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Surfacing depth                      | 0–2 m                                                            | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons        | `templates.ts` `validateEngineering`                                       | Calculation error; add buttons disable at the limit                              |
-| Assignment transition                | ≤ half its range; ≤ 1,000 m in files                             | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
-| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range           | `engine.ts` `validate`, `widthExtras`                                      | Error; an oversized taper is shortened silently                                  |
-| Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m      | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
-| Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %            | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
-| Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2          | `EngineeringControls.tsx`, `engineeringProject.ts`                         | Field clamps; file rejected                                                      |
-| Reusable cut factor                  | 0.1–2                                                            | `DesignSidebarBody.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
-| Horizon depths                       | 0–1,000 m below ground; no overlap in station and depth          | `validateEngineering`                                                      | Calculation error                                                                |
-| Material section work                | 15,000,000 section-sample × layer pairs                          | `engineering.ts` `calculateEngineering`                                    | Calculation error                                                                |
-| Haul allocation                      | 20,000,000 comparisons; 20,000 movements                         | `engineering.ts` `allocateHaul`                                            | Calculation error, not a truncated allocation                                    |
-| Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km      | `validateEngineering`                                                      | Calculation error                                                                |
-| Contingency                          | 0–100 %                                                          | `validateEngineering`                                                      | Calculation error                                                                |
-| Borrow and waste sites               | 100; access ≤ 100 km; capacity ≤ 10¹² m³ or unbounded            | `validateEngineering`                                                      | Calculation error                                                                |
-| Culverts                             | 100; span 0.2–500 m, diameter 0.1–20 m, skew ±80°, cover 0–100 m | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected                                                      |
-| Culvert barrel profile               | 40 intervals plus centre and formation-edge samples              | `engineering.ts` `calculateCulvert`                                        | Fixed                                                                            |
-| Stream association tolerance         | 1 m between culvert station and crossing                         | `engineering.ts` `calculateCulvert`                                        | Culvert and results marked incomplete                                            |
-| Base rates in the cost dialog        | 0–10,000 per unit                                                | `CostBreakdown.tsx` `setting`                                              | Field clamps                                                                     |
-| Haul transfers listed                | 100 per page                                                     | `EngineeringSummary.tsx`                                                   | Paginated                                                                        |
+| Limit                                | Value                                                                                                                       | Enforced in                                                                | When exceeded                                                                    |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Station spacing                      | 2–100 m                                                                                                                     | `engine.ts` `validate`                                                     | Calculation error                                                                |
+| Calculation stations                 | 3,000 including breakpoints                                                                                                 | `engine.ts` `MAX_STATIONS`                                                 | Spacing widens with a warning; too many breakpoints is an error (split the road) |
+| Section reach each side (half-width) | 5–100 m                                                                                                                     | `engine.ts` `validate`                                                     | Calculation error                                                                |
+| Section sampling pitch               | larger of 0.25 m and 2 × half-width / 220                                                                                   | `engine.ts` `sectionAt` (`step`)                                           | Fixed; template and daylight breakpoints are added exactly                       |
+| Lane width per side                  | 0.1–50 m                                                                                                                    | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
+| Crossfall                            | base crown 0–20 %; side value −20 to 20 %                                                                                   | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
+| Cut and fill batters                 | 0.1–10 H:V                                                                                                                  | `TemplateComponents.tsx`, `project.ts` `parseTemplate`, `validateTemplate` | Field clamps; file rejected; calculation error                                   |
+| Ditch                                | width 0–10 m, depth 0–5 m, bottom width 0–ditch width                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
+| Surfacing depth                      | 0–2 m                                                                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
+| Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                   | `templates.ts` `validateEngineering`                                       | Calculation error; add buttons disable at the limit                              |
+| Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                        | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
+| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; an oversized taper is shortened silently                                  |
+| Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                 | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
+| Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
+| Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
+| Reusable cut factor                  | 0.1–2                                                                                                                       | `DesignSidebarBody.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
+| Horizon depths                       | 0–1,000 m below ground; no overlap in station and depth                                                                     | `validateEngineering`                                                      | Calculation error                                                                |
+| Material section work                | 15,000,000 section-sample × layer pairs                                                                                     | `engineering.ts` `calculateEngineering`                                    | Calculation error                                                                |
+| Haul allocation                      | 20,000,000 comparisons; 20,000 movements                                                                                    | `engineering.ts` `allocateHaul`                                            | Calculation error, not a truncated allocation                                    |
+| Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km                                                                 | `validateEngineering`                                                      | Calculation error                                                                |
+| Haul rates                           | free-haul, overhaul, endhaul, loading, borrow and waste 0–100,000                                                           | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
+| Mobilization                         | 0–10⁹ $                                                                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
+| Contingency                          | 0–100 %                                                                                                                     | `validateEngineering`                                                      | Calculation error                                                                |
+| Borrow and waste sites               | 100; access ≤ 100 km; capacity ≤ 10¹² m³ or unbounded; rate 0–100,000 $/m³; fixed cost ≤ 10⁹ $                              | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
+| Culverts                             | 100; span 0.2–500 m, diameter 0.1–20 m, skew ±80°, cover 0–100 m; ditch dip 0.1–50 % or none; ≤ 10⁶ $/m; fixed cost ≤ 10⁹ $ | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
+| Culvert barrel profile               | 40 intervals plus centre and formation-edge samples                                                                         | `engineering.ts` `calculateCulvert`                                        | Fixed                                                                            |
+| Stream association tolerance         | 1 m between culvert station and crossing                                                                                    | `engineering.ts` `calculateCulvert`                                        | Culvert and results marked incomplete                                            |
+| Base rates in the cost dialog        | 0–10,000 per unit; default borrow and waste 0–100,000; haul class and loading fields 0–100,000                              | `CostBreakdown.tsx` `setting`, `haulRate`                                  | Field clamps                                                                     |
+| Haul transfers listed                | 100 per page                                                                                                                | `EngineeringSummary.tsx`                                                   | Paginated                                                                        |
 
 The full list of project budgets is in
 [Computation and file budgets](../forestry-road-design.md#computation-and-file-budgets).
@@ -72,11 +74,15 @@ The full list of project budgets is in
 
 **Default section.** `DEFAULT_TEMPLATE` (`terrain.ts`) is a 3 m + 3 m formation with a 3 % crown,
 0.75H:1V cut, 1.5H:1V fill, a 1 m wide by 0.5 m deep V ditch and 0.25 m of surfacing. The
-**Template starting point** options in `EngineeringControls.tsx` change only some values: _Forest
-single lane_ 3 + 3 m at 4 %, _Forest double lane_ 4.5 + 4.5 m at 4 %, _Wide landing_ 12 m left
-and 3 m right at 2 % with no surfacing, _Crowned road_ 3.5 + 3.5 m at 2 % with no ditch and 0.3 m
-of surfacing. Every other value is copied from the current road. None is a BC road-class
-standard.
+**Template starting point** options (`templateFromStarter` in `templates.ts`) set a few values:
+_Forest single lane_ 3 + 3 m at 4 %, _Forest double lane_ 4.5 + 4.5 m at 4 %, _Wide landing_ 12 m
+left and 3 m right at 2 % with no surfacing, _Crowned road_ 3.5 + 3.5 m at 2 % with no ditch (width,
+depth and bottom width 0) and 0.3 m of surfacing. Every starter except _Current road section_ also
+clears all side-specific values, both side ditch bottom widths included, and caps the shared ditch
+bottom width at the ditch width. The other symmetric values are copied from the current road. The
+new template is validated before it is added; one out of range is refused with a message. None is
+a BC road-class standard. Left and right ditch bottom widths are set in the template's side
+editor.
 
 **Section geometry.** Negative offsets are left looking up-station, on the plan, the section, the
 templates and the tables. A ditch is built only where ground at the hinge is above the formation
@@ -87,8 +93,10 @@ narrow bench or gully narrower than the pitch can be stepped over.
 **Superelevation and widening.** With a design speed set (defaults in `CurveTools.tsx`: 40 km/h,
 8 % maximum, side friction 0.15, 30 m runoff, no widening vehicle), e = V²/(127 R) − f, between 0
 and the maximum. The section rotates about the centreline, and the inside falls at least at its
-crown. Widening is L²/(2R) on the inside, counted as surfaced width. The start of a runoff is not a
-calculation station, so the change in crossfall and width there is spread over the neighbouring
+crown. Widening is L²/(2R) on the inside, counted as surfaced width. On a spiralled curve both run
+in over the longer of the runoff and the spiral, ending at the SC (see
+[Alignment and optimization](alignment-and-optimization.md#built-in-assumptions)). The start of a
+runoff is not a calculation station, so the change in crossfall and width there is spread over the neighbouring
 interval.
 
 **Widening ranges.** Overlapping landing and turnout ranges take the larger extra width per side;
@@ -119,11 +127,27 @@ difference plus the site's entered access distance. A gap in coverage splits the
 separate runs, and a site outside a run is never used. A new site copies the default borrow or
 waste rate when you add it and keeps that rate afterwards.
 
+**Haul in the cost breakdown** (`haulCostLines` in `engineering.ts`). Every haul, borrow, waste and
+site row is quantity × rate = amount, and each group's rows add up to its cost:
+
+- one distance row per haul class and volume basis, in m³·km. Free haul is charged over the whole
+  distance; overhaul and endhaul only over the distance beyond free haul (`haulCharge`).
+  Compacted (fill and borrow) and bank (waste) volumes are separate rows, never added;
+- one loading row per class and basis, in m³, at that class's loading rate;
+- borrow supply and waste disposal, one row per site at the site's own rate, plus one row at the
+  default borrow or waste rate for volume no site could take;
+- site preparation, one lump-sum row per site actually used.
+
+In the table only the default borrow and waste rates are editable. Class rates are edited in the
+fields below the table; site rates and fixed costs in Engineering → Haul. **Structures** shows the
+culvert count and their installed total, with no rate.
+
 **Culverts.** Cover is the minimum sampled subgrade-to-crown distance under the lane width only. It
 excludes surfacing and is not checked under ditches or fill batters. The formation under the
-barrel uses the template crossfall, not the superelevated one, so check cover by hand on a
-superelevated curve. A dip deepens the left (inlet-side) ditch only, and only where that ditch is
-built.
+barrel uses the section's own crossfall at each sample's station, superelevated on a curve
+(`sectionCrossfall` in `templates.ts`). A dip deepens the left (inlet-side) ditch only, and only
+where that ditch is built; the section's ditch-bottom point follows the dipped ditch
+(`sectionCodePoints` in `sectionGeometry.ts`, up to `MAX_DITCH_DIP_DEPTH`).
 
 ## What the cost estimate covers
 
@@ -161,28 +185,30 @@ from road-group equations, not per m³, so they cannot seed this table directly;
 [Itemized scenario cost](../forestry-road-design.md#itemized-scenario-cost) section links them and
 explains why.
 
-**Cost status.** The dialog reads "current, complete" only when coverage is at least 99.999 % and
+**Cost status.** The dialog reads "current, complete" only when coverage is complete (at least
+`COMPLETE_COVERAGE_PERCENT`, 100 − 1e-5 %, in `analysisResult.ts`, the rule the tiles, summary,
+report and pegging also use) and
 the engineering result is complete (all culverts resolved, no unallocated borrow or waste, no
 culvert past the road end). Otherwise it reads "current, partial".
 
 ## How problems show up
 
-| What you see                                                      | Likely cause                                                                                                                               | What to do                                                                      |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| "Left/Right daylight unresolved: extend section or check terrain" | Batter does not meet ground inside the half-width, or ground is missing                                                                    | Raise **Section reach each side**; steepen the batter; check terrain coverage   |
-| "Missing terrain inside the road footprint"                       | A no-data hole under the formation, ditch or batter                                                                                        | Fill or replace the terrain; the station stays excluded until then              |
-| Complete sections below 100 %, tile reads "Covered cut / fill"    | Any of the two flags above, at one or more stations                                                                                        | Select flagged stations in the station table; fix before comparing alternatives |
-| Mass curve ends early                                             | First incomplete interval                                                                                                                  | Fix that interval; quantities after it are still in the totals                  |
-| Totals change when you change station spacing                     | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                            | Use the finer spacing; or add breakpoints with assignments or horizons          |
-| "Station spacing increased to … m"                                | Road too long for 3,000 stations at the requested spacing                                                                                  | Split the road for site-level quantities                                        |
-| "Correct this alignment before calculating: …"                    | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)                  | Read the message; quantities are unavailable until it is fixed                  |
-| Both borrow and waste on a road that balances overall             | Gaps split the runs, or nearest-source order left cut stranded                                                                             | Close the gaps; add sites; treat the allocation as one scenario                 |
-| "Some borrow/waste has no reachable site capacity"                | No site in that run, or capacity used up                                                                                                   | Add sites in the run or raise capacity; until then its haul is not priced       |
-| Culvert cover or grade shows "—"                                  | An invert missing, terrain missing along the barrel, or daylight unresolved                                                                | Enter both inverts; fix the section at that station                             |
-| "Barrel is shorter than the centred daylight span"                | Span less than 2 × the farther daylight / cos(skew)                                                                                        | Lengthen the span; check headwalls and skew in the field                        |
-| Rate preset shows _Custom · this project_                         | A base rate or the reusable cut factor was edited                                                                                          | Expected; the source note no longer applies                                     |
-| Haul line: quantity × rates does not give the amount              | The quantity is all m³·km over full distance, compacted and bank together; the amount charges only distance beyond free haul, plus loading | Check haul cost per movement on the Haul tab of the results                     |
-| A zero cost line                                                  | Its rate is zero                                                                                                                           | Zero means unpriced; enter a rate or state the exclusion                        |
+| What you see                                                      | Likely cause                                                                                                              | What to do                                                                      |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| "Left/Right daylight unresolved: extend section or check terrain" | Batter does not meet ground inside the half-width, or ground is missing                                                   | Raise **Section reach each side**; steepen the batter; check terrain coverage   |
+| "Missing terrain inside the road footprint"                       | A no-data hole under the formation, ditch or batter                                                                       | Fill or replace the terrain; the station stays excluded until then              |
+| Complete sections below 100 %, tile reads "Covered cut / fill"    | Any of the two flags above, at one or more stations                                                                       | Select flagged stations in the station table; fix before comparing alternatives |
+| Mass curve ends early                                             | First incomplete interval                                                                                                 | Fix that interval; quantities after it are still in the totals                  |
+| Totals change when you change station spacing                     | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                           | Use the finer spacing; or add breakpoints with assignments or horizons          |
+| "Station spacing increased to … m"                                | Road too long for 3,000 stations at the requested spacing                                                                 | Split the road for site-level quantities                                        |
+| "Correct this alignment before calculating: …"                    | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range) | Read the message; quantities are unavailable until it is fixed                  |
+| Both borrow and waste on a road that balances overall             | Gaps split the runs, or nearest-source order left cut stranded                                                            | Close the gaps; add sites; treat the allocation as one scenario                 |
+| "Some borrow/waste has no reachable site capacity"                | No site in that run, or capacity used up                                                                                  | Add sites in the run or raise capacity; until then its haul is not priced       |
+| Culvert cover or grade shows "—"                                  | An invert missing, terrain missing along the barrel, or daylight unresolved                                               | Enter both inverts; fix the section at that station                             |
+| "Barrel is shorter than the centred daylight span"                | Span less than 2 × the farther daylight / cos(skew)                                                                       | Lengthen the span; check headwalls and skew in the field                        |
+| Rate preset shows _Custom · this project_                         | A base rate or the reusable cut factor was edited                                                                         | Expected; the source note no longer applies                                     |
+| Overhaul m³·km in the cost dialog smaller than on the Haul tab    | The dialog charges overhaul and endhaul only beyond free haul; the Haul tab's m³·km is over the whole distance            | Expected; use the dialog's rows for cost, the Haul tab for movement             |
+| A zero cost line                                                  | Its rate is zero                                                                                                          | Zero means unpriced; enter a rate or state the exclusion                        |
 
 ## What it does not do
 

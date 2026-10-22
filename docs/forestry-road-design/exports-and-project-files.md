@@ -41,9 +41,9 @@ formats are specified in the
 | Engineering CSV                 | Material quantities, culvert inventory, haul movements, itemized costs                                                                                                       | Chainage only                                                      | Geometry                                                                                                                 |
 | D-line CSV / HTML               | Supports, sampled profile, assumed sag and clearance                                                                                                                         | WGS84 lon/lat                                                      | Tension, load, anchors                                                                                                   |
 | LandXML 1.2 (`.xml`)            | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m                     | Terrain's projected EPSG, else WGS84 UTM zone of the first point   | Other alternatives, surfaces (TIN), feature lines, superelevation, template/corridor model, ditches as objects, culverts |
-| Stakeout CSV                    | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only), daylight and catch points with offset, grid coordinates, level, ground and cut/fill    | Same as LandXML                                                    | Reference or offset stakes, instrument data, point descriptions for a data collector                                     |
+| Stakeout CSV                    | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill              | Same as LandXML                                                    | Reference or offset stakes, instrument data, point descriptions for a data collector                                     |
 | Shapefile (`-shapefiles.zip`)   | `road_centrelines` (every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                         | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                          | Sections, catch lines, sites, context, drainage, elevations as Z                                                         |
-| Plot book (`-plot-book.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid | Culverts, curve data, PI table, legend, contour interval, a fixed print scale                                            |
+| Plot book (`-plot-book.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid | Culverts, curve data, PI table, legend, a fixed print scale                                                              |
 | Printed report (`-report.html`) | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m               | Chainage                                                           | Drainage, plan view, LandXML-level geometry                                                                              |
 
 The plot book and report are self-contained HTML with no scripts or network resources. Open
@@ -52,34 +52,34 @@ book.
 
 ## Limits and budgets
 
-| Limit                                | Value                                                                              | Enforced in                                                                | What happens when exceeded                                           |
-| ------------------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Project file                         | 120,000,000 bytes (file) / characters (text)                                       | `DevForestryRoads.tsx` `importFile`; `project.ts` `parseProject`           | Refused                                                              |
-| Schema                               | `pgmaps-road-project-v1` exactly                                                   | `project.ts`, `parseProject`                                               | Refused: "Use a pgmaps-road-project-v1 project file"                 |
-| Alignments                           | 1–20                                                                               | `project.ts`, `MAX_ALIGNMENTS`                                             | Refused                                                              |
-| Horizontal points                    | 2,000 in the project (and per alignment)                                           | `project.ts`, `MAX_POINTS`                                                 | Refused                                                              |
-| Alignment length                     | 100 km                                                                             | `project.ts`, `parseAlignment`                                             | Refused: split the road                                              |
-| Vertical PVIs / widenings / controls | 500 / 200 / 200 per alignment                                                      | `project.ts`, `parseAlignment`                                             | Refused                                                              |
-| Culverts / haul sites                | 100 / 100 per alignment                                                            | `engineeringProject.ts`, `parseEngineering`                                | Refused                                                              |
-| Context                              | 500 features, 50,000 vertices; 10,000 per line or ring; 100 rings                  | `project.ts`, `MAX_CONTEXT_VERTICES`, `parseContext`                       | Refused                                                              |
-| D-lines / terrain profiles           | 100 / 20, profiles 2,000 vertices in total                                         | `project.ts`, `parseProject`                                               | Refused                                                              |
-| Names / IDs                          | Names 1–200 characters; IDs 1–100 of `A–Z a–z 0–9 _ . : -`                         | `project.ts`, `text`, `id`                                                 | Refused                                                              |
-| Latitude                             | Strictly between −85° and 85°                                                      | `project.ts`, `coordinate`                                                 | Refused                                                              |
-| Embedded raster                      | 2 × 2 to 4,194,304 cells; values −12,000 to 12,000 m                               | `terrain.ts`, `MAX_ROAD_RASTER_CELLS`, `validateRoadRaster`                | Refused as invalid                                                   |
-| Vertical datum text                  | 1–300 characters                                                                   | `project.ts`, `parseTerrain`                                               | Refused                                                              |
-| GeoJSON import                       | 20,000,000 characters, 500 features; lines: 20 roads, 2,000 vertices               | `project.ts`, `features`, `importAlignmentGeoJson`                         | Refused                                                              |
-| Library JSON                         | 2,000,000 characters                                                               | `project.ts`, `importRoadLibrary`                                          | Refused                                                              |
-| Autosave delay                       | 650 ms after the last edit                                                         | `useRoadWorkspace.ts`                                                      | —                                                                    |
-| Undo history                         | 30 steps; edits within 450 ms merge into one                                       | `useRoadWorkspace.ts`, `commit`                                            | Oldest step dropped                                                  |
-| Section and stake interval           | 20 m (nearest calculated station)                                                  | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)          | Fixed                                                                |
-| Plot book sheets                     | 250 m per plan-and-profile sheet; 12 sections per sheet                            | `plotBook.ts`, `plotBookHtml`                                              | More sheets; no upper limit                                          |
-| Plot book contours                   | 256 samples on the longer side; interval from 1 m, doubled until ≤ 60,000 segments | `DevForestryRoads.tsx` `save`; `terrainDisplay.ts`, `MAX_CONTOUR_SEGMENTS` | Coarser contours; on failure the sheets have none, without a message |
-| Report section plots                 | 240                                                                                | `project.ts`, `reportSections`                                             | Only the first 240 (4.8 km at 20 m); the report says so              |
-| DBF field names                      | 1–10 capitals, digits or `_`                                                       | `shapefile.ts`, `writeDbf`                                                 | Export fails                                                         |
-| DBF text                             | `NAME` 80 bytes, `FLAGS` 200 bytes (UTF-8)                                         | `designExports.ts`, `roadShapefileLayers`; `shapefile.ts`                  | Cut on a character boundary, without a message                       |
-| DBF numbers                          | Fixed widths, e.g. `GROUND_M` 10.2, `COVER_PCT` 7.2, `COST_CAD` 14.0               | `designExports.ts`, `roadShapefileLayers`                                  | A value too wide for its field is written blank                      |
-| File name                            | Project name, non-alphanumerics to `-`, at most 70 characters                      | `DevForestryRoads.tsx`, `save`                                             | Shortened                                                            |
-| Saved layout name                    | 60 characters                                                                      | `LayoutPicker.tsx`                                                         | Shortened                                                            |
+| Limit                                | Value                                                                                                                         | Enforced in                                                                | What happens when exceeded                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Project file                         | 120,000,000 bytes (file) / characters (text)                                                                                  | `DevForestryRoads.tsx` `importFile`; `project.ts` `parseProject`           | Refused                                                                                         |
+| Schema                               | `pgmaps-road-project-v1` exactly                                                                                              | `project.ts`, `parseProject`                                               | Refused: "Use a pgmaps-road-project-v1 project file"                                            |
+| Alignments                           | 1–20                                                                                                                          | `project.ts`, `MAX_ALIGNMENTS`                                             | Refused                                                                                         |
+| Horizontal points                    | 2,000 in the project (and per alignment)                                                                                      | `project.ts`, `MAX_POINTS`                                                 | Refused                                                                                         |
+| Alignment length                     | 100 km                                                                                                                        | `project.ts`, `parseAlignment`                                             | Refused: split the road                                                                         |
+| Vertical PVIs / widenings / controls | 500 / 200 / 200 per alignment                                                                                                 | `project.ts`, `parseAlignment`                                             | Refused                                                                                         |
+| Culverts / haul sites                | 100 / 100 per alignment                                                                                                       | `engineeringProject.ts`, `parseEngineering`                                | Refused                                                                                         |
+| Context                              | 500 features, 50,000 vertices; 10,000 per line or ring; 100 rings                                                             | `project.ts`, `MAX_CONTEXT_VERTICES`, `parseContext`                       | Refused                                                                                         |
+| D-lines / terrain profiles           | 100 / 20, profiles 2,000 vertices in total                                                                                    | `project.ts`, `parseProject`                                               | Refused                                                                                         |
+| Names / IDs                          | Names 1–200 characters; IDs 1–100 of `A–Z a–z 0–9 _ . : -`                                                                    | `project.ts`, `text`, `id`                                                 | Refused                                                                                         |
+| Latitude                             | Strictly between −85° and 85°                                                                                                 | `project.ts`, `coordinate`                                                 | Refused                                                                                         |
+| Embedded raster                      | 2 × 2 to 4,194,304 cells; values −12,000 to 12,000 m                                                                          | `terrain.ts`, `MAX_ROAD_RASTER_CELLS`, `validateRoadRaster`                | Refused as invalid                                                                              |
+| Vertical datum text                  | 1–300 characters                                                                                                              | `project.ts`, `parseTerrain`                                               | Refused                                                                                         |
+| GeoJSON import                       | 20,000,000 characters, 500 features; lines: 20 roads, 2,000 vertices                                                          | `project.ts`, `features`, `importAlignmentGeoJson`                         | Refused                                                                                         |
+| Library JSON                         | 2,000,000 characters                                                                                                          | `project.ts`, `importRoadLibrary`                                          | Refused                                                                                         |
+| Autosave delay                       | 650 ms after the last edit                                                                                                    | `useRoadWorkspace.ts`                                                      | —                                                                                               |
+| Undo history                         | 30 steps; edits within 450 ms merge into one                                                                                  | `useRoadWorkspace.ts`, `commit`                                            | Oldest step dropped                                                                             |
+| Section and stake interval           | 20 m (nearest calculated station)                                                                                             | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)          | Fixed                                                                                           |
+| Plot book sheets                     | 250 m per plan-and-profile sheet; 12 sections per sheet                                                                       | `plotBook.ts`, `plotBookHtml`                                              | More sheets; no upper limit                                                                     |
+| Plot book contours                   | 256 samples on the longer side; interval from 1 m, doubled until ≤ 60,000 segments                                            | `DevForestryRoads.tsx` `save`; `terrainDisplay.ts`, `MAX_CONTOUR_SEGMENTS` | Coarser contours; on failure plans print "Contours unavailable" and the notice gives the reason |
+| Report section plots                 | 240                                                                                                                           | `project.ts`, `reportSections`                                             | Only the first 240 (4.8 km at 20 m); the report says so                                         |
+| DBF field names                      | 1–10 capitals, digits or `_`                                                                                                  | `shapefile.ts`, `encodeDbf`                                                | Export fails                                                                                    |
+| DBF text                             | Starts at `NAME` 80 bytes, `FLAGS` 200 bytes (UTF-8); widens to fit, up to 254 bytes (`DBF_MAX_TEXT_BYTES`)                   | `designExports.ts`, `roadShapefileLayers`; `shapefile.ts`, `encodeDbf`     | Cut on a character boundary; the notice counts it                                               |
+| DBF numbers                          | Starts at e.g. `GROUND_M` 10.2, `COVER_PCT` 7.2, `COST_CAD` 14.0; widens to fit, up to 19 characters (`DBF_MAX_NUMBER_WIDTH`) | `designExports.ts`, `roadShapefileLayers`; `shapefile.ts`, `encodeDbf`     | Written blank; the notice counts it. Values of 10²¹ or more are always blank                    |
+| File name                            | Project name, non-alphanumerics to `-`, at most 70 characters                                                                 | `DevForestryRoads.tsx`, `save`                                             | Shortened                                                                                       |
+| Saved layout name                    | 60 characters                                                                                                                 | `LayoutPicker.tsx`                                                         | Shortened                                                                                       |
 
 ## Built-in assumptions
 
@@ -92,11 +92,12 @@ book.
   converted with fixed EPSG:1946 parameters. Imported NAD83 UTM and BC Albers rasters are
   treated as if NAD83 and WGS84 were the same datum. The difference is under about 2 m in BC, but
   it is there; do not compare these lon/lat values with survey-grade WGS84 or ITRF positions.
-- **Chainage is not grid distance.** Lengths, radii and stations come from the workspace's
-  spherical model; coordinates in LandXML and the stakeout file are projected. At Prince George a
-  line measuring 983.0 m along the road is 985.8 m between its exported UTM coordinates (0.29 %);
-  north–south the difference is about 0.06 %. A program that recomputes lengths from LandXML
-  coordinates will not reproduce the stations exactly.
+- **Chainage is not grid distance.** Stations come from the workspace's spherical model;
+  coordinates in LandXML and the stakeout file are projected. At Prince George a line measuring
+  983.0 m along the road is 985.9 m between its exported UTM coordinates (0.29 %); north–south the
+  difference is about 0.06 %. LandXML element lengths are grid lengths, so they agree with the
+  coordinates, but its stations stay chainage (see [LandXML](#landxml)). A program that restations
+  from the geometry will not reproduce the workspace's stations exactly.
 - **Offsets are perpendicular to the station bearing,** negative to the left looking up-station,
   in every file.
 
@@ -105,26 +106,37 @@ book.
 - **Version 1.2, one alignment.** The active road only, named by the project, with the terrain's
   EPSG and the vertical datum text in `CoordinateSystem`. Points are written "northing easting"
   to 3 decimals.
+- **Geometry is in grid units, stations in chainage.** Each line's length is the grid distance
+  between its written coordinates. An arc's radius comes from its grid chord and its deflection,
+  with the centre placed from its grid ends. A clothoid's length and radii are scaled by grid chord
+  ÷ model chord (`gridElement` in `designExports.ts`). The `Alignment` length is the sum of the
+  grid lengths. `staStart`, PVI, ground-profile and cross-section stations stay chainage. An XML
+  comment above `Alignments` says which is which and gives grid length ÷ chainage over the
+  alignment: about 1.003 on an east–west road at Prince George, 1.0006 north–south, 1.0017 at 45°.
+  Because each element is scaled on its own, the radius of a spiral's end and of the arc it meets
+  can differ by about 0.1 %.
 - **The profile is the PVI list.** The first and last PVI never carry a curve. A road without
-  PVIs gets no design profile element. The ground profile joins the stations that have ground,
-  straight across any gap.
+  PVIs gets no design profile element, and with no ground either the `Profile` is left out. The
+  ground profile joins the stations that have ground, straight across any gap.
 - **Sections are at the calculated station nearest each 20 m multiple,** plus the last station.
   With a 15 m station interval the section for 0+020 is the one at 0+015; read the `sta` attribute.
-  Each has a design and a ground point list; the design list is omitted where there is none.
-- **A non-finite number is written as 0.** A missing coordinate or value does not leave a gap; it
-  appears as 0.000. Check for zeros before you import.
+  Each has a design and a ground point list; a list with no points is omitted, and a section with
+  neither is left out.
+- **A missing value is never written as a number.** A point, PVI, section surface or element with
+  a missing value is left out rather than written as 0.
 
 ### Stakeout CSV
 
 - **Columns:** `point, station_m, code, offset_m, easting, northing, elevation_m, ground_m,
 cut_fill_m, epsg`. Cut/fill is ground minus design: positive is cut.
-- **Level is design, except at catch points** (ground). Where a point has no design, the level
-  falls back to ground and cut/fill is blank; a blank `cut_fill_m` means the level is not a
-  design level.
-- **Ditch bottoms appear only on cut sides** where the section actually reaches the ditch depth.
-- **Each catch point is listed twice,** once as `left-daylight`/`right-daylight` and once as
-  `left-catch`/`right-catch`, at the same offset with consecutive point numbers. Drop one before
-  loading the file into a data collector.
+- **Codes:** `centreline`, `left-formation-edge`/`right-formation-edge`,
+  `left-ditch-bottom`/`right-ditch-bottom` and `left-catch`/`right-catch`, one catch point per side.
+- **Level is the design level, except at catch points,** where the batter meets the ground and the
+  level is ground (design if ground is missing). A point with no design has a blank level, never
+  ground in its place. A point with neither design nor ground is left out.
+- **Missing values are blank,** in every column; numbers never print as `-0.000`.
+- **Ditch bottoms appear only on cut sides** where the section reaches the ditch depth, or the
+  deeper ditch a culvert dip makes (up to 4 m below the hinge).
 - **It is a list of geometric points, not a survey package.** There are no reference points, no
   offset stakes, no instrument or control data and no tolerance. A surveyor needs to set out from
   control in the same CRS and datum.
@@ -138,6 +150,10 @@ COVER_PCT`. `road_stations`: `STATION_M, GROUND_M, DESIGN_M, GRADE_PCT, CUT_M2, 
 FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 - **Unknown values are blank, not zero.** A GIS may read a blank number as 0 or as null; check
   which before summing.
+- **Fields widen to fit** (`encodeDbf` in `shapefile.ts`), numbers up to 19 characters and text up
+  to 254 bytes. A number still too wide, or of 10²¹ or more, is written blank, and text still too
+  long is cut on a character boundary. Either way the notice reads "Shapefiles downloaded with _N_
+  field warnings: …", naming the layer, field and number of records.
 
 ### Plot book
 
@@ -152,8 +168,10 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   means that, not a print ratio), and each cell has its own scale.
 - **Contours come from the active terrain** over the road's extent plus 0.002°, sampled at 256
   points on the longer side. The interval starts at 1 m and doubles to stay under 60,000
-  segments. Neither the interval nor the sample spacing is printed; on a long road the contours
-  are generalized well beyond the terrain's resolution.
+  segments. Each plan prints the interval, the index interval (5 ×) and the sample-grid spacing
+  (`contourNote` in `plotBook.ts`); on a long road the contours are generalized well beyond the
+  terrain's resolution. Without contours each plan prints "Contours unavailable", and when the
+  contour build failed the notice reads "Plot book downloaded without contours (…)".
 - **Every sheet says "Preliminary planning geometry · not for construction".**
 
 ### Printed report
@@ -165,8 +183,8 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 
 - **Autosave writes the whole validated project to IndexedDB** (`pgmaps-forestry-roads-v1`, key
   `current`) 650 ms after each edit, embedded raster included. The header shows "Saved on this
-  device", "Local save unavailable — download your project" or "Last valid save retained: …" (on
-  wide screens only).
+  device", "Local save unavailable — download your project" or "Last valid save retained: …". Below
+  the `xl` breakpoint it shows a small dot instead, whose tooltip and label carry the text.
 - **An invalid edit does not overwrite the last valid save.** The message names the problem.
 - **Autosave pauses while an error banner is shown,** and while the workspace is busy. Dismiss
   the banner to resume.
@@ -176,8 +194,9 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   "unavailable" message and the previous save, if any, remains. In a private window the save is
   discarded when the window closes. A project with a large embedded raster is the most likely to
   hit a quota.
-- **`?example=training` saves under a separate key (`training`) but never restores from it;**
-  training mode always starts from the synthetic hillside.
+- **`?example=training` saves under a separate key (`training`) but never restores from it,** by
+  design: training mode always starts fresh from the synthetic hillside, and its saves never
+  overwrite your `current` project.
 - **A restore that fails changes nothing.** The current project stays, undo history is kept, and
   the message says what is missing. If the saved project cannot be restored when the page opens,
   the training hillside is shown, the saved project is left untouched and autosave stays off
@@ -204,28 +223,28 @@ cells, so it records provenance, not integrity of the cells in the JSON.
 
 Screen layouts, their pane sizes and the station table's hidden columns are kept in this
 browser's `localStorage` (`pgmaps-road-saved-layouts`, `pgmaps-road-layout`,
-`pgmaps-road-panes:…`, `pgmaps-road-station-columns`). They are not in the project file, do not
+`pgmaps-road-panes:…`, `pgmaps-road-station-columns`), and so are the drainage inputs
+(`pgmaps-road-drainage-settings`). They are not in the project file, do not
 follow you to another browser and are lost with site data or at the end of a private session.
 Write failures are ignored; the layout falls back to its defaults.
 
 ## How problems show up
 
-| Symptom                                                          | Likely cause                                                             | What to do                                                                  |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| "Finish or close the design preview before exporting"            | A draft, peg or template preview is open                                 | Finish or cancel it                                                         |
-| Save refuses with a validation message                           | The current inputs are invalid                                           | Correct the named field; autosave still holds the last valid version        |
-| "This project needs its original terrain GeoTIFF re-imported"    | A GeoTIFF project without embedded cells                                 | Import the original GeoTIFF, then open the project                          |
-| "Source raster hash mismatch"                                    | The published LiDAR file changed since the project was saved             | The project cannot be restored on that terrain; do not substitute another   |
-| Regional project reopens with different elevations               | Tiles re-downloaded, or the road's extent changed                        | Compare against your exported results; regional numbers are screening only  |
-| Shapefile lands 1–2 m off a survey layer                         | Datum treated as WGS84, or survey in another datum                       | Reproject the survey; do not rely on sub-2 m agreement                      |
-| LandXML stations drift from coordinates over a long road         | Spherical chainage against grid coordinates                              | Expect up to about 3 m per km east–west; restation in the receiving program |
-| 0.000 values in LandXML or stakeout                              | A non-finite number was written as 0                                     | Check coverage at that station                                              |
-| Two stake points at the same offset ("…-daylight" and "…-catch") | Both codes are written for each side                                     | Keep one of each pair (see [Stakeout CSV](#stakeout-csv))                   |
-| Blank `GROUND_M` or `COST_CAD` in the shapefile                  | Unknown value, or a number too wide for its field                        | Use the station CSV, which has no width limit                               |
-| "Export downloaded." but no zip or plot book arrives             | These two build after the notice; the error appears a moment later       | Read the error banner                                                       |
-| Plan sheets have no contours                                     | The contour build failed and was skipped                                 | Check the terrain covers the road; re-export                                |
-| Work missing after reopening the browser                         | Private window, cleared site data, another tab's save, or another device | Open your downloaded project JSON                                           |
-| "Last valid save retained: …" in the header                      | The current edit is invalid                                              | Correct it; nothing is lost until you do                                    |
+| Symptom                                                       | Likely cause                                                             | What to do                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| "Finish or close the design preview before exporting"         | A draft, peg or template preview is open                                 | Finish or cancel it                                                        |
+| Save refuses with a validation message                        | The current inputs are invalid                                           | Correct the named field; autosave still holds the last valid version       |
+| "This project needs its original terrain GeoTIFF re-imported" | A GeoTIFF project without embedded cells                                 | Import the original GeoTIFF, then open the project                         |
+| "Source raster hash mismatch"                                 | The published LiDAR file changed since the project was saved             | The project cannot be restored on that terrain; do not substitute another  |
+| Regional project reopens with different elevations            | Tiles re-downloaded, or the road's extent changed                        | Compare against your exported results; regional numbers are screening only |
+| Shapefile lands 1–2 m off a survey layer                      | Datum treated as WGS84, or survey in another datum                       | Reproject the survey; do not rely on sub-2 m agreement                     |
+| LandXML stations differ from lengths over a long road         | Element lengths are grid; stations are spherical chainage                | Expect up to about 3 m per km east–west; read the ratio in the XML comment |
+| A point, PVI or section missing from LandXML or stakeout      | Its value was missing, so it was left out                                | Check coverage at that station                                             |
+| Blank `GROUND_M` or `COST_CAD` in the shapefile               | Unknown value, or a field warning in the notice                          | Use the station CSV, which has no width limit                              |
+| "Building the plot book…" or "Building the shapefiles…" stays | The file is still being built; its own notice or error follows           | Wait for "… downloaded" or read the error banner                           |
+| Plans print "Contours unavailable"                            | The contour build failed (the notice gives the reason) or found none     | Check the terrain covers the road; re-export                               |
+| Work missing after reopening the browser                      | Private window, cleared site data, another tab's save, or another device | Open your downloaded project JSON                                          |
+| "Last valid save retained: …" in the header                   | The current edit is invalid                                              | Correct it; nothing is lost until you do                                   |
 
 ## What it does not do
 

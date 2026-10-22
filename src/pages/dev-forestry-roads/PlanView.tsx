@@ -48,7 +48,7 @@ interface PlanProps {
   cableDistance?: number
   onCableDistance?: (distance: number) => void
   overlay?: GeoJSON.FeatureCollection
-  /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point' | 'crossing'). */
+  /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
   onOverlaySelect?: (properties: GeoJSON.GeoJsonProperties) => void
   selectedCulvertId?: string

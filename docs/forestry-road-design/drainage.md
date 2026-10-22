@@ -30,8 +30,12 @@ trusted and what the check assumes. The method is specified in the
   stream threshold and 250 m buffer are placeholders that make the check run. The intensity in
   particular must come from an IDF curve for your site, return period and catchment (see
   [the Rational method](#rational-method-and-pipe-capacity)).
-- **Re-run after every change.** A run is not saved and is not updated by edits. The amber notice
-  in the panel is the only sign that it is out of date.
+- **Re-run after every change.** A run is not saved and is not updated by edits. It goes stale
+  when that road's alignment (culverts and other engineering inputs included), the road settings,
+  the terrain or any drainage input changes; edits to other alternatives leave it current
+  (`DevForestryRoads.tsx`, `drainageStale`). A stale run stays in the panel with an amber notice,
+  is not drawn on the plan, and the plan header reads "Drainage out of date · re-run it to show
+  flow".
 - **Compare with mapped streams and the field.** The check does not read the project's context
   streams or any provincial stream layer. A stream the DEM does not resolve is not reported.
 
@@ -179,32 +183,33 @@ false ponds or false breaks.
 
 ## How problems show up
 
-| Symptom                                                         | Likely cause                                                                         | What to do                                                                           |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| Many small ponds along a ditch, every station or two            | Ditch narrower than the cell, often after the grid coarsened                         | Check the cell size in the footer; shorten the road or the buffer; use finer terrain |
-| A crossing's catchment grows when the buffer is increased       | Catchment truncated at the grid edge                                                 | Increase the buffer until areas stop changing, or accept and record the truncation   |
-| Catchment stops at a straight line on the plan                  | Terrain edge or a no-data gap acting as an outlet                                    | Load terrain covering the whole catchment                                            |
-| Stream crosses the road with no diversion where the road is cut | A station without design elevation left a gap in the prism                           | Fix coverage (ground, daylight) at that station and re-run                           |
-| "Nearby, bypassed" on a crossing                                | Culvert chainage or skew misses the flow line by more than the channel's one cell    | Move the culvert to the flow line's entry station; check skew                        |
-| Water still redirected with a culvert in place                  | Inverts above the ditch, or the culvert is off the thalweg                           | Enter inverts at or below the ditch bottom; check the culvert's station              |
-| Slope shows `*`                                                 | Inverts missing, equal, or rising downstream                                         | Enter falling inverts                                                                |
-| Minimum diameter "> 3.0"                                        | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
-| Results did not change after an edit                            | The run is stale; runs are not recalculated                                          | Re-run. Note the plan keeps drawing the old run until you do                         |
-| Drainage panel empty after reload                               | Runs are not saved with the project or autosave                                      | Re-run after opening a project                                                       |
-| Streams in odd parallel lines on a planar slope                 | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
+| Symptom                                                           | Likely cause                                                                         | What to do                                                                           |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Many small ponds along a ditch, every station or two              | Ditch narrower than the cell, often after the grid coarsened                         | Check the cell size in the footer; shorten the road or the buffer; use finer terrain |
+| A crossing's catchment grows when the buffer is increased         | Catchment truncated at the grid edge                                                 | Increase the buffer until areas stop changing, or accept and record the truncation   |
+| Catchment stops at a straight line on the plan                    | Terrain edge or a no-data gap acting as an outlet                                    | Load terrain covering the whole catchment                                            |
+| Stream crosses the road with no diversion where the road is cut   | A station without design elevation left a gap in the prism                           | Fix coverage (ground, daylight) at that station and re-run                           |
+| "Nearby, bypassed" on a crossing                                  | Culvert chainage or skew misses the flow line by more than the channel's one cell    | Move the culvert to the flow line's entry station; check skew                        |
+| Water still redirected with a culvert in place                    | Inverts above the ditch, or the culvert is off the thalweg                           | Enter inverts at or below the ditch bottom; check the culvert's station              |
+| Slope shows `*`                                                   | Inverts missing, equal, or rising downstream                                         | Enter falling inverts                                                                |
+| Minimum diameter "> 3.0"                                          | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
+| Results did not change after an edit                              | The run is stale; runs are not recalculated                                          | Re-run. The plan hides a stale run until you do                                      |
+| Plan header reads "Drainage out of date · re-run it to show flow" | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
+| Drainage panel empty after reload                                 | Runs are not saved with the project or autosave; the inputs are                      | Re-run after opening a project                                                       |
+| Streams in odd parallel lines on a planar slope                   | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
 
 ## What it does not do
 
-- **It does not save or export results.** A run lives in the page only. It is lost on reload,
-  replaced when you run another road, and is not in the project JSON, autosave, GeoJSON,
-  shapefile, report or plot book. Drainage settings are not saved either. Record the numbers you
-  rely on, with the cell size, buffer and settings used.
-- **It does not mark settings changes as stale.** The panel's stale notice compares the road and
-  terrain only. If you change the rainfall, C, n, threshold or buffer after a run, the tables
-  still show results from the old settings until you re-run.
-- **It does not track one road's run across others.** Editing any alignment in the project,
-  project settings, context or terrain marks the run stale, even an edit to a different
-  alternative.
+- **It does not save or export results.** The page keeps one run per road for the three most
+  recently run roads that still exist (`DevForestryRoads.tsx`, `checkDrainage`), so switching
+  roads keeps each road's last run, and re-running a road replaces its run. Runs are lost on reload and
+  are not in the project JSON, autosave, GeoJSON, shapefile, report or plot book: they take
+  seconds to recompute and hold tens of megabytes of grids. Record the numbers you rely on, with
+  the cell size, buffer and settings used.
+- **It does not put the inputs in the project.** Rainfall, C, n, threshold and buffer are
+  remembered in this browser only (`localStorage` key `pgmaps-road-drainage-settings`,
+  `DrainagePanel.tsx`), and a saved value that is not a positive number brings back all the
+  defaults. Another browser or device starts from the defaults.
 - **No watershed polygons, wetness index, time of concentration, hydrographs, hydraulic grade
   lines, inlet control, headwater, scour or outlet protection.**
 - **No ditch capacity or erosion check.** Ditches carry whatever reaches them.

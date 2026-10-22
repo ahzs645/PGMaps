@@ -2,8 +2,25 @@ import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
 import { NumberField } from './Controls'
-import type { DrainageRun, DrainageSettings } from './drainageRun'
+import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
+
+export const DRAINAGE_SETTINGS_KEY = 'pgmaps-road-drainage-settings'
+/**
+ * The last drainage inputs this browser used. Runs themselves are not stored: they take seconds
+ * to recompute and hold tens of megabytes of grids.
+ */
+export function readDrainageSettings(): DrainageSettings {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DRAINAGE_SETTINGS_KEY) ?? 'null') as Partial<DrainageSettings> | null
+    const merged = { ...DEFAULT_DRAINAGE_SETTINGS, ...saved }
+    return Object.values(merged).every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)
+      ? merged
+      : DEFAULT_DRAINAGE_SETTINGS
+  } catch {
+    return DEFAULT_DRAINAGE_SETTINGS
+  }
+}
 
 const n = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
@@ -97,7 +114,8 @@ export function DrainagePanel({
         <>
           {stale && (
             <p role="status" className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-900">
-              The road, culverts or terrain changed since this run. Re-run to update.
+              The road, its culverts, the road settings, the terrain or these inputs changed since this run. It is not
+              drawn on the plan until you re-run it.
             </p>
           )}
           <StatGroup

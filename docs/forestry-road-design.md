@@ -152,8 +152,9 @@ not add measured resolution or establish survey accuracy.
 
 ### Imported LAS and LAZ
 
-"Import GeoTIFF, LAS or LAZ" accepts a LAS or LAZ point cloud of up to 1 GB. A worker
-(`pointCloud.worker.ts`) reads it, classifies ground when needed and grids it, so the page
+"Import GeoTIFF, LAS or LAZ" accepts a LAS or LAZ point cloud of up to 1 GB. The page reads
+the header and the SHA-256, then transfers the file (not a copy) to a worker
+(`pointCloud.worker.ts`) that reads it, classifies ground when needed and grids it, so the page
 stays responsive and only the grid comes back.
 
 - **Reading.** `pointCloud.ts` decodes LAS in JavaScript and LAZ through `whitebox-wasm`
@@ -161,8 +162,11 @@ stays responsive and only the grid comes back.
   cloud is thinned to one point per cell, preferring ground and then the lowest non-noise
   return, and the summary says so.
 - **CRS.** The CRS comes from the GeoTIFF keys VLR or the OGC WKT VLR (EVLRs included).
-  The vertical datum comes from the entered field or, failing that, the file's vertical
-  key. A cloud without a projected CRS is refused.
+  An uncompressed LAS without one is refused from its header. For a LAZ without one, the
+  worker takes the CRS from whitebox's `lidar_info` once the cloud is decoded, posts it to
+  the page (`crs`) and waits; the page projects the breaklines into it, or refuses the cloud
+  if there is still none, before the ground filter runs. The vertical datum comes from the
+  entered field or, failing that, the header's vertical key.
 - **Ground classification.**
   - "Use the file's; classify if none" (the default) runs the filter only when the cloud
     has no class 2 points. "Re-classify here" always runs it. "Use the file's only"
@@ -173,9 +177,13 @@ stays responsive and only the grid comes back.
     keeps cut banks and 80–130 % BC hillsides as ground; 0.5 m rather than 1 m keeps shrub
     and slash returns out.
   - Clouds are classified in overlapping tiles of about 40,000 points, at about 55,000
-    points a second, so a million points takes about 20 s. Noise (classes 7 and 18) keeps
-    its class.
-- **Surface.**
+    points a second, so a million points takes about 20 s. No tile is wider than 1,000 km
+    (`MAX_TILE_SIDE_M`). Each tile is written to the filter as LAS at 0.001 m per axis,
+    ten times coarser only on an axis spanning more than int32 holds (about 2,147 km). The
+    filter's output must return every point within two coordinate steps of where it was
+    sent, or the import fails naming the point. Noise (classes 7 and 18) keeps its class.
+- **Surface.** The grid covers the ground (class 2) points only, so non-ground outliers do
+  not enlarge it or coarsen its cell.
   - _Ground cell mean_ (`gridGroundPoints` in `lasSurface.ts`) averages ground points into
     cells of about 1 m, grown to stay within 4.19 million cells. A gap is filled only from
     at least three known neighbours, up to three cells in; anything wider stays missing.
@@ -183,7 +191,8 @@ stays responsive and only the grid comes back.
     `delaunator` and constrains breaklines with `@kninnug/constrainautor` (both ISC).
     Above 1.5 million points it first thins to the lowest point per 0.5 m cell.
     Breaklines come from a GeoJSON file of lines or polygon rings, added under the
-    surface choice. Their z is the third coordinate, else a `z`/`elevation` property,
+    surface choice. Their z is the third coordinate, else a `z`, `Z`, `elevation`,
+    `ELEVATION` or `elev` property,
     else draped on the point TIN. Crossing breaklines share a vertex; a segment that
     cannot be constrained is skipped and reported, never fatal. Triangles with an edge
     longer than eight cells stay missing, so a TIN never bridges a real data gap.
@@ -224,8 +233,9 @@ substitute. The loader uses the existing DEM loader at zoom 12, limits a request
 to 64 tiles, and preserves failed/missing tiles as no-data. The displayed
 metres are tile sample spacing at the extent's latitude; original source
 resolution may be coarser. Vertical datum and construction accuracy remain
-unverified. A saved regional project does not embed the downloaded tile mosaic
-and needs its alignment extent reloaded in a new session.
+unverified. A saved regional project does not embed the downloaded tile mosaic.
+Restoring it re-fetches tiles for the alignments' current extent, which can differ from
+the original request, and nothing checks the new tiles against the old ones.
 
 The terrain-type label must accompany results. A failed terrain load does not
 activate the requested source. The current source, or the explicitly labelled
@@ -476,14 +486,16 @@ component types.
   The section rotates about the centreline, so the inside falls by e and the outside rises
   by e.
 - Inside **widening** L²/(2R) for a vehicle of length L.
-- Both run in linearly over the runoff length before each curve and out after it.
+- Both run in linearly over the runoff length before each curve and out after it. On a
+  spiralled curve they run in over the longer of the runoff and the spiral, ending at the SC
+  (see [Spirals](#spirals)).
 
 The widening counts in widths, sections, clearing and surfacing. These are entered planning
-rules, not a BC road-class standard, and there are no spirals.
+rules, not a BC road-class standard.
 
 A culvert can **dip** the inlet-side (left) ditch. Near the culvert, the ditch is deepened so
-that its bottom falls at the entered grade to the inlet invert, up to 4 m deeper than the
-template ditch. It needs a known inlet invert.
+that its bottom falls at the entered grade to the inlet invert, to at most 4 m below the
+ditch hinge in total (`MAX_DITCH_DIP_DEPTH`). It needs a known inlet invert.
 
 Landing and turnout ranges add width after the station template resolves.
 Their extra width tapers in/out; overlapping width overrides use the maximum
@@ -587,7 +599,8 @@ not a surveyed access route, geometric pit-volume calculation, environmental
 approval, material compatibility test or construction schedule.
 
 The movement classes use entered free-haul and overhaul distance limits.
-Distances at or below the free-haul limit incur zero additional haul cost;
+Distances at or below the free-haul limit incur no overhaul or end-haul cost (the free-haul
+and loading rates still apply when they are not zero);
 those up to the overhaul limit use the overhaul rate; greater distances use
 the end-haul rate. For either paid class:
 
@@ -622,7 +635,8 @@ clockwise from the right-facing perpendicular. The left endpoint is the entered
 inlet and the right endpoint is the outlet.
 
 The along-barrel profile samples the native terrain and the road's fitted path,
-vertical design and resolved crossfall. Invert level varies linearly between
+vertical design and resolved crossfall, superelevated on a curve exactly as the section is
+there (`sectionCrossfall` in `templates.ts`). Invert level varies linearly between
 entered endpoint inverts; crown level is invert plus the entered diameter.
 Signed pipe grade is 100 times outlet-minus-inlet elevation divided by horizontal
 span. A level or rising outlet receives a flow-direction/grade review flag.
@@ -674,10 +688,16 @@ compliance with a particular BC road class.
 
 Click the **Covered estimate** tile to open the calculation (`CostBreakdown.tsx`).
 Each priced line is shown as quantity × rate = amount: excavation by material,
-fill, surfacing, clearing, structures, haul in m³·km, borrow, waste, site
-preparation and mobilization, then subtotal, contingency and total. The rates are
-editable in place, along with free-haul and overhaul distances and the overhaul and
-endhaul rates. An edit recalculates the whole road, so the line, the total, the
+fill, surfacing, clearing, structures (culvert count and installed total), then
+`haulCostLines` (`engineering.ts`): per haul class and volume basis a distance row in
+m³·km and a loading row in m³ — compacted and bank volumes are never added together, and
+the m³·km is over the whole distance for free haul and beyond free haul for overhaul and
+endhaul — then borrow and waste per site at the site's rate, a default-rate row for volume
+no site took, one site-preparation lump sum per site used, and mobilization; then subtotal,
+contingency and total. Base, material, default borrow and waste, mobilization and
+contingency rates are editable in place. Haul class rates, loading rates and the free-haul
+and overhaul distances are edited in the fields below the table; site rates and fixed costs
+in Engineering → Haul. An edit recalculates the whole road, so the line, the total, the
 headline tile and every linked view change together, and the dialog shows the
 change since it opened. Rates are saved with the project, and undo reverts them.
 
@@ -821,9 +841,13 @@ spiral → SC → arc → CS → spiral → ST:
   clothoid series. It decides where the curve starts and whether it fits its legs.
 
 If two spirals would turn more than the deflection, the curve falls back to a simple curve
-with a warning. Superelevation and widening follow the curvature along a spiral. Spirals
-export to LandXML as `<Spiral spiType="clothoid">`, and the bulk radius fit accounts for
-their longer tangents.
+with a warning. Superelevation and widening run in linearly over max(runoff, spiral length),
+ending at the SC, and out from the CS over the same length (`curveDesignAt`). A runoff no
+longer than the spiral follows it exactly, 0 at the TS and full at the SC; extra runoff starts
+on the tangent before the TS or after the ST, so neither drops back to 0 at a spiral end. Where
+a reverse curve's two spirals meet and the runoff is longer than the spirals, the crossfall
+still flips sides at that point. Spirals export to LandXML as `<Spiral spiType="clothoid">`,
+and the bulk radius fit accounts for their longer tangents.
 
 ### Horizontal curve tools
 
@@ -876,8 +900,12 @@ Rainfall intensity (50 mm/h by default), runoff C (0.35, forested hillside), pip
 (0.024, corrugated steel), stream threshold and buffer are editable. On the plan, design
 streams are solid blue, widening with area, and existing streams are dashed. Redirected
 crossings are red lines from entry to exit, low points without a culvert amber, and new
-ponds small blue dots. A run belongs to its road and terrain, and the panel says when an
-edit has made it stale.
+ponds small blue dots. The page keeps one run per road. A run is stale when that road's
+alignment, the road settings, the terrain or a drainage input changes; edits to other
+alternatives do not stale it. A stale run stays in the panel with a notice but is not drawn on
+the plan, whose header then reads "Drainage out of date · re-run it to show flow". The
+drainage inputs are remembered in this browser (`pgmaps-road-drainage-settings`); runs are not
+saved, since they recompute in seconds and hold tens of megabytes of grids.
 
 On the published LiDAR road (1.29 million 1 m cells, about 4 s in the browser), the check
 finds five stream crossings. The one at 0+866 (5.2 ha) is carried 184 m to the road's end.
@@ -1002,8 +1030,9 @@ inputs, but are not implemented by this workspace:
   worst case is 72,216 terrain lookups (1,001 profile samples plus two support
   samples per spoke). No missing support is replaced by a default elevation.
 - Route search: at most 20,000 relevant context vertices, 450,000 terrain
-  samples and 2,000,000 geometry checks. Each attempt visits at most 10,000
-  grid nodes; four attempts cap total visits at 40,000. Budget exhaustion
+  samples and 2,000,000 geometry checks. Each search makes up to four attempts, and all
+  searches together visit at most 40,000 grid nodes per requested alternative
+  (`routing.ts`, `budget`), across up to three rounds per alternative. Budget exhaustion
   returns an error rather than an unchecked shortcut.
 - GeoTIFF: 64 MB / 4,194,304 cells. Project JSON: 120 MB. Large embedded
   rasters may exceed browser storage quotas even though project-file export
@@ -1026,21 +1055,30 @@ sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
   properties. Ordinary line geometry is not silently given ellipsoidal Z.
 - Station CSV: numeric chainage, ground/design heights, grades, areas/volumes,
   mass, completeness/flags and source metadata. Unknown values stay blank.
-- LandXML 1.2 (`designExports.ts`): the fitted lines and arcs (northing easting), the PVI
-  profile with parabolic curves, the ground profile and cross-sections every 20 m. It uses
-  the terrain's projected CRS, or WGS84 UTM (EPSG:326xx/327xx) for a geographic source, and
-  names the vertical datum.
-- Stakeout CSV: every 20 m, the centreline, formation edges, ditch bottoms and catch points,
-  with offset (negative left), grid coordinates, level, ground and cut (+) / fill (−). It
-  contains only numbers and fixed codes.
+- LandXML 1.2 (`designExports.ts`): the fitted lines, arcs and clothoids (northing easting),
+  the PVI profile with parabolic curves, the ground profile and cross-sections every 20 m. It
+  uses the terrain's projected CRS, or WGS84 UTM (EPSG:326xx/327xx) for a geographic source,
+  and names the vertical datum. Element lengths, radii and centres are grid values measured
+  between the written coordinates (an arc's radius from its grid chord and angle, a clothoid's
+  length and radii scaled by grid chord ÷ model chord); `staStart`, PVI, profile and section
+  stations stay chainage. An XML comment says so and gives grid length ÷ chainage (about
+  1.0017 at Prince George on a diagonal road). A missing value is left out, never written as 0.
+- Stakeout CSV: every 20 m, the centreline, formation edges, ditch bottoms and one catch point
+  per side (`left-catch`/`right-catch`), with offset (negative left), grid coordinates, level,
+  ground and cut (+) / fill (−). Level is design, or ground at a catch point; missing values
+  are blank, a point with neither design nor ground is omitted, and `-0.000` is never written.
+  It contains only numbers and fixed codes.
 - Shapefile (zip): `shapefile.ts` writes SHP, SHX, dBase III, WGS84 `.prj` and UTF-8
   `.cpg` without a dependency. There are three layers: every road centreline with its
   length, grade, quantities and cost; the active road's stations with levels, areas
-  and flags; and its culverts.
+  and flags; and its culverts. Fields widen to fit, numbers up to 19 characters and text up
+  to 254 bytes; a value that still does not fit, or a number of 10²¹ or more, is blanked or
+  cut and counted in the page notice.
 - Plot book (`plotBook.ts`), A3 landscape, in two chapters:
   1. Plan-and-profile sheets, 250 m each. The plan is rotated so the road runs left to
      right, with contours from the active terrain, formation edges, catch lines, station
-     ticks, a turned north arrow and a scale bar. Below it, the profile (ground, design,
+     ticks, a turned north arrow and a scale bar. Each plan prints the contour and index
+     interval and the sample-grid spacing, or "Contours unavailable". Below it, the profile (ground, design,
      grades) sits above a mass-haul strip on the same station scale.
   2. Cross-section sheets of twelve, every 20 m, each drawn at one scale for both axes.
 
@@ -1084,7 +1122,9 @@ must not be treated as a successful loading of a different terrain.
 
 Autosave uses browser-local IndexedDB, validates before replacing the saved
 project, and retains the last valid save when an intermediate edit is invalid.
-Training-mode saves use a separate key from the normal current project. A
+Training-mode saves use a separate key from the normal current project, so they never
+overwrite it; `?example=training` always opens the example fresh and does not read that key
+back. A
 failed initial restore keeps normal autosave disabled until an explicit
 successful recovery/source action. Undo/redo history is in-memory; downloading
 the project remains the portable way to preserve work across browsers/devices.

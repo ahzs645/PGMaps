@@ -59,9 +59,19 @@ test('drainage compares flow on the existing and design surfaces and reaches the
   await expect(panel).toContainText('Planning estimate, not a hydrotechnical design')
   // Both surfaces' streams reach the map.
   await expect.poll(() => drainageRoles(page)).toEqual(expect.arrayContaining(['stream-existing', 'stream-design']))
-  // A run belongs to its road: a new alternative starts without one.
+  // A changed input stales the run and takes it off the plan until it is re-run.
+  await panel.getByLabel('Rainfall (mm/h)', { exact: true }).fill('60')
+  await panel.getByLabel('Rainfall (mm/h)', { exact: true }).press('Tab')
+  await expect(panel.getByText('changed since this run')).toBeVisible()
+  await expect.poll(() => drainageRoles(page)).toEqual([])
+  await panel.getByRole('button', { name: 'Re-run drainage', exact: true }).click()
+  await expect(panel.getByText('changed since this run')).toHaveCount(0)
+  await expect.poll(() => drainageRoles(page)).toEqual(expect.arrayContaining(['stream-design']))
+  // A run belongs to its road: a new alternative starts without one, and the original keeps its own.
   await page.getByRole('button', { name: 'Duplicate active alignment', exact: true }).click()
   await expect(panel.getByRole('button', { name: 'Run drainage check', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
+  await expect(panel.getByRole('button', { name: 'Re-run drainage', exact: true })).toBeVisible()
   expect(errors).toEqual([])
 })
 

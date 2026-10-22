@@ -14,23 +14,24 @@ The original road is preserved. Its station-bound vertical controls, culverts, m
 
 ## Screening rules
 
-* Exact endpoints; sketches contain 2–100 distinct consecutive points, endpoint separation 10 m–5 km and total guide length at most 15 km. The guide is a buffered corridor, not a list of mandatory waypoints.
-* Sampled ground grade is a hard limit at intervals no greater than 1 m, including the endpoint connector. There is no hidden multiplier. Optional core API fields support separate uphill/downhill limits. Ground grade is not formation grade and finite sampling is not proof about the entire continuous surface.
-* Missing elevations are rejected. The native terrain sampler remains the source; rendered terrain LOD, contours and interpolated missing values do not substitute for it.
-* Supplied exclusion polygons, holes and line barriers are checked geometrically, including boundary and collinear contacts and thin features between samples. Optional exclusion clearance is an explicit planning input, not a statutory buffer. The UI defaults to centreline exclusion only; the full constructed footprint requires section review.
-* Supplied stream features carry a relative penalty and a review warning. Reported contacts count distinct features touched, not permitted or hydraulically assessed crossings.
-* Search is bounded by state, sample and geometry-operation budgets. It can return a clearly labelled budget-limited, verified candidate. Failure means no candidate was established under this search, not that no buildable road exists.
+- Exact endpoints; sketches contain 2–100 distinct consecutive points, endpoint separation 10 m–5 km and total guide length at most 15 km, with every guide point within a 7 km planning area of the start. The guide is a buffered corridor, not a list of mandatory waypoints.
+- The road-wide grade limit must be 1–30 % and the minimum radius 5–1,000 m; outside those ranges the optimizer refuses to run (`corridorOptimizer.ts`).
+- Sampled ground grade is a hard limit at intervals no greater than 1 m, including the endpoint connector. There is no hidden multiplier. Optional core API fields support separate uphill/downhill limits. Ground grade is not formation grade and finite sampling is not proof about the entire continuous surface.
+- Missing elevations are rejected. The native terrain sampler remains the source; rendered terrain LOD, contours and interpolated missing values do not substitute for it.
+- Supplied exclusion polygons, holes and line barriers are checked geometrically, including boundary and collinear contacts and thin features between samples. Optional exclusion clearance is an explicit planning input, not a statutory buffer. The UI defaults to centreline exclusion only; the full constructed footprint requires section review.
+- Supplied stream features carry a relative penalty and a review warning. Reported contacts count distinct features touched, not permitted or hydraulically assessed crossings.
+- Search is bounded by state, sample and geometry-operation budgets. It can return a clearly labelled budget-limited, verified candidate. Failure means no candidate was established under this search, not that no buildable road exists.
 
 The cost balances horizontal length, squared sampled grade, total absolute elevation movement, curvature, guide deviation and stream contacts. Weights differ between preferences; costs are relative and must not be displayed as dollars. Position/heading discretization and bounded search mean no global-optimality guarantee. No cut/fill costs, material geology, slope stability, watercourse sizing, sight distance or traffic suitability are inferred by this horizontal search.
 
 ## Sources and design judgement
 
-BC Ministry of Forests, *Engineering Manual*, May 25, 2026, Tables 2-1 and 3-5 and section 3.5.2.3:
+BC Ministry of Forests, _Engineering Manual_, May 25, 2026, Tables 2-1 and 3-5 and section 3.5.2.3:
 https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/resource-roads/engineering-manual/engineering_manual.pdf
 
 The manual's suggested alignment controls depend on width, speed, operating direction, conditions and professional judgement; they are not one universal grade limit. The May 2026 table gives 10% sustained favourable / 7% sustained adverse at 50 km/h, not the older 8% / 6% pair quoted in the initial discussion. It also discusses deliberate rolling grades and grade breaks for drainage. The optimizer does not force a monotonic formation grade, or encode these suggestions as legal approval.
 
-FAO, *Forest roads: planning and construction* (planning considerations):
+FAO, _Forest roads: planning and construction_ (planning considerations):
 https://www.fao.org/4/t0099e/T0099e02.htm
 
 Use terrain, unstable areas, drainage, crossings, environmental constraints and field reconnaissance together. A low-cost route on a bare-earth DEM alone is not a complete road-location decision.
