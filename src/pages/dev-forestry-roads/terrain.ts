@@ -232,6 +232,27 @@ export function roadProjection(epsg: number) {
   return epsg === 3157 ? proj4('EPSG:4326', METRIC_CRS) : rasterProjection(epsg)
 }
 
+/**
+ * Grid coordinates for engineering exports: the terrain's own projected CRS when it has one,
+ * otherwise WGS84 UTM for the zone at `at` (EPSG:326xx north, 327xx south).
+ */
+export function exportGrid(metadata: TerrainMetadata, at: Coordinate) {
+  if (metadata.epsg && metadata.epsg !== 4326) {
+    const projection = roadProjection(metadata.epsg)
+    return { epsg: metadata.epsg, toGrid: (c: Coordinate) => projection.forward([...c]) as [number, number] }
+  }
+  const zone = Math.max(1, Math.min(60, Math.floor((at[0] + 180) / 6) + 1)),
+    south = at[1] < 0
+  const projection = proj4(
+    'EPSG:4326',
+    `+proj=utm +zone=${zone}${south ? ' +south' : ''} +datum=WGS84 +units=m +no_defs`,
+  )
+  return {
+    epsg: (south ? 32700 : 32600) + zone,
+    toGrid: (c: Coordinate) => projection.forward([...c]) as [number, number],
+  }
+}
+
 /** Validate before decoding/sampling project-embedded cells; never reinterpret unknown CRS. */
 export function validateRoadRaster(raw: unknown): LocalRaster {
   const r = raw as LocalRaster

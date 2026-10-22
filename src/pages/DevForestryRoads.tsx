@@ -45,10 +45,12 @@ import {
   loadLidarTerrain,
   loadRaster,
   loadRegionalTerrain,
+  exportGrid,
 } from './dev-forestry-roads/terrain'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
+import { landXml, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, ROAD_LAYOUT_OPTIONS, type RoadLayout } from './dev-forestry-roads/RoadPaneLayout'
 import type {
   Alignment,
@@ -735,7 +737,7 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
-  const save = (kind: 'project' | 'geojson' | 'csv' | 'report') => {
+  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout') => {
     try {
       const safe = parseProject(project)
       if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview))
@@ -750,7 +752,22 @@ export default function DevForestryRoads() {
           `${basename}.geojson`,
           'application/geo+json',
         )
-      else if (kind === 'csv')
+      else if (kind === 'landxml' || kind === 'stakeout') {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+        if (kind === 'landxml')
+          downloadText(
+            landXml({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
+            `${basename}.xml`,
+            'application/xml',
+          )
+        else
+          downloadText(
+            stakeoutCsv({ alignment, analysis, ...grid }),
+            `${basename}-stakeout.csv`,
+            'text/csv;charset=utf-8',
+          )
+      } else if (kind === 'csv')
         downloadText(
           terrainProfile
             ? terrainProfileCsv(displayedAnalysis, project.terrain)

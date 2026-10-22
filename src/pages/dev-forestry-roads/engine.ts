@@ -326,6 +326,43 @@ export function horizontalCurveSummary(alignment: Alignment) {
         ],
   )
 }
+/** The fitted horizontal geometry as lines and arcs in longitude/latitude, for exports. */
+export function horizontalGeometry(alignment: Alignment): Array<
+  | { kind: 'line'; station: number; length: number; start: Coordinate; end: Coordinate }
+  | {
+      kind: 'arc'
+      station: number
+      length: number
+      start: Coordinate
+      end: Coordinate
+      center: Coordinate
+      radius: number
+      rotation: 'cw' | 'ccw'
+    }
+> {
+  const path = compile(alignment)
+  return path.pieces.map((p) =>
+    p.radius === null
+      ? {
+          kind: 'line' as const,
+          station: p.station,
+          length: p.length,
+          start: path.frame.fromXY(p.start),
+          end: path.frame.fromXY(p.end),
+        }
+      : {
+          kind: 'arc' as const,
+          station: p.station,
+          length: p.length,
+          start: path.frame.fromXY(p.start),
+          end: path.frame.fromXY(p.end),
+          center: path.frame.fromXY(p.center!),
+          radius: p.radius,
+          // Counter-clockwise in the east/north frame.
+          rotation: (p.sweep ?? 0) > 0 ? ('ccw' as const) : ('cw' as const),
+        },
+  )
+}
 export function positionAt(alignment: Alignment, chainage: number): { coordinate: Coordinate; bearing: number } {
   const p = location(compile(alignment), chainage)
   return { coordinate: p.coordinate, bearing: p.bearing }

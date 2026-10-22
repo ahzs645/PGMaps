@@ -31,7 +31,7 @@ export interface SidebarProps {
   onRemoveAlignment: () => void
   onSuggest: (options: RouteSearchOptions) => void
   onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
-  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report') => void
+  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout') => void
   onProfile: (id: string) => void
   activeProfile: string | null
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -1017,7 +1017,19 @@ export function DesignSidebar(p: SidebarProps) {
                   <Download className="mr-1 size-3" />
                   Print report
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('landxml')}>
+                  LandXML
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('stakeout')}>
+                  Stakeout CSV
+                </Button>
               </div>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                LandXML 1.2 carries the fitted lines and arcs, the PVI profile with curves, the ground profile and
+                cross- sections every 20 m. The stakeout file lists centreline, hinge, ditch and catch points with
+                cut/fill every 20 m. Both use the terrain's projected CRS, or WGS84 UTM for a geographic source. The
+                printed report adds a cross-section chapter.
+              </p>
               <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
                 Projects preserve alternatives, PVIs, templates, context, profiles and terrain provenance. Imported DEM
                 cells are included; published LiDAR is restored from its recorded checksum. Autosave stays on this
