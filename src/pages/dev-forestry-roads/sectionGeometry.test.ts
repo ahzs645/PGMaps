@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
+import { createEngineeringDesign } from './engineeringTypes'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import type { Alignment, Coordinate, RoadSettings } from './types'
 
@@ -41,7 +42,7 @@ function calculated(level: number) {
     overrides: [],
   }
   const result = analyzeRoad(alignment, { elevationAt: () => 100 }, settings)
-  return { template: alignment.template, station: result.stations.find((s) => s.chainage === 50)! }
+  return { alignment, template: alignment.template, station: result.stations.find((s) => s.chainage === 50)! }
 }
 
 describe('section point codes share actual calculated geometry', () => {
@@ -69,6 +70,41 @@ describe('section point codes share actual calculated geometry', () => {
     const { station, template } = calculated(101)
     expect(sectionCodePoints(station, template).some((p) => p.code.includes('ditch'))).toBe(false)
     expect(classifySectionOffset(station, template, -4)).toBe('left-batter')
+  })
+
+  it('keeps the ditch-bottom point where a culvert dip deepens the ditch', () => {
+    const { alignment } = calculated(99)
+    // Edge at 98.94 m: the 2 % dip reaches the 97.5 m inlet invert at the culvert, 1.44 m down.
+    alignment.engineering = {
+      ...createEngineeringDesign(),
+      culverts: [
+        {
+          id: 'c1',
+          name: 'Cross drain',
+          chainage: 50,
+          skewDegrees: 0,
+          lengthM: 12,
+          diameterM: 0.6,
+          inletInvertM: 97.5,
+          outletInvertM: 97.38,
+          minCoverM: 0.5,
+          unitCost: 100,
+          fixedCost: 500,
+          ditchDipPercent: 2,
+        },
+      ],
+    }
+    const station = analyzeRoad(alignment, { elevationAt: () => 100 }, settings).stations.find(
+      (s) => s.chainage === 50,
+    )!
+    const left = sectionCodePoints(station, alignment.template).find((p) => p.code === 'left-ditch-bottom')!
+    expect(left.offset).toBe(-4)
+    expect(left.design).toBeCloseTo(97.5, 6)
+    expect(classifySectionOffset(station, alignment.template, -4)).toBe('left-ditch-bottom')
+    expect(classifySectionOffset(station, alignment.template, -3.5)).toBe('left-ditch')
+    // The right ditch has no dip and keeps its template depth.
+    const right = sectionCodePoints(station, alignment.template).find((p) => p.code === 'right-ditch-bottom')!
+    expect(right.design).toBeCloseTo(99 - 4 * 0.02 - 0.5, 6)
   })
 
   it('preserves separate ground/design gaps at named points and while interpolating', () => {

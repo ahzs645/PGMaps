@@ -55,7 +55,10 @@ export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
 }
 export interface VerticalOptimizationResult {
   vertical: VerticalPoint[]
-  /** The search's own estimate: cut and fill at the entered rates over linear grades. */
+  /**
+   * Cut and fill at the entered rates from the full analysis of the returned line (curves and
+   * simplification included), not the search's interpolated estimate.
+   */
   estimatedEarthworkCost: number
   pviCount: number
   levelsPerPvi: number
@@ -90,8 +93,9 @@ export function optimizeVerticalProfile(
 ): VerticalOptimizationResult {
   const o = { ...DEFAULT_VERTICAL_OPTIMIZATION, ...options }
   if (!(length > 1)) throw Error('The road is too short to optimize.')
-  if (o.pviSpacingM < 10 || o.levelStepM <= 0 || o.maxDepthM <= 0 || o.k < 0)
+  if (o.pviSpacingM < 10 || o.levelStepM <= 0 || o.maxDepthM <= 0)
     throw Error('Use a PVI spacing of at least 10 m and positive depth and level steps.')
+  if (!(o.k >= 0)) throw Error('Use a K of 0 or more; 0 fits no vertical curves.')
   const source = memoTerrain(terrain)
   const sample = Math.max(2, settings.stationInterval)
   const controls = (alignment.verticalControls ?? []).filter((c) => c.chainage >= 0 && c.chainage <= length)

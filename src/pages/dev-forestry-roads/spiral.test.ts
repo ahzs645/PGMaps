@@ -73,6 +73,79 @@ describe('clothoid transitions', () => {
     expect(result.warnings.some((w) => /does not fit|overlaps|Spirals at point/.test(w))).toBe(false)
   })
 
+  it('keeps the runoff continuous and non-decreasing into the spiral, full at SC, symmetric out', () => {
+    const designed = (spiralM: number, runoffLengthM: number): Alignment => ({
+      ...road(spiralM),
+      curveDesign: {
+        designSpeedKmh: 50,
+        maxSuperelevationPercent: 8,
+        sideFrictionFactor: 0.15,
+        runoffLengthM,
+        wideningVehicleLengthM: 12,
+      },
+    })
+    const ratio = (a: Alignment, s: number) => curveDesignAt(a, s)?.ratio ?? 0
+    // R 80 m, 20 m spirals, 30 m runoff: the extra 10 m runs on the tangent, a third in by the TS.
+    const long = designed(20, 30)
+    const [, entry, arc, exit] = horizontalGeometry(long)
+    const ts = entry.station,
+      sc = arc.station,
+      cs = arc.station + arc.length,
+      st = exit.station + exit.length
+    expect(ratio(long, ts - 10.01)).toBe(0)
+    expect(ratio(long, ts - 0.01)).toBeCloseTo(1 / 3, 3)
+    expect(ratio(long, ts + 0.01)).toBeCloseTo(1 / 3, 3)
+    expect(ratio(long, sc)).toBe(1)
+    expect(ratio(long, cs)).toBe(1)
+    expect(ratio(long, st + 0.01)).toBeCloseTo(1 / 3, 3)
+    expect(curveDesignAt(long, ts + 0.01)!.extraWidth).toBeCloseTo(
+      (144 / 160) * curveDesignAt(long, ts + 0.01)!.ratio,
+      9,
+    )
+    // A runoff shorter than the spiral: the spiral is the runoff, following its curvature from 0 at TS.
+    const short = designed(40, 10)
+    const [, shortEntry, shortArc] = horizontalGeometry(short)
+    expect(curveDesignAt(short, shortEntry.station - 0.01)).toBeNull()
+    expect(ratio(short, shortEntry.station + 10)).toBeCloseTo(0.25, 6)
+    expect(ratio(short, shortArc.station)).toBe(1)
+    for (const a of [long, short]) {
+      const [, inSpiral, curve, outSpiral] = horizontalGeometry(a)
+      const start = inSpiral.station - 40,
+        middle = curve.station + curve.length / 2,
+        stop = outSpiral.station + outSpiral.length + 40
+      let previous = 0
+      for (let s = start; s <= middle; s += 0.05) {
+        const r = ratio(a, s)
+        expect(r).toBeGreaterThanOrEqual(previous - 1e-9)
+        // 0.05 m steps over at least a 20 m transition never move the ratio more than 0.0025.
+        expect(r - previous).toBeLessThan(0.003)
+        // The exit mirrors the entry about the middle of the symmetric curve.
+        expect(ratio(a, 2 * middle - s)).toBeCloseTo(r, 6)
+        previous = r
+      }
+      expect(ratio(a, stop)).toBe(0)
+    }
+  })
+
+  it('recompiles the curve when only a spiral length changes on the same alignment', () => {
+    const a = {
+      ...road(20),
+      curveDesign: {
+        designSpeedKmh: 50,
+        maxSuperelevationPercent: 8,
+        sideFrictionFactor: 0.15,
+        runoffLengthM: 0,
+        wideningVehicleLengthM: null,
+      },
+    }
+    const sc = horizontalGeometry(a)[2].station
+    expect(curveDesignAt(a, sc - 1)!.ratio).toBeCloseTo(19 / 20, 6)
+    a.points[1].spiralM = 40
+    // At the old SC − 1 m the longer spiral, starting earlier, is (sc − 1 − ts′) / 40 developed.
+    const ts = horizontalGeometry(a)[1].station
+    expect(curveDesignAt(a, sc - 1)!.ratio).toBeCloseTo((sc - 1 - ts) / 40, 6)
+  })
+
   it('falls back to a simple curve when two spirals would exceed the deflection', () => {
     const warnings = analyzeRoad(road(200, 60), { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS).warnings
     expect(warnings.some((w) => w.startsWith('Spirals at point 2'))).toBe(true)
@@ -82,8 +155,16 @@ describe('clothoid transitions', () => {
     const analysis = analyzeRoad(road(40), { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS)
     const terrain = { kind: 'demo' as const, name: 'Flat', resolutionM: 1, verticalReference: 'CGVD2013' }
     const xml = landXml({ name: 'S', alignment: road(40), analysis, terrain, ...exportGrid(terrain, origin) })
-    expect(xml.match(/<Spiral spiType="clothoid" rot="cw" length="40.000"/g)).toHaveLength(2)
-    expect(xml).toContain('radiusStart="INF" radiusEnd="80.000"')
+    // Grid lengths and radii: each clothoid is scaled by its grid chord ÷ chainage chord.
+    const spirals = [
+      ...xml.matchAll(
+        /<Spiral spiType="clothoid" rot="cw" length="([\d.]+)" radiusStart="([^"]+)" radiusEnd="([^"]+)"/g,
+      ),
+    ]
+    expect(spirals).toHaveLength(2)
+    expect(spirals[0][2]).toBe('INF')
+    for (const [, length] of spirals) expect(Number(length)).toBeCloseTo(40, 0)
+    expect(Number(spirals[0][3])).toBeCloseTo(80, 0)
     const fitted = fitHorizontalRadii(road(40, 0).points, { kind: 'radius', radiusM: 500 }).points[1].radiusM
     expect(spiralTangent(fitted, Math.PI / 2, 40).trim).toBeLessThanOrEqual(300 * 0.98 + 1e-6)
   })

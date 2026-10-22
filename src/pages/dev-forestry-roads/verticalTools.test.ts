@@ -110,6 +110,11 @@ describe('vertical profile optimizer', () => {
       optimizeVerticalProfile(road(), 400, steep, { ...settings, maxGradePercent: 5 }, { maxDepthM: 2 }),
     ).toThrow(/No profile meets/)
   })
+
+  it('names a negative K rather than blaming the PVI spacing', () => {
+    expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { k: -1 })).toThrow(/K of 0 or more/)
+    expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { pviSpacingM: 5 })).toThrow(/PVI spacing/)
+  })
 })
 
 describe('profile simplification', () => {

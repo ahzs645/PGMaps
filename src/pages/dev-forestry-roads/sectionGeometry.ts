@@ -1,3 +1,4 @@
+import { MAX_DITCH_DIP_DEPTH } from './engine'
 import { sideValue } from './templates'
 import type { ResolvedTemplate, RoadStation, RoadTemplate, SectionSample } from './types'
 
@@ -52,15 +53,16 @@ export function sectionCodePoints(
     const bottom = station.section.find((sample) => Math.abs(sample.offset - bottomOffset) < EPS)
     // Both the edge condition and an actual matching bottom sample are required.
     // The engine may still know design geometry where the sampled bottom ground is missing.
+    // A culvert dip deepens the ditch from the template depth to at most MAX_DITCH_DIP_DEPTH.
+    const depth = finite(edge.design) && bottom && finite(bottom.design) ? edge.design - bottom.design : NaN
     if (
       ditchWidth > 0 &&
       ditchDepth > 0 &&
       finite(edge.ground) &&
       finite(edge.design) &&
       edge.ground > edge.design + EPS &&
-      bottom &&
-      finite(bottom.design) &&
-      Math.abs(bottom.design - (edge.design - ditchDepth)) < 1e-5
+      depth > ditchDepth - 1e-5 &&
+      depth < Math.max(ditchDepth, MAX_DITCH_DIP_DEPTH) + 1e-5
     )
       points.push({ code: `${side}-ditch-bottom`, side, ...sectionSampleAt(station, bottomOffset) })
     const daylight = side === 'left' ? station.leftDaylightM : station.rightDaylightM

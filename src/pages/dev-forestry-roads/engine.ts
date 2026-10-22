@@ -21,7 +21,14 @@ import type {
   TerrainSource,
   VerticalPoint,
 } from './types'
-import { engineeringKnots, sideValue, templateAt, validateEngineering, validateTemplate } from './templates'
+import {
+  engineeringKnots,
+  sectionCrossfall,
+  sideValue,
+  templateAt,
+  validateEngineering,
+  validateTemplate,
+} from './templates'
 import { calculateEngineering } from './engineering'
 import { resolvedCableLine } from './cableGeometry'
 
@@ -350,7 +357,9 @@ export const alignmentLength = (alignment: Alignment): number => compile(alignme
 // Section and width lookups need the curve geometry at many stations; compile it once per point set.
 const compiled = new WeakMap<Alignment, { key: string; path: Path }>()
 function compiledPath(alignment: Alignment): Path {
-  const key = alignment.points.map((p) => `${p.coordinate[0]},${p.coordinate[1]},${p.radiusM}`).join(';')
+  const key = alignment.points
+    .map((p) => `${p.coordinate[0]},${p.coordinate[1]},${p.radiusM},${p.spiralM ?? 0}`)
+    .join(';')
   const cached = compiled.get(alignment)
   if (cached?.key === key) return cached.path
   const path = compile(alignment)
@@ -382,38 +391,37 @@ export function curveDesignAt(
       widening: d.wideningVehicleLengthM ? (d.wideningVehicleLengthM * d.wideningVehicleLengthM) / (2 * radius) : 0,
     }
   }
-  // On a spiral the curvature itself runs in: superelevation and widening follow it, TS to SC.
-  const spiral = path.pieces.find(
+  // Each side of a curve runs in linearly toward the arc and is full from SC to CS. A spiralled
+  // side runs over max(runoff, spiral) ending at the SC (CS): no longer than the spiral, it follows
+  // the curvature exactly; any excess starts on the tangent before the TS (after the ST), so the
+  // ratio never falls back to 0 at a spiral end.
+  const runoff = Math.max(0, d.runoffLengthM)
+  const pieces = path.pieces
+  // A station on a spiral belongs to that spiral's curve, whatever a neighbour's runoff reaches.
+  const onSpiral = pieces.findIndex(
     (piece) => piece.spiral && chainage >= piece.station - EPS && chainage <= piece.station + piece.length + EPS,
   )
-  if (spiral?.spiral) {
-    const along = clamp((chainage - spiral.station) / spiral.length, 0, 1)
-    const ratio = spiral.spiral.kappa0 === 0 ? along : 1 - along
-    const { superPercent, widening } = rates(spiral.spiral.radius)
-    const turn = spiral.spiral.kappa0 + spiral.spiral.kappa1
-    return {
-      inside: turn > 0 ? 'left' : 'right',
-      superPercent,
-      extraWidth: widening * ratio,
-      ratio,
-      radius: spiral.spiral.radius,
-    }
-  }
-  let best: { piece: Piece; distance: number } | null = null
-  for (const piece of path.pieces) {
+  let best: { piece: Piece; distance: number; ratio: number } | null = null
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i]
     if (piece.radius === null) continue
-    const distance = Math.max(0, piece.station - chainage, chainage - (piece.station + piece.length))
-    if (!best || distance < best.distance) best = { piece, distance }
+    if (onSpiral >= 0 && onSpiral !== i - 1 && onSpiral !== i + 1) continue
+    const before = piece.station - chainage,
+      after = chainage - (piece.station + piece.length)
+    const distance = Math.max(0, before, after)
+    // The entry spiral starts at zero curvature and the exit spiral ends there.
+    const entry = pieces[i - 1]?.spiral?.kappa0 === 0 ? pieces[i - 1] : null,
+      exit = pieces[i + 1]?.spiral?.kappa1 === 0 ? pieces[i + 1] : null
+    const spiral = before > 0 ? entry : after > 0 ? exit : null
+    const transition = spiral ? Math.max(runoff, spiral.length) : runoff
+    const ratio = distance <= EPS ? 1 : transition > 0 ? clamp(1 - distance / transition, 0, 1) : 0
+    if (!best || ratio > best.ratio || (ratio === best.ratio && distance < best.distance))
+      best = { piece, distance, ratio }
   }
-  if (!best) return null
-  const runoff = Math.max(0, d.runoffLengthM)
-  const ratio = best.distance <= EPS ? 1 : runoff > 0 ? clamp(1 - best.distance / runoff, 0, 1) : 0
-  if (ratio <= 0) return null
+  if (!best || best.ratio <= 0) return null
+  const { ratio } = best
   const radius = best.piece.radius!
-  const velocity = d.designSpeedKmh
-  const required = 100 * ((velocity * velocity) / (127 * radius) - d.sideFrictionFactor)
-  const superPercent = clamp(required, 0, Math.max(0, d.maxSuperelevationPercent))
-  const widening = d.wideningVehicleLengthM ? (d.wideningVehicleLengthM * d.wideningVehicleLengthM) / (2 * radius) : 0
+  const { superPercent, widening } = rates(radius)
   return {
     // Counter-clockwise sweep in the east/north frame turns left.
     inside: (best.piece.sweep ?? 0) > 0 ? 'left' : 'right',
@@ -681,7 +689,7 @@ type SectionResult = Pick<
   'section' | 'cutAreaM2' | 'fillAreaM2' | 'leftDaylightM' | 'rightDaylightM' | 'complete' | 'flags'
 >
 /** A dip never deepens a ditch past this, whatever the inlet invert. */
-const MAX_DITCH_DIP_DEPTH = 4
+export const MAX_DITCH_DIP_DEPTH = 4
 
 function sectionAt(
   coordinate: Coordinate,
@@ -705,14 +713,6 @@ function sectionAt(
   }
   const flags: string[] = []
   const curve = curveDesignAt(alignment, s)
-  // Superelevation rotates the section about the centreline: the inside falls by at least its crown,
-  // the outside rises; in runoff the crossfall moves linearly from the template value.
-  const superelevated = (name: 'left' | 'right', crossfall: number, insideCrown: number) => {
-    if (!curve || curve.superPercent <= 0) return crossfall
-    const e = Math.max(curve.superPercent, insideCrown)
-    const target = name === curve.inside ? e : -e
-    return crossfall + (target - crossfall) * curve.ratio
-  }
   type Side = {
     width: number
     outer: number
@@ -729,11 +729,9 @@ function sectionAt(
   const side = (sign: number, width: number): Side => {
     const name = sign < 0 ? 'left' : 'right'
     let ditchDepth = sideValue(t, name, 'DitchDepth')
-    const crossfall = superelevated(
-        name,
-        sideValue(t, name, 'CrossfallPercent'),
-        sideValue(t, curve?.inside ?? name, 'CrossfallPercent'),
-      ),
+    // Superelevation rotates the section about the centreline (`sectionCrossfall`); culvert cover
+    // reads the same function, so the two stay level with each other.
+    const crossfall = sectionCrossfall(t, name, curve),
       ditchWidth = sideValue(t, name, 'DitchWidth'),
       ditchSideRun = Math.max(0, (ditchWidth - Math.min(ditchWidth, sideValue(t, name, 'DitchBottomWidth'))) / 2)
     const edgeZ = (z ?? NaN) - (width * crossfall) / 100
