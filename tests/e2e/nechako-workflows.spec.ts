@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { readFileSync } from 'node:fs'
 
 const portal = 'https://nechakowatershed-portal.ca'
 const points = {
@@ -160,6 +158,9 @@ for (const width of [1440, 390]) {
     const csvPath = await (await csvDownload).path()
     expect(readFileSync(csvPath!, 'utf8').split('\r\n')).toHaveLength(55)
     await page.getByRole('tab', { name: 'Search', exact: true }).click()
+    // Search opens on the unified public-content search; the portal's own
+    // expression and geographic search is the "Live portal submissions" type.
+    await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
     await page.getByLabel('Search geographic limit').selectOption('extent')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('button', { name: '73', exact: true })).toBeVisible()
@@ -169,13 +170,21 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: '73', exact: true }).click()
     await page.getByText('Metadata', { exact: true }).click()
     await page.getByRole('button', { name: 'Load metadata', exact: true }).click()
-    await expect(page.getByText('"submission_name": "Synthetic metadata"', { exact: false })).toBeVisible()
+    // Metadata renders as a term/value list, with values as text rather than markup.
+    const submission = page.getByRole('dialog', { name: 'Portal submission 73' })
+    await expect(submission.getByRole('definition').filter({ hasText: 'Synthetic metadata' })).toBeVisible()
+    await expect(
+      submission.getByRole('definition').filter({ hasText: '<script>do not execute</script>' }),
+    ).toBeVisible()
     expect(
       new URLSearchParams(requests.find((item) => item.path.endsWith('getSubmissionMetadata.php'))!.body!).get(
         'submissionId',
       ),
     ).toBe('73')
     expect(await page.locator('script').filter({ hasText: 'do not execute' }).count()).toBe(0)
+    // Submission resources open in a modal; close it before returning to the tabs.
+    await submission.getByRole('contentinfo').getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(submission).toBeHidden()
     await page.getByRole('tab', { name: 'Monitoring', exact: true }).click()
     await expect(
       page.getByText('54 valid observations · 1 rejected rows · 0 duplicate station/timestamps'),
@@ -185,12 +194,8 @@ for (const width of [1440, 390]) {
   })
 }
 
-test('real local GDAL service imports a GeoPackage and exports it through the browser', async ({ page }) => {
-  const source = test.info().outputPath('source.geojson'),
-    target = test.info().outputPath('source.gpkg')
-  mkdirSync(dirname(source), { recursive: true })
-  writeFileSync(source, JSON.stringify(points))
-  execFileSync('ogr2ogr', ['-f', 'GPKG', '-t_srs', 'EPSG:3005', target, source])
+test('browser GDAL imports a GeoPackage and exports it without an application backend', async ({ page }) => {
+  test.setTimeout(180000)
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({
       json: {
@@ -203,15 +208,53 @@ test('real local GDAL service imports a GeoPackage and exports it through the br
   await page.route(`${portal}/**`, (route) =>
     route.fulfill({ json: { success: true, status: 'success', attributes: [] } }),
   )
+  const applicationWrites: string[] = []
+  await page.route('**/api/nechako/**', (route) => {
+    if (route.request().method() !== 'GET') applicationWrites.push(route.request().url())
+    return route.fulfill({ status: 404, json: { error: 'No application backend in this fixture.' } })
+  })
   await page.goto('/dev/nechako?view=files')
-  await page
-    .getByLabel('GIS files', { exact: true })
-    .setInputFiles({ name: 'source.gpkg', mimeType: 'application/octet-stream', buffer: readFileSync(target) })
+  const gpkgBase64 = await page.evaluate(async (data) => {
+    const { withBrowserGdal } = await import('/src/pages/dev-avast/gdal.ts')
+    return withBrowserGdal(async (gdal) => {
+      const opened = await gdal.open(new File([JSON.stringify(data)], 'source.geojson'))
+      try {
+        const output = await gdal.ogr2ogr(
+          opened.datasets[0],
+          ['-f', 'GPKG', '-nln', 'source', '-t_srs', 'EPSG:3005'],
+          'projected-source',
+        )
+        return btoa(String.fromCharCode(...(await gdal.getFileBytes(output))))
+      } finally {
+        for (const dataset of opened.datasets) await gdal.close(dataset)
+      }
+    })
+  }, points)
+  await page.getByLabel('GIS files', { exact: true }).setInputFiles({
+    name: 'source.gpkg',
+    mimeType: 'application/geopackage+sqlite3',
+    buffer: Buffer.from(gpkgBase64, 'base64'),
+  })
   await page.getByRole('button', { name: 'Review GIS import', exact: true }).click()
-  await expect(page.getByText('source.gpkg: source · 2 features · Point')).toBeVisible()
-  await page.getByRole('button', { name: 'Add source.gpkg: source to map', exact: true }).click()
+  await expect(page.getByText('source · 2 features · Point')).toBeVisible()
+  await page.getByRole('button', { name: 'Add source to map', exact: true }).click()
   await expect(page.getByText('Station A', { exact: true })).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Convert GIS export', exact: true }).click()
-  expect((await download).suggestedFilename()).toBe('export.gpkg')
+  const exported = await download
+  expect(exported.suggestedFilename()).toBe('nechako-layer.gpkg')
+  const features = await page.evaluate(
+    async (base64) => {
+      const { convertFiles } = await import('/src/maps/nechako/data/conversion.ts')
+      const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0))
+      return (await convertFiles([new File([bytes], 'export.gpkg')])).layers[0].data.features
+    },
+    readFileSync((await exported.path())!).toString('base64'),
+  )
+  expect(features).toHaveLength(2)
+  expect(features[0].geometry.coordinates[0]).toBeCloseTo(-124, 7)
+  expect(features[0].geometry.coordinates[1]).toBeCloseTo(54, 7)
+  expect(features[0].properties.reading).toBe(7.25)
+  expect(features[1].properties.reading).toBeNull()
+  expect(applicationWrites).toEqual([])
 })

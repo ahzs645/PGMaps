@@ -261,7 +261,14 @@ function checkedStatus(value: unknown): PortalConnectionStatus {
     loggedIn: identityChanging ? false : value.loggedIn,
     readOnly: hosted || value.readOnly,
     canWrite: !hosted && !identityChanging && value.canWrite === true,
-    isAdmin: !hosted && !identityChanging && value.isAdmin === true,
+    // Inspection rights are separate from writes. A hosted role is usable only
+    // with this tab's current capability and an authenticated source status.
+    isAdmin:
+      !identityChanging &&
+      value.available &&
+      value.loggedIn &&
+      value.isAdmin === true &&
+      (!hosted || sessionToken !== undefined),
     ...(typeof value.expiresAfterIdleSeconds === 'number'
       ? { expiresAfterIdleSeconds: value.expiresAfterIdleSeconds }
       : {}),

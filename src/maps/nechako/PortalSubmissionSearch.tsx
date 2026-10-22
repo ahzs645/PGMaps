@@ -10,6 +10,12 @@ import { PortalSubmissionDialog } from './PortalSubmissionDialog'
 import { buildPublicSubmissionArchive } from './data/submissionDownload'
 import { loadSubmissionFormDefinitions } from './data/submissionFormLayout'
 import { compileSearchClause } from './data/searchBuilder'
+import {
+  browseSubmissionSnapshot,
+  snapshotSearchFieldGroups,
+  submissionBrowserForms,
+  UNKNOWN_SUBMISSION_YEAR,
+} from './data/submissionBrowser'
 import { csvExport } from './data/monitoring'
 import { geographicArea, type VectorData } from './data/workspace'
 import {
@@ -50,6 +56,11 @@ export function PortalSubmissionSearch({
     [simpleWords, setSimpleWords] = useState(''),
     [simpleMode, setSimpleMode] = useState<'AND' | 'OR'>('AND'),
     [helpOpen, setHelpOpen] = useState(false)
+  const [view, setView] = useState<'search' | 'browser'>('search')
+  const [browserFormId, setBrowserFormId] = useState('')
+  const [browserYear, setBrowserYear] = useState('')
+  const [browserText, setBrowserText] = useState('')
+  const [browserPage, setBrowserPage] = useState(0)
   const spatialRequest = useRef<AbortController | undefined>(undefined)
   useEffect(() => {
     const invalidate = () => {
@@ -91,12 +102,25 @@ export function PortalSubmissionSearch({
       ),
     [snapshot],
   )
-  const rows = useMemo(() => {
+  const searchRows = useMemo(() => {
     if (!snapshot) return []
     return filterSubmissionSnapshot(snapshot.records, appliedExpression, formId, geoIds)
   }, [snapshot, appliedExpression, formId, geoIds])
+  const browseForms = useMemo(() => submissionBrowserForms(snapshot?.records ?? []), [snapshot])
+  const fieldOptions = useMemo(() => snapshotSearchFieldGroups(snapshot?.records ?? []), [snapshot])
+  const browserRows = useMemo(
+    () => browseSubmissionSnapshot(snapshot?.records ?? [], browserFormId, browserYear, browserText),
+    [snapshot, browserFormId, browserYear, browserText],
+  )
+  const rows = view === 'browser' ? browserRows : searchRows
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE)),
-    currentPage = Math.min(page, pages - 1)
+    currentPage = Math.min(view === 'browser' ? browserPage : page, pages - 1)
+  const setResultPage = view === 'browser' ? setBrowserPage : setPage
+  const chooseBrowserGroup = (id: string, year = '') => {
+    setBrowserFormId(id)
+    setBrowserYear(year)
+    setBrowserPage(0)
+  }
   const search = async () => {
     if (!snapshot || busy) return
     const controller = new AbortController()
@@ -172,119 +196,149 @@ export function PortalSubmissionSearch({
   }
   return (
     <div className="flex h-full min-h-0 flex-col gap-2" data-nechako-submission-search>
-      <form
-        className="flex shrink-0 gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void search()
-        }}
-      >
-        <SearchInput
-          aria-label="Submission search expression"
-          placeholder="Search submission titles, names and field content"
-          value={expression}
-          onChange={(event) => setExpression(event.target.value)}
-          onClear={() => {
-            setExpression('')
-            setAppliedExpression('')
-            setGeoIds(undefined)
-            setGeoApplied(false)
-            setPage(0)
-          }}
-          wrapperClassName="min-w-0 flex-1"
-          className="w-full"
-          disabled={busy}
-        />
-        <Button type="submit" size="sm" disabled={!snapshot || busy}>
-          {busy ? 'Searching…' : 'Search'}
-        </Button>
-      </form>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => setBuilder('expression')}>
-          Expression Builder
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setSimpleWords(expression)
-            setBuilder('simple')
-          }}
-        >
-          Simple Expression Builder
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="sm:ml-auto"
-          disabled={!rows.length}
-          onClick={() =>
-            downloadText(
-              csvExport(
-                ['Submission ID', 'Type', 'Submission Title', 'Submission Name', 'Submission Date', 'Submitted By'],
-                rows.map((record) => [
-                  record.id,
-                  submissionType(record),
-                  record.title,
-                  record.name,
-                  record.date,
-                  record.submittedBy ?? '',
-                ]),
-              ),
-              'nechako-submission-search.csv',
-              'text/csv',
-            )
-          }
-        >
-          Export to CSV
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!snapshot || downloading}
-          onClick={async () => {
-            if (!snapshot) return
-            setDownloading(true)
-            setError('')
-            try {
-              const forms = await loadSubmissionFormDefinitions()
-              const blob = await buildPublicSubmissionArchive(snapshot, forms)
-              downloadBlob(blob, 'nechako-public-submissions.zip')
-            } catch (reason) {
-              setError(errorText(reason))
-            } finally {
-              setDownloading(false)
-            }
-          }}
-        >
-          {downloading ? 'Preparing download…' : 'Download public data'}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{view === 'browser' ? 'Submission Browser' : 'Submission Search'}</h3>
+        <Button size="sm" variant="outline" onClick={() => setView(view === 'search' ? 'browser' : 'search')}>
+          {view === 'search' ? 'Switch to Submission Browser' : 'Switch to Submission Search'}
         </Button>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
-        <label className="flex min-w-0 items-center gap-2">
-          Form
-          <select
-            aria-label="Submission form"
-            className={`${selectClass} max-w-[250px]`}
-            value={formId}
-            onChange={(event) => {
-              setFormId(event.target.value)
+      <div hidden={view !== 'search'} className="shrink-0 space-y-2">
+        <form
+          className="flex shrink-0 gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void search()
+          }}
+        >
+          <SearchInput
+            aria-label="Submission search expression"
+            placeholder="Search submission titles, names and field content"
+            value={expression}
+            onChange={(event) => setExpression(event.target.value)}
+            onClear={() => {
+              setExpression('')
+              setAppliedExpression('')
+              setGeoIds(undefined)
+              setGeoApplied(false)
               setPage(0)
             }}
+            wrapperClassName="min-w-0 flex-1"
+            className="w-full"
             disabled={busy}
+          />
+          <Button type="submit" size="sm" disabled={!snapshot || busy}>
+            {busy ? 'Searching…' : 'Search'}
+          </Button>
+        </form>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setBuilder('expression')}>
+            Expression Builder
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setSimpleWords(expression)
+              setBuilder('simple')
+            }}
           >
-            <option value="">All forms</option>
-            {forms.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setHelpOpen(true)}>
-          Help
-        </Button>
+            Simple Expression Builder
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="sm:ml-auto"
+            disabled={!rows.length}
+            onClick={() =>
+              downloadText(
+                csvExport(
+                  ['Submission ID', 'Type', 'Submission Title', 'Submission Name', 'Submission Date', 'Submitted By'],
+                  rows.map((record) => [
+                    record.id,
+                    submissionType(record),
+                    record.title,
+                    record.name,
+                    record.date,
+                    record.submittedBy ?? '',
+                  ]),
+                ),
+                'nechako-submission-search.csv',
+                'text/csv',
+              )
+            }
+          >
+            Export to CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!snapshot || downloading}
+            onClick={async () => {
+              if (!snapshot) return
+              setDownloading(true)
+              setError('')
+              try {
+                const forms = await loadSubmissionFormDefinitions()
+                const blob = await buildPublicSubmissionArchive(snapshot, forms)
+                downloadBlob(blob, 'nechako-public-submissions.zip')
+              } catch (reason) {
+                setError(errorText(reason))
+              } finally {
+                setDownloading(false)
+              }
+            }}
+          >
+            {downloading ? 'Preparing download…' : 'Download public data'}
+          </Button>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
+          <label className="flex min-w-0 items-center gap-2">
+            Form
+            <select
+              aria-label="Submission form"
+              className={`${selectClass} max-w-[250px]`}
+              value={formId}
+              onChange={(event) => {
+                setFormId(event.target.value)
+                setPage(0)
+              }}
+              disabled={busy}
+            >
+              <option value="">All forms</option>
+              {forms.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setHelpOpen(true)}>
+            Help
+          </Button>
+        </div>
       </div>
+      {view === 'browser' && (
+        <div className="shrink-0 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Browse the captured public submissions by form and submission year. Counts describe this capture only. Your
+            search expression, form filter and geographic selection are retained when you switch back.
+          </p>
+          {snapshot && <p className="text-xs text-muted-foreground">Capture scope: {snapshot.manifest.scope}</p>}
+          <SearchInput
+            aria-label="Filter submission browser"
+            placeholder="Filter captured titles, names, IDs and content"
+            value={browserText}
+            onChange={(event) => {
+              setBrowserText(event.target.value)
+              setBrowserPage(0)
+            }}
+            onClear={() => {
+              setBrowserText('')
+              setBrowserPage(0)
+            }}
+          />
+        </div>
+      )}
       {!snapshot && !loadError && <InlineAlert loading>Loading captured submissions…</InlineAlert>}
       {loadError && (
         <InlineAlert tone="error">
@@ -295,66 +349,116 @@ export function PortalSubmissionSearch({
         </InlineAlert>
       )}
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
-      <div className="min-h-[120px] flex-1 overflow-auto rounded border bg-background" data-nechako-submission-table>
-        <table className="w-full min-w-[650px] table-fixed text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-muted">
-            <tr>
-              {[
-                ['Type', 'w-16'],
-                ['Submission Title', 'w-[28%]'],
-                ['Submission Name', 'w-[28%]'],
-                ['Submission Date', 'w-28'],
-                ['Submitted By', 'w-28'],
-              ].map(([label, width]) => (
-                <th key={label} className={`${width} border-b p-2 font-medium`}>
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((record) => (
-              <tr key={record.id} className="border-b hover:bg-muted/50" aria-selected={selected?.id === record.id}>
-                <td
-                  className="p-2"
-                  title={
-                    record.parentId === undefined
-                      ? 'Parent relationship not supplied'
-                      : record.parentId !== null && record.parentId > 0
-                        ? `Activity of submission ${record.parentId}`
-                        : 'Submission'
-                  }
-                >
-                  {submissionType(record)}
-                </td>
-                <td className="p-2">
+      <div
+        className={`min-h-0 flex-1 ${view === 'browser' ? 'grid gap-3 md:grid-cols-[minmax(180px,30%)_minmax(0,1fr)]' : 'flex flex-col'}`}
+      >
+        {view === 'browser' && (
+          <nav
+            aria-label="Captured submission hierarchy"
+            className="max-h-48 overflow-auto rounded border p-2 text-xs md:max-h-none"
+          >
+            <Button
+              size="sm"
+              variant={browserFormId ? 'ghost' : 'secondary'}
+              className="mb-2 w-full justify-start"
+              aria-pressed={!browserFormId}
+              onClick={() => chooseBrowserGroup('')}
+            >
+              All captured forms ({snapshot?.records.length ?? 0})
+            </Button>
+            {browseForms.map((form) => (
+              <details key={form.id} className="border-t py-2" open={browserFormId === form.id || undefined}>
+                <summary className="cursor-pointer break-words font-medium">
+                  {form.name} · Form {form.id} ({form.count})
+                </summary>
+                <div className="mt-2 grid gap-1 pl-2">
                   <button
                     type="button"
-                    className="block w-full truncate text-left text-primary underline-offset-2 hover:underline"
-                    title={record.title || `Submission ${record.id}`}
-                    onClick={() => setSelected(record)}
+                    className="rounded px-2 py-1.5 text-left hover:bg-muted aria-pressed:bg-muted"
+                    aria-pressed={browserFormId === form.id && !browserYear}
+                    onClick={() => chooseBrowserGroup(form.id)}
                   >
-                    {record.title || `Submission ${record.id}`}
+                    All {form.name} submissions ({form.count})
                   </button>
-                </td>
-                <td className="truncate p-2" title={record.name}>
-                  {record.name || '—'}
-                </td>
-                <td className="truncate p-2" title={record.date}>
-                  {record.date || 'Not supplied'}
-                </td>
-                <td className="truncate p-2" title={record.submittedBy}>
-                  {record.submittedBy || 'Not supplied'}
-                </td>
-              </tr>
+                  {form.years.map((item) => (
+                    <button
+                      key={item.year}
+                      type="button"
+                      className="rounded px-2 py-1.5 text-left hover:bg-muted aria-pressed:bg-muted"
+                      aria-label={`${form.name} · ${item.year === UNKNOWN_SUBMISSION_YEAR ? 'Date not supplied' : item.year} · ${item.count} captured submissions`}
+                      aria-pressed={browserFormId === form.id && browserYear === item.year}
+                      onClick={() => chooseBrowserGroup(form.id, item.year)}
+                    >
+                      {item.year === UNKNOWN_SUBMISSION_YEAR ? 'Date not supplied' : item.year} ({item.count})
+                    </button>
+                  ))}
+                </div>
+              </details>
             ))}
-          </tbody>
-        </table>
-        {snapshot && !rows.length && <p className="p-4 text-sm text-muted-foreground">No matching submissions.</p>}
+          </nav>
+        )}
+        <div className="min-h-[120px] flex-1 overflow-auto rounded border bg-background" data-nechako-submission-table>
+          <table className="w-full min-w-[650px] table-fixed text-left text-xs">
+            <thead className="sticky top-0 z-10 bg-muted">
+              <tr>
+                {[
+                  ['Type', 'w-16'],
+                  ['Submission Title', 'w-[28%]'],
+                  ['Submission Name', 'w-[28%]'],
+                  ['Submission Date', 'w-28'],
+                  ['Submitted By', 'w-28'],
+                ].map(([label, width]) => (
+                  <th key={label} className={`${width} border-b p-2 font-medium`}>
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((record) => (
+                <tr key={record.id} className="border-b hover:bg-muted/50" aria-selected={selected?.id === record.id}>
+                  <td
+                    className="p-2"
+                    title={
+                      record.parentId === undefined
+                        ? 'Parent relationship not supplied'
+                        : record.parentId !== null && record.parentId > 0
+                          ? `Activity of submission ${record.parentId}`
+                          : 'Submission'
+                    }
+                  >
+                    {submissionType(record)}
+                  </td>
+                  <td className="p-2">
+                    <button
+                      type="button"
+                      className="block w-full truncate text-left text-primary underline-offset-2 hover:underline"
+                      title={record.title || `Submission ${record.id}`}
+                      onClick={() => setSelected(record)}
+                    >
+                      {record.title || `Submission ${record.id}`}
+                    </button>
+                  </td>
+                  <td className="truncate p-2" title={record.name}>
+                    {record.name || '—'}
+                  </td>
+                  <td className="truncate p-2" title={record.date}>
+                    {record.date || 'Not supplied'}
+                  </td>
+                  <td className="truncate p-2" title={record.submittedBy}>
+                    {record.submittedBy || 'Not supplied'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {snapshot && !rows.length && <p className="p-4 text-sm text-muted-foreground">No matching submissions.</p>}
+        </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs">
         <span aria-live="polite">
-          {rows.length.toLocaleString()} submissions · Page {currentPage + 1} of {pages}
+          {rows.length.toLocaleString()} {view === 'browser' ? 'captured submissions' : 'submissions'} · Page{' '}
+          {currentPage + 1} of {pages}
         </span>
         <div className="flex gap-1">
           <Button
@@ -362,7 +466,7 @@ export function PortalSubmissionSearch({
             variant="outline"
             aria-label="Previous submissions"
             disabled={!currentPage}
-            onClick={() => setPage(currentPage - 1)}
+            onClick={() => setResultPage(currentPage - 1)}
           >
             Previous
           </Button>
@@ -371,61 +475,63 @@ export function PortalSubmissionSearch({
             variant="outline"
             aria-label="Next submissions"
             disabled={currentPage + 1 >= pages}
-            onClick={() => setPage(currentPage + 1)}
+            onClick={() => setResultPage(currentPage + 1)}
           >
             Next
           </Button>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap gap-2 border-t pt-2 text-xs">
-        <label className="flex items-center gap-2">
-          Selection Type:
-          <select
-            aria-label="Submission selection type"
-            className={selectClass}
-            disabled={busy}
-            value={selection}
-            onChange={(event) => changeSelection(event.target.value as Selection)}
-          >
-            <option value="normal">Normal</option>
-            <option value="extent" disabled={!mapBounds}>
-              Select By Extent
-            </option>
-            <option value="area" disabled={!polygons.length}>
-              Select By Area
-            </option>
-          </select>
-        </label>
-        <label className="flex min-w-0 items-center gap-2">
-          Selection Layer:
-          <select
-            aria-label="Submission selection layer"
-            className={`${selectClass} max-w-[240px]`}
-            value={selection === 'extent' ? 'extent' : layerId}
-            disabled={busy || selection === 'normal'}
-            onChange={(event) => {
-              setLayerId(event.target.value)
-              setGeoIds(undefined)
-              setGeoApplied(false)
-            }}
-          >
-            {selection === 'extent' ? (
-              <option value="extent">Current Extent</option>
-            ) : (
-              <>
-                <option value="">{selection === 'normal' ? 'No spatial search' : 'Choose a polygon layer'}</option>
-                {polygons.map((vector) => (
-                  <option key={vector.id} value={vector.id}>
-                    {vector.name}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-        </label>
+      <div hidden={view !== 'search'} className="shrink-0">
+        <div className="flex flex-wrap gap-2 border-t pt-2 text-xs">
+          <label className="flex items-center gap-2">
+            Selection Type:
+            <select
+              aria-label="Submission selection type"
+              className={selectClass}
+              disabled={busy}
+              value={selection}
+              onChange={(event) => changeSelection(event.target.value as Selection)}
+            >
+              <option value="normal">Normal</option>
+              <option value="extent" disabled={!mapBounds}>
+                Select By Extent
+              </option>
+              <option value="area" disabled={!polygons.length}>
+                Select By Area
+              </option>
+            </select>
+          </label>
+          <label className="flex min-w-0 items-center gap-2">
+            Selection Layer:
+            <select
+              aria-label="Submission selection layer"
+              className={`${selectClass} max-w-[240px]`}
+              value={selection === 'extent' ? 'extent' : layerId}
+              disabled={busy || selection === 'normal'}
+              onChange={(event) => {
+                setLayerId(event.target.value)
+                setGeoIds(undefined)
+                setGeoApplied(false)
+              }}
+            >
+              {selection === 'extent' ? (
+                <option value="extent">Current Extent</option>
+              ) : (
+                <>
+                  <option value="">{selection === 'normal' ? 'No spatial search' : 'Choose a polygon layer'}</option>
+                  {polygons.map((vector) => (
+                    <option key={vector.id} value={vector.id}>
+                      {vector.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </label>
+        </div>
       </div>
       <p className="shrink-0 text-[11px] text-muted-foreground">
-        {selection !== 'normal'
+        {view === 'search' && selection !== 'normal'
           ? geoApplied
             ? 'Filtered by source spatial selection. '
             : 'Click Search to apply the source spatial selection. '
@@ -458,6 +564,7 @@ export function PortalSubmissionSearch({
           {builder === 'expression' ? (
             <PortalExpressionBuilder
               defaultOpen
+              fieldOptions={fieldOptions}
               onApply={(value) => {
                 setExpression(value)
                 setBuilder(undefined)

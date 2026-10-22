@@ -1,5 +1,7 @@
 # Native watershed portal preview
 
+> **October 21, 2026 update:** The [current portal option audit](2026-10-21-parity-audit.md) supersedes implementation-gap and handoff statements below where native workflows have since been added, including submission search and administrator inspection. The dated interface observations and counts are retained as historical evidence. The current source sign-in attempt was rejected; the October 12 administrator session and its private responses were not reverified. Current gateway inspection and write boundaries are documented in the [hosted connection runbook](hosted-gateway.md).
+
 The [authenticated audit below](#authenticated-audit-october-12-2026) supersedes
 the earlier assumption that search is broken on both sites: original-portal
 search works; PGMaps requests still receive the registration error.

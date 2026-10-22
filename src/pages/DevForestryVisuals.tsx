@@ -11,6 +11,7 @@ import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-
 import { MapOverlay } from '@/components/ui/map-panels'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 import {
@@ -159,18 +160,6 @@ function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | 
   const [lastLng, lastLat] = ring[ring.length - 1]
   if (firstLng !== lastLng || firstLat !== lastLat) ring.push([firstLng, firstLat])
   return { type: 'Polygon', coordinates: [ring] }
-}
-
-function downloadFile(fileName: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }))
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = fileName
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  // Revoking synchronously cancels the download in WebKit and embedded shells.
-  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 /**
@@ -724,7 +713,7 @@ function DevForestryVisuals() {
   )
 
   const handleExport = useCallback(() => {
-    downloadFile('forestry-visual-quality-scene.json', serializeScene(scene), 'application/json')
+    downloadText(serializeScene(scene), 'forestry-visual-quality-scene.json', 'application/json')
   }, [scene])
 
   /**
@@ -794,12 +783,12 @@ function DevForestryVisuals() {
     if (!result || !saved || saved.key !== sceneFingerprint(scene)) return
     const landform = findSceneLandform(saved.scene)
     const unit = landform?.inventoryUnitId ? saved.inventoryUnits.find((entry) => entry.id === landform.inventoryUnitId) : null
-    downloadFile(`visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`, buildReport({
+    downloadText(buildReport({
       result, targets: saved.scene.targets, thresholds: saved.scene.thresholds,
       viewpointName: saved.scene.viewpoint.name || 'Unnamed viewpoint', generatedAt: new Date(),
       inventorySource: unit ? 'BC visual landscape inventory (DataBC)' : null,
       inventoryUnit: unit ? { polygonNumber: unit.polygonNumber, vsc: unit.vsc, scenicArea: unit.scenicArea } : null,
-    }), 'text/markdown')
+    }), `visual-quality-worksheet-${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
   }, [result, scene])
 
   const importPreviewGeometry = useCallback(async (file: File, kind: 'road' | 'blocks' | 'preview') => {
@@ -1139,7 +1128,7 @@ function DevForestryVisuals() {
       void importPreviewGeometry(new File([previous], 'saved-preview.json', { type: 'application/json' }), 'preview')
     } catch { setPreviewMessage('The previous preview could not be read. Open a downloaded preview file instead.') }
   }
-  const exportPreview = () => downloadFile('forestry-driving-preview.json', serializePreview(scene, savedViews), 'application/json')
+  const exportPreview = () => downloadText(serializePreview(scene, savedViews), 'forestry-driving-preview.json', 'application/json')
   const saveImage = () => {
     const map = mapRef.current
     if (!map || !canSaveView) return

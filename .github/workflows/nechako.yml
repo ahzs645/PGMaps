@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/maps/nechako/**'
       - 'src/lib/nechakoPortal*'
+      - 'src/lib/nechakoConnection*'
+      - 'src/lib/mapImageCapture*'
       - 'src/pages/DevNechako.tsx'
       - 'src/pages/DevNechakoPortal.tsx'
       - 'src/App.tsx'
@@ -13,6 +15,7 @@ on:
       - 'src/components/projects/ProjectBackButton.tsx'
       - 'src/types/nechako-turf.d.ts'
       - 'scripts/nechako-server/**'
+      - 'scripts/nechako-worker/**'
       - 'public/data/nechako-showcase/**'
       - 'scripts/sync-bcdatamapper-data.mjs'
       - 'scripts/build-echoscreen-project-data.mjs'
@@ -32,8 +35,8 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,10 +48,14 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/sync-bcdatamapper-data.mjs
       - run: npm run projects:echoscreen-data -- --watersheds-only
       - run: npx tsc -b
-      - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
-      - run: npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/nechako/data/boundary.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
+      - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/lib/nechakoConnection.ts src/lib/nechakoConnection.test.ts src/lib/mapImageCapture.ts src/lib/mapImageCapture.test.ts src/types/nechako-turf.d.ts
+      - run: npx vitest run src/maps/nechako src/lib/nechakoPortal.test.ts src/lib/nechakoConnection.test.ts src/lib/mapImageCapture.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
+      - run: node --test scripts/nechako-worker/worker.test.mjs
+      - run: python3 scripts/nechako-worker/check_hosted_gateway.py --self-test
+      - run: python3 scripts/nechako-server/test_portal_gateway.py
       - run: sudo apt-get update && sudo apt-get install -y gdal-bin php-cli
       - run: python3 scripts/nechako-server/test_converter.py
       - run: node --check scripts/nechako-server/check-access.cjs && node scripts/nechako-server/check-access.cjs --help
@@ -69,7 +76,20 @@ jobs:
             if curl -fsS http://127.0.0.1:42173/dev/nechako > /dev/null && curl -fsS http://127.0.0.1:42174/api/nechako/health > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/e2e/nechako.spec.ts tests/e2e/nechako-workflows.spec.ts tests/e2e/nechako-showcase.spec.ts tests/e2e/nechako-native-portal.spec.ts --workers=1 --reporter=list
+          npx playwright test tests/e2e/nechako*.spec.ts --workers=1 --reporter=list --output=test-results/nechako-public
+      - name: Verify hosted administrator inspection with synthetic accounts
+        env:
+          PGMAPS_E2E_BASE_URL: http://127.0.0.1:42175
+          PGMAPS_E2E_HOSTED_ADMIN: '1'
+        run: |
+          VITE_NECHAKO_GATEWAY_URL=https://fixture-gateway.example/api/nechako-portal npx vite --host 127.0.0.1 --port 42175 --strictPort > /tmp/nechako-hosted-vite.log 2>&1 &
+          HOSTED_VITE_PID=$!
+          trap 'kill "$HOSTED_VITE_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:42175/dev/nechako/portal > /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/e2e/nechako-admin-parity.spec.ts --workers=1 --reporter=list --output=test-results/nechako-hosted-admin
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

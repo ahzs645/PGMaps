@@ -1,0 +1,1830 @@
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
+import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
+import { Button } from '@/components/ui/button'
+import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
+import { verticalCurveSummary } from './engine'
+import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
+import type { Alignment, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
+
+export const ROAD_CHART_COLORS = {
+  ground: '#a07845',
+  design: '#0d9488',
+  cut: '#d97706',
+  fill: '#3b82f6',
+  selected: '#e11d48',
+  mass: '#7c3aed',
+  ditch: '#0369a1',
+}
+
+type Domain = [number, number, number, number]
+type Point = { x: number; ground: number | null; design: number | null }
+const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n))
+const finite = (n: number | null | undefined): n is number => n != null && Number.isFinite(n)
+const format = (n: number | null | undefined, digits = 1) =>
+  finite(n) ? n.toLocaleString('en-CA', { maximumFractionDigits: digits }) : '—'
+
+export function formatRoadStation(value: number) {
+  const rounded = Math.round(Math.max(0, value) * 10) / 10
+  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
+}
+
+function extent(values: Array<number | null>, minimumSpan = 4): [number, number] {
+  const usable = values.filter(finite)
+  if (!usable.length) return [0, minimumSpan]
+  const low = Math.min(...usable),
+    high = Math.max(...usable)
+  const span = Math.max(minimumSpan, high - low)
+  return [(low + high) / 2 - span * 0.6, (low + high) / 2 + span * 0.6]
+}
+
+function chartFrame(width: number, height: number, domain: Domain) {
+  const left = width < 380 ? 48 : 58,
+    right = 16,
+    top = 24,
+    bottom = 36
+  const plotWidth = Math.max(1, width - left - right),
+    plotHeight = Math.max(1, height - top - bottom)
+  const x = (value: number) => left + ((value - domain[0]) / Math.max(0.001, domain[1] - domain[0])) * plotWidth
+  const y = (value: number) => top + ((domain[3] - value) / Math.max(0.001, domain[3] - domain[2])) * plotHeight
+  return { left, right, top, bottom, plotWidth, plotHeight, x, y }
+}
+
+function eventValue(event: { clientX: number; clientY: number }, svg: SVGSVGElement, domain: Domain) {
+  const bounds = svg.getBoundingClientRect()
+  const frame = chartFrame(bounds.width, bounds.height, domain)
+  return [
+    domain[0] + clamp((event.clientX - bounds.left - frame.left) / frame.plotWidth, 0, 1) * (domain[1] - domain[0]),
+    domain[3] - clamp((event.clientY - bounds.top - frame.top) / frame.plotHeight, 0, 1) * (domain[3] - domain[2]),
+  ] as const
+}
+
+function linePath(points: Point[], key: 'ground' | 'design', x: (n: number) => number, y: (n: number) => number) {
+  let connected = false
+  return points
+    .map((p) => {
+      const value = p[key]
+      if (!finite(value)) {
+        connected = false
+        return ''
+      }
+      const command = `${connected ? 'L' : 'M'}${x(p.x).toFixed(2)},${y(value).toFixed(2)}`
+      connected = true
+      return command
+    })
+    .join(' ')
+}
+
+/** Split sign changes at the true interpolated ground/design intersection. */
+function differencePolygons(points: Point[], x: (n: number) => number, y: (n: number) => number) {
+  const result: { points: string; color: string }[] = []
+  const add = (a: Point, b: Point) => {
+    if (!finite(a.ground) || !finite(a.design) || !finite(b.ground) || !finite(b.design)) return
+    const difference = a.ground - a.design + (b.ground - b.design)
+    if (Math.abs(difference) < 1e-8) return
+    result.push({
+      points: `${x(a.x)},${y(a.ground)} ${x(b.x)},${y(b.ground)} ${x(b.x)},${y(b.design)} ${x(a.x)},${y(a.design)}`,
+      color: difference > 0 ? ROAD_CHART_COLORS.cut : ROAD_CHART_COLORS.fill,
+    })
+  }
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i]
+    if (!finite(a.ground) || !finite(a.design) || !finite(b.ground) || !finite(b.design)) continue
+    const da = a.ground - a.design,
+      db = b.ground - b.design
+    if (da * db < 0) {
+      const f = da / (da - db)
+      const middle = {
+        x: a.x + (b.x - a.x) * f,
+        ground: a.ground + (b.ground - a.ground) * f,
+        design: a.design + (b.design - a.design) * f,
+      }
+      add(a, middle)
+      add(middle, b)
+    } else add(a, b)
+  }
+  return result
+}
+
+function Grid({
+  width,
+  height,
+  domain,
+  xLabel,
+  yLabel,
+  stationTicks = false,
+}: {
+  width: number
+  height: number
+  domain: Domain
+  xLabel: string
+  yLabel: string
+  stationTicks?: boolean
+}) {
+  const f = chartFrame(width, height, domain)
+  const ticks = width < 360 ? 3 : 5
+  return (
+    <g fontSize="10" fill="hsl(var(--muted-foreground))" pointerEvents="none">
+      {Array.from({ length: ticks }, (_, i) => {
+        const value = domain[0] + ((domain[1] - domain[0]) * i) / (ticks - 1)
+        return (
+          <g key={`x${i}`}>
+            <line
+              x1={f.x(value)}
+              x2={f.x(value)}
+              y1={f.top}
+              y2={height - f.bottom}
+              stroke="hsl(var(--border))"
+              strokeDasharray="3 4"
+            />
+            <text x={f.x(value)} y={height - 19} textAnchor={i === ticks - 1 ? 'end' : 'middle'}>
+              {stationTicks ? formatRoadStation(value).replace(/\.0$/, '') : format(value, 0)}
+            </text>
+          </g>
+        )
+      })}
+      {Array.from({ length: 4 }, (_, i) => {
+        const value = domain[2] + ((domain[3] - domain[2]) * i) / 3
+        return (
+          <g key={`y${i}`}>
+            <line x1={f.left} x2={width - f.right} y1={f.y(value)} y2={f.y(value)} stroke="hsl(var(--border))" />
+            <text x={f.left - 7} y={f.y(value) + 3} textAnchor="end">
+              {format(value, 1)}
+            </text>
+          </g>
+        )
+      })}
+      <text x={f.left} y={12}>
+        {yLabel}
+      </text>
+      <text x={f.left + f.plotWidth / 2} y={height - 3} textAnchor="middle">
+        {xLabel}
+      </text>
+    </g>
+  )
+}
+
+function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+      {items.map((item) => (
+        <span className="inline-flex items-center gap-1.5" key={item.label}>
+          <span className="h-0.5 w-4" style={{ backgroundColor: item.color }} />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ChartSlot({
+  children,
+  footer,
+}: {
+  children: (width: number, height: number) => ReactNode
+  footer?: ReactNode
+}) {
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto">
+      <ChartViewport className="min-h-[175px] flex-1 shrink-0" minHeight={175} initialHeight={230}>
+        {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
+      </ChartViewport>
+      {footer && (
+        <div className="min-h-[64px] shrink space-y-1 overflow-y-auto overscroll-contain border-t px-3 py-2">
+          {footer}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function selectWithKeyboard(
+  event: KeyboardEvent<SVGSVGElement>,
+  station: number,
+  length: number,
+  onStation: (n: number) => void,
+) {
+  const amount = event.shiftKey ? 50 : 10
+  const next =
+    event.key === 'ArrowRight'
+      ? station + amount
+      : event.key === 'ArrowLeft'
+        ? station - amount
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? length
+            : null
+  if (next !== null) {
+    event.preventDefault()
+    onStation(clamp(next, 0, length))
+  }
+}
+
+export function ProfileChart({
+  analysis,
+  alignment,
+  station,
+  onStation,
+  onVerticalChange,
+  onViewRangeChange,
+  selectedCulvertId,
+  onSelectCulvert,
+  terrainOnly = false,
+}: {
+  analysis: RoadAnalysis
+  alignment: Alignment
+  station: number
+  onStation: (chainage: number) => void
+  onVerticalChange?: (points: VerticalPoint[]) => void
+  onViewRangeChange?: (range: [number, number]) => void
+  selectedCulvertId?: string
+  onSelectCulvert?: (id: string) => void
+  terrainOnly?: boolean
+}) {
+  const id = useId().replace(/:/g, '')
+  const editable = !terrainOnly && !!onVerticalChange
+  const drag = useRef<{ id: string; points: VerticalPoint[] } | null>(null)
+  const [fixedDomain, setFixedDomain] = useState<Domain | null>(null)
+  const [navigation, setNavigation] = useState<{
+    alignmentId: string
+    station: number
+    length: number
+    range: [number, number] | null
+  }>({ alignmentId: alignment.id, station, length: analysis.length, range: null })
+  const [verticalScale, setVerticalScale] = useState('fit')
+  if (navigation.alignmentId !== alignment.id) {
+    setNavigation({ alignmentId: alignment.id, station, length: analysis.length, range: null })
+    setFixedDomain(null)
+  } else if (navigation.station !== station || navigation.length !== analysis.length) {
+    let range = navigation.range
+    if (range) {
+      const length = Math.max(1, analysis.length),
+        span = Math.min(length, range[1] - range[0])
+      if (station < range[0] || station > range[1] || range[1] > length) {
+        const start = clamp(station - span / 2, 0, Math.max(0, length - span))
+        range = [start, start + span]
+      }
+    }
+    setNavigation({ alignmentId: alignment.id, station, length: analysis.length, range })
+  }
+  const viewRange = navigation.range
+  const setViewRange = (range: [number, number] | null) =>
+    setNavigation({ alignmentId: alignment.id, station, length: analysis.length, range })
+  const visibleStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
+  const visibleEnd = viewRange
+    ? clamp(viewRange[1], visibleStart + 1, Math.max(1, analysis.length))
+    : Math.max(1, analysis.length)
+  const points = analysis.stations.map((s) => ({
+    x: s.chainage,
+    ground: s.groundElevation,
+    design: terrainOnly ? null : s.designElevation,
+  }))
+  const ditches = useMemo(() => {
+    if (terrainOnly) return []
+    const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
+    const samples = analysis.stations.map((s) => sectionCodePoints(s, templates.get(s.chainage) ?? alignment.template))
+    return (['left', 'right'] as const).map((side) => ({
+      side,
+      points: analysis.stations.map((s, index) => {
+        const bottom = samples[index].find((p) => p.code === `${side}-ditch-bottom`)
+        return { x: s.chainage, ground: null, design: finite(bottom?.ground) ? bottom!.design : null }
+      }),
+    }))
+  }, [analysis, alignment.template, terrainOnly])
+  const [low, high] = extent([
+    ...ditches.flatMap((ditch) =>
+      ditch.points.filter((p) => p.x >= visibleStart && p.x <= visibleEnd).map((p) => p.design),
+    ),
+    ...points
+      .filter(
+        (p, index) =>
+          (p.x >= visibleStart && p.x <= visibleEnd) ||
+          (p.x < visibleStart && points[index + 1]?.x > visibleStart) ||
+          (p.x > visibleEnd && points[index - 1]?.x < visibleEnd),
+      )
+      .flatMap((p) => [p.ground, p.design]),
+    ...(terrainOnly
+      ? []
+      : alignment.vertical
+          .filter((v) => v.chainage >= visibleStart && v.chainage <= visibleEnd)
+          .map((v) => v.elevation)),
+  ])
+  const domain: Domain = fixedDomain ?? [visibleStart, visibleEnd, low, high]
+  const lastNotified = useRef<{ alignmentId: string; start: number; end: number } | null>(null)
+  const rangeStart = domain[0],
+    rangeEnd = domain[1]
+  useEffect(() => {
+    if (!onViewRangeChange) return
+    const previous = lastNotified.current
+    if (previous?.alignmentId === alignment.id && previous.start === rangeStart && previous.end === rangeEnd) return
+    lastNotified.current = { alignmentId: alignment.id, start: rangeStart, end: rangeEnd }
+    onViewRangeChange([rangeStart, rangeEnd])
+  }, [alignment.id, rangeStart, rangeEnd, onViewRangeChange])
+  const zoom = (factor: number) => {
+    const length = Math.max(1, analysis.length),
+      span = clamp((visibleEnd - visibleStart) * factor, Math.min(10, length), length)
+    const centre = station >= visibleStart && station <= visibleEnd ? station : (visibleStart + visibleEnd) / 2
+    const start = clamp(centre - span / 2, 0, Math.max(0, length - span))
+    setViewRange(span >= length ? null : [start, start + span])
+  }
+  const pan = (direction: number) => {
+    const span = visibleEnd - visibleStart,
+      start = clamp(visibleStart + (direction * span) / 2, 0, Math.max(0, analysis.length - span))
+    setViewRange([start, start + span])
+  }
+  const active = analysis.stations.reduce<RoadStation | undefined>(
+    (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
+    undefined,
+  )
+  const sorted = terrainOnly ? [] : [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
+  const curves = terrainOnly
+    ? []
+    : (() => {
+        try {
+          return verticalCurveSummary(alignment)
+        } catch {
+          return []
+        }
+      })()
+  const edit = (id: string, chainage: number, elevation: number, original = sorted) => {
+    if (!onVerticalChange) return
+    const index = original.findIndex((p) => p.id === id)
+    if (index < 0) return
+    const minimum = index === 0 ? 0 : original[index - 1].chainage + 0.1
+    const maximum = index === original.length - 1 ? analysis.length : original[index + 1].chainage - 0.1
+    const fixedChainage =
+      index === 0 && original.length > 1
+        ? original[0].chainage
+        : index === original.length - 1 && original.length > 1
+          ? original[index].chainage
+          : clamp(chainage, minimum, maximum)
+    onVerticalChange(
+      original.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              chainage: Math.round(fixedChainage * 100) / 100,
+              elevation: clamp(Math.round(elevation * 100) / 100, -12000, 12000),
+            }
+          : p,
+      ),
+    )
+    onStation(fixedChainage)
+  }
+  const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
+    const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain)
+    if (drag.current) edit(drag.current.id, chainage, elevation, drag.current.points)
+    else if (event.buttons === 1) onStation(chainage)
+  }
+  return (
+    <ChartSlot
+      footer={
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Legend
+              items={
+                terrainOnly
+                  ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
+                  : [
+                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      { label: 'Formation', color: ROAD_CHART_COLORS.design },
+                      { label: 'Cut', color: ROAD_CHART_COLORS.cut },
+                      { label: 'Fill', color: ROAD_CHART_COLORS.fill },
+                      ...(ditches.some((ditch) => ditch.points.some((p) => finite(p.design)))
+                        ? [{ label: 'L/R ditch bottoms', color: ROAD_CHART_COLORS.ditch }]
+                        : []),
+                    ]
+              }
+            />
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {formatRoadStation(active?.chainage ?? station)} · {format(active?.gradePercent)}% · ground{' '}
+              {format(active?.groundElevation)} m
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {!editable
+              ? 'Click or drag to inspect. Arrow keys move the station.'
+              : 'Click or drag to inspect. Double-click to add a vertical control; drag a control to edit. Arrow keys move the station.'}
+          </p>
+          <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+            <Button
+              className="h-6 px-2 text-[10px]"
+              size="sm"
+              variant="outline"
+              aria-label="Pan profile backward"
+              disabled={visibleStart <= 0}
+              onClick={() => pan(-1)}
+            >
+              ←
+            </Button>
+            <Button
+              className="h-6 px-2 text-[10px]"
+              size="sm"
+              variant="outline"
+              aria-label="Zoom profile in"
+              onClick={() => zoom(0.5)}
+            >
+              +
+            </Button>
+            <Button
+              className="h-6 px-2 text-[10px]"
+              size="sm"
+              variant="outline"
+              aria-label="Zoom profile out"
+              onClick={() => zoom(2)}
+            >
+              −
+            </Button>
+            <Button
+              className="h-6 px-2 text-[10px]"
+              size="sm"
+              variant="outline"
+              aria-label="Pan profile forward"
+              disabled={visibleEnd >= analysis.length}
+              onClick={() => pan(1)}
+            >
+              →
+            </Button>
+            <Button
+              className="h-6 px-2 text-[10px]"
+              size="sm"
+              variant="ghost"
+              aria-label="Fit full road profile"
+              onClick={() => {
+                setViewRange(null)
+                setVerticalScale('fit')
+              }}
+            >
+              Fit
+            </Button>
+            <label className="flex items-center gap-1">
+              Vertical{' '}
+              <select
+                aria-label="Profile vertical exaggeration"
+                className="rounded border bg-background px-1 text-[10px] text-foreground"
+                value={verticalScale}
+                onChange={(event) => setVerticalScale(event.target.value)}
+              >
+                {['fit', '1', '2', '5', '10'].map((value) => (
+                  <option value={value} key={value}>
+                    {value === 'fit' ? 'Auto fit' : `×${value}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span>
+              {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}
+            </span>
+          </div>
+          <EngineeringBands
+            analysis={analysis}
+            alignment={alignment}
+            station={station}
+            onStation={onStation}
+            terrainOnly={terrainOnly}
+            range={[domain[0], domain[1]]}
+          />
+        </>
+      }
+    >
+      {(width, height) => {
+        const frame = chartFrame(width, height, domain)
+        const targetScale = verticalScale === 'fit' ? 1 : Number(verticalScale)
+        const halfSpan = ((domain[1] - domain[0]) * frame.plotHeight) / frame.plotWidth / (2 * targetScale)
+        const displayedDomain: Domain =
+          fixedDomain ??
+          (verticalScale === 'fit'
+            ? domain
+            : [domain[0], domain[1], (low + high) / 2 - halfSpan, (low + high) / 2 + halfSpan])
+        const f = chartFrame(width, height, displayedDomain)
+        const actualExaggeration =
+          f.plotHeight /
+          (displayedDomain[3] - displayedDomain[2]) /
+          (f.plotWidth / (displayedDomain[1] - displayedDomain[0]))
+        return (
+          <svg
+            width={width}
+            height={height}
+            className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="road-profile-chart"
+            data-terrain-only={terrainOnly}
+            data-station={active?.chainage ?? station}
+            data-range-start={displayedDomain[0]}
+            data-range-end={displayedDomain[1]}
+            data-vertical-exaggeration={actualExaggeration}
+            role="group"
+            tabIndex={0}
+            aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Left and right arrows select station.${editable ? ' Double-click adds a vertical control.' : ''}`}
+            onKeyDown={(event) => {
+              if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
+            }}
+            onPointerDown={(event) => {
+              if (event.button !== 0) return
+              event.currentTarget.setPointerCapture(event.pointerId)
+              onStation(eventValue(event, event.currentTarget, displayedDomain)[0])
+            }}
+            onPointerMove={(event) => handleMove(event, displayedDomain)}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId))
+                event.currentTarget.releasePointerCapture(event.pointerId)
+              drag.current = null
+              setFixedDomain(null)
+            }}
+            onPointerCancel={() => {
+              drag.current = null
+              setFixedDomain(null)
+            }}
+            onDoubleClick={(event) => {
+              if (
+                !onVerticalChange ||
+                terrainOnly ||
+                analysis.length < 1 ||
+                (event.target as Element).getAttribute('data-pvi') === 'true'
+              )
+                return
+              const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain)
+              let baseline = sorted
+              if (baseline.length < 2) {
+                const first = analysis.stations[0],
+                  last = analysis.stations[analysis.stations.length - 1]
+                if (!finite(first?.designElevation) || !finite(last?.designElevation)) return
+                baseline = [
+                  { id: `pvi-${Date.now()}-start`, chainage: 0, elevation: first.designElevation, curveLength: 0 },
+                  {
+                    id: `pvi-${Date.now()}-end`,
+                    chainage: analysis.length,
+                    elevation: last.designElevation,
+                    curveLength: 0,
+                  },
+                ]
+              }
+              if (baseline.some((p) => Math.abs(p.chainage - chainage) < 1)) return
+              onVerticalChange(
+                [
+                  ...baseline,
+                  { id: `pvi-${Date.now()}`, chainage, elevation: clamp(elevation, -12000, 12000), curveLength: 0 },
+                ].sort((a, b) => a.chainage - b.chainage),
+              )
+              onStation(chainage)
+            }}
+          >
+            <title>
+              {terrainOnly
+                ? 'Terrain elevation by horizontal chainage'
+                : 'Ground and designed road elevation by horizontal chainage'}
+            </title>
+            <defs>
+              <clipPath id={`profile-${id}`}>
+                <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
+              </clipPath>
+            </defs>
+            <Grid
+              width={width}
+              height={height}
+              domain={displayedDomain}
+              xLabel="Chainage (m)"
+              yLabel="Elevation (m)"
+              stationTicks
+            />
+            <g clipPath={`url(#profile-${id})`}>
+              {curves
+                .filter((curve) => curve.valid)
+                .map((curve) => (
+                  <g key={curve.pviId} pointerEvents="none">
+                    <rect
+                      x={f.x(Math.max(0, curve.start))}
+                      y={f.top}
+                      width={Math.max(0, f.x(Math.min(analysis.length, curve.end)) - f.x(Math.max(0, curve.start)))}
+                      height={f.plotHeight}
+                      fill={ROAD_CHART_COLORS.mass}
+                      opacity={0.035}
+                    />
+                    {[curve.start, curve.end].map((value) => (
+                      <line
+                        key={value}
+                        x1={f.x(value)}
+                        x2={f.x(value)}
+                        y1={f.top}
+                        y2={height - f.bottom}
+                        stroke={ROAD_CHART_COLORS.mass}
+                        opacity={0.4}
+                        strokeDasharray="2 4"
+                      />
+                    ))}
+                  </g>
+                ))}
+              {differencePolygons(points, f.x, f.y).map((p, i) => (
+                <polygon key={i} points={p.points} fill={p.color} opacity={0.23} />
+              ))}
+              <path
+                d={linePath(points, 'ground', f.x, f.y)}
+                fill="none"
+                stroke={ROAD_CHART_COLORS.ground}
+                strokeWidth={1.7}
+              />
+              <path
+                d={linePath(points, 'design', f.x, f.y)}
+                fill="none"
+                stroke={ROAD_CHART_COLORS.design}
+                strokeWidth={2.4}
+              />
+              {ditches.map((ditch) => (
+                <path
+                  key={ditch.side}
+                  data-testid={`road-profile-${ditch.side}-ditch`}
+                  d={linePath(ditch.points, 'design', f.x, f.y)}
+                  fill="none"
+                  stroke={ROAD_CHART_COLORS.ditch}
+                  strokeWidth={1.3}
+                  strokeDasharray={ditch.side === 'left' ? '5 3' : '2 2'}
+                  pointerEvents="none"
+                >
+                  <title>
+                    {ditch.side === 'left' ? 'Left' : 'Right'} ditch-bottom elevation from calculated cut sections; gaps
+                    remain open.
+                  </title>
+                </path>
+              ))}
+              {analysis.crossings.map((crossing) => (
+                <g
+                  key={crossing.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Inspect ${crossing.name} crossing at ${formatRoadStation(crossing.chainage)}`}
+                  className="cursor-pointer"
+                  onPointerDown={(event) => {
+                    event.stopPropagation()
+                    onStation(crossing.chainage)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onStation(crossing.chainage)
+                    }
+                  }}
+                >
+                  <rect x={f.x(crossing.chainage) - 5} y={f.top} width={10} height={f.plotHeight} fill="transparent" />
+                  <line
+                    x1={f.x(crossing.chainage)}
+                    x2={f.x(crossing.chainage)}
+                    y1={f.top}
+                    y2={height - f.bottom}
+                    stroke={crossing.kind === 'stream' ? ROAD_CHART_COLORS.fill : ROAD_CHART_COLORS.cut}
+                    strokeDasharray="3 3"
+                    opacity={0.6}
+                  />
+                  <title>
+                    {crossing.name} at {formatRoadStation(crossing.chainage)}
+                  </title>
+                </g>
+              ))}
+              {!terrainOnly &&
+                analysis.engineering?.culverts.map((culvert, culvertIndex, culverts) => {
+                  const s = analysis.stations.reduce<RoadStation | undefined>(
+                    (best, item) =>
+                      !best || Math.abs(item.chainage - culvert.chainage) < Math.abs(best.chainage - culvert.chainage)
+                        ? item
+                        : best,
+                    undefined,
+                  )
+                  const elevation = s?.designElevation ?? s?.groundElevation
+                  if (!finite(elevation)) return null
+                  const x = f.x(culvert.chainage),
+                    y = f.y(elevation)
+                  const lift =
+                    12 +
+                    culverts.slice(0, culvertIndex).filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001)
+                      .length *
+                      19
+                  const grouped = culverts.filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001).length
+                  const markerY = y - f.top > grouped * 19 + 8 ? y - lift : y + lift
+                  const selected = selectedCulvertId === culvert.id
+                  const design = alignment.engineering?.culverts.find((c) => c.id === culvert.id)
+                  return (
+                    <g
+                      key={culvert.id}
+                      className="cursor-pointer"
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={selected}
+                      aria-label={`Inspect structure ${culvert.name} at ${formatRoadStation(culvert.chainage)}`}
+                      onPointerDown={(event) => {
+                        event.stopPropagation()
+                        onSelectCulvert?.(culvert.id)
+                        onStation(culvert.chainage)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onSelectCulvert?.(culvert.id)
+                          onStation(culvert.chainage)
+                        }
+                      }}
+                    >
+                      <path
+                        d={`M${x - 6},${markerY} L${x + 6},${markerY} L${x},${markerY + 10} Z`}
+                        fill={culvert.warnings.length ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                        stroke={selected ? ROAD_CHART_COLORS.selected : 'hsl(var(--background))'}
+                        strokeWidth={selected ? 3 : 1}
+                      />
+                      <text
+                        x={x + 7}
+                        y={markerY}
+                        fontSize="9"
+                        fill={selected ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={3}
+                        paintOrder="stroke"
+                      >
+                        {design ? `${Math.round(design.diameterM * 1000)} mm` : 'Culvert'}
+                        {selected ? ' · selected' : ''}
+                      </text>
+                      <title>
+                        {culvert.name} · {formatRoadStation(culvert.chainage)} · cover {format(culvert.coverM)} m.{' '}
+                        {culvert.warnings.join(' ')}
+                      </title>
+                    </g>
+                  )
+                })}
+              <line
+                x1={f.x(station)}
+                x2={f.x(station)}
+                y1={f.top}
+                y2={height - f.bottom}
+                stroke={ROAD_CHART_COLORS.selected}
+                strokeWidth={1.4}
+              />
+              {active && finite(terrainOnly ? active.groundElevation : active.designElevation) && (
+                <circle
+                  cx={f.x(active.chainage)}
+                  cy={f.y((terrainOnly ? active.groundElevation : active.designElevation)!)}
+                  r={4}
+                  fill={ROAD_CHART_COLORS.selected}
+                />
+              )}
+              {gradeSpans
+                .filter((span) => f.x(span.end) - f.x(span.start) > 100)
+                .map((span) => {
+                  const midpoint = (span.start + span.end) / 2
+                  const nearest = analysis.stations.reduce<RoadStation | undefined>(
+                    (best, s) =>
+                      !best || Math.abs(s.chainage - midpoint) < Math.abs(best.chainage - midpoint) ? s : best,
+                    undefined,
+                  )
+                  const elevation = terrainOnly ? nearest?.groundElevation : nearest?.designElevation
+                  if (!finite(elevation)) return null
+                  return (
+                    <text
+                      key={span.id}
+                      x={f.x(midpoint)}
+                      y={Math.max(f.top + 10, f.y(elevation) - 10)}
+                      fontSize="9"
+                      fill="hsl(var(--foreground))"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                      textAnchor="middle"
+                      pointerEvents="none"
+                    >
+                      {span.label}
+                      <title>{span.detail}</title>
+                    </text>
+                  )
+                })}
+            </g>
+            {sorted
+              .map((p, index) => ({ p, index }))
+              .filter(
+                ({ p }) =>
+                  p.chainage >= displayedDomain[0] &&
+                  p.chainage <= displayedDomain[1] &&
+                  p.elevation >= displayedDomain[2] &&
+                  p.elevation <= displayedDomain[3],
+              )
+              .map(({ p, index }) => (
+                <g key={p.id}>
+                  {curves
+                    .filter((curve) => curve.pviId === p.id)
+                    .map((curve) => (
+                      <text
+                        key={curve.pviId}
+                        x={f.x(p.chainage)}
+                        y={Math.max(f.top + 10, f.y(p.elevation) - 13)}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fill={curve.valid ? ROAD_CHART_COLORS.mass : ROAD_CHART_COLORS.selected}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={3}
+                        paintOrder="stroke"
+                        pointerEvents="none"
+                      >
+                        {curve.valid ? 'VC' : 'Unfitted VC'} {format(curve.length, 0)} m
+                        {curve.k === null ? '' : ` · K ${format(curve.k)}`}
+                      </text>
+                    ))}
+                  <circle
+                    data-pvi="true"
+                    cx={f.x(p.chainage)}
+                    cy={f.y(p.elevation)}
+                    r={6}
+                    fill="hsl(var(--background))"
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeWidth={2}
+                    className={
+                      editable ? 'cursor-ns-resize outline-none focus-visible:stroke-[4]' : 'pointer-events-none'
+                    }
+                    tabIndex={editable ? 0 : undefined}
+                    role={editable ? 'slider' : undefined}
+                    aria-label={`Vertical control ${index + 1} elevation`}
+                    aria-valuemin={-12000}
+                    aria-valuemax={12000}
+                    aria-valuenow={p.elevation}
+                    aria-valuetext={`${format(p.elevation, 2)} metres at station ${formatRoadStation(p.chainage)}`}
+                    onPointerDown={(event) => {
+                      if (!editable) return
+                      event.stopPropagation()
+                      drag.current = { id: p.id, points: sorted }
+                      setFixedDomain(displayedDomain)
+                      event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId)
+                    }}
+                    onKeyDown={(event) => {
+                      if (!editable) return
+                      const step = event.shiftKey ? 1 : 0.1
+                      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        edit(
+                          p.id,
+                          p.chainage + (event.key === 'ArrowLeft' ? -5 : event.key === 'ArrowRight' ? 5 : 0),
+                          p.elevation + (event.key === 'ArrowUp' ? step : event.key === 'ArrowDown' ? -step : 0),
+                        )
+                      }
+                    }}
+                  >
+                    <title>
+                      Control {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
+                      {editable ? ' Drag or use arrow keys.' : ' Preview only.'}
+                    </title>
+                  </circle>
+                </g>
+              ))}
+            {!points.some((p) => finite(p.ground)) && (
+              <text x={width / 2} y={height / 2} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
+                No terrain samples on this alignment
+              </text>
+            )}
+            <text x={width - f.right} y={12} textAnchor="end" fontSize="9" fill="hsl(var(--muted-foreground))">
+              Vertical ×{format(actualExaggeration, 2)} · display only
+            </text>
+          </svg>
+        )
+      }}
+    </ChartSlot>
+  )
+}
+
+export function CrossSectionChart({
+  station,
+  onShift: shiftAlignment,
+  onVerticalShift,
+  alignment,
+  analysis,
+  terrainOnly = false,
+  selectedCulvertId,
+  onSelectCulvert,
+}: {
+  station: RoadStation | undefined
+  onShift?: (meters: number) => void
+  onVerticalShift?: (metres: number) => void
+  alignment?: Alignment
+  analysis?: RoadAnalysis
+  terrainOnly?: boolean
+  selectedCulvertId?: string
+  onSelectCulvert?: (id: string) => void
+}) {
+  const id = useId().replace(/:/g, '')
+  const drag = useRef<number | null>(null)
+  const [shiftPreview, setShiftPreview] = useState(0)
+  const [hoverOffset, setHoverOffset] = useState<number | null>(null)
+  const onShift = terrainOnly ? undefined : shiftAlignment
+  const engineering =
+    !terrainOnly && station
+      ? analysis?.engineering?.stations.find((s) => Math.abs(s.chainage - station.chainage) < 0.001)
+      : undefined
+  const template = engineering?.template.template ?? alignment?.template
+  const culverts =
+    !terrainOnly && station
+      ? (analysis?.engineering?.culverts.filter((c) => Math.abs(c.chainage - station.chainage) < 0.001) ?? [])
+      : []
+  const pipeSections = culverts.map((c) => {
+    const length = c.profile[c.profile.length - 1]?.distanceM ?? 0
+    const cos = Math.cos(((c.bearing - (station?.bearing ?? 0) - 90) * Math.PI) / 180)
+    return {
+      culvert: c,
+      points: c.profile.map((p) => ({
+        x: (p.distanceM - length / 2) * cos,
+        ground: p.invertElevation,
+        design: p.crownElevation,
+      })),
+    }
+  })
+  const points =
+    station?.section.map((p) => ({ x: p.offset, ground: p.ground, design: terrainOnly ? null : p.design })) ?? []
+  const codePoints = !terrainOnly && station && template ? sectionCodePoints(station, template) : []
+  const hoverSample = hoverOffset === null || !station ? null : sectionSampleAt(station, hoverOffset)
+  const hovered = hoverSample
+    ? { x: hoverSample.offset, ground: hoverSample.ground, design: terrainOnly ? null : hoverSample.design }
+    : null
+  const hoveredDepth = finite(hovered?.ground) && finite(hovered?.design) ? hovered.ground - hovered.design : null
+  const hoveredCode = terrainOnly
+    ? 'ground transect'
+    : station && template && hovered
+      ? classifySectionOffset(station, template, hovered.x)
+      : 'unknown-design'
+  const [low, high] = extent([
+    ...points.flatMap((p) => [p.ground, p.design]),
+    ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
+  ])
+  const halfWidth = Math.max(
+    15,
+    ...points.map((p) => Math.abs(p.x)),
+    ...pipeSections.flatMap((pipe) => pipe.points.map((p) => Math.abs(p.x))),
+  )
+  const domain: Domain = [-halfWidth, halfWidth, low, high]
+  return (
+    <ChartSlot
+      footer={
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Legend
+              items={
+                terrainOnly
+                  ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
+                  : [
+                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      { label: 'Template', color: ROAD_CHART_COLORS.design },
+                      { label: 'Cut', color: ROAD_CHART_COLORS.cut },
+                      { label: 'Fill', color: ROAD_CHART_COLORS.fill },
+                    ]
+              }
+            />
+            {!terrainOnly && (
+              <span className="text-[11px] tabular-nums">
+                Cut {format(station?.cutAreaM2)} m² · fill {format(station?.fillAreaM2)} m²
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            <span>
+              {terrainOnly
+                ? 'Terrain across the selected station; negative offsets are left looking forward.'
+                : station?.complete
+                  ? `Daylight L ${format(station.leftDaylightM)} m / R ${format(station.rightDaylightM)} m`
+                  : 'Incomplete section: terrain coverage or daylight limit.'}
+            </span>
+            {onShift && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[10px]"
+                  aria-label="Shift road left one metre"
+                  onClick={() => onShift(-1)}
+                >
+                  ← 1 m
+                </Button>
+                <span>Shift alignment</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[10px]"
+                  aria-label="Shift road right one metre"
+                  onClick={() => onShift(1)}
+                >
+                  1 m →
+                </Button>
+              </div>
+            )}
+            {!terrainOnly && onVerticalShift && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[10px]"
+                  aria-label="Lower formation 0.25 metres"
+                  onClick={() => onVerticalShift(-0.25)}
+                >
+                  ↓ 0.25 m
+                </Button>
+                <span>Formation level</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[10px]"
+                  aria-label="Raise formation 0.25 metres"
+                  onClick={() => onVerticalShift(0.25)}
+                >
+                  ↑ 0.25 m
+                </Button>
+              </div>
+            )}
+          </div>
+          {!terrainOnly && station && (
+            <p className="text-[10px] tabular-nums text-muted-foreground">
+              Width L {format(station.leftWidth)} / R {format(station.rightWidth)} m · ground{' '}
+              {format(station.groundElevation)} m · formation {format(station.designElevation)} m · centre{' '}
+              {finite(station.groundElevation) && finite(station.designElevation)
+                ? `${station.groundElevation >= station.designElevation ? 'cut' : 'fill'} ${format(Math.abs(station.groundElevation - station.designElevation))} m`
+                : 'cut/fill unknown'}
+              {engineering ? ` · ${engineering.template.leftName} / ${engineering.template.rightName}` : ''}
+            </p>
+          )}
+          {engineering && engineering.layers.length > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              User-entered ground layers:{' '}
+              {engineering.layers
+                .map(
+                  (layer) =>
+                    `${layer.name} (${format(layer.topDepthM)}–${layer.bottomDepthM === null ? 'deep' : format(layer.bottomDepthM)} m)`,
+                )
+                .join(' · ')}
+              . Unassigned depths remain unclassified.
+            </p>
+          )}
+          {!terrainOnly && template && (
+            <p className="text-[10px] tabular-nums text-muted-foreground">
+              Crossfall L/R {format(template.leftCrossfallPercent ?? template.crossfallPercent)}/
+              {format(template.rightCrossfallPercent ?? template.crossfallPercent)}% · cut H:V L/R{' '}
+              {format(template.leftCutSlope ?? template.cutSlope)}/{format(template.rightCutSlope ?? template.cutSlope)}{' '}
+              · fill H:V L/R {format(template.leftFillSlope ?? template.fillSlope)}/
+              {format(template.rightFillSlope ?? template.fillSlope)}
+            </p>
+          )}
+          <p className="min-h-4 text-[10px] tabular-nums text-muted-foreground" data-testid="road-section-probe">
+            {hovered ? (
+              <>
+                Offset {format(hovered.x, 2)} m · ground {format(hovered.ground, 2)} m
+                {!terrainOnly && (
+                  <>
+                    {' '}
+                    · design {format(hovered.design, 2)} m ·{' '}
+                    {hoveredDepth === null
+                      ? 'depth unknown'
+                      : `${hoveredDepth >= 0 ? 'cut' : 'fill'} ${format(Math.abs(hoveredDepth), 2)} m`}
+                  </>
+                )}{' '}
+                · {hoveredCode}
+              </>
+            ) : (
+              'Move over the section to inspect offset, levels and depth.'
+            )}
+          </p>
+          {culverts.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              aria-label={`Select section culvert ${c.name}`}
+              aria-pressed={selectedCulvertId === c.id}
+              onClick={() => onSelectCulvert?.(c.id)}
+              className={`block w-full rounded border px-1 py-0.5 text-left text-[10px] ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-amber-700 dark:text-amber-400' : 'border-transparent text-muted-foreground'}`}
+            >
+              {c.name}: projected barrel · cover {format(c.coverM)} m · pipe grade {format(c.gradePercent)}% ·{' '}
+              {c.complete ? 'sampled geometry complete' : 'incomplete levels or terrain'}. {c.warnings.join(' ')}
+            </button>
+          ))}
+        </>
+      }
+    >
+      {(width, height) => {
+        const f = chartFrame(width, height, domain)
+        return (
+          <svg
+            width={width}
+            height={height}
+            className={onShift ? 'touch-none' : undefined}
+            data-testid="road-section-chart"
+            data-terrain-only={terrainOnly}
+            data-station={station?.chainage ?? 0}
+            data-left-width={station?.leftWidth}
+            data-right-width={station?.rightWidth}
+            role="group"
+            aria-label={`${terrainOnly ? 'Terrain' : 'Road'} cross-section at ${formatRoadStation(station?.chainage ?? 0)}. Negative offsets are left looking forward.`}
+            onPointerDown={
+              onShift
+                ? (event) => {
+                    if (event.button !== 0) return
+                    drag.current = eventValue(event, event.currentTarget, domain)[0]
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }
+                : undefined
+            }
+            onPointerMove={(event) => {
+              const offset = eventValue(event, event.currentTarget, domain)[0]
+              setHoverOffset(offset)
+              if (onShift && drag.current !== null) setShiftPreview(clamp(offset - drag.current, -20, 20))
+            }}
+            onPointerLeave={() => {
+              if (drag.current === null) setHoverOffset(null)
+            }}
+            onPointerUp={
+              onShift
+                ? (event) => {
+                    if (drag.current !== null) {
+                      const delta = clamp(eventValue(event, event.currentTarget, domain)[0] - drag.current, -20, 20)
+                      if (Math.abs(delta) > 0.1) onShift(Math.round(delta * 10) / 10)
+                      drag.current = null
+                      setShiftPreview(0)
+                    }
+                  }
+                : undefined
+            }
+            onPointerCancel={() => {
+              drag.current = null
+              setShiftPreview(0)
+            }}
+          >
+            <title>
+              {terrainOnly
+                ? 'Terrain cross-section, looking in the direction of increasing chainage'
+                : 'Ground and road template, looking in the direction of increasing chainage'}
+            </title>
+            <defs>
+              <clipPath id={`section-${id}`}>
+                <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
+              </clipPath>
+            </defs>
+            <Grid
+              width={width}
+              height={height}
+              domain={domain}
+              xLabel="Left ← Offset from centreline (m) → Right"
+              yLabel="Elevation (m)"
+            />
+            <g clipPath={`url(#section-${id})`}>
+              {engineering?.layers.flatMap((layer) =>
+                points.slice(1).flatMap((b, index) => {
+                  const a = points[index]
+                  if (!finite(a.ground) || !finite(b.ground)) return []
+                  const az = a.ground - layer.topDepthM,
+                    bz = b.ground - layer.topDepthM
+                  const bottomA = layer.bottomDepthM === null ? low : a.ground - layer.bottomDepthM
+                  const bottomB = layer.bottomDepthM === null ? low : b.ground - layer.bottomDepthM
+                  return [
+                    <polygon
+                      key={`${layer.id}-${index}`}
+                      points={`${f.x(a.x)},${f.y(az)} ${f.x(b.x)},${f.y(bz)} ${f.x(b.x)},${f.y(bottomB)} ${f.x(a.x)},${f.y(bottomA)}`}
+                      fill={layer.color}
+                      opacity={0.12}
+                    >
+                      <title>{layer.name}: user-entered horizon below original ground</title>
+                    </polygon>,
+                  ]
+                }),
+              )}
+              {engineering?.layers.map((layer) => (
+                <path
+                  key={`layer-${layer.id}`}
+                  d={linePath(
+                    points.map((p) => ({ ...p, ground: finite(p.ground) ? p.ground - layer.topDepthM : null })),
+                    'ground',
+                    f.x,
+                    f.y,
+                  )}
+                  fill="none"
+                  stroke={layer.color}
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  opacity={0.85}
+                />
+              ))}
+              {differencePolygons(points, f.x, f.y).map((p, i) => (
+                <polygon key={i} points={p.points} fill={p.color} opacity={0.3} />
+              ))}
+              <path
+                d={linePath(points, 'ground', f.x, f.y)}
+                fill="none"
+                stroke={ROAD_CHART_COLORS.ground}
+                strokeWidth={1.8}
+              />
+              {pipeSections.map(({ culvert, points: pipe }) => (
+                <g
+                  key={culvert.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Inspect section barrel ${culvert.name}`}
+                  aria-pressed={selectedCulvertId === culvert.id}
+                  className="cursor-pointer"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => onSelectCulvert?.(culvert.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onSelectCulvert?.(culvert.id)
+                    }
+                  }}
+                >
+                  {differencePolygons(pipe, f.x, f.y).map((polygon, index) => (
+                    <polygon key={index} points={polygon.points} fill={ROAD_CHART_COLORS.fill} opacity={0.3} />
+                  ))}
+                  <path
+                    d={linePath(pipe, 'ground', f.x, f.y)}
+                    fill="none"
+                    stroke={selectedCulvertId === culvert.id ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                    strokeWidth={selectedCulvertId === culvert.id ? 3 : 2}
+                  />
+                  <path
+                    d={linePath(pipe, 'design', f.x, f.y)}
+                    fill="none"
+                    stroke={selectedCulvertId === culvert.id ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                    strokeWidth={selectedCulvertId === culvert.id ? 3 : 2}
+                  />
+                  <title>
+                    {culvert.name} projected onto the cross-section. Cover {format(culvert.coverM)} m.
+                  </title>
+                </g>
+              ))}
+              <path
+                d={linePath(points, 'design', (n) => f.x(n + shiftPreview), f.y)}
+                fill="none"
+                stroke={ROAD_CHART_COLORS.design}
+                strokeWidth={2.5}
+              />
+              {codePoints
+                .filter((p) => p.code.endsWith('ditch-bottom') && finite(p.design))
+                .map((p) => (
+                  <g key={p.code} data-section-code={p.code} pointerEvents="none">
+                    <circle
+                      cx={f.x(p.offset + shiftPreview)}
+                      cy={f.y(p.design!)}
+                      r={4}
+                      fill={ROAD_CHART_COLORS.ditch}
+                      stroke="white"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={f.x(p.offset + shiftPreview) + (p.offset < 0 ? -6 : 6)}
+                      y={f.y(p.design!) + 12}
+                      textAnchor={p.offset < 0 ? 'end' : 'start'}
+                      fontSize="9"
+                      fill={ROAD_CHART_COLORS.ditch}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {p.side === 'left' ? 'L' : 'R'} ditch {format(p.design, 2)} m
+                    </text>
+                    <title>
+                      {p.code}: offset {format(p.offset, 2)} m; ground {format(p.ground, 2)} m; design{' '}
+                      {format(p.design, 2)} m.
+                    </title>
+                  </g>
+                ))}
+              <line
+                x1={f.x(0)}
+                x2={f.x(0)}
+                y1={f.top}
+                y2={height - f.bottom}
+                stroke={ROAD_CHART_COLORS.selected}
+                strokeDasharray="3 3"
+              />
+              {!terrainOnly &&
+                station &&
+                [-station.leftWidth, station.rightWidth].map((offset) => (
+                  <line
+                    key={offset}
+                    x1={f.x(offset)}
+                    x2={f.x(offset)}
+                    y1={f.top + 7}
+                    y2={height - f.bottom}
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeDasharray="2 5"
+                    opacity={0.4}
+                  />
+                ))}
+              {!terrainOnly &&
+                station &&
+                [station.leftDaylightM === null ? null : -Math.abs(station.leftDaylightM), station.rightDaylightM]
+                  .filter(finite)
+                  .map((offset) => {
+                    const sample = points.reduce<Point | undefined>(
+                      (best, p) => (!best || Math.abs(p.x - offset) < Math.abs(best.x - offset) ? p : best),
+                      undefined,
+                    )
+                    return sample && finite(sample.ground) ? (
+                      <circle
+                        key={offset}
+                        cx={f.x(offset)}
+                        cy={f.y(sample.ground)}
+                        r={3.5}
+                        fill={ROAD_CHART_COLORS.cut}
+                      >
+                        <title>Daylight at {format(offset)} m</title>
+                      </circle>
+                    ) : null
+                  })}
+              {hovered && (
+                <g pointerEvents="none">
+                  <line
+                    x1={f.x(hovered.x)}
+                    x2={f.x(hovered.x)}
+                    y1={f.top}
+                    y2={height - f.bottom}
+                    stroke="hsl(var(--foreground))"
+                    strokeDasharray="2 3"
+                    opacity={0.6}
+                  />
+                  {(['ground', 'design'] as const).map((key) =>
+                    finite(hovered[key]) ? (
+                      <circle
+                        key={key}
+                        cx={f.x(hovered.x)}
+                        cy={f.y(hovered[key]!)}
+                        r={3.5}
+                        fill={key === 'ground' ? ROAD_CHART_COLORS.ground : ROAD_CHART_COLORS.design}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={1}
+                      />
+                    ) : null,
+                  )}
+                </g>
+              )}
+            </g>
+            {!terrainOnly && station && (
+              <g fontSize="9" fill={ROAD_CHART_COLORS.design} stroke={ROAD_CHART_COLORS.design}>
+                {[-station.leftWidth, station.rightWidth].map((offset) => (
+                  <g key={`dimension-${offset}`}>
+                    <line x1={f.x(0)} x2={f.x(offset)} y1={f.top + 10} y2={f.top + 10} strokeWidth={1} />
+                    <line x1={f.x(offset)} x2={f.x(offset)} y1={f.top + 6} y2={f.top + 14} strokeWidth={1} />
+                    <title>
+                      {offset < 0 ? 'Left' : 'Right'} formation half-width: {format(Math.abs(offset))} m
+                    </title>
+                  </g>
+                ))}
+                <text
+                  x={f.x(0)}
+                  y={f.top + 25}
+                  stroke="hsl(var(--background))"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  textAnchor="middle"
+                >
+                  L {format(station.leftWidth)} m · R {format(station.rightWidth)} m
+                </text>
+              </g>
+            )}
+            {shiftPreview !== 0 && (
+              <text x={width / 2} y={f.top + 12} fontSize="11" fill={ROAD_CHART_COLORS.design} textAnchor="middle">
+                Shift {shiftPreview > 0 ? '+' : ''}
+                {format(shiftPreview)} m on release
+              </text>
+            )}
+            {!station && (
+              <text x={width / 2} y={height / 2} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
+                Select a road station
+              </text>
+            )}
+          </svg>
+        )
+      }}
+    </ChartSlot>
+  )
+}
+
+export function MassHaulChart({
+  analysis,
+  station,
+  onStation,
+  viewRange,
+}: {
+  analysis: RoadAnalysis
+  station: number
+  onStation: (chainage: number) => void
+  viewRange?: [number, number]
+}) {
+  const id = useId().replace(/:/g, '')
+  const [showMovements, setShowMovements] = useState(false)
+  const engineering = analysis.engineering
+  const rangeStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
+  const rangeEnd = viewRange
+    ? clamp(viewRange[1], rangeStart + 1, Math.max(1, analysis.length))
+    : Math.max(1, analysis.length)
+  const points = (engineering?.stations ?? analysis.stations).map((s) => ({
+    x: s.chainage,
+    ground: s.massM3,
+    design: 0,
+  }))
+  const selected = points.reduce<Point | undefined>(
+    (best, point) => (!best || Math.abs(point.x - station) < Math.abs(best.x - station) ? point : best),
+    undefined,
+  )
+  const nearbyMovements = [...(engineering?.movements ?? [])]
+    .filter(
+      (movement) =>
+        Math.max(movement.fromChainage, movement.toChainage) >= rangeStart &&
+        Math.min(movement.fromChainage, movement.toChainage) <= rangeEnd,
+    )
+    .sort((a, b) => {
+      const proximity = (movement: typeof a) =>
+        Math.max(
+          0,
+          Math.min(movement.fromChainage, movement.toChainage) - station,
+          station - Math.max(movement.fromChainage, movement.toChainage),
+        )
+      return proximity(a) - proximity(b) || b.transportedVolumeM3 - a.transportedVolumeM3
+    })
+    .slice(0, 5)
+  const haulColor = (category: string) =>
+    category === 'freehaul' ? '#0d9488' : category === 'overhaul' ? '#d97706' : '#7c3aed'
+  const haulLabel = (category: string) =>
+    category === 'freehaul' ? 'Free haul' : category === 'overhaul' ? 'Overhaul' : 'End haul'
+  const [low, high] = extent(
+    [
+      0,
+      ...points
+        .filter(
+          (p, i) =>
+            (p.x >= rangeStart && p.x <= rangeEnd) ||
+            (p.x < rangeStart && points[i + 1]?.x > rangeStart) ||
+            (p.x > rangeEnd && points[i - 1]?.x < rangeEnd),
+        )
+        .map((p) => p.ground),
+    ],
+    10,
+  )
+  const domain: Domain = [rangeStart, rangeEnd, low, high]
+  return (
+    <ChartSlot
+      footer={
+        <>
+          <Legend
+            items={[
+              {
+                label: engineering ? 'Usable compacted cut − fill' : 'Cumulative cut × factor − fill',
+                color: ROAD_CHART_COLORS.mass,
+              },
+              { label: 'Surplus', color: ROAD_CHART_COLORS.cut },
+              { label: 'Deficit', color: ROAD_CHART_COLORS.fill },
+            ]}
+          />
+          <p className="text-[10px]" data-testid="road-mass-cursor">
+            {formatRoadStation(selected?.x ?? station)} · balance {format(selected?.ground)} m³
+            {finite(selected?.ground) ? '' : ' · unknown beyond terrain gap'}
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            {engineering
+              ? 'Material reuse and compaction follow the entered assumptions. '
+              : 'Balance of computed earthwork. '}
+            Gaps remain unknown; quantities cover supported intervals.
+          </p>
+          {engineering?.haul.enabled && (
+            <>
+              <p className="text-[10px] text-muted-foreground">
+                Road totals · compacted volume: free haul {format(engineering.haul.freeHaulM3)} · overhaul{' '}
+                {format(engineering.haul.overhaulM3)} · end haul {format(engineering.haul.endHaulM3)} m³. Borrow{' '}
+                {format(engineering.haul.borrowCompactedM3)} compacted m³ · waste {format(engineering.haul.wasteBankM3)}{' '}
+                bank m³{engineering.haul.complete ? '' : ' · allocation incomplete'}.
+              </p>
+              {nearbyMovements.length > 0 && (
+                <div className="-mx-3 border-t" data-testid="road-haul-movements">
+                  <button
+                    className="flex w-full justify-between px-3 py-1 text-[10px] text-muted-foreground hover:bg-muted"
+                    aria-expanded={showMovements}
+                    onClick={() => setShowMovements((value) => !value)}
+                  >
+                    <span>
+                      Haul movements nearest the cursor · {nearbyMovements.length} of {engineering.movements.length}
+                    </span>
+                    <span>{showMovements ? 'Hide −' : 'Show +'}</span>
+                  </button>
+                  {showMovements && (
+                    <SizedChart height={nearbyMovements.length * 24 + 4}>
+                      {(width) => {
+                        const frame = chartFrame(width, 100, domain)
+                        return (
+                          <svg
+                            width={width}
+                            height={nearbyMovements.length * 24 + 4}
+                            role="group"
+                            aria-label="Computed haul movement endpoints; select either end to inspect its road station"
+                          >
+                            <defs>
+                              <clipPath id={`haul-range-${id}`}>
+                                <rect
+                                  x={frame.left}
+                                  y={0}
+                                  width={frame.plotWidth}
+                                  height={nearbyMovements.length * 24 + 4}
+                                />
+                              </clipPath>
+                              <marker
+                                id={`haul-arrow-${id}`}
+                                viewBox="0 0 10 10"
+                                refX="9"
+                                refY="5"
+                                markerWidth="5"
+                                markerHeight="5"
+                                orient="auto-start-reverse"
+                              >
+                                <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+                              </marker>
+                            </defs>
+                            {nearbyMovements.map((movement, index) => {
+                              const fromX = frame.x(movement.fromChainage),
+                                toX = frame.x(movement.toChainage),
+                                y = index * 24 + 18
+                              const detail = `${movement.kind}: ${formatRoadStation(movement.fromChainage)} to ${formatRoadStation(movement.toChainage)}; ${format(movement.transportedVolumeM3)} ${movement.volumeBasis} m³; ${format(movement.distanceM)} m; ${haulLabel(movement.category)}; CAD ${format(movement.haulCost, 2)} haul cost.`
+                              return (
+                                <g key={movement.id}>
+                                  <title>{detail}</title>
+                                  <text x={3} y={y + 3} fontSize="9" fill="hsl(var(--muted-foreground))">
+                                    {movement.kind === 'cut-to-fill' ? 'C → F' : movement.kind}
+                                  </text>
+                                  <g clipPath={`url(#haul-range-${id})`}>
+                                    <line
+                                      x1={fromX}
+                                      x2={toX}
+                                      y1={y}
+                                      y2={y}
+                                      stroke={haulColor(movement.category)}
+                                      strokeWidth={2}
+                                      markerEnd={`url(#haul-arrow-${id})`}
+                                    />
+                                    <text
+                                      x={(fromX + toX) / 2}
+                                      y={y - 5}
+                                      textAnchor="middle"
+                                      fontSize="8"
+                                      fill="hsl(var(--muted-foreground))"
+                                    >
+                                      {format(movement.transportedVolumeM3, 0)} {movement.volumeBasis} m³ ·{' '}
+                                      {haulLabel(movement.category)}
+                                    </text>
+                                    {[
+                                      { x: fromX, chainage: movement.fromChainage, name: 'source' },
+                                      { x: toX, chainage: movement.toChainage, name: 'destination' },
+                                    ]
+                                      .filter(
+                                        (endpoint) => endpoint.chainage >= rangeStart && endpoint.chainage <= rangeEnd,
+                                      )
+                                      .map((endpoint) => (
+                                        <g
+                                          key={endpoint.name}
+                                          role="button"
+                                          tabIndex={0}
+                                          aria-label={`${movement.kind} ${endpoint.name} at ${formatRoadStation(endpoint.chainage)}`}
+                                          className="cursor-pointer outline-none focus-visible:[&>circle]:stroke-foreground"
+                                          onClick={() => onStation(endpoint.chainage)}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                              event.preventDefault()
+                                              onStation(endpoint.chainage)
+                                            }
+                                          }}
+                                        >
+                                          <circle cx={endpoint.x} cy={y} r={7} fill="transparent" />
+                                          <circle cx={endpoint.x} cy={y} r={3} fill={haulColor(movement.category)} />
+                                        </g>
+                                      ))}
+                                  </g>
+                                </g>
+                              )
+                            })}
+                            <line
+                              x1={frame.x(station)}
+                              x2={frame.x(station)}
+                              y1={0}
+                              y2={nearbyMovements.length * 24 + 4}
+                              stroke={ROAD_CHART_COLORS.selected}
+                              strokeWidth={1}
+                              pointerEvents="none"
+                            />
+                          </svg>
+                        )
+                      }}
+                    </SizedChart>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      }
+    >
+      {(width, height) => {
+        const f = chartFrame(width, height, domain)
+        return (
+          <svg
+            width={width}
+            height={height}
+            role="group"
+            tabIndex={0}
+            aria-label="Earthwork mass balance. Click or use left and right arrows to select a road station."
+            data-testid="road-mass-chart"
+            data-range-start={rangeStart}
+            data-range-end={rangeEnd}
+            className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return
+              event.currentTarget.setPointerCapture(event.pointerId)
+              onStation(eventValue(event, event.currentTarget, domain)[0])
+            }}
+            onPointerMove={(event) => {
+              if (event.buttons === 1) onStation(eventValue(event, event.currentTarget, domain)[0])
+            }}
+            onKeyDown={(event) => selectWithKeyboard(event, station, analysis.length, onStation)}
+          >
+            <defs>
+              <clipPath id={`mass-${id}`}>
+                <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
+              </clipPath>
+            </defs>
+            <Grid
+              width={width}
+              height={height}
+              domain={domain}
+              xLabel="Chainage (m)"
+              yLabel="Cumulative balance (m³)"
+              stationTicks
+            />
+            <g clipPath={`url(#mass-${id})`}>
+              {differencePolygons(points, f.x, f.y).map((p, i) => (
+                <polygon key={i} points={p.points} fill={p.color} opacity={0.2} />
+              ))}
+              <line
+                x1={f.left}
+                x2={width - f.right}
+                y1={f.y(0)}
+                y2={f.y(0)}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="4 4"
+              />
+              <path
+                d={linePath(points, 'ground', f.x, f.y)}
+                stroke={ROAD_CHART_COLORS.mass}
+                strokeWidth={2}
+                fill="none"
+              />
+              <line
+                x1={f.x(station)}
+                x2={f.x(station)}
+                y1={f.top}
+                y2={height - f.bottom}
+                stroke={ROAD_CHART_COLORS.selected}
+                strokeWidth={1.4}
+              />
+            </g>
+          </svg>
+        )
+      }}
+    </ChartSlot>
+  )
+}
+
+export function CableChart({
+  analysis,
+  distance = 0,
+  onDistance,
+}: {
+  analysis: CableAnalysis
+  distance?: number
+  onDistance?: (distance: number) => void
+}) {
+  const points = analysis.samples.map((s) => ({ x: s.distance, ground: s.ground, design: s.cable }))
+  const [low, high] = extent(points.flatMap((p) => [p.ground, p.design]))
+  const domain: Domain = [0, Math.max(1, analysis.length), low, high]
+  const active = analysis.samples.reduce<(typeof analysis.samples)[number] | undefined>(
+    (best, sample) =>
+      !best || Math.abs(sample.distance - distance) < Math.abs(best.distance - distance) ? sample : best,
+    undefined,
+  )
+  return (
+    <ChartSlot
+      footer={
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Legend
+              items={[
+                { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
+              ]}
+            />
+            <span className="text-[11px]">
+              Minimum clearance {format(analysis.minClearance)} m{analysis.complete ? '' : ' · incomplete terrain'}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Geometric deflection screen. Cable tension, payload and equipment capacity require a separate design.
+          </p>
+          {onDistance && (
+            <p className="text-[10px] text-muted-foreground">
+              Cursor {format(active?.distance)} m · ground {format(active?.ground)} m · cable {format(active?.cable)} m
+              · clearance {format(active?.clearance)} m. Click or drag to inspect the same point on the plan.
+            </p>
+          )}
+        </>
+      }
+    >
+      {(width, height) => {
+        const f = chartFrame(width, height, domain)
+        return (
+          <svg
+            width={width}
+            height={height}
+            role={onDistance ? 'group' : 'img'}
+            tabIndex={onDistance ? 0 : undefined}
+            className={onDistance ? 'touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring' : undefined}
+            aria-label="Cable deflection line and ground profile"
+            data-testid="road-cable-chart"
+            data-distance={active?.distance ?? distance}
+            onPointerDown={
+              onDistance
+                ? (event) => {
+                    if (event.button !== 0) return
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    onDistance(eventValue(event, event.currentTarget, domain)[0])
+                  }
+                : undefined
+            }
+            onPointerMove={
+              onDistance
+                ? (event) => {
+                    if (event.buttons === 1) onDistance(eventValue(event, event.currentTarget, domain)[0])
+                  }
+                : undefined
+            }
+            onKeyDown={
+              onDistance ? (event) => selectWithKeyboard(event, distance, analysis.length, onDistance) : undefined
+            }
+          >
+            <title>Cable geometry along horizontal span, with negative-clearance conflicts highlighted</title>
+            <Grid width={width} height={height} domain={domain} xLabel="Horizontal span (m)" yLabel="Elevation (m)" />
+            {differencePolygons(points, f.x, f.y).map((p, i) => (
+              <polygon
+                key={i}
+                points={p.points}
+                fill={p.color === ROAD_CHART_COLORS.cut ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.design}
+                opacity={p.color === ROAD_CHART_COLORS.cut ? 0.35 : 0.1}
+              />
+            ))}
+            <path
+              d={linePath(points, 'ground', f.x, f.y)}
+              stroke={ROAD_CHART_COLORS.ground}
+              strokeWidth={1.8}
+              fill="none"
+            />
+            <path
+              d={linePath(points, 'design', f.x, f.y)}
+              stroke={ROAD_CHART_COLORS.design}
+              strokeWidth={2.3}
+              fill="none"
+            />
+            {[points[0], points[points.length - 1]]
+              .filter((p): p is Point => Boolean(p))
+              .map((p, i) =>
+                finite(p.ground) && finite(p.design) ? (
+                  <line
+                    key={i}
+                    x1={f.x(p.x)}
+                    x2={f.x(p.x)}
+                    y1={f.y(p.ground)}
+                    y2={f.y(p.design)}
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeWidth={3}
+                  />
+                ) : null,
+              )}
+            {onDistance && active && (
+              <g pointerEvents="none">
+                <line
+                  x1={f.x(active.distance)}
+                  x2={f.x(active.distance)}
+                  y1={f.top}
+                  y2={height - f.bottom}
+                  stroke={ROAD_CHART_COLORS.selected}
+                  strokeWidth={1.4}
+                />
+                {finite(active.cable) && (
+                  <circle cx={f.x(active.distance)} cy={f.y(active.cable)} r={4} fill={ROAD_CHART_COLORS.selected} />
+                )}
+              </g>
+            )}
+          </svg>
+        )
+      }}
+    </ChartSlot>
+  )
+}

@@ -115,7 +115,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Close Map', exact: true }).click()
     await nav.getByRole('button', { name: 'All options', exact: true }).click()
     await page.getByLabel('Find a portal option').fill('buffer')
-    await expect(page.getByText('1 matching options', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 of 78 options', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Open Map Tools', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Map Tools', exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

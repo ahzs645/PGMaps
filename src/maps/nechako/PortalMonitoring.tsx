@@ -1,4 +1,5 @@
 import { PortalLiveMonitoring, type PortalMonitoringProps } from './PortalLiveMonitoring'
+import { PortalCachedMonitoring } from './PortalCachedMonitoring'
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
@@ -125,6 +126,19 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
         }}
       />
       <h2 className="text-xl font-semibold">Monitoring CSV and reports</h2>
+      <PortalCachedMonitoring
+        onOpen={(raw, name, savedMapping) => {
+          setTable(raw)
+          setFilename(name)
+          setMapping(savedMapping ?? DEFAULT_MAPPING)
+          setStation('')
+          setStart('')
+          setEnd('')
+          setPage(0)
+          setError('')
+          setDelimiter(',')
+        }}
+      />
       <p className="max-w-3xl text-sm text-muted-foreground">
         Load an exported monitoring CSV, map its columns and review observations, quality checks and statistics. Files
         stay in this browser. Live pages can be brought into this report above; server permissions determine

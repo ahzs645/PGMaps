@@ -3,6 +3,7 @@
 import { useEffect, useState, type RefObject } from "react";
 
 import { PG_CENTER } from "@/components/ui/map-styles";
+import { downloadText } from "@/lib/download";
 import type { MapRef } from "@/components/ui/map";
 import {
   DEFAULT_MARKER_FILL,
@@ -238,13 +239,7 @@ export function useMapEditor({
 
   const exportMap = () => {
     const data = serializeEditorMap({ markers, paths, theme });
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "pgmap.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadText(JSON.stringify(data, null, 2), "pgmap.json", "application/json");
     setDirty(false);
   };
 

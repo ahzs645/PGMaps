@@ -8,7 +8,9 @@ import { MapLoader } from '@/components/ui/map-loader'
 import { useSiteWebMCP } from '@/lib/siteWebMCP'
 import Home from '@/pages/Home'
 
-const SharedMapLayout = lazy(() => import('@/components/layout/SharedMapLayout').then((m) => ({ default: m.SharedMapLayout })))
+const SharedMapLayout = lazy(() =>
+  import('@/components/layout/SharedMapLayout').then((m) => ({ default: m.SharedMapLayout })),
+)
 const FoodMap = lazy(() => import('@/maps/foodmap').then((m) => ({ default: m.FoodMap })))
 const AirQualitySection = lazy(() => import('@/maps/airquality').then((m) => ({ default: m.AirQualitySection })))
 const Labs = lazy(() => import('@/pages/Labs'))
@@ -41,6 +43,9 @@ const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
 const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const DevViewshed = lazy(() => import('@/pages/DevViewshed'))
 const DevViewshedTerrain = lazy(() => import('@/pages/DevViewshedTerrain'))
+const DevAvastVolume = lazy(() => import('@/pages/DevAvastVolume'))
+const DevForestry = lazy(() => import('@/pages/DevForestry'))
+const DevForestryRoads = lazy(() => import('@/pages/DevForestryRoads'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
 const DevOutdoors = lazy(() => import('@/pages/DevOutdoors'))
@@ -142,8 +147,12 @@ function App() {
             <Route path="/dev/health/wait" element={<DevWait />} />
             <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
             <Route path="/dev/fallout" element={<DevFallout />} />
+            <Route path="/dev/forestry" element={<DevForestry />} />
+            <Route path="/dev/forestry/road-design" element={<DevForestryRoads />} />
+            <Route path="/dev/forestry/roads" element={<LegacyRedirect to="/dev/forestry/road-design" />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
             <Route path="/dev/forestry/cciss-suitability" element={<DevCcissSuitability />} />
+            <Route path="/dev/forestry/avast-volume" element={<DevAvastVolume />} />
             <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />

@@ -41,7 +41,13 @@ READS = {
     'rest/portal/getSubmissionForm.php': ({'submissionId'}, {'submissionId'}),
     'rest/portal/getFieldValue.php': ({'fieldId', 'submissionId', 'fieldIndex'}, {'fieldId', 'submissionId', 'fieldIndex'}),
     'rest/portal/getSchemas.php': ({'page', 'start', 'limit'}, set()),
+    'rest/portal/getSchemas_TBD.php': (set(), set()),
+    'rest/portal/getSubmissionLayersAddLayer.php': (set(), set()),
+    'rest/portal/getLinkedLayers.php': (set(), set()),
     'rest/portal/getSchemaFields.php': ({'schemaId'}, {'schemaId'}),
+    # SchemaManager.js Monitors tab; includes draft/disabled associations, so
+    # authorize_read requires the same administrator role as /admin/ routes.
+    'rest/portal/getMonitorSchemaLayers.php': ({'schemaId', 'getDraftSubmissions', 'getDisabled'}, {'schemaId', 'getDraftSubmissions', 'getDisabled'}),
     'rest/portal/getStatusFlags.php': (set(), set()),
     'rest/portal/getSpatialFormats.php': (set(), set()),
     'rest/portal/getSubmissionMetadata.php': ({'submissionId'}, {'submissionId'}),
@@ -66,6 +72,7 @@ READS = {
     'rest/portal/admin/getGroupMembers.php': ({'gid', 'includePrimaryGroupStatus'}, {'gid'}),
     'rest/portal/admin/getUserDetails.php': ({'uid'}, {'uid'}),
     'rest/portal/admin/getUserPermissionsCheckbox.php': ({'uid', 'mode'}, {'uid', 'mode'}),
+    'rest/portal/admin/getUserForms.php': ({'form_id'}, {'form_id'}),
     'rest/portal/admin/getLinkableLayers.php': ({'page', 'start', 'limit'}, set()),
     'rest/portal/admin/getLayerSharedLayersManager.php': ({'layerId'}, {'layerId'}),
     'rest/portal/admin/getAllBaseLayers.php': (set(), set()),
@@ -93,7 +100,7 @@ def validate_read(path, params):
     for key, value in params.items():
         if len(value) > 250000:
             raise ValueError('A read parameter exceeds the development limit.')
-        if key in {'projectId', 'historyId', 'schemaId', 'recId', 'submissionId', 'fieldId', 'formId', 'id', 'sub_id', 'parentId', 'matchId', 'gid', 'layerId', 'uid'} and not positive(value):
+        if key in {'projectId', 'historyId', 'schemaId', 'recId', 'submissionId', 'fieldId', 'formId', 'form_id', 'id', 'sub_id', 'parentId', 'matchId', 'gid', 'layerId', 'uid'} and not positive(value):
             raise ValueError(f'{key} must be a positive numeric ID.')
     if path.endswith('savedProjects.php'):
         mode = params['mode']
@@ -117,9 +124,14 @@ def validate_read(path, params):
         raise ValueError('Invalid resource-permission read mode.')
     if 'includePrimaryGroupStatus' in params and params['includePrimaryGroupStatus'] not in {'true', 'false'}:
         raise ValueError('Invalid primary-group flag.')
+    for key in {'getDraftSubmissions', 'getDisabled'} & set(params):
+        if params[key] not in {'true', 'false'}:
+            raise ValueError('Invalid monitoring association flag.')
     for key in {'fieldIndex', 'page', 'start', 'limit', 'pageSize', 'pageNumber'} & set(params):
         if not params[key].isdecimal() or int(params[key]) > 1000000:
             raise ValueError(f'Invalid {key}.')
+    if (path.startswith('rest/portal/admin/') or path == 'rest/portal/getUsers.php') and 'limit' in params and not 1 <= int(params['limit']) <= 500:
+        raise ValueError('Administrator lists use 1–500 row pages.')
     if path.endswith('getMonitorData.php') and not 1 <= int(params['pageSize']) <= 500:
         raise ValueError('Monitoring reads require pages of 1–500 records; unbounded downloads are disabled.')
     if path.endswith('getMonitorData.php'):
@@ -136,6 +148,12 @@ def validate_read(path, params):
         except (ValueError, TypeError) as error:
             raise ValueError(f'{key} must contain valid JSON.') from error
     return path, params
+
+
+def authorize_read(session, path):
+    if path.startswith('rest/portal/admin/') or path in {'rest/portal/getMonitorSchemaLayers.php', 'rest/portal/getUsers.php'}:
+        if not session.logged_in or not session.is_admin:
+            raise PermissionError('This read requires a source administrator sign-in.')
 
 
 PROJECT_WRITE_KEYS = {
@@ -422,9 +440,12 @@ def authorize_project_write(session, path, params):
 
 
 def connection_status(session):
-    return {'schema': 'nechako-local-connection-v1', 'available': True, 'loggedIn': session.logged_in,
-            'readOnly': not session.logged_in, 'canWrite': session.logged_in, 'isAdmin': session.is_admin, 'csrfToken': session.csrf,
-            'expiresAfterIdleSeconds': SESSION_TTL}
+    # A concurrent status must not observe the temporary native loggedIn flag
+    # before a login envelope has been accepted or rejected under this lock.
+    with session.lock:
+        return {'schema': 'nechako-local-connection-v1', 'available': True, 'loggedIn': session.logged_in,
+                'readOnly': not session.logged_in, 'canWrite': session.logged_in, 'isAdmin': session.is_admin, 'csrfToken': session.csrf,
+                'expiresAfterIdleSeconds': SESSION_TTL}
 
 
 def authorize_write(session, path, params):
@@ -568,22 +589,40 @@ class Handler(BaseHTTPRequestHandler):
                         self.reply(200, result, token)
                 else:
                     path, params = validate_read(payload.get('path'), payload.get('params', {}))
-                    self.reply(200, upstream(session, path, params or None), token)
+                    with session.lock:
+                        authorize_read(session, path)
+                        self.reply(200, upstream(session, path, params or None), token)
             else:
                 if set(payload) != {'username', 'password'} or not all(isinstance(payload[k], str) and 0 < len(payload[k]) <= 256 for k in payload):
                     raise ValueError('Enter a username and password for the original portal.')
                 # Replace any earlier upstream identity before attempting another login.
-                with session.lock:
-                    session.cookies.clear()
-                    session.bootstrapped = False
-                    session.logged_in = False
-                    session.is_admin = False
-                    session.created_drafts.clear()
-                    session.csrf = secrets.token_urlsafe(32)
-                    response = upstream(session, 'rest/portal/login.php', payload)
-                    attributes = response.get('attributes')
-                    session.is_admin = session.logged_in and isinstance(attributes, dict) and attributes.get('isAdmin') is True
-                succeeded = response.get('status') == 'success' and not response.get('error') and session.logged_in
+                succeeded = False
+                try:
+                    with session.lock:
+                        session.cookies.clear()
+                        session.bootstrapped = False
+                        session.logged_in = False
+                        session.is_admin = False
+                        session.created_drafts.clear()
+                        session.csrf = secrets.token_urlsafe(32)
+                        try:
+                            response = upstream(session, 'rest/portal/login.php', payload)
+                            attributes = response.get('attributes')
+                            succeeded = (response.get('status') == 'success' and response.get('success') is not False
+                                         and not response.get('error') and session.logged_in is True)
+                            session.is_admin = succeeded and isinstance(attributes, dict) and attributes.get('isAdmin') is True
+                        finally:
+                            if not succeeded:
+                                session.cookies.clear()
+                                session.bootstrapped = False
+                                session.logged_in = False
+                                session.is_admin = False
+                                session.created_drafts.clear()
+                except Exception:
+                    # A partial HTTP/JSON login failure must not leave a usable
+                    # source cookie jar for a subsequent read to authenticate.
+                    self.server.sessions.discard(token)
+                    raise
                 if not succeeded:
                     self.server.sessions.discard(token)
                     self.reply(401, {'error': response.get('error') or 'The portal did not establish an authenticated session.'}, clear=True)

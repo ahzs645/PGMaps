@@ -1,18 +1,28 @@
 # Hosted Nechako portal connection
 
+**Updated October 21, 2026.** The [current portal option audit](2026-10-21-parity-audit.md) describes the administrator inspection added in this change and its verification limits. The deployment version, live acceptance results and test counts dated October 12 below are historical. They do not establish that the new administrator read routes are deployed or that current source sign-in succeeds; the supplied sign-in attempt on October 21 was rejected.
+
 The PGMaps frontend is hosted on GitHub Pages. Its production build sets `VITE_NECHAKO_GATEWAY_URL` to a separately deployed Cloudflare Worker. The existing authenticated Cloudflare account supplies Workers hosting; the home Kubernetes hostnames did not resolve publicly during setup.
 
 The deployed gateway base is `https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal`. Worker version `05b9197d-9faa-452c-a3bb-f9ec6d775b57` was deployed October 12, 2026. Live anonymous source reads returned successful child lists: zero for submission 9 and two for submission 69. The production build configures this endpoint in the GitHub Pages deployment workflow. Use the acceptance checklist below when changing either deployment.
 
 ## Access model
 
-The hosted bridge accepts only verified reads, source submission downloads, sign-in and disconnect. It does not provide source publication, permission changes, project saves or administrative mutations. The original portal decides resource access for every upstream request. Anonymous access is used until the visitor signs in with their own portal account.
+The hosted bridge accepts only allowlisted reads, source submission downloads, sign-in and disconnect. Current code includes administrative reads for a source-verified administrator session. It does not provide source publication, permission changes, project saves or administrative mutations. Every hosted status retains `readOnly:true` and `canWrite:false`; administrator inspection is a separate capability. The original portal decides resource access for every upstream request. Anonymous access is used until the visitor signs in with their own portal account.
 
 Each browser tab holds its opaque gateway capability in memory. It is not written to local/session storage, put in URLs, or broadcast to another tab. Upstream PHP cookies stay in a dedicated Durable Object's memory and are never returned to the browser. The bridge needs no third-party browser cookies. Cross-origin requests use HTTPS, an exact allowlist of frontend origins and a capability header. Credentials, response content and cookies are not logged or placed in public snapshots.
 
 Temporary source sessions expire after 30 minutes without reads. Bounded timers retain session and registry memory through ordinary idle periods, renewing within ten minutes without moving the expiry deadline; the registry limits active sessions to 60. Status checks do not extend that deadline. Runtime resets/eviction can end a session sooner; the frontend must clear old protected results and require a new connection. Successful and failed sign-in attempts replace the previous capability, and disconnect revokes it. Pending reads/downloads cannot restore data from a superseded session.
 
 Requests use a fixed HTTPS source, native request identity and allowlisted parameters. Redirects, caller-provided source URLs, headers, SQL descriptors and filenames are rejected. JSON requests are bounded to 1 MiB, source JSON reads to 20 MiB, and original file downloads to 32 MiB. Original files need permitted source metadata and verified file responses; source warning HTML is not a ZIP or PDF.
+
+## Administrator inspection
+
+Only a successful source sign-in returning the strict boolean `attributes.isAdmin === true` enables `isAdmin` in the hosted status. A username such as `admin`, a truthy string or a client-supplied role is not sufficient. Anonymous and nonadministrator requests to protected read routes are rejected before forwarding. The account directory at `rest/portal/getUsers.php` and monitoring-schema association reads are also administrator-only even though their paths are outside `/admin/`.
+
+The fixed read allowlist covers account and group details, resource permissions, form access, submission catalogue, shared-layer review, spatial registry and informational content. See the [Worker's administrator inspection contract](../../scripts/nechako-worker/README.md#administrator-inspection) for exact routes and parameter bounds. Unknown routes, server-variable access, form/draft creation, permission changes and other writes remain blocked. Frontend controls use `isAdmin` for inspection and `canWrite` separately for editing; the hosted bridge never enables the latter. Reviewed local-gateway mutations are a different capability described in the [local gateway runbook](server-runbook.md#local-portal-gateway-proof-of-concept).
+
+Failed replacement sign-in, source sign-out, disconnect, expiry and object reset clear administrator status. Returned protected data stays within the same temporary capability and is not copied into public snapshots. Offline gateway fixtures and frontend checks verify these boundaries; they do not establish successful current live administrator reads. See the [current audit's evidence and limits](2026-10-21-parity-audit.md#evidence-and-limits).
 
 ## Deployment
 
@@ -27,11 +37,11 @@ npx wrangler deploy --config scripts/nechako-worker/wrangler.jsonc
 
 Deploy the verified backend before pushing the frontend endpoint configuration to `main`. The existing GitHub Pages workflow publishes the frontend; it does not deploy the Worker. Preserve the BCDataMapper submodule and generated-data ownership rules.
 
-## Verified checks
+## Historical verified checks — October 12, 2026
 
 On October 12, 2026, the deployed gateway passed 26 live authenticated acceptance checks, including independent anonymous sessions across original downloads/sign-in/disconnect, capability replacement and revocation, exact CORS handling, successful child/metadata/history reads, and PDF/HTML/CSV/ZIP validation. The original ZIP passed its CRC check. Source cookie/session resets were reproduced in the initial deployment and corrected with bounded in-memory retention before frontend publication. No source record mutations were performed. An uncaptured-child browser fixture additionally verifies metadata denial, authorized preview, connection-change clearing, cancellation of a delayed native download and exclusion from the public archive.
 
-Local validation passed 139 focused frontend unit tests, 15 Worker tests, nine acceptance-script self-tests, 13 submission-browser cases, scoped ESLint, TypeScript and the production build. A separate 35-second idle interval passed ten live checks without session resets. Hosted browser reads confirmed submission 69’s two children, four permission groups and empty history, and downloaded valid original PDF and ZIP files. Source history samples returned successful empty lists; nonempty history rendering is checked with native-contract fixtures.
+Local validation on October 12 passed 139 focused frontend unit tests, 15 Worker tests, nine acceptance-script self-tests, 13 submission-browser cases, scoped ESLint, TypeScript and the production build. A separate 35-second idle interval passed ten live checks without session resets. Hosted browser reads confirmed submission 69’s two children, four permission groups and empty history, and downloaded valid original PDF and ZIP files. Source history samples returned successful empty lists; nonempty history rendering is checked with native-contract fixtures.
 
 ## Acceptance checks
 
@@ -40,6 +50,7 @@ Verify from the actual hosted PGMaps origin, with ordinary browser security enab
 - Anonymous children, permissions and history reads succeed for source IDs 9, 69 and 1477; distinguish real empty lists from unavailable reads.
 - Original PDF/HTML/CSV for 9 and attachment ZIP for 745 download with valid file content. Empty-file ZIP failures remain explicit.
 - A permitted temporary account can sign in, inspect resources and disconnect. A separate tab stays anonymous; capabilities and upstream identity never leak between tabs.
+- After deploying the administrator read changes, a source-verified administrator can inspect permitted allowlisted resources while anonymous and nonadministrator sessions are denied. Hosted status remains `readOnly:true` and `canWrite:false`; the account-directory and monitoring-association routes enforce the same role boundary.
 - Invalid sign-in, source denial, idle expiry, disconnect, runtime reset and delayed responses clear protected panels and pending downloads.
 - Foreign/missing/null origins and unsupported preflights are denied. Exact allowed origins get matching CORS headers on success and errors.
 - Mutations, arbitrary URLs, redirects, oversized bodies/responses and invalid IDs are rejected before unsafe source operations.

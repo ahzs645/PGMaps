@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
-import { portalRead, errorText, getPortalConnectionStatus, getPortalConnectionMode, NECHAKO_PORTAL } from '@/lib/nechakoPortal'
-import { CheckState, useReadCheck } from './PortalChecks'
+import { portalRead, errorText, NECHAKO_PORTAL } from '@/lib/nechakoPortal'
+import { useReadCheck } from './PortalChecks'
 import {
   checkedPermissionRows,
   userPermissionUpdate,
@@ -14,20 +14,15 @@ import {
 } from './data/adminWorkflow'
 import { PortalAdminGroups } from './PortalAdminGroups'
 import { PortalModeration } from './PortalModeration'
+import { AdminReadResource } from './PortalAdminResource'
+import { PortalAdminForms, PortalAdminSchemas } from './PortalAdminDefinitions'
+import { PortalAdminSubmissions } from './PortalAdminSubmissions'
+import { PortalAdminSystem } from './PortalAdminSystem'
+import { PortalAdminDashboard } from './PortalAdminDashboard'
+import { adminId } from './data/adminInspection'
+import { usePortalSession } from './data/usePortalSession'
 
 type Write = (path: string, params: Record<string, string>) => Promise<unknown>
-function Resource({ title, path, params }: { title: string; path: string; params?: Record<string, string> }) {
-  const state = useReadCheck()
-  return (
-    <section className="space-y-3 rounded-lg border p-3">
-      <h3 className="font-medium">{title}</h3>
-      <Button size="sm" variant="outline" onClick={() => void state.run(path, params)} disabled={state.loading}>
-        Load {title.toLowerCase()}
-      </Button>
-      <CheckState {...state} />
-    </section>
-  )
-}
 function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
   const check = useReadCheck()
   const [selected, setSelected] = useState<Record<string, unknown>>(),
@@ -46,7 +41,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
         disabled={check.loading}
         onClick={() => void check.run('rest/portal/admin/getContents.php')}
       >
-        Load editable help content
+        Load help content
       </Button>
       {check.error && <InlineAlert tone="error">{check.error}</InlineAlert>}
       <label className="grid gap-1 text-sm">
@@ -81,6 +76,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
             <textarea
               aria-label="Help content source"
               disabled={busy}
+              readOnly={!canWrite}
               className="min-h-48 w-full rounded border bg-background p-2 font-mono text-sm"
               maxLength={1000000}
               value={content}
@@ -94,6 +90,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              disabled={!canWrite || busy}
               checked={link}
               onChange={(e) => {
                 setLink(e.target.checked)
@@ -105,6 +102,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
           </label>
           <Button
             variant="outline"
+            disabled={!canWrite || busy}
             onClick={() => {
               setReview(true)
               setAck(false)
@@ -167,6 +165,14 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
   )
 }
 function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) {
+  const request = useRef<AbortController | undefined>(undefined)
+  useEffect(
+    () => () => {
+      request.current?.abort()
+      request.current = undefined
+    },
+    [],
+  )
   const [uid, setUid] = useState(''),
     [details, setDetails] = useState<Record<string, unknown>>(),
     [original, setOriginal] = useState<Record<PermissionKind, PermissionRow[]>>(),
@@ -178,6 +184,9 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
     [ack, setAck] = useState(false),
     [notice, setNotice] = useState('')
   const load = async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setBusy(true)
     setDetails(undefined)
     setOriginal(undefined)
@@ -185,13 +194,15 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
     setReview(undefined)
     setError('')
     try {
-      if (!/^[1-9]\d*$/.test(uid)) throw new Error('Enter an existing positive numeric user ID.')
+      const userId = adminId(uid)
+      if (!userId) throw new Error('Enter an existing positive numeric user ID.')
       const results = await Promise.all([
-        portalRead('rest/portal/admin/getUserDetails.php', { uid }),
+        portalRead('rest/portal/admin/getUserDetails.php', { uid: userId }, controller.signal),
         ...PERMISSION_KINDS.map((mode) =>
-          portalRead('rest/portal/admin/getUserPermissionsCheckbox.php', { uid, mode }),
+          portalRead('rest/portal/admin/getUserPermissionsCheckbox.php', { uid: userId, mode }, controller.signal),
         ),
       ])
+      if (request.current !== controller || controller.signal.aborted) return
       if (!results[0] || typeof results[0] !== 'object') throw new Error('Invalid source user details.')
       const lists = Object.fromEntries(
         PERMISSION_KINDS.map((key, i) => [key, checkedPermissionRows(results[i + 1])]),
@@ -200,14 +211,40 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
       setOriginal(lists)
       setEdited(structuredClone(lists))
     } catch (reason) {
+      if (request.current !== controller || controller.signal.aborted) return
       setError(errorText(reason))
     } finally {
-      setBusy(false)
+      if (request.current === controller) setBusy(false)
     }
   }
   return (
     <div className="space-y-3">
-      <Resource title="Users" path="rest/portal/getUsers.php" />
+      <AdminReadResource
+        title="Users"
+        path="rest/portal/getUsers.php"
+        columns={[
+          { key: 'uid', label: 'User ID' },
+          { key: 'uname', label: 'Username' },
+          { key: 'fname', label: 'First name' },
+          { key: 'lname', label: 'Last name' },
+        ]}
+        selectionDisabled={busy}
+        onSelect={(row) => {
+          if (busy) return
+          const id = adminId(row.uid)
+          if (id) {
+            setUid(id)
+            setDetails(undefined)
+            setOriginal(undefined)
+            setEdited(undefined)
+            setReview(undefined)
+            setAck(false)
+            setError('')
+            setNotice('')
+          }
+        }}
+        selectLabel={(row) => `Select user ${row.uid}`}
+      />
       <label className="grid gap-1 text-sm">
         Existing user ID
         <input
@@ -257,7 +294,7 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
                       <td key={key} className="p-2 text-center">
                         <input
                           type="checkbox"
-                          disabled={busy}
+                          disabled={busy || !canWrite}
                           aria-label={`${key === 'checked' ? 'Read' : 'Edit'} ${kind} ${row.id}`}
                           checked={row[key as 'checked' | 'editChecked']}
                           onChange={(e) => {
@@ -280,6 +317,7 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
           </div>
           <Button
             variant="outline"
+            disabled={!canWrite || busy}
             onClick={() => {
               try {
                 setReview(userPermissionUpdate(uid, details, original, edited))
@@ -340,19 +378,38 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
     </div>
   )
 }
-export function PortalAdministration({ write }: { write?: Write }) {
-  const [view, setView] = useState<'permissions' | 'groups' | 'forms' | 'moderation' | 'help' | 'dashboard'>(
-      'dashboard',
-    ),
-    [canWrite, setCanWrite] = useState(false),
-    [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+export type PortalAdministrationView =
+  | 'dashboard'
+  | 'permissions'
+  | 'groups'
+  | 'forms'
+  | 'schemas'
+  | 'submissions'
+  | 'moderation'
+  | 'help'
+  | 'system'
+export function parsePortalAdministrationView(value: unknown): PortalAdministrationView {
+  return typeof value === 'string' &&
+    ['dashboard', 'permissions', 'groups', 'forms', 'schemas', 'submissions', 'moderation', 'help', 'system'].includes(
+      value,
+    )
+    ? (value as PortalAdministrationView)
+    : 'dashboard'
+}
+export function PortalAdministration({
+  write,
+  initialView = 'dashboard',
+}: {
+  write?: Write
+  initialView?: PortalAdministrationView
+}) {
+  const [view, setView] = useState<PortalAdministrationView>(() => parsePortalAdministrationView(initialView))
+  const session = usePortalSession()
+  const canWrite = session.isAdmin && session.canWrite
+  const protectedView = !['dashboard', 'forms', 'schemas'].includes(view)
   useEffect(() => {
-    const controller = new AbortController()
-    void getPortalConnectionStatus(controller.signal)
-      .then((status) => setCanWrite(getPortalConnectionMode()==='gateway' && !!status.loggedIn && status.canWrite === true && status.isAdmin === true))
-      .catch(() => {})
-    return () => controller.abort()
-  }, [])
+    setView(parsePortalAdministrationView(initialView))
+  }, [initialView])
   return (
     <div className="space-y-4" data-nechako-administration>
       <h2 className="text-xl font-semibold">Administration and workflow</h2>
@@ -362,8 +419,10 @@ export function PortalAdministration({ write }: { write?: Write }) {
       </p>
       {!canWrite && (
         <InlineAlert>
-          Connect an authorized account in Account / Connection to enable supported source updates. Failed or denied
-          reads remain visible; they do not establish empty collections.
+          {session.isAdmin
+            ? 'Your administrator session can inspect source records. This connection is read-only; use the original portal for changes.'
+            : 'Connect an authorized account in Account / Connection to inspect administrator records. Source permissions determine which forms, schedules and resources are available.'}{' '}
+          Failed or denied reads remain visible; they do not establish empty collections.
         </InlineAlert>
       )}
       <TabBar
@@ -374,40 +433,33 @@ export function PortalAdministration({ write }: { write?: Write }) {
           { value: 'dashboard', label: 'Dashboard' },
           { value: 'permissions', label: 'Permissions' },
           { value: 'groups', label: 'Groups' },
-          { value: 'forms', label: 'Forms and schemas' },
+          { value: 'submissions', label: 'Submissions' },
+          { value: 'forms', label: 'Forms' },
+          { value: 'schemas', label: 'Schemas' },
           { value: 'moderation', label: 'Layer moderation' },
           { value: 'help', label: 'Help content' },
+          { value: 'system', label: 'System' },
         ]}
       />
-      {view === 'permissions' && <Permissions write={write} canWrite={canWrite} />}
-      {view === 'groups' && <PortalAdminGroups write={write} canWrite={canWrite} />}
-      {view === 'forms' && (
-        <div className="space-y-3">
-          <Resource title="Forms" path="rest/portal/getForms.php" params={{ page: '1', start: '0', limit: '100' }} />
-          <Resource title="Schemas" path="rest/portal/getSchemas.php" />
-        </div>
-      )}
-      {view === 'moderation' && <PortalModeration write={write} canWrite={canWrite} />}
-      {view === 'help' && <HelpEditor write={write} canWrite={canWrite} />}
-      {view === 'dashboard' && (
-        <div className="space-y-3">
-          <label className="grid gap-1 text-sm">
-            Workflow date
-            <input aria-label="Workflow date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          {date && (
-            <Resource
-              key={date}
-              title="Tasks for selected day"
-              path="rest/portal/schedule.php"
-              params={{ mode: 'date', date: new Date(`${date}T00:00:00`).toISOString() }}
-            />
-          )}
-          <Resource title="Task statuses" path="rest/portal/getTaskStatuses.php" />
-          <Resource title="Priorities" path="rest/portal/getPriorities.php" />
-          <Resource title="Source layer defaults" path="rest/portal/admin/getAllBaseLayers.php" />
-        </div>
-      )}
+      <div key={`${session.revision}:${session.isAdmin}`} className="min-w-0">
+        {protectedView && !session.isAdmin ? (
+          <InlineAlert title="Administrator access required">
+            Sign in to an account that the source identifies as an administrator, then reopen this section.
+          </InlineAlert>
+        ) : (
+          <div className="space-y-3">
+            {view === 'permissions' && <Permissions write={write} canWrite={canWrite} />}
+            {view === 'groups' && <PortalAdminGroups write={write} canWrite={canWrite} />}
+            {view === 'forms' && <PortalAdminForms isAdmin={session.isAdmin} />}
+            {view === 'schemas' && <PortalAdminSchemas isAdmin={session.isAdmin} />}
+            {view === 'submissions' && <PortalAdminSubmissions />}
+            {view === 'moderation' && <PortalModeration write={write} canWrite={canWrite} />}
+            {view === 'help' && <HelpEditor write={write} canWrite={canWrite} />}
+            {view === 'dashboard' && <PortalAdminDashboard />}
+            {view === 'system' && <PortalAdminSystem />}
+          </div>
+        )}
+      </div>
       <a href={NECHAKO_PORTAL} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
         Open original administration for other source workflows
       </a>

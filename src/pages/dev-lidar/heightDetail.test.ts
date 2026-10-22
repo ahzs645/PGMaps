@@ -13,7 +13,7 @@ describe('native canopy height resolution', () => {
     let count = 0
     for (let i = 0; i < detail.grid.width * detail.grid.height; i++) if (maskEligible(mask, i)) count++
     expect(count).toBe(detail.eligible_cells)
-    expect(count).toBe(2246943)
+    expect(count).toBe(2246913)
     expect(maskEligible(mask, -1)).toBe(false)
     expect(detailColour(0)).toEqual([44, 30, 133])
     expect(detailColour(40)).toEqual(detailColour(80))

@@ -1,0 +1,82 @@
+{
+  "schema": "nechako-public-probe-evidence-v1",
+  "date": "2026-10-21",
+  "scope": "Read-only anonymous API probes for browser-local feature parity. No credentials, cookies, source configuration or data mutations. Raw warning bodies are not committed.",
+  "probes": [
+    {
+      "url": "https://nechakowatershed-portal.ca/rest/portal/getSchemas_TBD.php",
+      "method": "GET",
+      "authentication": "anonymous; no cookies or credentials",
+      "observedAt": "2026-10-21T16:51:51.516496+00:00",
+      "bytes": 1085,
+      "sha256": "41041ab8a1f52db6a948642157882c94162061706d90e94a282b930c1c7d1fba",
+      "successFlag": true,
+      "status": "success",
+      "error": null,
+      "entries": 13,
+      "kind": "schema"
+    },
+    {
+      "url": "https://nechakowatershed-portal.ca/rest/portal/getLinkedLayers.php",
+      "method": "GET",
+      "authentication": "anonymous; no cookies or credentials",
+      "observedAt": "2026-10-21T16:51:51.830376+00:00",
+      "bytes": 4841,
+      "sha256": "69bfbfc7521db24a343faf4f146b15dc3fdf77c830ece8be1895bb76e79fcd98",
+      "successFlag": true,
+      "status": "success",
+      "error": null,
+      "entries": 72,
+      "kind": "shared"
+    },
+    {
+      "url": "https://nechakowatershed-portal.ca/rest/portal/getSubmissionLayersAddLayer.php",
+      "method": "GET",
+      "authentication": "anonymous; no cookies or credentials",
+      "observedAt": "2026-10-21T16:51:51.719719+00:00",
+      "bytes": 101,
+      "sha256": "671046090435f1775dafda5aea4bf7c3df99285ce3fc3760eb50126cb0001c4c",
+      "successFlag": true,
+      "status": "failure",
+      "error": "Not allowed access to any submissions.",
+      "entries": null,
+      "kind": "submission"
+    },
+    {
+      "url": "https://nechakowatershed-portal.ca/rest/openmap/downloadFile.php",
+      "method": "POST",
+      "parameters": {
+        "name": "air_temp_stations",
+        "type": "GeoJSON",
+        "src": {
+          "isPortal": true,
+          "schema": 15
+        }
+      },
+      "authentication": "anonymous; no cookies or credentials",
+      "observedAt": "2026-10-21T17:22:57.295043+00:00",
+      "bytes": 623,
+      "sha256": "7b72870369b9c476dbeb05eb19aeda74ac580da79d9ede8de39c5541348aec53",
+      "outcome": "HTML/PHP warnings and source failure: Cannot write file to server. Ask your administrator to check system tmp directory permissions.",
+      "coverage": "No feature dataset was returned."
+    },
+    {
+      "url": "https://nechakowatershed-portal.ca/rest/portal/getMonitorData.php",
+      "method": "POST",
+      "parameters": {
+        "layerId": "386",
+        "recId": "1",
+        "pageSize": "500",
+        "pageNumber": "0"
+      },
+      "authentication": "anonymous; no cookies or credentials",
+      "observedAt": "2026-10-21T17:18:07.637086+00:00",
+      "bytes": 85,
+      "sha256": "6a94eebb198b837bc29569a5e15c09f25b99ba07e4f5b6bdb34ee6e935d0d7e7",
+      "successFlag": true,
+      "status": "failure",
+      "error": "Website not registered",
+      "coverage": "No observation rows were returned; full live extraction remains unverified."
+    }
+  ]
+}
