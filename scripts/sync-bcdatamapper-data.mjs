@@ -7,6 +7,8 @@ import { beginDataBuild, createIncrementalCopier } from './lib/incremental-data.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const vendorRoot = join(root, 'vendor', 'bcdatamapper')
+// National scrapers live in their own submodule; same snapshot ownership rules.
+const canadaVendorRoot = join(root, 'vendor', 'canadadatamapper')
 const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
 const copier = createIncrementalCopier(root)
@@ -179,6 +181,8 @@ const pathMappings = [
   ['datascrapers/native-land/snapshot', 'native-land'],
 ]
 
+const canadaPathMappings = [['datascrapers/ised/cell-sites/output', 'canada/cell-sites']]
+
 const restrictedEarlyLearningMappings = [
   [
     'datascrapers/bc/early-learning-boundaries/cache/help_neighbourhoods.geojson',
@@ -287,8 +291,8 @@ function restorePreservedCleanPaths() {
   rmSync(cleanPreserveRoot, { recursive: true, force: true })
 }
 
-function copyPath(sourceRelative, targetRelative) {
-  const source = join(vendorRoot, sourceRelative)
+function copyPath(sourceRelative, targetRelative, sourceRoot = vendorRoot) {
+  const source = join(sourceRoot, sourceRelative)
   const destination = join(target, targetRelative)
 
   if (!existsSync(source)) {
@@ -298,7 +302,7 @@ function copyPath(sourceRelative, targetRelative) {
 
   mkdirSync(dirname(destination), { recursive: true })
   copier.copy(source, destination, (sourcePath) => {
-    const relativeSource = relative(vendorRoot, sourcePath)
+    const relativeSource = relative(sourceRoot, sourcePath)
     return !skippedSourcePaths.has(relativeSource)
       && !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
   })
@@ -333,6 +337,10 @@ for (const [sourceRelative, targetRelative] of optionalPathMappings) {
     continue
   }
   copyPath(sourceRelative, targetRelative)
+}
+
+for (const [sourceRelative, targetRelative] of canadaPathMappings) {
+  copyPath(sourceRelative, targetRelative, canadaVendorRoot)
 }
 
 // The compact tracked release is authoritative for the development fallback.

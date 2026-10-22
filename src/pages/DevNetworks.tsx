@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MVTLayer, TileLayer } from '@deck.gl/geo-layers'
-import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
+import { BitmapLayer, GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-react'
@@ -22,6 +22,18 @@ import { fetchJson } from '@/lib/fetchJson'
 import { formatBytes, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import {
+  CELL_SITE_OPERATOR_GROUPS,
+  CELL_SITES_MANIFEST_URL,
+  CELL_SITES_URL,
+  cellSiteTooltipRows,
+  countSitesByGroup,
+  filterCellSites,
+  visibleGroupsAtSite,
+  type CellSiteCollection,
+  type CellSiteFeature,
+  type CellSitesManifest,
+} from './dev-networks/cellSites'
 
 const DEV_NETWORK_DATA_BASE = '/__dev_network_data'
 
@@ -181,6 +193,8 @@ function DevNetworkDeckOverlay({
   onGridError,
   sourceLevel,
   crtcLayers,
+  cellSites,
+  visibleSiteGroups,
 }: {
   visibleTelusLayerIds: string[]
   visibleBellLayerIds: string[]
@@ -193,6 +207,8 @@ function DevNetworkDeckOverlay({
   onGridError: (error: string) => void
   sourceLevel: string
   crtcLayers: CrtcLayerData[]
+  cellSites: CellSiteFeature[]
+  visibleSiteGroups: ReadonlySet<string>
 }) {
   const { map, isLoaded } = useMap()
   const tooltipRef = useRef<maplibregl.Popup | null>(null)
@@ -463,8 +479,40 @@ function DevNetworkDeckOverlay({
       }))
     }
 
+    if (cellSites.length) {
+      // Drawn last so towers sit above every coverage layer. A white ring marks
+      // a mast shared by more than one visible operator group.
+      layers.push(new ScatterplotLayer<CellSiteFeature>({
+        id: 'dev-network-ised-cell-sites',
+        data: cellSites,
+        pickable: true,
+        stroked: true,
+        radiusUnits: 'pixels',
+        getRadius: 3.5,
+        radiusMinPixels: 2,
+        lineWidthUnits: 'pixels',
+        getLineWidth: 1,
+        getPosition: site => site.geometry.coordinates as [number, number],
+        getFillColor: site => [...(visibleGroupsAtSite(site.properties, visibleSiteGroups)[0]?.color ?? [100, 116, 139]), 230],
+        getLineColor: site => visibleGroupsAtSite(site.properties, visibleSiteGroups).length > 1 ? [255, 255, 255, 255] : [15, 23, 42, 140],
+        updateTriggers: { getFillColor: [...visibleSiteGroups].join('|'), getLineColor: [...visibleSiteGroups].join('|') },
+        onHover: info => {
+          const popup = tooltipRef.current
+          if (!popup || !map) return
+          const site = info.object
+          if (!site) { popup.remove(); return }
+          const [longitude, latitude] = site.geometry.coordinates
+          popup.setLngLat([longitude, latitude]).setHTML(mapTooltipHtml({
+            title: site.properties.operators.length > 1 ? `Shared site · ${site.properties.operators.length} operators` : `${site.properties.operators[0]} site`,
+            subtitle: `ISED spectrum licence site${site.properties.province ? ` · ${site.properties.province}` : ''}`,
+            rows: cellSiteTooltipRows(site.properties),
+          })).addTo(map)
+        },
+      }))
+    }
+
     overlay.setProps({ layers })
-  }, [overlayRef, bellDataById, bellRenderMode, map, isLoaded, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds, rasterView, cellPixels, showGridLines, onGridError, sourceLevel, crtcLayers])
+  }, [overlayRef, bellDataById, bellRenderMode, map, isLoaded, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds, rasterView, cellPixels, showGridLines, onGridError, sourceLevel, crtcLayers, cellSites, visibleSiteGroups])
 
   return null
 }
@@ -503,6 +551,13 @@ export default function DevNetworks() {
   const [bellManifest, setBellManifest] = useState<BellManifest | null>(null)
   const [rogersManifest, setRogersManifest] = useState<RogersManifest | null>(null)
   const [telusManifest, setTelusManifest] = useState<TelusManifest | null>(null)
+  const [cellSiteData, setCellSiteData] = useState<CellSiteCollection | null>(null)
+  const [cellSitesManifest, setCellSitesManifest] = useState<CellSitesManifest | null>(null)
+  const [cellSitesError, setCellSitesError] = useState<string | null>(null)
+  const [visibleSiteGroupIds, setVisibleSiteGroupIds] = useState<string[]>(() => CELL_SITE_OPERATOR_GROUPS.map(group => group.id))
+  const visibleSiteGroups = useMemo(() => new Set(visibleSiteGroupIds), [visibleSiteGroupIds])
+  const cellSites = useMemo(() => filterCellSites(cellSiteData, visibleSiteGroups), [cellSiteData, visibleSiteGroups])
+  const siteCountsByGroup = useMemo(() => countSitesByGroup(cellSitesManifest), [cellSitesManifest])
   const visibleBellKey = visibleBellLayerIds.join('|')
   const visibleCrtcKey = visibleCrtcIds.join('|')
   const crtcLayers = useMemo(() => crtcResources.flatMap(resource => {
@@ -532,6 +587,15 @@ export default function DevNetworks() {
     // Cached payloads stay unchanged; only visibility or inventory starts a fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleCrtcKey, crtcResources])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchJson<CellSitesManifest>(CELL_SITES_MANIFEST_URL, controller.signal).then(setCellSitesManifest).catch(() => {})
+    void fetchJson<CellSiteCollection>(CELL_SITES_URL, controller.signal)
+      .then(setCellSiteData)
+      .catch(error => { if (!controller.signal.aborted) setCellSitesError((error as Error).message) })
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     fetch(`${DEV_NETWORK_DATA_BASE}/bell/output/manifest.json`)
@@ -636,11 +700,41 @@ export default function DevNetworks() {
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="Network Coverage Dev Map"
-      subtitle="TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG snapshots"
+      subtitle="ISED cell sites with TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG coverage"
       icon={RadioTower}
       iconClassName="bg-primary text-primary-foreground"
       titleClassName="text-base"
     >
+      <SidebarSection
+        title="Cell sites (ISED)"
+        icon={RadioTower}
+        actions={<span className="text-xs text-muted-foreground">{cellSiteData ? `${formatNumber(cellSites.length)} shown` : cellSitesError ? 'unavailable' : 'loading'}</span>}
+      >
+        <div className="space-y-1.5">
+          {CELL_SITE_OPERATOR_GROUPS.map(group => {
+            const active = visibleSiteGroups.has(group.id)
+            return (
+              <button key={group.id} type="button" className={layerButtonClass(active)} aria-pressed={active}
+                onClick={() => setVisibleSiteGroupIds(current => active ? current.filter(id => id !== group.id) : [...current, group.id])}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: `rgb(${group.color.join(', ')})` }} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{group.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{formatNumber(siteCountsByGroup.get(group.id), { fallback: 'unknown' })} sites</span>
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+        {cellSitesError && <p role="status" className="mt-2 text-xs text-destructive">{cellSitesError}</p>}
+        <p className="mt-2 text-xs text-muted-foreground">
+          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED{cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}. White rings mark masts shared by visible operators. Reported sites, not measured coverage; Other includes ~5.9k railway radio sites.
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{cellSitesManifest?.attribution ?? 'Contains information licensed under the Open Government Licence – Canada (ISED).'}</p>
+      </SidebarSection>
+
       <SidebarSection title="Raster view" icon={Grid2X2}>
         <SegmentedControl label="Raster representation" value={rasterView} onChange={setRasterView}
           options={[{ value: 'image', label: 'Source image', icon: Image }, { value: 'grid', label: 'Box grid', icon: Grid2X2 }]} />
@@ -883,6 +977,8 @@ export default function DevNetworks() {
           onGridError={setGridError}
           sourceLevel={sourceLevel}
           crtcLayers={crtcLayers}
+          cellSites={cellSites}
+          visibleSiteGroups={visibleSiteGroups}
         />
         {crtcLayers.filter(({ resource }) => resource.id.includes('major-roads')).map(({ resource, data }) => <MapLineLayer
           key={resource.id} sourceKey={resource.id} data={data} sourceTolerance={0}

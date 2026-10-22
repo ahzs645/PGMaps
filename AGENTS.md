@@ -6,6 +6,7 @@
 - Treat paths copied by `scripts/sync-bcdatamapper-data.mjs` into `public/data` as generated build output. Do not force-add ignored copies of those files to the PGMaps repository.
 - In particular, WARS artifacts belong only in `vendor/bcdatamapper/datascrapers/bc/wars/output`. Keep the manifest and deterministic compressed `*.gz` snapshots there; generate `public/data/wars` with `npm run data:sync-from-bcdatamapper`.
 - Keep deployment checkout configured with recursive submodules. A build that does not initialize `vendor/bcdatamapper` cannot assemble scraper-owned data.
+- `vendor/canadadatamapper` holds national (Canada-wide) scrapers under the same rules; `scripts/sync-bcdatamapper-data.mjs` copies its `canadaPathMappings` too, and the deploy cache key includes both submodule revisions. ISED cell sites land at `public/data/canada/cell-sites`. Build towers from ISED's `Site_Data_Extract_FX.zip`, never by scraping ertyu.org, whose `robots.txt` disallows automated clients.
 
 ## Updating submodule data
 

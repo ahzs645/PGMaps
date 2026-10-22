@@ -68,6 +68,7 @@ public/data/cell-coverage/
 public/data/census/
 public/data/cciss/
 public/data/canada-admin/
+public/data/canada/
 /build/canada-admin-pmtiles/
 /build/bc-outdoors-pmtiles/
 /build/bc-outdoors-plans/
