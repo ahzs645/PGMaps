@@ -8,6 +8,7 @@ import { Field, NumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
 import { VerticalDesignControls } from './VerticalDesignControls'
+import { CurveTools } from './CurveTools'
 import { distance } from './engine'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { DrawMode } from './PlanView'
@@ -366,6 +367,7 @@ export function DesignSidebar(p: SidebarProps) {
               </div>
             </SidebarSection>
             <SidebarSection title="Horizontal points">
+              <CurveTools workspace={p.workspace} />
               <select
                 aria-label="Selected horizontal point"
                 className={roadFieldClass}
