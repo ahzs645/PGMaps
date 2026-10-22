@@ -1,0 +1,31 @@
+name: Road optimizer review bundle
+on:
+  push:
+    branches: [codex/forestry-road-corridor-optimizer]
+    paths: [.github/workflows/road-optimizer-review-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Obtain the two pinned scraper-owned imports without changing their revision
+        run: |
+          revision=$(git ls-tree HEAD vendor/bcdatamapper | awk '{print $3}')
+          base=vendor/bcdatamapper/datascrapers/manual/output/acknowledgement
+          mkdir -p "$base"
+          for name in fpcc-language-map.json nation-registry.json; do
+            curl --fail --retry 2 --location "https://raw.githubusercontent.com/ahzs645/bcdatamapper/$revision/datascrapers/manual/output/acknowledgement/$name" -o "$base/$name"
+          done
+      - name: Package original application data imports
+        run: |
+          tar -czf /tmp/road-original-build-inputs.tar.gz public/data/projects public/data/nechako-showcase/manifest.json vendor/bcdatamapper/datascrapers/manual/output/acknowledgement
+      - uses: actions/upload-artifact@v4
+        with:
+          name: road-original-build-inputs
+          path: /tmp/road-original-build-inputs.tar.gz
+          retention-days: 1
+          compression-level: 0
