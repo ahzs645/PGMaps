@@ -39,7 +39,16 @@ const READS = {
     ['fieldId', 'fieldIndex', 'submissionId'],
   ],
   'rest/portal/getSchemas.php': [['limit', 'page', 'start'], []],
+  'rest/portal/getSchemas_TBD.php': [[], []],
+  'rest/portal/getSubmissionLayersAddLayer.php': [[], []],
+  'rest/portal/getLinkedLayers.php': [[], []],
   'rest/portal/getSchemaFields.php': [['schemaId'], ['schemaId']],
+  // SchemaManager.js requests draft/disabled associations in its Monitors tab.
+  // This administrative contract is gated even though the route has no /admin/.
+  'rest/portal/getMonitorSchemaLayers.php': [
+    ['schemaId', 'getDraftSubmissions', 'getDisabled'],
+    ['schemaId', 'getDraftSubmissions', 'getDisabled'],
+  ],
   'rest/portal/getStatusFlags.php': [[], []],
   'rest/portal/getSpatialFormats.php': [[], []],
   'rest/portal/getSubmissionMetadata.php': [['submissionId'], ['submissionId']],
@@ -78,6 +87,22 @@ const READS = {
     ['matchId', 'mode'],
   ],
   'rest/portal/getUsers.php': [['limit', 'page', 'start'], []],
+  // Read contracts already verified by the local gateway. These routes also
+  // require a successful source administrator sign-in in operation(), before
+  // any upstream request. A read capability never enables source mutations.
+  'rest/portal/admin/getGroups.php': [[], []],
+  'rest/portal/admin/getGroupMembers.php': [['gid', 'includePrimaryGroupStatus'], ['gid']],
+  'rest/portal/admin/getUserDetails.php': [['uid'], ['uid']],
+  'rest/portal/admin/getUserPermissionsCheckbox.php': [
+    ['uid', 'mode'],
+    ['uid', 'mode'],
+  ],
+  'rest/portal/admin/getUserForms.php': [['form_id'], ['form_id']],
+  'rest/portal/admin/getLinkableLayers.php': [['limit', 'page', 'start'], []],
+  'rest/portal/admin/getLayerSharedLayersManager.php': [['layerId'], ['layerId']],
+  'rest/portal/admin/getAllBaseLayers.php': [[], []],
+  'rest/portal/admin/getContents.php': [[], []],
+  'rest/portal/admin/getSubmissions.php': [['limit', 'page', 'start'], []],
   'rest/portal/getTaskStatuses.php': [[], []],
   'rest/portal/getPriorities.php': [[], []],
   'rest/portal/getHolidays.php': [[], []],
@@ -86,6 +111,10 @@ const READS = {
     ['date', 'mode'],
   ],
 }
+const administratorRead = (path) =>
+  path.startsWith('rest/portal/admin/') ||
+  path === 'rest/portal/getMonitorSchemaLayers.php' ||
+  path === 'rest/portal/getUsers.php'
 
 class Failure extends Error {
   constructor(status, message, extra = {}) {
@@ -209,6 +238,9 @@ export function validateRead(payload) {
         'parentId',
         'matchId',
         'layerId',
+        'uid',
+        'gid',
+        'form_id',
       ].includes(key) &&
       !positive(value)
     )
@@ -227,6 +259,17 @@ export function validateRead(payload) {
     }
   }
   const end = path.split('/').at(-1)
+  if (administratorRead(path) && 'limit' in params && (Number(params.limit) < 1 || Number(params.limit) > 500))
+    fail(400, 'Administrator lists use 1–500 row pages.')
+  if (
+    end === 'getUserPermissionsCheckbox.php' &&
+    !['form', 'submission', 'match_preset', 'shared_style', 'shared_project'].includes(params.mode)
+  )
+    fail(400, 'Invalid resource-permission read mode.')
+  if ('includePrimaryGroupStatus' in params && !['true', 'false'].includes(params.includePrimaryGroupStatus))
+    fail(400, 'Invalid primary-group flag.')
+  for (const key of ['getDraftSubmissions', 'getDisabled'])
+    if (key in params && !['true', 'false'].includes(params[key])) fail(400, 'Invalid monitoring association flag.')
   if (
     end === 'savedProjects.php' &&
     (!['list', 'load', 'getDescription', 'getSharedGroups'].includes(params.mode) ||
@@ -368,11 +411,15 @@ export class NechakoSession {
       this.revoke()
       return
     }
-    this.expiryTimer = memoryTimer(this.env, () => {
-      this.expiryTimer = undefined
-      if (this.expires <= this.now()) this.revoke()
-      else this.armExpiry(this.expires)
-    }, Math.min(MEMORY_TICK, this.expires - this.now()))
+    this.expiryTimer = memoryTimer(
+      this.env,
+      () => {
+        this.expiryTimer = undefined
+        if (this.expires <= this.now()) this.revoke()
+        else this.armExpiry(this.expires)
+      },
+      Math.min(MEMORY_TICK, this.expires - this.now()),
+    )
   }
   async source(path, params, generation, deadline, maximum = JSON_LIMIT) {
     this.check(generation)
@@ -478,10 +525,12 @@ export class NechakoSession {
         )
       }
       this.admin = value.attributes?.isAdmin === true
-      return json(status(true))
+      return json(status(true, TTL / 1000, { isAdmin: this.admin }))
     }
     if (action === 'read') {
       const { path, params } = validateRead(payload)
+      if (administratorRead(path) && (!this.loggedIn || !this.admin))
+        fail(403, 'This read requires a source administrator sign-in. Source changes remain disabled.')
       return json(await this.native(path, params, generation, deadline))
     }
     if (action === 'layer-attributes') {
@@ -610,7 +659,11 @@ export class NechakoSession {
           { 'X-Object-Epoch': this.epoch },
         )
       if (action === 'init' || action === 'status')
-        return json(status(this.loggedIn, (body.expires - this.now()) / 1000), 200, { 'X-Object-Epoch': this.epoch })
+        return json(
+          status(this.loggedIn, (body.expires - this.now()) / 1000, { isAdmin: this.loggedIn && this.admin }),
+          200,
+          { 'X-Object-Epoch': this.epoch },
+        )
       const now = this.now()
       this.calls = this.calls.filter((n) => now - n < 60000)
       this.logins = this.logins.filter((n) => now - n < 60000)

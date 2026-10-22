@@ -1,4 +1,5 @@
-// Updated 2026-10-12. Live evidence and deployment limits: docs/nechako-portal-assessment.md.
+// Updated 2026-10-21. Current public/client evidence and remaining gaps:
+// docs/nechako/2026-10-21-parity-audit.md. Older authenticated counts are dated observations.
 export const FEATURE_COMPARISON = [
   {
     feature: 'Map, layers, visibility, legends, camera',
@@ -21,9 +22,9 @@ export const FEATURE_COMPARISON = [
     feature: 'Portal-wide submission search',
     portal: 'Original catalogue exposed 1,585 searchable submissions; local gateway query nechako returns 419 results',
     pgmaps: 'Global site search and literature search cover different sources',
-    next: 'Local gateway reads real results; direct browser mode can fail registration. Production deployment and permission-scoped area acceptance remain.',
+    next: 'The hosted gateway supports permitted live reads; direct browser mode can fail registration. Current administrator sign-in was rejected, so protected production acceptance remains.',
     devView:
-      'Unified public-content search and native submission search; nested visual expressions, local saved queries, geographic limits, paged results/CSV and form detail dialogs.',
+      'Unified public-content search, native submission search and a captured form/year browser; form-scoped field selectors, nested visual expressions, local saved queries, geographic limits, paged results/CSV and form detail dialogs.',
   },
   {
     feature: 'Submission detail',
@@ -47,7 +48,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Local package repository and outdoors JSON/share/save workflows',
     next: '130 of 131 WMS references convert: 19 native references use the verified MapServer prefix and supplied mapfile/layer names, with existing HTTPS SLDs. Teacher resources retain 9/9 WMS. One empty WMS name and 18 HTTP XYZ basemaps remain omitted; temporary references may expire. Native cross-type order is preserved; full SLD symbolizers remain partial.',
     devView:
-      'Versioned local workspace JSON, browser save/restore and native project conversion; retains original styles/IDs/unsupported sources with warnings.',
+      'Versioned workspaces, IndexedDB cache, hashed backup/restore and actual GIS/SMASH package exports; retains original styles/IDs/unsupported sources with warnings.',
   },
   {
     feature: 'Stories and learning modules',
@@ -65,14 +66,15 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'App-owned public snapshot with per-file manifest hashes and byte counts',
     next: 'Measure original GIS archives, monitoring exports, attachments and private collections from permitted exports; do not infer bytes from record counts.',
     devView:
-      '52 snapshot files / 7,513,926 bytes; separate learning-package and browser-import sizes; searchable collection inventory and options directory.',
+      'Per-capture manifest file/byte totals; separate learning-package and browser-import sizes; searchable collection inventory and 78 explicitly scoped workflow options. Client-module audit bytes are separate from data/storage totals.',
   },
   {
     feature: 'Collaborative project ownership/sharing/history/defaults',
     portal: 'Portal client and SOP',
     pgmaps: 'Local storage/file/share capabilities; no equivalent portal account/group synchronization found',
     next: 'Source ownership stays authoritative. Reviewed native project adapters need disposable-record and multi-user production acceptance.',
-    devView: 'Live source projects/shares/history/defaults and review-gated owner save/rename/share/default adapters; browser versions and original-preserving exports.',
+    devView:
+      'Live source projects/shares/history/defaults and review-gated owner save/rename/share/default adapters; browser versions and original-preserving exports.',
   },
   {
     feature: 'Point/line/polygon data and attributes',
@@ -80,7 +82,7 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Typed map layers, interaction tools, bottom tables, specialized imports',
     next: 'Verify schema-linked portal vector exports with authorized samples. Geometry validation is not a complete topology audit.',
     devView:
-      'Validated/reprojected GeoJSON and GDAL imports; point/line/polygon maps, attributes/CSV, local geometry/property edits and measurement.',
+      'Browser GDAL imports/exports; dedicated source schema/submission/shared-layer pickers; file/count-verified WFS materialization; typed local feature queries, geometry/property edits and measurement.',
   },
   {
     feature: 'WMS identify',
@@ -93,9 +95,9 @@ export const FEATURE_COMPARISON = [
     feature: 'Monitoring tables and charts',
     portal: 'CSV/schema/station links, pagination, time-zone matching, line/bar chart builder in client/SOP',
     pgmaps: '`/dev/water-temperature`, reusable time series/scatter/range charts and exports',
-    next: 'Actual layer 386/record 1 read returns 500 rows of 25,933; page exports/charts are scoped to the loaded page. Full database size and production access remain unknown.',
+    next: 'Historical layer 386/record 1 read returned 500 rows of 25,933. Full extraction now verifies paging/counts and stores complete or explicitly partial copies; live anonymous acceptance is blocked by the current source Website not registered response.',
     devView:
-      'Live station/schema/Attributes relationships and bounded observations; local CSV/time-zone quality review, chart presets, dual axes and page CSV/JSON.',
+      'Live station/schema/Attributes relationships, complete paginated extraction, local CSV ingestion/cache, time-zone quality review, chart presets, dual axes and typed-value-preserving exports.',
   },
   {
     feature: 'Attachments and archives',
@@ -103,15 +105,15 @@ export const FEATURE_COMPARISON = [
     pgmaps: 'Story/document displays and shared cards can be reused',
     next: 'Protected attachment retrieval/previews and server whitelist/limits require authorization; unsupported document formats retain originals.',
     devView:
-      'Local raster image/PDF/audio/video preview, original downloads, GIS archive inventory and anonymous attachment metadata resource reads.',
+      'Persistent local raster image/PDF/audio/video attachments and original downloads, local draft/media links, hashed package backups and permitted source attachment metadata reads.',
   },
   {
     feature: 'Bulk CSV/Zotero and GeoPaparazzi import',
     portal: 'Client and SOP described',
     pgmaps: 'Specialized import paths and scraper infrastructure',
-    next: 'Portal draft publishing stays authoritative. GeoPaparazzi form/note/photo/track mapping needs a real sample; inventory is not full import parity.',
+    next: 'Portal publication remains authoritative. GPAP notes/forms/media/tracks now parse from actual SQLite with retained originals, relationship diagnostics and local drafts; source-specific form assignment/transaction acceptance is separate.',
     devView:
-      'Source-form CSV/spatial mapping, typed validation, local draft review/exports; optional signed-in CSV draft adapter, GeoPaparazzi table inventory.',
+      'Persistent local GIS/CSV/schema matching, monitoring ingestion, attachments, mapping presets, editable drafts and actual GPAP note/form/media/track relationships; optional source draft adapter stays separate.',
   },
   {
     feature: 'GIS editing/processing',
@@ -122,25 +124,40 @@ export const FEATURE_COMPARISON = [
       'Local drawing, GeoJSON geometry/property editing, measurement, bounded undo, buffer, polygon union/intersection/difference, point/line/polygon clipping and line/polygon splitting; output exports.',
   },
   {
+    feature: 'Map image composition and layer names',
+    portal:
+      'Public Export window has title, dimensions, Same as Map, two north-arrow styles, scale distance, legend scale and attribution.',
+    pgmaps: 'Shared MapLibre map, canvas and export primitives',
+    next: 'PNG composition uses the current rendered extent and reports missing imagery/legends. It does not retrieve vector data or increase the source map resolution.',
+    devView:
+      'PNG preview/download with source credits and complete-map aspect ratio; local WMS/vector/tile display-name editing preserves source identifiers and workspace round trips.',
+  },
+  {
     feature: 'Reporting and statistics',
-    portal: 'Live Reports UI; no forms visible anonymously; client presets/statistics/CSV',
+    portal:
+      'Source form/statistics, presets, CSV and Table/Graphs controls; the current client Graphs handler is a placeholder.',
     pgmaps: 'Charts and export building blocks',
-    next: 'Original form/statistics reads are integrated; static-node/report format coverage and production permissions remain limits.',
-    devView: 'Original dynamic form reports, source field labels, local presets and CSV/HTML/PDF/ZIP exports; separate monitoring statistics.',
+    next: 'Native graphs adapt exact returned numeric rows/statistics; unsupported shapes stay in the table. Source preset sharing, static-node/report coverage and current authenticated acceptance remain limits.',
+    devView:
+      'Original dynamic form reports, Table/Graphs, source field labels, local presets and CSV/HTML/PDF/ZIP exports; measured zero, missing values and source counts remain distinct.',
   },
   {
     feature: 'Forms, schemas, users, groups, approvals, shared-layer review',
-    portal: 'Administrator interface and Data Manager SOP: 31 forms, 13 schemas, 77 accounts and five groups.',
-    pgmaps: 'Reusable UI primitives; no matching portal admin subsystem found',
-    next: 'Local gateway supports reviewed existing permissions/groups/moderation/help changes; contracts mocked only. Source form/schema edits and publication remain original workflows.',
-    devView: 'Dashboard/forms/schemas reads; reviewed existing user permissions, group membership, shared-layer approval/active state and editable help content.',
+    portal:
+      'Earlier authenticated audit recorded 31 forms, 13 schemas, 77 accounts and five groups. The October 21 source login could not be revalidated.',
+    pgmaps:
+      'Native inspectors for source forms, schema field links, users, permissions, groups, submissions and system registries.',
+    next: 'The updated hosted connection exposes verified administrator reads and remains read-only. Local reviewed permission/group/moderation/help updates are preserved. Form/schema editing, account creation and publication remain original workflows; fresh authenticated acceptance is pending.',
+    devView:
+      'Searchable tables with local paging and CSV/JSON export; form field/schema/group/user relationships; schema monitoring associations; native submission catalogue; source registry defaults, flags, task statuses, priorities and holidays.',
   },
   {
     feature: 'Notifications, schedules and relationship nodes',
     portal: 'Loaded client modules/SOP',
-    pgmaps: 'No portal-equivalent workflow found',
-    next: 'Maintain in portal. Confirm active workflows and obtain authorized samples before a further integration.',
-    devView: 'Original portal handoff; no notification/schedule writes in PGMaps.',
+    pgmaps: 'Native calendar, selected-day task and notification inspectors use the source request contracts.',
+    next: 'Live authenticated schedule acceptance remains pending. Scheduling, assignment and notification changes remain in the original dashboard.',
+    devView:
+      'Calendar month highlights, tasks for a selected local date, and separate new-task/near-deadline categories retain original task and submission IDs; no workflow writes.',
   },
   {
     feature: 'Payments and BOSS',
@@ -162,13 +179,13 @@ export const FORMAT_COMPARISON = [
     format: 'ESRI Shapefile (`.shp`, `.shx`, `.dbf`, `.prj`)',
     evidence: 'Enabled registry and upload chooser',
     pgmaps: 'Specialized forestry import uses shpjs',
-    next: 'Implemented GDAL sidecar/ZIP import and homogeneous geometry Shapefile ZIP export; original sidecars retained. Requires the optional conversion service.',
+    next: 'Implemented GDAL sidecar/ZIP import and homogeneous geometry Shapefile ZIP export; original sidecars retained. Uses the browser WebAssembly converter.',
   },
   {
     format: 'GML',
     evidence: 'Enabled registry',
     pgmaps: 'No generic portal ingestion found',
-    next: 'Implemented GDAL GML import/export and CRS normalization; XML document types/entities rejected. Service deployment and real portal samples still required.',
+    next: 'Implemented GDAL GML import/export and CRS normalization; XML document types/entities rejected. Browser conversion is available; representative portal samples still need acceptance.',
   },
   {
     format: 'GPX',
@@ -192,13 +209,13 @@ export const FORMAT_COMPARISON = [
     format: 'SQLite / SpatiaLite',
     evidence: 'Enabled registry',
     pgmaps: 'No generic browser database reader found',
-    next: 'Implemented GDAL spatial SQLite/SpatiaLite import/export. Non-spatial tables/unknown CRS are not silently treated as vectors. Requires conversion service.',
+    next: 'Implemented GDAL spatial SQLite/SpatiaLite import/export. Non-spatial tables/unknown CRS are not silently treated as vectors. Uses the browser WebAssembly converter.',
   },
   {
     format: 'GeoPackage',
     evidence: 'Enabled registry',
     pgmaps: 'No general multi-layer GeoPackage loader found',
-    next: 'Implemented GDAL multi-layer GeoPackage import, layer selection and export; three-layer BC Albers reprojection round trip verified. Requires conversion service.',
+    next: 'Implemented GDAL multi-layer GeoPackage import, layer selection and export; three-layer BC Albers reprojection round trip verified. Uses the browser WebAssembly converter.',
   },
   {
     format: 'WMS: hosted QGIS and DataBC',
@@ -216,7 +233,7 @@ export const FORMAT_COMPARISON = [
     format: 'WFS/raw feature export',
     evidence: 'Referenced capabilities/related tools; no full portal vector-export audit',
     pgmaps: 'PGMaps uses bounded feature queries elsewhere',
-    next: 'Add only when the source explicitly supports it; validate paging, geometry and permission scope',
+    next: 'Implemented public WFS 2.0 materialization with count/page/boundary verification, explicit caps and persistent local geometry; the source must support CORS, JSON and paging.',
   },
   {
     format: 'Historical map rasters',
@@ -246,13 +263,13 @@ export const FORMAT_COMPARISON = [
     format: 'GeoPaparazzi (.gpap)',
     evidence: 'Field-form, spatial and attachment matching in GeoPaparazziLoader client',
     pgmaps: 'No generic GeoPaparazzi importer verified',
-    next: 'Implemented read-only SQLite table/column/row inventory for .gpap. Form/note/photo/track semantics and portal publishing remain unverified without a real sample.',
+    next: 'Implemented actual GPAP SQLite parsing, note/form/media/track relationships, large-ID preservation, original bytes, local drafts and explicit relationship diagnostics. Source publication and actual SMASH mobile-app acceptance remain separate.',
   },
   {
     format: 'Documents, photos, audio/video and archives',
     evidence: 'Attachment workflow in client and guides; no complete server whitelist or size limits verified',
     pgmaps: 'Reusable document/story/dialog presentation; no portal attachment browser',
-    next: 'Implemented local image/PDF/audio/video preview and original downloads; anonymous portal attachment metadata reads. Protected files and whitelist/limits remain server integration work.',
+    next: 'Implemented persistent local image/PDF/audio/video attachment storage, previews, original downloads, draft links and portable package backups; permitted portal attachment metadata reads. Protected files and whitelist/limits remain server integration work.',
   },
   {
     format: 'Native portal project JSON',

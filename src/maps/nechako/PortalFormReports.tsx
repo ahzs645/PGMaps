@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ScatterPlot, type XYDomain } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { TabBar } from '@/components/ui/tab-bar'
 import { downloadBlob, downloadText } from '@/lib/download'
 import { errorText, portalRead } from '@/lib/nechakoPortal'
 import { checkedReviewJson, PortalSubmissionReader } from './PortalSubmissionReader'
@@ -15,6 +17,95 @@ import {
   type ReviewForm,
 } from './data/submissionReview'
 import { buildFormReportArchive, exportFormReportPdf } from './data/formReportExport'
+import { formReportGraph, formReportGraphOptions } from './data/formReportGraph'
+
+function FormReportGraphs({ report }: { report: FormReport }) {
+  const [selected, setSelected] = useState('')
+  const [zoom, setZoom] = useState<{ report: FormReport; selection: string; domain: XYDomain | null }>()
+  const choices = useMemo(() => {
+    try {
+      return { ...formReportGraphOptions(report), error: '' }
+    } catch (reason) {
+      return { options: [], statisticsNote: '', error: errorText(reason) }
+    }
+  }, [report])
+  const choice = choices.options.find((option) => `${option.kind}:${option.key}` === selected) ?? choices.options[0]
+  const selection = choice ? `${choice.kind}:${choice.key}` : ''
+  const graph = useMemo(() => {
+    if (!choice) return undefined
+    try {
+      return { data: formReportGraph(report, choice) }
+    } catch (reason) {
+      return { error: errorText(reason) }
+    }
+  }, [report, choice])
+  if (choices.error) return <InlineAlert tone="error">{choices.error}</InlineAlert>
+  return (
+    <section className="min-w-0 space-y-3" aria-label="Form report graphs">
+      <p className="text-sm text-muted-foreground">
+        Plot individual numeric values in source response order. The Table view retains every returned value and its
+        original type. Source statistic names and values are shown separately from submission rows.
+      </p>
+      {choice ? (
+        <>
+          <label className="grid gap-1 text-sm">
+            Graph dataset
+            <select
+              aria-label="Report graph dataset"
+              value={selection}
+              onChange={(event) => setSelected(event.target.value)}
+              className="max-w-full rounded border bg-background p-2 text-base"
+            >
+              {choices.options.map((option) => (
+                <option key={`${option.kind}:${option.key}`} value={`${option.kind}:${option.key}`}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {graph?.error && <InlineAlert tone="error">{graph.error}</InlineAlert>}
+          {graph?.data && (
+            <>
+              <p className="text-sm">
+                {graph.data.points.length} numeric values plotted from {graph.data.considered} returned entries ·{' '}
+                {graph.data.excluded} missing, nonnumeric or unsafe numeric values excluded.
+              </p>
+              <ScatterPlot
+                series={[{ color: '#0f766e', points: graph.data.points }]}
+                extent={graph.data.extent}
+                height={330}
+                radius={4}
+                label={choice.label}
+                xAxis={{ label: graph.data.xLabel, format: (value) => (Number.isInteger(value) ? String(value) : '') }}
+                yAxis={{ label: choice.key.length > 30 ? `${choice.key.slice(0, 27)}…` : choice.key, width: 72 }}
+                zoom={zoom?.report === report && zoom.selection === selection ? zoom.domain : null}
+                onZoom={(domain) => setZoom({ report, selection, domain })}
+                empty={<InlineAlert>No supported numeric values were returned for this selection.</InlineAlert>}
+                renderTooltip={(point) => (
+                  <>
+                    <div className="font-medium">{point.label}</div>
+                    <div>
+                      {choice.key}: {String(point.original)}
+                    </div>
+                  </>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Positions identify response entries, with gaps for excluded values. Decimal text uses numeric plot
+                coordinates; hover to read its original value. Units are those of the selected source field/statistic.
+              </p>
+            </>
+          )}
+        </>
+      ) : (
+        <InlineAlert>
+          No supported numeric fields or statistics were returned. Review the source values in Table.
+        </InlineAlert>
+      )}
+      <p className="text-xs text-muted-foreground">{choices.statisticsNote}</p>
+    </section>
+  )
+}
 
 export function PortalFormReports() {
   const [formId, setFormId] = useState('')
@@ -23,6 +114,7 @@ export function PortalFormReports() {
   const [labels, setLabels] = useState<Record<string, string>>({})
   const [report, setReport] = useState<FormReport>()
   const [title, setTitle] = useState('Source form report')
+  const [view, setView] = useState('table')
   const [error, setError] = useState(''),
     [loading, setLoading] = useState(false)
   const request = useRef<AbortController>()
@@ -83,7 +175,7 @@ export function PortalFormReports() {
           if (!controller.signal.aborted)
             setReport({
               title,
-              source: 'Original portal GetFormStatistics (current anonymous access)',
+              source: 'Original portal GetFormStatistics (current connection access)',
               formId,
               mapping,
               rows,
@@ -350,16 +442,31 @@ export function PortalFormReports() {
             and 200 pages. HTML/CSV/ZIP retain all returned rows. The ZIP includes this report, CSV, source attributes
             and mapping; it does not contain external attachments or GIS files.
           </p>
-          <PortalSubmissionReader key={`${report.formId}:${JSON.stringify(report.mapping)}`} data={report.rows} />
-          {formReportStatistics(report) !== undefined && (
-            <details className="rounded border p-3">
-              <summary className="cursor-pointer font-medium">Source-returned statistics</summary>
-              <p className="my-2 text-xs text-muted-foreground">
-                The backend returns these values separately from its rows. Native results/count fields are retained as
-                supplied and are not redefined as a submission count.
-              </p>
-              <PortalSubmissionReader data={formReportStatistics(report)} />
-            </details>
+          <TabBar
+            label="Form report view"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'table', label: 'Table' },
+              { value: 'graphs', label: 'Graphs' },
+            ]}
+          />
+          {view === 'graphs' ? (
+            <FormReportGraphs report={report} />
+          ) : (
+            <>
+              <PortalSubmissionReader key={`${report.formId}:${JSON.stringify(report.mapping)}`} data={report.rows} />
+              {formReportStatistics(report) !== undefined && (
+                <details className="rounded border p-3">
+                  <summary className="cursor-pointer font-medium">Source-returned statistics</summary>
+                  <p className="my-2 text-xs text-muted-foreground">
+                    The backend returns these values separately from its rows. Native results/count fields are retained
+                    as supplied and are not redefined as a submission count.
+                  </p>
+                  <PortalSubmissionReader data={formReportStatistics(report)} />
+                </details>
+              )}
+            </>
           )}
         </>
       )}

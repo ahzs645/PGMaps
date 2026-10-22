@@ -4,6 +4,11 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadBlob, downloadText } from '@/lib/download'
 import { errorText } from '@/lib/nechakoPortal'
 import { convertFiles } from './data/conversion'
+import { cacheGisImport } from './data/localIngestion'
+import { PortalGpapImport } from './PortalGpapImport'
+import { PortalLocalAttachments } from './PortalLocalAttachments'
+import { PortalMonitoringImport } from './PortalMonitoringImport'
+import { PortalLocalDrafts } from './PortalLocalDrafts'
 import { checkedCsv, csvExport } from './data/monitoring'
 import type { VectorData } from './data/workspace'
 import { PortalDraftReview } from './PortalDraftReview'
@@ -28,17 +33,8 @@ export function PortalFiles({
   const [titleColumn, setTitleColumn] = useState(''),
     [doiColumn, setDoiColumn] = useState('')
   const [page, setPage] = useState(0)
-  const [preview, setPreview] = useState<File>(),
-    [previewUrl, setPreviewUrl] = useState('')
-  useEffect(() => {
-    if (!preview) {
-      setPreviewUrl('')
-      return
-    }
-    const url = URL.createObjectURL(preview)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [preview])
+  const [cacheNotice, setCacheNotice] = useState('')
+  const [cacheBusy, setCacheBusy] = useState(false)
   useEffect(
     () => () => {
       generation.current++
@@ -50,6 +46,7 @@ export function PortalFiles({
     setLoading(true)
     setError('')
     setResult(undefined)
+    setCacheNotice('')
     try {
       const value = await convertFiles(files, sourceCrs || undefined)
       if (request === generation.current) setResult(value)
@@ -78,22 +75,24 @@ export function PortalFiles({
       <div className="space-y-3 rounded-lg border p-4">
         <h3 className="font-semibold">Spatial data</h3>
         <p className="text-sm text-muted-foreground">
-          GeoJSON imports locally. Shapefile sidecars/ZIP, GML, GPX, KML/KMZ, SQLite, SpatiaLite and GeoPackage use the
-          optional GDAL service. Each converted layer remains separate; attributes and geometry are normalized to WGS84.
-          The original files remain available below. GeoPaparazzi currently provides a database inventory.
+          Import GeoJSON, Shapefile sidecars/ZIP, GML, GPX, KML/KMZ, SQLite, SpatiaLite, FlatGeobuf or GeoPackage in
+          this browser. GDAL WebAssembly converts each vector layer separately to WGS84. Cache the imported layers and
+          original files for later work; no application backend is required. Use the dedicated GPAP importer below for
+          field projects.
         </p>
         <label className="block text-sm">
-          GIS files (20 MB combined)
+          GIS files (50 MiB combined)
           <input
             aria-label="GIS files"
             type="file"
             multiple
-            accept=".geojson,.json,.shp,.shx,.dbf,.prj,.cpg,.zip,.gml,.gpx,.kml,.kmz,.db,.sqlite,.gpkg,.gpap"
+            accept=".geojson,.json,.shp,.shx,.dbf,.prj,.cpg,.zip,.gml,.gpx,.kml,.kmz,.db,.sqlite,.gpkg,.fgb"
             className="mt-1 block w-full text-sm"
             onChange={(event) => {
               generation.current++
               setLoading(false)
               setResult(undefined)
+              setCacheNotice('')
               setError('')
               setFiles(Array.from(event.target.files || []))
             }}
@@ -122,6 +121,7 @@ export function PortalFiles({
           {loading ? 'Converting GIS files…' : 'Review GIS import'}
         </Button>
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
+        {cacheNotice && <InlineAlert tone="success">{cacheNotice}</InlineAlert>}
         <div className="flex flex-wrap gap-2">
           {files.map((file) => (
             <Button key={file.name} size="sm" variant="outline" onClick={() => downloadBlob(file, file.name)}>
@@ -132,6 +132,24 @@ export function PortalFiles({
         {result && (
           <>
             <p className="text-sm">{result.layers.length} converted layers</p>
+            <Button
+              disabled={cacheBusy}
+              onClick={async () => {
+                setCacheBusy(true)
+                setError('')
+                setCacheNotice('')
+                try {
+                  const count = await cacheGisImport(files, result)
+                  setCacheNotice(`Saved ${count} local layer/source-file items in this browser.`)
+                } catch (reason) {
+                  setError(errorText(reason))
+                } finally {
+                  setCacheBusy(false)
+                }
+              }}
+            >
+              {cacheBusy ? 'Saving local GIS files…' : 'Cache GIS layers and originals'}
+            </Button>
             {result.warnings?.map((warning: string, i: number) => (
               <InlineAlert key={i} tone="warning">
                 {warning}
@@ -185,52 +203,6 @@ export function PortalFiles({
                 />
               </details>
             ))}
-            {!!result.tables?.length && (
-              <div className="space-y-3">
-                <pre className="max-h-80 overflow-auto text-xs">{JSON.stringify(result.tables, null, 2)}</pre>
-                <p className="text-xs text-muted-foreground">
-                  This database inspection provides table names, column names and row counts. It does not read GPAP
-                  note/form values, attachment bodies or tracks, so those records have not been converted into portal
-                  drafts. Preserve the original database; CSV/GeoJSON exported from your source can be reviewed with the
-                  field matcher below.
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    downloadText(
-                      JSON.stringify(
-                        {
-                          schema: 'nechako-database-inventory-review-v1',
-                          publication: 'not-submitted',
-                          sourceFiles: files.map((file) => ({ name: file.name, bytes: file.size })),
-                          tables: result.tables,
-                          warnings: result.warnings,
-                          recordsRead: false,
-                          sourceGpapWorkflow: [
-                            'Choose File',
-                            'Match Forms',
-                            'Match Fields',
-                            'Select Records to Submit',
-                          ],
-                          unresolved: [
-                            'Original note/form values and media/track relationships',
-                            'Native multipart staging response and recovery',
-                            'Schema compatibility and duplicateProtection semantics',
-                          ],
-                        },
-                        null,
-                        2,
-                      ),
-                      'database-inventory-review.json',
-                      'application/json',
-                    )
-                  }
-                >
-                  Download database inventory review artifact
-                </Button>
-              </div>
-            )}
             {!!result.archiveEntries?.length && (
               <details>
                 <summary>Archive contents ({result.archiveEntries.length})</summary>
@@ -357,48 +329,10 @@ export function PortalFiles({
           </>
         )}
       </div>
-      <div className="space-y-3 rounded-lg border p-4">
-        <h3 className="font-semibold">Document and media preview</h3>
-        <p className="text-sm text-muted-foreground">
-          Preview local raster images, PDF, audio or video. Other documents and archives retain their original download.
-          Protected portal attachments need an authorized portal session.
-        </p>
-        <input
-          aria-label="Attachment preview file"
-          type="file"
-          className="max-w-full text-sm"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file && file.size > 50 * 1024 * 1024) {
-              setError('Preview files must be under 50 MB.')
-              setPreview(undefined)
-            } else {
-              setPreview(file)
-              setError('')
-            }
-          }}
-        />
-        {preview && (
-          <>
-            <p className="text-sm">
-              {preview.name} · {preview.size.toLocaleString()} bytes · {preview.type || 'Type not supplied'}
-            </p>
-            {/^image\/(png|jpeg|gif|webp)$/.test(preview.type) && (
-              <img src={previewUrl} alt={preview.name} className="max-h-[500px] max-w-full" />
-            )}
-            {preview.type === 'application/pdf' && (
-              <iframe title={`Preview ${preview.name}`} src={previewUrl} sandbox="" className="h-[500px] w-full" />
-            )}
-            {preview.type.startsWith('audio/') && <audio src={previewUrl} controls className="max-w-full" />}
-            {preview.type.startsWith('video/') && (
-              <video src={previewUrl} controls className="max-h-[500px] max-w-full" />
-            )}
-            <Button size="sm" variant="outline" onClick={() => downloadBlob(preview, preview.name)}>
-              Download original attachment
-            </Button>
-          </>
-        )}
-      </div>
+      <PortalMonitoringImport />
+      <PortalGpapImport onVectors={onVectors} />
+      <PortalLocalAttachments />
+      <PortalLocalDrafts onVectors={onVectors} />
     </div>
   )
 }

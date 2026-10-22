@@ -1,0 +1,515 @@
+{
+  "schema": "nechako-public-source-audit-v1",
+  "audit_date": "2026-10-21",
+  "source_portal": "https://nechakowatershed-portal.ca/",
+  "source_build_query": "6268M",
+  "pgmaps_base_commit": "0c5e4544534ce83b8b34881fa9444220acc4fb20",
+  "method": "Read scripts referenced by the publicly served source HTML; no authenticated payloads, credentials or source code are included in this manifest. UI labels and client request contracts establish intended controls, not server-side implementation or successful execution.",
+  "source_document": {
+    "source_url": "https://nechakowatershed-portal.ca/",
+    "byte_size": 15323,
+    "sha256": "0d58cea0c2b61bac4193fdacd345928a3dd7c5ae76f16904b01042d53ef939d6"
+  },
+  "module_count": 60,
+  "module_bytes": 1521694,
+  "modules": [
+    {
+      "module": "Globals.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/Globals.js?v=6268M",
+      "source_path": "definitions/Globals.js",
+      "byte_size": 19119,
+      "sha256": "479d8d85855fc92afdf3bd5d8e618092e154587d6cd4d42b499e5f5c6c056c41",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MapPanel.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/MapPanel.js?v=6268M",
+      "source_path": "definitions/MapPanel.js",
+      "byte_size": 43672,
+      "sha256": "f77be726094b3349ff234a984ff4dcf138635f76ec0db1195490c6b7b2f50234",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MapController.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/MapController.js?v=6268M",
+      "source_path": "definitions/map/MapController.js",
+      "byte_size": 13753,
+      "sha256": "9e214bc7dd11de5da551685295cb6381f263fffea8dab30bf51e73665c3ac8e3",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "AddLayers.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/AddLayers.js?v=6268M",
+      "source_path": "definitions/map/AddLayers.js",
+      "byte_size": 40655,
+      "sha256": "79ba70d4c1159e591ec4829f73c42f56f1b84550ec08efe14a9e2915b3d98c8c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Draw.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Draw.js?v=6268M",
+      "source_path": "definitions/map/Draw.js",
+      "byte_size": 10929,
+      "sha256": "ba3ff3c048a20273bf3e8545477d61675d99c914c26ba8082aa2c9d1a79b1c9c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Buffer.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Buffer.js?v=6268M",
+      "source_path": "definitions/map/Buffer.js",
+      "byte_size": 7336,
+      "sha256": "2d460df66c4a89979f3c9124657684bc976d2667dbfdf845e0ed9bae38de59c6",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Clip.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Clip.js?v=6268M",
+      "source_path": "definitions/map/Clip.js",
+      "byte_size": 8547,
+      "sha256": "c15be23bfb9234da9d7ec1fad5d7835c8e853498568145613604ce13ce3cd33c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Difference.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Difference.js?v=6268M",
+      "source_path": "definitions/map/Difference.js",
+      "byte_size": 8811,
+      "sha256": "4d9c1b7adc46569f937fb35ae2578ab73cfa662e4532ab0931349d344fc1323c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Split.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Split.js?v=6268M",
+      "source_path": "definitions/map/Split.js",
+      "byte_size": 8768,
+      "sha256": "6ece9b560d69590703b19584767fccc2f635ed1d888d125f0451eb8da8ae67f1",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Intersect.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Intersect.js?v=6268M",
+      "source_path": "definitions/map/Intersect.js",
+      "byte_size": 8677,
+      "sha256": "71855995da579a6104d01d7357e5ca4ac741656a8a0b827723521f6f0015c532",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Union.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Union.js?v=6268M",
+      "source_path": "definitions/map/Union.js",
+      "byte_size": 8852,
+      "sha256": "aba78866db2c533b1ad43df6b596ec93a49cd947d66f6235b12565441ac945cd",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Boss.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Boss.js?v=6268M",
+      "source_path": "definitions/map/Boss.js",
+      "byte_size": 39304,
+      "sha256": "7e29d1b51d30a75f48246619b914d4d0f87dbccc27f264b78cb52f17efd26bbe",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "EditVectors.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/EditVectors.js?v=6268M",
+      "source_path": "definitions/map/EditVectors.js",
+      "byte_size": 3710,
+      "sha256": "0a7d339e87f6f7a37c1f36bbe41c0f0567fcb2f14c5610e140a7808f401f5883",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Download.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Download.js?v=6268M",
+      "source_path": "definitions/map/Download.js",
+      "byte_size": 4898,
+      "sha256": "1ce7cb1205d3bfe812e9bf617425efa580d5e4f1cfae217560249e94ce7144d5",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Attributes.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Attributes.js?v=6268M",
+      "source_path": "definitions/map/Attributes.js",
+      "byte_size": 37158,
+      "sha256": "5cfd1fe77562560738bff6a77a2215e8678283b91b3bb964e14297d3ed82b5a7",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Identify.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Identify.js?v=6268M",
+      "source_path": "definitions/map/Identify.js",
+      "byte_size": 21382,
+      "sha256": "520bc8319eba2cda4451d8878c37719bf2a6dceb0e9162c6fc847f5b09395504",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SLDforge.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/SLDforge.js?v=6268M",
+      "source_path": "definitions/map/SLDforge.js",
+      "byte_size": 11593,
+      "sha256": "b40f378db0382a4cc8078d89df36d823e92fe858dca3e925a848b0197d49bddd",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Stylize.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Stylize.js?v=6268M",
+      "source_path": "definitions/map/Stylize.js",
+      "byte_size": 117854,
+      "sha256": "ceb163dee98bfbf2321e15b1e8ad4d6d1b1cdb9e75a645db5097f20fb8241aeb",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "DefinitionQuery.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/DefinitionQuery.js?v=6268M",
+      "source_path": "definitions/map/DefinitionQuery.js",
+      "byte_size": 9234,
+      "sha256": "663b84ff25dac1a87a1e797f25b2f991fc0dd2fd87735464e0d63c58ec6cd7f5",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Project.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Project.js?v=6268M",
+      "source_path": "definitions/map/Project.js",
+      "byte_size": 98370,
+      "sha256": "2eb28fecadba53b67aa974192167a6d3ce370b052bd2a670ac8f33ba05d7eb79",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ExportMap.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/ExportMap.js?v=6268M",
+      "source_path": "definitions/map/ExportMap.js",
+      "byte_size": 38284,
+      "sha256": "3eec73c4c3e185d7982b967cafc64a7ba17c5f05e0815bd6891b24bd37bfc488",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Link.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/map/Link.js?v=6268M",
+      "source_path": "definitions/map/Link.js",
+      "byte_size": 2027,
+      "sha256": "8434c3474cc0396349077b6510e8b03b16e32165dc42d53b65f740a3e2c0e0b2",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Submission.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/Submission.js?v=6268M",
+      "source_path": "definitions/submission/Submission.js",
+      "byte_size": 10394,
+      "sha256": "d14cfe208170a358bd3a434827187a386df98af68e04370fea8a78a951c4bc81",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "NodeRegistry.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/NodeRegistry.js?v=6268M",
+      "source_path": "definitions/submission/nodes/NodeRegistry.js",
+      "byte_size": 1031,
+      "sha256": "edb1023bf9a558ac5ca13f92182ba4ec4b42af57712a6680a709245c9a17fc14",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "AttachmentNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/AttachmentNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/AttachmentNode.js",
+      "byte_size": 9671,
+      "sha256": "29712709ca92d1298725fc3da38bb67b9c6f45005d7720b75f8bc31ff861f0e8",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "NotificationNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/NotificationNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/NotificationNode.js",
+      "byte_size": 12996,
+      "sha256": "f42c7b19a18e9d07fa2c10ab33f32258d78bc014ad910572477dc20c749a8e0c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ShapefileNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/ShapefileNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/ShapefileNode.js",
+      "byte_size": 89739,
+      "sha256": "25b81c96a2fcb658b6cf8b46481c59f02e29b0a0cb258165028ffc5d578287ec",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ParentNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/ParentNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/ParentNode.js",
+      "byte_size": 5838,
+      "sha256": "193854180094af623c1eaff4e006a085171861da8317d020d3ad0c6695731c96",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ScheduleNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/ScheduleNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/ScheduleNode.js",
+      "byte_size": 14978,
+      "sha256": "817a39a310f33a21846dd55e4f3fedcb1341bc1cfeebb8d5549a83a0c5bf7af7",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "DynamicNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/DynamicNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/DynamicNode.js",
+      "byte_size": 21178,
+      "sha256": "690b58847a422b8c798f67a24c0431f46da414275e0ef2dacb65e74116867ac7",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "PermissionNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/PermissionNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/PermissionNode.js",
+      "byte_size": 15515,
+      "sha256": "e4b30b7238d5355008a2c218963e6c310e6b05a657427c7afd5a9d8a21852ae3",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "PaymentNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/PaymentNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/PaymentNode.js",
+      "byte_size": 8650,
+      "sha256": "e55c7320b38d3a8e3361a67b4d5a80935ca483434a91f7f01c67b5c587801d23",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "LinkableNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/LinkableNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/LinkableNode.js",
+      "byte_size": 12165,
+      "sha256": "7a86852c9f6180771a43559e87c8fdd69534b4dc04250ea417e44e53139d3a38",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "NameNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/NameNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/NameNode.js",
+      "byte_size": 3374,
+      "sha256": "b379eb52355286769bd309dbdb6f95d8832b7936dc4ae56a3410fa367194bea0",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MonitoringNode.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/submission/nodes/MonitoringNode.js?v=6268M",
+      "source_path": "definitions/submission/nodes/MonitoringNode.js",
+      "byte_size": 107174,
+      "sha256": "8bad7e32b8520366bae1db2ace2e9d281289831e7588f2d53bfdb678edb6f83e",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Dashboard.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/Dashboard.js?v=6268M",
+      "source_path": "definitions/portal/Dashboard.js",
+      "byte_size": 19417,
+      "sha256": "8ca9a43292d541930194fa4c7b5cbbe6475336faf7d3996dfbdee3bfed346532",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MainView.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/MainView.js?v=6268M",
+      "source_path": "definitions/MainView.js",
+      "byte_size": 13361,
+      "sha256": "912aa6feee65d6f22eb14902332c984aaf241482d6730d8cff0b8b05f4a75878",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "AdminPanel.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/AdminPanel.js?v=6268M",
+      "source_path": "definitions/AdminPanel.js",
+      "byte_size": 634,
+      "sha256": "f541fa8cd012cc83e2bd0631990cf1fb7d3c796bd3e9ef11dd4f15dba905462d",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MapToolsPanel.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/MapToolsPanel.js?v=6268M",
+      "source_path": "definitions/MapToolsPanel.js",
+      "byte_size": 675,
+      "sha256": "f71cf01a05e0f00a5ffab90650ca29698e23d7251a88a7abe797cfab86eae56b",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SchemaManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SchemaManager.js?v=6268M",
+      "source_path": "definitions/portal/SchemaManager.js",
+      "byte_size": 69170,
+      "sha256": "62f52a86855769fef43f564531b8beda58bf8720a9c8037c2857853c76cfce26",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "GroupManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/GroupManager.js?v=6268M",
+      "source_path": "definitions/portal/GroupManager.js",
+      "byte_size": 15218,
+      "sha256": "eb70552bf22005c2f8005be96cd51bc5514d591731ed8a00dc9c728e05126347",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "UserManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/UserManager.js?v=6268M",
+      "source_path": "definitions/portal/UserManager.js",
+      "byte_size": 64025,
+      "sha256": "a98b154c67be09a6a4a67a94373b0da076cadd0e91aa7ebd0e613aff585fbfb1",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SubmissionManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SubmissionManager.js?v=6268M",
+      "source_path": "definitions/portal/SubmissionManager.js",
+      "byte_size": 21335,
+      "sha256": "151df9562200adb59398d0ca257ee3f294fc337442de1bd8760ba661d22a994c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SystemManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SystemManager.js?v=6268M",
+      "source_path": "definitions/portal/SystemManager.js",
+      "byte_size": 46826,
+      "sha256": "9b57dea01d3d21ae8e0c08a667584554152443b57351e01d0fbeb02ed61840d9",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "FormManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/FormManager.js?v=6268M",
+      "source_path": "definitions/portal/FormManager.js",
+      "byte_size": 53221,
+      "sha256": "c8dad32c22011e520481bed8cdb5d108a2be2a476de12412679847dcf2127d1d",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "LinkableManager.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/LinkableManager.js?v=6268M",
+      "source_path": "definitions/portal/LinkableManager.js",
+      "byte_size": 26214,
+      "sha256": "572e8880575e12dec06c44ff976c879a02131270e46867257681caa6f4cac034",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "BulkLoader.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/BulkLoader.js?v=6268M",
+      "source_path": "definitions/portal/BulkLoader.js",
+      "byte_size": 46431,
+      "sha256": "716daf2f9d81665417cbddac2fbc1f6ff4429498d8fd55c7dccbb8fc94913c40",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "GeoPaparazziLoader.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/GeoPaparazziLoader.js?v=6268M",
+      "source_path": "definitions/portal/GeoPaparazziLoader.js",
+      "byte_size": 69860,
+      "sha256": "286fe32a07cc2260f30f789a597b9616aaf5c69a517d358518f9c3189284cfe7",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "FillAForm.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/FillAForm.js?v=6268M",
+      "source_path": "definitions/portal/FillAForm.js",
+      "byte_size": 25356,
+      "sha256": "2df91665bc1343a793e7992ef11b224f93aaf3a4d796d8cd33833d091755c6aa",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ExpressionBuilder.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/ExpressionBuilder.js?v=6268M",
+      "source_path": "definitions/portal/ExpressionBuilder.js",
+      "byte_size": 30428,
+      "sha256": "fb54c8984391900909fdb67099d9681f2ef04205dddaa53d165da9fb5736620a",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "RestoreQueue.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/RestoreQueue.js?v=6268M",
+      "source_path": "definitions/portal/RestoreQueue.js",
+      "byte_size": 1103,
+      "sha256": "afe2a9ab15e50f01b15cfde20548ad357327a47383f043174a0640d6c7a3dcbf",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SearchParser.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SearchParser.js?v=6268M",
+      "source_path": "definitions/portal/SearchParser.js",
+      "byte_size": 8692,
+      "sha256": "eb213b4a26b65556fbacb1c39fbef24816187b8a15b2608942db5afa4965e6df",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SubmissionViewer.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SubmissionViewer.js?v=6268M",
+      "source_path": "definitions/portal/SubmissionViewer.js",
+      "byte_size": 28912,
+      "sha256": "933f9e4ee1f9c0a6ed06633df35384f344949fb971d69d1ddc2ee4a5e8669639",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Search.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/Search.js?v=6268M",
+      "source_path": "definitions/portal/Search.js",
+      "byte_size": 36398,
+      "sha256": "039da3af3b13180093e2eb96e7537fb5dcdbd5bb4ec1b1366fb43564fba3311a",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ReportingTool.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/ReportingTool.js?v=6268M",
+      "source_path": "definitions/portal/ReportingTool.js",
+      "byte_size": 34445,
+      "sha256": "66dfc79ea7a547e13909a06904d65c45834d67a5b7b0cb1a7b92010184a034fe",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "MapImportSession.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/MapImportSession.js?v=6268M",
+      "source_path": "definitions/portal/MapImportSession.js",
+      "byte_size": 18443,
+      "sha256": "b8b37303a0a8bbe314003613b5e6bd3769e47cd288cf0186bfdfade375ac1664",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "About.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/About.js?v=6268M",
+      "source_path": "definitions/portal/About.js",
+      "byte_size": 1363,
+      "sha256": "763a6b37762b201f515e0e0942e7eca14b20033c58b53240b5a7d40056b584b2",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "ProjectDescription.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/ProjectDescription.js?v=6268M",
+      "source_path": "definitions/portal/ProjectDescription.js",
+      "byte_size": 2078,
+      "sha256": "a210e7adef0828995477e0d3d871463f1fac4df9821952ead7a127311368630c",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "Login.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/Login.js?v=6268M",
+      "source_path": "definitions/portal/Login.js",
+      "byte_size": 4351,
+      "sha256": "e24b796238cc7cd510b61554213cfec5b152f3eb99d5639648eb1b52d5e67194",
+      "evidence": "public-client-code"
+    },
+    {
+      "module": "SelfRegistration.js",
+      "source_url": "https://nechakowatershed-portal.ca/definitions/portal/SelfRegistration.js?v=6268M",
+      "source_path": "definitions/portal/SelfRegistration.js",
+      "byte_size": 8102,
+      "sha256": "94716f26cdb73cf22c6648c5364a7eabcd8f30409f0b4595438b0a2372d58c6e",
+      "evidence": "public-client-code"
+    }
+  ],
+  "excluded_custom_control_scripts": [
+    "definitions/custom/ImageButton.js?v=6268M",
+    "definitions/custom/Overrides.js?v=6268M",
+    "definitions/custom/PasswordComplexity.js?v=6268M",
+    "definitions/custom/AssignList.js?v=6268M",
+    "definitions/custom/GridFilter.js?v=6268M",
+    "definitions/custom/MarkedDatePicker.js?v=6268M",
+    "definitions/custom/TaskManagerGridFilter.js?v=6268M",
+    "definitions/custom/PermissionsGridFilter.js?v=6268M"
+  ],
+  "exclusions": [
+    "Third-party libraries",
+    "Raw source code",
+    "Inline source configuration values",
+    "Account or submission payloads",
+    "Credentials and cookies"
+  ],
+  "current_authentication_evidence": "The single supplied sign-in attempt was rejected. Current administrator screens and responses were not authenticated during this audit."
+}

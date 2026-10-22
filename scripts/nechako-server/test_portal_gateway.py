@@ -14,6 +14,31 @@ import portal_gateway as gateway
 
 
 class GatewayContracts(unittest.TestCase):
+    def test_source_layer_catalogues_are_read_only_without_extra_parameters(self):
+        for name in ['getSchemas_TBD', 'getSubmissionLayersAddLayer', 'getLinkedLayers']:
+            path = f'rest/portal/{name}.php'
+            self.assertEqual(gateway.validate_read(path, {})[1], {})
+            for params in [{'mode': 'delete'}, {'query': 'SELECT *'}, {'layerId': '1'}]:
+                with self.subTest(path=path, params=params), self.assertRaises(ValueError):
+                    gateway.validate_read(path, params)
+
+    def test_manager_reads_require_exact_ids_flags_and_bounded_pages(self):
+        monitor = {'schemaId': '13', 'getDraftSubmissions': 'true', 'getDisabled': 'true'}
+        self.assertEqual(gateway.validate_read('rest/portal/getMonitorSchemaLayers.php', monitor)[1], monitor)
+        self.assertEqual(gateway.validate_read('rest/portal/admin/getUserForms.php', {'form_id': '39'})[1], {'form_id': '39'})
+        for path, params in [
+            ('rest/portal/getMonitorSchemaLayers.php', {'schemaId': '13'}),
+            ('rest/portal/getMonitorSchemaLayers.php', {**monitor, 'getDisabled': 'all'}),
+            ('rest/portal/getMonitorSchemaLayers.php', {**monitor, 'schemaId': '0'}),
+            ('rest/portal/admin/getUserForms.php', {'form_id': '2147483648'}),
+            ('rest/portal/admin/getUserForms.php', {'form_id': '39', 'mode': 'save'}),
+            ('rest/portal/admin/getSubmissions.php', {'limit': '501'}),
+            ('rest/portal/admin/getSubmissions.php', {'limit': '0'}),
+            ('rest/portal/getUsers.php', {'limit': '501'}),
+        ]:
+            with self.subTest(path=path, params=params), self.assertRaises(ValueError):
+                gateway.validate_read(path, params)
+
     def test_unknown_routes_and_write_modes_cannot_use_read_channel(self):
         for path, params in [
             ('https://example.com/private', {}),
@@ -176,6 +201,58 @@ class GatewayHTTP(unittest.TestCase):
         self.assertFalse(self.call('status', opener=self.other)[1]['loggedIn'])
         self.assertNotEqual(logged['csrfToken'], self.call('status', opener=self.other)[1]['csrfToken'])
 
+    def partial_login_identity(self, session):
+        session.logged_in = True
+        session.cookies.set_cookie(http.cookiejar.Cookie(
+            version=0, name='PHPSESSID', value='synthetic-partial-login', port=None, port_specified=False,
+            domain='nechakowatershed-portal.ca', domain_specified=False, domain_initial_dot=False,
+            path='/', path_specified=True, secure=True, expires=None, discard=True,
+            comment=None, comment_url=None, rest={}))
+
+    def assert_failed_identity_cleared(self, session):
+        self.assertFalse(session.logged_in)
+        self.assertFalse(session.is_admin)
+        self.assertEqual(list(session.cookies), [])
+        self.assertNotIn(session, self.server.sessions.items.values())
+        self.assertEqual(self.call('read', {'path': 'rest/portal/admin/getGroups.php', 'params': {}})[0], 403)
+        current = self.call('status')[1]
+        self.assertFalse(current['loggedIn'])
+        self.assertFalse(current['isAdmin'])
+        self.assertFalse(current['canWrite'])
+
+    def test_failed_login_envelopes_never_leave_administrator_rights(self):
+        for denial in [
+            {'success': False, 'status': 'success'},
+            {'success': True, 'status': 'failure'},
+            {'success': True, 'status': 'success', 'error': 'Synthetic denial'},
+        ]:
+            with self.subTest(denial=denial):
+                self.login('admin')
+                partial = []
+                def deny(session, path, params=None):
+                    self.assertEqual(path, 'rest/portal/login.php')
+                    self.partial_login_identity(session)
+                    partial.append(session)
+                    return {**denial, 'loggedIn': True, 'attributes': {'isAdmin': True}}
+                with patch.object(gateway, 'upstream', side_effect=deny):
+                    code, value = self.call('login', {'username': 'synthetic-fixture', 'password': 'fixture-only'})
+                    self.assertEqual(code, 401)
+                    self.assertNotIn('csrfToken', value)
+                    self.assert_failed_identity_cleared(partial[0])
+
+    def test_source_login_exception_discards_partial_identity_and_cookies(self):
+        self.login('admin')
+        partial = []
+        def fail_after_cookie(session, path, params=None):
+            self.assertEqual(path, 'rest/portal/login.php')
+            self.partial_login_identity(session)
+            partial.append(session)
+            raise urllib.error.URLError('Synthetic source transport failure')
+        with patch.object(gateway, 'upstream', side_effect=fail_after_cookie):
+            code, _ = self.call('login', {'username': 'synthetic-fixture', 'password': 'fixture-only'})
+            self.assertEqual(code, 502)
+            self.assert_failed_identity_cleared(partial[0])
+
     def test_wrong_origin_and_csrf_never_forward_a_write(self):
         logged = self.login()
         payload = {'path': 'rest/openmap/savedProjects.php', 'params': {'mode': 'rename', 'projectId': '4', 'projectName': 'Reviewed'}}
@@ -198,6 +275,33 @@ class GatewayHTTP(unittest.TestCase):
         self.assertEqual(self.call('write', payload, {'X-Nechako-CSRF': logged['csrfToken']})[0], 403)
         admin = self.login('admin')
         self.assertEqual(self.call('write', payload, {'X-Nechako-CSRF': admin['csrfToken']})[0], 200)
+
+    def test_manager_reads_require_source_admin_and_clear_after_disconnect(self):
+        payloads = [
+            {'path': 'rest/portal/getUsers.php', 'params': {'page': '1', 'start': '0', 'limit': '100'}},
+            {'path': 'rest/portal/admin/getGroups.php', 'params': {}},
+            {'path': 'rest/portal/admin/getUserForms.php', 'params': {'form_id': '39'}},
+            {'path': 'rest/portal/getMonitorSchemaLayers.php', 'params': {
+                'schemaId': '13', 'getDraftSubmissions': 'true', 'getDisabled': 'true'}},
+        ]
+        for payload in payloads:
+            self.assertEqual(self.call('read', payload)[0], 403)
+        self.assertEqual(self.source_calls, [])
+        self.login()
+        before = len(self.source_calls)
+        for payload in payloads:
+            self.assertEqual(self.call('read', payload)[0], 403)
+        self.assertEqual(len(self.source_calls), before)
+        self.login('admin')
+        for payload in payloads:
+            self.assertEqual(self.call('read', payload)[0], 200)
+            self.assertEqual(self.source_calls[-1], (payload['path'], payload['params'] or None))
+            self.assertEqual(self.call('read', payload, opener=self.other)[0], 403)
+        self.call('disconnect', {})
+        before = len(self.source_calls)
+        for payload in payloads:
+            self.assertEqual(self.call('read', payload)[0], 403)
+        self.assertEqual(len(self.source_calls), before)
 
     def test_permission_changes_cannot_mutate_account_identity(self):
         admin = self.login('admin')

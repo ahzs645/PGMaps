@@ -17,6 +17,7 @@ import {
   type MonitorRelation,
 } from './data/monitoringRelations'
 import type { ProjectRead } from './data/projectManager'
+import { PortalMonitorExtraction } from './PortalMonitorExtraction'
 export type PortalMonitoringProps = {
   submissionId?: string | number
   formId?: string | number
@@ -125,7 +126,8 @@ export function PortalLiveMonitoring({
       <p className="text-xs text-muted-foreground">
         Read the observations available to the current portal connection, 500 rows at a time. The original request
         includes accessible draft observations for form-node reads; layer/schema reads follow the original Attributes
-        tool. Downloads and charts cover only the loaded page; dates and units retain source values.
+        tool. Preview controls use the loaded page. Fetch all observation pages below for a verified complete extract or
+        an explicitly limited partial extract; dates and units retain source values.
       </p>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       <label className="block">
@@ -401,6 +403,17 @@ export function PortalLiveMonitoring({
       )}
       {data && (
         <>
+          <PortalMonitorExtraction
+            params={
+              mode === 'submission'
+                ? monitorPageRequest(relation, submission, 0, 500)
+                : monitorAttributePageRequest(mode, sourceId, recordId, 0, 500)
+            }
+            fields={data.fields}
+            name={mode === 'submission' ? relation.layerName : `${mode} ${sourceId}, record ${recordId}`}
+            read={read}
+            onChart={onCsv}
+          />
           <p className="text-sm">
             {data.noData
               ? 'No accessible observations.'

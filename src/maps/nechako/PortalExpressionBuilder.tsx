@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { compileSearchClause, type SearchClause } from './data/searchBuilder'
+import { compileSearchClause, type SearchClause, type SearchFieldGroup } from './data/searchBuilder'
 const input = 'rounded-md border bg-background p-2 text-base min-w-0 max-w-full'
 function ClauseEditor({
   clause,
   onChange,
   depth = 0,
+  fieldOptions,
 }: {
   clause: SearchClause
   onChange: (next: SearchClause) => void
   depth?: number
+  fieldOptions?: SearchFieldGroup[]
 }) {
+  const [fieldGroup, setFieldGroup] = useState(fieldOptions?.[0]?.id ?? '')
+  const group = fieldOptions?.find((item) => item.id === fieldGroup) ?? fieldOptions?.[0]
   return (
     <div className="space-y-2 rounded-lg border p-3">
       <label className="flex flex-wrap items-center gap-2 text-sm">
@@ -45,13 +49,75 @@ function ClauseEditor({
       )}
       {clause.kind === 'field' && (
         <div className="grid gap-2 sm:grid-cols-2">
+          {fieldOptions?.length ? (
+            <>
+              <label className="grid gap-1 text-sm">
+                Field group
+                <select
+                  className={input}
+                  aria-label="Expression field group"
+                  value={group?.id ?? ''}
+                  onChange={(event) => setFieldGroup(event.target.value)}
+                >
+                  {fieldOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                Available field
+                <select
+                  className={input}
+                  aria-label="Expression available field"
+                  value={
+                    group?.fields.find(
+                      (field) => field.field === clause.field && field.scopeFormId === clause.scopeFormId,
+                    )?.id ?? ''
+                  }
+                  onChange={(event) => {
+                    const field = group?.fields.find((field) => field.id === event.target.value)
+                    if (field)
+                      onChange({
+                        ...clause,
+                        field: field.field,
+                        scopeFormId: field.scopeFormId,
+                        valueType: field.valueType,
+                        value:
+                          clause.valueType === field.valueType
+                            ? clause.value
+                            : field.valueType === 'boolean'
+                              ? 'false'
+                              : field.valueType === 'number'
+                                ? '0'
+                                : '',
+                      })
+                  }}
+                >
+                  <option value="">Choose a field</option>
+                  {group?.fields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {clause.scopeFormId && (
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  This comparison includes Form ID {clause.scopeFormId}. The captured field ID is kept in the expression
+                  so repeated labels stay distinct.
+                </p>
+              )}
+            </>
+          ) : null}
           <label className="grid gap-1 text-sm">
-            Field
+            {fieldOptions ? 'Field / manual entry' : 'Field'}
             <input
               className={input}
               aria-label="Expression field"
               value={clause.field}
-              onChange={(e) => onChange({ ...clause, field: e.target.value })}
+              onChange={(e) => onChange({ ...clause, field: e.target.value, scopeFormId: undefined })}
             />
           </label>
           <label className="grid gap-1 text-sm">
@@ -110,6 +176,7 @@ function ClauseEditor({
               <ClauseEditor
                 depth={depth + 1}
                 clause={child}
+                fieldOptions={fieldOptions}
                 onChange={(next) =>
                   onChange({ ...clause, clauses: clause.clauses.map((c, j) => (j === i ? next : c)) })
                 }
@@ -141,9 +208,11 @@ function ClauseEditor({
 export function PortalExpressionBuilder({
   onApply,
   defaultOpen = false,
+  fieldOptions,
 }: {
   onApply: (expression: string) => void
   defaultOpen?: boolean
+  fieldOptions?: SearchFieldGroup[]
 }) {
   const [clause, setClause] = useState<SearchClause>({
     kind: 'group',
@@ -161,7 +230,7 @@ export function PortalExpressionBuilder({
     <details open={defaultOpen || undefined} className="space-y-3 rounded-lg border p-3">
       <summary className="cursor-pointer font-medium">Visual expression builder</summary>
       <div className="mt-3 space-y-3">
-        <ClauseEditor clause={clause} onChange={setClause} />
+        <ClauseEditor clause={clause} onChange={setClause} fieldOptions={fieldOptions} />
         {error ? (
           <InlineAlert tone="warning">{error}</InlineAlert>
         ) : (

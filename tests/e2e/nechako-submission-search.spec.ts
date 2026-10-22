@@ -100,6 +100,48 @@ const manifest = {
   omissions: {},
 }
 
+test('captured hierarchy preserves search paging and form-scoped field queries keep IDs distinct', async ({ page }) => {
+  const { errors, sourceRequests } = await mockSnapshot(page)
+  await page.goto('/dev/nechako/portal?panel=search')
+  await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Next submissions', exact: true }).click()
+  await expect(page.getByText('26 submissions · Page 2 of 2', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Switch to Submission Browser', exact: true }).click()
+  const hierarchy = page.getByRole('navigation', { name: 'Captured submission hierarchy', exact: true })
+  await expect(page.getByText('Capture scope: Anonymous fixture', { exact: true })).toBeVisible()
+  await hierarchy.getByText('Literature · Form 8 (1)', { exact: true }).click()
+  await hierarchy.getByRole('button', { name: 'Literature · 2026 · 1 captured submissions', exact: true }).click()
+  await expect(page.getByText('1 captured submissions · Page 1 of 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Public fixture 26', exact: true }).click()
+  await expect(page.locator('[data-nechako-submission-dialog]')).toContainText('Submission ID 26')
+  await page
+    .locator('[data-nechako-submission-dialog]')
+    .getByRole('button', { name: 'Close', exact: true })
+    .last()
+    .press('Escape')
+  await page.getByRole('button', { name: 'Switch to Submission Search', exact: true }).click()
+  await expect(page.getByText('26 submissions · Page 2 of 2', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Expression Builder', exact: true }).click()
+  // Replace the root group with a single typed field rule.
+  await page.getByLabel('Expression rule type', { exact: true }).first().selectOption('field')
+  await page.getByLabel('Expression field group', { exact: true }).selectOption('form:3')
+  await page.getByLabel('Expression available field', { exact: true }).selectOption('form:3:field:35')
+  await page.getByLabel('Expression operator', { exact: true }).selectOption('=')
+  await expect(page.getByLabel('Expression value type', { exact: true })).toHaveValue('boolean')
+  await expect(page.getByLabel('Expression value', { exact: true })).toHaveValue('false')
+  await page.getByRole('button', { name: 'Use built expression', exact: true }).click()
+  await expect(page.getByLabel('Submission search expression', { exact: true })).toHaveValue(
+    '({Form ID} = 3 AND {field_35} = false)',
+  )
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(page.getByText('25 submissions · Page 1 of 1', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Public fixture 26', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toBeVisible()
+  expect(errors).toEqual([])
+  expect(sourceRequests).toEqual([])
+})
+
 test('source spatial IDs restrict local content and failures do not silently broaden results', async ({ page }) => {
   test.setTimeout(90_000)
   await page.addInitScript(() => localStorage.setItem('pgmaps-nechako-connection-mode', 'gateway'))
@@ -708,7 +750,7 @@ test('uncaptured child access is gated, sign-in opens a RAM-only viewer and clos
   await expect(privateDetails.getByText('0', { exact: true })).toBeVisible()
   await expect(privateDetails.getByText('[]', { exact: true })).toBeVisible()
   await expect(
-    privateDetails.getByRole('link', { name: 'http://example.test/private-citation?a=1&b=2', exact: true }),
+    privateDetails.getByRole('link', { name: 'http://example.test/private-citation?a=1&b=2', exact: false }),
   ).toHaveAttribute('href', 'http://example.test/private-citation?a=1&b=2')
   expect(fieldIndices).toEqual({ '46': '0', '47': '1', '48': '0', '49': '1', '50': '2' })
   await expect(privateDetails.getByRole('tab')).toHaveCount(8)

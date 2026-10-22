@@ -56,7 +56,11 @@ export function checkedMonitorPage(input: unknown, pageSize: number): MonitorPag
     recordCount:
       typeof raw.recordCount === 'string' && /^\d+$/.test(raw.recordCount) ? Number(raw.recordCount) : raw.recordCount,
   }
-  if (data?.noData === true && !data.data) return { fields: [], data: [], recordCount: 0, noData: true }
+  if (data?.noData === true && !data.data) {
+    const recordCount = data.recordCount ?? 0
+    if (!Number.isSafeInteger(recordCount) || recordCount < 0) throw new Error('Invalid monitoring total.')
+    return { fields: [], data: [], recordCount, noData: true }
+  }
   if (
     !data ||
     !Array.isArray(data.fields) ||

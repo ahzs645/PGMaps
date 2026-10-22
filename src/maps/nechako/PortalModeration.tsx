@@ -59,7 +59,7 @@ export function PortalModeration({
                   <input
                     type="checkbox"
                     aria-label={`Review shared layer ${row.layer_id}`}
-                    disabled={busy}
+                    disabled={!canWrite || busy}
                     checked={ids.includes(Number(row.layer_id))}
                     onChange={(e) => {
                       setIds(
@@ -89,7 +89,7 @@ export function PortalModeration({
         Review action
         <select
           aria-label="Layer moderation action"
-          disabled={busy}
+          disabled={!canWrite || busy}
           value={mode}
           className="rounded border bg-background p-2 text-base"
           onChange={(e) => {
@@ -104,7 +104,7 @@ export function PortalModeration({
       </label>
       <Button
         variant="outline"
-        disabled={busy || !ids.length || ids.length > 500}
+        disabled={!canWrite || busy || !ids.length || ids.length > 500}
         onClick={() => {
           setReview(true)
           setAck(false)
@@ -143,7 +143,8 @@ export function PortalModeration({
       )}
       <p className="text-xs text-muted-foreground">
         Retraction can make source data eligible for permanent cleanup; use the original administrator interface for
-        that operation. Toggle follows the original active-state operation rather than a revision-checked update. After an uncertain response, reload and review the current queue before another attempt.
+        that operation. Toggle follows the original active-state operation rather than a revision-checked update. After
+        an uncertain response, reload and review the current queue before another attempt.
       </p>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       {notice && <InlineAlert>{notice}</InlineAlert>}

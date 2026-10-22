@@ -18,7 +18,11 @@ import { errorText } from '@/lib/nechakoPortal'
 import { csvExport } from './data/monitoring'
 import { exportGis } from './data/conversion'
 import { normalizeGeojson, type VectorData } from './data/workspace'
-import { categoryColor, categoryLabel, makeCategoryStyle } from './data/vectorStyle'
+import { categoryLabel, makeCategoryStyle } from './data/vectorStyle'
+import { stylePaint, vectorStyleFor } from './data/vectorRules'
+import { applyLocalDefaultStyle } from './data/styleLibrary'
+import { PortalVectorStyleEditor } from './PortalVectorStyleEditor'
+import { PortalStyleLibrary } from './PortalStyleLibrary'
 import { splitPolygon } from './data/polygonSplit'
 
 function featureCollection(features: Feature[]): FeatureCollection {
@@ -43,6 +47,8 @@ export function VectorLayers({
   )
 }
 function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id: string, index: number) => void }) {
+  const style = useMemo(() => vectorStyleFor(vector), [vector])
+  const paint = useMemo(() => stylePaint(style), [style])
   const data = useMemo(() => {
     const flatten = (feature: Feature): Feature[] =>
       feature.geometry?.type === 'GeometryCollection'
@@ -68,35 +74,40 @@ function VectorLayer({ vector, onSelect }: { vector: VectorData; onSelect?: (id:
   )
   return (
     <>
-      {polygons.features.length > 0 && (
+      {polygons.features.length > 0 && (style.geometry === 'any' || style.geometry === 'polygon') && (
         <MapFillLayer
           data={polygons}
-          fillColor={categoryColor(vector.categories, vector.color)}
-          fillOpacity={vector.fillOpacity ?? 0.35}
-          lineColor={categoryColor(vector.categories, vector.color)}
-          lineWidth={vector.lineWidth ?? 2}
-          lineOpacity={vector.lineOpacity}
+          fillColor={paint.fillColor}
+          fillOpacity={paint.fillOpacity}
+          lineColor={paint.strokeColor}
+          lineWidth={paint.strokeWidth}
+          lineOpacity={1}
           idProperty="__nechako_render_id"
           onFeatureClick={(id) => onSelect?.(vector.id, Number(id))}
         />
       )}
-      {lines.features.length > 0 && (
+      {lines.features.length > 0 && (style.geometry === 'any' || style.geometry === 'line') && (
         <MapLineLayer
           data={lines}
-          color={categoryColor(vector.categories, vector.color)}
-          width={vector.lineWidth ?? 3}
-          opacity={vector.lineOpacity ?? 1}
+          color={paint.strokeColor}
+          width={vector.style ? paint.strokeWidth : (vector.lineWidth ?? 3)}
+          opacity={1}
+          lineCap={vector.style ? 'butt' : 'round'}
+          lineJoin={vector.style ? 'miter' : 'round'}
           sourceTolerance={0}
           interactive={!!onSelect}
           idProperty="__nechako_render_id"
           onFeatureClick={(id) => onSelect?.(vector.id, Number(id))}
         />
       )}
-      {points.features.length > 0 && (
+      {points.features.length > 0 && (style.geometry === 'any' || style.geometry === 'point') && (
         <MapCircleLayer
           data={points}
-          color={categoryColor(vector.categories, vector.color)}
-          radius={vector.pointRadius ?? 6}
+          color={paint.fillColor}
+          radius={paint.pointRadius}
+          opacity={paint.pointOpacity}
+          strokeColor={vector.style ? paint.strokeColor : '#ffffff'}
+          strokeWidth={vector.style ? paint.pointStrokeWidth : 1.25}
           hoverEnabled={false}
           idProperty="__nechako_render_id"
           onFeatureClick={(id) => onSelect?.(vector.id, Number(id))}
@@ -221,6 +232,7 @@ export function PortalVectors({
   const [positions, setPositions] = useState<[number, number][]>([])
   const [exporting, setExporting] = useState(false),
     [format, setFormat] = useState('gpkg')
+  const [exportWarnings, setExportWarnings] = useState<string[]>([])
   const history = useRef<VectorData[][]>([])
   const selectedFeature = selected?.data.features[featureIndex]
   useEffect(() => {
@@ -242,6 +254,7 @@ export function PortalVectors({
   useEffect(() => {
     setEdit('')
     setPage(0)
+    setExportWarnings([])
   }, [selected?.id])
   useEffect(() => {
     if (picked) {
@@ -270,15 +283,16 @@ export function PortalVectors({
     setVectors(next)
     setError('')
   }
-  const add = (data: FeatureCollection, name: string) => {
+  const add = async (data: FeatureCollection, name: string) => {
     const id = crypto.randomUUID()
-    replace([...vectors, { id, name, data, color: '#c2410c', visible: true }])
+    const vector = await applyLocalDefaultStyle({ id, name, data, color: '#c2410c', visible: true })
+    replace([...vectors, vector])
     setSelectedId(id)
     setFeatureIndex(0)
     setPositions([])
     setDraw('off')
   }
-  const finishDrawing = () => {
+  const finishDrawing = async () => {
     try {
       if (draw === 'Point' && positions.length !== 1)
         throw new Error('Place exactly one point, or undo extra vertices.')
@@ -293,7 +307,7 @@ export function PortalVectors({
       })
       if (draw === 'Polygon' && kinks(data.features[0] as Feature<Polygon>).features.length)
         throw new Error('Drawing self-intersects; undo vertices and redraw.')
-      add(data, `Drawn ${draw.toLowerCase()}`)
+      await add(data, `Drawn ${draw.toLowerCase()}`)
     } catch (reason) {
       setError(errorText(reason))
     }
@@ -387,6 +401,7 @@ export function PortalVectors({
           <input
             aria-label={`Color for ${item.name}`}
             type="color"
+            disabled={!!item.style}
             value={item.color}
             onChange={(event) =>
               setVectors(
@@ -396,115 +411,125 @@ export function PortalVectors({
           />
           <details className="w-full rounded border p-2">
             <summary>Style {item.name}</summary>
-            <label className="block">
-              Color categories by field
-              <select
-                className="ml-2 max-w-full rounded border bg-background p-2"
-                aria-label={`Category field for ${item.name}`}
-                value={item.categories?.property ?? ''}
-                onChange={(event) => {
-                  try {
-                    const categories = event.target.value
-                      ? makeCategoryStyle(item.data, event.target.value, item.color)
-                      : undefined
-                    replace(vectors.map((value) => (value.id === item.id ? { ...value, categories } : value)))
-                    setError('')
-                  } catch (reason) {
-                    setError(errorText(reason))
-                  }
-                }}
-              >
-                <option value="">Single color</option>
-                {[...new Set(item.data.features.flatMap((feature) => Object.keys(feature.properties ?? {})))]
-                  .sort()
-                  .map((field) => (
-                    <option key={field}>{field}</option>
-                  ))}
-              </select>
-            </label>
-            {item.categories?.rules.map((rule, index) => (
-              <label key={index} className="mt-1 flex items-center gap-2">
-                <input
-                  type="color"
-                  aria-label={`Category ${categoryLabel(rule.value)} for ${item.name}`}
-                  value={rule.color}
-                  onChange={(event) =>
-                    replace(
-                      vectors.map((value) =>
-                        value.id === item.id
-                          ? {
-                              ...value,
-                              categories: {
-                                ...item.categories!,
-                                rules: item.categories!.rules.map((entry, i) =>
-                                  i === index ? { ...entry, color: event.target.value } : entry,
-                                ),
-                              },
-                            }
-                          : value,
-                      ),
-                    )
-                  }
-                />
-                {categoryLabel(rule.value)}
+            <div hidden={!!item.style}>
+              <label className="block">
+                Color categories by field
+                <select
+                  className="ml-2 max-w-full rounded border bg-background p-2"
+                  aria-label={`Category field for ${item.name}`}
+                  value={item.categories?.property ?? ''}
+                  onChange={(event) => {
+                    try {
+                      const categories = event.target.value
+                        ? makeCategoryStyle(item.data, event.target.value, item.color)
+                        : undefined
+                      replace(vectors.map((value) => (value.id === item.id ? { ...value, categories } : value)))
+                      setError('')
+                    } catch (reason) {
+                      setError(errorText(reason))
+                    }
+                  }}
+                >
+                  <option value="">Single color</option>
+                  {[...new Set(item.data.features.flatMap((feature) => Object.keys(feature.properties ?? {})))]
+                    .sort()
+                    .map((field) => (
+                      <option key={field}>{field}</option>
+                    ))}
+                </select>
               </label>
-            ))}
-            {item.categories && (
-              <label className="mt-1 flex items-center gap-2">
-                <input
-                  type="color"
-                  aria-label={`Fallback color for ${item.name}`}
-                  value={item.categories.fallback}
-                  onChange={(event) =>
-                    replace(
-                      vectors.map((value) =>
-                        value.id === item.id
-                          ? { ...value, categories: { ...item.categories!, fallback: event.target.value } }
-                          : value,
-                      ),
-                    )
-                  }
-                />
-                Other values
-              </label>
-            )}
-            {(
-              [
-                ['lineWidth', 'Line width (pixels)', 20, 2],
-                ['pointRadius', 'Point radius (pixels)', 30, 6],
-                ['fillOpacity', 'Fill opacity', 1, 0.35],
-              ] as const
-            ).map(([key, title, max, initial]) => (
-              <label key={key} className="mt-2 block">
-                {title}
-                <input
-                  type="range"
-                  className="w-full"
-                  min="0"
-                  max={max}
-                  step={max === 1 ? 0.05 : 1}
-                  aria-label={`${title} for ${item.name}`}
-                  value={item[key] ?? initial}
-                  onChange={(event) =>
-                    replace(
-                      vectors.map((value) =>
-                        value.id === item.id ? { ...value, [key]: Number(event.target.value) } : value,
-                      ),
-                    )
-                  }
-                />
-              </label>
-            ))}
-            <p className="text-xs text-muted-foreground">
-              Category colors preserve number, text and boolean values separately. Missing values share the null
-              category. Up to 40 categories.
-            </p>
+              {item.categories?.rules.map((rule, index) => (
+                <label key={index} className="mt-1 flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={`Category ${categoryLabel(rule.value)} for ${item.name}`}
+                    value={rule.color}
+                    onChange={(event) =>
+                      replace(
+                        vectors.map((value) =>
+                          value.id === item.id
+                            ? {
+                                ...value,
+                                categories: {
+                                  ...item.categories!,
+                                  rules: item.categories!.rules.map((entry, i) =>
+                                    i === index ? { ...entry, color: event.target.value } : entry,
+                                  ),
+                                },
+                              }
+                            : value,
+                        ),
+                      )
+                    }
+                  />
+                  {categoryLabel(rule.value)}
+                </label>
+              ))}
+              {item.categories && (
+                <label className="mt-1 flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={`Fallback color for ${item.name}`}
+                    value={item.categories.fallback}
+                    onChange={(event) =>
+                      replace(
+                        vectors.map((value) =>
+                          value.id === item.id
+                            ? { ...value, categories: { ...item.categories!, fallback: event.target.value } }
+                            : value,
+                        ),
+                      )
+                    }
+                  />
+                  Other values
+                </label>
+              )}
+              {(
+                [
+                  ['lineWidth', 'Line width (pixels)', 20, 2],
+                  ['pointRadius', 'Point radius (pixels)', 30, 6],
+                  ['fillOpacity', 'Fill opacity', 1, 0.35],
+                ] as const
+              ).map(([key, title, max, initial]) => (
+                <label key={key} className="mt-2 block">
+                  {title}
+                  <input
+                    type="range"
+                    className="w-full"
+                    min="0"
+                    max={max}
+                    step={max === 1 ? 0.05 : 1}
+                    aria-label={`${title} for ${item.name}`}
+                    value={item[key] ?? initial}
+                    onChange={(event) =>
+                      replace(
+                        vectors.map((value) =>
+                          value.id === item.id ? { ...value, [key]: Number(event.target.value) } : value,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Category colors preserve number, text and boolean values separately. Missing values share the null
+                category. Up to 40 categories.
+              </p>
+            </div>
+            <PortalVectorStyleEditor
+              vector={item}
+              onChange={(next) => replace(vectors.map((value) => (value.id === next.id ? next : value)))}
+            />
           </details>
           <Button size="sm" variant="outline" onClick={() => replace(vectors.filter((value) => value.id !== item.id))}>
             Remove vector {item.name}
           </Button>
         </div>
       ))}
+      <PortalStyleLibrary
+        vectors={vectors}
+        onApply={(next) => replace(vectors.map((value) => (value.id === next.id ? next : value)))}
+      />
       {selected && (
         <>
           <label className="mt-3 block text-sm">
@@ -588,8 +613,10 @@ export function PortalVectors({
               disabled={exporting}
               onClick={async () => {
                 setExporting(true)
+                setExportWarnings([])
                 try {
-                  await exportGis(selected.data, format)
+                  const exported = await exportGis(selected.data, format)
+                  setExportWarnings(exported.warnings)
                   setError('')
                 } catch (reason) {
                   setError(errorText(reason))
@@ -601,6 +628,11 @@ export function PortalVectors({
               {exporting ? 'Exporting…' : 'Convert GIS export'}
             </Button>
           </div>
+          {exportWarnings.map((warning, index) => (
+            <InlineAlert key={index} tone="warning">
+              {warning}
+            </InlineAlert>
+          ))}
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" disabled={current === 0} onClick={() => setPage(current - 1)}>
               Previous vector records
@@ -730,7 +762,7 @@ export function PortalVectors({
             )}
             <Button
               size="sm"
-              onClick={() => {
+              onClick={async () => {
                 try {
                   if (!selectedFeature) throw new Error('Choose a valid primary feature.')
                   const output = processGeometry(
@@ -741,7 +773,7 @@ export function PortalVectors({
                   )
                   if (!output.features.length)
                     throw new Error('Operation produced empty geometry; no output layer created.')
-                  add(output, `${operation}: ${selected.name}`)
+                  await add(output, `${operation}: ${selected.name}`)
                 } catch (reason) {
                   setError(errorText(reason))
                 }

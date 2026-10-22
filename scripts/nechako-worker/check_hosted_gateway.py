@@ -142,13 +142,15 @@ def common(reply, expected=200):
     require(reply.headers.get("x-content-type-options") == "nosniff", "Missing content-type protection")
 
 
-def status_value(reply, logged_in):
+def status_value(reply, logged_in, is_admin=None):
     common(reply)
     value = reply.json()
     require(value.get("schema") == "nechako-hosted-connection-v1" and value.get("available") is True,
             "Missing hosted status contract")
     require(value.get("loggedIn") is logged_in and value.get("readOnly") is True
-            and value.get("canWrite") is False and value.get("isAdmin") is False,
+            and value.get("canWrite") is False and type(value.get("isAdmin")) is bool
+            and (logged_in or value.get("isAdmin") is False)
+            and (is_admin is None or value.get("isAdmin") is is_admin),
             "Unexpected identity or write capability")
     require("attributes" not in value, "Status must not expose native identity attributes")
     require(value.get("sessionReset") is not True, "Source session unexpectedly reset")
@@ -402,6 +404,15 @@ class OfflineTests(unittest.TestCase):
         reply.headers["set-cookie"] = "fixture-never-log"
         with self.assertRaises(CheckFailure):
             status_value(reply, False)
+
+    def test_admin_read_flag_does_not_imply_write_access_or_anonymous_privileges(self):
+        value = {"schema": "nechako-hosted-connection-v1", "available": True,
+                 "loggedIn": True, "readOnly": True, "canWrite": False, "isAdmin": True}
+        status_value(self.reply(value), True, is_admin=True)
+        for changes, logged_in in [({"canWrite": True}, True), ({"readOnly": False}, True),
+                                   ({"loggedIn": False}, False), ({"isAdmin": "true"}, True)]:
+            with self.subTest(changes=changes), self.assertRaises(CheckFailure):
+                status_value(self.reply({**value, **changes}), logged_in)
 
     def test_base_url_rejects_embedded_credentials_and_queries(self):
         for base in ("http://example.com/api/nechako-portal", "https://user:secret@example.com/api/nechako-portal",

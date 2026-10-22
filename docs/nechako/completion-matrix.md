@@ -1,5 +1,7 @@
 # Nechako workbench completion and verification
 
+> **October 21, 2026 update:** Use the [current portal option audit](2026-10-21-parity-audit.md) for implementation coverage, additions in the current change and remaining gaps. It supersedes the older gap classifications below where implementation has advanced. The October 11–12 observations, source counts and verification totals remain historical; they are not current deployment or authenticated-access evidence.
+
 Updated October 12, 2026, America/Vancouver. “Implemented” means code in this PGMaps change, not a deployed portal feature. Actual public browser reads, synthetic interaction fixtures, format fixtures and isolated PHP tests are kept separate.
 
 ## Current proof of concept — October 12

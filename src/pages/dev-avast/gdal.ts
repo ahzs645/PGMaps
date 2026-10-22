@@ -179,6 +179,18 @@ function exclusive<T>(work: () => Promise<T>): Promise<T> {
   return run
 }
 
+/** Borrow the shared GDAL worker exclusively and invalidate its cached mount before replacing inputs. */
+export function withBrowserGdal<T>(work: (gdal: Gdal) => Promise<T>): Promise<T> {
+  return exclusive(async () => {
+    const gdal = await loadGdal()
+    await closeAll(gdal)
+    mountedKey = ''
+    mountedSets = []
+    // The caller closes the dataset handles it opens before resolving.
+    return work(gdal)
+  })
+}
+
 let mountedKey = ''
 let mountedSets: DetectedDataset[] = []
 const openDatasets = new Map<string, GdalDataset>()

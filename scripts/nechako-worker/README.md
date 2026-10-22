@@ -1,7 +1,7 @@
 # Hosted Nechako read connection
 
 Target: `https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal`.
-The Worker supports source reads, per-session sign-in/disconnect, association-checked layer attributes and original submission downloads. `/write`, administrative source routes and mutation modes are unavailable. Every status advertises `readOnly:true`, `canWrite:false`, `isAdmin:false`, including source administrator sign-ins.
+The Worker supports source reads, per-session sign-in/disconnect, association-checked layer attributes and original submission downloads. Verified administrator sessions can also inspect the fixed administrative read routes below. `/write` and all source mutation modes remain unavailable. Every status advertises `readOnly:true` and `canWrite:false`; `isAdmin` reflects only the strict boolean returned by a successful source sign-in. Administrator read access does not enable edits.
 
 ## Session boundary
 
@@ -23,11 +23,34 @@ All routes use the base path above. Bodies are JSON. Reads return native envelop
 | POST `/status`           | `{}`                     | Allocates an anonymous capability and returns status plus `sessionToken`.                                                                          |
 | POST `/login`            | `{username,password}`    | Optional old header is revoked. Success 200 or native denial 401 returns status plus a fresh `sessionToken`; login attributes are not exposed.     |
 | POST `/disconnect`       | `{}`                     | Revokes supplied capability; anonymous status, no allocation.                                                                                      |
-| POST `/read`             | `{path,params}`          | Requires capability; native relative endpoint and string parameters must match the fixed non-admin allowlist.                                      |
+| POST `/read`             | `{path,params}`          | Requires capability; native relative endpoint and string parameters must match the fixed allowlist. Administrative routes additionally require a verified source administrator session. |
 | POST `/layer-attributes` | `{submissionId,layerId}` | Requires capability; verifies source submission-layer association and derives its descriptor on the server. No caller URL, filename, table or SQL. |
 | POST `/download`         | `{submissionId,mode}`    | Requires capability; modes `pdf`, `html`, `csv`, `files`. Same-session metadata access is checked before the fixed native export POST.             |
 
 Anonymous source reads are supported without a sign-in. Original permissions decide which fields/files a signed-in user receives. Native ZIP can fail for a record with no source files; submission 9 returns warning HTML for ZIP, while 745 has a verified PNG attachment archive. These are reported as failures rather than downloaded under a false ZIP extension.
+
+### Administrator inspection
+
+The administrative read contracts match the existing local gateway, with the form-access and monitoring-association reads additionally verified in the source's public `FormManager.js` and `SchemaManager.js`. Anonymous and nonadministrator capabilities are rejected **before** forwarding a request, including a sign-in whose username happens to be `admin`. Only a successful native login with `attributes.isAdmin === true` enables these reads. Source authorization still decides whether each resource is returned. Source sign-out, failed replacement login, disconnect, expiry and object reset clear the flag. Responses remain private to that capability and are never stored in the public snapshot.
+
+| Native route under `rest/portal/admin/` | Parameters |
+| --- | --- |
+| `getGroups.php` | none |
+| `getGroupMembers.php` | positive `gid`; optional `includePrimaryGroupStatus` of `true` or `false` |
+| `getUserDetails.php` | positive `uid` |
+| `getUserPermissionsCheckbox.php` | positive `uid`; `mode` of `form`, `submission`, `match_preset`, `shared_style` or `shared_project` |
+| `getUserForms.php` | positive `form_id` |
+| `getLinkableLayers.php` | optional `page`, `start`, `limit` |
+| `getLayerSharedLayersManager.php` | positive `layerId` |
+| `getAllBaseLayers.php` | none |
+| `getContents.php` | none |
+| `getSubmissions.php` | optional `page`, `start`, `limit` |
+
+`rest/portal/getMonitorSchemaLayers.php` also requires administrator access because this manager read includes draft and disabled associations. It requires a positive `schemaId`, plus `getDraftSubmissions` and `getDisabled` as `true` or `false` strings.
+
+`rest/portal/getUsers.php` is also administrator-only: the source account-directory contract includes names, email addresses and account flags, despite its path being outside `/admin/`. Its optional pagination uses the same bounds.
+
+IDs are bounded to signed 32-bit positive integers. Requested administrator page limits are 1–500 rows; existing endpoint defaults are retained when pagination is omitted. Other parameter names, unknown admin routes, server-variable access, form creation, draft allocation, permission changes and other writes are rejected. UI consumers must use `isAdmin` for inspection and `canWrite` separately for editing; the hosted connection never advertises `canWrite:true`.
 
 ## Request and resource limits
 
