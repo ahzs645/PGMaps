@@ -4,6 +4,7 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { AppSelect } from '@/components/ui/select'
 import { NumberField } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
+import { haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 
@@ -341,8 +342,12 @@ export function CostBreakdown({
               [
                 ['freeHaulDistanceM', 'Free haul (m)', 100000],
                 ['overhaulDistanceM', 'Overhaul limit (m)', 100000],
+                ['freeHaulRate', 'Free haul ($/m³·km)', 10000],
+                ['freeHaulLoadingRate', 'Free loading ($/m³)', 10000],
                 ['overhaulRate', 'Overhaul ($/m³·km)', 10000],
+                ['overhaulLoadingRate', 'Over loading ($/m³)', 10000],
                 ['endHaulRate', 'Endhaul ($/m³·km)', 10000],
+                ['endHaulLoadingRate', 'End loading ($/m³)', 10000],
               ] as const
             ).map(([key, label, max]) => (
               <NumberField
@@ -355,6 +360,7 @@ export function CostBreakdown({
             ))}
           </div>
         )}
+        {haul && onHaul && <HaulCostGraph haul={haul} />}
         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span>
             Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
@@ -383,5 +389,64 @@ export function CostBreakdown({
         )}
       </div>
     </PanelDialog>
+  )
+}
+
+/** Haul cost per m³ against distance: the free-haul, overhaul and endhaul pieces with their loading steps. */
+function HaulCostGraph({ haul }: { haul: HaulSettings }) {
+  const width = 520,
+    height = 150,
+    left = 46,
+    right = 12,
+    top = 12,
+    bottom = 28
+  const reach = Math.max(haul.overhaulDistanceM * 1.4, haul.freeHaulDistanceM * 2, 100)
+  const distances = [
+    0,
+    haul.freeHaulDistanceM,
+    haul.freeHaulDistanceM + 1e-6,
+    haul.overhaulDistanceM,
+    haul.overhaulDistanceM + 1e-6,
+    reach,
+  ]
+  const costs = distances.map((d) => haulUnitCost(haul, d))
+  const top$ = Math.max(1, ...costs) * 1.1
+  const x = (d: number) => left + (d / reach) * (width - left - right)
+  const y = (c: number) => top + (1 - c / top$) * (height - top - bottom)
+  const path = distances.map((d, i) => `${i ? 'L' : 'M'}${x(d).toFixed(1)},${y(costs[i]).toFixed(1)}`).join(' ')
+  return (
+    <figure className="rounded border p-2" data-testid="road-haul-cost-graph">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label="Haul cost per cubic metre by distance"
+      >
+        <line x1={left} x2={width - right} y1={y(0)} y2={y(0)} stroke="hsl(var(--muted-foreground))" />
+        <line x1={left} x2={left} y1={top} y2={y(0)} stroke="hsl(var(--muted-foreground))" />
+        {[haul.freeHaulDistanceM, haul.overhaulDistanceM].map((d) => (
+          <g key={d}>
+            <line x1={x(d)} x2={x(d)} y1={top} y2={y(0)} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+            <text x={x(d)} y={height - 12} fontSize="10" textAnchor="middle" fill="hsl(var(--muted-foreground))">
+              {d.toLocaleString('en-CA')} m
+            </text>
+          </g>
+        ))}
+        <text x={width - right} y={height - 1} fontSize="10" textAnchor="end" fill="hsl(var(--muted-foreground))">
+          haul distance
+        </text>
+        <text x={left - 6} y={top + 8} fontSize="10" textAnchor="end" fill="hsl(var(--muted-foreground))">
+          ${top$.toFixed(top$ < 10 ? 2 : 0)}
+        </text>
+        <text x={left - 6} y={y(0)} fontSize="10" textAnchor="end" fill="hsl(var(--muted-foreground))">
+          $0
+        </text>
+        <path d={path} fill="none" stroke="#7c3aed" strokeWidth={2} />
+      </svg>
+      <figcaption className="text-[11px] text-muted-foreground">
+        $ per m³ hauled: free haul over its whole distance, overhaul and endhaul beyond the free-haul distance, each
+        class adding its loading rate.
+      </figcaption>
+    </figure>
   )
 }

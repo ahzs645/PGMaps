@@ -60,9 +60,15 @@ export interface HaulSettings {
   enabled: boolean
   freeHaulDistanceM: number
   overhaulDistanceM: number
+  /** CAD/(transported m³·km) over the whole distance of a free-haul movement. Zero is free haul. */
+  freeHaulRate: number
   /** CAD/(transported m³·km), applied only beyond the free-haul distance. */
   overhaulRate: number
   endHaulRate: number
+  /** CAD per transported m³ for loading, by haul class: a fixed step in the haul-cost curve. */
+  freeHaulLoadingRate: number
+  overhaulLoadingRate: number
+  endHaulLoadingRate: number
   /** CAD per compacted m³ supplied / bank m³ disposed. */
   borrowRate: number
   wasteRate: number
@@ -229,8 +235,12 @@ export const DEFAULT_HAUL_SETTINGS: HaulSettings = {
   enabled: false,
   freeHaulDistanceM: 25,
   overhaulDistanceM: 150,
+  freeHaulRate: 0,
   overhaulRate: 0,
   endHaulRate: 0,
+  freeHaulLoadingRate: 0,
+  overhaulLoadingRate: 0,
+  endHaulLoadingRate: 0,
   borrowRate: 0,
   wasteRate: 0,
   mobilizationCost: 0,

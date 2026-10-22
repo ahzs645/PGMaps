@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, distance, horizontalCurveSummary, offsetCoordinate, verticalCurveSummary } from './engine'
-import { createEngineeringDesign } from './engineeringTypes'
+import { haulUnitCost } from './engineering'
+import { createEngineeringDesign, DEFAULT_HAUL_SETTINGS } from './engineeringTypes'
 import { sideValue, templateAt } from './templates'
 import type { Alignment, ContextFeature, Coordinate, Culvert, RoadSettings, TerrainSource } from './types'
 
@@ -583,5 +584,26 @@ describe('truthful fitted-curve schedules', () => {
     expect(verticalCurveSummary(a)[0]).toMatchObject({ start: 80, end: 120, g1: 5, g2: -5, k: 4, valid: true })
     a.vertical[1].curveLength = 400
     expect(verticalCurveSummary(a)[0].valid).toBe(false)
+  })
+})
+
+describe('haul unit cost', () => {
+  it('follows the free-haul, overhaul and endhaul pieces with loading steps', () => {
+    // RoadEng's example: free haul < 150 m at $8/(m³·km), overhaul to 1 km at $4 + $0.60 loading, endhaul $2 + $2.60.
+    const h = {
+      ...DEFAULT_HAUL_SETTINGS,
+      freeHaulDistanceM: 150,
+      overhaulDistanceM: 1000,
+      freeHaulRate: 8,
+      overhaulRate: 4,
+      endHaulRate: 2,
+      overhaulLoadingRate: 0.6,
+      endHaulLoadingRate: 2.6,
+    }
+    expect(haulUnitCost(h, 100)).toBeCloseTo(0.8, 9)
+    expect(haulUnitCost(h, 500)).toBeCloseTo(0.35 * 4 + 0.6, 9)
+    expect(haulUnitCost(h, 1500)).toBeCloseTo(1.35 * 2 + 2.6, 9)
+    // The defaults keep free haul free.
+    expect(haulUnitCost(DEFAULT_HAUL_SETTINGS, 20)).toBe(0)
   })
 })

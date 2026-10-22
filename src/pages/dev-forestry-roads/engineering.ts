@@ -9,6 +9,7 @@ import type {
   EngineeringStation,
   GroundMaterial,
   HaulMovement,
+  HaulSettings,
   HaulSite,
   HaulSummary,
   MaterialQuantity,
@@ -112,6 +113,21 @@ function emptyHaul(enabled: boolean, complete: boolean): HaulSummary {
 }
 
 /**
+ * CAD per transported m³ moved `distanceM`: free haul is charged over its whole distance at the
+ * free-haul rate; overhaul and endhaul only beyond the free-haul distance, each at its own rate;
+ * every class adds its loading rate. This is the piecewise haul-cost curve shown with the rates.
+ */
+export function haulUnitCost(h: HaulSettings, distanceM: number) {
+  const free = distanceM <= h.freeHaulDistanceM + EPS,
+    over = !free && distanceM <= h.overhaulDistanceM + EPS
+  if (free) return (Math.max(0, distanceM) / 1000) * h.freeHaulRate + h.freeHaulLoadingRate
+  const charged = Math.max(0, distanceM - h.freeHaulDistanceM) / 1000
+  return over
+    ? charged * h.overhaulRate + h.overhaulLoadingRate
+    : charged * h.endHaulRate + h.endHaulLoadingRate
+}
+
+/**
  * Reproducible allocation scenario: fill intervals in chainage order draw from the
  * nearest remaining cut in the same supported run. It is not a global optimizer.
  */
@@ -149,9 +165,7 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
         : input.distanceM <= h.overhaulDistanceM + EPS
           ? 'overhaul'
           : 'endhaul'
-    const chargeDistance = Math.max(0, input.distanceM - h.freeHaulDistanceM) / 1000
-    const rate = category === 'endhaul' ? h.endHaulRate : category === 'overhaul' ? h.overhaulRate : 0
-    const haulCost = input.transportedVolumeM3 * chargeDistance * rate
+    const haulCost = input.transportedVolumeM3 * haulUnitCost(h, input.distanceM)
     const row: HaulMovement = { ...input, id: `haul-${movements.length + 1}`, category, haulCost }
     movements.push(row)
     costs.haul += haulCost

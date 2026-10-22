@@ -122,8 +122,13 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     enabled: h.enabled,
     freeHaulDistanceM: numeric(h.freeHaulDistanceM, 'Free-haul distance'),
     overhaulDistanceM: numeric(h.overhaulDistanceM, 'Overhaul limit'),
+    // Added later: older files have no free-haul or loading rates, which means zero.
+    freeHaulRate: h.freeHaulRate === undefined ? 0 : numeric(h.freeHaulRate, 'Free-haul rate'),
     overhaulRate: numeric(h.overhaulRate, 'Overhaul rate'),
     endHaulRate: numeric(h.endHaulRate, 'End-haul rate'),
+    freeHaulLoadingRate: h.freeHaulLoadingRate === undefined ? 0 : numeric(h.freeHaulLoadingRate, 'Free-haul loading rate'),
+    overhaulLoadingRate: h.overhaulLoadingRate === undefined ? 0 : numeric(h.overhaulLoadingRate, 'Overhaul loading rate'),
+    endHaulLoadingRate: h.endHaulLoadingRate === undefined ? 0 : numeric(h.endHaulLoadingRate, 'End-haul loading rate'),
     borrowRate: numeric(h.borrowRate, 'Borrow rate'),
     wasteRate: numeric(h.wasteRate, 'Waste rate'),
     mobilizationCost: numeric(h.mobilizationCost, 'Mobilization', 0, 1e9),

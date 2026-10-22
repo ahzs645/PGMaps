@@ -901,8 +901,12 @@ export function EngineeringControls({
               fields={[
                 { key: 'freeHaulDistanceM', label: 'Free-haul distance (m)' },
                 { key: 'overhaulDistanceM', label: 'Overhaul distance limit (m)' },
+                { key: 'freeHaulRate', label: 'Free haul ($/m³·km)' },
                 { key: 'overhaulRate', label: 'Overhaul ($/m³·km)' },
                 { key: 'endHaulRate', label: 'End haul ($/m³·km)' },
+                { key: 'freeHaulLoadingRate', label: 'Free-haul loading ($/m³)' },
+                { key: 'overhaulLoadingRate', label: 'Overhaul loading ($/m³)' },
+                { key: 'endHaulLoadingRate', label: 'End-haul loading ($/m³)' },
                 { key: 'borrowRate', label: 'Default borrow ($/compacted m³)' },
                 { key: 'wasteRate', label: 'Default waste ($/bank m³)' },
                 { key: 'mobilizationCost', label: 'Mobilization ($)', max: 1e9 },
