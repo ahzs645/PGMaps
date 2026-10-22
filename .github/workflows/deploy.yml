@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: public/data
-          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**', '!scripts/toolkit/**', '!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'public/data/**') }}
+          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**','!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'public/data/**') }}
 
       - name: Install data-generation dependencies
         if: steps.data-cache.outputs.cache-hit != 'true'
