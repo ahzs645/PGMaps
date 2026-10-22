@@ -562,6 +562,33 @@ are retained in the result warnings/completeness. Editable maximum grade,
 minimum radius and cover thresholds are planning assumptions, not a claim of
 compliance with a particular BC road class.
 
+Click the **Covered estimate** tile to open the calculation (`CostBreakdown.tsx`).
+Each priced line is shown as quantity × rate = amount: excavation by material,
+fill, surfacing, clearing, structures, haul in m³·km, borrow, waste, site
+preparation and mobilization, then subtotal, contingency and total. The rates are
+editable in place, along with free-haul and overhaul distances and the overhaul and
+endhaul rates. An edit recalculates the whole road, so the line, the total, the
+headline tile and every linked view change together, and the dialog shows the
+change since it opened. Rates are saved with the project, and undo reverts them.
+
+**Where the default rates come from.** The one preset, *PG Maps placeholder rates*
+(`DEFAULT_ROAD_SETTINGS` in `terrain.ts`: cut $12/bank m³, fill $8/m³, surfacing
+$40/m³, clearing $1.50/m², reusable-cut factor 0.9), consists of round planning
+numbers. They are not taken from a published cost survey or appraisal manual, and
+they carry no regional adjustment. Editing any base rate makes the preset read
+*Custom · this project*. Choosing the preset again restores all five rates.
+Material, structure and haul rates are per project and start at zero (unpriced).
+
+BC's stumpage appraisal manuals cost road differently. The
+[Interior Appraisal Manual](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior-appraisal-manual/iam_2023_master.pdf)
+estimates subgrade cost in $/km from road-group equations in side slope and
+biogeoclimatic zone, with [engineering cost estimates](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior_ece_procedures_07_2024.pdf)
+for cases the tables do not cover, such as rock over 50% or steep side slopes. The
+[Coast Appraisal Manual](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/coast-timber-pricing/coast-appraisal-manual/2009_coast_master.pdf)
+has its own road development section. None of them gives per-m³ unit rates that could
+seed this table directly. A regional preset would need either a sourced per-m³ rate
+set or a separate per-km cross-check that implements those equations.
+
 ### Deterministic terrain-cost route assistance
 
 “Suggest terrain-cost alternative” runs `A*` on an eight-neighbour grid

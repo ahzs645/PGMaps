@@ -1,0 +1,387 @@
+import { useState } from 'react'
+import { PanelDialog } from '@/components/ui/dialog-shell'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { AppSelect } from '@/components/ui/select'
+import { NumberField } from './Controls'
+import { DEFAULT_ROAD_SETTINGS } from './terrain'
+import type { HaulSettings } from './engineeringTypes'
+import type { Alignment, RoadAnalysis, RoadSettings } from './types'
+
+const money = (value: number, digits = 0) =>
+  `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
+const quantity = (value: number | null, digits = 1) =>
+  value === null || !Number.isFinite(value)
+    ? '—'
+    : value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+
+/** The base unit rates a preset sets; engineering inputs (materials, haul, structures) stay per project. */
+export const RATE_KEYS = ['cutRate', 'fillRate', 'surfacingRate', 'clearingRate', 'shrinkFactor'] as const
+type RateKey = (typeof RATE_KEYS)[number]
+
+export const RATE_PRESETS: {
+  id: string
+  label: string
+  rates: Pick<RoadSettings, RateKey>
+  source: string
+}[] = [
+  {
+    id: 'placeholder',
+    label: 'PG Maps placeholder rates',
+    rates: Object.fromEntries(RATE_KEYS.map((key) => [key, DEFAULT_ROAD_SETTINGS[key]])) as Pick<RoadSettings, RateKey>,
+    source:
+      'Round planning numbers set in the workspace code (DEFAULT_ROAD_SETTINGS). They are not taken from a published cost survey or appraisal manual, and they have no regional adjustment.',
+  },
+]
+
+export function ratePresetFor(settings: RoadSettings) {
+  return RATE_PRESETS.find((preset) => RATE_KEYS.every((key) => preset.rates[key] === settings[key]))
+}
+
+type Rate = {
+  value: number
+  unit: string
+  label: string
+  min?: number
+  max?: number
+  onChange: (value: number) => void
+}
+type Row = {
+  id: string
+  item: string
+  quantity: number | null
+  unit: string
+  rate?: Rate
+  amount: number
+  note?: string
+}
+
+function RateCell({ rate }: { rate?: Rate }) {
+  if (!rate) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="inline-flex items-center justify-end gap-1">
+      <span className="w-24">
+        <NumberField
+          label={rate.label}
+          hideLabel
+          value={rate.value}
+          min={rate.min ?? 0}
+          max={rate.max ?? 100000}
+          onChange={rate.onChange}
+        />
+      </span>
+      <span className="w-14 text-left text-[10px] text-muted-foreground">{rate.unit}</span>
+    </span>
+  )
+}
+
+/**
+ * How the covered estimate is built: every priced line as quantity × editable rate, so a rate
+ * edit recalculates the whole road and the change shows here and in the headline at once.
+ */
+export function CostBreakdown({
+  open,
+  onOpenChange,
+  analysis,
+  alignment,
+  settings,
+  onSettings,
+  onHaul,
+  onMaterialRate,
+  portalContainer,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  analysis: RoadAnalysis
+  alignment: Alignment
+  settings: RoadSettings
+  onSettings: (patch: Partial<RoadSettings>) => void
+  onHaul?: (patch: Partial<HaulSettings>) => void
+  onMaterialRate?: (materialId: string, cutRate: number) => void
+  portalContainer?: HTMLElement | null
+}) {
+  const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
+  if (opened.open !== open) setOpened({ open, total: analysis.estimatedCost })
+  const result = analysis.engineering
+  const haul = alignment.engineering?.haul
+  const setting = (key: RateKey, label: string, unit: string, max = 10000): Rate => ({
+    value: settings[key],
+    unit,
+    label,
+    max,
+    onChange: (value) => onSettings({ [key]: value }),
+  })
+  const haulRate = (key: keyof HaulSettings, label: string, unit: string, max = 1e9): Rate | undefined =>
+    haul && onHaul
+      ? { value: haul[key] as number, unit, label, max, onChange: (value) => onHaul({ [key]: value }) }
+      : undefined
+  const costs = result?.costs
+  const rows: Row[] = costs
+    ? [
+        ...result.materials.map((m) => ({
+          id: `material-${m.materialId}`,
+          item: m.purpose === 'stripping' ? `Stripping · ${m.name}` : `Excavation · ${m.name}`,
+          quantity: m.bankCutM3,
+          unit: 'bank m³',
+          rate:
+            m.materialId === '__unclassified'
+              ? setting('cutRate', 'Unclassified excavation rate', '$/m³')
+              : onMaterialRate
+                ? {
+                    value: alignment.engineering?.materials.find((x) => x.id === m.materialId)?.cutRate ?? 0,
+                    unit: '$/m³',
+                    label: `${m.name} excavation rate`,
+                    max: 10000,
+                    onChange: (value: number) => onMaterialRate(m.materialId, value),
+                  }
+                : undefined,
+          amount: m.excavationCost,
+        })),
+        {
+          id: 'fill',
+          item: 'Fill placement',
+          quantity: analysis.fillVolumeM3,
+          unit: 'm³',
+          rate: setting('fillRate', 'Fill rate', '$/m³'),
+          amount: costs.fill,
+        },
+        {
+          id: 'surfacing',
+          item: 'Surfacing',
+          quantity: analysis.surfaceVolumeM3,
+          unit: 'm³',
+          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
+          amount: costs.surfacing,
+        },
+        {
+          id: 'clearing',
+          item: 'Clearing',
+          quantity: analysis.clearingAreaM2,
+          unit: 'm²',
+          rate: setting('clearingRate', 'Clearing rate', '$/m²'),
+          amount: costs.clearing,
+        },
+        {
+          id: 'structures',
+          item: 'Structures',
+          quantity: result.culverts.length,
+          unit: 'culverts',
+          amount: costs.structures,
+          note: 'Installed cost per culvert; edit in Engineering → Drainage.',
+        },
+        {
+          id: 'haul',
+          item: 'Haul beyond free haul',
+          quantity: result.haul.haulM3Km + result.haul.wasteHaulM3Km,
+          unit: 'm³·km',
+          amount: costs.haul,
+          note: 'Overhaul and endhaul rates below.',
+        },
+        {
+          id: 'borrow',
+          item: 'Borrow supply',
+          quantity: result.haul.borrowCompactedM3,
+          unit: 'm³',
+          rate: haulRate('borrowRate', 'Borrow rate', '$/m³', 10000),
+          amount: costs.borrow,
+          note: 'A borrow site with its own rate replaces this rate there.',
+        },
+        {
+          id: 'waste',
+          item: 'Waste disposal',
+          quantity: result.haul.wasteBankM3,
+          unit: 'bank m³',
+          rate: haulRate('wasteRate', 'Waste rate', '$/m³', 10000),
+          amount: costs.waste,
+          note: 'A waste site with its own rate replaces this rate there.',
+        },
+        {
+          id: 'site',
+          item: 'Site preparation',
+          quantity: alignment.engineering?.sites.length ?? 0,
+          unit: 'sites',
+          amount: costs.sitePreparation,
+          note: 'Fixed cost per borrow/waste site.',
+        },
+        {
+          id: 'mobilization',
+          item: 'Mobilization',
+          quantity: 1,
+          unit: 'lump sum',
+          rate: haulRate('mobilizationCost', 'Mobilization', '$'),
+          amount: costs.mobilization,
+        },
+      ]
+    : [
+        {
+          id: 'cut',
+          item: 'Excavation',
+          quantity: analysis.cutVolumeM3,
+          unit: 'bank m³',
+          rate: setting('cutRate', 'Cut rate', '$/m³'),
+          amount: analysis.cutVolumeM3 * settings.cutRate,
+        },
+        {
+          id: 'fill',
+          item: 'Fill placement',
+          quantity: analysis.fillVolumeM3,
+          unit: 'm³',
+          rate: setting('fillRate', 'Fill rate', '$/m³'),
+          amount: analysis.fillVolumeM3 * settings.fillRate,
+        },
+        {
+          id: 'surfacing',
+          item: 'Surfacing',
+          quantity: analysis.surfaceVolumeM3,
+          unit: 'm³',
+          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
+          amount: analysis.surfaceVolumeM3 * settings.surfacingRate,
+        },
+        {
+          id: 'clearing',
+          item: 'Clearing',
+          quantity: analysis.clearingAreaM2,
+          unit: 'm²',
+          rate: setting('clearingRate', 'Clearing rate', '$/m²'),
+          amount: analysis.clearingAreaM2 * settings.clearingRate,
+        },
+      ]
+  const preset = ratePresetFor(settings)
+  const change = analysis.estimatedCost - opened.total
+  return (
+    <PanelDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      portalContainer={portalContainer}
+      size="lg"
+      title="Covered estimate"
+      subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
+      contentProps={{ 'data-testid': 'road-cost-dialog' }}
+    >
+      <div className="space-y-3 text-xs">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex min-w-56 flex-col gap-1 text-muted-foreground">
+            Rate preset
+            <AppSelect
+              value={preset?.id ?? 'custom'}
+              onValueChange={(id) => {
+                const next = RATE_PRESETS.find((p) => p.id === id)
+                if (next) onSettings({ ...next.rates })
+              }}
+              options={[
+                ...RATE_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+                { value: 'custom', label: 'Custom · this project', disabled: true },
+              ]}
+              triggerAriaLabel="Rate preset"
+              triggerClassName="h-8 text-xs"
+              contentClassName="z-[1500] text-xs"
+            />
+          </label>
+          <p className="min-w-0 flex-1 text-[11px] leading-4 text-muted-foreground" data-testid="road-rate-source">
+            {preset
+              ? preset.source
+              : 'Rates edited for this project. They are saved with the project file and are not tied to a published source.'}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <EngineeringTable data-testid="road-cost-calculation">
+            <thead>
+              <tr>
+                <ColumnHeader label="Item" className="text-left" />
+                <ColumnHeader label="Quantity" />
+                <ColumnHeader label="Unit" className="text-left" />
+                <ColumnHeader label="Rate" />
+                <ColumnHeader label="Amount" unit="CAD" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} data-cost-row={row.id} title={row.note}>
+                  <td className="text-left">{row.item}</td>
+                  <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'sites' ? 0 : 1)}</td>
+                  <td className="text-left text-muted-foreground">{row.unit}</td>
+                  <td>
+                    <RateCell rate={row.rate} />
+                  </td>
+                  <td className="font-mono">{money(row.amount, 2)}</td>
+                </tr>
+              ))}
+              {costs && (
+                <>
+                  <tr className="font-medium">
+                    <td className="text-left" colSpan={4}>
+                      Subtotal
+                    </td>
+                    <td className="font-mono">{money(costs.subtotal, 2)}</td>
+                  </tr>
+                  <tr data-cost-row="contingency">
+                    <td className="text-left">Contingency</td>
+                    <td>{quantity(costs.subtotal, 0)}</td>
+                    <td className="text-left text-muted-foreground">$ subtotal</td>
+                    <td>
+                      <RateCell rate={haulRate('contingencyPercent', 'Contingency', '%', 100)} />
+                    </td>
+                    <td className="font-mono">{money(costs.contingency, 2)}</td>
+                  </tr>
+                </>
+              )}
+              <tr className="bg-emerald-600/10 font-semibold" data-cost-row="total">
+                <td className="text-left" colSpan={4}>
+                  Total
+                </td>
+                <td className="font-mono" data-testid="road-cost-total">
+                  {money(analysis.estimatedCost, 2)}
+                </td>
+              </tr>
+            </tbody>
+          </EngineeringTable>
+        </div>
+        {haul && onHaul && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(
+              [
+                ['freeHaulDistanceM', 'Free haul (m)', 100000],
+                ['overhaulDistanceM', 'Overhaul limit (m)', 100000],
+                ['overhaulRate', 'Overhaul ($/m³·km)', 10000],
+                ['endHaulRate', 'Endhaul ($/m³·km)', 10000],
+              ] as const
+            ).map(([key, label, max]) => (
+              <NumberField
+                key={key}
+                label={label}
+                value={haul[key]}
+                max={max}
+                onChange={(value) => onHaul({ [key]: value })}
+              />
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span>
+            Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
+            volumes by average end areas.
+          </span>
+          <span
+            data-testid="road-cost-change"
+            className={
+              change === 0
+                ? ''
+                : change > 0
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-emerald-700 dark:text-emerald-400'
+            }
+          >
+            {change === 0
+              ? 'No change since opened'
+              : `${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
+          </span>
+        </div>
+        {!result && (
+          <p className="text-[11px] text-muted-foreground">
+            Materials, structures, haul, mobilization and contingency join this table once Engineering inputs are added
+            to the road.
+          </p>
+        )}
+      </div>
+    </PanelDialog>
+  )
+}

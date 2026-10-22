@@ -473,3 +473,47 @@ test('header picker, no footer or status row, profile controls on the chart, sec
   await page.screenshot({ path: testInfo.outputPath('linked-overview.png') })
   expect(errors).toEqual([])
 })
+
+test('the covered estimate opens its calculation and rate edits recalculate the road', async ({ page }, testInfo) => {
+  const errors = await prepare(page)
+  const original = await saveProject(page)
+  const tile = page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true })
+  const headline = async () =>
+    Number((await tile.locator('xpath=..').locator('dd').textContent())!.replace(/[$,]/g, ''))
+  const before = await headline()
+  await tile.click()
+  const dialog = page.getByTestId('road-cost-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByTestId('road-rate-source')).toContainText('not taken from a published cost survey')
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
+    /PG Maps placeholder rates/,
+  )
+  const money = (text: string | null) => Number(text!.replace(/[$,]/g, ''))
+  const total = dialog.getByTestId('road-cost-total')
+  expect(money(await total.textContent())).toBeCloseTo(before, -1)
+
+  // Each line is quantity × rate; editing a rate recalculates the line, the total and the headline.
+  const fill = dialog.locator('[data-cost-row="fill"]')
+  const fillQuantity = money(await fill.locator('td').nth(1).textContent())
+  await dialog.getByLabel('Fill rate', { exact: true }).fill('10')
+  await dialog.getByLabel('Fill rate', { exact: true }).press('Tab')
+  await expect.poll(async () => money(await fill.locator('td').nth(4).textContent())).toBeCloseTo(fillQuantity * 10, 0)
+  const raised = money(await total.textContent())
+  expect(raised).toBeGreaterThan(before)
+  await expect(dialog.getByTestId('road-cost-change')).toContainText('since opened')
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(/Custom/)
+  await page.screenshot({ path: testInfo.outputPath('cost-breakdown.png') })
+  await page.keyboard.press('Escape')
+  await expect.poll(headline).toBeCloseTo(raised, -1)
+  expect((await saveProject(page)).settings.fillRate).toBe(10)
+
+  // The preset restores every base rate.
+  await tile.click()
+  await dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).click()
+  await page.getByRole('option', { name: 'PG Maps placeholder rates', exact: true }).click()
+  await expect.poll(async () => money(await total.textContent())).toBeCloseTo(before, -1)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  expect((await saveProject(page)).settings).toEqual(original.settings)
+  expect(errors).toEqual([])
+})

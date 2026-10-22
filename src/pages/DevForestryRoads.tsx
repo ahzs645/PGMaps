@@ -23,6 +23,7 @@ import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
+import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
@@ -301,6 +302,7 @@ export default function DevForestryRoads() {
   const [cableDistance, setCableDistance] = useState(0)
   const deferredHover = useDeferredValue(hover)
   const [playing, setPlaying] = useState(false)
+  const [costOpen, setCostOpen] = useState(false)
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
@@ -965,6 +967,41 @@ export default function DevForestryRoads() {
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
       </header>
+      <CostBreakdown
+        open={costOpen && !!displayedAnalysis.stations.length}
+        onOpenChange={setCostOpen}
+        analysis={displayedAnalysis}
+        alignment={displayedAlignment}
+        settings={project.settings}
+        portalContainer={ref.current}
+        onSettings={(patch) => update((p) => ({ ...p, settings: { ...p.settings, ...patch } }))}
+        onHaul={
+          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+            ? undefined
+            : (patch) =>
+                updateAlignment((a) =>
+                  a.engineering
+                    ? { ...a, engineering: { ...a.engineering, haul: { ...a.engineering.haul, ...patch } } }
+                    : a,
+                )
+        }
+        onMaterialRate={
+          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+            ? undefined
+            : (id, cutRate) =>
+                updateAlignment((a) =>
+                  a.engineering
+                    ? {
+                        ...a,
+                        engineering: {
+                          ...a.engineering,
+                          materials: a.engineering.materials.map((m) => (m.id === id ? { ...m, cutRate } : m)),
+                        },
+                      }
+                    : a,
+                )
+        }
+      />
       <input
         ref={fileRef}
         type="file"
@@ -1022,6 +1059,10 @@ export default function DevForestryRoads() {
                   value: displayedAnalysis.stations.length
                     ? `$${number(displayedAnalysis.estimatedCost, 0)}`
                     : 'Unavailable',
+                  // Opens the calculation: quantities × editable rates.
+                  onToggle: displayedAnalysis.stations.length ? () => setCostOpen((open) => !open) : undefined,
+                  pressed: costOpen,
+                  toggleLabel: 'Show how the covered estimate is calculated',
                 },
                 {
                   label: 'Complete sections',

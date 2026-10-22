@@ -2,10 +2,19 @@ import { useState, type ReactNode } from 'react'
 
 export const roadFieldClass =
   'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs'
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+  hideLabel = false,
+}: {
+  label: string
+  children: ReactNode
+  /** Keep the label for assistive technology only, e.g. inside a table cell under a column header. */
+  hideLabel?: boolean
+}) {
   return (
     <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-      {label}
+      <span className={hideLabel ? 'sr-only' : undefined}>{label}</span>
       {children}
     </label>
   )
@@ -18,6 +27,7 @@ export function NumberField({
   max = 100000,
   step = 0.1,
   disabled = false,
+  hideLabel = false,
 }: {
   label: string
   value: number
@@ -26,6 +36,7 @@ export function NumberField({
   max?: number
   step?: number
   disabled?: boolean
+  hideLabel?: boolean
 }) {
   const [input, setInput] = useState({ value, text: String(Number(value.toFixed(6))) })
   const draft = input.value === value ? input.text : String(Number(value.toFixed(6)))
@@ -38,7 +49,7 @@ export function NumberField({
     } else setInput({ value, text: String(value) })
   }
   return (
-    <Field label={label}>
+    <Field label={label} hideLabel={hideLabel}>
       <input
         className={roadFieldClass}
         type="number"
