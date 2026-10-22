@@ -236,6 +236,18 @@ storage that refuses writes leaves the defaults in place. Below 1280 px the view
 panes stack (below 1024 px the sidebar too), each with a handle underneath that
 resizes its height, so a phone page still resizes vertically.
 
+“Save or manage layouts…” at the bottom of the layout picker saves the current arrangement
+under a name. A saved layout (★) starts from the current pane sizes, then remembers its own
+under `pgmaps-road-panes:saved-<id>:<split>`, and can be deleted from the same dialog. Saved
+layouts stay on this device.
+
+The station table can report every 20–500 m instead of every calculated station. It reports
+the calculated station nearest each multiple, plus both ends, sums cut and fill since the
+previous row, and ends with a Cum. tot. row of the fully supported intervals. Its Columns
+menu shows or hides each column, including optional mass, width and coordinate columns, and
+remembers the choice. The cost dialog states the cost status (current; complete or partial)
+and the process time of the last recalculation, which runs on every edit.
+
 The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
 quantities, landing) is chosen from a **Road detail view** combobox in that pane's
 title row, beside its title and any pane action such as Section CSV, so the pane
@@ -385,6 +397,25 @@ colliding IDs distinct names. Replace swaps the definitions and clears their
 station assignments/horizons. Presets are editable starting dimensions, not a
 road-class standard or an inferred site-specific design.
 
+A template ditch may have a **bottom width**. Zero is the original V ditch; any value up to
+the ditch width gives a trapezoidal (U) or box ditch with side slopes over the remaining
+width. The bottom width can be set per side, like the other components.
+
+**Design speed** (Template → Design speed) turns on curve rules:
+
+- Superelevation e = V²/(127 R) − f, held between the normal crown and the entered maximum.
+  The section rotates about the centreline, so the inside falls by e and the outside rises
+  by e.
+- Inside **widening** L²/(2R) for a vehicle of length L.
+- Both run in linearly over the runoff length before each curve and out after it.
+
+The widening counts in widths, sections, clearing and surfacing. These are entered planning
+rules, not a BC road-class standard, and there are no spirals.
+
+A culvert can **dip** the inlet-side (left) ditch. Near the culvert, the ditch is deepened so
+that its bottom falls at the entered grade to the inlet invert, up to 4 m deeper than the
+template ditch. It needs a known inlet invert.
+
 Landing and turnout ranges add width after the station template resolves.
 Their extra width tapers in/out; overlapping width overrides use the maximum
 extra width per side rather than stacking widths. Added landing width is
@@ -466,6 +497,16 @@ continuously supported road section. Material conversion factors are retained
 for every movement. A site or source on the other side of a terrain/daylight gap
 cannot supply that interval. This can produce both borrow and waste even when
 the entire route's net mass balance appears favourable.
+
+Each movement is priced by `haulUnitCost`:
+
+- free haul (up to the free-haul distance) at the free-haul rate over its whole distance;
+- overhaul (up to the overhaul limit) and endhaul (beyond it) at their own $/(m³·km), counted
+  only beyond the free-haul distance;
+- every class adds its own loading $/m³.
+
+This is RoadEng's piecewise haul-cost curve, and the estimate dialog draws it. Projects saved
+before these rates existed read them as zero, which keeps free haul free.
 
 Remaining fill demand is compacted-volume borrow. Remaining reusable cut and
 all nonreusable material become bank-volume waste. Available sites are considered
@@ -571,12 +612,12 @@ endhaul rates. An edit recalculates the whole road, so the line, the total, the
 headline tile and every linked view change together, and the dialog shows the
 change since it opened. Rates are saved with the project, and undo reverts them.
 
-**Where the default rates come from.** The one preset, *PG Maps placeholder rates*
+**Where the default rates come from.** The one preset, _PG Maps placeholder rates_
 (`DEFAULT_ROAD_SETTINGS` in `terrain.ts`: cut $12/bank m³, fill $8/m³, surfacing
 $40/m³, clearing $1.50/m², reusable-cut factor 0.9), consists of round planning
 numbers. They are not taken from a published cost survey or appraisal manual, and
 they carry no regional adjustment. Editing any base rate makes the preset read
-*Custom · this project*. Choosing the preset again restores all five rates.
+_Custom · this project_. Choosing the preset again restores all five rates.
 Material, structure and haul rates are per project and start at zero (unpriced).
 
 BC's stumpage appraisal manuals cost road differently. The
@@ -591,18 +632,29 @@ set or a separate per-km cross-check that implements those equations.
 
 ### Deterministic terrain-cost route assistance
 
-“Suggest terrain-cost alternative” runs `A*` on an eight-neighbour grid
-between the current road's endpoints. It is deterministic route assistance,
-not an AI model or a call to an external optimizer. It creates an editable
-alternative and preserves the original alignment. It does not design PVIs,
-fit road curves, minimize earthwork dollars or reproduce RoadEng's optimizer.
+“Suggest terrain-cost alternative” runs `A*` (`suggestRoutes` in `routing.ts`)
+on an eight-neighbour grid between the current road's endpoints. It is
+deterministic route assistance, not an AI model or a call to an external
+optimizer. It creates editable alternatives and keeps the original alignment.
+It does not design PVIs, fit road curves or compute earthworks.
 
-The search uses horizontal distance with an additional penalty for sampled
-ground grade. A stream-segment intersection adds a fixed relative penalty
-equivalent to 80 horizontal metres; this is a routing preference, not a bridge
-or culvert price. Missing terrain and avoidance-polygon boundaries block an
-edge. Endpoints inside avoidance polygons are rejected, with polygon holes
-respected. The entered maximum grade constrains sampled **ground** slope;
+The search prices a route in dollars:
+
+- **Road $/m** on level ground, rising to 4× that at the grade limit (factor 1 + 3(g/gmax)²).
+- **Crossing $** for each stream-segment intersection.
+- The entered **zone cost** per metre inside any review polygon that has one. A review
+  polygon with a zone cost can be crossed at that price; one without blocks the search.
+
+The defaults, $100/m and $8,000 per crossing, keep the earlier relative weighting, in which a
+crossing was worth 80 m of level road. They are placeholders, not sourced construction or
+crossing costs. Missing terrain and blocking polygon boundaries block an edge.
+Endpoints inside blocking polygons are rejected, with polygon holes respected.
+
+Optional **start and end headings** keep the first and last legs within ±45° of a compass
+bearing. **Alternatives** (1–5) are found by repeating the search with a 60% surcharge on
+edges that earlier routes used. A new route is kept only if no more than 70% of its edges
+are shared with a route already kept, and the routes are returned ranked by their own cost.
+Each becomes a separate road, named with its rank and cost. The entered maximum grade constrains sampled **ground** slope;
 it does not prove that a designed road can be constructed at that grade.
 
 Candidate grid edges are sampled at intervals no greater than 5 m during the
@@ -620,6 +672,75 @@ least 2 m spacing. Route assistance accepts grade limits above 0% and at most
 60%. Failure means no verified route was returned within these constraints
 and budgets, not that no field-designed road is possible. The resulting
 sharp PIs, grade, earthwork sections and crossing locations still need review.
+
+### Sketched corridor optimizer
+
+“Optimize sketched road corridor” (`corridorOptimizer.ts`) takes the pegged guide points of
+the active road. It searches a corridor of the entered half-width around them (default 180 m)
+for a tangent-and-arc centreline at the minimum radius, with the objective shortest, balanced
+or contour-following. The sampled ground grade along the candidate stays within the road's
+maximum grade. The run can be cancelled. The candidate opens in a review dialog that compares
+it with the guide (length, maximum ground grade, ascent and descent, excess rise and fall),
+and it is adopted only as a new alternative. Vertical design, culverts and template
+assignments are not copied onto the new stations.
+
+### Vertical standards, control points and profile optimization
+
+Each road can carry vertical standards (`verticalStandards.ts`), entered in Design → Vertical
+standards:
+
+- signed grade limits by station range, for example −12 % to 10 %; where ranges overlap,
+  the tightest limit applies;
+- a minimum K for sag curves (grade increasing) and for crest curves (grade decreasing);
+- a minimum vertical-curve length and a minimum tangent between curves.
+
+Control points fix a formation elevation, a grade or both at a station, each with its own
+tolerance. “Get from alignment” copies the current design values.
+
+Any value left empty is not checked, and the road-wide maximum grade still applies. Each
+failure becomes a station flag (in the tables and on the plan), a workspace warning and a
+line in the sidebar that selects the station when clicked. An unrounded grade break counts
+as K = 0. The profile draws control points as squares with tolerance bars, green when met and
+red when not, and labels a failing curve in red. “Set every curve from K” gives each interior
+PVI a curve length of K × its grade change (and at least the minimum length). Curves are
+rounded up to 0.1 m, and a curve is shrunk only when its tangents cannot hold it.
+
+“Optimize profile” (`verticalOptimizer.ts`) searches for the cheapest cut-and-fill grade line
+over the fixed horizontal alignment:
+
+- PVIs sit at the entered spacing, at both ends and at every control point.
+- Each PVI's formation may take one of a ladder of levels within ± the search depth of the
+  ground, in the level step. An end can be tied to ground, and a control narrows its PVI
+  to its tolerance.
+- Section cut and fill areas are solved with the engine's own section model once per sample
+  station and level (`sectionAreasAt`), then interpolated between levels.
+- Dynamic programming over pairs of adjacent levels keeps every tangent inside its grade
+  window and the road maximum, keeps every grade change curvable at K within half of each
+  adjoining tangent, and keeps every control inside its tolerance.
+
+The cost minimized is cut × cut rate + fill × fill rate, with a penalty per metre for sections
+that cannot close. Haul, borrow, waste, clearing and structures are evaluated afterwards by the
+full analysis; they are not optimized. Curves are sized from K and the result becomes a new
+alternative road, with the covered estimates before and after in the notice. If no profile
+meets the limits, the optimizer says why instead of returning one.
+
+On the published LiDAR tile (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 4, ends free)
+the search took about 1.3 s in a desktop browser. It lowered the covered estimate from
+$795,170 to $420,793 at the 12 % maximum grade. With both ends tied to ground, the road's
+25 % drop near its end cannot be met at 12 % within ±5 m, and the optimizer reports that.
+
+### Horizontal curve tools
+
+`fitHorizontalRadii` (`horizontalTools.ts`), under Design → Horizontal points, has two modes:
+
+- **Fit sharp corners** gives every corner that has no radius the default radius (35 m, as in
+  the RoadEng workflow).
+- **Best fit every corner** gives each corner the largest radius whose arc stays within the
+  tolerance of the pegged corner (external distance E = R(sec(Δ/2) − 1)).
+
+Both then reduce any radius whose tangents cannot hold it. Each trim stays inside 98 % of its
+legs, and adjacent curves share a leg. The notice reports curves that were reduced, or that
+fall below the minimum radius.
 
 ### Context and D-lines
 
@@ -674,13 +795,15 @@ inputs, but are not implemented by this workspace:
 - Automatic geological inference, material testing/suitability, layer-specific
   fill requirements, full stripping/undercut beneath fill, geometric borrow-pit
   excavation volumes, globally optimized borrow/waste allocation, construction
-  scheduling, and vertical/total-construction-cost optimization. User-defined
-  horizons and the deterministic allocation scenario are implemented.
-- Arbitrary programmable template components, a separately graded 3D landing
-  pad, automatic standards-based superelevation/runoff design, spirals,
-  intersection design and road-network topology or automatic spur snapping.
-  Named parameter templates, signed side crossfalls and linear station
-  transitions are implemented; a spur can be a separate manually connected road.
+  scheduling, and a profile optimizer that includes haul or a total-construction-cost
+  optimizer. The cut-and-fill profile optimizer, user-defined horizons and the
+  deterministic allocation scenario are implemented.
+- Arbitrary programmable template components (a component tree with codes and
+  conditional logic), a separately graded 3D landing pad, spirals, intersection
+  design and road-network topology or automatic spur snapping. Named parameter
+  templates, signed side crossfalls, U ditches, design-speed superelevation and
+  widening, and linear station transitions are implemented. A spur can be a separate,
+  manually connected road.
 - DEM-derived stream extraction, flow accumulation, wetness or watershed
   delineation. Aspect display is implemented from the active terrain. Supplied streams and
   polygons provide the crossing/constraint context. Entered culvert geometry,
@@ -691,9 +814,10 @@ inputs, but are not implemented by this workspace:
   exploration and individual D-lines use entered heights and assumed sag only.
 - Tree/species/DBH, merchantable timber volume, piece size or inventory recovery
   from bare-earth terrain. These require their own inventory data and tools.
-- Native RoadEng/CAD project output, a survey stakeout package or dedicated
-  per-chart PNG export. The supported outputs below are the interoperability
-  contract; the printable report supports the browser's Print / Save as PDF.
+- Native RoadEng/CAD project output, shapefile output, a full survey stakeout
+  package or dedicated per-chart PNG export. LandXML, a slope-stake point CSV and
+  the outputs below are the interoperability contract. The printable report, with
+  its cross-section chapter, supports the browser's Print / Save as PDF.
 
 ## Computation and file budgets
 
@@ -758,6 +882,15 @@ sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
   properties. Ordinary line geometry is not silently given ellipsoidal Z.
 - Station CSV: numeric chainage, ground/design heights, grades, areas/volumes,
   mass, completeness/flags and source metadata. Unknown values stay blank.
+- LandXML 1.2 (`designExports.ts`): the fitted lines and arcs (northing easting), the PVI
+  profile with parabolic curves, the ground profile and cross-sections every 20 m. It uses
+  the terrain's projected CRS, or WGS84 UTM (EPSG:326xx/327xx) for a geographic source, and
+  names the vertical datum.
+- Stakeout CSV: every 20 m, the centreline, formation edges, ditch bottoms and catch points,
+  with offset (negative left), grid coordinates, level, ground and cut (+) / fill (−). It
+  contains only numbers and fixed codes.
+- Printed report: a cross-section chapter after the profile, with one plot per 20 m
+  station, two per row, starting on a new page (at most 240 plots).
   Text fields are quoted and protected against spreadsheet formula injection.
 - Engineering CSV: material bank/compacted quantities, culvert inventory,
   each allocated haul movement with explicit volume basis, and itemized costs;
