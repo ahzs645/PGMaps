@@ -322,6 +322,13 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
     3,
   )
   await expect(page.getByRole('button', { name: 'Hillside access · training copy', exact: true })).toBeVisible()
+  // An unchanged copy reads 0 % against the baseline on every metric.
+  const copy = page
+    .getByTestId('road-compare')
+    .locator('tbody tr')
+    .filter({ has: page.getByRole('button', { name: 'Hillside access · training copy', exact: true }) })
+  await expect(copy.locator('td[data-metric="cost"]')).toContainText('0%')
+  await expect(page.getByLabel('Comparison baseline')).toBeVisible()
   await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
   await expect(page.getByLabel('Active road').locator('option')).toHaveCount(2)
   await page.getByRole('button', { name: 'Redo road edit', exact: true }).click()

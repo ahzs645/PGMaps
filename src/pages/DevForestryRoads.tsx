@@ -24,6 +24,7 @@ import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPane
 import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
+import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
@@ -1414,61 +1415,12 @@ export default function DevForestryRoads() {
                               />
                             )}
                             {detail === 'compare' && (
-                              <div className="h-full overflow-auto">
-                                <table className="w-full text-right text-xs">
-                                  <thead>
-                                    <tr>
-                                      {[
-                                        'Alternative',
-                                        'Length m',
-                                        'Max %',
-                                        'Cut m³',
-                                        'Fill m³',
-                                        'Coverage',
-                                        'Cost CAD',
-                                      ].map((h) => (
-                                        <th key={h} className="border-b p-2">
-                                          {h}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {project.alignments.map((a) => {
-                                      const result = w.analyses.get(a.id)!
-                                      return (
-                                        <tr
-                                          key={a.id}
-                                          title={result.stations.length ? undefined : result.warnings.join('; ')}
-                                          className={a.id === alignment.id ? 'bg-amber-500/10' : ''}
-                                        >
-                                          <td className="p-2 text-left">
-                                            <button className="underline" onClick={() => selectAlignment(a.id)}>
-                                              {a.name}
-                                            </button>
-                                          </td>
-                                          {[
-                                            result.stations.length ? number(result.length, 0) : 'Unavailable',
-                                            result.stations.length ? number(result.maxGradePercent) : '—',
-                                            result.stations.length ? number(result.cutVolumeM3, 0) : '—',
-                                            result.stations.length ? number(result.fillVolumeM3, 0) : '—',
-                                            result.stations.length ? `${number(result.coveragePercent)}%` : '—',
-                                            result.stations.length ? `$${number(result.estimatedCost, 0)}` : '—',
-                                          ].map((n, i) => (
-                                            <td key={i} className="p-2">
-                                              {n}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      )
-                                    })}
-                                  </tbody>
-                                </table>
-                                <p className="mt-2 text-[11px] text-muted-foreground">
-                                  Compare alternatives on the same terrain and rates. Partial quantities are not
-                                  directly comparable with complete quantities.
-                                </p>
-                              </div>
+                              <CompareAlternatives
+                                alignments={project.alignments}
+                                analyses={w.analyses}
+                                activeId={alignment.id}
+                                onSelect={selectAlignment}
+                              />
                             )}
                             {detail === 'cable' &&
                               (cableResult.error ? (
