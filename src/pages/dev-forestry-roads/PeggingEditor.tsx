@@ -1,3 +1,4 @@
+import { PegMeasurementHelp } from './PegMeasurementHelp'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -253,11 +254,7 @@ export function PeggingEditor({
           {fmt(measured.coveragePercent)}%
         </p>
       )}
-      <p className="text-[11px] text-muted-foreground">
-        HD and grade describe straight peg-to-peg legs. Editing a distance or bearing moves that peg; adjacent legs and
-        the fitted road recalculate. Ground-grade search changes the bearing, preserving leg length. Design PVIs remain
-        separate.
-      </p>
+      <PegMeasurementHelp />
       <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         <EngineeringTable>
           <thead className="sticky top-0 z-10">

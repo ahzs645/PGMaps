@@ -73,7 +73,7 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveText(/terrain-cost #1 \(\$/)
   await page.getByRole('combobox', { name: 'Active road', exact: true }).selectOption({ index: count - 1 })
 
-  await page.getByRole('tablist', { name: 'Road workflow', exact: true }).getByRole('tab', { name: 'Files' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   const xml = await download(page, page.getByRole('button', { name: 'LandXML', exact: true }))
   expect(xml.name).toMatch(/\.xml$/)
   expect(xml.text).toContain('<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2"')
@@ -84,7 +84,7 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
     'point,station_m,code,offset_m,easting,northing,elevation_m,ground_m,cut_fill_m,epsg',
   )
   expect(stakes.text).toContain(',left-catch,')
-  const report = await download(page, page.getByRole('button', { name: 'Print report', exact: true }))
+  const report = await download(page, page.getByRole('button', { name: 'Report HTML', exact: true }))
   expect(report.text).toContain('Cross-sections · every 20 m')
   expect(errors).toEqual([])
 })
@@ -136,7 +136,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   await tree.getByLabel(/^Bottom width \(m\)/).press('Tab')
   await expect(tree.getByRole('button', { name: 'Use base value', exact: true })).toBeVisible()
 
-  await workflow.getByRole('tab', { name: 'Files' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   const zip = await download(page, page.getByRole('button', { name: 'Shapefile (zip)', exact: true }))
   expect(zip.name).toMatch(/-shapefiles\.zip$/)
   const archive = await JSZip.loadAsync(zip.bytes)
@@ -147,6 +147,10 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   expect(book.text.match(/<section class="sheet">/g)!.length).toBeGreaterThan(1)
   expect(book.text).toContain('Mass haul (m³)')
 
+  await page
+    .getByRole('dialog', { name: 'Save & export', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   await workflow.getByRole('tab', { name: 'Terrain' }).click()
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()

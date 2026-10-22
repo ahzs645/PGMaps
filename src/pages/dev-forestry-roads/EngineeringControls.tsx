@@ -1,3 +1,4 @@
+import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -124,6 +125,7 @@ export function EngineeringControls({
   onQuantities: () => void
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
+  const [haulOpen, setHaulOpen] = useState(false)
   const [templateId, setTemplateId] = useState('')
   const [preset, setPreset] = useState<TemplateStarter>('current')
   const [libraryMode, setLibraryMode] = useState<'merge' | 'replace'>('merge')
@@ -531,7 +533,13 @@ export function EngineeringControls({
             {design.assignments.map((a, index) => (
               <div key={a.id} className="mt-2 space-y-2 rounded border p-2">
                 <div className="flex items-center justify-between">
-                  <button className="text-xs underline" onClick={() => w.setStation(a.start)}>
+                  <button
+                    className="text-xs underline"
+                    onClick={() => {
+                      w.setFeatureSelection({ alignmentId: alignment.id, kind: 'assignment', id: a.id })
+                      w.setStation((a.start + a.end) / 2)
+                    }}
+                  >
                     Range {index + 1} · {formatRoadStation(a.start)}
                   </button>
                   <Button
@@ -701,7 +709,13 @@ export function EngineeringControls({
             {design.strata.map((s, index) => (
               <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
                 <div className="flex items-center justify-between">
-                  <button className="text-xs underline" onClick={() => w.setStation(s.start)}>
+                  <button
+                    className="text-xs underline"
+                    onClick={() => {
+                      w.setFeatureSelection({ alignmentId: alignment.id, kind: 'stratum', id: s.id })
+                      w.setStation((s.start + s.end) / 2)
+                    }}
+                  >
                     Horizon {index + 1}
                   </button>
                   <Button
@@ -899,117 +913,138 @@ export function EngineeringControls({
       )}
       {tab === 'haul' && (
         <>
-          <SidebarSection title="Haul & cost assumptions">
+          <div className="space-y-2 rounded-lg border p-3">
             <label className="mb-3 flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
                 checked={design.haul.enabled}
-                onChange={(e) => edit((d) => ({ ...d, haul: { ...d.haul, enabled: e.target.checked } }))}
+                onChange={(e) => {
+                  edit((d) => ({ ...d, haul: { ...d.haul, enabled: e.target.checked } }))
+                  if (e.target.checked) setHaulOpen(true)
+                }}
               />
               Calculate material haul allocations
             </label>
-            <Fields<HaulSettings>
-              value={design.haul}
-              fields={[
-                { key: 'freeHaulDistanceM', label: 'Free-haul distance (m)' },
-                { key: 'overhaulDistanceM', label: 'Overhaul distance limit (m)' },
-                { key: 'freeHaulRate', label: 'Free haul ($/m³·km)' },
-                { key: 'overhaulRate', label: 'Overhaul ($/m³·km)' },
-                { key: 'endHaulRate', label: 'End haul ($/m³·km)' },
-                { key: 'freeHaulLoadingRate', label: 'Free-haul loading ($/m³)' },
-                { key: 'overhaulLoadingRate', label: 'Overhaul loading ($/m³)' },
-                { key: 'endHaulLoadingRate', label: 'End-haul loading ($/m³)' },
-                { key: 'borrowRate', label: 'Default borrow ($/compacted m³)' },
-                { key: 'wasteRate', label: 'Default waste ($/bank m³)' },
-                { key: 'mobilizationCost', label: 'Mobilization ($)', max: 1e9 },
-                { key: 'contingencyPercent', label: 'Contingency (%)', max: 100 },
-              ]}
-              onChange={(p) => edit((e) => ({ ...e, haul: { ...e.haul, ...p } }))}
-            />
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Allocations use a deterministic nearest-source plan within covered intervals. Haul distance follows road
-              chainage plus site access. This is a cost scenario, not a global route or haul optimizer.
+            <Button variant="outline" size="sm" onClick={() => setHaulOpen(true)}>
+              Haul & cost settings
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {design.sites.length} borrow / waste sites ·{' '}
+              {design.haul.enabled ? 'Allocations enabled' : 'Allocations disabled'}
             </p>
-          </SidebarSection>
-          <SidebarSection title="Borrow pits & waste sites">
-            <div className="flex gap-1">
-              {(['borrow', 'waste'] as const).map((kind) => (
-                <Button
-                  key={kind}
-                  size="sm"
-                  variant="outline"
-                  disabled={design.sites.length >= 100}
-                  onClick={() =>
-                    edit((e) => ({
-                      ...e,
-                      sites: [
-                        ...e.sites,
-                        {
-                          id: uid(),
-                          name: `${kind === 'borrow' ? 'Borrow pit' : 'Waste site'} ${e.sites.length + 1}`,
-                          kind,
-                          chainage: w.station,
-                          accessDistanceM: 0,
-                          capacityM3: null,
-                          unitRate: kind === 'borrow' ? e.haul.borrowRate : e.haul.wasteRate,
-                          fixedCost: 0,
-                        },
-                      ],
-                    }))
-                  }
-                >
-                  + {kind === 'borrow' ? 'Borrow' : 'Waste'}
-                </Button>
-              ))}
-            </div>
-            {design.sites.map((s, index) => (
-              <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
-                <Name
-                  value={s.name}
-                  label="Haul site name"
-                  onChange={(name) => patch('sites', s.id, { name })}
-                  onDelete={() => remove('sites', s.id)}
-                />
-                <button className="text-xs underline" onClick={() => w.setStation(s.chainage)}>
-                  {s.kind} · select {formatRoadStation(s.chainage)}
-                </button>
-                <Fields<HaulSite>
-                  value={s}
-                  fields={[
-                    { key: 'chainage', label: `Site ${index + 1} station (m)` },
-                    { key: 'accessDistanceM', label: `Site ${index + 1} access distance (m)`, max: 100000 },
-                    {
-                      key: 'unitRate',
-                      label: `Site ${index + 1} unit rate ($/${s.kind === 'borrow' ? 'compacted' : 'bank'} m³)`,
-                    },
-                    { key: 'fixedCost', label: `Site ${index + 1} fixed cost ($)`, max: 1e9 },
-                    ...(s.capacityM3 === null
-                      ? []
-                      : [
+          </div>
+          <RoadSettingsDialog title="Haul & cost settings" open={haulOpen} onOpenChange={setHaulOpen} busy={!!w.busy}>
+            <SidebarSection title="Haul & cost assumptions">
+              <Fields<HaulSettings>
+                value={design.haul}
+                fields={[
+                  { key: 'freeHaulDistanceM', label: 'Free-haul distance (m)' },
+                  { key: 'overhaulDistanceM', label: 'Overhaul distance limit (m)' },
+                  { key: 'freeHaulRate', label: 'Free haul ($/m³·km)' },
+                  { key: 'overhaulRate', label: 'Overhaul ($/m³·km)' },
+                  { key: 'endHaulRate', label: 'End haul ($/m³·km)' },
+                  { key: 'freeHaulLoadingRate', label: 'Free-haul loading ($/m³)' },
+                  { key: 'overhaulLoadingRate', label: 'Overhaul loading ($/m³)' },
+                  { key: 'endHaulLoadingRate', label: 'End-haul loading ($/m³)' },
+                  { key: 'borrowRate', label: 'Default borrow ($/compacted m³)' },
+                  { key: 'wasteRate', label: 'Default waste ($/bank m³)' },
+                  { key: 'mobilizationCost', label: 'Mobilization ($)', max: 1e9 },
+                  { key: 'contingencyPercent', label: 'Contingency (%)', max: 100 },
+                ]}
+                onChange={(p) => edit((e) => ({ ...e, haul: { ...e.haul, ...p } }))}
+              />
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Allocations use a deterministic nearest-source plan within covered intervals. Haul distance follows road
+                chainage plus site access. This is a cost scenario, not a global route or haul optimizer.
+              </p>
+            </SidebarSection>
+            <SidebarSection title="Borrow pits & waste sites">
+              <div className="flex gap-1">
+                {(['borrow', 'waste'] as const).map((kind) => (
+                  <Button
+                    key={kind}
+                    size="sm"
+                    variant="outline"
+                    disabled={design.sites.length >= 100}
+                    onClick={() =>
+                      edit((e) => ({
+                        ...e,
+                        sites: [
+                          ...e.sites,
                           {
-                            key: 'capacityM3' as const,
-                            label: `Site ${index + 1} capacity (${s.kind === 'borrow' ? 'compacted' : 'bank'} m³)`,
-                            max: 1e12,
+                            id: uid(),
+                            name: `${kind === 'borrow' ? 'Borrow pit' : 'Waste site'} ${e.sites.length + 1}`,
+                            kind,
+                            chainage: w.station,
+                            accessDistanceM: 0,
+                            capacityM3: null,
+                            unitRate: kind === 'borrow' ? e.haul.borrowRate : e.haul.wasteRate,
+                            fixedCost: 0,
                           },
-                        ]),
-                  ]}
-                  onChange={(p) => patch('sites', s.id, p)}
-                />
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={s.capacityM3 === null}
-                    onChange={(e) => patch('sites', s.id, { capacityM3: e.target.checked ? null : 1000 })}
-                  />
-                  Unbounded scenario capacity
-                </label>
+                        ],
+                      }))
+                    }
+                  >
+                    + {kind === 'borrow' ? 'Borrow' : 'Waste'}
+                  </Button>
+                ))}
               </div>
-            ))}
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Limited sites leave any unallocated borrow or waste visible. Borrow uses compacted volume; waste uses bank
-              volume. Site rates replace the matching default procurement/disposal rate.
-            </p>
-          </SidebarSection>
+              {design.sites.map((s, index) => (
+                <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
+                  <Name
+                    value={s.name}
+                    label="Haul site name"
+                    onChange={(name) => patch('sites', s.id, { name })}
+                    onDelete={() => remove('sites', s.id)}
+                  />
+                  <button
+                    className="text-xs underline"
+                    onClick={() => {
+                      w.setFeatureSelection({ alignmentId: alignment.id, kind: 'site', id: s.id })
+                      w.setStation(s.chainage)
+                      setHaulOpen(false)
+                    }}
+                  >
+                    {s.kind} · select {formatRoadStation(s.chainage)}
+                  </button>
+                  <Fields<HaulSite>
+                    value={s}
+                    fields={[
+                      { key: 'chainage', label: `Site ${index + 1} station (m)` },
+                      { key: 'accessDistanceM', label: `Site ${index + 1} access distance (m)`, max: 100000 },
+                      {
+                        key: 'unitRate',
+                        label: `Site ${index + 1} unit rate ($/${s.kind === 'borrow' ? 'compacted' : 'bank'} m³)`,
+                      },
+                      { key: 'fixedCost', label: `Site ${index + 1} fixed cost ($)`, max: 1e9 },
+                      ...(s.capacityM3 === null
+                        ? []
+                        : [
+                            {
+                              key: 'capacityM3' as const,
+                              label: `Site ${index + 1} capacity (${s.kind === 'borrow' ? 'compacted' : 'bank'} m³)`,
+                              max: 1e12,
+                            },
+                          ]),
+                    ]}
+                    onChange={(p) => patch('sites', s.id, p)}
+                  />
+                  <label className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={s.capacityM3 === null}
+                      onChange={(e) => patch('sites', s.id, { capacityM3: e.target.checked ? null : 1000 })}
+                    />
+                    Unbounded scenario capacity
+                  </label>
+                </div>
+              ))}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Limited sites leave any unallocated borrow or waste visible. Borrow uses compacted volume; waste uses
+                bank volume. Site rates replace the matching default procurement/disposal rate.
+              </p>
+            </SidebarSection>
+          </RoadSettingsDialog>
         </>
       )}
       {at && (

@@ -1,3 +1,4 @@
+import type { RoadSelectionRange } from './roadSelection'
 import {
   useEffect,
   useId,
@@ -40,6 +41,28 @@ const fixed = (n: number | null | undefined, digits = 1) =>
 export function formatRoadStation(value: number) {
   const rounded = Math.round(Math.max(0, value) * 10) / 10
   return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
+}
+
+function SelectionBand({ range, frame }: { range?: RoadSelectionRange; frame: ReturnType<typeof chartFrame> }) {
+  if (!range) return null
+  const left = Math.max(frame.left, frame.x(range.start)),
+    right = Math.min(frame.left + frame.plotWidth, frame.x(range.end))
+  if (right < left) return null
+  return (
+    <g data-testid="road-chart-selection" aria-label={`Selected ${range.label}`} pointerEvents="none">
+      <rect
+        x={left}
+        y={frame.top}
+        width={Math.max(3, right - left)}
+        height={frame.plotHeight}
+        fill="#e11d48"
+        fillOpacity={0.12}
+        stroke="#e11d48"
+        strokeWidth={1}
+      />
+      <title>{range.label}</title>
+    </g>
+  )
 }
 
 function extent(values: Array<number | null>, minimumSpan = 4): [number, number] {
@@ -85,6 +108,55 @@ function linePath(points: Point[], key: 'ground' | 'design', x: (n: number) => n
       return command
     })
     .join(' ')
+}
+
+/** Make absent terrain visible even when a short gap is smaller than a line stroke. */
+function TerrainGapBands({
+  points,
+  x,
+  top,
+  height,
+}: {
+  points: Point[]
+  x: (value: number) => number
+  top: number
+  height: number
+}) {
+  const id = `terrain-gap-${useId().replace(/:/g, '')}`
+  const spans: Array<[number, number]> = []
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i]
+    if (finite(a.ground) && finite(b.ground)) continue
+    const previous = spans[spans.length - 1]
+    if (previous?.[1] === a.x) previous[1] = b.x
+    else spans.push([a.x, b.x])
+  }
+  if (!spans.length) return null
+  return (
+    <g pointerEvents="none">
+      <defs>
+        <pattern id={id} width={6} height={6} patternUnits="userSpaceOnUse">
+          <path d="M-1,1 L1,-1 M0,6 L6,0 M5,7 L7,5" stroke="#b45309" strokeWidth={1} opacity={0.4} />
+        </pattern>
+      </defs>
+      {spans.map(([start, end]) => (
+        <rect
+          key={start}
+          data-terrain-gap
+          x={x(start)}
+          y={top}
+          width={Math.max(2, x(end) - x(start))}
+          height={height}
+          fill={`url(#${id})`}
+        >
+          <title>
+            Missing terrain between {format(start, 2)} and {format(end, 2)} m
+          </title>
+        </rect>
+      ))}
+    </g>
+  )
 }
 
 /** Split sign changes at the true interpolated ground/design intersection. */
@@ -313,6 +385,7 @@ function selectWithKeyboard(
 }
 
 export function ProfileChart({
+  selectedRange,
   analysis,
   alignment,
   station,
@@ -323,6 +396,7 @@ export function ProfileChart({
   onSelectCulvert,
   terrainOnly = false,
 }: {
+  selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
   alignment: Alignment
   station: number
@@ -687,7 +761,7 @@ export function ProfileChart({
               ref={setWheelSvg}
               width={width}
               height={height}
-              className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="road-profile-chart"
               data-terrain-only={terrainOnly}
               data-station={active?.chainage ?? station}
@@ -701,6 +775,7 @@ export function ProfileChart({
                 if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
               }}
               onPointerDown={(event) => {
+                event.preventDefault()
                 if (event.button !== 0) return
                 event.currentTarget.setPointerCapture(event.pointerId)
                 onStation(eventValue(event, event.currentTarget, displayedDomain, PROFILE_TOP)[0])
@@ -770,6 +845,8 @@ export function ProfileChart({
                 top={PROFILE_TOP}
               />
               <g clipPath={`url(#profile-${id})`}>
+                <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
+                <SelectionBand range={selectedRange} frame={f} />
                 {curves
                   .filter((curve) => curve.valid && !dense && f.x(curve.end) - f.x(curve.start) >= 6)
                   .map((curve) => (
@@ -1475,7 +1552,7 @@ export function CrossSectionChart({
           <svg
             width={width}
             height={height}
-            className={onShift ? 'touch-none' : undefined}
+            className="select-none touch-none"
             data-testid="road-section-chart"
             data-terrain-only={terrainOnly}
             data-station={station?.chainage ?? 0}
@@ -1535,6 +1612,7 @@ export function CrossSectionChart({
               yLabel="Elevation (m)"
             />
             <g clipPath={`url(#section-${id})`}>
+              <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
               {engineering?.layers.flatMap((layer) =>
                 points.slice(1).flatMap((b, index) => {
                   const a = points[index]
@@ -1793,11 +1871,13 @@ export function CrossSectionChart({
 }
 
 export function MassHaulChart({
+  selectedRange,
   analysis,
   station,
   onStation,
   viewRange,
 }: {
+  selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
   station: number
   onStation: (chainage: number) => void
@@ -2024,7 +2104,7 @@ export function MassHaulChart({
             data-testid="road-mass-chart"
             data-range-start={rangeStart}
             data-range-end={rangeEnd}
-            className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onPointerDown={(event) => {
               if (event.button !== 0) return
               event.currentTarget.setPointerCapture(event.pointerId)
@@ -2049,6 +2129,7 @@ export function MassHaulChart({
               stationTicks
             />
             <g clipPath={`url(#mass-${id})`}>
+              <SelectionBand range={selectedRange} frame={f} />
               {differencePolygons(points, f.x, f.y).map((p, i) => (
                 <polygon key={i} points={p.points} fill={p.color} opacity={0.2} />
               ))}

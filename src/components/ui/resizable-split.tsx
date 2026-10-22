@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
+import { setPaneResizing } from './pane-resize'
 import {
   normalizeFractions,
   readStoredSizes,
@@ -21,6 +22,8 @@ import {
 
 export type ResizablePane = {
   id: string
+  /** Keep content mounted while the other panes take its space. */
+  hidden?: boolean
   /** Names the pane in its separator's accessible label, e.g. "plan" in "Resize plan and profile". */
   label: string
   content: ReactNode
@@ -45,7 +48,7 @@ const STEP = 16
  */
 export function ResizableSplit({
   direction,
-  panes,
+  panes: allPanes,
   storageKey,
   splitQuery = '(min-width: 1280px)',
   className,
@@ -57,6 +60,7 @@ export function ResizableSplit({
   splitQuery?: string
   className?: string
 } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'className'>) {
+  const panes = allPanes.filter((pane) => !pane.hidden)
   const split = useMediaQuery(splitQuery)
   const container = useRef<HTMLDivElement>(null)
   const defaults = normalizeFractions(
@@ -65,8 +69,8 @@ export function ResizableSplit({
   )
   const stackedDefaults = panes.map((pane) => (pane.stackedHeight === 'auto' ? 0 : (pane.stackedHeight ?? 360)))
   const stackedKey = storageKey && `${storageKey}:stacked`
-  const [fractions, setFractions] = useState(
-    () => normalizeFractions(readStoredSizes(storageKey, panes.length) ?? defaults, panes.length),
+  const [fractions, setFractions] = useState(() =>
+    normalizeFractions(readStoredSizes(storageKey, panes.length) ?? defaults, panes.length),
   )
   const [heights, setHeights] = useState(() => readStoredSizes(stackedKey, panes.length) ?? stackedDefaults)
   const [keys, setKeys] = useState({ storageKey, count: panes.length })
@@ -81,6 +85,11 @@ export function ResizableSplit({
   )
   const [dragging, setDragging] = useState<number | null>(null)
   const isDragging = dragging !== null
+  const resizeToken = useRef(Symbol('pane-resize'))
+  useEffect(() => {
+    const token = resizeToken.current
+    return () => setPaneResizing(token, false)
+  }, [])
   useEffect(() => {
     if (!isDragging) return
     const previous = document.body.style.userSelect
@@ -105,6 +114,7 @@ export function ResizableSplit({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, index: number) => {
     if (event.button !== 0) return
     event.preventDefault()
+    setPaneResizing(resizeToken.current, true)
     event.currentTarget.setPointerCapture(event.pointerId)
     drag.current = { index, start: row ? event.clientX : event.clientY, fractions, heights, size: available() }
     setDragging(index)
@@ -119,6 +129,7 @@ export function ResizableSplit({
   const endDrag = () => {
     if (!drag.current) return
     drag.current = null
+    setPaneResizing(resizeToken.current, false)
     setDragging(null)
     persist({ fractions, heights })
   }
@@ -149,22 +160,27 @@ export function ResizableSplit({
       data-split={split ? direction : 'stacked'}
       {...props}
     >
-      {panes.map((pane, index) => {
+      {allPanes.map((pane) => {
+        const index = panes.indexOf(pane)
+        const inactive = index < 0
         const next = panes[index + 1]
-        const handle = split ? !!next : pane.stackedHeight !== 'auto'
+        const handle = !inactive && (split ? !!next : pane.stackedHeight !== 'auto')
         const total = split ? fractions[index] * 100 : heights[index]
         return (
           <Fragment key={pane.id}>
             <div
               id={`pane-${pane.id}`}
               data-pane={pane.id}
+              hidden={inactive}
               className={cn('flex min-h-0 min-w-0 flex-col', pane.className)}
               style={
-                split
-                  ? { flex: `${fractions[index]} 1 0px` }
-                  : pane.stackedHeight === 'auto'
-                    ? { flex: 'none' }
-                    : { flex: 'none', height: heights[index] }
+                inactive
+                  ? { display: 'none' }
+                  : split
+                    ? { flex: `${fractions[index]} 1 0px` }
+                    : pane.stackedHeight === 'auto'
+                      ? { flex: 'none' }
+                      : { flex: 'none', height: heights[index] }
               }
             >
               {pane.content}
@@ -208,4 +224,3 @@ export function ResizableSplit({
     </div>
   )
 }
-

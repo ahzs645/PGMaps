@@ -1,6 +1,7 @@
+import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Copy, Download, Mountain, Plus, Route, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
+import { Copy, Mountain, Plus, Route, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -41,7 +42,6 @@ export interface SidebarProps {
   onRemoveAlignment: () => void
   onSuggest: (options: RouteSearchOptions) => void
   onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
-  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile' | 'plotbook') => void
   onProfile: (id: string) => void
   activeProfile: string | null
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -50,7 +50,8 @@ export interface SidebarProps {
 }
 const id = () => crypto.randomUUID()
 export function DesignSidebar(p: SidebarProps) {
-  const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'engineering' | 'review' | 'files'>('design')
+  const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'engineering' | 'review'>('design')
+  const [wideningsOpen, setWideningsOpen] = useState(false)
   const [routeObjective, setRouteObjective] = useState<RoadOptimizationObjective>('balanced')
   const [corridorHalfWidthM, setCorridorHalfWidthM] = useState(180)
   const [route, setRoute] = useState<RouteSearchOptions>(DEFAULT_ROUTE_OPTIONS)
@@ -109,7 +110,6 @@ export function DesignSidebar(p: SidebarProps) {
               { value: 'template', label: 'Section', icon: SlidersHorizontal },
               { value: 'engineering', label: 'Engineering' },
               { value: 'review', label: 'Review' },
-              { value: 'files', label: 'Files' },
             ]}
           />
         </div>
@@ -761,91 +761,132 @@ export function DesignSidebar(p: SidebarProps) {
               <CurveDesignControls workspace={p.workspace} />
             </SidebarSection>
             <SidebarSection title="Landings & turnouts">
-              <div className="mb-2 flex gap-1">
-                <Button size="sm" variant="outline" onClick={() => addWidening('landing')}>
-                  + Landing
+              <div className="space-y-2">
+                <Button size="sm" variant="outline" onClick={() => setWideningsOpen(true)}>
+                  Manage landings & turnouts
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => addWidening('turnout')}>
-                  + Turnout
-                </Button>
+                {alignment.overrides.map((v) => (
+                  <Button
+                    key={v.id}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    aria-pressed={
+                      p.workspace.featureSelection?.alignmentId === alignment.id &&
+                      p.workspace.featureSelection?.id === v.id
+                    }
+                    onClick={() => {
+                      p.workspace.setFeatureSelection({ alignmentId: alignment.id, kind: 'widening', id: v.id })
+                      p.workspace.setStation((v.start + v.end) / 2)
+                    }}
+                  >
+                    {v.name} · {formatRoadStation(v.start)}–{formatRoadStation(v.end)}
+                  </Button>
+                ))}
               </div>
-              {alignment.overrides.map((v) => (
-                <div key={v.id} className="mb-3 space-y-2 rounded border p-2">
-                  <div className="flex gap-1">
-                    <input
-                      aria-label="Widening name"
-                      className={roadFieldClass}
-                      value={v.name}
-                      maxLength={200}
-                      onChange={(e) => tweakOverride(v.id, { name: e.target.value })}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 shrink-0"
-                      aria-label={`Duplicate ${v.name}`}
-                      onClick={() =>
-                        updateAlignment((a) => ({
-                          ...a,
-                          overrides: [...a.overrides, { ...v, id: id(), name: `${v.name} copy` }],
-                        }))
-                      }
-                    >
-                      <Copy className="size-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 shrink-0"
-                      aria-label={`Remove ${v.name}`}
-                      onClick={() =>
-                        updateAlignment((a) => ({ ...a, overrides: a.overrides.filter((x) => x.id !== v.id) }))
-                      }
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Field label="Widening type">
-                      <select
-                        className={roadFieldClass}
-                        value={v.kind}
-                        onChange={(e) => tweakOverride(v.id, { kind: e.target.value as WidthOverride['kind'] })}
-                      >
-                        <option value="landing">Landing · unsurfaced</option>
-                        <option value="turnout">Turnout · surfaced</option>
-                      </select>
-                    </Field>
-                    <Field label="Widening side">
-                      <select
-                        className={roadFieldClass}
-                        value={v.side}
-                        onChange={(e) => tweakOverride(v.id, { side: e.target.value as WidthOverride['side'] })}
-                      >
-                        <option value="left">Left</option>
-                        <option value="right">Right</option>
-                        <option value="both">Both</option>
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['start', 'end', 'taper', 'extraWidth'] as const).map((key) => (
-                      <NumberField
-                        key={key}
-                        label={`${key === 'extraWidth' ? 'Extra width' : key[0].toUpperCase() + key.slice(1)} (m)`}
-                        value={v[key]}
-                        max={key === 'extraWidth' ? 50 : key === 'taper' ? 1000 : 100000}
-                        onChange={(value) => tweakOverride(v.id, { [key]: value })}
-                      />
-                    ))}
-                  </div>
-                  {v.end <= v.start && (
-                    <p role="alert" className="text-xs text-red-600">
-                      End station must be after start.
-                    </p>
-                  )}
+              <RoadSettingsDialog
+                title="Landings & turnouts"
+                open={wideningsOpen}
+                onOpenChange={setWideningsOpen}
+                busy={!!p.workspace.busy}
+              >
+                <div className="mb-2 flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => addWidening('landing')}>
+                    + Landing
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => addWidening('turnout')}>
+                    + Turnout
+                  </Button>
                 </div>
-              ))}
+                {alignment.overrides.map((v) => (
+                  <div key={v.id} className="mb-3 space-y-2 rounded border p-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        p.workspace.setFeatureSelection({ alignmentId: alignment.id, kind: 'widening', id: v.id })
+                        p.workspace.setStation((v.start + v.end) / 2)
+                        setWideningsOpen(false)
+                      }}
+                    >
+                      Locate {v.name}
+                    </Button>
+                    <div className="flex gap-1">
+                      <input
+                        aria-label="Widening name"
+                        className={roadFieldClass}
+                        value={v.name}
+                        maxLength={200}
+                        onChange={(e) => tweakOverride(v.id, { name: e.target.value })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0"
+                        aria-label={`Duplicate ${v.name}`}
+                        onClick={() =>
+                          updateAlignment((a) => ({
+                            ...a,
+                            overrides: [...a.overrides, { ...v, id: id(), name: `${v.name} copy` }],
+                          }))
+                        }
+                      >
+                        <Copy className="size-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0"
+                        aria-label={`Remove ${v.name}`}
+                        onClick={() =>
+                          updateAlignment((a) => ({ ...a, overrides: a.overrides.filter((x) => x.id !== v.id) }))
+                        }
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Widening type">
+                        <select
+                          className={roadFieldClass}
+                          value={v.kind}
+                          onChange={(e) => tweakOverride(v.id, { kind: e.target.value as WidthOverride['kind'] })}
+                        >
+                          <option value="landing">Landing · unsurfaced</option>
+                          <option value="turnout">Turnout · surfaced</option>
+                        </select>
+                      </Field>
+                      <Field label="Widening side">
+                        <select
+                          className={roadFieldClass}
+                          value={v.side}
+                          onChange={(e) => tweakOverride(v.id, { side: e.target.value as WidthOverride['side'] })}
+                        >
+                          <option value="left">Left</option>
+                          <option value="right">Right</option>
+                          <option value="both">Both</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['start', 'end', 'taper', 'extraWidth'] as const).map((key) => (
+                        <NumberField
+                          key={key}
+                          label={`${key === 'extraWidth' ? 'Extra width' : key[0].toUpperCase() + key.slice(1)} (m)`}
+                          value={v[key]}
+                          max={key === 'extraWidth' ? 50 : key === 'taper' ? 1000 : 100000}
+                          onChange={(value) => tweakOverride(v.id, { [key]: value })}
+                        />
+                      ))}
+                    </div>
+                    {v.end <= v.start && (
+                      <p role="alert" className="text-xs text-red-600">
+                        End station must be after start.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </RoadSettingsDialog>
             </SidebarSection>
           </div>
 
@@ -1071,78 +1112,6 @@ export function DesignSidebar(p: SidebarProps) {
                 Positive offsets inset supports; negative offsets extend the span. Heights follow the selected yarder
                 and tailhold ends. Assumed parabolic sag screens clearance; it does not calculate tension or payload.
               </p>
-            </SidebarSection>
-          </div>
-
-          <div hidden={tab !== 'files'} className="space-y-4">
-            <SidebarSection title="Project & exports">
-              <Field label="Project name">
-                <input
-                  className={roadFieldClass}
-                  value={project.name}
-                  maxLength={200}
-                  onChange={(e) => update((x) => ({ ...x, name: e.target.value }))}
-                />
-              </Field>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={() => p.onFile('project')}>
-                  Open project
-                </Button>
-                <Button size="sm" onClick={() => p.onSave('project')}>
-                  Save project JSON
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onFile('alignment')}>
-                  Import road lines
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('geojson')}>
-                  Export GeoJSON
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('csv')}>
-                  Station CSV
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('report')}>
-                  <Download className="mr-1 size-3" />
-                  Print report
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('landxml')}>
-                  LandXML
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('stakeout')}>
-                  Stakeout CSV
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('shapefile')}>
-                  Shapefile (zip)
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => p.onSave('plotbook')}>
-                  Plot book (A3)
-                </Button>
-              </div>
-              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                LandXML 1.2 carries the fitted lines and arcs, the PVI profile with curves, the ground profile and
-                cross- sections every 20 m. The stakeout file lists centreline, hinge, ditch and catch points with
-                cut/fill every 20 m. Both use the terrain's projected CRS, or WGS84 UTM for a geographic source. The
-                printed report adds a cross-section chapter.
-              </p>
-              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                Projects preserve alternatives, PVIs, templates, context, profiles and terrain provenance. Imported DEM
-                cells are included; published LiDAR is restored from its recorded checksum. Autosave stays on this
-                device.
-              </p>
-            </SidebarSection>
-            <SidebarSection title="Reference workflow">
-              <p className="text-xs leading-5">
-                Linked plan/profile/section and station editing follow the RoadEng examples. Road pegging, segment grade
-                and stream profiles follow the Forsite LiDAR demonstrations. The computations here are documented,
-                independently implemented planning methods.
-              </p>
-              <a
-                className="mt-2 block text-xs text-primary underline"
-                href="https://github.com/ahzs645/PGMaps/blob/codex/forestry-road-design/docs/forestry-road-design.md"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Methods, reference mapping & calculation limits
-              </a>
             </SidebarSection>
           </div>
         </div>

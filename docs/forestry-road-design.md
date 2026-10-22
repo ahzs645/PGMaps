@@ -278,9 +278,32 @@ its samples. Calculated station elevations, sections and routing checks query
 the native terrain adapter directly; they do not read a contour, rendered
 image, 3D mesh or MapLibre terrain LOD.
 
-The 3D view is a separate display mesh: 30 cells across each dimension, with a
-bounded selection of road stations for rendering. Orbit and follow-station
-modes, camera rotation and vertical exaggeration change the presentation only.
+The 3D view is a separate triangular display mesh: at most 128 cells on the longer
+side, with proportional rows/columns and a bounded selection of road stations
+for rendering. Cells containing missing centreline or cross-section samples are
+classified as unsupported even if their mesh corners have terrain.
+**Fill gaps** is on by default for the 3D display: enclosed unsupported components
+no wider or taller than 80 m receive estimated display patches. Missing preview
+vertices are relaxed toward the mean of their four neighbours, bounded by the
+measured surrounding terrain (at most 128 iterations). Measured vertices are never
+changed. The preview labels these patches **Estimated patches · display only**;
+turning Fill gaps off restores the source holes. Components touching a mesh edge
+and larger unsupported areas stay open; the display does not extrapolate outside
+coverage. Infill is never passed to the source sampler, analysis, quantities or
+exports. Profile and section charts still hatch missing terrain intervals, and
+the selected station still explains missing source coverage. Resolving those
+analysis gaps requires a DEM with coverage there.
+The road formation remains continuous wherever its designed elevations and
+widths are known, even if source ground is missing. Those spans identify ground
+as unverified on hover. Batters and ditch geometry still require their computed,
+supported sections; display infill never supplies missing earthwork geometry.
+The grid uses fixed local coordinates and discrete spacing, so moving the follow
+window does not move missing cells across the ground. Up to 65,536 sampled vertices
+(including missing values) are cached. Ground and batters paint onto one canvas;
+formation and structure overlays retain SVG selection. Camera-only redraws reuse
+the terrain geometry. Orbit and follow-station modes, camera rotation, zoom, pan
+and vertical exaggeration change the presentation only. Scroll or use +/− to zoom,
+drag to rotate, Shift-drag or right-drag to pan, and Fit/Home to reset.
 The follow window spans 240 m around the selected station. Neither the mesh nor
 vertical exaggeration changes profile elevations or quantities. Plan, profile,
 section, mass curve and station schedule share the selected horizontal chainage.
@@ -289,13 +312,37 @@ section, mass curve and station schedule share the selected horizontal chainage.
 
 The header holds the **view layout** picker (the shared `AppSelect` combobox): the
 linked overview (plan | profile / detail) or the four-view plan · profile · section ·
-data and pegging layouts ((plan / data) | (profile / detail)). The tree keeps the same
+data and pegging layouts ((plan / data) | (profile / detail)), plus two panes and map-only.
+**Screen presets & panels** offers visual presets and checkboxes to restore closed
+panels. Each panel has a close button; remaining views fill its space, and the last
+visible panel cannot be closed. Visibility is saved per layout under
+`pgmaps-road-panels:<layout>` and copied into a named saved layout.
+The tree keeps the same
 shape in every layout, so switching layouts keeps the plan's map mounted.
+
+Landings and turnouts have a compact list with **Manage landings & turnouts**
+opening the shared settings dialog. Selecting a widening, template assignment,
+ground horizon or haul site shares its station with the section and 3D views,
+frames it on the map in rose, and marks its station range on the profile and
+mass-haul charts. **Clear selection** removes that feature highlight; ordinary
+station navigation remains available. Selections are temporary and scoped to
+their road alternative. Peg measurement guidance opens from **About peg measurements**
+on hover, keyboard focus or touch, and closes with Escape.
+
+Loading and operation errors use dismissible notifications at the top of the
+workspace. Progress remains until completion, without a timer. Dismissing it
+does not cancel work or bring it back on the next progress update; **Show loading
+notification** in the header restores it. Cancellable searches retain a separate
+Cancel action in the notification. Completion removes progress, and failures
+show an error notification. Dismissing an initial restore error does not enable
+autosave; explicit source recovery is still required.
 
 Every pane boundary is a `ResizableSplit` separator (`src/components/ui/resizable-split.tsx`):
 drag it, or focus it and use the arrow keys (Shift for larger steps); double-click
 restores the default. The controls sidebar and the connected views share one more
-boundary. Each layout stores its own sizes in `localStorage` under
+boundary. Maps keep their drawing buffer during pointer resizing and resize it
+once on release to avoid flashing. Chart labels cannot be selected by dragging.
+Each layout stores its own sizes in `localStorage` under
 `pgmaps-road-panes:<layout>:<split>` (`pgmaps-road-panes:sidebar` for the sidebar);
 storage that refuses writes leaves the defaults in place. Below 1280 px the view
 panes stack (below 1024 px the sidebar too), each with a handle underneath that
@@ -578,6 +625,12 @@ continuously supported road section. Material conversion factors are retained
 for every movement. A site or source on the other side of a terrain/daylight gap
 cannot supply that interval. This can produce both borrow and waste even when
 the entire route's net mass balance appears favourable.
+
+Engineering → Haul keeps the allocation enable control visible. Enabling it
+opens **Haul & cost settings**, which groups rates, distances and borrow/waste
+sites in the same dialog frame as widening settings. The settings button also
+opens it later without changing the allocation switch. Edits apply immediately;
+Done closes the dialog. Selecting a site closes it and locates that road station.
 
 Each movement is priced by `haulUnitCost`:
 
@@ -1043,6 +1096,15 @@ station interval captures every terrain feature; coarser source terrain and
 sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
 
 ## Exports and restoration
+
+The header's **Save** button opens the **Save & export** dialog. It owns project
+naming, project and line import, and all data/document exports; Files is no longer
+another sidebar tab. **Map PDF** downloads the current plan with its rendered
+terrain, roads, markers and scale. **Report PDF** writes the same report content as
+HTML, with paginated text/tables and profile/cross-section plots. Both are direct
+PDF downloads; the existing HTML report and A3 plot book remain available.
+The plan uses the shared styled `AppSelect` for terrain display, a settings popover
+for overlays/context, and the shared collapsible `MapLegendPanel`. Fit is above zoom.
 
 - Project JSON: `pgmaps-road-project-v1`, full editable alignment/vertical/
   widening/template/settings/context/cable/profile state, optional engineering

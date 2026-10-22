@@ -76,6 +76,13 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
   nested split. Keep the tree shape the same across layouts so heavy children such
   as a map stay mounted. The sizing rules are pure functions in `pane-sizes.ts`.
   `/dev/forestry/road-design` is the reference.
+  A pane's optional `hidden` keeps its content mounted while visible neighbours
+  take its space. Active pointer resizing is shared through `pane-resize.ts`;
+  the application's `Map` adapter defers WebGL buffer reallocation until release,
+  scaling its existing frame during the drag to avoid white flashes.
+- Plot text is nonselectable through the application stylesheet (`svg`, `canvas`,
+  `.recharts-wrapper`, `[data-chart-container]`), covering existing and future charts.
+  Keep ordinary readouts, tables and form fields copyable.
 - Dense readouts: `ReadoutGrid` (`readout-grid.tsx`) lists abbreviated
   `label:` / value pairs in as many columns as fit, values right-aligned in a
   monospace face, with a `title` for each abbreviation and a `warning` tone.

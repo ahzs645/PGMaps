@@ -1,9 +1,11 @@
+import type { RoadSelectionRange } from './roadSelection'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
-import { LocateFixed } from 'lucide-react'
+import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
+import { LocateFixed, Settings2, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
-import { MapGradientLegendItem } from '@/components/ui/map-panels'
+import { AppSelect } from '@/components/ui/select'
+import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { distance, horizontalCurveSummary, nearestStation, offsetCoordinate, positionAt } from './engine'
 import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
 import { terrainBounds } from './terrain'
@@ -27,6 +29,8 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   avoid: 'Review areas',
 }
 interface PlanProps {
+  selectedRange?: RoadSelectionRange
+  onMapReady?: (map: MapLibreMap | null) => void
   project: RoadProject
   alignment: Alignment
   analyses: Map<string, RoadAnalysis>
@@ -100,6 +104,12 @@ function Layers(
   },
 ) {
   const { map, isLoaded } = useMap()
+  const onMapReady = props.onMapReady
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    onMapReady?.(map)
+    return () => onMapReady?.(null)
+  }, [map, isLoaded, onMapReady])
   const {
     mode,
     onDraw,
@@ -126,6 +136,72 @@ function Layers(
   const activeAlignmentId = props.alignment.id
   const previousFit = useRef('')
   const analysis = props.analyses.get(props.alignment.id)!
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    const range = props.selectedRange
+    const samples = range
+      ? analysis.stations.filter((s) => s.chainage > range.start && s.chainage < range.end).map((s) => s.coordinate)
+      : []
+    const start = range ? placeOn(props.alignment, range.start)?.coordinate : null
+    const end = range ? placeOn(props.alignment, range.end)?.coordinate : null
+    const coordinates = start && end ? [start, ...samples, end] : []
+    const data = fc(
+      coordinates.length
+        ? [
+            line(coordinates, { label: range?.label }),
+            ...(range?.start === range?.end && start
+              ? [
+                  {
+                    type: 'Feature' as const,
+                    properties: { label: range?.label },
+                    geometry: { type: 'Point' as const, coordinates: start },
+                  },
+                ]
+              : []),
+          ]
+        : [],
+    )
+    const source = map.getSource('road-selection') as GeoJSONSource | undefined
+    if (source) source.setData(data)
+    else map.addSource('road-selection', { type: 'geojson', data })
+    if (!map.getLayer('road-selection-highlight'))
+      map.addLayer({
+        id: 'road-selection-highlight',
+        type: 'line',
+        source: 'road-selection',
+        paint: { 'line-color': '#e11d48', 'line-width': 12, 'line-opacity': 0.65 },
+      })
+    if (!map.getLayer('road-selection-point'))
+      map.addLayer({
+        id: 'road-selection-point',
+        type: 'circle',
+        source: 'road-selection',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#e11d48',
+          'circle-radius': 10,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      })
+    map.moveLayer('road-selection-highlight')
+    map.moveLayer('road-selection-point')
+    if (range && start && end)
+      map.fitBounds(
+        [
+          [
+            Math.min(start[0], end[0], ...samples.map((p) => p[0])),
+            Math.min(start[1], end[1], ...samples.map((p) => p[1])),
+          ],
+          [
+            Math.max(start[0], end[0], ...samples.map((p) => p[0])),
+            Math.max(start[1], end[1], ...samples.map((p) => p[1])),
+          ],
+        ],
+        { padding: 70, maxZoom: 17, duration: 350 },
+      )
+  }, [map, isLoaded, analysis, props.alignment, props.selectedRange])
+
   const bounds = useMemo(() => terrainBounds(props.project.terrain), [props.project.terrain])
   const display = useMemo(
     () => (bounds ? buildTerrainDisplay(props.source, bounds, 192) : null),
@@ -648,6 +724,7 @@ function Layers(
       'road-exploration-point',
     ])
       map.moveLayer(id)
+    for (const id of ['road-selection-highlight', 'road-selection-point']) if (map.getLayer(id)) map.moveLayer(id)
   }, [
     map,
     isLoaded,
@@ -961,89 +1038,75 @@ function Layers(
           )
         })}
       {display && (props.showContours || props.terrainLayer !== 'none') && (
-        <details
-          key={props.terrainLayer}
-          open={props.terrainLayer === 'slope' || props.terrainLayer === 'aspect' || props.terrainLayer === 'elevation'}
-          className="absolute bottom-10 left-2 z-10 max-w-[min(20rem,calc(100%_-_1rem))] rounded border bg-background/95 px-2 py-1 text-[10px] shadow-sm"
-          data-testid="road-terrain-legend"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <summary
-            aria-label="Terrain source and legend"
-            className="cursor-pointer list-none select-none rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div data-testid="road-terrain-legend">
+          <MapLegendPanel
+            title="Legend"
+            collapsible
+            defaultCollapsed
+            width="sm"
+            className="bottom-10 right-2 workspace-desktop:bottom-10 workspace-desktop:right-2 workspace-desktop:p-2"
+            contentClassName="max-h-44 overflow-y-auto text-[10px]"
           >
-            <span className="flex items-center gap-1.5">
-              <span className="shrink-0 rounded border bg-muted px-1 font-medium">
-                {props.project.terrain.kind === 'demo'
-                  ? 'Synthetic'
-                  : `${props.project.terrain.resolutionM.toLocaleString('en-CA', { maximumFractionDigits: 1 })} m terrain`}
-              </span>
-              <span className="max-w-36 truncate" title={props.project.terrain.name}>
+            <div className="mt-1 max-h-40 space-y-1 overflow-y-auto border-t pt-1">
+              <p className="truncate font-medium" title={props.project.terrain.name}>
                 {props.project.terrain.name}
-              </span>
-              <span className="shrink-0 text-muted-foreground">Legend ▾</span>
-            </span>
-          </summary>
-          <div className="mt-1 max-h-40 space-y-1 overflow-y-auto border-t pt-1">
-            <p className="truncate font-medium" title={props.project.terrain.name}>
-              {props.project.terrain.name}
-            </p>
-            {props.terrainLayer === 'slope' && (
-              <MapGradientLegendItem
-                className="py-1"
-                aria-label="Terrain slope in degrees"
-                colors={TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / 60) * 100}%`)}
-                minLabel="Slope 0°"
-                maxLabel="60°+"
-              />
-            )}
-            {props.terrainLayer === 'elevation' && (
-              <p>
-                Elevation {Math.round(display.elevationRange[0])}–{Math.round(display.elevationRange[1])} m
               </p>
-            )}
-            {props.terrainLayer === 'aspect' && (
-              <>
-                <p>Aspect · downslope direction</p>
+              {props.terrainLayer === 'slope' && (
                 <MapGradientLegendItem
                   className="py-1"
-                  aria-label="Terrain aspect clockwise from north"
-                  colors={TERRAIN_ASPECT_STOPS.map((stop) => `${stop.color} ${stop.value / 3.6}%`)}
-                  minLabel="N 0°"
-                  maxLabel="N 360°"
+                  aria-label="Terrain slope in degrees"
+                  colors={TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / 60) * 100}%`)}
+                  minLabel="Slope 0°"
+                  maxLabel="60°+"
                 />
-                <p className="flex justify-around">
-                  <span>E 90°</span>
-                  <span>S 180°</span>
-                  <span>W 270°</span>
+              )}
+              {props.terrainLayer === 'elevation' && (
+                <p>
+                  Elevation {Math.round(display.elevationRange[0])}–{Math.round(display.elevationRange[1])} m
                 </p>
-                <p className="flex items-center gap-1">
-                  <span
-                    className="inline-block size-2 rounded-sm border"
-                    style={{ backgroundColor: TERRAIN_ASPECT_FLAT_COLOR }}
+              )}
+              {props.terrainLayer === 'aspect' && (
+                <>
+                  <p>Aspect · downslope direction</p>
+                  <MapGradientLegendItem
+                    className="py-1"
+                    aria-label="Terrain aspect clockwise from north"
+                    colors={TERRAIN_ASPECT_STOPS.map((stop) => `${stop.color} ${stop.value / 3.6}%`)}
+                    minLabel="N 0°"
+                    maxLabel="N 360°"
                   />
-                  Flat · missing terrain transparent
-                </p>
-              </>
-            )}
-            <p>
-              {props.showContours ? `${display.contourInterval} m contours · ` : ''}display sampled at ~
-              {Math.round(display.resolutionM)} m; analysis uses native terrain
-            </p>
-            {props.showEarthwork && !props.terrainOnly && (
+                  <p className="flex justify-around">
+                    <span>E 90°</span>
+                    <span>S 180°</span>
+                    <span>W 270°</span>
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <span
+                      className="inline-block size-2 rounded-sm border"
+                      style={{ backgroundColor: TERRAIN_ASPECT_FLAT_COLOR }}
+                    />
+                    Flat · missing terrain transparent
+                  </p>
+                </>
+              )}
               <p>
-                Envelope: amber predominant cut · blue predominant fill · grey formation edges · blue dashed ditch
-                bottoms
+                {props.showContours ? `${display.contourInterval} m contours · ` : ''}display sampled at ~
+                {Math.round(display.resolutionM)} m; analysis uses native terrain
               </p>
-            )}
-            <p>
-              {props.terrainOnly
-                ? 'Blue terrain transect'
-                : 'Orange alignment · red over grade limit · grey terrain gap'}
-            </p>
-          </div>
-        </details>
+              {props.showEarthwork && !props.terrainOnly && (
+                <p>
+                  Envelope: amber predominant cut · blue predominant fill · grey formation edges · blue dashed ditch
+                  bottoms
+                </p>
+              )}
+              <p>
+                {props.terrainOnly
+                  ? 'Blue terrain transect'
+                  : 'Orange alignment · red over grade limit · grey terrain gap'}
+              </p>
+            </div>
+          </MapLegendPanel>
+        </div>
       )}
     </>
   )
@@ -1059,6 +1122,27 @@ export function PlanView(props: PlanProps) {
     props.project.context.some((feature) => feature.kind === kind),
   )
   const [fit, setFit] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsRef = useRef<HTMLDivElement>(null)
+  const settingsButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!settingsOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!settingsRef.current?.contains(event.target as Node)) setSettingsOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      setSettingsOpen(false)
+      settingsButton.current?.focus()
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [settingsOpen])
   const drawing = !['inspect', 'edit'].includes(props.mode)
   const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
   return (
@@ -1070,7 +1154,25 @@ export function PlanView(props: PlanProps) {
       <Map
         center={center}
         zoom={14}
-        controls={<MapControls position="top-right" showZoom showCompass={false} />}
+        controls={
+          <>
+            <Button
+              size="icon"
+              variant="outline"
+              className="absolute right-2 top-2 z-30 size-11 bg-background shadow-sm workspace-desktop:size-8"
+              aria-label="Fit road alignments"
+              onClick={() => setFit((n) => n + 1)}
+            >
+              <LocateFixed className="size-4" />
+            </Button>
+            <MapControls
+              position="top-right"
+              showZoom
+              showCompass={false}
+              className="top-[3.75rem] workspace-desktop:top-12"
+            />
+          </>
+        }
         showLoadingOverlay={false}
       >
         <Layers
@@ -1084,67 +1186,90 @@ export function PlanView(props: PlanProps) {
         />
         <MapScaleBar position="bottom-left" />
       </Map>
-      <div className="absolute left-2 top-2 flex max-w-[calc(100%-60px)] flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm">
-        <select
-          aria-label="Terrain display"
-          className="min-w-0 rounded border bg-background px-1 py-1 text-xs"
+      <div
+        className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] items-center gap-1"
+        data-map-export-ignore
+      >
+        <AppSelect
           value={terrainLayer}
-          onChange={(e) => setTerrainLayer(e.target.value as typeof terrainLayer)}
-        >
-          <option value="hillshade">Hillshade</option>
-          <option value="slope">Slope</option>
-          <option value="aspect">Aspect</option>
-          <option value="elevation">Elevation</option>
-          <option value="none">Basemap</option>
-        </select>
-        <label className="flex items-center gap-1 px-1 text-xs">
-          <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />
-          Contours
-        </label>
-        <label className="flex items-center gap-1 px-1 text-xs">
-          <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-          Labels
-        </label>
-        {!props.terrainOnly && (
-          <label className="flex items-center gap-1 px-1 text-xs">
-            <input type="checkbox" checked={showEarthwork} onChange={(e) => setShowEarthwork(e.target.checked)} />
-            Earthworks
-          </label>
-        )}
-        {contextKinds.length > 0 && (
-          <details className="relative text-xs" data-testid="road-context-visibility">
-            <summary className="cursor-pointer rounded px-1 py-1">Context</summary>
-            <div className="absolute left-0 top-full z-10 min-w-44 rounded-md border bg-background p-2 shadow-md">
-              {contextKinds.map((kind) => (
-                <label key={kind} className="flex items-center gap-2 whitespace-nowrap py-1">
-                  <input
-                    type="checkbox"
-                    aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
-                    checked={!hiddenContextKinds.includes(kind)}
-                    onChange={(event) =>
-                      setHiddenContextKinds((previous) =>
-                        event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
-                      )
-                    }
-                  />
-                  {CONTEXT_LABELS[kind]} · {props.project.context.filter((feature) => feature.kind === kind).length}
+          onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
+          triggerAriaLabel="Terrain display"
+          contentClassName="z-[1600] text-xs"
+          triggerClassName="h-8 w-32 bg-background/95 text-xs shadow-sm"
+          options={[
+            { value: 'hillshade', label: 'Hillshade' },
+            { value: 'slope', label: 'Slope' },
+            { value: 'aspect', label: 'Aspect' },
+            { value: 'elevation', label: 'Elevation' },
+            { value: 'none', label: 'Basemap' },
+          ]}
+        />
+        <div className="relative" ref={settingsRef}>
+          <Button
+            ref={settingsButton}
+            size="icon"
+            variant="outline"
+            className="size-8 bg-background/95 shadow-sm"
+            aria-label="Map display settings"
+            aria-expanded={settingsOpen}
+            aria-haspopup="dialog"
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            <Settings2 className="size-4" />
+          </Button>
+          {settingsOpen && (
+            <div
+              role="dialog"
+              aria-label="Map display settings"
+              className="absolute left-0 top-10 z-40 w-60 max-w-[calc(100vw-3rem)] rounded-lg border bg-popover p-3 text-popover-foreground shadow-xl"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-xs font-semibold">Map settings</h3>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6"
+                  aria-label="Close map settings"
+                  onClick={() => setSettingsOpen(false)}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+              {(
+                [
+                  ['Contours', showContours, setShowContours],
+                  ['Labels', showLabels, setShowLabels],
+                  ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+                ] as const
+              ).map(([label, checked, set]) => (
+                <label key={label} className="flex items-center justify-between py-2 text-xs">
+                  {label}
+                  <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
                 </label>
               ))}
-              <p className="mt-1 max-w-48 whitespace-normal text-[10px] text-muted-foreground">
-                Visibility only; review flags and calculations retain all project features.
-              </p>
+              {contextKinds.length > 0 && (
+                <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
+                  <legend className="text-xs font-medium">Context</legend>
+                  {contextKinds.map((kind) => (
+                    <label key={kind} className="flex items-center justify-between gap-2 py-2 text-xs">
+                      {CONTEXT_LABELS[kind]}
+                      <input
+                        type="checkbox"
+                        aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
+                        checked={!hiddenContextKinds.includes(kind)}
+                        onChange={(event) =>
+                          setHiddenContextKinds((previous) =>
+                            event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </fieldset>
+              )}
             </div>
-          </details>
-        )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7"
-          aria-label="Fit road alignments"
-          onClick={() => setFit((n) => n + 1)}
-        >
-          <LocateFixed className="size-4" />
-        </Button>
+          )}
+        </div>
       </div>
     </div>
   )

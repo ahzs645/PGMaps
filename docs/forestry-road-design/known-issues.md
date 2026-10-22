@@ -14,8 +14,24 @@ that fixes it, and add one, with the file and function, when you find a new defe
 
 ## Fixed on 2026-10-22
 
+- Small source gaps no longer become conspicuous white holes in the 3D preview:
+  Fill gaps adds explicitly labelled display estimates inside enclosed gaps up to
+  80 m across. Switching it off restores source holes. Larger/boundary gaps stay
+  open, and missing elevations remain missing in every analysis and export.
+- Follow terrain grids are anchored to fixed ground coordinates rather than the moving
+  camera window; the same source gap no longer flickers into different coarse cells.
+  Zoom, pan and Fit are available, and ground/batters use a canvas with bounded sample caching.
+- Pane drags preserve the map's WebGL backing buffer until release. Plot labels are
+  nonselectable across the application, including future SVG and canvas charts.
+- Save opens the file/export dialog, including map/report PDF downloads. Map controls and
+  legends use the shared styled components. Panels can close and restore through screen presets.
+
 Exports and analyses made before these fixes can differ from current ones in these ways.
 
+- Terrain preview: missing centreline or section samples classify their coarse mesh cells as
+  unsupported. Source-gap mode preserves those holes; optional display infill labels its
+  estimates. Profile and section charts hatch missing intervals, and the selected station
+  explains the source gap. Station entry shows tenths of a metre while retaining exact shared chainage.
 - Spirals: superelevation and widening no longer drop to 0 at the TS/ST when the runoff is longer
   than the spiral; they run in over the longer of the two, ending at the SC.
 - Culvert cover uses the superelevated crossfall at each barrel sample, as the sections do.

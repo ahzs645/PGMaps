@@ -1,3 +1,4 @@
+import type { RoadFeatureSelection } from './roadSelection'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { safeAnalyzeRoad } from './analysisResult'
 import { createDemoProject, demoTerrain, loadLidarTerrain, terrainFromMetadata } from './terrain'
@@ -37,7 +38,14 @@ export function useRoadWorkspace() {
   const current = useRef(project)
   const [source, setSource] = useState<TerrainSource>(demoTerrain)
   const [station, setStation] = useState(0)
-  const [busy, setBusy] = useState('Opening road workspace…')
+  const [featureSelection, setFeatureSelection] = useState<RoadFeatureSelection | null>(null)
+  const [busyState, setBusyState] = useState({ message: 'Opening road workspace…', id: 1 })
+  const [busyCancel, setBusyCancel] = useState<{ label: string; onCancel: () => void } | null>(null)
+  const busy = busyState.message
+  const setBusy = useCallback((message: string) => {
+    setBusyState((previous) => ({ message, id: previous.id + (!previous.message && message ? 1 : 0) }))
+    if (!message) setBusyCancel(null)
+  }, [])
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
@@ -154,7 +162,7 @@ export function useRoadWorkspace() {
     }
     void open()
     return () => controller.abort()
-  }, [commit, restore])
+  }, [commit, restore, setBusy])
 
   useEffect(() => {
     if (!ready || !canPersist || busy || error) return
@@ -222,6 +230,8 @@ export function useRoadWorkspace() {
     processMs,
     station,
     setStation,
+    featureSelection,
+    setFeatureSelection,
     commit,
     update,
     updateAlignment,
@@ -230,6 +240,9 @@ export function useRoadWorkspace() {
     ready,
     setSource,
     busy,
+    busyId: busyState.id,
+    busyCancel,
+    setBusyCancel,
     setBusy,
     notice,
     setNotice,

@@ -15,7 +15,10 @@ async function jsonDownload(download: Download) {
 async function saved(page: Page): Promise<RoadProject> {
   const next = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  return jsonDownload(await next)
+  await page.getByRole('button', { name: 'Save project JSON', exact: true }).click()
+  const project = await jsonDownload(await next)
+  await page.getByRole('dialog', { name: 'Save & export', exact: true }).getByRole('button', { name: 'Close', exact: true }).click()
+  return project
 }
 async function openProject(page: Page, project: RoadProject) {
   const pending = page.waitForEvent('filechooser')

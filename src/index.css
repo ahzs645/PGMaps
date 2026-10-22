@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Chart labels are graphical controls: dragging a plot must never select its text.
+   This also covers new SVG/canvas charts; ordinary tables and form fields stay copyable. */
+svg,
+canvas,
+.recharts-wrapper,
+[data-chart-container] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @keyframes map-loader-bloom-out {
   0% {
     opacity: 0;

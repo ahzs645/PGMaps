@@ -141,7 +141,12 @@ async function downloadText(page: Page, button: Locator) {
   return { name: result.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') }
 }
 async function saveProject(page: Page) {
-  const download = await downloadText(page, page.getByRole('button', { name: 'Save', exact: true }))
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  const download = await downloadText(page, page.getByRole('button', { name: 'Save project JSON', exact: true }))
+  await page
+    .getByRole('dialog', { name: 'Save & export', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   return { ...download, project: JSON.parse(download.text) as RoadProject }
 }
 async function fillNumber(page: Page, name: string, value: number) {
@@ -152,7 +157,9 @@ async function fillNumber(page: Page, name: string, value: number) {
 async function linkedStation(page: Page, station: number) {
   await expect(page.getByTestId('road-active-map-station')).toHaveAttribute('data-chainage', String(station))
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', String(station))
-  await expect(page.getByLabel('Selected station metres', { exact: true })).toHaveValue(String(station))
+  await expect(page.getByLabel('Selected station metres', { exact: true })).toHaveValue(
+    String(Number(station.toFixed(1))),
+  )
 }
 
 test('station, real map layers, profile, section, schedule and terrain remain linked', async ({ page }, testInfo) => {
@@ -192,16 +199,22 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   const fromMap = await page.getByTestId('road-active-map-station').getAttribute('data-chainage')
   await expect(profile).toHaveAttribute('data-station', fromMap!)
 
-  await page.getByLabel('Terrain display', { exact: true }).selectOption('slope')
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
+  await page.getByRole('option', { name: 'Slope', exact: true }).click()
   await expect.poll(async () => (await mapState(page))?.imageHash).not.toBe(initial.imageHash)
+  await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByTestId('road-plan-view').getByText('Slope 0°', { exact: true })).toBeVisible()
   await expect(page.getByTestId('road-plan-view').getByText('60°+', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
   await page.getByLabel('Contours', { exact: true }).uncheck()
   await expect.poll(async () => (await mapState(page))?.contoursVisible).toBe('none')
   await page.getByLabel('Contours', { exact: true }).check()
-  await page.getByLabel('Terrain display', { exact: true }).selectOption('elevation')
+  await page.keyboard.press('Escape')
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
+  await page.getByRole('option', { name: 'Elevation', exact: true }).click()
   await expect(page.getByTestId('road-plan-view').getByText(/^Elevation -?\d+–-?\d+ m$/)).toBeVisible()
-  await page.getByLabel('Terrain display', { exact: true }).selectOption('hillshade')
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
+  await page.getByRole('option', { name: 'Hillshade', exact: true }).click()
 
   await showDetail(page, 'Section')
   await page.screenshot({ path: testInfo.outputPath('desktop-linked-road.png'), fullPage: true })
@@ -299,12 +312,17 @@ test('profile controls and one-sided turnout widening change calculated sections
   const leftBefore = Number(await section.getAttribute('data-left-width'))
   const rightBefore = Number(await section.getAttribute('data-right-width'))
   const designBefore = await section.locator('path[stroke="#0d9488"]').getAttribute('d')
+  await page.getByRole('button', { name: 'Manage landings & turnouts', exact: true }).click()
   const firstWidth = page.getByRole('spinbutton', { name: 'Extra width (m)', exact: true }).first()
   await firstWidth.fill('8')
   await firstWidth.press('Tab')
   await expect.poll(async () => Number(await section.getAttribute('data-left-width'))).toBeCloseTo(leftBefore + 4, 2)
   await expect.poll(async () => Number(await section.getAttribute('data-right-width'))).toBeCloseTo(rightBefore, 2)
   await expect(section.locator('path[stroke="#0d9488"]')).not.toHaveAttribute('d', designBefore!)
+  await page
+    .getByRole('dialog', { name: 'Landings & turnouts', exact: true })
+    .getByRole('button', { name: 'Done', exact: true })
+    .click()
   const changed = (await saveProject(page)).project.alignments.find((alignment) => alignment.id === active.id)!
   expect(changed.points).toEqual(active.points)
   expect(changed.vertical[1].elevation).toBeCloseTo(Math.round((originalLevel + 0.1) * 100) / 100, 2)
@@ -339,7 +357,7 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
   expect(saved.project.schema).toBe('pgmaps-road-project-v1')
   expect(saved.project.terrain.kind).toBe('demo')
   expect(saved.project.alignments).toHaveLength(3)
-  await workflow(page, 'Files').click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   const geo = await downloadText(page, page.getByRole('button', { name: 'Export GeoJSON', exact: true }))
   expect(geo.name).toMatch(/\.geojson$/)
   const collection = JSON.parse(geo.text) as GeoJSON.FeatureCollection
@@ -353,7 +371,7 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
     .getByTestId('road-file-input')
     .setInputFiles({ name: 'roundtrip.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(geo.text) })
   await expect.poll(async () => page.getByLabel('Active road').locator('option').count()).toBeGreaterThan(3)
-  await page.getByRole('button', { name: 'Open project', exact: true }).click()
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
   await page
     .getByTestId('road-file-input')
     .setInputFiles({ name: 'roundtrip.road.json', mimeType: 'application/json', buffer: Buffer.from(saved.text) })
@@ -480,7 +498,7 @@ test('failed saved-terrain restoration cannot autosave synthetic fallback over t
   await expect(page.getByRole('alert').first()).toContainText('has not been overwritten')
   expect(terrainRequests).toBeGreaterThan(0)
   await page.clock.install()
-  await page.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await page.getByRole('button', { name: 'Dismiss error notification', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)
   // Advance beyond the 650 ms autosave debounce without a timing-dependent sleep.
   await page.clock.fastForward(1_500)
@@ -628,6 +646,10 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await page.getByRole('button', { name: '+ Waste', exact: true }).click()
   await fillNumber(page, 'Site 1 access distance (m)', 150)
   await fillNumber(page, 'Site 2 access distance (m)', 250)
+  await page
+    .getByRole('dialog', { name: 'Haul & cost settings', exact: true })
+    .getByRole('button', { name: 'Done', exact: true })
+    .click()
   await page.getByRole('button', { name: 'Show quantities & cost breakdown', exact: true }).click()
   await expect(page.getByTestId('road-cost-breakdown')).toContainText('Mobilization')
   await expect(page.getByTestId('road-cost-breakdown')).toContainText('1,000')
@@ -636,8 +658,10 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await expect(page.getByTestId('road-engineering-summary')).toContainText('bank m³·km')
   const transfer = page.getByTestId('road-haul-transfers').locator('tbody tr').first().getByRole('button').first()
   await transfer.click()
-  const selected = await page.getByLabel('Selected station metres', { exact: true }).inputValue()
-  await linkedStation(page, Number(selected))
+  // Linked geometry retains exact chainage; the entry field displays tenths of a metre.
+  const selected = Number(await page.getByTestId('road-profile-chart').getAttribute('data-station'))
+  expect(selected).toBeGreaterThan(0)
+  await linkedStation(page, selected)
   await engineeringResult(page, 'Structures').click()
   await page.getByRole('button', { name: 'Cross-drain A', exact: true }).click()
   await linkedStation(page, 200)
@@ -682,7 +706,8 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   const secondStructure = (await saveProject(page)).project.alignments.find(
     (a) => a.id === saved.project.activeAlignmentId,
   )!.engineering!.culverts[1]
-  await page.getByRole('combobox', { name: '3D structure', exact: true }).selectOption(secondStructure.id)
+  await page.getByRole('combobox', { name: '3D structure', exact: true }).click()
+  await page.getByRole('option').filter({ hasText: secondStructure.name }).click()
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain B', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

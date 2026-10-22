@@ -1,21 +1,17 @@
-import { useMemo, useRef, useState } from 'react'
+import type { RoadSelectionRange } from './roadSelection'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
+import { AppSelect } from '@/components/ui/select'
+import { Plus, Minus, RotateCcw } from 'lucide-react'
+import { TerrainGround, type TerrainFace as Face } from './TerrainGround'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
+import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
 import type { Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
 
-interface Vertex {
-  x: number
-  y: number
-  z: number
-}
-interface Face {
-  vertices: Vertex[]
-  fill: string
-  station?: number
-}
+const NO_FACES: Face[] = []
 const radians = Math.PI / 180
 const radius = 6371008.8
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
@@ -117,6 +113,7 @@ function shade(a: Vertex, b: Vertex, c: Vertex) {
 }
 
 export function TerrainPreview({
+  selectedRange,
   analysis,
   terrain,
   station,
@@ -127,6 +124,7 @@ export function TerrainPreview({
   selectedCulvertId,
   onSelectCulvert,
 }: {
+  selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
   terrain: TerrainSource
   station: number
@@ -143,7 +141,46 @@ export function TerrainPreview({
   const [exaggeration, setExaggeration] = useState(1)
   const [wireframe, setWireframe] = useState(false)
   const [showEarthwork, setShowEarthwork] = useState(true)
-  const drag = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null)
+  const [fillGaps, setFillGaps] = useState(true)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [wheelSvg, setWheelSvg] = useState<SVGSVGElement | null>(null)
+  const dragFrame = useRef<number>()
+  const pointerStart = useRef<[number, number]>()
+  const drag = useRef<{
+    x: number
+    y: number
+    yaw: number
+    pitch: number
+    panX: number
+    panY: number
+    panning: boolean
+  } | null>(null)
+  const resetCamera = () => {
+    setYaw(28)
+    setPitch(42)
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
+  useEffect(() => {
+    if (!wheelSvg) return
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      setZoom((value) => clamp(value * Math.exp(-clamp(event.deltaY, -200, 200) * 0.0025), 0.35, 8))
+    }
+    wheelSvg.addEventListener('wheel', wheel, { passive: false })
+    return () => wheelSvg.removeEventListener('wheel', wheel)
+  }, [wheelSvg])
+  useEffect(
+    () => () => {
+      if (dragFrame.current) cancelAnimationFrame(dragFrame.current)
+    },
+    [],
+  )
+  const cachedElevation = useMemo(() => {
+    const frame = localFrame(analysis.stations[0]?.coordinate ?? [0, 0])
+    return cachedTerrainSampler((x, y) => terrain.elevationAt(...frame.coordinate(x, y)))
+  }, [analysis, terrain])
   const active = analysis.stations.reduce<RoadStation | undefined>(
     (best, candidate) =>
       !best || Math.abs(candidate.chainage - station) < Math.abs(best.chainage - station) ? candidate : best,
@@ -173,31 +210,25 @@ export function TerrainPreview({
       const [x, y] = frame.point(followingStation.coordinate)
       bounds = [x - 120, y - 120, x + 120, y + 120]
     }
-    // Preview simplification is deliberate; it does not change the analysis grid.
-    const count = 30
-    const vertices: Array<Array<Vertex | null>> = []
-    for (let row = 0; row <= count; row++) {
-      const line: Array<Vertex | null> = []
-      for (let col = 0; col <= count; col++) {
-        const x = bounds[0] + ((bounds[2] - bounds[0]) * col) / count
-        const y = bounds[1] + ((bounds[3] - bounds[1]) * row) / count
-        const coordinate = frame.coordinate(x, y)
-        const z = terrain.elevationAt(...coordinate)
-        line.push(Number.isFinite(z) ? { x, y, z } : null)
-      }
-      vertices.push(line)
+    // A coarse cell can have four valid corners around a real source gap.
+    // Carry the analysis's missing samples into the display mesh as well.
+    const missing: Array<[number, number]> = []
+    for (const s of analysis.stations) {
+      const [x, y] = frame.point(s.coordinate),
+        bearing = s.bearing * radians
+      if (!finite(s.groundElevation)) missing.push([x, y])
+      for (const p of s.section)
+        if (!finite(p.ground)) missing.push([x + Math.cos(bearing) * p.offset, y - Math.sin(bearing) * p.offset])
     }
-    const ground: Face[] = []
-    for (let row = 0; row < count; row++) {
-      for (let col = 0; col < count; col++) {
-        const a = vertices[row][col],
-          b = vertices[row][col + 1],
-          c = vertices[row + 1][col + 1],
-          d = vertices[row + 1][col]
-        // Never bridge holes in the terrain source for the preview.
-        if (a && b && c && d) ground.push({ vertices: [a, b, c, d], fill: shade(a, b, d) })
-      }
-    }
+    const mesh = terrainMesh(bounds, cachedElevation, missing, fillGaps)
+    const ground: Face[] = [
+      ...mesh.faces.map((vertices) => ({ vertices, fill: shade(vertices[0], vertices[1], vertices[2]) })),
+      ...mesh.estimatedFaces.map((vertices) => ({
+        vertices,
+        fill: shade(vertices[0], vertices[1], vertices[2]),
+        estimated: true,
+      })),
+    ]
     const step = Math.max(1, Math.ceil(analysis.stations.length / 180))
     const selected = analysis.stations.filter((_, i) => i % step === 0 || i === analysis.stations.length - 1)
     const road: Face[] = []
@@ -209,9 +240,9 @@ export function TerrainPreview({
         i > 0 &&
         analysis.stations
           .slice(selected[i - 1].index, s.index + 1)
-          .every((p) => (terrainOnly || finite(p.designElevation)) && finite(p.groundElevation))
+          .every((p) => (terrainOnly ? finite(p.groundElevation) : finite(p.designElevation)))
       const lineElevation = terrainOnly ? s.groundElevation : s.designElevation
-      if (finite(lineElevation) && finite(s.groundElevation)) {
+      if (finite(lineElevation)) {
         const [x, y] = frame.point(s.coordinate)
         line.push({ vertex: { x, y, z: lineElevation }, chainage: s.chainage, connected })
       } else line.push({ vertex: null, chainage: s.chainage, connected: false })
@@ -220,20 +251,22 @@ export function TerrainPreview({
       const a = selected[i - 1],
         b = selected[i]
       if (!finite(a.designElevation) || !finite(b.designElevation)) continue
-      // Null sections produce gaps, including skipped stations in a decimated preview.
-      if (
-        analysis.stations
-          .slice(a.index, b.index + 1)
-          .some((s) => !finite(s.designElevation) || !finite(s.groundElevation))
-      )
-        continue
+      // A known design surface does not depend on ground coverage. Only unknown design
+      // levels break the formation; batters below still require complete terrain sections.
+      if (analysis.stations.slice(a.index, b.index + 1).some((s) => !finite(s.designElevation))) continue
       const leftA = sideways(a, -a.leftWidth, frame),
         rightA = sideways(a, a.rightWidth, frame)
       const leftB = sideways(b, -b.leftWidth, frame),
         rightB = sideways(b, b.rightWidth, frame)
       if (leftA && rightA && leftB && rightB) {
         const vertices = clipFace([leftA, rightA, rightB, leftB], bounds)
-        if (vertices.length >= 3) road.push({ vertices, fill: '#e8c886', station: (a.chainage + b.chainage) / 2 })
+        if (vertices.length >= 3)
+          road.push({
+            vertices,
+            fill: '#e8c886',
+            station: (a.chainage + b.chainage) / 2,
+            terrainGap: analysis.stations.slice(a.index, b.index + 1).some((s) => !finite(s.groundElevation)),
+          })
       }
       if (analysis.stations.slice(a.index, b.index + 1).every((sample) => sample.complete)) {
         for (const side of [-1, 1]) {
@@ -268,10 +301,7 @@ export function TerrainPreview({
         }
       }
     }
-    const zValues = vertices
-      .flat()
-      .filter((p): p is Vertex => p !== null)
-      .map((p) => p.z)
+    const zValues = mesh.elevations
     const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
     const ditchPoints = analysis.stations.map((s) => {
       const template = templates.get(s.chainage)
@@ -302,17 +332,23 @@ export function TerrainPreview({
       medianZ,
       low: zValues.length ? Math.min(...zValues) : 0,
       high: zValues.length ? Math.max(...zValues) : 0,
-      meshSpacing: Math.max(bounds[2] - bounds[0], bounds[3] - bounds[1]) / count,
+      meshSpacing: mesh.spacing,
       cells: ground.length,
+      infilledCells: mesh.infilledCells,
+      openGapCells: mesh.openGapCells,
     }
-  }, [analysis, terrain, followingStation, terrainOnly])
+  }, [analysis, followingStation, terrainOnly, cachedElevation, fillGaps])
 
   return (
     <div
-      className="flex h-full min-h-[240px] min-w-0 flex-col"
+      className="relative flex h-full min-h-[240px] min-w-0 flex-col"
       data-testid="road-terrain-preview"
       data-station={active?.chainage ?? station}
       data-terrain-only={terrainOnly}
+      data-zoom={zoom}
+      data-infilled-cells={sourceGeometry?.infilledCells ?? 0}
+      data-open-gap-cells={sourceGeometry?.openGapCells ?? 0}
+      aria-label={`${sourceLabel} 3D preview`}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-2 py-1.5">
         <SegmentedControl
@@ -329,35 +365,55 @@ export function TerrainPreview({
         {!terrainOnly && !!analysis.engineering?.culverts.length && (
           <label className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
             Structure
-            <select
-              aria-label="3D structure"
-              className="max-w-[190px] rounded border bg-background px-1 py-1 text-xs text-foreground"
+            <AppSelect
+              triggerAriaLabel="3D structure"
+              contentClassName="z-[1600] text-xs"
+              triggerClassName="h-7 max-w-48 text-xs"
               value={selectedCulvert?.id ?? ''}
-              onChange={(event) => {
-                const culvert = analysis.engineering?.culverts.find((c) => c.id === event.target.value)
-                if (!culvert) return
-                onSelectCulvert?.(culvert.id)
-                onStation(culvert.chainage)
+              options={[
+                { value: '', label: 'Select a culvert', disabled: true },
+                ...(analysis.engineering?.culverts ?? []).map((culvert) => ({
+                  value: culvert.id,
+                  label: `${culvert.name} · ${formatRoadStation(culvert.chainage)}`,
+                })),
+              ]}
+              onValueChange={(id) => {
+                const culvert = analysis.engineering?.culverts.find((c) => c.id === id)
+                if (culvert) {
+                  onSelectCulvert?.(culvert.id)
+                  onStation(culvert.chainage)
+                }
               }}
-            >
-              <option value="" disabled>
-                Select a culvert
-              </option>
-              {analysis.engineering.culverts.map((culvert) => (
-                <option key={culvert.id} value={culvert.id}>
-                  {culvert.name} · {formatRoadStation(culvert.chainage)}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         )}
         <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label="Zoom terrain in"
+            onClick={() => setZoom((value) => clamp(value * 1.25, 0.35, 8))}
+          >
+            <Plus className="size-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label="Zoom terrain out"
+            onClick={() => setZoom((value) => clamp(value / 1.25, 0.35, 8))}
+          >
+            <Minus className="size-3" />
+          </Button>
+          <Button size="icon" variant="ghost" className="size-7" aria-label="Fit terrain view" onClick={resetCamera}>
+            <RotateCcw className="size-3" />
+          </Button>
           <Button
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs"
             aria-label="Rotate terrain left"
-            disabled={mode === 'follow'}
             onClick={() => setYaw((value) => value - 15)}
           >
             ↶
@@ -367,7 +423,6 @@ export function TerrainPreview({
             variant="ghost"
             className="h-7 px-2 text-xs"
             aria-label="Rotate terrain right"
-            disabled={mode === 'follow'}
             onClick={() => setYaw((value) => value + 15)}
           >
             ↷
@@ -380,6 +435,17 @@ export function TerrainPreview({
             onClick={() => setWireframe((value) => !value)}
           >
             Mesh
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-[11px]"
+            aria-label="Fill small gaps in 3D display"
+            aria-pressed={fillGaps}
+            title="Estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain."
+            onClick={() => setFillGaps((value) => !value)}
+          >
+            Fill gaps
           </Button>
           {!terrainOnly && (
             <Button
@@ -394,21 +460,27 @@ export function TerrainPreview({
           )}
           <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
             Vertical
-            <select
-              className="rounded border bg-background px-1 py-1 text-xs text-foreground"
-              aria-label="Terrain vertical exaggeration"
-              value={exaggeration}
-              onChange={(event) => setExaggeration(Number(event.target.value))}
-            >
-              {[1, 2, 4].map((value) => (
-                <option key={value} value={value}>
-                  ×{value}
-                </option>
-              ))}
-            </select>
+            <AppSelect
+              triggerAriaLabel="Terrain vertical exaggeration"
+              contentClassName="z-[1600] text-xs"
+              triggerClassName="h-7 w-16 text-xs"
+              value={String(exaggeration)}
+              onValueChange={(value) => setExaggeration(Number(value))}
+              options={[1, 2, 4].map((value) => ({ value: String(value), label: `×${value}` }))}
+            />
           </label>
         </div>
       </div>
+      {!!sourceGeometry?.infilledCells && (
+        <p
+          role="status"
+          data-testid="road-terrain-infill-note"
+          className="pointer-events-none absolute bottom-2 left-2 z-10 rounded border bg-background/90 px-2 py-1 text-[10px] text-muted-foreground"
+          title="Small enclosed gaps are estimated from surrounding terrain for display. Station elevations, quantities and reports retain the original missing data."
+        >
+          Estimated patches · display only
+        </p>
+      )}
       <ChartViewport className="min-h-[170px] flex-1" minHeight={170} initialHeight={240}>
         {(height) => (
           <SizedChart height={height}>
@@ -428,13 +500,15 @@ export function TerrainPreview({
                 ? active?.groundElevation
                 : (active?.designElevation ?? active?.groundElevation)
               const targetZ = following ? (activeElevation ?? medianZ) : medianZ
-              const angle = (following ? active.bearing : yaw) * radians
-              const tilt = (following ? 32 : pitch) * radians
+              const angle = (following ? active.bearing + yaw - 28 : yaw) * radians
+              const tilt = (following ? clamp(pitch - 10, 15, 80) : pitch) * radians
               const span = Math.max(bounds[2] - bounds[0], bounds[3] - bounds[1], 30)
-              const scale = Math.min(
-                (width - 20) / (span * 1.35),
-                (height - 24) / (span * 0.85 + (sourceGeometry.high - sourceGeometry.low) * exaggeration * 0.4),
-              )
+              const scale =
+                zoom *
+                Math.min(
+                  (width - 20) / (span * 1.35),
+                  (height - 24) / (span * 0.85 + (sourceGeometry.high - sourceGeometry.low) * exaggeration * 0.4),
+                )
               const cameraDistance = span * 2.5
               const project = (vertex: Vertex) => {
                 const x = vertex.x - target[0],
@@ -446,8 +520,8 @@ export function TerrainPreview({
                 const vertical = ahead * Math.sin(tilt) + z * Math.cos(tilt)
                 const perspective = cameraDistance / Math.max(cameraDistance * 0.15, cameraDistance + depth)
                 return {
-                  x: width / 2 + across * scale * perspective,
-                  y: height * 0.57 - vertical * scale * perspective,
+                  x: width / 2 + pan.x + across * scale * perspective,
+                  y: height * 0.57 + pan.y - vertical * scale * perspective,
                   depth,
                 }
               }
@@ -505,6 +579,7 @@ export function TerrainPreview({
                   })
               return (
                 <svg
+                  ref={setWheelSvg}
                   width={width}
                   height={height}
                   role="group"
@@ -514,16 +589,66 @@ export function TerrainPreview({
                       ? 'Three dimensional terrain surface and sampled transect. Drag to orbit, or use arrow keys to rotate.'
                       : 'Three dimensional terrain surface and road formation overlay. Drag to orbit, or use arrow keys to rotate.'
                   }
-                  className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onContextMenu={(event) => event.preventDefault()}
+                  onClick={(event) => {
+                    if (!showEarthwork || !pointerStart.current || (event.target as Element).closest('.cursor-pointer'))
+                      return
+                    if (
+                      Math.hypot(event.clientX - pointerStart.current[0], event.clientY - pointerStart.current[1]) > 3
+                    )
+                      return
+                    const rectangle = event.currentTarget.getBoundingClientRect()
+                    const x = ((event.clientX - rectangle.left) * width) / rectangle.width,
+                      y = ((event.clientY - rectangle.top) * height) / rectangle.height
+                    const picked = [...sourceGeometry.earthwork]
+                      .sort(
+                        (a, b) =>
+                          b.vertices.reduce((sum, v) => sum + project(v).depth, 0) / b.vertices.length -
+                          a.vertices.reduce((sum, v) => sum + project(v).depth, 0) / a.vertices.length,
+                      )
+                      .reverse()
+                      .find((face) => {
+                        const points = face.vertices.map(project)
+                        let inside = false
+                        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                          const a = points[i],
+                            b = points[j]
+                          if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside
+                        }
+                        return inside
+                      })
+                    if (picked?.station !== undefined) onStation(picked.station)
+                  }}
                   onPointerDown={(event) => {
-                    if (mode !== 'orbit' || event.button !== 0) return
-                    drag.current = { x: event.clientX, y: event.clientY, yaw, pitch }
+                    if (event.button !== 0 && event.button !== 2) return
+                    event.preventDefault()
+                    event.currentTarget.focus({ preventScroll: true })
+                    pointerStart.current = [event.clientX, event.clientY]
+                    drag.current = {
+                      x: event.clientX,
+                      y: event.clientY,
+                      yaw,
+                      pitch,
+                      panX: pan.x,
+                      panY: pan.y,
+                      panning: event.shiftKey || event.button === 2,
+                    }
                     event.currentTarget.setPointerCapture(event.pointerId)
                   }}
                   onPointerMove={(event) => {
-                    if (!drag.current) return
-                    setYaw(drag.current.yaw - (event.clientX - drag.current.x) * 0.35)
-                    setPitch(clamp(drag.current.pitch + (event.clientY - drag.current.y) * 0.2, 15, 80))
+                    const start = drag.current
+                    if (!start) return
+                    const dx = event.clientX - start.x,
+                      dy = event.clientY - start.y
+                    if (dragFrame.current) cancelAnimationFrame(dragFrame.current)
+                    dragFrame.current = requestAnimationFrame(() => {
+                      if (start.panning) setPan({ x: start.panX + dx, y: start.panY + dy })
+                      else {
+                        setYaw(start.yaw - dx * 0.35)
+                        setPitch(clamp(start.pitch + dy * 0.2, 15, 80))
+                      }
+                    })
                   }}
                   onPointerUp={() => {
                     drag.current = null
@@ -532,16 +657,20 @@ export function TerrainPreview({
                     drag.current = null
                   }}
                   onKeyDown={(event) => {
-                    if (mode !== 'orbit') return
                     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home'].includes(event.key))
                       event.preventDefault()
                     if (event.key === 'ArrowLeft') setYaw((value) => value - 10)
                     if (event.key === 'ArrowRight') setYaw((value) => value + 10)
                     if (event.key === 'ArrowUp') setPitch((value) => clamp(value + 5, 15, 80))
                     if (event.key === 'ArrowDown') setPitch((value) => clamp(value - 5, 15, 80))
-                    if (event.key === 'Home') {
-                      setYaw(28)
-                      setPitch(42)
+                    if (event.key === 'Home') resetCamera()
+                    if (event.key === '+' || event.key === '=') {
+                      event.preventDefault()
+                      setZoom((value) => clamp(value * 1.25, 0.35, 8))
+                    }
+                    if (event.key === '-') {
+                      event.preventDefault()
+                      setZoom((value) => clamp(value / 1.25, 0.35, 8))
                     }
                   }}
                 >
@@ -551,33 +680,52 @@ export function TerrainPreview({
                       : 'Decimated surface sampled from the same elevation source as the road calculations. Road formation is overlaid to remain visible in cut.'}
                   </title>
                   <rect width={width} height={height} fill="hsl(var(--muted))" opacity={0.3} />
-                  {faces(sourceGeometry.ground).map((face, i) => (
+                  <TerrainGround
+                    faces={sourceGeometry.ground}
+                    overlays={showEarthwork ? sourceGeometry.earthwork : NO_FACES}
+                    project={project}
+                    width={width}
+                    height={height}
+                    wireframe={wireframe}
+                    projectionKey={JSON.stringify([
+                      width,
+                      height,
+                      target,
+                      targetZ,
+                      angle,
+                      tilt,
+                      scale,
+                      cameraDistance,
+                      exaggeration,
+                      pan,
+                    ])}
+                  />
+                  {faces(sourceGeometry.road).map((face, i) => (
                     <polygon
-                      key={`ground${i}`}
+                      key={`road${i}`}
+                      data-design-over-terrain-gap={face.terrainGap || undefined}
                       points={face.points}
-                      fill={face.fill}
-                      stroke={wireframe ? 'hsl(var(--background))' : face.fill}
-                      strokeWidth={wireframe ? 0.35 : 0.4}
-                      strokeOpacity={wireframe ? 0.45 : 1}
-                    />
+                      fill={
+                        selectedRange &&
+                        face.station !== undefined &&
+                        face.station >= selectedRange.start &&
+                        face.station <= selectedRange.end
+                          ? '#e11d48'
+                          : face.fill
+                      }
+                      stroke="#94744a"
+                      strokeWidth={0.3}
+                      opacity={0.95}
+                      className="cursor-pointer"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => onStation(face.station ?? 0)}
+                    >
+                      <title>
+                        Design surface at {formatRoadStation(face.station ?? 0)}
+                        {face.terrainGap ? '; ground is unverified here' : ''}; click to inspect
+                      </title>
+                    </polygon>
                   ))}
-                  {faces([...(showEarthwork ? sourceGeometry.earthwork : []), ...sourceGeometry.road]).map(
-                    (face, i) => (
-                      <polygon
-                        key={`road${i}`}
-                        points={face.points}
-                        fill={face.fill}
-                        stroke="#94744a"
-                        strokeWidth={0.3}
-                        opacity={0.95}
-                        className="cursor-pointer"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onStation(face.station ?? 0)}
-                      >
-                        <title>Design surface at {formatRoadStation(face.station ?? 0)}; click to inspect</title>
-                      </polygon>
-                    ),
-                  )}
                   {culverts
                     .sort(
                       (a, b) => Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
@@ -707,7 +855,7 @@ export function TerrainPreview({
                   <text x={10} y={16} fontSize="10" fill="hsl(var(--muted-foreground))">
                     {following
                       ? `${playing ? 'Following' : 'Station'} ${formatRoadStation(station)}`
-                      : 'Drag to orbit · click road to inspect'}
+                      : 'Drag to orbit · Shift-drag to pan · scroll to zoom'}
                   </text>
                   {sourceGeometry.cells === 0 && (
                     <text
@@ -726,13 +874,7 @@ export function TerrainPreview({
           </SizedChart>
         )}
       </ChartViewport>
-      <div className="shrink-0 border-t px-3 py-2 text-[10px] leading-4 text-muted-foreground">
-        {sourceLabel} · ground mesh · {terrainOnly ? 'sampled terrain transect' : 'formation overlay'} ·{' '}
-        {sourceGeometry ? `${sourceGeometry.meshSpacing.toFixed(1)} m preview spacing` : 'no surface'} · vertical ×
-        {exaggeration}. Analysis retains the source resolution. Terrain gaps stay open.
-        {!terrainOnly &&
-          showEarthwork &&
-          ' Batters use computed sections (amber cut, blue fill); blue dashed lines mark actual cut-side ditch bottoms. Design surfaces are overlaid on original ground.'}
+      <div className="shrink-0 text-[10px]">
         {selectedCulvert && (
           <p className="text-rose-700 dark:text-rose-300" data-testid="road-3d-selected-culvert">
             Selected: {selectedCulvert.name} · {formatRoadStation(selectedCulvert.chainage)} · cover{' '}

@@ -1,7 +1,22 @@
+import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
+import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Download, FolderOpen, PanelLeftClose, PanelLeftOpen, Pause, Play, Redo2, Undo2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Download,
+  FolderOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pause,
+  Play,
+  Redo2,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { Map as MapLibreMap } from 'maplibre-gl'
+import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -56,7 +71,7 @@ import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/rou
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
-import { RoadPaneLayout } from './dev-forestry-roads/RoadPaneLayout'
+import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
 
@@ -89,6 +104,7 @@ export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
+  const [dismissedBusyId, setDismissedBusyId] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [mode, setMode] = useState<DrawMode>('inspect')
   const [draft, setDraft] = useState<Coordinate[]>([])
@@ -121,6 +137,26 @@ export default function DevForestryRoads() {
     }
   })
   const { base: layout, storageId: layoutStorageId } = resolveLayout(layoutSelection, savedLayouts)
+  const [hiddenPanels, setHiddenPanels] = useRoadPanels(layoutStorageId, layout)
+  const visiblePanelCount = [
+    'plan',
+    'profile',
+    'detail',
+    ...(['engineering', 'pegging'].includes(layout) ? ['data'] : []),
+  ].filter((id) => !hiddenPanels.includes(id as RoadPaneId)).length
+  const closePanel = (id: RoadPaneId) => (
+    <Button
+      size="icon"
+      variant="ghost"
+      className="size-8"
+      aria-label={`Close ${id === 'detail' ? 'detail view' : id} panel`}
+      disabled={visiblePanelCount <= 1}
+      title="Close panel · restore in Screen presets & panels"
+      onClick={() => setHiddenPanels([...hiddenPanels, id])}
+    >
+      <X className="size-3.5" />
+    </Button>
+  )
   const [overlay, setOverlay] = useState<GeoJSON.FeatureCollection>({ type: 'FeatureCollection', features: [] })
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
   const [templatePreview, setTemplatePreview] = useState<{ template: RoadTemplate; name: string } | null>(null)
@@ -135,6 +171,11 @@ export default function DevForestryRoads() {
   const deferredHover = useDeferredValue(hover)
   const [playing, setPlaying] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
+  const [filesOpen, setFilesOpen] = useState(false)
+  const planMap = useRef<MapLibreMap | null>(null)
+  const onPlanReady = useCallback((map: MapLibreMap | null) => {
+    planMap.current = map
+  }, [])
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
@@ -289,6 +330,10 @@ export default function DevForestryRoads() {
   const currentCulvertId = displayedAnalysis.engineering?.culverts.some((c) => c.id === selectedCulvertId)
     ? selectedCulvertId
     : undefined
+  const selectedRange = useMemo(
+    () => roadSelectionRange(displayedAlignment, w.featureSelection),
+    [displayedAlignment, w.featureSelection],
+  )
   const sharedProfileRange = profileRange?.alignmentId === displayedAlignment.id ? profileRange.range : undefined
   const onProfileRange = useCallback(
     (range: [number, number]) => setProfileRange({ alignmentId: displayedAlignment.id, range }),
@@ -643,7 +688,7 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
-  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile' | 'plotbook') => {
+  const save = (kind: RoadExport) => {
     try {
       const safe = parseProject(project)
       if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview))
@@ -651,6 +696,33 @@ export default function DevForestryRoads() {
       if (kind !== 'project' && !displayedAnalysis.stations.length)
         throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
       const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
+      if (kind === 'map-pdf' || kind === 'report-pdf') {
+        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async () => {
+          const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
+          if (kind === 'map-pdf') {
+            if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            const map = planMap.current
+            if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
+            map.resize()
+            await exportMapPdf(
+              map,
+              safe.name,
+              project.terrain.name,
+              project.terrain.verticalReference,
+              `${basename}-map.pdf`,
+            )
+          } else
+            await exportReportPdf(
+              terrainProfile
+                ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
+                : projectReportHtml(safe, analysis),
+              `${basename}-report.pdf`,
+            )
+          w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
+        })
+        return
+      }
       if (kind === 'project') downloadText(serializeProject(safe), `${basename}.road.json`, 'application/json')
       else if (kind === 'geojson')
         downloadText(
@@ -892,7 +964,7 @@ export default function DevForestryRoads() {
     <div
       ref={ref}
       data-fullscreen={fullscreen || undefined}
-      className={`flex min-h-full flex-col gap-2 bg-muted/20 px-3 pb-3 pt-20 xl:h-[calc(100dvh-64px)] ${layout === 'linked' ? 'xl:min-h-[720px]' : 'xl:min-h-[1040px]'} md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1300] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3 [&[data-fullscreen]]:overflow-auto`}
+      className={`flex min-h-full flex-col gap-2 bg-muted/20 px-3 pb-3 pt-20 xl:h-[calc(100dvh-64px)] xl:min-h-[720px] md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1300] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3 [&[data-fullscreen]]:overflow-auto`}
       data-testid="road-workspace"
     >
       <header
@@ -910,10 +982,10 @@ export default function DevForestryRoads() {
             <p
               role="status"
               aria-live="polite"
-              title={w.notice || project.name}
+              title={w.notice || undefined}
               className={`max-w-[58vw] truncate text-xs ${w.notice ? 'text-teal-700 dark:text-teal-400' : 'text-muted-foreground'}`}
             >
-              {w.notice || project.name}
+              {w.notice}
             </p>
           </div>
           <span
@@ -928,6 +1000,8 @@ export default function DevForestryRoads() {
         </div>
         <div className="flex flex-wrap items-center gap-1">
           <LayoutPicker
+            hiddenPanels={hiddenPanels}
+            onHiddenPanels={setHiddenPanels}
             selection={layoutSelection}
             onSelect={(value) => {
               setLayoutSelection(value)
@@ -978,17 +1052,32 @@ export default function DevForestryRoads() {
           >
             <Redo2 className="size-4" />
           </Button>
+          {w.busy && dismissedBusyId === w.busyId && (
+            <Button variant="outline" size="sm" onClick={() => setDismissedBusyId(null)}>
+              Show loading notification
+            </Button>
+          )}
           <Button variant="outline" size="sm" disabled={!!w.busy} onClick={() => requestFile('project')}>
             <FolderOpen className="mr-1 size-3" />
             Open
           </Button>
-          <Button size="sm" disabled={!!w.busy} onClick={() => save('project')}>
+          <Button size="sm" disabled={!!w.busy} onClick={() => setFilesOpen(true)}>
             <Download className="mr-1 size-3" />
             Save
           </Button>
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
       </header>
+      <FilesDialog
+        open={filesOpen}
+        onOpenChange={setFilesOpen}
+        name={project.name}
+        onName={(name) => update((p) => ({ ...p, name }))}
+        onFile={requestFile}
+        onSave={save}
+        busy={!!busy}
+        portalContainer={ref.current}
+      />
       <CostBreakdown
         open={costOpen && !!displayedAnalysis.stations.length}
         onOpenChange={setCostOpen}
@@ -1035,15 +1124,28 @@ export default function DevForestryRoads() {
           if (file) importFile(file)
         }}
       />
-      {w.error && (
-        <InlineAlert tone="error">
-          <span role="alert">{w.error}</span>
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => w.setError('')}>
-            Dismiss
-          </Button>
-        </InlineAlert>
-      )}
-      {w.busy && <InlineAlert loading>{w.busy}</InlineAlert>}
+      <RoadNotifications
+        items={[
+          ...(w.error
+            ? [{ id: 'road-error', tone: 'error' as const, message: w.error, onDismiss: () => w.setError('') }]
+            : []),
+          ...(w.busy && dismissedBusyId !== w.busyId
+            ? [
+                {
+                  id: `road-busy-${w.busyId}`,
+                  tone: 'loading' as const,
+                  message: w.busy,
+                  action: w.busyCancel ? (
+                    <Button size="sm" variant="ghost" onClick={w.busyCancel.onCancel}>
+                      {w.busyCancel.label}
+                    </Button>
+                  ) : undefined,
+                  onDismiss: () => setDismissedBusyId(w.busyId),
+                },
+              ]
+            : []),
+        ]}
+      />
       <StatGroup
         variant="tiles"
         size="sm"
@@ -1154,7 +1256,6 @@ export default function DevForestryRoads() {
                         }))
                       }
                       onSuggest={suggest}
-                      onSave={save}
                       onPreviewTemplate={(template, name) => {
                         setPegPreview(null)
                         setTemplatePreview({ template: structuredClone(template), name })
@@ -1265,8 +1366,24 @@ export default function DevForestryRoads() {
                     </div>
                   </div>
                 )}
+                {selectedRange && !terrainProfile && (
+                  <div
+                    role="status"
+                    data-testid="road-feature-selection"
+                    className="flex items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
+                  >
+                    <span>
+                      {selectedRange.label} · {formatRoadStation(selectedRange.start)}
+                      {selectedRange.end !== selectedRange.start ? `–${formatRoadStation(selectedRange.end)}` : ''}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => w.setFeatureSelection(null)}>
+                      Clear selection
+                    </Button>
+                  </div>
+                )}
                 <RoadPaneLayout
                   layout={layout}
+                  hidden={hiddenPanels}
                   storageId={layoutStorageId}
                   plan={
                     <FullscreenPanel
@@ -1274,18 +1391,24 @@ export default function DevForestryRoads() {
                       compact
                       className="flex min-h-0 flex-1 flex-col"
                       actions={
-                        <span className="text-[10px] text-muted-foreground">
-                          {drainageOnPlan
-                            ? 'Blue design streams · dashed existing · red redirected · amber low point'
-                            : drainageStale && !terrainProfile
-                              ? 'Drainage out of date · re-run it to show flow'
-                              : 'Orange road · red grade flag'}
-                        </span>
+                        <>
+                          {' '}
+                          <span className="text-[10px] text-muted-foreground">
+                            {drainageOnPlan
+                              ? 'Blue design streams · dashed existing · red redirected · amber low point'
+                              : drainageStale && !terrainProfile
+                                ? 'Drainage out of date · re-run it to show flow'
+                                : 'Orange road · red grade flag'}
+                          </span>
+                          {closePanel('plan')}
+                        </>
                       }
                     >
                       {() => (
                         <div className="min-h-0 flex-1">
                           <PlanView
+                            selectedRange={terrainProfile ? undefined : selectedRange}
+                            onMapReady={onPlanReady}
                             selectedCulvertId={currentCulvertId}
                             onSelectCulvert={selectCulvert}
                             project={displayProject}
@@ -1320,6 +1443,7 @@ export default function DevForestryRoads() {
                   }
                   profile={
                     <FullscreenPanel
+                      actions={closePanel('profile')}
                       title={
                         terrainProfile ? 'Terrain profile · elevation & distance' : 'Road profile · ground & formation'
                       }
@@ -1329,6 +1453,7 @@ export default function DevForestryRoads() {
                       {() => (
                         <div className="min-h-0 flex-1">
                           <ProfileChart
+                            selectedRange={terrainProfile ? undefined : selectedRange}
                             onViewRangeChange={onProfileRange}
                             selectedCulvertId={currentCulvertId}
                             onSelectCulvert={selectCulvert}
@@ -1396,6 +1521,7 @@ export default function DevForestryRoads() {
                               Section CSV
                             </Button>
                           )}
+                          {closePanel('detail')}
                         </>
                       }
                       compact
@@ -1437,6 +1563,7 @@ export default function DevForestryRoads() {
                             )}
                             {detail === 'terrain' && (
                               <TerrainPreview
+                                selectedRange={terrainProfile ? undefined : selectedRange}
                                 selectedCulvertId={currentCulvertId}
                                 onSelectCulvert={selectCulvert}
                                 terrainOnly={!!terrainProfile}
@@ -1450,6 +1577,7 @@ export default function DevForestryRoads() {
                             )}
                             {detail === 'mass' && !terrainProfile && (
                               <MassHaulChart
+                                selectedRange={selectedRange}
                                 viewRange={sharedProfileRange}
                                 analysis={displayedAnalysis}
                                 station={station}
@@ -1638,11 +1766,12 @@ export default function DevForestryRoads() {
                     </FullscreenPanel>
                   }
                   data={
-                    layout === 'linked' ? null : (
+                    !['engineering', 'pegging'].includes(layout) ? null : (
                       <FullscreenPanel
                         title={
                           layout === 'pegging' ? 'Pegging data · editable legs' : 'Station data · connected selection'
                         }
+                        actions={closePanel('data')}
                         compact
                         className="flex min-h-0 flex-1 flex-col"
                       >
@@ -1713,11 +1842,11 @@ export default function DevForestryRoads() {
                       aria-label="Selected station metres"
                       type="number"
                       min={0}
-                      max={displayedAnalysis.length}
-                      step={project.settings.stationInterval}
+                      max={Math.ceil(displayedAnalysis.length * 10) / 10}
+                      step="any"
                       className="w-28 rounded border bg-background px-1 py-1 font-mono"
                       title="Selects the nearest calculated station. Press Enter or leave the field to apply."
-                      value={stationEntry?.value === station ? stationEntry.text : station}
+                      value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
                       onChange={(e) => setStationEntry({ value: station, text: e.target.value })}
                       onBlur={finishStationEntry}
                       onKeyDown={(e) => {
@@ -1748,8 +1877,21 @@ export default function DevForestryRoads() {
                     onChange={(e) => w.setStation(Number(e.target.value))}
                   />
                   <output className="font-mono text-xs" data-testid="road-selected-station">
-                    {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
-                    {number(at?.gradePercent)}%
+                    {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
+                      <span
+                        className="font-sans text-amber-800 dark:text-amber-300"
+                        data-testid="road-station-terrain-gap"
+                        title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
+                      >
+                        {at.groundElevation === null ? 'No ground elevation' : 'Terrain gaps in the cross-section'} at{' '}
+                        {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
+                      </span>
+                    ) : (
+                      <>
+                        {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
+                        {number(at?.gradePercent)}%
+                      </>
+                    )}
                   </output>
                 </div>
               </main>

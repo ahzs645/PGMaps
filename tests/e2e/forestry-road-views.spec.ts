@@ -74,10 +74,15 @@ async function chooseLayout(page: Page, name: string) {
 async function saveProject(page: Page): Promise<RoadProject> {
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('button', { name: 'Save project JSON', exact: true }).click()
   const stream = await (await pending).createReadStream()
   expect(stream).not.toBeNull()
   const chunks: Buffer[] = []
   for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+  await page
+    .getByRole('dialog', { name: 'Save & export', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as RoadProject
 }
 
@@ -226,18 +231,21 @@ test('terrain aspect and context visibility change actual map sources without mo
   const initial = (await mapState(page))!
   expect(initial.terrainHash).not.toBe(0)
   expect(initial.contextKinds).toContain('stream')
-  await page.getByLabel('Terrain display', { exact: true }).selectOption('aspect')
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
+  await page.getByRole('option', { name: 'Aspect', exact: true }).click()
+  await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByText('Aspect · downslope direction', { exact: true })).toBeVisible()
   await expect.poll(async () => (await mapState(page))?.terrainHash).not.toBe(initial.terrainHash)
-  await page.getByTestId('road-context-visibility').locator('summary').click()
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show streams context', exact: true }).uncheck()
   await expect
     .poll(async () => (await mapState(page))!.contextKinds)
     .toEqual(initial.contextKinds.filter((kind) => kind !== 'stream'))
   await page.getByRole('checkbox', { name: 'Show streams context', exact: true }).check()
   await expect.poll(async () => (await mapState(page))!.contextKinds).toEqual(initial.contextKinds)
-  await page.getByTestId('road-context-visibility').locator('summary').click()
-  await page.getByLabel('Terrain display', { exact: true }).selectOption('hillshade')
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
+  await page.getByRole('option', { name: 'Hillshade', exact: true }).click()
   await expect.poll(async () => (await mapState(page))?.terrainHash).toEqual(initial.terrainHash)
   expect(await saveProject(page)).toEqual(original)
   expect(errors).toEqual([])

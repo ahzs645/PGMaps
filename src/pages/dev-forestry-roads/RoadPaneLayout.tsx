@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 
-export type RoadLayout = 'linked' | 'engineering' | 'pegging'
+export type RoadLayout = 'linked' | 'engineering' | 'pegging' | 'split' | 'plan'
 
 export const ROAD_LAYOUT_OPTIONS: { value: RoadLayout; label: string }[] = [
   { value: 'linked', label: 'Linked overview' },
+  { value: 'split', label: 'Two panes · plan & profile' },
+  { value: 'plan', label: 'Map only' },
   { value: 'engineering', label: 'Plan · profile · section · data' },
   { value: 'pegging', label: 'Plan · profile · section · pegging' },
 ]
@@ -25,8 +27,10 @@ export function RoadPaneLayout({
   detail,
   data,
   storageId = layout,
+  hidden = [],
 }: {
   layout: RoadLayout
+  hidden?: RoadPaneId[]
   /** Where pane sizes are remembered: the preset id, or a saved layout's own id. */
   storageId?: string
   plan: ReactNode
@@ -34,7 +38,7 @@ export function RoadPaneLayout({
   detail: ReactNode
   data: ReactNode
 }) {
-  const linked = layout === 'linked' || !data
+  const linked = !['engineering', 'pegging'].includes(layout) || !data
   return (
     <ResizableSplit
       direction="row"
@@ -45,6 +49,7 @@ export function RoadPaneLayout({
       panes={[
         {
           id: 'plan-column',
+          hidden: hidden.includes('plan') && (linked || hidden.includes('data')),
           label: linked ? 'plan' : 'plan column',
           size: linked ? 1.05 : 1,
           min: 300,
@@ -55,16 +60,35 @@ export function RoadPaneLayout({
               storageKey={roadPaneKey(storageId, 'plan-data')}
               className="h-full"
               panes={[
-                { id: 'plan', label: 'plan', content: plan, size: 1.1, min: 200, stackedHeight: 440 },
+                {
+                  id: 'plan',
+                  hidden: hidden.includes('plan'),
+                  label: 'plan',
+                  content: plan,
+                  size: 1.1,
+                  min: 200,
+                  stackedHeight: 440,
+                },
                 ...(linked
                   ? []
-                  : [{ id: 'data', label: 'data', content: data, size: 0.9, min: 160, stackedHeight: 360 }]),
+                  : [
+                      {
+                        id: 'data',
+                        hidden: hidden.includes('data'),
+                        label: 'data',
+                        content: data,
+                        size: 0.9,
+                        min: 160,
+                        stackedHeight: 360,
+                      },
+                    ]),
               ]}
             />
           ),
         },
         {
           id: 'views',
+          hidden: hidden.includes('profile') && hidden.includes('detail'),
           label: 'view column',
           size: 1,
           min: 320,
@@ -75,8 +99,24 @@ export function RoadPaneLayout({
               storageKey={roadPaneKey(storageId, 'views')}
               className="h-full"
               panes={[
-                { id: 'profile', label: 'profile', content: profile, size: 0.9, min: 170, stackedHeight: 430 },
-                { id: 'detail', label: 'detail view', content: detail, size: 1, min: 200, stackedHeight: 520 },
+                {
+                  id: 'profile',
+                  hidden: hidden.includes('profile'),
+                  label: 'profile',
+                  content: profile,
+                  size: 0.9,
+                  min: 170,
+                  stackedHeight: 430,
+                },
+                {
+                  id: 'detail',
+                  hidden: hidden.includes('detail'),
+                  label: 'detail view',
+                  content: detail,
+                  size: 1,
+                  min: 200,
+                  stackedHeight: 520,
+                },
               ]}
             />
           ),
@@ -84,4 +124,41 @@ export function RoadPaneLayout({
       ]}
     />
   )
+}
+
+export type RoadPaneId = 'plan' | 'profile' | 'detail' | 'data'
+export const ROAD_PANEL_OPTIONS: { id: RoadPaneId; label: string }[] = [
+  { id: 'plan', label: 'Plan' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'detail', label: 'Detail view' },
+  { id: 'data', label: 'Data' },
+]
+export const roadPanelsKey = (storageId: string) => `pgmaps-road-panels:${storageId}`
+function readPanels(storageId: string, layout: RoadLayout): RoadPaneId[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(roadPanelsKey(storageId)) ?? 'null')
+    if (Array.isArray(stored)) {
+      const hidden = ROAD_PANEL_OPTIONS.filter((option) => stored.includes(option.id)).map((option) => option.id)
+      // Retain at least one usable view even if browser storage is edited.
+      const available = ROAD_PANEL_OPTIONS.filter(
+        (option) => option.id !== 'data' || ['engineering', 'pegging'].includes(layout),
+      )
+      if (available.some((option) => !hidden.includes(option.id))) return hidden
+    }
+  } catch {
+    /* Use the preset. */
+  }
+  return layout === 'plan' ? ['profile', 'detail'] : layout === 'split' ? ['detail'] : []
+}
+export function useRoadPanels(storageId: string, layout: RoadLayout) {
+  const [state, setState] = useState(() => ({ key: storageId, hidden: readPanels(storageId, layout) }))
+  if (state.key !== storageId) setState({ key: storageId, hidden: readPanels(storageId, layout) })
+  useEffect(() => {
+    try {
+      localStorage.setItem(roadPanelsKey(state.key), JSON.stringify(state.hidden))
+    } catch {
+      /* Optional device preference. */
+    }
+  }, [state])
+  return [state.hidden, (hidden: RoadPaneId[]) => setState({ key: storageId, hidden })] as const
 }

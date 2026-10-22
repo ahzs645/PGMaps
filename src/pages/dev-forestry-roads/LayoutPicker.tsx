@@ -1,10 +1,18 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { LayoutDashboard, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { AppSelect } from '@/components/ui/select'
 import { roadFieldClass } from './Controls'
-import { ROAD_LAYOUT_OPTIONS, ROAD_PANE_SPLITS, roadPaneKey, type RoadLayout } from './RoadPaneLayout'
+import {
+  ROAD_LAYOUT_OPTIONS,
+  ROAD_PANE_SPLITS,
+  ROAD_PANEL_OPTIONS,
+  roadPanelsKey,
+  roadPaneKey,
+  type RoadLayout,
+  type RoadPaneId,
+} from './RoadPaneLayout'
 
 /** A named screen layout: one of the preset arrangements with its own remembered pane sizes. */
 export type SavedLayout = { id: string; name: string; base: RoadLayout }
@@ -49,8 +57,12 @@ export function LayoutPicker({
   saved,
   onSaved,
   portalContainer,
+  hiddenPanels,
+  onHiddenPanels,
 }: {
   selection: string
+  hiddenPanels: RoadPaneId[]
+  onHiddenPanels: (hidden: RoadPaneId[]) => void
   onSelect: (selection: string) => void
   saved: SavedLayout[]
   onSaved: (layouts: SavedLayout[]) => void
@@ -69,6 +81,7 @@ export function LayoutPicker({
           const value = localStorage.getItem(roadPaneKey(current.storageId, split) + suffix)
           if (value !== null) localStorage.setItem(roadPaneKey(`saved-${layout.id}`, split) + suffix, value)
         }
+      localStorage.setItem(roadPanelsKey(`saved-${layout.id}`), JSON.stringify(hiddenPanels))
     } catch {
       /* Sizes fall back to the defaults. */
     }
@@ -106,6 +119,16 @@ export function LayoutPicker({
         triggerClassName="h-8 w-[min(15rem,60vw)] text-xs"
         contentClassName="text-xs"
       />
+      <Button
+        size="icon"
+        variant="outline"
+        className="size-8"
+        aria-label="Screen presets & panels"
+        title="Screen presets & panels"
+        onClick={() => setOpen(true)}
+      >
+        <LayoutDashboard className="size-4" />
+      </Button>
       <PanelDialog
         open={open}
         onOpenChange={setOpen}
@@ -115,7 +138,70 @@ export function LayoutPicker({
         subtitle="A saved layout keeps its own pane sizes on this device."
         contentProps={{ 'data-testid': 'road-layouts-dialog' }}
       >
-        <div className="space-y-3 text-xs">
+        <div className="space-y-4 text-xs">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {ROAD_LAYOUT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                className={`rounded-lg border p-3 text-left hover:bg-accent ${current.base === option.value ? 'border-primary bg-primary/5' : ''}`}
+                aria-pressed={current.base === option.value}
+                onClick={() => {
+                  onSelect(option.value)
+                  setOpen(false)
+                }}
+              >
+                <span className="mb-2 grid h-12 grid-cols-2 gap-1" aria-hidden="true">
+                  {Array.from(
+                    {
+                      length:
+                        option.value === 'plan' ? 1 : option.value === 'split' ? 2 : option.value === 'linked' ? 3 : 4,
+                    },
+                    (_, index) => (
+                      <span key={index} className="rounded-sm bg-muted-foreground/20" />
+                    ),
+                  )}
+                </span>
+                <span className="block font-medium">
+                  {option.value === 'linked'
+                    ? 'Three panes'
+                    : option.value === 'engineering'
+                      ? 'Four panes'
+                      : option.value === 'pegging'
+                        ? 'Four panes · pegging'
+                        : option.label}
+                </span>
+              </button>
+            ))}
+          </div>
+          <fieldset className="space-y-1 border-y py-3">
+            <legend className="font-semibold">Visible panels</legend>
+            {ROAD_PANEL_OPTIONS.filter(
+              (option) => option.id !== 'data' || ['engineering', 'pegging'].includes(current.base),
+            ).map((option) => (
+              <label key={option.id} className="flex items-center justify-between py-1.5">
+                {option.label}
+                <input
+                  type="checkbox"
+                  aria-label={`Show ${option.label.toLowerCase()} panel`}
+                  checked={!hiddenPanels.includes(option.id)}
+                  disabled={
+                    !hiddenPanels.includes(option.id) &&
+                    ROAD_PANEL_OPTIONS.filter(
+                      (p) => p.id !== 'data' || ['engineering', 'pegging'].includes(current.base),
+                    ).filter((p) => !hiddenPanels.includes(p.id)).length <= 1
+                  }
+                  onChange={(event) =>
+                    onHiddenPanels(
+                      event.target.checked
+                        ? hiddenPanels.filter((id) => id !== option.id)
+                        : [...hiddenPanels, option.id],
+                    )
+                  }
+                />
+              </label>
+            ))}
+          </fieldset>
+
           <label className="flex flex-col gap-1">
             Name for the current layout
             <input
