@@ -16,6 +16,7 @@ import {
   ProfileChart,
 } from './dev-forestry-roads/Charts'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
+import type { PointCloudChoice } from './dev-forestry-roads/DesignSidebarBody'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
@@ -25,6 +26,13 @@ import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
+import { DrainagePanel } from './dev-forestry-roads/DrainagePanel'
+import {
+  DEFAULT_DRAINAGE_SETTINGS,
+  runDrainage,
+  type DrainageRun,
+  type DrainageSettings,
+} from './dev-forestry-roads/drainageRun'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
@@ -55,7 +63,14 @@ import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout } from './dev-forestry-roads/RoadPaneLayout'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
-import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
+import type {
+  Alignment,
+  Coordinate,
+  RoadAnalysis,
+  RoadProject,
+  RoadTemplate,
+  TerrainSource,
+} from './dev-forestry-roads/types'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
@@ -93,9 +108,18 @@ export default function DevForestryRoads() {
   const [selectedPoint, setSelectedPoint] = useState<string | null>(null)
   const [fitRevision, setFitRevision] = useState(0)
   const [verticalReference, setVerticalReference] = useState('')
+  const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
+  const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
   const [detail, setDetail] = useState<
-    'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing'
+    'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing' | 'drainage'
   >('section')
+  const [drainageSettings, setDrainageSettings] = useState<DrainageSettings>(DEFAULT_DRAINAGE_SETTINGS)
+  const [drainage, setDrainage] = useState<{
+    run: DrainageRun
+    analysis: RoadAnalysis
+    source: TerrainSource
+    alignmentId: string
+  } | null>(null)
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(readSavedLayouts)
   const [layoutSelection, setLayoutSelection] = useState<string>(() => {
     try {
@@ -461,6 +485,27 @@ export default function DevForestryRoads() {
       if (operation.current === controller) w.setBusy('')
     }
   }
+  const checkDrainage = () =>
+    void run('Routing flow on the existing and design surfaces…', async () => {
+      // Let the busy state paint before a second or two of synchronous routing.
+      await new Promise((resolve) => setTimeout(resolve, 30))
+      const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+      const result = runDrainage({
+        terrain: source,
+        analysis,
+        culverts: alignment.engineering?.culverts ?? [],
+        toGrid: grid.toGrid,
+        toLonLat: grid.toLonLat,
+        resolutionM: project.terrain.resolutionM,
+        settings: drainageSettings,
+      })
+      setDrainage({ run: result, analysis, source, alignmentId: alignment.id })
+      const redirected = result.crossings.filter((c) => c.redirected && !c.throughCulvertId).length
+      w.setNotice(
+        `Drainage: ${result.crossings.length} stream crossing${result.crossings.length === 1 ? '' : 's'}, ${redirected} carried along the road, ${result.lowPoints.filter((p) => !p.throughCulvert).length} low points without a culvert.`,
+      )
+    })
+  const drainageRun = drainage?.alignmentId === alignment.id ? drainage : null
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
     void run('Loading terrain…', async (signal) => {
       if (kind === 'demo') {
@@ -503,7 +548,13 @@ export default function DevForestryRoads() {
     fileKind.current = kind
     if (fileRef.current) {
       fileRef.current.accept =
-        kind === 'terrain' ? '.tif,.tiff,.las,.laz' : kind === 'project' ? '.json' : '.json,.geojson,.zip'
+        kind === 'terrain'
+          ? '.tif,.tiff,.las,.laz'
+          : kind === 'project'
+            ? '.json'
+            : kind === 'breaklines'
+              ? '.json,.geojson'
+              : '.json,.geojson,.zip'
       fileRef.current.value = ''
       fileRef.current.click()
     }
@@ -511,9 +562,13 @@ export default function DevForestryRoads() {
   const importFile = (file: File) =>
     void run(`Opening ${file.name}…`, async (signal) => {
       if (fileKind.current === 'terrain') {
-        const pointCloud = /\.la[sz]$/i.test(file.name)
-        const loaded = pointCloud
-          ? await loadLas(file, verticalReference)
+        const loaded = /\.la[sz]$/i.test(file.name)
+          ? await loadLas(file, verticalReference, {
+              ...pointCloud,
+              breaklines: breaklines?.data,
+              signal,
+              onProgress: (message) => w.setBusy(`${file.name}: ${message}`),
+            })
           : { ...(await loadRaster(file, verticalReference)), summary: '' }
         if (signal.aborted) return
         w.setSource(loaded.source)
@@ -521,6 +576,17 @@ export default function DevForestryRoads() {
         w.setNotice(
           `${loaded.summary ? `${loaded.summary} ` : ''}Imported terrain is now used by every analysis view. Alignments outside its footprint have missing elevations.`,
         )
+      } else if (fileKind.current === 'breaklines') {
+        if (file.size > 50_000_000) throw Error('Breakline file is too large; the limit is 50 MB.')
+        const data: unknown = JSON.parse(await file.text())
+        const { readBreaklines } = await import('./dev-forestry-roads/tinSurface')
+        const lines = readBreaklines(data, (lon, lat) => [lon, lat])
+        if (!lines.length) throw Error('No lines or polygon rings in that file to use as breaklines.')
+        setBreaklines({ name: `${file.name} (${lines.length} line${lines.length === 1 ? '' : 's'})`, data })
+        w.setNotice(
+          `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
+        )
+        return
       } else {
         if (file.size > 120_000_000)
           throw Error('Import is too large. Use a cropped project or fewer context features.')
@@ -1004,6 +1070,10 @@ export default function DevForestryRoads() {
                       onTerrain={loadTerrain}
                       verticalReference={verticalReference}
                       onVerticalReference={setVerticalReference}
+                      pointCloud={pointCloud}
+                      onPointCloud={setPointCloud}
+                      breaklines={breaklines?.name ?? null}
+                      onClearBreaklines={() => setBreaklines(null)}
                       selectedPoint={selectedPoint}
                       onPoint={setSelectedPoint}
                       onProfile={selectProfile}
@@ -1153,7 +1223,13 @@ export default function DevForestryRoads() {
                       title="Plan · alignment & terrain"
                       compact
                       className="flex min-h-0 flex-1 flex-col"
-                      actions={<span className="text-[10px] text-muted-foreground">Orange road · red grade flag</span>}
+                      actions={
+                        <span className="text-[10px] text-muted-foreground">
+                          {drainageRun && !terrainProfile
+                            ? 'Blue design streams · dashed existing · red redirected · amber low point'
+                            : 'Orange road · red grade flag'}
+                        </span>
+                      }
                     >
                       {() => (
                         <div className="min-h-0 flex-1">
@@ -1181,6 +1257,7 @@ export default function DevForestryRoads() {
                             cableDistance={cableDistance}
                             onCableDistance={setCableDistance}
                             overlay={overlay}
+                            drainage={drainageRun && !terrainProfile ? drainageRun.run.plan : undefined}
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
                             }}
@@ -1237,7 +1314,9 @@ export default function DevForestryRoads() {
                                       ? 'Engineering quantities'
                                       : detail === 'landing'
                                         ? 'Landing deflection explorer'
-                                        : 'D-line clearance'
+                                        : detail === 'drainage'
+                                          ? 'Drainage · existing vs design surface'
+                                          : 'D-line clearance'
                       }
                       actions={
                         <>
@@ -1254,6 +1333,7 @@ export default function DevForestryRoads() {
                               { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
                               { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
                               { value: 'landing', label: 'Landing' },
+                              { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
                             ]}
                             triggerAriaLabel="Road detail view"
                             triggerClassName="h-8 w-32 text-xs"
@@ -1412,6 +1492,19 @@ export default function DevForestryRoads() {
                                     )
                                   }
                                 }}
+                              />
+                            )}
+                            {detail === 'drainage' && !terrainProfile && (
+                              <DrainagePanel
+                                run={drainageRun?.run ?? null}
+                                stale={
+                                  !!drainageRun && (drainageRun.analysis !== analysis || drainageRun.source !== source)
+                                }
+                                settings={drainageSettings}
+                                onSettings={setDrainageSettings}
+                                onRun={checkDrainage}
+                                busy={!!busy}
+                                onStation={w.setStation}
                               />
                             )}
                             {detail === 'compare' && (

@@ -17,7 +17,11 @@ import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { RoadTemplate, WidthOverride } from './types'
 
-export type FileKind = 'project' | 'terrain' | 'alignment' | 'context'
+export type FileKind = 'project' | 'terrain' | 'alignment' | 'context' | 'breaklines'
+export interface PointCloudChoice {
+  classify: boolean | 'auto'
+  surface: 'mean' | 'tin'
+}
 export interface SidebarProps {
   workspace: RoadWorkspace
   mode: DrawMode
@@ -26,6 +30,11 @@ export interface SidebarProps {
   onTerrain: (kind: 'lidar' | 'regional' | 'demo') => void
   verticalReference: string
   onVerticalReference: (value: string) => void
+  pointCloud: PointCloudChoice
+  onPointCloud: (choice: PointCloudChoice) => void
+  /** Name of the loaded breakline file, used by the next TIN import. */
+  breaklines: string | null
+  onClearBreaklines: () => void
   selectedPoint: string | null
   onPoint: (id: string | null) => void
   onDuplicate: () => void
@@ -139,14 +148,65 @@ export function DesignSidebar(p: SidebarProps) {
                   disabled={!!p.workspace.busy}
                 >
                   <Upload className="mr-2 size-3" />
-                  Import GeoTIFF or LAS
+                  Import GeoTIFF, LAS or LAZ
                 </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Point-cloud surface">
+                    <select
+                      className={roadFieldClass}
+                      value={p.pointCloud.surface}
+                      onChange={(e) =>
+                        p.onPointCloud({ ...p.pointCloud, surface: e.target.value as PointCloudChoice['surface'] })
+                      }
+                    >
+                      <option value="mean">Ground cell mean</option>
+                      <option value="tin">TIN with breaklines</option>
+                    </select>
+                  </Field>
+                  <Field label="Ground classification">
+                    <select
+                      className={roadFieldClass}
+                      value={String(p.pointCloud.classify)}
+                      onChange={(e) =>
+                        p.onPointCloud({
+                          ...p.pointCloud,
+                          classify: e.target.value === 'auto' ? 'auto' : e.target.value === 'true',
+                        })
+                      }
+                    >
+                      <option value="auto">Use the file's; classify if none</option>
+                      <option value="true">Re-classify here</option>
+                      <option value="false">Use the file's only</option>
+                    </select>
+                  </Field>
+                </div>
+                {p.pointCloud.surface === 'tin' && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => p.onFile('breaklines')}
+                      disabled={!!p.workspace.busy}
+                    >
+                      {p.breaklines ? 'Replace breaklines' : 'Add breaklines (GeoJSON)'}
+                    </Button>
+                    {p.breaklines && (
+                      <Button variant="ghost" size="sm" onClick={p.onClearBreaklines} title={p.breaklines}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <p className="text-[11px] leading-4 text-muted-foreground">
                   A GeoTIFF: single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB, with
-                  resolution and no-data preserved. A LAS point cloud (up to 1 GB, uncompressed): its ground-classified
-                  points are averaged into a ~1 m grid, gaps up to 3 cells are filled and wider ones stay missing. It
-                  needs a projected CRS key; the vertical datum comes from the file or the field above. Decompress LAZ
-                  first.
+                  resolution and no-data preserved. A LAS or LAZ point cloud (up to 1 GB) needs a projected CRS key; the
+                  vertical datum comes from the file or the field above. Its ground points are gridded to about 1 m,
+                  either as a cell mean (gaps up to 3 cells filled) or as a TIN, which keeps breaklines such as ditch
+                  bottoms, stream banks and road edges (lines with Z, or a z property, or draped on the ground).
+                  Unclassified clouds are classified here with WhiteboxTools&apos; ground point filter, about 55,000
+                  points a second, so a million points takes about 20 s.
+                  {p.breaklines ? ` Breaklines: ${p.breaklines}.` : ''}
                 </p>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">

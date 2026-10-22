@@ -48,6 +48,8 @@ interface PlanProps {
   cableDistance?: number
   onCableDistance?: (distance: number) => void
   overlay?: GeoJSON.FeatureCollection
+  /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point' | 'crossing'). */
+  drainage?: GeoJSON.FeatureCollection
   onOverlaySelect?: (properties: GeoJSON.GeoJsonProperties) => void
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
@@ -431,6 +433,7 @@ function Layers(
       ticks,
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
+      drainage: props.drainage ?? fc([]),
     }
     for (const [name, data] of Object.entries(inputs)) {
       const id = `road-${name}`
@@ -558,6 +561,42 @@ function Layers(
       source: 'road-draft',
       paint: { 'line-color': '#0d9488', 'line-width': 3, 'line-dasharray': [2, 1] },
     })
+    // Existing-ground streams dashed and pale, design-surface streams solid and widening with
+    // contributing area, so a stream the road turns shows as the two lines parting.
+    add({
+      id: 'road-drainage-existing',
+      type: 'line',
+      source: 'road-drainage',
+      filter: ['==', ['get', 'role'], 'stream-existing'],
+      paint: { 'line-color': '#38bdf8', 'line-width': 1.5, 'line-dasharray': [2, 1.5] },
+    })
+    add({
+      id: 'road-drainage-line',
+      type: 'line',
+      source: 'road-drainage',
+      filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'role'], 'stream-existing']],
+      paint: {
+        'line-color': ['match', ['get', 'role'], 'diversion', '#dc2626', '#0369a1'],
+        'line-width': [
+          'case',
+          ['==', ['get', 'role'], 'diversion'],
+          3,
+          ['interpolate', ['linear'], ['coalesce', ['get', 'areaHa'], 0], 0, 1.2, 5, 2.5, 50, 4.5],
+        ],
+      },
+    })
+    add({
+      id: 'road-drainage-point',
+      type: 'circle',
+      source: 'road-drainage',
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-color': ['match', ['get', 'role'], 'pond', '#2563eb', 'low-point', '#f59e0b', '#dc2626'],
+        'circle-radius': ['match', ['get', 'role'], 'pond', 3, 6],
+        'circle-stroke-width': ['match', ['get', 'role'], 'pond', 0, 2],
+        'circle-stroke-color': '#ffffff',
+      },
+    })
     add({
       id: 'road-exploration-line',
       type: 'line',
@@ -602,6 +641,9 @@ function Layers(
       'road-structures',
       'road-section',
       'road-draft',
+      'road-drainage-existing',
+      'road-drainage-line',
+      'road-drainage-point',
       'road-exploration-line',
       'road-exploration-point',
     ])
@@ -626,6 +668,7 @@ function Layers(
     props.showEarthwork,
     props.terrainOnly,
     props.overlay,
+    props.drainage,
   ])
 
   useEffect(() => {

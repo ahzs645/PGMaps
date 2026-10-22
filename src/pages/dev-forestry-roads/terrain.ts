@@ -239,7 +239,11 @@ export function roadProjection(epsg: number) {
 export function exportGrid(metadata: TerrainMetadata, at: Coordinate) {
   if (metadata.epsg && metadata.epsg !== 4326) {
     const projection = roadProjection(metadata.epsg)
-    return { epsg: metadata.epsg, toGrid: (c: Coordinate) => projection.forward([...c]) as [number, number] }
+    return {
+      epsg: metadata.epsg,
+      toGrid: (c: Coordinate) => projection.forward([...c]) as [number, number],
+      toLonLat: (xy: [number, number]) => projection.inverse([...xy]) as Coordinate,
+    }
   }
   const zone = Math.max(1, Math.min(60, Math.floor((at[0] + 180) / 6) + 1)),
     south = at[1] < 0
@@ -250,6 +254,7 @@ export function exportGrid(metadata: TerrainMetadata, at: Coordinate) {
   return {
     epsg: (south ? 32700 : 32600) + zone,
     toGrid: (c: Coordinate) => projection.forward([...c]) as [number, number],
+    toLonLat: (xy: [number, number]) => projection.inverse([...xy]) as Coordinate,
   }
 }
 
@@ -612,32 +617,62 @@ export async function loadRaster(
   return { metadata, source: rasterSource(raster) }
 }
 
+export interface PointCloudImport {
+  /** Run the ground filter: 'auto' only when the cloud has no ground-classified points. */
+  classify: boolean | 'auto'
+  /** Cell mean of the ground points, or a TIN of them that honours `breaklines`. */
+  surface: 'mean' | 'tin'
+  /** GeoJSON lines (WGS84) whose vertices and segments the TIN must keep. */
+  breaklines?: unknown
+  onProgress?: (message: string) => void
+  signal?: AbortSignal
+}
+
 /**
- * A LAS point cloud as terrain: ground points gridded to about 1 m (coarser if the cloud is large),
- * short gaps filled, wide gaps left missing. The grid then behaves like an imported GeoTIFF.
+ * A LAS or LAZ point cloud as terrain. A worker decodes it (LAZ through whitebox-wasm), classifies
+ * ground when asked, and grids the ground points to about 1 m: as a cell mean with short gaps
+ * filled, or as a TIN, which can carry breaklines and leaves gaps wider than its edge limit
+ * missing. The grid then behaves like an imported GeoTIFF.
  */
 export async function loadLas(
   file: File,
   verticalReference: string,
+  options: PointCloudImport = { classify: 'auto', surface: 'mean' },
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource; summary: string }> {
-  if (file.size > 1_000_000_000) throw Error('Crop the LAS file first; the limit is 1 GB.')
+  if (file.size > 1_000_000_000) throw Error('Crop the point cloud first; the limit is 1 GB.')
   const bytes = await file.arrayBuffer()
-  const { buildGroundGrid } = await import('./lasSurface')
-  const grid = buildGroundGrid(bytes, { cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3 })
-  if (grid.epsg === null)
-    throw Error('This LAS has no projected CRS key. Assign one (for example with PDAL) before importing.')
-  roadProjection(grid.epsg)
-  const header = (await import('./lasSurface')).readLasHeader(bytes)
+  const { readPointCloudHeader } = await import('./pointCloud')
+  const header = readPointCloudHeader(new Uint8Array(bytes))
+  if (header.epsg === null)
+    throw Error('This point cloud has no projected CRS key. Assign one (for example with PDAL) before importing.')
+  const projection = roadProjection(header.epsg)
   const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
-  if (!vertical) throw Error('Enter the vertical datum of the LAS elevations before importing.')
+  if (!vertical) throw Error('Enter the vertical datum of the point-cloud elevations before importing.')
+  const breaklines =
+    options.surface === 'tin' && options.breaklines
+      ? (await import('./tinSurface')).readBreaklines(
+          options.breaklines,
+          (lon, lat) => projection.forward([lon, lat]) as [number, number],
+        )
+      : []
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('')
+  const { runPointCloudWorker } = await import('./pointCloudClient')
+  const stages = { reading: 'Reading points', classifying: 'Classifying ground', gridding: 'Building the surface' }
+  const result = await runPointCloudWorker(bytes, {
+    classify: options.classify,
+    surface: { method: options.surface, cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3, breaklines },
+    signal: options.signal,
+    onProgress: (stage, done, total) =>
+      options.onProgress?.(`${stages[stage]}${total > 1 ? ` · ${done} of ${total} tiles` : ''}…`),
+  })
+  const grid = result.surface!.grid
   const raster = validateRoadRaster({
     id: `terrain-${sha256.slice(0, 16)}`,
-    name: `${file.name.slice(0, 160)} · ground ${grid.cellM.toFixed(2)} m`,
+    name: `${file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
     kind: 'terrain',
-    epsg: grid.epsg,
+    epsg: header.epsg,
     origin: grid.origin,
     pixelSize: grid.pixelSize,
     width: grid.width,
@@ -647,22 +682,33 @@ export async function loadLas(
     verticalReference: vertical.slice(0, 300),
     sha256,
   })
-  const latitude = roadProjection(grid.epsg).inverse(raster.origin)[1]
+  const latitude = projection.inverse(raster.origin)[1]
   const metadata: TerrainMetadata = {
     kind: 'geotiff',
     name: raster.name,
     resolutionM: localRasterResolution(raster, latitude),
-    epsg: grid.epsg,
+    epsg: header.epsg,
     verticalReference: raster.verticalReference,
     sha256,
     raster,
   }
   const known = grid.values.filter((v) => v !== null).length
-  return {
-    metadata,
-    source: rasterSource(raster),
-    summary: `LAS ${header.version}: ${grid.groundPoints.toLocaleString('en-CA')} of ${grid.totalPoints.toLocaleString('en-CA')} points are ground; ${grid.width} × ${grid.height} cells at ${grid.cellM.toFixed(2)} m, ${grid.filledCells.toLocaleString('en-CA')} short gaps filled, ${(grid.width * grid.height - known).toLocaleString('en-CA')} cells left missing.`,
-  }
+  const count = (n: number) => n.toLocaleString('en-CA')
+  const { cloud, summary, classifiedBy, timings } = result
+  const tin = result.surface!.tin
+  const parts = [
+    `${cloud.format.toUpperCase()} ${cloud.version}: ${count(summary.ground)} of ${count(cloud.count)} points are ground`,
+    cloud.thinCellM !== null
+      ? `(thinned from ${count(cloud.sourceCount)}, lowest point per ${cloud.thinCellM.toFixed(2)} m)`
+      : '',
+    classifiedBy ? `, classified here in ${(timings.classifyMs / 1000).toFixed(1)} s` : '',
+    `; ${grid.width} × ${grid.height} cells at ${grid.cellM.toFixed(2)} m`,
+    tin
+      ? ` from a TIN with ${count(tin.constrained)} breakline segments${tin.skipped.length ? ` (${tin.skipped.length} skipped: ${tin.skipped[0].reason})` : ''}`
+      : `, ${count(grid.filledCells)} short gaps filled`,
+    `, ${count(grid.width * grid.height - known)} cells left missing.`,
+  ]
+  return { metadata, source: rasterSource(raster), summary: parts.join('') }
 }
 
 export async function loadRegionalTerrain(

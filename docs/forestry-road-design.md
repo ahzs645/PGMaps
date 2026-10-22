@@ -71,6 +71,11 @@ road-design criteria or universally appropriate LiDAR processing parameters.
 - `terrain.ts` adapts the synthetic training terrain, published native 1 m
   LiDAR DTM, imported GeoTIFF and coarse regional DEM. It carries source
   resolution, horizontal CRS, vertical reference and checksum.
+- `surfaceGrid.ts`, `designSurface.ts`, `hydrology.ts` and `drainageRun.ts` build the
+  design surface and the drainage check; `tinSurface.ts` triangulates ground points with
+  breaklines; `pointCloud.ts` reads LAS/LAZ and classifies ground. All take terrain and
+  projections as arguments and have no DOM or network access. `pointCloud.worker.ts` and
+  `pointCloudClient.ts` run point clouds off the main thread.
 - `routing.ts` provides deterministic, bounded terrain-cost A\* route
   assistance. Its inputs and returned geometry are separate from the designed
   vertical profile and earthwork-cost calculation.
@@ -92,8 +97,8 @@ road-design criteria or universally appropriate LiDAR processing parameters.
   independent chainage. `chartScale.ts` picks the round axis ticks.
   `RoadPaneLayout.tsx` arranges the connected views for each layout.
 - No new server, raw-LiDAR processing service or per-user virtual machine is
-  required. Heavy LiDAR processing remains in the existing `scripts/lidar/`
-  pipeline; road geometry operates on its bounded published terrain product.
+  required. Bounded point clouds are processed in a browser worker; heavy LiDAR
+  processing remains in the existing `scripts/lidar/` pipeline.
 
 ## Terrain choices
 
@@ -141,21 +146,51 @@ agree with the existing LiDAR analysis. Bilinear interpolation references cell
 centres; any missing neighbour leaves the sample missing. Interpolation does
 not add measured resolution or establish survey accuracy.
 
-### Imported LAS
+### Imported LAS and LAZ
 
-"Import GeoTIFF or LAS" also accepts an uncompressed LAS 1.0–1.4 point cloud of up to 1 GB
-(`lasSurface.ts`):
+"Import GeoTIFF, LAS or LAZ" accepts a LAS or LAZ point cloud of up to 1 GB. A worker
+(`pointCloud.worker.ts`) reads it, classifies ground when needed and grids it, so the page
+stays responsive and only the grid comes back.
 
-- Ground-classified points (class 2) are averaged into cells of about 1 m. The cell grows
-  if needed to stay within the 4.19 million cell budget.
-- A gap is filled only from at least three known neighbours, up to three cells in;
-  anything wider stays missing.
-- The CRS comes from the file's GeoTIFF keys (ProjectedCSTypeGeoKey). The vertical datum
-  comes from the entered field or, failing that, the file's vertical key.
+- **Reading.** `pointCloud.ts` decodes LAS in JavaScript and LAZ through `whitebox-wasm`
+  (MIT OR Apache-2.0; 4.5 MB of WASM, fetched only for LAZ). Above 3 million points the
+  cloud is thinned to one point per cell, preferring ground and then the lowest non-noise
+  return, and the summary says so.
+- **CRS.** The CRS comes from the GeoTIFF keys VLR or the OGC WKT VLR (EVLRs included).
+  The vertical datum comes from the entered field or, failing that, the file's vertical
+  key. A cloud without a projected CRS is refused.
+- **Ground classification.**
+  - "Use the file's; classify if none" (the default) runs the filter only when the cloud
+    has no class 2 points. "Re-classify here" always runs it. "Use the file's only"
+    never does.
+  - The filter is WhiteboxTools' `lidar_ground_point_filter` from the 17.6 MB
+    `whitebox-cli.wasm`, fetched only when classifying. It runs with a 2 m search radius,
+    a 0.5 m height threshold and a 65° slope threshold. 65° rather than the tool's 45°
+    keeps cut banks and 80–130 % BC hillsides as ground; 0.5 m rather than 1 m keeps shrub
+    and slash returns out.
+  - Clouds are classified in overlapping tiles of about 40,000 points, at about 55,000
+    points a second, so a million points takes about 20 s. Noise (classes 7 and 18) keeps
+    its class.
+- **Surface.**
+  - _Ground cell mean_ (`gridGroundPoints` in `lasSurface.ts`) averages ground points into
+    cells of about 1 m, grown to stay within 4.19 million cells. A gap is filled only from
+    at least three known neighbours, up to three cells in; anything wider stays missing.
+  - _TIN with breaklines_ (`tinSurface.ts`) triangulates the ground points with
+    `delaunator` and constrains breaklines with `@kninnug/constrainautor` (both ISC).
+    Above 1.5 million points it first thins to the lowest point per 0.5 m cell.
+    Breaklines come from a GeoJSON file of lines or polygon rings, added under the
+    surface choice. Their z is the third coordinate, else a `z`/`elevation` property,
+    else draped on the point TIN. Crossing breaklines share a vertex; a segment that
+    cannot be constrained is skipped and reported, never fatal. Triangles with an edge
+    longer than eight cells stay missing, so a TIN never bridges a real data gap.
+    Rasterizing reads each cell centre's height from its triangle's plane.
+    `constrainautor` is pinned at 4.1.0 because `tinSurface.ts` replaces its internal flip
+    set, which cut constraining 20,000 segments on a million points from 12 s to 1.4 s.
+    Check that before upgrading it.
 
 The grid then behaves exactly like an imported GeoTIFF, including checksum restoration.
-LAZ, clouds without ground classification and clouds without a CRS key are refused, each
-with the step to take first.
+The import summary gives ground and total points, thinning, classification time, the grid,
+the breakline count and how many cells were left missing.
 
 ### Imported GeoTIFF
 
@@ -799,6 +834,52 @@ Both then reduce any radius whose tangents cannot hold it. Each trim stays insid
 legs, and adjacent curves share a leg. The notice reports curves that were reduced, or that
 fall below the minimum radius.
 
+### Drainage on the design surface
+
+Detail view → **Drainage** asks how the road changes where water goes. It compares flow
+on the ground as it is with flow on the ground the road leaves behind.
+
+1. **Sample** (`surfaceGrid.ts`): the active terrain is sampled at its native resolution
+   (at least 1 m, grown to stay within 4.19 million cells). The area covered is the
+   catch-line corridor plus an upslope buffer, 250 m by default, so catchments above the
+   road are not cut off. Missing ground stays missing.
+2. **Burn the road** (`designSurface.ts`): neighbouring stations' sections are joined into
+   triangles, matched by template position (centreline, formation edge, ditch bottom,
+   catch point), and rasterized at design elevation. Outside the catch lines the ground
+   is untouched.
+   - Ditch bottoms and uphill fill toes are then burned again as continuous minimum lines
+     every half cell. A V ditch narrower than a cell otherwise aliases into a staircase of
+     pits that read as ponds every station.
+   - Each culvert becomes a one-cell channel at its inverts across the footprint, plus up
+     to 10 m of apron. A missing invert is taken as the lower end ground minus 0.3 m.
+3. **Route** (`hydrology.ts`): on both surfaces, depressions are filled (Priority-Flood with
+   ε), D8 directions are set, contributing area is accumulated and streams are extracted
+   from the entered threshold (1 ha by default).
+4. **Compare** (`analyzeDrainage`):
+   - _Stream crossings._ For every existing-ground stream that enters the footprint, it
+     finds where the same water leaves on the design surface. Water carried more than
+     20 m along the road without passing a culvert is "redirected": the road turns the
+     stream down its ditch.
+   - _Ditch low points._ Places where at least 0.05 ha of design flow leaves the prism or
+     ponds, with the culvert that carries it or "cross-drain candidate".
+   - _New ponding._ Groups of cells filled more than 0.05 m deep on the design surface
+     where the existing ground did not pond.
+   - _Culvert sizing._ Each culvert's catchment on both surfaces, the Rational-method peak
+     Q = C·i·A/360, the full-pipe Manning capacity of its diameter (slope from its
+     inverts, or 2 % when unknown) and the smallest standard diameter that carries Q.
+
+Rainfall intensity (50 mm/h by default), runoff C (0.35, forested hillside), pipe Manning n
+(0.024, corrugated steel), stream threshold and buffer are editable. On the plan, design
+streams are solid blue, widening with area, and existing streams are dashed. Redirected
+crossings are red lines from entry to exit, low points without a culvert amber, and new
+ponds small blue dots. A run belongs to its road and terrain, and the panel says when an
+edit has made it stale.
+
+On the published LiDAR road (1.29 million 1 m cells, about 4 s in the browser), the check
+finds five stream crossings. The one at 0+866 (5.2 ha) is carried 184 m to the road's end.
+It also lists 27 ditch outlets and sags as cross-drain candidates. The road has no
+culverts yet, which is the expected first finding.
+
 ### Context and D-lines
 
 Stream/existing-road crossings are geometric intersections with supplied
@@ -845,10 +926,10 @@ cable-tension or payload solution.
 The following capabilities appear in the references or would require more
 inputs, but are not implemented by this workspace:
 
-- LAZ decompression, ground classification of raw points, TIN triangulation,
-  breaklines or a full-density corridor reprocessing job. Uncompressed, ground-classified
-  LAS is gridded in the browser (see [Imported LAS](#imported-las)); anything heavier
-  belongs in the `scripts/lidar/` pipeline or an external tool.
+- Full-density corridor reprocessing, point clouds over 1 GB, classes other than ground,
+  and a TIN kept as triangles for display or export. Point clouds are read, classified
+  and gridded in the browser (see [Imported LAS and LAZ](#imported-las-and-laz)); anything
+  heavier belongs in the `scripts/lidar/` pipeline or an external tool.
 - Automatic geological inference, material testing/suitability, layer-specific
   fill requirements, full stripping/undercut beneath fill, geometric borrow-pit
   excavation volumes, globally optimized borrow/waste allocation, construction
@@ -862,11 +943,12 @@ inputs, but are not implemented by this workspace:
   templates, signed side crossfalls, U ditches, design-speed superelevation and widening,
   clothoid spirals and linear station transitions are implemented. A spur can be a
   separate, manually connected road.
-- DEM-derived stream extraction, flow accumulation, wetness or watershed
-  delineation. Aspect display is implemented from the active terrain. Supplied streams and
-  polygons provide the crossing/constraint context. Entered culvert geometry,
-  sampled cover and installed-cost scenarios are implemented; culvert/bridge
-  capacity and geotechnical stability are not solved.
+- Wetness indices, watershed delineation as polygons, infiltration, subsurface flow,
+  time of concentration, hydraulic grade lines and inlet control. The drainage check
+  (see [Drainage on the design surface](#drainage-on-the-design-surface)) routes surface
+  runoff with D8 and sizes pipes by the Rational method and full-pipe Manning flow. It is
+  a planning screen, not a hydrotechnical design. Bridge capacity and geotechnical
+  stability are not solved.
 - Automatic maximum cable reach, safe operating envelopes, cable force/tension,
   equipment/payload selection and anchor capacity. Fixed-radius radial
   exploration and individual D-lines use entered heights and assumed sag only.
@@ -1028,6 +1110,28 @@ fixtures pin left-of-travel ground and template components to negative section
 offsets. Pane-size fixtures (`src/components/ui/pane-sizes.test.ts`) cover pixel
 limits, untouched neighbours and stacked heights; axis fixtures (`chartScale.test.ts`)
 cover round 1–2–2.5–5 ticks and their decimals.
+
+Drainage fixtures (`hydrology.test.ts`, `designSurface.test.ts`) cover:
+
+- a tilted plane draining all of its area to its outlets;
+- a filled pit and missing cells acting as outlets;
+- one stream down a V-valley;
+- Rational and Manning values worked by hand;
+- sections burned on the correct side at the station levels, a 90° curve without gaps,
+  and culvert channels at their inverts;
+- a road across a gully that carries the stream 132 m without a culvert and 1 m with one;
+- a road at 17° to the grid without aliasing ponds.
+
+Point-cloud fixtures (`pointCloud.test.ts`, `tinSurface.test.ts`) cover:
+
+- LAZ against the same cloud as LAS, with CRS from GeoTIFF keys and WKT;
+- ground recall and canopy rejection on synthetic forest slopes;
+- deterministic thinning;
+- a crease reproduced within 1 cm only with its breakline;
+- gaps left open, and crossing breaklines.
+
+`forestry-road-drainage.spec.ts` runs the check in the browser and imports an unclassified
+LAZ, compressed by WhiteboxTools in the test, through classification and a breakline TIN.
 
 Run the relevant local checks with:
 
