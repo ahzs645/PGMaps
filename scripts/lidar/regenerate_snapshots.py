@@ -11,6 +11,8 @@ Every generator that reads the products runs here, in dependency order. The
 tree segmentation benchmark needs R, lidR and PointTree, so it is not rerun;
 `--repin-benchmarks` updates its terrain and segmentation pins only, and is
 for builds where the benchmark plots' terrain has been checked unchanged.
+The model comparison likewise needs its saved model runs, so only its
+provenance pin is rewritten from the regenerated tree isolation.
 """
 
 import argparse, hashlib, json, subprocess, sys
@@ -47,6 +49,12 @@ def main():
     run("species.py", "--analysis", a.analysis, "--forestry", out / "forestry.generated.json", "--output", out / "species.generated.json")
     run("species_context.py", "--species", out / "species.generated.json", "--forestry", out / "forestry.generated.json",
         "--output", out / "species-context.generated.json")
+    run("build_vri_volume.py", "--analysis", a.analysis, "--output", out / "volume/vri.generated.json")
+    # Same fields build_model_comparison.py writes, so the file stays byte-identical to its output.
+    isolation = json.loads((out / "treeIsolation.generated.json").read_text())
+    provenance = {k: isolation[k] for k in ["schema_version", "source_sha256", "label_grid_sha256", "input_sha256"]}
+    (out / "comparisons/provenance.generated.json").write_text(json.dumps(provenance, separators=(",", ":")) + "\n")
+    print("re-pinned comparisons/provenance.generated.json to the tree isolation", flush=True)
     if a.repin_benchmarks:
         path = out / "treeBenchmarks.generated.json"
         text = path.read_text()
