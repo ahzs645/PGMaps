@@ -1,0 +1,60 @@
+name: Verify forestry road design
+
+on:
+  pull_request:
+    paths:
+      - 'src/App.tsx'
+      - 'src/pages/DevForestry.tsx'
+      - 'src/pages/DevForestryRoads.tsx'
+      - 'src/pages/dev-forestry-roads/**'
+      - 'src/pages/dev-lidar/sourceGrids.ts'
+      - 'src/pages/dev-viewshed/analysis.ts'
+      - 'tests/e2e/forestry-road-*.spec.ts'
+      - '.github/workflows/forestry-roads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forestry-roads-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Check application types
+        run: npx tsc -b
+      - name: Check road geometry, terrain, routing and project files
+        run: npx vitest run src/pages/dev-forestry-roads
+      - name: Check road workspace code
+        run: npx eslint src/pages/DevForestryRoads.tsx src/pages/dev-forestry-roads tests/e2e/forestry-road-*.spec.ts
+      - name: Build browser bundles
+        run: npx vite build
+      - run: npx playwright install --with-deps chromium
+      - name: Check connected road views and project workflows
+        run: |
+          npx vite --host 127.0.0.1 --port 42173 --strictPort > forestry-roads-vite.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forestry-road-*.spec.ts --workers=1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forestry-road-browser-results
+          path: |
+            test-results
+            playwright-report
+            forestry-roads-vite.log
