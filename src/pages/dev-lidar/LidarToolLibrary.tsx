@@ -11,8 +11,8 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">LiDAR tools</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Choose a focused workspace. Switch tools at any time while keeping your map position, basemap and saved
-          reviews.
+          Explore the completed BC examples, or open Import & data to view your own point clouds and processed layers.
+          Imported data stays in its own workspace; example analyses use the bundled BC tile.
         </p>
         {!valid && (
           <p className="mt-3 text-sm" role="alert">
