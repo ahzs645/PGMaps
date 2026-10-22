@@ -28,6 +28,22 @@ export default tseslint.config(
     },
   },
   {
+    // The Flatten routing engine is browser JavaScript; its graph methods alias `this` as `g`.
+    files: ['src/pages/dev-flatten/**/*.js'],
+    languageOptions: {
+      globals: {
+        atob: 'readonly',
+        Blob: 'readonly',
+        DecompressionStream: 'readonly',
+        Response: 'readonly',
+        fetch: 'readonly',
+        TextDecoder: 'readonly',
+        performance: 'readonly',
+      },
+    },
+    rules: { '@typescript-eslint/no-this-alias': ['error', { allowedNames: ['g'] }] },
+  },
+  {
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,

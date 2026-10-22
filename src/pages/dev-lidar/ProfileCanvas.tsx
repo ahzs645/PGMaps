@@ -194,7 +194,7 @@ export function ProfileCanvas({
           } else if (interaction === 'polygon') setPolygon((p) => [...p, invert(px, py)])
           else {
             const p = nearest(px, py)
-            if (p) interaction === 'seed' ? onSeed(p.original) : onPick(p.original)
+            if (p) (interaction === 'seed' ? onSeed : onPick)(p.original)
           }
         }}
         onPointerMove={(e) => {

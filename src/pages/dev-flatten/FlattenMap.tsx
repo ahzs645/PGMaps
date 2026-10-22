@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { LngLatBounds, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { Map as AppMap, MapControls, MapMarker, MarkerContent, MapScaleBar, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
@@ -31,24 +31,24 @@ function Scene({ controller, hoverIndex, onReady }: { controller: FlattenControl
   const pendingDrag = useRef<{ which: 'from' | 'to'; lng: number; lat: number } | null>(null)
   const dragTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDragUpdate = useRef(-Infinity)
-  const cancelDragUpdate = () => {
+  const cancelDragUpdate = useCallback(() => {
     if (dragTimer.current !== null) clearTimeout(dragTimer.current)
     dragTimer.current = null
     pendingDrag.current = null
-  }
-  const flushDragUpdate = () => {
+  }, [])
+  const flushDragUpdate = useCallback(() => {
     const point = pendingDrag.current
     cancelDragUpdate()
     if (!point || !draggingRef.current) return
     lastDragUpdate.current = performance.now()
     setPointRef.current(point.which, { lon: point.lng, lat: point.lat, label: '' })
-  }
-  const updateDrag = (which: 'from' | 'to', { lng, lat }: { lng: number; lat: number }) => {
+  }, [cancelDragUpdate])
+  const updateDrag = useCallback((which: 'from' | 'to', { lng, lat }: { lng: number; lat: number }) => {
     pendingDrag.current = { which, lng, lat }
     const remaining = 100 - (performance.now() - lastDragUpdate.current)
     if (remaining <= 0) flushDragUpdate()
     else if (dragTimer.current === null) dragTimer.current = setTimeout(flushDragUpdate, remaining)
-  }
+  }, [flushDragUpdate])
   useEffect(() => () => { if (dragTimer.current !== null) clearTimeout(dragTimer.current) }, [])
   useEffect(() => { onReady(map); return () => onReady(null) }, [map, onReady])
   useEffect(() => {

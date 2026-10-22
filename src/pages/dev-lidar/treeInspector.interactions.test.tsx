@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TreeInspector } from './TreeInspector'
@@ -86,10 +86,14 @@ let stored: Map<string, string>
 function Harness({ visible = true }: { visible?: boolean }) {
   const [id, setId] = useState('crown-1'),
     [picked, setPicked] = useState<IsolatedPoint | null>(null)
-  controller = useTreeInspection(source, crops[id], 'https://example.test/analysis/', 'https://example.test/ept.json')
+  const inspection = useTreeInspection(source, crops[id], 'https://example.test/analysis/', 'https://example.test/ept.json')
+  // Published after render, where React allows writing outside the component.
+  useEffect(() => {
+    controller = inspection
+  })
   return visible ? (
     <TreeInspector
-      controller={controller}
+      controller={inspection}
       crop={crops[id]}
       crown={source.crowns.features.find((f) => f.properties.id === id)!}
       ids={['crown-1', 'crown-2']}
