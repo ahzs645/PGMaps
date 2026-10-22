@@ -612,6 +612,59 @@ export async function loadRaster(
   return { metadata, source: rasterSource(raster) }
 }
 
+/**
+ * A LAS point cloud as terrain: ground points gridded to about 1 m (coarser if the cloud is large),
+ * short gaps filled, wide gaps left missing. The grid then behaves like an imported GeoTIFF.
+ */
+export async function loadLas(
+  file: File,
+  verticalReference: string,
+): Promise<{ metadata: TerrainMetadata; source: TerrainSource; summary: string }> {
+  if (file.size > 1_000_000_000) throw Error('Crop the LAS file first; the limit is 1 GB.')
+  const bytes = await file.arrayBuffer()
+  const { buildGroundGrid } = await import('./lasSurface')
+  const grid = buildGroundGrid(bytes, { cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3 })
+  if (grid.epsg === null)
+    throw Error('This LAS has no projected CRS key. Assign one (for example with PDAL) before importing.')
+  roadProjection(grid.epsg)
+  const header = (await import('./lasSurface')).readLasHeader(bytes)
+  const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
+  if (!vertical) throw Error('Enter the vertical datum of the LAS elevations before importing.')
+  const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
+  const raster = validateRoadRaster({
+    id: `terrain-${sha256.slice(0, 16)}`,
+    name: `${file.name.slice(0, 160)} · ground ${grid.cellM.toFixed(2)} m`,
+    kind: 'terrain',
+    epsg: grid.epsg,
+    origin: grid.origin,
+    pixelSize: grid.pixelSize,
+    width: grid.width,
+    height: grid.height,
+    values: grid.values,
+    acquired: '',
+    verticalReference: vertical.slice(0, 300),
+    sha256,
+  })
+  const latitude = roadProjection(grid.epsg).inverse(raster.origin)[1]
+  const metadata: TerrainMetadata = {
+    kind: 'geotiff',
+    name: raster.name,
+    resolutionM: localRasterResolution(raster, latitude),
+    epsg: grid.epsg,
+    verticalReference: raster.verticalReference,
+    sha256,
+    raster,
+  }
+  const known = grid.values.filter((v) => v !== null).length
+  return {
+    metadata,
+    source: rasterSource(raster),
+    summary: `LAS ${header.version}: ${grid.groundPoints.toLocaleString('en-CA')} of ${grid.totalPoints.toLocaleString('en-CA')} points are ground; ${grid.width} × ${grid.height} cells at ${grid.cellM.toFixed(2)} m, ${grid.filledCells.toLocaleString('en-CA')} short gaps filled, ${(grid.width * grid.height - known).toLocaleString('en-CA')} cells left missing.`,
+  }
+}
+
 export async function loadRegionalTerrain(
   bounds: Bounds,
   signal?: AbortSignal,

@@ -139,11 +139,14 @@ export function DesignSidebar(p: SidebarProps) {
                   disabled={!!p.workspace.busy}
                 >
                   <Upload className="mr-2 size-3" />
-                  Import terrain GeoTIFF
+                  Import GeoTIFF or LAS
                 </Button>
                 <p className="text-[11px] leading-4 text-muted-foreground">
-                  Single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB. Crop large
-                  LAS/LAZ datasets to a DEM first. Resolution and no-data are preserved.
+                  A GeoTIFF: single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB, with
+                  resolution and no-data preserved. A LAS point cloud (up to 1 GB, uncompressed): its ground-classified
+                  points are averaged into a ~1 m grid, gaps up to 3 cells are filled and wider ones stay missing. It
+                  needs a projected CRS key; the vertical datum comes from the file or the field above. Decompress LAZ
+                  first.
                 </p>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">

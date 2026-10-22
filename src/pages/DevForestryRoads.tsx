@@ -43,6 +43,7 @@ import {
   DEFAULT_TEMPLATE,
   demoTerrain,
   loadLidarTerrain,
+  loadLas,
   loadRaster,
   loadRegionalTerrain,
   exportGrid,
@@ -500,7 +501,8 @@ export default function DevForestryRoads() {
     if (w.busy) return
     fileKind.current = kind
     if (fileRef.current) {
-      fileRef.current.accept = kind === 'terrain' ? '.tif,.tiff' : kind === 'project' ? '.json' : '.json,.geojson,.zip'
+      fileRef.current.accept =
+        kind === 'terrain' ? '.tif,.tiff,.las,.laz' : kind === 'project' ? '.json' : '.json,.geojson,.zip'
       fileRef.current.value = ''
       fileRef.current.click()
     }
@@ -508,12 +510,15 @@ export default function DevForestryRoads() {
   const importFile = (file: File) =>
     void run(`Opening ${file.name}…`, async (signal) => {
       if (fileKind.current === 'terrain') {
-        const loaded = await loadRaster(file, verticalReference)
+        const pointCloud = /\.la[sz]$/i.test(file.name)
+        const loaded = pointCloud
+          ? await loadLas(file, verticalReference)
+          : { ...(await loadRaster(file, verticalReference)), summary: '' }
         if (signal.aborted) return
         w.setSource(loaded.source)
         w.commit({ ...project, terrain: loaded.metadata })
         w.setNotice(
-          'Imported terrain is now used by every analysis view. Alignments outside its footprint have missing elevations.',
+          `${loaded.summary ? `${loaded.summary} ` : ''}Imported terrain is now used by every analysis view. Alignments outside its footprint have missing elevations.`,
         )
       } else {
         if (file.size > 120_000_000)
