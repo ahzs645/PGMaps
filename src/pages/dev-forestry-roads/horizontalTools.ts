@@ -4,6 +4,7 @@
  * to hold them, the way the engine needs them to fit (each trim inside its legs, adjacent trims
  * sharing a leg). Pure: no DOM or network access.
  */
+import { spiralTangent } from './engine'
 import type { RoadPoint } from './types'
 
 export type RadiusFitMode = { kind: 'radius'; radiusM: number } | { kind: 'tolerance'; toleranceM: number }
@@ -48,8 +49,24 @@ export function fitHorizontalRadii(
     const external = 1 / Math.cos(theta[i] / 2) - 1
     return Math.min(10000, external > 1e-9 ? mode.toleranceM / external : 10000)
   })
+  // Spirals lengthen each tangent: Ts = (R + p)·tan(Δ/2) + k. They also need R > Ls/Δ.
+  const spiral = (i: number) => Math.max(0, points[i].spiralM ?? 0)
+  const trimFor = (i: number, radius: number) => spiralTangent(radius, theta[i], spiral(i)).trim
+  const radiusFor = (i: number, trim: number) => {
+    let low = spiral(i) > 0 ? spiral(i) / theta[i] + 1e-6 : 0,
+      high = 10000
+    if (trimFor(i, low) >= trim) return low
+    for (let step = 0; step < 60; step++) {
+      const middle = (low + high) / 2
+      if (trimFor(i, middle) > trim) high = middle
+      else low = middle
+    }
+    return low
+  }
   const trims = points.map((_, i) =>
-    theta[i] > 1e-5 && theta[i] < Math.PI - 1e-4 ? requested[i] * Math.tan(theta[i] / 2) : 0,
+    theta[i] > 1e-5 && theta[i] < Math.PI - 1e-4
+      ? trimFor(i, Math.max(requested[i], spiral(i) > 0 ? spiral(i) / theta[i] + 1e-3 : 0))
+      : 0,
   )
   // Each leg holds at most the two trims that meet on it.
   for (let pass = 0; pass < 3; pass++)
@@ -67,7 +84,7 @@ export function fitHorizontalRadii(
   const report: RadiusFitReport[] = []
   const next = points.map((p, i) => {
     if (!touched[i]) return p
-    const radius = Math.floor((trims[i] / Math.tan(theta[i] / 2)) * 10) / 10
+    const radius = Math.floor(radiusFor(i, trims[i]) * 10) / 10
     report.push({
       index: i,
       deflectionDegrees: theta[i] / RAD,

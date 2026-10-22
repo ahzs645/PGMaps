@@ -42,7 +42,9 @@ export function landXml({
     .map((piece) =>
       piece.kind === 'line'
         ? `<Line staStart="${n(piece.station)}" length="${n(piece.length)}"><Start>${ne(toGrid, piece.start)}</Start><End>${ne(toGrid, piece.end)}</End></Line>`
-        : `<Curve rot="${piece.rotation}" crvType="arc" radius="${n(piece.radius)}" length="${n(piece.length)}" staStart="${n(piece.station)}"><Start>${ne(toGrid, piece.start)}</Start><Center>${ne(toGrid, piece.center)}</Center><End>${ne(toGrid, piece.end)}</End></Curve>`,
+        : piece.kind === 'spiral'
+          ? `<Spiral spiType="clothoid" rot="${piece.rotation}" length="${n(piece.length)}" radiusStart="${Number.isFinite(piece.radiusStart) ? n(piece.radiusStart) : 'INF'}" radiusEnd="${Number.isFinite(piece.radiusEnd) ? n(piece.radiusEnd) : 'INF'}" staStart="${n(piece.station)}"><Start>${ne(toGrid, piece.start)}</Start><End>${ne(toGrid, piece.end)}</End></Spiral>`
+          : `<Curve rot="${piece.rotation}" crvType="arc" radius="${n(piece.radius)}" length="${n(piece.length)}" staStart="${n(piece.station)}"><Start>${ne(toGrid, piece.start)}</Start><Center>${ne(toGrid, piece.center)}</Center><End>${ne(toGrid, piece.end)}</End></Curve>`,
     )
     .join('\n        ')
   const vertical = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)

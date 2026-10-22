@@ -507,6 +507,23 @@ export function DesignSidebar(p: SidebarProps) {
                       }))
                     }
                   />
+                  <NumberField
+                    label="Spiral length each side (m)"
+                    value={point.spiralM ?? 0}
+                    max={2000}
+                    step={5}
+                    onChange={(spiralM) =>
+                      updateAlignment((a) => ({
+                        ...a,
+                        points: a.points.map((x) => {
+                          if (x.id !== point.id) return x
+                          const { spiralM: _old, ...rest } = x
+                          void _old
+                          return spiralM > 0 ? { ...rest, spiralM } : rest
+                        }),
+                      }))
+                    }
+                  />
                   <Button
                     variant="ghost"
                     size="sm"

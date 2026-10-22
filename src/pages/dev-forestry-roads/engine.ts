@@ -90,6 +90,8 @@ type Piece = {
   center?: XY
   angle?: number
   sweep?: number
+  /** A clothoid: heading ψ(t) = psi0 + kappa0·t + (kappa1 − kappa0)·t²/(2L), from `start`. */
+  spiral?: { psi0: number; kappa0: number; kappa1: number; radius: number }
 }
 type Path = {
   pieces: Piece[]
@@ -99,6 +101,37 @@ type Path = {
   sharp: number[]
   boundaries: number[]
   first: Coordinate
+}
+
+/** Clothoid heading and position at distance t, by Simpson's rule on the heading function. */
+function spiralAt(start: XY, length: number, spiral: NonNullable<Piece['spiral']>, t: number) {
+  const heading = (u: number) =>
+    spiral.psi0 + spiral.kappa0 * u + ((spiral.kappa1 - spiral.kappa0) * u * u) / (2 * length)
+  const steps = Math.max(2, Math.ceil(t / 2) * 2)
+  const h = t / steps
+  let x = 0,
+    y = 0
+  for (let i = 0; i <= steps; i++) {
+    const w = i === 0 || i === steps ? 1 : i % 2 ? 4 : 2
+    const psi = heading(i * h)
+    x += w * Math.cos(psi)
+    y += w * Math.sin(psi)
+  }
+  return { xy: [start[0] + (x * h) / 3, start[1] + (y * h) / 3] as XY, psi: heading(t) }
+}
+/**
+ * Tangent length and spiral angle for a curve of radius R and deflection Δ with clothoid
+ * transitions of length Ls on each side: Ts = (R + p)·tan(Δ/2) + k, with the shift p and the
+ * spiral's abscissa k from the series expansion of the clothoid.
+ */
+export function spiralTangent(radius: number, deflection: number, spiralLength: number) {
+  if (!(spiralLength > 0)) return { trim: radius * Math.tan(deflection / 2), thetaS: 0 }
+  const thetaS = spiralLength / (2 * radius)
+  const xs = spiralLength * (1 - thetaS ** 2 / 10 + thetaS ** 4 / 216)
+  const ys = spiralLength * (thetaS / 3 - thetaS ** 3 / 42 + thetaS ** 5 / 1320)
+  const p = ys - radius * (1 - Math.cos(thetaS)),
+    k = xs - radius * Math.sin(thetaS)
+  return { trim: (radius + p) * Math.tan(deflection / 2) + k, thetaS }
 }
 
 function compile(alignment: Alignment): Path {
@@ -124,7 +157,17 @@ function compile(alignment: Alignment): Path {
       throw new Error('Keep each preliminary alignment within 100 km of its first point.')
     return [{ ...p, xy: f.toXY(p.coordinate) }]
   })
-  type Fillet = { entry: XY; exit: XY; center: XY; radius: number; angle: number; sweep: number; trim: number }
+  type Fillet = {
+    entry: XY
+    exit: XY
+    center: XY
+    radius: number
+    angle: number
+    sweep: number
+    trim: number
+    /** Clothoid transitions: the heading at TS and the turn direction. */
+    spiral?: { length: number; thetaS: number; psi0: number; sign: number }
+  }
   const curves: Array<Fillet | null> = nodes.map(() => null)
   for (let i = 1; i < nodes.length - 1; i++) {
     const a = sub(nodes[i].xy, nodes[i - 1].xy),
@@ -136,7 +179,13 @@ function compile(alignment: Alignment): Path {
     if (!Number.isFinite(radius) || radius < 0 || radius > 10000)
       throw new Error('Horizontal curve radii must be between 0 and 10,000 m.')
     if (!radius || theta < 1e-5) continue
-    const trim = radius * Math.tan(theta / 2)
+    let spiralLength = Math.max(0, nodes[i].spiralM ?? 0)
+    if (spiralLength > 0 && spiralLength / radius >= theta - 1e-6) {
+      // Two transitions would turn the whole deflection: keep the simple curve.
+      warnings.push(`Spirals at point ${i + 1} are longer than its deflection allows; a simple curve is used.`)
+      spiralLength = 0
+    }
+    const { trim, thetaS } = spiralTangent(radius, theta, spiralLength)
     if (theta > Math.PI - 1e-4 || trim >= norm(a) - EPS || trim >= norm(b) - EPS) {
       warnings.push(`Curve at point ${i + 1} does not fit its tangents; the sharp PI is retained.`)
       continue
@@ -153,6 +202,7 @@ function compile(alignment: Alignment): Path {
       trim,
       angle: Math.atan2(entry[1] - center[1], entry[0] - center[0]),
       sweep: sign * theta,
+      ...(spiralLength > 0 ? { spiral: { length: spiralLength, thetaS, psi0: Math.atan2(u[1], u[0]), sign } } : {}),
     }
   }
   const overlapping = new Set<number>()
@@ -186,7 +236,40 @@ function compile(alignment: Alignment): Path {
   }
   for (let i = 1; i < nodes.length; i++) {
     const c = curves[i]
-    if (c) {
+    if (c?.spiral) {
+      // TS → spiral → SC → arc → CS → spiral → ST, each piece continuing from the last one's end.
+      line(c.entry)
+      const { length: ls, thetaS, psi0, sign } = c.spiral
+      const kappa = sign / c.radius
+      const inSpiral = { psi0, kappa0: 0, kappa1: kappa, radius: c.radius }
+      const sc = spiralAt(c.entry, ls, inSpiral, ls)
+      pieces.push({ start: c.entry, end: sc.xy, station: length, length: ls, radius: null, spiral: inSpiral })
+      length += ls
+      boundaries.push(length)
+      const arcSweep = sign * (Math.abs(c.sweep) - 2 * thetaS)
+      const center = add(sc.xy, mul([-Math.sin(sc.psi), Math.cos(sc.psi)], sign * c.radius))
+      const angle = Math.atan2(sc.xy[1] - center[1], sc.xy[0] - center[0])
+      const cs = add(center, [c.radius * Math.cos(angle + arcSweep), c.radius * Math.sin(angle + arcSweep)])
+      const arcLength = Math.abs(arcSweep) * c.radius
+      pieces.push({
+        start: sc.xy,
+        end: cs,
+        station: length,
+        length: arcLength,
+        radius: c.radius,
+        center,
+        angle,
+        sweep: arcSweep,
+      })
+      length += arcLength
+      boundaries.push(length)
+      const outSpiral = { psi0: sc.psi + arcSweep, kappa0: kappa, kappa1: 0, radius: c.radius }
+      const st = spiralAt(cs, ls, outSpiral, ls)
+      pieces.push({ start: cs, end: st.xy, station: length, length: ls, radius: null, spiral: outSpiral })
+      length += ls
+      boundaries.push(length)
+      last = st.xy
+    } else if (c) {
       line(c.entry)
       const size = Math.abs(c.sweep) * c.radius
       pieces.push({
@@ -235,7 +318,11 @@ function location(
   const p = path.pieces[lo],
     t = clamp((s - p.station) / p.length, 0, 1)
   let xy: XY, tangent: XY
-  if (p.radius !== null) {
+  if (p.spiral) {
+    const at = spiralAt(p.start, p.length, p.spiral, t * p.length)
+    xy = at.xy
+    tangent = [Math.cos(at.psi), Math.sin(at.psi)]
+  } else if (p.radius !== null) {
     const a = p.angle! + p.sweep! * t,
       sign = Math.sign(p.sweep!)
     xy = add(p.center!, [p.radius * Math.cos(a), p.radius * Math.sin(a)])
@@ -287,6 +374,31 @@ export function curveDesignAt(
   } catch {
     return null
   }
+  const rates = (radius: number) => {
+    const velocity = d.designSpeedKmh
+    const required = 100 * ((velocity * velocity) / (127 * radius) - d.sideFrictionFactor)
+    return {
+      superPercent: clamp(required, 0, Math.max(0, d.maxSuperelevationPercent)),
+      widening: d.wideningVehicleLengthM ? (d.wideningVehicleLengthM * d.wideningVehicleLengthM) / (2 * radius) : 0,
+    }
+  }
+  // On a spiral the curvature itself runs in: superelevation and widening follow it, TS to SC.
+  const spiral = path.pieces.find(
+    (piece) => piece.spiral && chainage >= piece.station - EPS && chainage <= piece.station + piece.length + EPS,
+  )
+  if (spiral?.spiral) {
+    const along = clamp((chainage - spiral.station) / spiral.length, 0, 1)
+    const ratio = spiral.spiral.kappa0 === 0 ? along : 1 - along
+    const { superPercent, widening } = rates(spiral.spiral.radius)
+    const turn = spiral.spiral.kappa0 + spiral.spiral.kappa1
+    return {
+      inside: turn > 0 ? 'left' : 'right',
+      superPercent,
+      extraWidth: widening * ratio,
+      ratio,
+      radius: spiral.spiral.radius,
+    }
+  }
   let best: { piece: Piece; distance: number } | null = null
   for (const piece of path.pieces) {
     if (piece.radius === null) continue
@@ -330,6 +442,16 @@ export function horizontalCurveSummary(alignment: Alignment) {
 export function horizontalGeometry(alignment: Alignment): Array<
   | { kind: 'line'; station: number; length: number; start: Coordinate; end: Coordinate }
   | {
+      kind: 'spiral'
+      station: number
+      length: number
+      start: Coordinate
+      end: Coordinate
+      radiusStart: number
+      radiusEnd: number
+      rotation: 'cw' | 'ccw'
+    }
+  | {
       kind: 'arc'
       station: number
       length: number
@@ -342,7 +464,7 @@ export function horizontalGeometry(alignment: Alignment): Array<
 > {
   const path = compile(alignment)
   return path.pieces.map((p) =>
-    p.radius === null
+    p.radius === null && !p.spiral
       ? {
           kind: 'line' as const,
           station: p.station,
@@ -350,17 +472,28 @@ export function horizontalGeometry(alignment: Alignment): Array<
           start: path.frame.fromXY(p.start),
           end: path.frame.fromXY(p.end),
         }
-      : {
-          kind: 'arc' as const,
-          station: p.station,
-          length: p.length,
-          start: path.frame.fromXY(p.start),
-          end: path.frame.fromXY(p.end),
-          center: path.frame.fromXY(p.center!),
-          radius: p.radius,
-          // Counter-clockwise in the east/north frame.
-          rotation: (p.sweep ?? 0) > 0 ? ('ccw' as const) : ('cw' as const),
-        },
+      : p.spiral
+        ? {
+            kind: 'spiral' as const,
+            station: p.station,
+            length: p.length,
+            start: path.frame.fromXY(p.start),
+            end: path.frame.fromXY(p.end),
+            radiusStart: p.spiral.kappa0 === 0 ? Infinity : p.spiral.radius,
+            radiusEnd: p.spiral.kappa1 === 0 ? Infinity : p.spiral.radius,
+            rotation: p.spiral.kappa0 + p.spiral.kappa1 > 0 ? ('ccw' as const) : ('cw' as const),
+          }
+        : {
+            kind: 'arc' as const,
+            station: p.station,
+            length: p.length,
+            start: path.frame.fromXY(p.start),
+            end: path.frame.fromXY(p.end),
+            center: path.frame.fromXY(p.center!),
+            radius: p.radius!,
+            // Counter-clockwise in the east/north frame.
+            rotation: (p.sweep ?? 0) > 0 ? ('ccw' as const) : ('cw' as const),
+          },
   )
 }
 export function positionAt(alignment: Alignment, chainage: number): { coordinate: Coordinate; bearing: number } {

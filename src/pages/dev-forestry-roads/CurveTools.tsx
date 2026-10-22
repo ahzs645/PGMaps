@@ -9,6 +9,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
   const { alignment, project, updateAlignment, setNotice } = workspace
   const [radius, setRadius] = useState(35)
   const [tolerance, setTolerance] = useState(2)
+  const [spiral, setSpiral] = useState(0)
   const corners = Math.max(0, alignment.points.length - 2)
   const apply = (mode: RadiusFitMode, onlySharp: boolean) => {
     const { points, report } = fitHorizontalRadii(alignment.points, mode, {
@@ -53,6 +54,30 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
           onClick={() => apply({ kind: 'tolerance', toleranceM: tolerance }, false)}
         >
           Best fit every corner
+        </Button>
+      </div>
+      <div className="flex items-end gap-2">
+        <div className="w-24">
+          <NumberField label="Spirals (m)" value={spiral} max={2000} step={5} onChange={setSpiral} />
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!alignment.points.some((p) => p.radiusM > 0)}
+          title="Clothoid transitions of this length on both sides of every curve; 0 removes them"
+          onClick={() => {
+            updateAlignment((a) => ({
+              ...a,
+              points: a.points.map((p) => {
+                const { spiralM: _old, ...rest } = p
+                void _old
+                return spiral > 0 && p.radiusM > 0 ? { ...rest, spiralM: spiral } : rest
+              }),
+            }))
+            setNotice(spiral > 0 ? `Set ${spiral} m spirals on every curve.` : 'Removed the spirals.')
+          }}
+        >
+          Set spirals on every curve
         </Button>
       </div>
     </div>

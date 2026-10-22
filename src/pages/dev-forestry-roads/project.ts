@@ -195,6 +195,9 @@ function parseAlignment(raw: unknown): Alignment {
       id: id(p.id, 'Point ID'),
       coordinate: coordinate(p.coordinate, `Point ${i + 1}`),
       radiusM: number(p.radiusM, 'Horizontal radius', 0, 10000),
+      ...(p.spiralM === undefined || p.spiralM === null || p.spiralM === 0
+        ? {}
+        : { spiralM: number(p.spiralM, 'Spiral length', 0, 2000) }),
     }
   })
   unique(points, 'Horizontal points')

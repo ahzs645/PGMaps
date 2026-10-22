@@ -10,6 +10,8 @@ export interface RoadPoint {
   id: string
   coordinate: Coordinate
   radiusM: number
+  /** Clothoid transition length on each side of the circular curve; omitted or 0 is a simple curve. */
+  spiralM?: number
 }
 export interface VerticalPoint {
   id: string
