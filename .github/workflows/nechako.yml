@@ -34,9 +34,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  # Everything that is not a browser test, once.
+  checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,8 +63,37 @@ jobs:
       - run: python3 scripts/nechako-server/test_audit_data.py
       - run: python3 scripts/nechako-server/check_showcase.py
       - run: php -l scripts/nechako-server/cors.inc.php && python3 scripts/nechako-server/test_cors.py
+
+  # The browser suite takes about 18 minutes on one worker, so it is split
+  # across runners. Each shard also starts its own browser, which keeps any
+  # one Chromium from running the whole suite. The config is fullyParallel,
+  # so shards are balanced by test rather than by file.
+  browser:
+    name: browser (${{ matrix.shard }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/3', '2/3', '3/3', hosted-admin]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - run: node scripts/sync-bcdatamapper-data.mjs
+      - run: npm run projects:echoscreen-data -- --watersheds-only
+      - if: matrix.shard != 'hosted-admin'
+        run: sudo apt-get update && sudo apt-get install -y gdal-bin
       - run: npx playwright install --with-deps chromium
       - name: Verify desktop, phone and actual local GDAL browser workflows
+        if: matrix.shard != 'hosted-admin'
         env:
           PGMAPS_E2E_BASE_URL: http://127.0.0.1:42173
         run: |
@@ -76,8 +106,9 @@ jobs:
             if curl -fsS http://127.0.0.1:42173/dev/nechako > /dev/null && curl -fsS http://127.0.0.1:42174/api/nechako/health > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/e2e/nechako*.spec.ts --workers=1 --reporter=list --output=test-results/nechako-public
+          npx playwright test tests/e2e/nechako*.spec.ts --shard=${{ matrix.shard }} --workers=1 --reporter=list --output=test-results/nechako-public
       - name: Verify hosted administrator inspection with synthetic accounts
+        if: matrix.shard == 'hosted-admin'
         env:
           PGMAPS_E2E_BASE_URL: http://127.0.0.1:42175
           PGMAPS_E2E_HOSTED_ADMIN: '1'
@@ -93,7 +124,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: nechako-browser-reports
+          name: nechako-browser-reports-${{ strategy.job-index }}
           path: |
             test-results
             playwright-report

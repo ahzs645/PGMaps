@@ -1,0 +1,38 @@
+name: Checks
+
+# The repository-wide type check, lint and unit suite. The other workflows
+# only run the slice for their own area, so without this a broken test or a
+# lint error anywhere else reaches main unnoticed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # Several unit tests read deployed snapshots, so the scraper data is synced first.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - run: npm run data:sync-from-bcdatamapper
+      - run: npx tsc -b
+      - run: npm run lint
+      - run: npx vitest run
