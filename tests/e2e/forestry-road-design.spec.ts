@@ -229,7 +229,8 @@ test('station, real map layers, profile, section, schedule and terrain remain li
 test('pegging uses real map points with live leg grade and an undoable new road', async ({ page }) => {
   const errors = await prepare(page)
   const beforeDrawing = (await saveProject(page)).project
-  await page.getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption('pegging')
+  await page.getByRole('combobox', { name: 'Road view layout', exact: true }).click()
+  await page.getByRole('option', { name: 'Plan · profile · section · pegging', exact: true }).click()
   await page.getByRole('button', { name: 'Peg road', exact: true }).click()
   const feedback = page.getByTestId('pegging-feedback')
   await expect(feedback).toContainText('0 points')
@@ -371,9 +372,9 @@ test('stream terrain profiles show ground-only data and cannot edit the road ver
   expect((await saveProject(page)).project.alignments).toEqual(original.alignments)
   await expect(detail(page, 'Mass haul')).toBeDisabled()
   await detail(page, 'Stations').click()
-  await expect(page.getByTestId('road-station-table')).toContainText('Ground grade %')
+  await expect(page.getByTestId('road-station-table')).toContainText('Gnd grade')
   await expect(page.getByTestId('road-station-table')).not.toContainText('Formation')
-  await expect(page.getByTestId('road-station-table')).not.toContainText('Cut m²')
+  await expect(page.getByTestId('road-station-table')).not.toContainText('Cut A')
   const terrainCsv = await downloadText(page, page.getByRole('button', { name: 'Profile CSV', exact: true }))
   expect(terrainCsv.text).toContain('ground_grade_percent')
   expect(terrainCsv.text).not.toContain('cut_volume')

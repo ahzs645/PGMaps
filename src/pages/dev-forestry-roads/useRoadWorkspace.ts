@@ -115,7 +115,6 @@ export function useRoadWorkspace() {
         // ?example=training is a deliberate, network-free teaching/testing mode.
         if (new URLSearchParams(location.search).get('example') === 'training') {
           setCanPersist(true)
-          setNotice('Synthetic training terrain. Load the BC LiDAR sample or your own DEM for site planning.')
           return
         }
         if (saved) {
@@ -139,9 +138,6 @@ export function useRoadWorkspace() {
               cables: [],
             },
             false,
-          )
-          setNotice(
-            'Real 1 m LiDAR terrain. The initial alignment is an editable example, not an existing or optimized road.',
           )
         }
       } catch (cause) {

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { TabBar } from '@/components/ui/tab-bar'
 import { NumberField } from './Controls'
 import { formatRoadStation } from './Charts'
@@ -54,40 +55,44 @@ export function DesignSchedules({
         {(tab === 'sampled' || terrainOnly) && children}
         {tab === 'horizontal' && !terrainOnly && (
           <div className="h-full overflow-auto">
-            <table className="w-full whitespace-nowrap text-right text-xs" data-testid="road-horizontal-curve-table">
-              <thead>
+            <EngineeringTable data-testid="road-horizontal-curve-table">
+              <thead className="sticky top-0 z-10">
                 <tr>
-                  {['Curve', 'Start', 'End', 'Radius m', 'Arc length m'].map((h) => (
-                    <th key={h} className="border-b p-2">
-                      {h}
-                    </th>
+                  {[
+                    ['Curve', ''],
+                    ['BC', 'L-Stn'],
+                    ['EC', 'L-Stn'],
+                    ['Radius', 'm'],
+                    ['Arc length', 'm'],
+                  ].map(([label, unit]) => (
+                    <ColumnHeader key={label} label={label} unit={unit} />
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {horizontal.map((c, index) => (
                   <tr key={c.start}>
-                    <td className="border-b p-2">
+                    <td>
                       <button className="underline" onClick={() => onStation((c.start + c.end) / 2)}>
                         H{index + 1}
                       </button>
                     </td>
-                    <td className="border-b p-2">
+                    <td>
                       <button className="underline" onClick={() => onStation(c.start)}>
                         {formatRoadStation(c.start)}
                       </button>
                     </td>
-                    <td className="border-b p-2">
+                    <td>
                       <button className="underline" onClick={() => onStation(c.end)}>
                         {formatRoadStation(c.end)}
                       </button>
                     </td>
-                    <td className="border-b p-2">{fmt(c.radius)}</td>
-                    <td className="border-b p-2">{fmt(c.length)}</td>
+                    <td>{fmt(c.radius)}</td>
+                    <td>{fmt(c.length)}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
             {!horizontal.length && (
               <p className="p-3 text-xs text-muted-foreground">
                 No fitted horizontal curves. Add an interior PI radius in Design; the requested radius must fit its
@@ -123,23 +128,21 @@ export function DesignSchedules({
               Add control at selected station
             </Button>
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="w-full whitespace-nowrap text-right text-xs" data-testid="road-vertical-control-table">
-                <thead>
+              <EngineeringTable data-testid="road-vertical-control-table">
+                <thead className="sticky top-0 z-10">
                   <tr>
                     {[
-                      'PVI',
-                      'Station m',
-                      'Elevation m',
-                      'Curve length m',
-                      'Incoming %',
-                      'Outgoing %',
-                      'K m/%',
-                      'Status',
-                      '',
-                    ].map((h, i) => (
-                      <th key={i} className="border-b p-2">
-                        {h}
-                      </th>
+                      ['PVI', ''],
+                      ['L-Stn', 'm'],
+                      ['Elevation', 'm'],
+                      ['VC length', 'm'],
+                      ['Grade in', '%'],
+                      ['Grade out', '%'],
+                      ['K', 'm/%'],
+                      ['Status', ''],
+                      ['', ''],
+                    ].map(([label, unit], i) => (
+                      <ColumnHeader key={i} label={label} unit={unit} />
                     ))}
                   </tr>
                 </thead>
@@ -153,7 +156,7 @@ export function DesignSchedules({
                       : null
                     const outgoing = next ? (100 * (next.elevation - v.elevation)) / (next.chainage - v.chainage) : null
                     return (
-                      <tr key={v.id} className="border-b">
+                      <tr key={v.id} aria-selected={Math.abs(v.chainage - station) < 0.001}>
                         <td className="p-2">
                           <button className="underline" onClick={() => onStation(v.chainage)}>
                             V{index + 1}
@@ -192,7 +195,7 @@ export function DesignSchedules({
                     )
                   })}
                 </tbody>
-              </table>
+              </EngineeringTable>
             </div>
           </div>
         )}

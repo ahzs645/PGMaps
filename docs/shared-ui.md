@@ -63,6 +63,26 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
 
+## Workspaces and engineering data
+
+- Resizable panes: `ResizableSplit` (`resizable-split.tsx`) lays `panes` out side
+  by side (`direction="row"`, drag left/right) or stacked (`"column"`, drag up/down;
+  give it a parent of definite height). Each pane has a relative `size`, pixel
+  `min`/`max` and a `label` that names its separator ("Resize plan and data").
+  Separators are `role="separator"` with arrow-key steps and double-click reset;
+  `storageKey` remembers sizes, so key it per layout. Below `splitQuery` (default
+  `(min-width: 1280px)`) the panes stack with their own `stackedHeight` and a
+  height handle under each; use `stackedHeight: 'auto'` for a pane that holds a
+  nested split. Keep the tree shape the same across layouts so heavy children such
+  as a map stay mounted. The sizing rules are pure functions in `pane-sizes.ts`.
+  `/dev/forestry/road-design` is the reference.
+- Dense readouts: `ReadoutGrid` (`readout-grid.tsx`) lists abbreviated
+  `label:` / value pairs in as many columns as fit, values right-aligned in a
+  monospace face, with a `title` for each abbreviation and a `warning` tone.
+- Engineering schedules: `EngineeringTable` + `ColumnHeader` (`engineering-table.tsx`)
+  give ruled columns, banded rows, a tinted `aria-selected` row and two-line
+  quantity / unit headers. Format numbers with fixed decimals so columns align.
+
 ## Map overlays
 
 - Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window

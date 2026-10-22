@@ -62,6 +62,15 @@ async function prepare(page: Page) {
   return errors
 }
 
+/** The layout picker is a combobox in the page header. */
+async function chooseLayout(page: Page, name: string) {
+  await page
+    .getByTestId('road-workspace-header')
+    .getByRole('combobox', { name: 'Road view layout', exact: true })
+    .click()
+  await page.getByRole('option', { name, exact: true }).click()
+}
+
 async function saveProject(page: Page): Promise<RoadProject> {
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -259,7 +268,7 @@ test('section probe and vertical shifts update calculated levels and persist the
 test('engineering and pegging four-pane layouts keep one map and a shared station', async ({ page }, testInfo) => {
   const errors = await prepare(page)
   const original = await saveProject(page)
-  await page.getByLabel('Road view layout', { exact: true }).selectOption('engineering')
+  await chooseLayout(page, 'Plan · profile · section · data')
   await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-layout', 'engineering')
   await expect(page.getByRole('region', { name: 'Station data · connected selection', exact: true })).toBeVisible()
   await expect(page.locator('[data-testid="road-plan-view"] .maplibregl-map')).toHaveCount(1)
@@ -276,7 +285,7 @@ test('engineering and pegging four-pane layouts keep one map and a shared statio
   await expect(selectedRow).toContainText('0+410.0')
   await page.screenshot({ path: testInfo.outputPath('engineering-four-pane.png'), fullPage: true })
 
-  await page.getByLabel('Road view layout', { exact: true }).selectOption('pegging')
+  await chooseLayout(page, 'Plan · profile · section · pegging')
   await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-layout', 'pegging')
   const pegPanel = page.getByRole('region', { name: 'Pegging data · editable legs', exact: true })
   await expect(pegPanel).toBeVisible()
@@ -301,5 +310,139 @@ test('engineering and pegging four-pane layouts keep one map and a shared statio
   await expect.poll(async () => (await mapState(page))?.renderedRoads ?? 0).toBeGreaterThan(0)
   await page.screenshot({ path: testInfo.outputPath('pegging-four-pane.png'), fullPage: true })
   expect(await saveProject(page)).toEqual(original)
+  expect(errors).toEqual([])
+})
+
+async function dragBy(page: Page, handle: Locator, dx: number, dy: number) {
+  await handle.scrollIntoViewIfNeeded()
+  const box = (await handle.boundingBox())!
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx / 2, y + dy / 2)
+  await page.mouse.move(x + dx, y + dy)
+  await page.mouse.up()
+}
+const widthOf = async (locator: Locator) => (await locator.boundingBox())!.width
+const heightOf = async (locator: Locator) => (await locator.boundingBox())!.height
+
+test('every pane boundary drags, and each layout keeps its own sizes', async ({ page }, testInfo) => {
+  const errors = await prepare(page)
+  const original = await saveProject(page)
+  const plan = page.getByRole('region', { name: 'Plan · alignment & terrain', exact: true })
+  const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
+  const columns = page.getByRole('separator', { name: 'Resize plan and view column', exact: true })
+  const views = page.getByRole('separator', { name: 'Resize profile and detail view', exact: true })
+  const controls = page.getByRole('separator', { name: 'Resize road controls and connected views', exact: true })
+
+  const defaultPlanWidth = await widthOf(plan)
+  const defaultShare = await columns.getAttribute('aria-valuenow')
+  await dragBy(page, columns, -120, 0)
+  await expect.poll(() => widthOf(plan)).toBeCloseTo(defaultPlanWidth - 120, -1)
+  const profileHeight = await heightOf(profile)
+  await dragBy(page, views, 0, 90)
+  await expect.poll(() => heightOf(profile)).toBeCloseTo(profileHeight + 90, -1)
+  const controlsShare = Number(await controls.getAttribute('aria-valuenow'))
+  await dragBy(page, controls, 60, 0)
+  await expect.poll(async () => Number(await controls.getAttribute('aria-valuenow'))).toBeGreaterThan(controlsShare)
+
+  // Keyboard resizing, and the map and charts follow their new pane sizes.
+  await columns.focus()
+  const share = Number(await columns.getAttribute('aria-valuenow'))
+  await columns.press('ArrowRight')
+  await expect.poll(async () => Number(await columns.getAttribute('aria-valuenow'))).toBeGreaterThan(share)
+  await expect
+    .poll(async () => (await page.locator('[data-testid="road-plan-view"] .maplibregl-canvas').boundingBox())!.width)
+    .toBeLessThan(defaultPlanWidth - 60)
+  const linkedPlanWidth = await widthOf(plan)
+  const linkedProfileHeight = await heightOf(profile)
+
+  await page.reload()
+  await expect(page.getByTestId('road-profile-chart')).toBeVisible()
+  await expect.poll(() => widthOf(plan)).toBeCloseTo(linkedPlanWidth, -1)
+  await expect.poll(() => heightOf(profile)).toBeCloseTo(linkedProfileHeight, -1)
+
+  // The four-view layouts start from their own defaults and remember their own boundaries.
+  await chooseLayout(page, 'Plan · profile · section · data')
+  const planData = page.getByRole('separator', { name: 'Resize plan and data', exact: true })
+  await expect(planData).toBeVisible()
+  const planHeight = await heightOf(plan)
+  await dragBy(page, planData, 0, -70)
+  await expect.poll(() => heightOf(plan)).toBeCloseTo(planHeight - 70, -1)
+  const engineeringPlanHeight = await heightOf(plan)
+  await page.screenshot({ path: testInfo.outputPath('resized-engineering.png') })
+  await chooseLayout(page, 'Linked overview')
+  await expect.poll(() => widthOf(plan)).toBeCloseTo(linkedPlanWidth, -1)
+  await chooseLayout(page, 'Plan · profile · section · data')
+  await expect.poll(() => heightOf(plan)).toBeCloseTo(engineeringPlanHeight, -1)
+  await chooseLayout(page, 'Linked overview')
+
+  // Double-click restores a boundary's default share.
+  await columns.dblclick()
+  await expect(columns).toHaveAttribute('aria-valuenow', defaultShare!)
+  expect(await saveProject(page)).toEqual(original)
+  expect(errors).toEqual([])
+})
+
+test('phone widths stack the panes with a height handle under each view', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const errors = await prepare(page)
+  await expect(
+    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout' }),
+  ).toBeVisible()
+  await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-split', 'stacked')
+  await expect(page.getByRole('separator', { name: 'Resize plan and view column', exact: true })).toHaveCount(0)
+  const plan = page.getByRole('region', { name: 'Plan · alignment & terrain', exact: true })
+  const before = await heightOf(plan)
+  await dragBy(page, page.getByRole('separator', { name: 'Resize plan height', exact: true }), 0, 100)
+  await expect.poll(() => heightOf(plan)).toBeCloseTo(before + 100, -1)
+  const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
+  const profileBefore = await heightOf(profile)
+  await dragBy(page, page.getByRole('separator', { name: 'Resize profile height', exact: true }), 0, -80)
+  await expect.poll(() => heightOf(profile)).toBeCloseTo(profileBefore - 80, -1)
+  await expect(page.getByRole('separator', { name: 'Resize detail view height', exact: true })).toBeAttached()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  expect(errors).toEqual([])
+})
+
+test('header picker, no footer or status row, profile controls on the chart, section seen up-station', async ({
+  page,
+}, testInfo) => {
+  const errors = await prepare(page)
+  await expect(
+    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout', exact: true }),
+  ).toHaveText(/Linked overview/)
+  await expect(page.getByText(/Concept planning/)).toHaveCount(0)
+  await expect(page.getByText(/average end areas/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Dismiss status', exact: true })).toHaveCount(0)
+  // The planning basis stays one hover away on the terrain badge.
+  expect(await page.getByTestId('road-planning-basis').getAttribute('title')).toMatch(
+    /Concept planning.*average end areas.*engineering review/,
+  )
+
+  const chart = (await page.getByTestId('road-profile-chart').boundingBox())!
+  const toolbar = page.getByRole('toolbar', { name: 'Profile view', exact: true })
+  const bar = (await toolbar.boundingBox())!
+  expect(bar.y).toBeGreaterThanOrEqual(chart.y - 1)
+  expect(bar.y + bar.height).toBeLessThanOrEqual(chart.y + 32)
+  expect(bar.x + bar.width).toBeLessThanOrEqual(chart.x + chart.width + 1)
+  for (const name of ['Pan profile backward', 'Zoom profile in', 'Zoom profile out', 'Pan profile forward'])
+    await expect(toolbar.getByRole('button', { name, exact: true })).toBeVisible()
+  await expect(toolbar.getByLabel('Profile vertical exaggeration', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('road-profile-range')).toHaveText(/0\+000\.0–\d\+\d{3}\.\d/)
+
+  // Looking up-station: L on the left, R on the right, and the left of the plot is a negative offset.
+  await selectStation(page, 300)
+  const label = (await page.getByTestId('road-section-station-label').boundingBox())!
+  await expect(page.getByTestId('road-section-station-label')).toHaveText('0+300.0')
+  expect((await page.locator('[data-section-side="left"]').boundingBox())!.x).toBeLessThan(label.x)
+  expect((await page.locator('[data-section-side="right"]').boundingBox())!.x).toBeGreaterThan(label.x)
+  const section = page.getByTestId('road-section-chart')
+  const box = (await section.boundingBox())!
+  await page.mouse.move(box.x + 58 + (box.width - 74) * 0.2, box.y + box.height * 0.5)
+  await expect(page.getByTestId('road-section-probe')).toContainText(/Offset -\d/)
+  await expect(page.getByTestId('road-section-readout')).toContainText('L-Stn:0+300.0')
+  await page.screenshot({ path: testInfo.outputPath('linked-overview.png') })
   expect(errors).toEqual([])
 })

@@ -89,7 +89,8 @@ road-design criteria or universally appropriate LiDAR processing parameters.
   the resulting preview analysis across its connected views.
 - `Charts.tsx` and `TerrainPreview.tsx` visualize the shared model. The selected
   station belongs to the host workspace; a chart does not maintain its own
-  independent chainage.
+  independent chainage. `chartScale.ts` picks the round axis ticks.
+  `RoadPaneLayout.tsx` arranges the connected views for each layout.
 - No new server, raw-LiDAR processing service or per-user virtual machine is
   required. Heavy LiDAR processing remains in the existing `scripts/lidar/`
   pipeline; road geometry operates on its bounded published terrain product.
@@ -219,6 +220,51 @@ The follow window spans 240 m around the selected station. Neither the mesh nor
 vertical exaggeration changes profile elevations or quantities. Plan, profile,
 section, mass curve and station schedule share the selected horizontal chainage.
 
+## Workspace layout and readouts
+
+The header holds the **view layout** picker (the shared `AppSelect` combobox): the
+linked overview (plan | profile / detail) or the four-view plan · profile · section ·
+data and pegging layouts ((plan / data) | (profile / detail)). The tree keeps the same
+shape in every layout, so switching layouts keeps the plan's map mounted.
+
+Every pane boundary is a `ResizableSplit` separator (`src/components/ui/resizable-split.tsx`):
+drag it, or focus it and use the arrow keys (Shift for larger steps); double-click
+restores the default. The controls sidebar and the connected views share one more
+boundary. Each layout stores its own sizes in `localStorage` under
+`pgmaps-road-panes:<layout>:<split>` (`pgmaps-road-panes:sidebar` for the sidebar);
+storage that refuses writes leaves the defaults in place. Below 1280 px the view
+panes stack (below 1024 px the sidebar too), each with a handle underneath that
+resizes its height, so a phone page still resizes vertically.
+
+The profile's pan, zoom, fit and vertical-exaggeration controls and its visible
+station range float in the top-right corner of the chart; the top-left carries a
+slope-profile summary (length, elevation difference, maximum and minimum grade,
+elevation range). Station ticks fall on round chainages with minor ticks, the
+elevation axis is titled on the left, PVIs carry a leader and rotated station
+callout, tangent grades are labelled along the drawn line, curves read
+`VC <length> K=<k>`, and the selected station is labelled at the top of its cursor.
+
+The section is labelled with its station above the centreline and `◂ L` / `R ▸`
+in the top corners, and the axis reads “Offset (m) · looking up-station”. Under it,
+a `ReadoutGrid` gives the section status block: L-Stn, centreline cut depth (Cut
+Dp, ground minus formation; negative is fill), grade, ground and formation levels,
+half-widths, crossfall, cut and fill batters, daylight offsets, cut and fill areas
+and the template on each side. Each abbreviation has its full definition as a
+hover title. Station, pegging and curve schedules use `EngineeringTable`: a
+quantity and unit header, ruled columns, fixed decimals and a tinted selected
+row that the station table keeps scrolled into view.
+
+There is no footer or status row. The planning basis the footer used to state
+(concept planning; the terrain's vertical reference; native DEM sampling with
+missing ground left missing, or synthetic ground that is not survey data; earthworks
+by average end areas; field and engineering review required for construction) is the
+hover title of the terrain badge in the header, and is documented here and in
+[Geometric quantities and coverage](#geometric-quantities-and-coverage). The
+starting alignment on the published LiDAR tile is an editable example, not an
+existing or optimized road; its name says “review required”. Action notices
+(exports, optimizer results, restores) replace the header subtitle for eight
+seconds in a polite live region instead of occupying a dismissible row.
+
 ## Geometry and calculations
 
 ### Horizontal alignment and chainage
@@ -273,7 +319,18 @@ and their GeoJSON role is `terrain-profile`.
 ### Cross-sections, template libraries and widening
 
 Cross-section offsets are negative to the left and positive to the right when
-looking along increasing chainage. Formation-centre elevations are subgrade
+looking along increasing chainage. The section is drawn the same way, as road
+sections conventionally are: viewed looking up-station, the road's left on the
+left of the plot. The engine samples ground at `bearing + 90°` × offset, the plan
+draws left half-widths and daylight at `bearing − 90°`, and each template's left
+components and `side: 'left'` assignments resolve onto the negative offsets, so
+left and right agree across plan, section, templates, bands and tables. The
+`cross-section orientation` tests in `engine.test.ts` pin this for eastbound,
+westbound and northbound roads against ground built from the travel direction
+alone; the same check against the published LiDAR tile put the plan's left and
+the section's negative offset within one section sample (0.15 m) of each other at
+every probed station.
+Formation-centre elevations are subgrade
 levels. Positive crossfall falls away from the centreline; a negative side
 crossfall rises away from it. Each side can independently override crossfall,
 cut/fill H:V batters, ditch width/depth and surfacing depth. Omitted side values
@@ -718,7 +775,11 @@ HTML escaping. Route tests exercise determinism, endpoints, grades,
 exclusions, gaps and bounded failure.
 Aspect fixtures cover compass direction, flat/no-data states and actual display
 pixels. Section/output fixtures cover resolved point codes, geometric D-line
-measurements, missing terrain, stale results and escaped export metadata.
+measurements, missing terrain, stale results and escaped export metadata. Orientation
+fixtures pin left-of-travel ground and template components to negative section
+offsets. Pane-size fixtures (`src/components/ui/pane-sizes.test.ts`) cover pixel
+limits, untouched neighbours and stacked heights; axis fixtures (`chartScale.test.ts`)
+cover round 1–2–2.5–5 ticks and their decimals.
 
 Run the relevant local checks with:
 
@@ -734,7 +795,11 @@ widening, alternatives/exports, ground-only profiles, phone/fullscreen
 layouts and protection of a saved project after a failed terrain restore.
 The dedicated view suite checks chart navigation without model mutation,
 shared profile/band/mass ranges, actual aspect/context source changes, section
-level edits and connected four-pane layouts.
+level edits and connected four-pane layouts. It also drags and keyboard-resizes
+every pane boundary, checks sizes survive a reload per layout and reset on
+double-click, resizes stacked panes at phone width without horizontal overflow,
+and checks the header layout picker, the absent footer and status row, the
+profile toolbar's position on the chart and the section's up-station labels.
 Most workflows use explicitly synthetic training terrain and a stub basemap;
 they do not substitute for a real-source check. Run from the repository root:
 

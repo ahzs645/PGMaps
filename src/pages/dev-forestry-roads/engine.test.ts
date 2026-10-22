@@ -439,3 +439,41 @@ describe('context intersections and geometric cable clearance', () => {
     expect(analyzeCable({ ...cable, end: origin }, flat).samples).toEqual([])
   })
 })
+
+describe('cross-section orientation', () => {
+  // Sections are viewed looking up-station: the road's left is at negative offsets, drawn on the left.
+  it.each([
+    ['eastbound', xy(100, 0)],
+    ['westbound', xy(-100, 0)],
+    ['northbound', xy(0, 100)],
+  ])('puts ground to the left of travel at negative offsets (%s)', (_, end) => {
+    const road = alignment()
+    road.points[1].coordinate = end
+    road.vertical = [
+      { id: 'v0', chainage: 0, elevation: 800, curveLength: 0 },
+      { id: 'v1', chainage: 100, elevation: 800, curveLength: 0 },
+    ]
+    road.template = { ...road.template, leftWidth: 2, rightWidth: 5 }
+    // Ground rises toward the left of travel, worked out here without the engine's bearing.
+    const heading = local(end)
+    const length = Math.hypot(heading.east, heading.north)
+    const left = { east: -heading.north / length, north: heading.east / length }
+    const source = {
+      elevationAt: (lng: number, lat: number) => {
+        const p = local([lng, lat])
+        return 800 + 0.2 * (p.east * left.east + p.north * left.north)
+      },
+    }
+    const station = nearestStation(analyzeRoad(road, source, settings).stations, 50)!
+    const at = (offset: number) => station.section.find((p) => Math.abs(p.offset - offset) < 0.2)!.ground!
+    expect(at(-20)).toBeCloseTo(804, 1)
+    expect(at(20)).toBeCloseTo(796, 1)
+    // Each side's template component stays on its own side: cut uphill on the left, fill on the right.
+    expect(station.leftWidth).toBe(2)
+    expect(station.rightWidth).toBe(5)
+    const cutLeft = station.section.filter((p) => p.offset < 0 && p.design !== null && p.ground! > p.design + 0.01)
+    const fillRight = station.section.filter((p) => p.offset > 0 && p.design !== null && p.ground! < p.design - 0.01)
+    expect(cutLeft.length).toBeGreaterThan(0)
+    expect(fillRight.length).toBeGreaterThan(0)
+  })
+})

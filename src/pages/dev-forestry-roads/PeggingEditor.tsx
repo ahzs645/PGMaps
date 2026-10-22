@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumberField } from './Controls'
 import { formatRoadStation } from './Charts'
@@ -258,19 +259,25 @@ export function PeggingEditor({
         separate.
       </p>
       <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-        <table className="w-full whitespace-nowrap text-right text-xs">
-          <thead className="sticky top-0 bg-card">
+        <EngineeringTable>
+          <thead className="sticky top-0 z-10">
             <tr>
-              {['Peg', 'Peg chainage', 'HD m', 'Bearing °', 'Ground m', 'Ground %', 'Radius m'].map((label) => (
-                <th key={label} className="border-b p-2 font-medium">
-                  {label}
-                </th>
+              {[
+                ['Peg', ''],
+                ['L-Stn', 'm'],
+                ['HD', 'm'],
+                ['Bearing', '°'],
+                ['Ground', 'm'],
+                ['Grade', '%'],
+                ['Radius', 'm'],
+              ].map(([label, unit]) => (
+                <ColumnHeader key={label} label={label} unit={unit} />
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.point.id} data-testid={`peg-row-${row.index + 1}`} className="border-b hover:bg-muted/40">
+              <tr key={row.point.id} data-testid={`peg-row-${row.index + 1}`}>
                 <td className="p-2">
                   <button className="underline" onClick={() => select(row.point.coordinate, row.point.id)}>
                     {row.point.id === 'numeric-peg-preview' ? 'Preview' : row.index + 1}
@@ -323,7 +330,7 @@ export function PeggingEditor({
               </tr>
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
     </fieldset>
   )
