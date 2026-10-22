@@ -9,6 +9,7 @@ import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
 import { VerticalDesignControls } from './VerticalDesignControls'
 import { CurveDesignControls, CurveTools } from './CurveTools'
+import { TemplateComponents } from './TemplateComponents'
 import { distance } from './engine'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from './routing'
@@ -686,6 +687,12 @@ export function DesignSidebar(p: SidebarProps) {
               <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => setTab('engineering')}>
                 Template library & station assignments
               </Button>
+            </SidebarSection>
+            <SidebarSection title="Template components">
+              <TemplateComponents
+                template={alignment.template}
+                onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
+              />
             </SidebarSection>
             <SidebarSection title="Design speed · superelevation & widening">
               <CurveDesignControls workspace={p.workspace} />
