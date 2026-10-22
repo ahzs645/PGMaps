@@ -52,7 +52,7 @@ responsive mode, so a narrow story embed stacks on a wide desktop page.
 
 ## Independent consumer
 
-`examples/toolkit-consumer` is a separate Vite application using package exports
+The toolkit repository's `examples/toolkit-consumer` is a separate Vite application using package exports
 and compiled CSS. It imports no PG Maps source, router, theme provider or data.
 It contains a two-metric index, a classified grid and donut, story interactions,
 and two independent embedded workspaces with separate themes, plus scene story
@@ -74,20 +74,15 @@ preparation and calendar/coverage rules stay in PG Maps adapters.
 
 ```sh
 npm run toolkit:build
-npm run toolkit:check
-npm run toolkit:lint
-npm run toolkit:format:check
-npm run toolkit:test
-npm run toolkit:watch:check
-npm run toolkit:example:build
-npm run toolkit:example:test
-npm run toolkit:nested:test
-npm run toolkit:pack:check
 npm test
 npx tsc -b
 npx vite build
 node scripts/audit-map-colors.mjs --check
 ```
+
+The package's own checks (boundaries, lint, format, tests, watch recovery, the
+independent consumer, nested workspace and packed artifact) are run from inside
+`packages/geo-toolkit` with the commands in its `RELEASING.md`.
 
 `npm run dev` and `npm run build` build the toolkit before PG Maps preparation.
 After editing toolkit source during a running Vite session, rebuild the toolkit
@@ -96,21 +91,16 @@ builds preserve the last valid artifact after compilation errors and remove
 obsolete outputs after a successful rebuild. PG Maps production checks can invoke
 TypeScript and Vite directly when generated scraper data is already prepared.
 
-`toolkit:pack:check` installs the packed artifact into a temporary consumer outside
-the repository and builds it. Add `-- --offline` with a warmed npm cache, or run
-`node scripts/toolkit/check-packed-consumer.mjs --browser` after building to verify
-the packed browser example too.
-
 Color inventories follow package ownership and compatibility reexports. Run
 `node scripts/audit-map-colors.mjs` after moving or adding palette definitions.
 Project parser/audit/renderer invariants continue to apply through the source
 compatibility paths; do not add unsupported JSON fields for portability.
 
-`.github/workflows/toolkit.yml` runs boundary, lint, format, focused compatibility
-tests, watch recovery, example browser and packed artifact checks on pull requests
-and main. It initializes the toolkit and small json-url npm dependency, without
-scraper data. The toolkit repository has its own standalone verification workflow.
-Root lint/format commands now also cover package/example sources. The package
+The toolkit repository's CI runs the package checks, including a MapLibre 6
+build, on its own pull requests and main. PG Maps no longer duplicates them: its
+`checks.yml` builds the pinned toolkit commit and runs `tsc -b`, lint and the full
+unit suite, which includes the package's tests against PG Maps' dependency
+versions. Root lint/format commands also cover the package sources. The package
 inherits the repository's MIT license; `API.md` defines supported and compatibility
 exports, and `RELEASING.md` defines versioning and consumer updates.
 
@@ -132,10 +122,10 @@ already initializes recursive submodules; keep that setting.
 
 1. Edit toolkit behavior inside `packages/geo-toolkit`, or use a separate clone
    of `ahzs645/geo-toolkit`. The package owns its build config, tests, API docs,
-   independent consumer and CI. PG Maps keeps its host compatibility tests and
-   integration consumer.
+   independent consumer and CI. PG Maps keeps its host compatibility tests.
 2. Run the standalone checks documented in the toolkit's `RELEASING.md`, then
-   commit and push toolkit changes to its repository first.
+   commit and push toolkit changes to its repository first and confirm its CI
+   passes.
 3. Update the PG Maps submodule to the intended toolkit commit. Run
    `npm run toolkit:build`, the affected host checks and `npx tsc -b`.
 4. Commit the `packages/geo-toolkit` pointer in PG Maps. A deployed host uses

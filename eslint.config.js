@@ -9,18 +9,6 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
-    files: ['scripts/toolkit/**/*.mjs', 'packages/geo-toolkit/scripts/toolkit/**/*.mjs'],
-    languageOptions: {
-      globals: { fetch: 'readonly', AbortSignal: 'readonly' },
-    },
-  },
-  {
-    files: ['packages/geo-toolkit/tests/**/*.mjs'],
-    languageOptions: {
-      globals: { window: 'readonly', document: 'readonly', getComputedStyle: 'readonly', console: 'readonly' },
-    },
-  },
-  {
     // Plain-ESM test files run under vitest on Node 20+, where these are globals.
     files: ['src/**/*.mjs', 'packages/geo-toolkit/src/**/*.mjs'],
     languageOptions: {
