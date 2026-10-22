@@ -4,7 +4,7 @@
  * projected CRS. Pure: no DOM or network access.
  */
 import { horizontalGeometry } from './engine'
-import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
+import { sectionCodePoints } from './sectionGeometry'
 import type { ShapeLayer } from './shapefile'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
 
@@ -12,13 +12,110 @@ export type ToGrid = (coordinate: Coordinate) => [number, number]
 
 const xml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!)
-const n = (value: number, digits = 3) => (Number.isFinite(value) ? value.toFixed(digits) : '0')
-/** LandXML points are "northing easting". */
-const ne = (toGrid: ToGrid, c: Coordinate) => {
-  const [e, north] = toGrid(c)
-  return `${n(north)} ${n(e)}`
+/** A fixed-point number, or null when the value is missing. Never prints "-0.000". */
+const num = (value: number | null | undefined, digits = 3): string | null => {
+  if (value == null || !Number.isFinite(value)) return null
+  const text = value.toFixed(digits)
+  return /^-0(\.0*)?$/.test(text) ? text.slice(1) : text
+}
+/** A CSV field: missing values stay blank. */
+const cell = (value: number | null | undefined, digits = 3) => num(value, digits) ?? ''
+/** LandXML points are "northing easting"; null when either coordinate is missing. */
+const ne = ([e, north]: [number, number]) => {
+  const a = num(north),
+    b = num(e)
+  return a === null || b === null ? null : `${a} ${b}`
+}
+/** "x y" pairs of a 2D point list, skipping any pair with a missing value. */
+const pointList = (pairs: [number | null | undefined, number | null | undefined][]) =>
+  pairs
+    .map(([a, b]) => {
+      const x = num(a),
+        y = num(b)
+      return x === null || y === null ? '' : `${x} ${y}`
+    })
+    .filter(Boolean)
+    .join(' ')
+
+/** Chord of a clothoid running from zero curvature to 1/radius over `length` (Simpson's rule). */
+function clothoidChord(length: number, radius: number) {
+  const steps = 64
+  let x = 0,
+    y = 0
+  for (let i = 0; i <= steps; i++) {
+    const u = (length * i) / steps,
+      weight = i === 0 || i === steps ? 1 : i % 2 ? 4 : 2,
+      heading = (u * u) / (2 * radius * length)
+    x += weight * Math.cos(heading)
+    y += weight * Math.sin(heading)
+  }
+  return (Math.hypot(x, y) * length) / steps / 3
 }
 
+/**
+ * One CoordGeom element in grid units. The road model measures lengths on a sphere while the
+ * coordinates are projected, so each element is scaled to the chord between its projected ends:
+ * a line's length is that chord, and an arc or clothoid keeps its shape and deflection with its
+ * length and radii multiplied by grid chord ÷ model chord, its centre placed from the projected
+ * ends. Every element then closes on its own coordinates. Stations stay road chainage.
+ */
+function gridElement(piece: ReturnType<typeof horizontalGeometry>[number], toGrid: ToGrid) {
+  // Measure from the coordinates as written (to the millimetre), so lengths agree with them.
+  const written = (c: [number, number]) => c.map((v) => Number(num(v) ?? NaN)) as [number, number]
+  const start = written(toGrid(piece.start)),
+    end = written(toGrid(piece.end))
+  const startText = ne(start),
+    endText = ne(end)
+  if (startText === null || endText === null) return null
+  const dx = end[0] - start[0],
+    dy = end[1] - start[1],
+    chord = Math.hypot(dx, dy)
+  const sta = num(piece.station)
+  const staStart = sta === null ? '' : ` staStart="${sta}"`
+  if (piece.kind === 'line') {
+    return {
+      length: chord,
+      model: piece.length,
+      text: `<Line${staStart} length="${num(chord)}"><Start>${startText}</Start><End>${endText}</End></Line>`,
+    }
+  }
+  if (piece.kind === 'spiral') {
+    const radius = Number.isFinite(piece.radiusStart) ? piece.radiusStart : piece.radiusEnd
+    const scale = chord / clothoidChord(piece.length, radius)
+    const length = num(piece.length * scale)
+    const radiusAt = (r: number) => (Number.isFinite(r) ? num(r * scale) : 'INF')
+    const radiusStart = radiusAt(piece.radiusStart),
+      radiusEnd = radiusAt(piece.radiusEnd)
+    if (length === null || radiusStart === null || radiusEnd === null) return null
+    return {
+      length: piece.length * scale,
+      model: piece.length,
+      text: `<Spiral spiType="clothoid" rot="${piece.rotation}" length="${length}" radiusStart="${radiusStart}" radiusEnd="${radiusEnd}"${staStart}><Start>${startText}</Start><End>${endText}</End></Spiral>`,
+    }
+  }
+  const delta = piece.length / piece.radius
+  const radius = chord / (2 * Math.sin(delta / 2))
+  // The centre is to the left of the chord for a counter-clockwise arc, on the chord's normal.
+  const toCentre = (piece.rotation === 'ccw' ? 1 : -1) * radius * Math.cos(delta / 2)
+  const centre: [number, number] = [
+    (start[0] + end[0]) / 2 - (dy / chord) * toCentre,
+    (start[1] + end[1]) / 2 + (dx / chord) * toCentre,
+  ]
+  const centreText = ne(centre),
+    radiusText = num(radius),
+    length = num(radius * delta)
+  if (centreText === null || radiusText === null || length === null) return null
+  return {
+    length: radius * delta,
+    model: piece.length,
+    text: `<Curve rot="${piece.rotation}" crvType="arc" radius="${radiusText}" length="${length}"${staStart}><Start>${startText}</Start><Center>${centreText}</Center><End>${endText}</End></Curve>`,
+  }
+}
+
+/**
+ * LandXML 1.2 for the active road. A missing value is never written as a number: a point, PVI,
+ * section surface or element whose value is missing is left out.
+ */
 export function landXml({
   name,
   alignment,
@@ -38,40 +135,43 @@ export function landXml({
   sectionIntervalM?: number
   date?: Date
 }): string {
-  const geometry = horizontalGeometry(alignment)
-    .map((piece) =>
-      piece.kind === 'line'
-        ? `<Line staStart="${n(piece.station)}" length="${n(piece.length)}"><Start>${ne(toGrid, piece.start)}</Start><End>${ne(toGrid, piece.end)}</End></Line>`
-        : piece.kind === 'spiral'
-          ? `<Spiral spiType="clothoid" rot="${piece.rotation}" length="${n(piece.length)}" radiusStart="${Number.isFinite(piece.radiusStart) ? n(piece.radiusStart) : 'INF'}" radiusEnd="${Number.isFinite(piece.radiusEnd) ? n(piece.radiusEnd) : 'INF'}" staStart="${n(piece.station)}"><Start>${ne(toGrid, piece.start)}</Start><End>${ne(toGrid, piece.end)}</End></Spiral>`
-          : `<Curve rot="${piece.rotation}" crvType="arc" radius="${n(piece.radius)}" length="${n(piece.length)}" staStart="${n(piece.station)}"><Start>${ne(toGrid, piece.start)}</Start><Center>${ne(toGrid, piece.center)}</Center><End>${ne(toGrid, piece.end)}</End></Curve>`,
+  const elements = horizontalGeometry(alignment)
+    .map((piece) => gridElement(piece, toGrid))
+    .filter((element) => element !== null)
+  const gridLength = elements.reduce((sum, e) => sum + e.length, 0),
+    modelLength = elements.reduce((sum, e) => sum + e.model, 0)
+  const geometry = elements.map((e) => e.text).join('\n        ')
+  const vertical = [...alignment.vertical]
+    .filter((p) => num(p.chainage) !== null && num(p.elevation) !== null)
+    .sort((a, b) => a.chainage - b.chainage)
+  const profile = vertical
+    .map((p, i) =>
+      Number.isFinite(p.curveLength) && p.curveLength > 0 && i > 0 && i < vertical.length - 1
+        ? `<ParaCurve length="${num(p.curveLength)}">${num(p.chainage)} ${num(p.elevation)}</ParaCurve>`
+        : `<PVI>${num(p.chainage)} ${num(p.elevation)}</PVI>`,
     )
-    .join('\n        ')
-  const vertical = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
-  const profile = vertical.length
-    ? vertical
-        .map((p, i) =>
-          p.curveLength > 0 && i > 0 && i < vertical.length - 1
-            ? `<ParaCurve length="${n(p.curveLength)}">${n(p.chainage)} ${n(p.elevation)}</ParaCurve>`
-            : `<PVI>${n(p.chainage)} ${n(p.elevation)}</PVI>`,
-        )
-        .join('')
-    : ''
-  const ground = analysis.stations
-    .filter((s) => s.groundElevation !== null)
-    .map((s) => `${n(s.chainage)} ${n(s.groundElevation!)}`)
-    .join(' ')
+    .join('')
+  const ground = pointList(analysis.stations.map((s) => [s.chainage, s.groundElevation]))
   const sections = sectionStations(analysis, sectionIntervalM)
     .map((s) => {
-      const surface = (key: 'design' | 'ground') =>
-        s.section
-          .filter((p) => p[key] !== null)
-          .map((p) => `${n(p.offset)} ${n(p[key]!)}`)
-          .join(' ')
-      const design = surface('design')
-      return `<CrossSect sta="${n(s.chainage)}">${design ? `<CrossSectSurf name="Design"><PntList2D>${design}</PntList2D></CrossSectSurf>` : ''}<CrossSectSurf name="Ground"><PntList2D>${surface('ground')}</PntList2D></CrossSectSurf></CrossSect>`
+      const sta = num(s.chainage)
+      if (sta === null) return ''
+      const surface = (label: string, key: 'design' | 'ground') => {
+        const points = pointList(s.section.map((p) => [p.offset, p[key]]))
+        return points ? `<CrossSectSurf name="${label}"><PntList2D>${points}</PntList2D></CrossSectSurf>` : ''
+      }
+      const surfaces = surface('Design', 'design') + surface('Ground', 'ground')
+      return surfaces ? `<CrossSect sta="${sta}">${surfaces}</CrossSect>` : ''
     })
+    .filter(Boolean)
     .join('\n        ')
+  const profileBody = [
+    profile ? `<ProfAlign name="Design formation">${profile}</ProfAlign>` : '',
+    ground ? `<ProfSurf name="Ground · ${xml(terrain.name)}"><PntList2D>${ground}</PntList2D></ProfSurf>` : '',
+  ]
+    .filter(Boolean)
+    .join('\n        ')
+  const ratio = modelLength > 0 ? num(gridLength / modelLength, 5) : null
   const pad = (v: number) => String(v).padStart(2, '0')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2" date="${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}" time="${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}">
@@ -79,18 +179,26 @@ export function landXml({
   <CoordinateSystem epsgCode="${epsg}" name="EPSG:${epsg}" verticalDatum="${xml(terrain.verticalReference)}"/>
   <Project name="${xml(name)}" desc="Preliminary planning geometry; not a construction design"/>
   <Application name="PG Maps forest road design" manufacturer="PG Maps" version="1"/>
+  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}. -->
   <Alignments name="${xml(name)}">
-    <Alignment name="${xml(alignment.name)}" length="${n(analysis.length)}" staStart="0">
+    <Alignment name="${xml(alignment.name)}" length="${num(gridLength)}" staStart="0">
       <CoordGeom>
         ${geometry}
-      </CoordGeom>
+      </CoordGeom>${
+        profileBody
+          ? `
       <Profile name="${xml(alignment.name)}">
-        ${profile ? `<ProfAlign name="Design formation">${profile}</ProfAlign>` : ''}
-        <ProfSurf name="Ground · ${xml(terrain.name)}"><PntList2D>${ground}</PntList2D></ProfSurf>
-      </Profile>
+        ${profileBody}
+      </Profile>`
+          : ''
+      }${
+        sections
+          ? `
       <CrossSects>
         ${sections}
-      </CrossSects>
+      </CrossSects>`
+          : ''
+      }
     </Alignment>
   </Alignments>
 </LandXML>
@@ -116,7 +224,8 @@ export function sectionStations(analysis: RoadAnalysis, intervalM: number): Road
  * Slope-stake points per reporting station: centreline, formation edges (hinges), ditch bottoms
  * and catch points where the batter meets the ground, with their cut (+) or fill (−) and the
  * horizontal distance from the centreline. Numbers and fixed codes only, so the file is safe to
- * open in a spreadsheet.
+ * open in a spreadsheet. A missing level, ground or cut/fill is a blank field; a point with
+ * neither design nor ground is left out.
  */
 export function stakeoutCsv({
   alignment,
@@ -146,27 +255,26 @@ export function stakeoutCsv({
   }
   for (const s of sectionStations(analysis, intervalM)) {
     const template = analysis.engineering?.stations[s.index]?.template ?? alignment.template
-    const points = sectionCodePoints(s, template).map((p) => ({ code: p.code, offset: p.offset }))
-    if (s.leftDaylightM !== null) points.push({ code: 'left-catch', offset: -Math.abs(s.leftDaylightM) })
-    if (s.rightDaylightM !== null) points.push({ code: 'right-catch', offset: Math.abs(s.rightDaylightM) })
-    for (const p of points.sort((a, b) => a.offset - b.offset)) {
-      const sample = sectionSampleAt(s, p.offset)
-      const level = p.code.endsWith('catch') ? sample.ground : (sample.design ?? sample.ground)
-      if (level === null) continue
+    // The section's daylight point is the catch point: one stake per side, named "…-catch".
+    for (const p of sectionCodePoints(s, template)) {
+      if (!Number.isFinite(p.offset) || (p.ground === null && p.design === null)) continue
+      const catchPoint = p.code.endsWith('-daylight')
+      // Design level, never ground standing in for it. At the catch the batter meets the ground.
+      const level = catchPoint ? (p.ground ?? p.design) : p.design
       const [easting, northing] = toGrid(at(s, p.offset))
-      const cutFill = sample.ground !== null && sample.design !== null ? sample.ground - sample.design : null
+      const cutFill = p.ground !== null && p.design !== null ? p.ground - p.design : null
       point++
       rows.push(
         [
           point,
-          n(s.chainage, 2),
-          p.code,
-          n(p.offset, 3),
-          n(easting, 3),
-          n(northing, 3),
-          n(level, 3),
-          sample.ground === null ? '' : n(sample.ground, 3),
-          cutFill === null ? '' : n(cutFill, 3),
+          cell(s.chainage, 2),
+          catchPoint ? p.code.replace(/-daylight$/, '-catch') : p.code,
+          cell(p.offset),
+          cell(easting),
+          cell(northing),
+          cell(level),
+          cell(p.ground),
+          cell(cutFill),
           epsg,
         ].join(','),
       )

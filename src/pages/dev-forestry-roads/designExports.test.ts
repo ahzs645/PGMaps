@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeRoad, offsetCoordinate } from './engine'
+import { analyzeRoad, horizontalGeometry, offsetCoordinate } from './engine'
 import { landXml, sectionStations, stakeoutCsv } from './designExports'
 import { DEFAULT_ROAD_SETTINGS, exportGrid } from './terrain'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
@@ -58,7 +58,8 @@ describe('engineering exports', () => {
     expect(text).toContain('<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2" date="2026-10-22"')
     expect(text).toContain('<CoordinateSystem epsgCode="32610"')
     expect(text.match(/<Line /g)).toHaveLength(2)
-    expect(text.match(/<Curve rot="cw" crvType="arc" radius="60.000"/g)).toHaveLength(1)
+    // The radius is the grid radius through the projected ends, a little over the 60 m chainage radius.
+    expect(text.match(/<Curve rot="cw" crvType="arc" radius="60\.\d{3}"/g)).toHaveLength(1)
     expect(text).toContain('<ParaCurve length="40.000">200.000 801.000</ParaCurve>')
     expect(text.match(/<PVI>/g)).toHaveLength(2)
     expect(text.match(/<CrossSect /g)!.length).toBe(sectionStations(analysis, 20).length)
@@ -91,5 +92,172 @@ describe('engineering exports', () => {
     expect(Number(leftCatch[3])).toBeLessThan(0)
     expect(Number(leftCatch[6])).toBeCloseTo(800, 3)
     expect(csv).not.toMatch(/[=+@]/)
+  })
+
+  it('writes each catch point once and never prints negative zero', () => {
+    const csv = stakeoutCsv({ alignment: road, analysis, ...grid })
+    const rows = csv
+      .trim()
+      .split('\n')
+      .slice(1)
+      .map((r) => r.split(','))
+    expect(rows.some((r) => r[2].endsWith('-daylight'))).toBe(false)
+    // One row per code per station. (Where formation meets ground, the edge and catch coincide.)
+    const keys = rows.map((r) => `${r[1]} ${r[2]}`)
+    expect(new Set(keys).size).toBe(keys.length)
+    for (const station of new Set(rows.map((r) => r[1]))) {
+      const codes = rows.filter((r) => r[1] === station).map((r) => r[2])
+      expect(codes.filter((c) => c === 'left-catch')).toHaveLength(1)
+      expect(codes.filter((c) => c === 'right-catch')).toHaveLength(1)
+    }
+    // Point numbers run 1…n without gaps.
+    expect(rows.map((r) => Number(r[0]))).toEqual(rows.map((_, i) => i + 1))
+    expect(csv).not.toMatch(/(^|,)-0(\.0+)?(,|$)/m)
+    const landxml = landXml({ name: 'N', alignment: road, analysis, terrain, ...grid })
+    expect(landxml).not.toMatch(/[\s>"]-0\.0+[\s<"]/)
+  })
+
+  it('leaves a missing design level blank instead of falling back to ground', () => {
+    // Station 0 loses its design: the centreline keeps its ground but has no level or cut/fill.
+    const stations = analysis.stations.map((s, i) =>
+      i === 0
+        ? {
+            ...s,
+            designElevation: null,
+            section: s.section.map((p) => ({ ...p, design: null })),
+            leftDaylightM: null,
+            rightDaylightM: null,
+          }
+        : s,
+    )
+    const csv = stakeoutCsv({ alignment: road, analysis: { ...analysis, stations }, ...grid, intervalM: 100 })
+    const first = csv
+      .trim()
+      .split('\n')
+      .slice(1)
+      .map((r) => r.split(','))
+      .filter((r) => r[1] === '0.00')
+    const centre = first.find((r) => r[2] === 'centreline')!
+    expect(centre[6]).toBe('')
+    expect(centre[7]).toBe('800.000')
+    expect(centre[8]).toBe('')
+    expect(first.every((r) => r[6] === '')).toBe(true)
+    // Ground missing too: the point has no level of any kind and is left out.
+    const bare = stations.map((s, i) =>
+      i === 0 ? { ...s, section: s.section.map((p) => ({ ...p, ground: null })) } : s,
+    )
+    const none = stakeoutCsv({ alignment: road, analysis: { ...analysis, stations: bare }, ...grid, intervalM: 100 })
+    expect(none.split('\n').filter((r) => r.split(',')[1] === '0.00')).toHaveLength(0)
+  })
+
+  it('leaves missing values out of LandXML rather than writing 0', () => {
+    const at = analysis.stations[1].chainage
+    const stations = analysis.stations.map((s, i) =>
+      i === 1 ? { ...s, groundElevation: Number.NaN, section: s.section.map((p) => ({ ...p, ground: null })) } : s,
+    )
+    const vertical = road.vertical.map((p) => (p.id === 'v1' ? { ...p, elevation: Number.NaN } : p))
+    const text = landXml({
+      name: 'Gaps',
+      alignment: { ...road, vertical },
+      analysis: { ...analysis, stations },
+      terrain,
+      ...grid,
+      sectionIntervalM: at,
+    })
+    expect(text).not.toContain('NaN')
+    // The PVI with no elevation is omitted, not written as 0, and no curve is attached to a neighbour.
+    expect(text).toContain('<ProfAlign name="Design formation"><PVI>0.000 799.000</PVI><PVI>380.000 799.000</PVI>')
+    const ground = text.match(/<ProfSurf [^>]*><PntList2D>([^<]*)</)![1].split(' ')
+    const chainages = ground.filter((_, i) => i % 2 === 0)
+    expect(chainages).not.toContain(at.toFixed(3))
+    expect(ground.filter((_, i) => i % 2 === 1).every((z) => z === '800.000')).toBe(true)
+    // The section at that station keeps its design and drops the empty ground surface.
+    const section = text.match(new RegExp(`<CrossSect sta="${at.toFixed(3)}">.*?</CrossSect>`))![0]
+    expect(section).toContain('name="Design"')
+    expect(section).not.toContain('name="Ground"')
+  })
+
+  it('writes line and arc lengths that match the distance between their exported coordinates', () => {
+    // A 983 m east–west line at Prince George, then a curve: grid distance is ~0.3 % over chainage.
+    const start: Coordinate = [-122.75, 53.92]
+    const pi = offsetCoordinate(start, 90, 983)
+    const long: Alignment = {
+      ...road,
+      points: [
+        { id: 'a', coordinate: start, radiusM: 0 },
+        { id: 'b', coordinate: pi, radiusM: 120 },
+        { id: 'c', coordinate: offsetCoordinate(pi, 30, 400), radiusM: 0 },
+      ],
+      vertical: [],
+    }
+    const result = analyzeRoad(long, flat, DEFAULT_ROAD_SETTINGS)
+    const pieces = horizontalGeometry(long)
+    const text = landXml({ name: 'PG', alignment: long, analysis: result, terrain, ...exportGrid(terrain, start) })
+    const point = (s: string) => {
+      const [north, east] = s.split(' ').map(Number)
+      return [east, north] as const
+    }
+    const dist = (a: readonly number[], b: readonly number[]) => Math.hypot(b[0] - a[0], b[1] - a[1])
+    const lines = [...text.matchAll(/<Line staStart="([^"]+)" length="([^"]+)"><Start>([^<]+)<\/Start><End>([^<]+)</g)]
+    expect(lines).toHaveLength(2)
+    for (const [, , length, a, b] of lines)
+      expect(Math.abs(Number(length) - dist(point(a), point(b)))).toBeLessThan(1e-3)
+    // The first line's grid length is longer than its chainage length, and stations stay chainage.
+    expect(Number(lines[0][2]) / pieces[0].length).toBeGreaterThan(1.002)
+    expect(lines[0][1]).toBe('0.000')
+    expect(Number(lines[1][1])).toBeCloseTo(pieces[2].station, 3)
+    const [, radius, length, staStart, a, c, b] = text.match(
+      /<Curve rot="(?:cw|ccw)" crvType="arc" radius="([^"]+)" length="([^"]+)" staStart="([^"]+)"><Start>([^<]+)<\/Start><Center>([^<]+)<\/Center><End>([^<]+)</,
+    )!
+    const [s, centre, e] = [point(a), point(c), point(b)]
+    expect(Math.abs(dist(s, centre) - Number(radius))).toBeLessThan(1e-3)
+    expect(Math.abs(dist(e, centre) - Number(radius))).toBeLessThan(1e-3)
+    const u = [s[0] - centre[0], s[1] - centre[1]],
+      v = [e[0] - centre[0], e[1] - centre[1]]
+    const sweep = Math.abs(Math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]))
+    expect(Math.abs(Number(radius) * sweep - Number(length))).toBeLessThan(1e-3)
+    expect(Number(staStart)).toBeCloseTo(pieces[1].station, 3)
+    // Consecutive elements share their end and start coordinates.
+    expect(lines[0][4]).toBe(a)
+    expect(b).toBe(lines[1][3])
+    expect(text).toMatch(/grid length ÷ chainage over the alignment is 1\.00\d{3}/)
+  })
+
+  it('scales each clothoid so its exported length and radius reach its exported end', () => {
+    const pi = offsetCoordinate(origin, 90, 400)
+    const spiralRoad: Alignment = {
+      ...road,
+      points: [
+        { id: 'a', coordinate: origin, radiusM: 0 },
+        { id: 'b', coordinate: pi, radiusM: 80, spiralM: 40 },
+        { id: 'c', coordinate: offsetCoordinate(pi, 0, 400), radiusM: 0 },
+      ],
+      vertical: [],
+    }
+    const result = analyzeRoad(spiralRoad, flat, DEFAULT_ROAD_SETTINGS)
+    const text = landXml({ name: 'S', alignment: spiralRoad, analysis: result, terrain, ...grid })
+    const spirals = [
+      ...text.matchAll(
+        /<Spiral [^>]*length="([^"]+)" radiusStart="([^"]+)" radiusEnd="([^"]+)"[^>]*><Start>([^<]+)<\/Start><End>([^<]+)</g,
+      ),
+    ]
+    expect(spirals).toHaveLength(2)
+    for (const [, length, radiusStart, radiusEnd, a, b] of spirals) {
+      const L = Number(length),
+        R = Number(radiusStart === 'INF' ? radiusEnd : radiusStart)
+      // Chord of a clothoid from zero curvature to 1/R over L, by fine midpoint integration.
+      let x = 0,
+        y = 0
+      for (let i = 0; i < 4000; i++) {
+        const u = ((i + 0.5) / 4000) * L
+        x += Math.cos((u * u) / (2 * R * L)) * (L / 4000)
+        y += Math.sin((u * u) / (2 * R * L)) * (L / 4000)
+      }
+      const [n0, e0] = a.split(' ').map(Number),
+        [n1, e1] = b.split(' ').map(Number)
+      expect(Math.abs(Math.hypot(x, y) - Math.hypot(e1 - e0, n1 - n0))).toBeLessThan(1e-3)
+      expect(L).toBeGreaterThan(40)
+      expect(L).toBeLessThan(40 * 1.004)
+    }
   })
 })

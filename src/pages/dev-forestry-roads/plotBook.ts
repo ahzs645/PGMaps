@@ -25,6 +25,28 @@ const niceStep = (span: number, target: number) => {
 }
 
 type Sheet = { title: string; body: string }
+type Contours = GeoJSON.FeatureCollection<GeoJSON.MultiLineString>
+
+/**
+ * The note printed above each plan: the contour interval (and index interval and sample
+ * spacing, where the contour layer records them), or a visible "Contours unavailable" when the
+ * book was made without contours.
+ */
+function contourNote(contours: Contours | undefined) {
+  const features = contours?.features ?? []
+  if (!features.length) return { text: 'Contours unavailable', available: false }
+  const recorded = (key: string) =>
+    features.map((f) => Number(f.properties?.[key])).find((v) => Number.isFinite(v) && v > 0)
+  const interval = recorded('interval_m'),
+    spacing = recorded('preview_resolution_m')
+  if (interval === undefined) return { text: 'Contours · interval not recorded', available: true }
+  const metres = (v: number) => `${Number(v.toFixed(2))} m`
+  const index = features.some((f) => f.properties?.index !== undefined) ? ` (index ${metres(interval * 5)})` : ''
+  return {
+    text: `Contours ${metres(interval)}${index}${spacing === undefined ? '' : ` · from a ${fmt(spacing, 1)} m sample grid`}`,
+    available: true,
+  }
+}
 
 function titleBlock(
   project: string,
@@ -48,7 +70,7 @@ function planProfileSheet(
   start: number,
   end: number,
   toGrid: ToGrid,
-  contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
+  contours: Contours | undefined,
 ) {
   const inWindow = analysis.stations.filter((s) => s.chainage >= start - 1e-6 && s.chainage <= end + 1e-6)
   if (inWindow.length < 2) return ''
@@ -118,6 +140,8 @@ function planProfileSheet(
       return `<path d="${d}" fill="none" stroke="${index ? '#9ca3af' : '#d1d5db'}" stroke-width="${index ? 0.9 : 0.5}"/>`
     })
     .join('')
+  const note = contourNote(contours)
+  const noteSvg = `<text x="${plan.left + plan.width}" y="${plan.top - 10}" font-size="12" text-anchor="end"${note.available ? ' fill="#4b5563"' : ' fill="#b45309" font-weight="700"'}>${html(note.text)}</text>`
   const tickEvery = niceStep(end - start, 12)
   const ticks = inWindow
     .filter(
@@ -135,7 +159,7 @@ function planProfileSheet(
     .join('')
   const north = (-angle * 180) / Math.PI
   const bar = niceStep((plan.width / scale) * 0.25, 1)
-  const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}</text>`
+  const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}</text>${noteSvg}`
 
   // Profile with a mass-haul strip, sharing the station scale.
   const profile = { left: 90, top: 470, width: W - 150, height: 330 }
@@ -259,7 +283,8 @@ export function plotBookHtml({
   analysis: RoadAnalysis
   terrain: TerrainMetadata
   toGrid: ToGrid
-  contours?: GeoJSON.FeatureCollection<GeoJSON.MultiLineString>
+  /** Missing or empty prints "Contours unavailable" on every plan. */
+  contours?: Contours
   sheetLengthM?: number
   sectionIntervalM?: number
 }): string {

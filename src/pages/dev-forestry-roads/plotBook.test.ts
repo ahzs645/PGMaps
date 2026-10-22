@@ -44,4 +44,42 @@ describe('plot book', () => {
     expect(book).toContain('Spur &lt;1&gt;')
     expect(book).not.toContain('NaN')
   })
+
+  it('says on every plan when contours are unavailable', () => {
+    for (const contours of [undefined, { type: 'FeatureCollection' as const, features: [] }]) {
+      const book = plotBookHtml({
+        projectName: 'P',
+        alignment,
+        analysis,
+        terrain,
+        contours,
+        ...exportGrid(terrain, origin),
+      })
+      expect(book.match(/>Contours unavailable</g)).toHaveLength(3)
+    }
+  })
+
+  it('prints the contour interval on every plan', () => {
+    const contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> = {
+      type: 'FeatureCollection',
+      features: [800, 802].map((elevation) => ({
+        type: 'Feature',
+        properties: { elevation_m: elevation, index: false, interval_m: 2, preview_resolution_m: 4.25 },
+        geometry: {
+          type: 'MultiLineString',
+          coordinates: [[origin, offsetCoordinate(origin, 0, 100 + elevation - 800)]],
+        },
+      })),
+    }
+    const book = plotBookHtml({
+      projectName: 'P',
+      alignment,
+      analysis,
+      terrain,
+      contours,
+      ...exportGrid(terrain, origin),
+    })
+    expect(book.match(/>Contours 2 m \(index 10 m\) · from a 4\.3 m sample grid</g)).toHaveLength(3)
+    expect(book).not.toContain('Contours unavailable')
+  })
 })
