@@ -7,6 +7,10 @@ cross-section, terrain preview, quantity/mass chart and station schedule operate
 on the same selected alignment and chainage. This is preliminary planning and
 geometric design, not a certified construction or cable-logging design system.
 
+Before relying on a result, read the [limits and checks guides](forestry-road-design/README.md).
+They cover terrain and point clouds, alignment and optimization, quantities and costs,
+drainage, and exports, and say what each assumes and how problems show up.
+
 See the [reference matrix](forestry-road-reference-matrix.md) for the functional
 comparison and completed checks, and the [workspace gallery](forestry-road-gallery.md)
 for actual native-terrain views with their entered engineering assumptions.
