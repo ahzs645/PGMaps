@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
-import { TabBar } from '@/components/ui/tab-bar'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { AppSelect } from '@/components/ui/select'
 import { ResizableSplit } from '@/components/ui/resizable-split'
@@ -1292,21 +1291,10 @@ export default function DevForestryRoads() {
                                         : 'D-line clearance'
                       }
                       actions={
-                        detail === 'section' && !terrainProfile ? (
-                          <Button size="sm" variant="outline" disabled={!at || !!busy} onClick={saveSection}>
-                            Section CSV
-                          </Button>
-                        ) : undefined
-                      }
-                      compact
-                      className="flex min-h-0 flex-1 flex-col"
-                    >
-                      {() => (
-                        <div className="flex min-h-0 flex-1 flex-col gap-2">
-                          <TabBar
-                            label="Road detail view"
+                        <>
+                          <AppSelect
                             value={detail}
-                            onChange={setDetail}
+                            onValueChange={(value) => setDetail(value as typeof detail)}
                             options={[
                               { value: 'section', label: 'Section' },
                               { value: 'terrain', label: '3D' },
@@ -1318,7 +1306,22 @@ export default function DevForestryRoads() {
                               { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
                               { value: 'landing', label: 'Landing' },
                             ]}
+                            triggerAriaLabel="Road detail view"
+                            triggerClassName="h-8 w-32 text-xs"
+                            contentClassName="z-[1500] text-xs"
                           />
+                          {detail === 'section' && !terrainProfile && (
+                            <Button size="sm" variant="outline" disabled={!at || !!busy} onClick={saveSection}>
+                              Section CSV
+                            </Button>
+                          )}
+                        </>
+                      }
+                      compact
+                      className="flex min-h-0 flex-1 flex-col"
+                    >
+                      {() => (
+                        <div className="flex min-h-0 flex-1 flex-col gap-2">
                           <div className="min-h-0 flex-1">
                             {detail === 'section' && (
                               <CrossSectionChart

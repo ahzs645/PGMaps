@@ -236,6 +236,22 @@ storage that refuses writes leaves the defaults in place. Below 1280 px the view
 panes stack (below 1024 px the sidebar too), each with a handle underneath that
 resizes its height, so a phone page still resizes vertically.
 
+The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
+quantities, landing) is chosen from a **Road detail view** combobox in that pane's
+title row, beside its title and any pane action such as Section CSV, so the pane
+spends no row on a tab strip.
+
+The plan keeps the road readable at every zoom (`planAnnotations.ts`). Station
+labels are small, unboxed and placed beside the line on the right of travel, at the
+smallest round interval (10, 20, 25, 50, 100 … 5,000 m) that keeps them at least
+110 px apart on screen. Start and end are always labelled, so an overview shows a few
+stations and zooming in adds more. Ticks cross the road at each labelled station, with
+minor ticks at a fifth of the interval once they are 10 px apart. Curve callouts
+(`C<n> R=<radius>`) appear on the left once the arc is 28 px long on screen. The
+selected station, which follows the pointer along the road, always shows its full
+readout (station · grade · ground Z) on the left of travel. The Labels checkbox hides
+labels, ticks and callouts together.
+
 The profile's pan, zoom, fit and vertical-exaggeration controls and its visible
 station range float in the top-right corner of the chart; the top-left carries a
 slope-profile summary (length, elevation difference, maximum and minimum grade,

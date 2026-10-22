@@ -187,10 +187,8 @@ test('an off-screen shared station is revealed and profile bands keep the same c
     .poll(async () => Number(await page.getByLabel('Selected station metres', { exact: true }).inputValue()))
     .toBeCloseTo(target, 0)
   expect(await rangeOf(bands)).toEqual(await rangeOf(chart))
-  await page
-    .getByRole('tablist', { name: 'Road detail view' })
-    .getByRole('tab', { name: 'Mass haul', exact: true })
-    .click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
+  await page.getByRole('option', { name: 'Mass haul', exact: true }).click()
   const mass = page.getByTestId('road-mass-chart')
   await expect(mass).toBeVisible()
   await expect.poll(async () => rangeOf(mass)).toEqual(await rangeOf(chart))
@@ -431,6 +429,35 @@ test('header picker, no footer or status row, profile controls on the chart, sec
     await expect(toolbar.getByRole('button', { name, exact: true })).toBeVisible()
   await expect(toolbar.getByLabel('Profile vertical exaggeration', { exact: true })).toBeVisible()
   await expect(page.getByTestId('road-profile-range')).toHaveText(/0\+000\.0–\d\+\d{3}\.\d/)
+
+  // The detail view picker sits in the panel's title row, beside the title and Section CSV.
+  const sectionPanel = page.getByRole('region', { name: 'Cross-section', exact: true })
+  const title = (await sectionPanel.getByRole('heading', { name: 'Cross-section', exact: true }).boundingBox())!
+  const picker = (await sectionPanel.getByRole('combobox', { name: 'Road detail view', exact: true }).boundingBox())!
+  const csv = (await sectionPanel.getByRole('button', { name: 'Section CSV', exact: true }).boundingBox())!
+  expect(Math.abs(picker.y + picker.height / 2 - (title.y + title.height / 2))).toBeLessThan(8)
+  expect(picker.x).toBeGreaterThan(title.x)
+  expect(csv.x).toBeGreaterThan(picker.x)
+  await expect(sectionPanel.getByRole('tablist')).toHaveCount(0)
+
+  // Plan labels follow the zoom: few at the overview, more after zooming in, and the
+  // selected station always carries its readout.
+  await expect(page.getByTestId('road-active-map-label')).toContainText('0+000.0')
+  const spacing = async () => {
+    const values = await page
+      .locator('[data-plan-station-label]')
+      .evaluateAll((nodes) => nodes.map((n) => Number(n.getAttribute('data-plan-station-label'))))
+    values.sort((x, y) => x - y)
+    return values.length > 2 ? values[2] - values[1] : Infinity
+  }
+  expect(await page.locator('[data-plan-station-label]').count()).toBeGreaterThanOrEqual(2)
+  const overviewSpacing = await spacing()
+  for (let i = 0; i < 2; i++)
+    await page
+      .getByTestId('road-plan-view')
+      .getByRole('button', { name: /zoom in/i })
+      .click()
+  await expect.poll(spacing).toBeLessThan(overviewSpacing)
 
   // Looking up-station: L on the left, R on the right, and the left of the plot is a negative offset.
   await selectStation(page, 300)

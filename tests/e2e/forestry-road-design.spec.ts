@@ -115,8 +115,14 @@ async function prepare(page: Page) {
 function workflow(page: Page, name: string) {
   return page.getByRole('tablist', { name: 'Road workflow', exact: true }).getByRole('tab', { name, exact: true })
 }
-function detail(page: Page, name: string) {
-  return page.getByRole('tablist', { name: 'Road detail view', exact: true }).getByRole('tab', { name, exact: true })
+/** The detail view is picked from a combobox in the detail panel's title row. */
+function detailPicker(page: Page) {
+  return page.getByRole('combobox', { name: 'Road detail view', exact: true })
+}
+async function showDetail(page: Page, name: string) {
+  await detailPicker(page).click()
+  await page.getByRole('option', { name, exact: true }).click()
+  await expect(detailPicker(page)).toHaveText(name)
 }
 function engineeringInput(page: Page, name: string) {
   return page.getByRole('tablist', { name: 'Engineering inputs', exact: true }).getByRole('tab', { name, exact: true })
@@ -171,7 +177,7 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '210')
   expect((await mapState(page))!.section).not.toEqual(sectionAt200)
 
-  await detail(page, 'Stations').click()
+  await showDetail(page, 'Stations')
   await page.getByRole('button', { name: 'Select station 400.0', exact: true }).click()
   await linkedStation(page, 400)
   await expect(page.getByTestId('road-station-table').locator('tr[aria-selected="true"]')).toContainText('0+400.0')
@@ -197,11 +203,11 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await expect(page.getByTestId('road-plan-view').getByText(/^Elevation -?\d+–-?\d+ m$/)).toBeVisible()
   await page.getByLabel('Terrain display', { exact: true }).selectOption('hillshade')
 
-  await detail(page, 'Section').click()
+  await showDetail(page, 'Section')
   await page.screenshot({ path: testInfo.outputPath('desktop-linked-road.png'), fullPage: true })
-  await detail(page, 'Mass haul').click()
+  await showDetail(page, 'Mass haul')
   await expect(page.getByTestId('road-mass-chart')).toBeVisible()
-  await detail(page, '3D').click()
+  await showDetail(page, '3D')
   const terrain = page.getByTestId('road-terrain-preview')
   await expect(terrain.locator('polygon')).not.toHaveCount(0)
   const firstFace = terrain.locator('polygon').first()
@@ -311,7 +317,7 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
   const errors = await prepare(page)
   await page.getByRole('button', { name: 'Duplicate active alignment', exact: true }).click()
   await expect(page.getByLabel('Active road').locator('option')).toHaveCount(3)
-  await detail(page, 'Compare').click()
+  await showDetail(page, 'Compare')
   await expect(page.getByRole('region', { name: 'Compare alternatives', exact: true }).locator('tbody tr')).toHaveCount(
     3,
   )
@@ -370,15 +376,17 @@ test('stream terrain profiles show ground-only data and cannot edit the road ver
   const rectangle = (await plot.boundingBox())!
   await page.mouse.dblclick(rectangle.x + rectangle.width * 0.55, rectangle.y + rectangle.height * 0.45)
   expect((await saveProject(page)).project.alignments).toEqual(original.alignments)
-  await expect(detail(page, 'Mass haul')).toBeDisabled()
-  await detail(page, 'Stations').click()
+  await detailPicker(page).click()
+  await expect(page.getByRole('option', { name: 'Mass haul', exact: true })).toHaveAttribute('data-disabled', '')
+  await page.keyboard.press('Escape')
+  await showDetail(page, 'Stations')
   await expect(page.getByTestId('road-station-table')).toContainText('Gnd grade')
   await expect(page.getByTestId('road-station-table')).not.toContainText('Formation')
   await expect(page.getByTestId('road-station-table')).not.toContainText('Cut A')
   const terrainCsv = await downloadText(page, page.getByRole('button', { name: 'Profile CSV', exact: true }))
   expect(terrainCsv.text).toContain('ground_grade_percent')
   expect(terrainCsv.text).not.toContain('cut_volume')
-  await detail(page, '3D').click()
+  await showDetail(page, '3D')
   const terrain = page.getByTestId('road-terrain-preview')
   await expect(terrain).toHaveAttribute('data-terrain-only', 'true')
   await expect(terrain.locator('line[stroke="#a07845"]')).not.toHaveCount(0)
@@ -662,7 +670,7 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
     'true',
   )
   await expect(page.getByTestId('culvert-profile')).toContainText('Cross-drain A')
-  await detail(page, '3D').click()
+  await showDetail(page, '3D')
   await expect(page.getByTestId('road-terrain-preview').getByRole('button', { name: /Cross-drain A/ })).toBeVisible()
   const secondStructure = (await saveProject(page)).project.alignments.find(
     (a) => a.id === saved.project.activeAlignmentId,
@@ -679,7 +687,7 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   page,
 }, testInfo) => {
   const errors = await prepare(page)
-  await detail(page, 'Pegs').click()
+  await showDetail(page, 'Pegs')
   const original = (await saveProject(page)).project
   const oldGeometry = (await mapState(page))!.formation
   await fillNumber(page, 'Peg 2 distance', 160)
@@ -706,7 +714,7 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   await expect.poll(async () => (await mapState(page))?.formation).toEqual(editedFormation)
 
   await fillNumber(page, 'Selected station metres', 300)
-  await detail(page, 'Landing').click()
+  await showDetail(page, 'Landing')
   await fillNumber(page, 'Tailhold radius (m)', 200)
   await fillNumber(page, 'Bearing step (°)', 45)
   await page.getByRole('button', { name: 'Run radial screen', exact: true }).click()
@@ -747,7 +755,7 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   await expect.poll(async () => (await mapState(page))?.overlay?.features.length).toBe(0)
   await page.getByRole('button', { name: 'Run radial screen', exact: true }).click()
   await page.getByRole('button', { name: 'Use selected D-line', exact: true }).click()
-  await expect(detail(page, 'D-line')).toHaveAttribute('aria-selected', 'true')
+  await expect(detailPicker(page)).toHaveText('D-line')
   await workflow(page, 'Review').click()
   const initialCables = (await mapState(page))!.cables
   const startInset = page.getByRole('spinbutton', { name: 'Start inset (m)', exact: true }).last()

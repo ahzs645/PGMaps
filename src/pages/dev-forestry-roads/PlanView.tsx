@@ -4,7 +4,8 @@ import { LocateFixed } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { MapGradientLegendItem } from '@/components/ui/map-panels'
-import { distance, horizontalCurveSummary, nearestStation, offsetCoordinate } from './engine'
+import { distance, horizontalCurveSummary, nearestStation, offsetCoordinate, positionAt } from './engine'
+import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
 import { terrainBounds } from './terrain'
 import {
   buildTerrainDisplay,
@@ -79,6 +80,14 @@ function cableDistanceAt(start: Coordinate, end: Coordinate, coordinate: Coordin
   return Math.max(0, Math.min(distance(start, end), along))
 }
 
+function placeOn(alignment: Alignment, chainage: number) {
+  try {
+    return positionAt(alignment, chainage)
+  } catch {
+    return null
+  }
+}
+
 function Layers(
   props: PlanProps & {
     terrainLayer: TerrainLayer
@@ -131,32 +140,61 @@ function Layers(
       return null
     }
   }, [activeCable, props.cableDistance])
+  // Labels and ticks follow the zoom: an overview shows a few stations, zooming in adds more.
+  const [view, setView] = useState<{ zoom: number; bearing: number } | null>(null)
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    const update = () => setView({ zoom: Math.round(map.getZoom() * 8) / 8, bearing: map.getBearing() })
+    update()
+    map.on('zoomend', update)
+    map.on('rotateend', update)
+    return () => {
+      map.off('zoomend', update)
+      map.off('rotateend', update)
+    }
+  }, [map, isLoaded])
+  const pixelMetres =
+    view && analysis.stations.length ? metresPerPixel(view.zoom, analysis.stations[0].coordinate[1]) : null
+  const labelInterval = pixelMetres === null ? null : stationLabelInterval(pixelMetres)
   const annotationStations = useMemo(() => {
-    if (!analysis.stations.length) return []
-    const interval = Math.max(20, Math.ceil(analysis.length / 8 / 20) * 20)
-    return [
-      ...new globalThis.Map(
-        [
-          0,
-          ...Array.from({ length: Math.floor(analysis.length / interval) }, (_, i) => (i + 1) * interval),
-          analysis.length,
+    if (!analysis.stations.length || labelInterval === null) return []
+    return labelChainages(analysis.length, labelInterval).flatMap((chainage) => {
+      const at = placeOn(props.alignment, chainage)
+      return at ? [{ chainage, ...at }] : []
+    })
+  }, [analysis, labelInterval, props.alignment])
+  const ticks = useMemo(() => {
+    if (!props.showLabels || !analysis.stations.length || labelInterval === null || pixelMetres === null) return fc([])
+    return fc(
+      tickChainages(analysis.length, labelInterval, pixelMetres).flatMap(({ chainage, major }) => {
+        const at = placeOn(props.alignment, chainage)
+        if (!at) return []
+        const half = (major ? 7 : 3.5) * pixelMetres
+        return [
+          line(
+            [
+              offsetCoordinate(at.coordinate, at.bearing - 90, half),
+              offsetCoordinate(at.coordinate, at.bearing + 90, half),
+            ],
+            { major },
+          ),
         ]
-          .map((chainage) => nearestStation(analysis.stations, chainage)!)
-          .map((s) => [s.index, s]),
-      ).values(),
-    ]
-  }, [analysis])
+      }),
+    )
+  }, [analysis, labelInterval, pixelMetres, props.alignment, props.showLabels])
   const radiusLabels = useMemo(() => {
-    if (props.terrainOnly) return []
+    if (props.terrainOnly || pixelMetres === null) return []
     try {
       return horizontalCurveSummary(props.alignment).flatMap((curve, index) => {
-        const at = nearestStation(analysis.stations, (curve.start + curve.end) / 2)
-        return at ? [{ id: `curve-${index}`, at, radius: curve.radius }] : []
+        // A curve label appears once its arc is long enough on screen to belong to it.
+        if (curve.length / pixelMetres < 28) return []
+        const at = placeOn(props.alignment, (curve.start + curve.end) / 2)
+        return at ? [{ id: `curve-${index}`, label: `C${index + 1} R=${curve.radius.toFixed(1)}`, at, curve }] : []
       })
     } catch {
       return []
     }
-  }, [analysis, props.alignment, props.terrainOnly])
+  }, [props.alignment, props.terrainOnly, pixelMetres])
   const allLines = useMemo(
     () =>
       fc(
@@ -390,6 +428,7 @@ function Layers(
       structures,
       draft,
       section,
+      ticks,
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
     }
@@ -486,6 +525,16 @@ function Layers(
       paint: { 'line-color': ['get', 'color'], 'line-width': ['case', ['get', 'selected'], 4, 2.5] },
     })
     add({
+      id: 'road-ticks',
+      type: 'line',
+      source: 'road-ticks',
+      paint: {
+        'line-color': '#1c1917',
+        'line-width': ['case', ['get', 'major'], 1.6, 1],
+        'line-opacity': 0.8,
+      },
+    })
+    add({
       id: 'road-cable',
       type: 'line',
       source: 'road-cable',
@@ -548,6 +597,7 @@ function Layers(
       'road-ditches',
       'road-alignments-halo',
       'road-alignments',
+      'road-ticks',
       'road-cable',
       'road-structures',
       'road-section',
@@ -569,6 +619,7 @@ function Layers(
     structures,
     draft,
     section,
+    ticks,
     display,
     props.terrainLayer,
     props.showContours,
@@ -722,35 +773,46 @@ function Layers(
           </MapMarker>
         ))}
       {props.showLabels &&
-        annotationStations.map((s) => (
-          <MapMarker key={`station-${s.index}`} longitude={s.coordinate[0]} latitude={s.coordinate[1]}>
-            <MarkerContent>
-              <button
-                className={`translate-y-5 rounded border bg-background/95 px-1.5 py-0.5 text-[10px] tabular-nums shadow-sm ${chosen?.index === s.index ? 'border-rose-500 text-rose-700' : 'border-border text-foreground'}`}
-                aria-label={`Inspect plan station ${s.chainage.toFixed(1)} metres`}
-                aria-pressed={chosen?.index === s.index}
-                onClick={() => props.onStation(s.chainage)}
-              >
-                {formatRoadStation(s.chainage)} ·{' '}
-                {s.gradePercent === null ? 'grade unknown' : `${s.gradePercent.toFixed(1)}%`}
-              </button>
-            </MarkerContent>
-          </MapMarker>
-        ))}
+        annotationStations
+          .filter((s) => Math.abs(s.chainage - (chosen?.chainage ?? -1)) > (labelInterval ?? 0) * 0.3)
+          .map((s) => {
+            const text = formatRoadStation(s.chainage).replace(/\.0$/, '')
+            const [dx, dy] = labelOffset(s.bearing, view?.bearing ?? 0, text.length)
+            return (
+              <MapMarker key={`station-${s.chainage}`} longitude={s.coordinate[0]} latitude={s.coordinate[1]}>
+                <MarkerContent>
+                  <button
+                    style={{ transform: `translate(${dx}px, ${dy}px)` }}
+                    className="whitespace-nowrap rounded-sm bg-background/80 px-1 text-[10px] font-medium leading-4 tabular-nums text-foreground"
+                    aria-label={`Inspect plan station ${s.chainage.toFixed(1)} metres`}
+                    data-plan-station-label={s.chainage}
+                    onClick={() => props.onStation(s.chainage)}
+                  >
+                    {text}
+                  </button>
+                </MarkerContent>
+              </MapMarker>
+            )
+          })}
       {props.showLabels &&
-        radiusLabels.map(({ id, at, radius }) => (
-          <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
-            <MarkerContent>
-              <button
-                className="-translate-y-5 rounded border border-violet-300 bg-violet-50 px-1 py-0.5 text-[10px] text-violet-800 shadow-sm"
-                aria-label={`Inspect horizontal curve radius ${radius.toFixed(1)} metres`}
-                onClick={() => props.onStation(at.chainage)}
-              >
-                R {radius.toFixed(0)} m
-              </button>
-            </MarkerContent>
-          </MapMarker>
-        ))}
+        radiusLabels.map(({ id, label, at, curve }) => {
+          const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
+          return (
+            <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
+              <MarkerContent>
+                <button
+                  style={{ transform: `translate(${dx}px, ${dy}px)` }}
+                  className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-[10px] font-medium leading-4 text-violet-800"
+                  title={`Horizontal curve ${id.replace('curve-', 'C')}: radius ${curve.radius.toFixed(1)} m, arc ${curve.length.toFixed(1)} m, ${formatRoadStation(curve.start)}–${formatRoadStation(curve.end)}`}
+                  aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
+                  onClick={() => props.onStation((curve.start + curve.end) / 2)}
+                >
+                  {label}
+                </button>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
       {props.mode === 'edit' &&
         props.alignment.points.map((p, index) => (
           <MapMarker
@@ -778,8 +840,24 @@ function Layers(
             <div
               data-testid="road-active-map-station"
               data-chainage={chosen.chainage}
-              className="pointer-events-none size-3 rounded-full border-2 border-white bg-rose-600 shadow"
-            />
+              className="pointer-events-none relative size-3 rounded-full border-2 border-white bg-rose-600 shadow"
+            >
+              {props.showLabels && (
+                <span
+                  data-testid="road-active-map-label"
+                  className="absolute left-1/2 top-1/2 whitespace-nowrap rounded-sm border border-rose-500 bg-background/95 px-1 text-[10px] font-medium leading-4 tabular-nums text-rose-700 shadow-sm dark:text-rose-300"
+                  style={(() => {
+                    const text = `${formatRoadStation(chosen.chainage)} · ${chosen.gradePercent === null ? '—' : chosen.gradePercent.toFixed(1)}% · Z ${chosen.groundElevation === null ? '—' : chosen.groundElevation.toFixed(1)}`
+                    const [dx, dy] = labelOffset(chosen.bearing, view?.bearing ?? 0, text.length, -1, 12)
+                    return { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))` }
+                  })()}
+                >
+                  {formatRoadStation(chosen.chainage)} ·{' '}
+                  {chosen.gradePercent === null ? '—' : `${chosen.gradePercent.toFixed(1)}%`} · Z{' '}
+                  {chosen.groundElevation === null ? '—' : chosen.groundElevation.toFixed(1)}
+                </span>
+              )}
+            </div>
           </MarkerContent>
         </MapMarker>
       )}
