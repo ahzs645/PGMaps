@@ -700,7 +700,7 @@ export function TreeInspector({
                         seeds,
                         selected.size ? crop.points.filter((p) => selected.has(pointKey(p))) : visible,
                       )
-                      let assignments = { ...state.assignments }
+                      const assignments = { ...state.assignments }
                       for (const p of next) assignments[p.key] = p.label
                       if (Object.keys(assignments).length > 50000) throw Error('Edited-point budget exceeded')
                       commit({ ...state, assignments })

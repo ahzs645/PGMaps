@@ -132,7 +132,7 @@ class Index {
     }
 
     // "24th & mission" -- an intersection
-    const parts = raw.toLowerCase().split(/\s+(?:and|at)\s+|\s*[&\/@+]\s*/).map(norm).filter(Boolean);
+    const parts = raw.toLowerCase().split(/\s+(?:and|at)\s+|\s*[&/@+]\s*/).map(norm).filter(Boolean);
     if (parts.length === 2) {
       for (const it of this.intersections) {
         let ok = 0;

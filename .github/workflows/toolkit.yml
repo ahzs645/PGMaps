@@ -1,9 +1,31 @@
 name: Verify geographic toolkit
 
+# Only changes that can affect the package or its consumers. The PG Maps host
+# tests in `toolkit:test` also run in checks.yml on every change.
 on:
   pull_request:
+    paths: &toolkit-paths
+      - 'packages/geo-toolkit'
+      - 'packages/geo-toolkit/**'
+      - 'examples/toolkit-consumer/**'
+      - 'scripts/toolkit/**'
+      - 'src/lib/scoring/**'
+      - 'src/lib/calculations/**'
+      - 'src/lib/paletteScale*'
+      - 'src/lib/color*'
+      - 'src/lib/rasterClassGrid*'
+      - 'src/lib/pngPixels*'
+      - 'src/maps/scorebuilder/lib/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'vitest.config.ts'
+      - 'eslint.config.js'
+      - '.prettierrc'
+      - '.github/workflows/toolkit.yml'
   push:
     branches: [main]
+    paths: *toolkit-paths
   workflow_dispatch:
 
 permissions:

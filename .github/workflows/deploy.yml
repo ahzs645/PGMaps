@@ -37,12 +37,17 @@ jobs:
         id: data-source
         run: echo "revision=$(git rev-parse HEAD:vendor/bcdatamapper)" >> "$GITHUB_OUTPUT"
 
+      # A hit is extracted over the checkout, so the key hashes every tracked
+      # file under public/data (nothing else is there yet) or a stale cached
+      # copy would replace it. The script folders it leaves out never write
+      # public/data during a deploy; including them threw the cache away on
+      # most pushes.
       - name: Restore generated deployment data
         id: data-cache
         uses: actions/cache@v4
         with:
           path: public/data
-          key: ${{ runner.os }}-pgmaps-data-v1-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', 'package.json', 'package-lock.json', 'public/data/projects/**', 'public/data/story-documents/**', 'public/data/smoke/**', 'public/data/walkability/heatmap/factor_masks.json') }}
+          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**', '!scripts/toolkit/**', '!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'public/data/**') }}
 
       - name: Install data-generation dependencies
         if: steps.data-cache.outputs.cache-hit != 'true'
