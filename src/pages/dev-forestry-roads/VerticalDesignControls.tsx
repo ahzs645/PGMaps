@@ -25,6 +25,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
     maxDepthM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
     levelStepM: DEFAULT_VERTICAL_OPTIMIZATION.levelStepM,
     tieEndsToGround: true,
+    objective: 'earthwork' as 'earthwork' | 'total',
   })
   const optimize = async () => {
     if (workspace.busy) return
@@ -210,8 +211,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       <SidebarSection title="Optimize vertical profile">
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
           Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
-          ranges, the road-wide maximum grade, curve K above and every control point. The result is a new alternative;
-          haul, borrow and waste are costed afterwards, not optimized.
+          ranges, the road-wide maximum grade, curve K above and every control point. The result is a new alternative.
+          “Total cost” also prices each interval's cut/fill imbalance and keeps the line the full analysis prices
+          lowest, with haul, borrow and waste.
         </p>
         <div className="grid grid-cols-3 gap-1">
           <NumberField
@@ -237,6 +239,18 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             onChange={(levelStepM) => setSearch((x) => ({ ...x, levelStepM }))}
           />
         </div>
+        <label className="mt-2 flex items-center justify-between gap-2 text-xs">
+          Objective
+          <select
+            aria-label="Profile optimization objective"
+            className="rounded border bg-background px-1 text-base md:text-xs"
+            value={search.objective}
+            onChange={(e) => setSearch((x) => ({ ...x, objective: e.target.value as 'earthwork' | 'total' }))}
+          >
+            <option value="earthwork">Cut and fill</option>
+            <option value="total">Total cost incl. haul, borrow, waste</option>
+          </select>
+        </label>
         <label className="mt-2 flex items-center gap-2 text-xs">
           <input
             type="checkbox"

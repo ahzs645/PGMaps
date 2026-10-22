@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
+import { createEngineeringDesign } from './engineeringTypes'
 import { optimizeVerticalProfile } from './verticalOptimizer'
 import { curveLengthsForK, simplifyProfile } from './verticalTools'
 import type { Alignment, Coordinate, TerrainSource } from './types'
@@ -132,5 +133,28 @@ describe('profile simplification', () => {
     expect(result.vertical.length).toBeLessThanOrEqual(full.vertical.length)
     const checked = analyzeRoad({ ...road(), vertical: result.vertical }, hump, settings)
     expect(checked.maxGradePercent).toBeLessThanOrEqual(12 + 1e-6)
+  })
+})
+
+describe('total-cost profile optimization', () => {
+  it('prices haul, borrow and waste and never does worse than the cut-and-fill line', () => {
+    const alignment = road()
+    alignment.engineering = createEngineeringDesign()
+    alignment.engineering.haul = {
+      ...alignment.engineering.haul,
+      enabled: true,
+      freeHaulDistanceM: 50,
+      overhaulDistanceM: 300,
+      overhaulRate: 6,
+      endHaulRate: 4,
+      borrowRate: 40,
+      wasteRate: 25,
+    }
+    const earthwork = optimizeVerticalProfile(alignment, 400, hump, settings, { pviSpacingM: 50, k: 4 })
+    const total = optimizeVerticalProfile(alignment, 400, hump, settings, { pviSpacingM: 50, k: 4, objective: 'total' })
+    const cost = (vertical: typeof total.vertical) =>
+      analyzeRoad({ ...alignment, vertical }, hump, settings).estimatedCost
+    expect(cost(total.vertical)).toBeLessThanOrEqual(cost(earthwork.vertical) + 1e-6)
+    expect(total.message).toMatch(/lowest total cost with imbalance at \$/)
   })
 })

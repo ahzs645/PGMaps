@@ -35,6 +35,12 @@ export interface VerticalOptimizationOptions {
    * earthwork cost. 0 keeps every PVI.
    */
   simplifyToleranceM: number
+  /**
+   * `earthwork`: minimize cut and fill at their rates. `total`: also weigh each PVI interval's
+   * imbalance (reusable cut minus fill) at several prices, and keep whichever line the full
+   * analysis prices lowest, haul, borrow and waste included when they are entered.
+   */
+  objective: 'earthwork' | 'total'
 }
 export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   pviSpacingM: 50,
@@ -45,6 +51,7 @@ export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   incompletePenaltyPerM: 5000,
   maxSectionSolves: 60000,
   simplifyToleranceM: 0.3,
+  objective: 'earthwork',
 }
 export interface VerticalOptimizationResult {
   vertical: VerticalPoint[]
@@ -161,9 +168,9 @@ export function optimizeVerticalProfile(
     tables.set(key, table)
     return table
   }
-  const costAt = (s: number, z: number) => {
+  const areasAt = (s: number, z: number) => {
     const table = tableAt(s)
-    if (table.ground === null) return o.incompletePenaltyPerM
+    if (table.ground === null) return null
     const position = (z - table.ground) / o.levelStepM + rows
     const lo = Math.max(0, Math.min(2 * rows - 1, Math.floor(position)))
     const f = Math.max(0, Math.min(1, position - lo))
@@ -171,20 +178,34 @@ export function optimizeVerticalProfile(
       values[lo] === null || values[lo + 1] === null ? null : values[lo]! + (values[lo + 1]! - values[lo]!) * f
     const cut = pick(table.cut),
       fill = pick(table.fill)
-    if (cut === null || fill === null || position < 0 || position > 2 * rows) return o.incompletePenaltyPerM
-    return cut * settings.cutRate + fill * settings.fillRate
+    if (cut === null || fill === null || position < 0 || position > 2 * rows) return null
+    return { cut, fill }
   }
-  const segmentCost = new Map<string, number>()
-  const costOf = (i: number, a: number, b: number) => {
+  // Per interval: earthwork cost, and the net reusable cut minus fill that would have to move elsewhere.
+  const segmentTerms = new Map<string, { cost: number; net: number }>()
+  const termsOf = (i: number, a: number, b: number) => {
     const key = `${i}:${a}:${b}`
-    let cost = segmentCost.get(key)
-    if (cost === undefined) {
+    let terms = segmentTerms.get(key)
+    if (terms === undefined) {
       const za = levels[i][a],
         zb = levels[i + 1][b]
-      cost = segments[i].reduce((sum, p) => sum + p.weight * costAt(p.s, za + (zb - za) * p.t), 0)
-      segmentCost.set(key, cost)
+      terms = { cost: 0, net: 0 }
+      for (const p of segments[i]) {
+        const areas = areasAt(p.s, za + (zb - za) * p.t)
+        if (!areas) terms.cost += p.weight * o.incompletePenaltyPerM
+        else {
+          terms.cost += p.weight * (areas.cut * settings.cutRate + areas.fill * settings.fillRate)
+          terms.net += p.weight * (areas.cut * settings.shrinkFactor - areas.fill)
+        }
+      }
+      segmentTerms.set(key, terms)
     }
-    return cost
+    return terms
+  }
+  let imbalancePrice = 0
+  const costOf = (i: number, a: number, b: number) => {
+    const terms = termsOf(i, a, b)
+    return terms.cost + imbalancePrice * Math.abs(terms.net)
   }
 
   const grade = (i: number, a: number, b: number) => (100 * (levels[i + 1][b] - levels[i][a])) / (pvis[i + 1] - pvis[i])
@@ -218,60 +239,55 @@ export function optimizeVerticalProfile(
   // DP over (previous level, current level) at each PVI.
   type Cell = { cost: number; back: number }
   const n = pvis.length
-  let frontier = new Map<string, Cell>()
-  const states: Map<string, Cell>[] = []
-  for (let a = 0; a < levels[0].length; a++)
-    for (let b = 0; b < levels[1].length; b++) {
-      const g = grade(0, a, b)
-      if (!gradeAllowed(0, g) || !controlsAllowed(0, a, b)) continue
-      frontier.set(`${a}:${b}`, { cost: costOf(0, a, b), back: -1 })
-    }
-  states.push(frontier)
-  for (let i = 1; i < n - 1; i++) {
-    const next = new Map<string, Cell>()
-    for (const [key, cell] of frontier) {
-      const [a, b] = key.split(':').map(Number)
-      const g1 = grade(i - 1, a, b)
-      for (let c = 0; c < levels[i + 1].length; c++) {
-        const g2 = grade(i, b, c)
-        if (!gradeAllowed(i, g2) || !curvable(i, g1, g2) || !controlsAllowed(i, b, c)) continue
-        const cost = cell.cost + costOf(i, b, c)
-        const target = `${b}:${c}`
-        const existing = next.get(target)
-        if (!existing || cost < existing.cost) next.set(target, { cost, back: a })
+  const solve = () => {
+    let frontier = new Map<string, Cell>()
+    const states: Map<string, Cell>[] = []
+    for (let a = 0; a < levels[0].length; a++)
+      for (let b = 0; b < levels[1].length; b++) {
+        const g = grade(0, a, b)
+        if (!gradeAllowed(0, g) || !controlsAllowed(0, a, b)) continue
+        frontier.set(`${a}:${b}`, { cost: costOf(0, a, b), back: -1 })
       }
+    states.push(frontier)
+    for (let i = 1; i < n - 1; i++) {
+      const next = new Map<string, Cell>()
+      for (const [key, cell] of frontier) {
+        const [a, b] = key.split(':').map(Number)
+        const g1 = grade(i - 1, a, b)
+        for (let c = 0; c < levels[i + 1].length; c++) {
+          const g2 = grade(i, b, c)
+          if (!gradeAllowed(i, g2) || !curvable(i, g1, g2) || !controlsAllowed(i, b, c)) continue
+          const cost = cell.cost + costOf(i, b, c)
+          const target = `${b}:${c}`
+          const existing = next.get(target)
+          if (!existing || cost < existing.cost) next.set(target, { cost, back: a })
+        }
+      }
+      if (!next.size)
+        throw Error(
+          `No profile meets the grade, curvature and control limits past ${pvis[i].toFixed(0)} m within ±${o.maxDepthM} m of ground. Widen the search, untie the ends, lower K or relax the limits.`,
+        )
+      states.push(next)
+      frontier = next
     }
-    if (!next.size)
-      throw Error(
-        `No profile meets the grade, curvature and control limits past ${pvis[i].toFixed(0)} m within ±${o.maxDepthM} m of ground. Widen the search, untie the ends, lower K or relax the limits.`,
-      )
-    states.push(next)
-    frontier = next
-  }
-  let best: { key: string; cell: Cell } | null = null
-  for (const [key, cell] of frontier) if (!best || cell.cost < best.cell.cost) best = { key, cell }
-  if (!best) throw Error('No profile meets the grade and control limits within the search range.')
+    let best: { key: string; cell: Cell } | null = null
+    for (const [key, cell] of frontier) if (!best || cell.cost < best.cell.cost) best = { key, cell }
+    if (!best) throw Error('No profile meets the grade and control limits within the search range.')
 
-  // Walk back: states[k] holds pairs (level at PVI k, level at PVI k + 1); `back` is PVI k − 1.
-  const chosen = new Array<number>(n)
-  let pair = best.key
-  for (let k = n - 2; k >= 0; k--) {
-    const [previous, current] = pair.split(':').map(Number)
-    chosen[k] = previous
-    chosen[k + 1] = current
-    const cell = states[k].get(pair)!
-    if (k > 0) pair = `${cell.back}:${previous}`
+    // Walk back: states[k] holds pairs (level at PVI k, level at PVI k + 1); `back` is PVI k − 1.
+    const chosen = new Array<number>(n)
+    let pair = best.key
+    for (let k = n - 2; k >= 0; k--) {
+      const [previous, current] = pair.split(':').map(Number)
+      chosen[k] = previous
+      chosen[k + 1] = current
+      const cell = states[k].get(pair)!
+      if (k > 0) pair = `${cell.back}:${previous}`
+    }
+
+    return { chosen, cost: best.cell.cost }
   }
 
-  // Drop PVIs with no grade change, then size curves from K within their tangents.
-  const raw = pvis.map((s, i) => ({ chainage: s, elevation: Math.round(levels[i][chosen[i]] * 1000) / 1000 }))
-  const kept = raw.filter((p, i) => {
-    if (i === 0 || i === raw.length - 1) return true
-    if (controls.some((c) => Math.abs(c.chainage - p.chainage) < 1e-6)) return true
-    const g1 = (p.elevation - raw[i - 1].elevation) / (p.chainage - raw[i - 1].chainage)
-    const g2 = (raw[i + 1].elevation - p.elevation) / (raw[i + 1].chainage - p.chainage)
-    return Math.abs(g2 - g1) * 100 > 0.05
-  })
   const minimum = alignment.verticalStandards?.minCurveLengthM ?? 0
   const fitted = (line: { chainage: number; elevation: number }[]) =>
     curveLengthsForK(
@@ -284,39 +300,67 @@ export function optimizeVerticalProfile(
       o.k,
       minimum,
     )
-  let vertical = fitted(kept)
-  let simplified = false
-  if (o.simplifyToleranceM > 0 && vertical.length > 3) {
-    const lighter = fitted(
-      simplifyProfile(
-        vertical,
-        o.simplifyToleranceM,
-        controls.map((c) => c.chainage),
-      ),
-    )
-    if (lighter.length < vertical.length) {
-      const check = (v: VerticalPoint[]) => analyzeRoad({ ...alignment, vertical: v }, terrain, settings)
-      const full = check(vertical),
-        light = check(lighter)
-      const earthwork = (a: ReturnType<typeof check>) =>
-        a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
-      const ok =
-        !light.verticalChecks?.length &&
-        light.maxGradePercent <= settings.maxGradePercent + 1e-6 &&
-        light.coveragePercent >= full.coveragePercent - 1e-6 &&
-        earthwork(light) <= earthwork(full) * 1.01 + 1
-      if (ok) {
-        vertical = lighter
-        simplified = true
+  const check = (v: VerticalPoint[]) => analyzeRoad({ ...alignment, vertical: v }, terrain, settings)
+  const earthwork = (a: ReturnType<typeof check>) =>
+    a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
+  const score = (a: ReturnType<typeof check>) => (o.objective === 'total' ? a.estimatedCost : earthwork(a))
+  // Drop PVIs with no grade change, size curves from K within their tangents, then simplify if it costs ≤ 1%.
+  const finish = (chosen: number[]) => {
+    const raw = pvis.map((s, i) => ({ chainage: s, elevation: Math.round(levels[i][chosen[i]] * 1000) / 1000 }))
+    const kept = raw.filter((p, i) => {
+      if (i === 0 || i === raw.length - 1) return true
+      if (controls.some((c) => Math.abs(c.chainage - p.chainage) < 1e-6)) return true
+      const g1 = (p.elevation - raw[i - 1].elevation) / (p.chainage - raw[i - 1].chainage)
+      const g2 = (raw[i + 1].elevation - p.elevation) / (raw[i + 1].chainage - p.chainage)
+      return Math.abs(g2 - g1) * 100 > 0.05
+    })
+    let vertical = fitted(kept)
+    let analysis = check(vertical)
+    let simplified = false
+    if (o.simplifyToleranceM > 0 && vertical.length > 3) {
+      const lighter = fitted(
+        simplifyProfile(
+          vertical,
+          o.simplifyToleranceM,
+          controls.map((c) => c.chainage),
+        ),
+      )
+      if (lighter.length < vertical.length) {
+        const light = check(lighter)
+        const ok =
+          !light.verticalChecks?.length &&
+          light.maxGradePercent <= settings.maxGradePercent + 1e-6 &&
+          light.coveragePercent >= analysis.coveragePercent - 1e-6 &&
+          score(light) <= score(analysis) * 1.01 + 1
+        if (ok) {
+          vertical = lighter
+          analysis = light
+          simplified = true
+        }
       }
     }
+    return { vertical, analysis, simplified }
   }
+  // Total cost: the DP cannot carry a running mass balance, so price interval imbalance at a few
+  // levels and keep the line the full analysis (haul, borrow, waste) prices lowest.
+  const haul = alignment.engineering?.haul
+  const unit = Math.max(1, settings.fillRate, haul?.borrowRate ?? 0, haul?.wasteRate ?? 0)
+  const prices = o.objective === 'total' ? [0, 0.25, 0.5, 1, 2].map((x) => x * unit) : [0]
+  let chosenResult: (ReturnType<typeof finish> & { cost: number; price: number }) | null = null
+  for (const price of prices) {
+    imbalancePrice = price
+    const solved = solve()
+    const result = finish(solved.chosen)
+    if (!chosenResult || score(result.analysis) < score(chosenResult.analysis))
+      chosenResult = { ...result, cost: solved.cost, price }
+  }
+  const { vertical, simplified } = chosenResult!
   return {
     vertical,
-    estimatedEarthworkCost: best.cell.cost,
+    estimatedEarthworkCost: earthwork(chosenResult!.analysis),
     pviCount: vertical.length,
     levelsPerPvi: 2 * ladder + 1,
     sectionSolves: solves,
-    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m in ${o.levelStepM} m steps, K ${o.k}.`,
+    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m in ${o.levelStepM} m steps, K ${o.k}${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult!.price.toFixed(2)}/m³` : ''}.`,
   }
 }
