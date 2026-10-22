@@ -141,6 +141,22 @@ agree with the existing LiDAR analysis. Bilinear interpolation references cell
 centres; any missing neighbour leaves the sample missing. Interpolation does
 not add measured resolution or establish survey accuracy.
 
+### Imported LAS
+
+"Import GeoTIFF or LAS" also accepts an uncompressed LAS 1.0–1.4 point cloud of up to 1 GB
+(`lasSurface.ts`):
+
+- Ground-classified points (class 2) are averaged into cells of about 1 m. The cell grows
+  if needed to stay within the 4.19 million cell budget.
+- A gap is filled only from at least three known neighbours, up to three cells in;
+  anything wider stays missing.
+- The CRS comes from the file's GeoTIFF keys (ProjectedCSTypeGeoKey). The vertical datum
+  comes from the entered field or, failing that, the file's vertical key.
+
+The grid then behaves exactly like an imported GeoTIFF, including checksum restoration.
+LAZ, clouds without ground classification and clouds without a CRS key are refused, each
+with the step to take first.
+
 ### Imported GeoTIFF
 
 Import requires a north-up, single-band bare-earth elevation raster and a
@@ -263,6 +279,12 @@ minor ticks at a fifth of the interval once they are 10 px apart. Curve callouts
 selected station, which follows the pointer along the road, always shows its full
 readout (station · grade · ground Z) on the left of travel. The Labels checkbox hides
 labels, ticks and callouts together.
+
+Dense profiles stay readable. When PVIs fall under 44 px apart on screen (an optimized line,
+or a long road zoomed out), the profile drops curve bands and labels, thins station callouts
+to 30 px apart and shrinks the PVI handles. Zooming in brings them back. The mouse wheel or a
+trackpad pinch zooms about the pointer's chainage, and a horizontal scroll or Shift+wheel
+pans, without scrolling the page. The mass chart and bands follow the same range.
 
 The profile's pan, zoom, fit and vertical-exaggeration controls and its visible
 station range float in the top-right corner of the chart; the top-left carries a
@@ -400,6 +422,14 @@ road-class standard or an inferred site-specific design.
 A template ditch may have a **bottom width**. Zero is the original V ditch; any value up to
 the ditch width gives a trapezoidal (U) or box ditch with side slopes over the remaining
 width. The bottom width can be set per side, like the other components.
+
+**Template components** (Template tab) shows the base section as RoadEng's editor does: a
+tree per side of a resource lane (width, crossfall, surfacing), a conditional standard
+ditch (built only where the hinge is below ground; top width, depth, bottom width) and a
+standard cut/fill slope. Each component has its rule and its properties, and a to-scale
+sketch highlights the selected one. A side value overrides the symmetric base; "Use base
+value" clears it. The tree is an editor over these fixed components, not a way to add new
+component types.
 
 **Design speed** (Template → Design speed) turns on curve rules:
 
@@ -719,8 +749,19 @@ over the fixed horizontal alignment:
   adjoining tangent, and keeps every control inside its tolerance.
 
 The cost minimized is cut × cut rate + fill × fill rate, with a penalty per metre for sections
-that cannot close. Haul, borrow, waste, clearing and structures are evaluated afterwards by the
-full analysis; they are not optimized. Curves are sized from K and the result becomes a new
+that cannot close.
+
+With the **Total cost** objective, each interval's imbalance (reusable cut minus fill) is
+also priced, at five levels from none up to twice the larger of the fill, borrow and waste
+rates. The dynamic programme is solved for each, against the same section tables, and the
+line the full analysis prices lowest is kept. That analysis includes the haul allocation,
+borrow and waste when they are entered. The search itself cannot carry a running mass
+balance, so this is a priced selection rather than a global haul optimum. It never costs
+more than the cut-and-fill line.
+
+The search places a PVI at every spacing step. Afterwards the line is simplified
+(Douglas–Peucker, 0.3 m), and the simpler line is kept only if it still meets every limit
+at no more than 1 % extra cost. On the LiDAR road below, that gives 15 PVIs instead of 22. Curves are sized from K and the result becomes a new
 alternative road, with the covered estimates before and after in the notice. If no profile
 meets the limits, the optimizer says why instead of returning one.
 
@@ -728,6 +769,22 @@ On the published LiDAR tile (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 
 the search took about 1.3 s in a desktop browser. It lowered the covered estimate from
 $795,170 to $420,793 at the 12 % maximum grade. With both ends tied to ground, the road's
 25 % drop near its end cannot be met at 12 % within ±5 m, and the optimizer reports that.
+
+### Spirals
+
+A horizontal point can carry a clothoid transition length on each side of its curve
+(Design → Horizontal points, or "Set spirals on every curve"). The engine then builds TS →
+spiral → SC → arc → CS → spiral → ST:
+
+- each spiral's heading runs ψ0 + κ·t²/(2L), integrated by Simpson's rule;
+- the arc turns Δ − 2θs, where θs = Ls/(2R);
+- the tangent length is (R + p)·tan(Δ/2) + k, with the shift p and abscissa k from the
+  clothoid series. It decides where the curve starts and whether it fits its legs.
+
+If two spirals would turn more than the deflection, the curve falls back to a simple curve
+with a warning. Superelevation and widening follow the curvature along a spiral. Spirals
+export to LandXML as `<Spiral spiType="clothoid">`, and the bulk radius fit accounts for
+their longer tangents.
 
 ### Horizontal curve tools
 
@@ -788,22 +845,23 @@ cable-tension or payload solution.
 The following capabilities appear in the references or would require more
 inputs, but are not implemented by this workspace:
 
-- Browser ingestion/classification of LAS/LAZ point clouds, new ground TIN
-  generation, raw-point thinning or a full-density corridor reprocessing job.
-  Use the existing LiDAR pipeline or an external GIS to prepare a bounded
-  bare-earth GeoTIFF; the workspace preserves that raster's native cells.
+- LAZ decompression, ground classification of raw points, TIN triangulation,
+  breaklines or a full-density corridor reprocessing job. Uncompressed, ground-classified
+  LAS is gridded in the browser (see [Imported LAS](#imported-las)); anything heavier
+  belongs in the `scripts/lidar/` pipeline or an external tool.
 - Automatic geological inference, material testing/suitability, layer-specific
   fill requirements, full stripping/undercut beneath fill, geometric borrow-pit
   excavation volumes, globally optimized borrow/waste allocation, construction
-  scheduling, and a profile optimizer that includes haul or a total-construction-cost
-  optimizer. The cut-and-fill profile optimizer, user-defined horizons and the
-  deterministic allocation scenario are implemented.
-- Arbitrary programmable template components (a component tree with codes and
-  conditional logic), a separately graded 3D landing pad, spirals, intersection
+  scheduling, and a profile optimizer that carries a running mass balance inside its
+  search. The cut-and-fill and total-cost profile optimizers, user-defined horizons and
+  the deterministic allocation scenario are implemented.
+- Programmable template components: new component types, point codes or scripted
+  conditions. The template is edited as a component tree over its fixed lane, ditch and
+  slope components. Also out of scope: a separately graded 3D landing pad, intersection
   design and road-network topology or automatic spur snapping. Named parameter
-  templates, signed side crossfalls, U ditches, design-speed superelevation and
-  widening, and linear station transitions are implemented. A spur can be a separate,
-  manually connected road.
+  templates, signed side crossfalls, U ditches, design-speed superelevation and widening,
+  clothoid spirals and linear station transitions are implemented. A spur can be a
+  separate, manually connected road.
 - DEM-derived stream extraction, flow accumulation, wetness or watershed
   delineation. Aspect display is implemented from the active terrain. Supplied streams and
   polygons provide the crossing/constraint context. Entered culvert geometry,
@@ -814,10 +872,10 @@ inputs, but are not implemented by this workspace:
   exploration and individual D-lines use entered heights and assumed sag only.
 - Tree/species/DBH, merchantable timber volume, piece size or inventory recovery
   from bare-earth terrain. These require their own inventory data and tools.
-- Native RoadEng/CAD project output, shapefile output, a full survey stakeout
-  package or dedicated per-chart PNG export. LandXML, a slope-stake point CSV and
-  the outputs below are the interoperability contract. The printable report, with
-  its cross-section chapter, supports the browser's Print / Save as PDF.
+- Native RoadEng/CAD project output (DWG/DXF), a full survey stakeout package or
+  dedicated per-chart PNG export. LandXML, a zipped shapefile, a slope-stake point CSV,
+  the A3 plot book and the outputs below are the interoperability contract. The plot
+  book and the report print through the browser's Print / Save as PDF.
 
 ## Computation and file budgets
 
@@ -889,6 +947,20 @@ sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
 - Stakeout CSV: every 20 m, the centreline, formation edges, ditch bottoms and catch points,
   with offset (negative left), grid coordinates, level, ground and cut (+) / fill (−). It
   contains only numbers and fixed codes.
+- Shapefile (zip): `shapefile.ts` writes SHP, SHX, dBase III, WGS84 `.prj` and UTF-8
+  `.cpg` without a dependency. There are three layers: every road centreline with its
+  length, grade, quantities and cost; the active road's stations with levels, areas
+  and flags; and its culverts.
+- Plot book (`plotBook.ts`), A3 landscape, in two chapters:
+  1. Plan-and-profile sheets, 250 m each. The plan is rotated so the road runs left to
+     right, with contours from the active terrain, formation edges, catch lines, station
+     ticks, a turned north arrow and a scale bar. Below it, the profile (ground, design,
+     grades) sits above a mass-haul strip on the same station scale.
+  2. Cross-section sheets of twelve, every 20 m, each drawn at one scale for both axes.
+
+  Every sheet has a title block: project, road, sheet, terrain and datum, sheet n of N,
+  scale, and "not for construction".
+
 - Printed report: a cross-section chapter after the profile, with one plot per 20 m
   station, two per row, starting on a new page (at most 240 plots).
   Text fields are quoted and protected against spreadsheet formula injection.

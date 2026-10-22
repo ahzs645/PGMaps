@@ -1,3 +1,4 @@
+import JSZip from 'jszip'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
@@ -21,7 +22,8 @@ async function download(page: Page, button: Locator) {
   const result = await pending
   const chunks: Buffer[] = []
   for await (const chunk of (await result.createReadStream())!) chunks.push(Buffer.from(chunk))
-  return { name: result.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') }
+  const bytes = Buffer.concat(chunks)
+  return { name: result.suggestedFilename(), text: bytes.toString('utf8'), bytes }
 }
 const estimate = async (page: Page) =>
   Number(
@@ -113,5 +115,81 @@ test('station table interval and columns, saved layouts and cost status', async 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
   await expect(page.getByTestId('road-cost-status')).toContainText(/Cost status: current.*process time \d/)
   await expect(page.getByTestId('road-haul-cost-graph')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+/** A tiny LAS 1.2 cloud (format 1, EPSG:26910 and vertical EPSG:5703 keys): ground plus canopy. */
+function lasFile() {
+  const points: { x: number; y: number; z: number; cls: number }[] = []
+  for (let x = 0; x <= 40; x += 0.5)
+    for (let y = 0; y <= 40; y += 0.5) {
+      points.push({ x, y, z: 700 + 0.05 * x, cls: 2 })
+      points.push({ x, y, z: 725, cls: 5 })
+    }
+  const headerSize = 227,
+    vlrLength = 24,
+    offset = headerSize + 54 + vlrLength,
+    record = 28
+  const buffer = Buffer.alloc(offset + points.length * record)
+  buffer.write('LASF', 0)
+  buffer.writeUInt8(1, 24)
+  buffer.writeUInt8(2, 25)
+  buffer.writeUInt16LE(headerSize, 94)
+  buffer.writeUInt32LE(offset, 96)
+  buffer.writeUInt32LE(1, 100)
+  buffer.writeUInt8(1, 104)
+  buffer.writeUInt16LE(record, 105)
+  buffer.writeUInt32LE(points.length, 107)
+  for (let i = 0; i < 3; i++) buffer.writeDoubleLE(0.001, 131 + i * 8)
+  ;[515000, 5970000, 0].forEach((v, i) => buffer.writeDoubleLE(v, 155 + i * 8))
+  ;[515040, 515000, 5970040, 5970000, 725, 700].forEach((v, i) => buffer.writeDoubleLE(v, 179 + i * 8))
+  buffer.write('LASF_Projection', headerSize + 2)
+  buffer.writeUInt16LE(34735, headerSize + 18)
+  buffer.writeUInt16LE(vlrLength, headerSize + 20)
+  ;[1, 1, 0, 2, 3072, 0, 1, 26910, 4096, 0, 1, 5703].forEach((v, i) => buffer.writeUInt16LE(v, headerSize + 54 + i * 2))
+  points.forEach((p, i) => {
+    const at = offset + i * record
+    buffer.writeInt32LE(Math.round(p.x / 0.001), at)
+    buffer.writeInt32LE(Math.round(p.y / 0.001), at + 4)
+    buffer.writeInt32LE(Math.round(p.z / 0.001), at + 8)
+    buffer.writeUInt8(p.cls, at + 15)
+  })
+  return buffer
+}
+
+test('shapefile and plot book exports, template components, spirals and LAS terrain', async ({ page }) => {
+  const errors = await prepare(page)
+  // Bulk curves, then spirals on every curve.
+  await page.getByRole('button', { name: 'Best fit every corner', exact: true }).click()
+  await page.getByLabel('Spirals (m)', { exact: true }).fill('15')
+  await page.getByLabel('Spirals (m)', { exact: true }).press('Tab')
+  await page.getByRole('button', { name: 'Set spirals on every curve', exact: true }).click()
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('Set 15 m spirals')
+
+  const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
+  await workflow.getByRole('tab', { name: 'Section' }).click()
+  const tree = page.getByTestId('road-template-components')
+  await tree.getByRole('button', { name: 'Ditch · standard-right', exact: true }).click()
+  await tree.getByLabel(/^Bottom width \(m\)/).fill('0.4')
+  await tree.getByLabel(/^Bottom width \(m\)/).press('Tab')
+  await expect(tree.getByRole('button', { name: 'Use base value', exact: true })).toBeVisible()
+
+  await workflow.getByRole('tab', { name: 'Files' }).click()
+  const zip = await download(page, page.getByRole('button', { name: 'Shapefile (zip)', exact: true }))
+  expect(zip.name).toMatch(/-shapefiles\.zip$/)
+  const archive = await JSZip.loadAsync(zip.bytes)
+  expect(Object.keys(archive.files)).toEqual(
+    expect.arrayContaining(['road_centrelines.shp', 'road_centrelines.dbf', 'road_stations.shp', 'road_stations.prj']),
+  )
+  const book = await download(page, page.getByRole('button', { name: 'Plot book (A3)', exact: true }))
+  expect(book.text.match(/<section class="sheet">/g)!.length).toBeGreaterThan(1)
+  expect(book.text).toContain('Mass haul (m³)')
+
+  await workflow.getByRole('tab', { name: 'Terrain' }).click()
+  const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Import GeoTIFF or LAS', exact: true }).click()
+  await (await chooser).setFiles({ name: 'ground.las', mimeType: 'application/octet-stream', buffer: lasFile() })
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('points are ground')
+  await expect(page.getByTestId('road-planning-basis')).toContainText('TERRAIN')
   expect(errors).toEqual([])
 })
