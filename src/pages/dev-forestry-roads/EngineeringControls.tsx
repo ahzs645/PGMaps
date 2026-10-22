@@ -3,7 +3,7 @@ import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { createEngineeringDesign } from './engineeringTypes'
 import { downloadText } from '@/lib/download'
 import { importRoadLibrary, serializeRoadLibrary } from './project'
@@ -85,6 +85,7 @@ const templateFields: NumericField<RoadTemplate>[] = [
   { key: 'fillSlope', label: 'Template fill H:V', min: 0.1, max: 10 },
   { key: 'ditchWidth', label: 'Template ditch width (m)', max: 10 },
   { key: 'ditchDepth', label: 'Template ditch depth (m)', max: 5 },
+  { key: 'ditchBottomWidth', label: 'Ditch bottom width (m, 0 = V)', max: 10 },
 ]
 const sideFields: NumericField<RoadTemplate>[] = [
   { key: 'leftCrossfallPercent', label: 'Left crossfall (%)', min: -20, max: 20 },
@@ -822,6 +823,24 @@ export function EngineeringControls({
                     { key: 'fixedCost', label: `Culvert ${index + 1} fixed cost ($)`, max: 1e9 },
                   ]}
                   onChange={(p) => patch('culverts', c.id, p)}
+                />
+                <OptionalNumberField
+                  label={`Culvert ${index + 1} ditch dip to inlet (%)`}
+                  placeholder="no dip"
+                  value={c.ditchDipPercent ?? null}
+                  min={0.1}
+                  max={50}
+                  onChange={(dip) =>
+                    edit((e) => ({
+                      ...e,
+                      culverts: e.culverts.map((x) => {
+                        if (x.id !== c.id) return x
+                        const { ditchDipPercent: _old, ...rest } = x
+                        void _old
+                        return dip === null ? rest : { ...rest, ditchDipPercent: dip }
+                      }),
+                    }))
+                  }
                 />
                 <label className="flex items-center gap-1 text-xs">
                   <input

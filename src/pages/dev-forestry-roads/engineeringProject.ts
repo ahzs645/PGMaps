@@ -97,6 +97,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       inletInvertM: invert(v.inletInvertM, 'Inlet invert'),
       outletInvertM: invert(v.outletInvertM, 'Outlet invert'),
       minCoverM: numeric(v.minCoverM, 'Minimum cover', 0, 100),
+      ...(v.ditchDipPercent === undefined || v.ditchDipPercent === null
+        ? {}
+        : { ditchDipPercent: numeric(v.ditchDipPercent, 'Ditch dip grade', 0.1, 50) }),
       unitCost: numeric(v.unitCost, 'Culvert cost per metre', 0, 1000000),
       fixedCost: numeric(v.fixedCost, 'Culvert fixed cost', 0, 1e9),
       ...(v.kind === undefined ? {} : { kind: oneOf(v.kind, ['stream', 'cross-drain'] as const, 'Culvert kind') }),
@@ -126,8 +129,10 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     freeHaulRate: h.freeHaulRate === undefined ? 0 : numeric(h.freeHaulRate, 'Free-haul rate'),
     overhaulRate: numeric(h.overhaulRate, 'Overhaul rate'),
     endHaulRate: numeric(h.endHaulRate, 'End-haul rate'),
-    freeHaulLoadingRate: h.freeHaulLoadingRate === undefined ? 0 : numeric(h.freeHaulLoadingRate, 'Free-haul loading rate'),
-    overhaulLoadingRate: h.overhaulLoadingRate === undefined ? 0 : numeric(h.overhaulLoadingRate, 'Overhaul loading rate'),
+    freeHaulLoadingRate:
+      h.freeHaulLoadingRate === undefined ? 0 : numeric(h.freeHaulLoadingRate, 'Free-haul loading rate'),
+    overhaulLoadingRate:
+      h.overhaulLoadingRate === undefined ? 0 : numeric(h.overhaulLoadingRate, 'Overhaul loading rate'),
     endHaulLoadingRate: h.endHaulLoadingRate === undefined ? 0 : numeric(h.endHaulLoadingRate, 'End-haul loading rate'),
     borrowRate: numeric(h.borrowRate, 'Borrow rate'),
     wasteRate: numeric(h.wasteRate, 'Waste rate'),

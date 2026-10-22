@@ -15,6 +15,7 @@ import type {
   RoadSettings,
   RoadTemplate,
   TerrainMetadata,
+  CurveDesign,
   VerticalControl,
   VerticalStandards,
   WidthOverride,
@@ -82,6 +83,9 @@ function parseTemplate(raw: unknown): RoadTemplate {
     ['rightDitchWidth', 0, 10],
     ['leftDitchDepth', 0, 5],
     ['rightDitchDepth', 0, 5],
+    ['ditchBottomWidth', 0, 10],
+    ['leftDitchBottomWidth', 0, 10],
+    ['rightDitchBottomWidth', 0, 10],
     ['leftSurfaceDepth', 0, 2],
     ['rightSurfaceDepth', 0, 2],
   ] as const
@@ -170,6 +174,16 @@ function parseVerticalControl(raw: unknown): VerticalControl {
     throw Error('A vertical control point needs an elevation, a grade or both.')
   return control
 }
+function parseCurveDesign(raw: unknown): CurveDesign {
+  const r = object(raw, 'Curve design')
+  return {
+    designSpeedKmh: number(r.designSpeedKmh, 'Design speed', 1, 150),
+    maxSuperelevationPercent: number(r.maxSuperelevationPercent, 'Maximum superelevation', 0, 20),
+    sideFrictionFactor: number(r.sideFrictionFactor, 'Side friction factor', 0, 1),
+    runoffLengthM: number(r.runoffLengthM, 'Runoff length', 0, 1000),
+    wideningVehicleLengthM: optionalNumber(r.wideningVehicleLengthM, 'Widening vehicle length', 0, 50),
+  }
+}
 function parseAlignment(raw: unknown): Alignment {
   const r = object(raw, 'Alignment'),
     key = id(r.id, 'Alignment ID')
@@ -215,6 +229,7 @@ function parseAlignment(raw: unknown): Alignment {
     overrides,
     ...(r.engineering === undefined ? {} : { engineering: parseEngineering(r.engineering, parseTemplate) }),
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
+    ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.verticalControls === undefined
       ? {}
       : {

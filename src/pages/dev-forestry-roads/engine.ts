@@ -259,6 +259,58 @@ function location(
 }
 
 export const alignmentLength = (alignment: Alignment): number => compile(alignment).length
+
+// Section and width lookups need the curve geometry at many stations; compile it once per point set.
+const compiled = new WeakMap<Alignment, { key: string; path: Path }>()
+function compiledPath(alignment: Alignment): Path {
+  const key = alignment.points.map((p) => `${p.coordinate[0]},${p.coordinate[1]},${p.radiusM}`).join(';')
+  const cached = compiled.get(alignment)
+  if (cached?.key === key) return cached.path
+  const path = compile(alignment)
+  compiled.set(alignment, { key, path })
+  return path
+}
+
+/**
+ * Superelevation and widening at a station from the alignment's design-speed rules, or null
+ * outside every curve's runoff. `inside` is the side toward the curve centre.
+ */
+export function curveDesignAt(
+  alignment: Alignment,
+  chainage: number,
+): { inside: 'left' | 'right'; superPercent: number; extraWidth: number; ratio: number; radius: number } | null {
+  const d = alignment.curveDesign
+  if (!d || !(d.designSpeedKmh > 0)) return null
+  let path: Path
+  try {
+    path = compiledPath(alignment)
+  } catch {
+    return null
+  }
+  let best: { piece: Piece; distance: number } | null = null
+  for (const piece of path.pieces) {
+    if (piece.radius === null) continue
+    const distance = Math.max(0, piece.station - chainage, chainage - (piece.station + piece.length))
+    if (!best || distance < best.distance) best = { piece, distance }
+  }
+  if (!best) return null
+  const runoff = Math.max(0, d.runoffLengthM)
+  const ratio = best.distance <= EPS ? 1 : runoff > 0 ? clamp(1 - best.distance / runoff, 0, 1) : 0
+  if (ratio <= 0) return null
+  const radius = best.piece.radius!
+  const velocity = d.designSpeedKmh
+  const required = 100 * ((velocity * velocity) / (127 * radius) - d.sideFrictionFactor)
+  const superPercent = clamp(required, 0, Math.max(0, d.maxSuperelevationPercent))
+  const widening = d.wideningVehicleLengthM ? (d.wideningVehicleLengthM * d.wideningVehicleLengthM) / (2 * radius) : 0
+  return {
+    // Counter-clockwise sweep in the east/north frame turns left.
+    inside: (best.piece.sweep ?? 0) > 0 ? 'left' : 'right',
+    superPercent,
+    extraWidth: widening * ratio,
+    ratio,
+    radius,
+  }
+}
 /** Only actual fitted circular arcs; rejected radii remain sharp PIs and are absent. */
 export function horizontalCurveSummary(alignment: Alignment) {
   return compile(alignment).pieces.flatMap((p) =>
@@ -326,7 +378,12 @@ function widthExtras(alignment: Alignment, chainage: number, surfacedOnly = fals
 export function effectiveWidths(alignment: Alignment, chainage: number): { leftWidth: number; rightWidth: number } {
   const [left, right] = widthExtras(alignment, chainage)
   const t = templateAt(alignment, chainage).template
-  return { leftWidth: t.leftWidth + left, rightWidth: t.rightWidth + right }
+  const curve = curveDesignAt(alignment, chainage)
+  const inside = curve?.extraWidth ?? 0
+  return {
+    leftWidth: t.leftWidth + left + (curve?.inside === 'left' ? inside : 0),
+    rightWidth: t.rightWidth + right + (curve?.inside === 'right' ? inside : 0),
+  }
 }
 
 function verticalProfile(points: VerticalPoint[], warnings: string[]) {
@@ -453,6 +510,9 @@ type SectionResult = Pick<
   RoadStation,
   'section' | 'cutAreaM2' | 'fillAreaM2' | 'leftDaylightM' | 'rightDaylightM' | 'complete' | 'flags'
 >
+/** A dip never deepens a ditch past this, whatever the inlet invert. */
+const MAX_DITCH_DIP_DEPTH = 4
+
 function sectionAt(
   coordinate: Coordinate,
   heading: number,
@@ -474,6 +534,15 @@ function sectionAt(
     return v
   }
   const flags: string[] = []
+  const curve = curveDesignAt(alignment, s)
+  // Superelevation rotates the section about the centreline: the inside falls by at least its crown,
+  // the outside rises; in runoff the crossfall moves linearly from the template value.
+  const superelevated = (name: 'left' | 'right', crossfall: number, insideCrown: number) => {
+    if (!curve || curve.superPercent <= 0) return crossfall
+    const e = Math.max(curve.superPercent, insideCrown)
+    const target = name === curve.inside ? e : -e
+    return crossfall + (target - crossfall) * curve.ratio
+  }
   type Side = {
     width: number
     outer: number
@@ -484,13 +553,27 @@ function sectionAt(
     crossfall: number
     ditchWidth: number
     ditchDepth: number
+    /** Horizontal run of each ditch side slope: half the width for a V, less for a flat bottom. */
+    ditchSideRun: number
   }
   const side = (sign: number, width: number): Side => {
     const name = sign < 0 ? 'left' : 'right'
-    const crossfall = sideValue(t, name, 'CrossfallPercent'),
+    let ditchDepth = sideValue(t, name, 'DitchDepth')
+    const crossfall = superelevated(
+        name,
+        sideValue(t, name, 'CrossfallPercent'),
+        sideValue(t, curve?.inside ?? name, 'CrossfallPercent'),
+      ),
       ditchWidth = sideValue(t, name, 'DitchWidth'),
-      ditchDepth = sideValue(t, name, 'DitchDepth')
+      ditchSideRun = Math.max(0, (ditchWidth - Math.min(ditchWidth, sideValue(t, name, 'DitchBottomWidth'))) / 2)
     const edgeZ = (z ?? NaN) - (width * crossfall) / 100
+    // A culvert dip deepens the inlet-side ditch so its bottom falls to the inlet invert at the dip grade.
+    if (name === 'left' && ditchDepth > 0)
+      for (const culvert of alignment.engineering?.culverts ?? []) {
+        if (!culvert.ditchDipPercent || culvert.inletInvertM === null) continue
+        const required = culvert.inletInvertM + (Math.abs(s - culvert.chainage) * culvert.ditchDipPercent) / 100
+        ditchDepth = Math.max(ditchDepth, Math.min(MAX_DITCH_DIP_DEPTH, edgeZ - required))
+      }
     const atEdge = ground(sign * width)
     const ditch = atEdge !== null && atEdge > edgeZ + EPS && ditchWidth > 0 && ditchDepth > 0
     const outer = width + (ditch ? ditchWidth : 0),
@@ -537,7 +620,7 @@ function sectionAt(
         }
       }
     }
-    return { width, outer, edgeZ, ditch, slope, daylight, crossfall, ditchWidth, ditchDepth }
+    return { width, outer, edgeZ, ditch, slope, daylight, crossfall, ditchWidth, ditchDepth, ditchSideRun }
   }
   const left = side(-1, leftWidth),
     right = side(1, rightWidth)
@@ -545,8 +628,16 @@ function sectionAt(
   const count = Math.ceil((2 * halfWidth) / step)
   for (let i = 0; i <= count; i++) offsets.push(-halfWidth + (2 * halfWidth * i) / count)
   offsets.push(0, -leftWidth, rightWidth, -left.outer, right.outer)
-  if (left.ditch) offsets.push(-(leftWidth + left.ditchWidth / 2))
-  if (right.ditch) offsets.push(rightWidth + right.ditchWidth / 2)
+  for (const [sign, s] of [
+    [-1, left],
+    [1, right],
+  ] as const)
+    if (s.ditch)
+      offsets.push(
+        sign * (s.width + s.ditchWidth / 2),
+        sign * (s.width + s.ditchSideRun),
+        sign * (s.outer - s.ditchSideRun),
+      )
   if (left.daylight !== null) offsets.push(-left.daylight)
   if (right.daylight !== null) offsets.push(right.daylight)
   const ordered = [
@@ -557,8 +648,13 @@ function sectionAt(
     const d = Math.abs(x),
       side = x < 0 ? left : right
     if (d <= side.width + EPS) return z - (d * side.crossfall) / 100
-    if (side.ditch && d <= side.outer + EPS)
-      return side.edgeZ - side.ditchDepth * (1 - Math.abs((2 * (d - side.width)) / side.ditchWidth - 1))
+    if (side.ditch && d <= side.outer + EPS) {
+      // V ditch when the side run is half the width; a flat bottom between the side slopes otherwise.
+      const u = d - side.width
+      const along =
+        side.ditchSideRun > EPS ? Math.min(1, u / side.ditchSideRun, (side.ditchWidth - u) / side.ditchSideRun) : 1
+      return side.edgeZ - side.ditchDepth * Math.max(0, along)
+    }
     if (side.daylight !== null && d > side.daylight + EPS) return null
     return side.edgeZ + side.slope * (d - side.outer)
   }
@@ -866,10 +962,13 @@ export function analyzeRoad(
     massKnown = stations[0]?.complete ?? false
   const surfaceArea = (s: number) => {
     const e = widthExtras(alignment, s, true),
-      t = templateAt(alignment, s).template
+      t = templateAt(alignment, s).template,
+      curve = curveDesignAt(alignment, s)
+    // Curve widening is surfaced road; landing extra width is not.
+    const widen = (side: 'left' | 'right') => (curve?.inside === side ? curve.extraWidth : 0)
     return (
-      (t.leftWidth + e[0]) * sideValue(t, 'left', 'SurfaceDepth') +
-      (t.rightWidth + e[1]) * sideValue(t, 'right', 'SurfaceDepth')
+      (t.leftWidth + e[0] + widen('left')) * sideValue(t, 'left', 'SurfaceDepth') +
+      (t.rightWidth + e[1] + widen('right')) * sideValue(t, 'right', 'SurfaceDepth')
     )
   }
   for (let i = 0; i < stations.length; i++) {

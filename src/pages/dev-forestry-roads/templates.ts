@@ -2,14 +2,23 @@ import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate } 
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
-const attributes = ['CrossfallPercent', 'CutSlope', 'FillSlope', 'DitchWidth', 'DitchDepth', 'SurfaceDepth'] as const
+const attributes = [
+  'CrossfallPercent',
+  'CutSlope',
+  'FillSlope',
+  'DitchWidth',
+  'DitchDepth',
+  'DitchBottomWidth',
+  'SurfaceDepth',
+] as const
 type Attribute = (typeof attributes)[number]
 type Side = 'left' | 'right'
 const baseKey = (attribute: Attribute) => `${attribute[0].toLowerCase()}${attribute.slice(1)}` as keyof RoadTemplate
 
 /** A negative side crossfall rises away from the centreline (superelevation). */
 export function sideValue(template: RoadTemplate, side: Side, attribute: Attribute): number {
-  return template[`${side}${attribute}`] ?? template[baseKey(attribute)]!
+  // A ditch bottom width added later is optional: omitted means a V ditch.
+  return template[`${side}${attribute}`] ?? template[baseKey(attribute)] ?? 0
 }
 
 export function validateTemplate(t: RoadTemplate): void {
@@ -32,6 +41,7 @@ export function validateTemplate(t: RoadTemplate): void {
       bounded(sideValue(t, side, 'FillSlope'), 0.05, 10) &&
       bounded(sideValue(t, side, 'DitchWidth'), 0, 10) &&
       bounded(sideValue(t, side, 'DitchDepth'), 0, 5) &&
+      bounded(sideValue(t, side, 'DitchBottomWidth'), 0, sideValue(t, side, 'DitchWidth')) &&
       bounded(sideValue(t, side, 'SurfaceDepth'), 0, 2)
     if (!valid) throw new Error(`The ${side} template settings are outside their supported ranges.`)
   }

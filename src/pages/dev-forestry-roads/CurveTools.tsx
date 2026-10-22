@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NumberField } from './Controls'
+import { NumberField, OptionalNumberField } from './Controls'
 import { fitHorizontalRadii, type RadiusFitMode } from './horizontalTools'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -54,6 +54,81 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         >
           Best fit every corner
         </Button>
+      </div>
+    </div>
+  )
+}
+
+const CURVE_DESIGN_START = {
+  designSpeedKmh: 40,
+  maxSuperelevationPercent: 8,
+  sideFrictionFactor: 0.15,
+  runoffLengthM: 30,
+  wideningVehicleLengthM: null,
+}
+
+/** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
+export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace }) {
+  const { alignment, updateAlignment } = workspace
+  const design = alignment.curveDesign
+  const set = (patch: Partial<NonNullable<typeof design>>) =>
+    updateAlignment((a) => ({ ...a, curveDesign: { ...(a.curveDesign ?? CURVE_DESIGN_START), ...patch } }))
+  return (
+    <div className="space-y-2" data-testid="road-curve-design">
+      <p className="text-[11px] leading-4 text-muted-foreground">
+        e = V²/(127 R) − f, between the crown and the maximum, rotated about the centreline; inside widening L²/(2R).
+        Both run in over the runoff before each curve. Leave the speed empty for none. The values are entries, not a
+        road-class standard.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <OptionalNumberField
+          label="Design speed (km/h)"
+          value={design?.designSpeedKmh ?? null}
+          min={1}
+          max={150}
+          step={5}
+          onChange={(designSpeedKmh) =>
+            designSpeedKmh === null
+              ? updateAlignment((a) => {
+                  const { curveDesign: _off, ...rest } = a
+                  void _off
+                  return rest
+                })
+              : set({ designSpeedKmh })
+          }
+        />
+        {design && (
+          <>
+            <NumberField
+              label="Max superelevation (%)"
+              value={design.maxSuperelevationPercent}
+              max={20}
+              onChange={(maxSuperelevationPercent) => set({ maxSuperelevationPercent })}
+            />
+            <NumberField
+              label="Side friction f"
+              value={design.sideFrictionFactor}
+              max={1}
+              step={0.01}
+              onChange={(sideFrictionFactor) => set({ sideFrictionFactor })}
+            />
+            <NumberField
+              label="Runoff (m)"
+              value={design.runoffLengthM}
+              max={1000}
+              step={5}
+              onChange={(runoffLengthM) => set({ runoffLengthM })}
+            />
+            <OptionalNumberField
+              label="Widening vehicle (m)"
+              placeholder="none"
+              value={design.wideningVehicleLengthM}
+              min={0}
+              max={50}
+              onChange={(wideningVehicleLengthM) => set({ wideningVehicleLengthM })}
+            />
+          </>
+        )}
       </div>
     </div>
   )

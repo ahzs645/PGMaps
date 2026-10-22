@@ -3,6 +3,7 @@ import {
   alignmentLength,
   analyzeCable,
   analyzeRoad,
+  curveDesignAt,
   distance,
   effectiveWidths,
   nearestStation,
@@ -475,5 +476,55 @@ describe('cross-section orientation', () => {
     const fillRight = station.section.filter((p) => p.offset > 0 && p.design !== null && p.ground! < p.design - 0.01)
     expect(cutLeft.length).toBeGreaterThan(0)
     expect(fillRight.length).toBeGreaterThan(0)
+  })
+})
+
+describe('U ditches, superelevation and curve widening', () => {
+  it('adds a flat ditch bottom: a trapezoid instead of a V', () => {
+    const road = alignment(100, 799)
+    road.template = { ...road.template, ditchWidth: 2, ditchDepth: 0.5 }
+    const v = nearestStation(analyzeRoad(road, flat, settings).stations, 50)!
+    road.template = { ...road.template, ditchBottomWidth: 1 }
+    const u = nearestStation(analyzeRoad(road, flat, settings).stations, 50)!
+    // Each ditch grows from W·D/2 = 0.5 m² to (W + b)/2 · D = 0.75 m².
+    expect(u.cutAreaM2! - v.cutAreaM2!).toBeCloseTo(0.5, 6)
+    const bottom = u.section.filter((p) => p.offset > 3 && p.offset < 5 && Math.abs(p.design! - 798.5) < 1e-9)
+    expect(Math.min(...bottom.map((p) => p.offset))).toBeCloseTo(3.5, 6)
+    expect(Math.max(...bottom.map((p) => p.offset))).toBeCloseTo(4.5, 6)
+  })
+
+  it('superelevates and widens a curve from the design speed, running in over the runoff', () => {
+    // North 200 m, then a right turn to the east with a 60 m radius.
+    const corner = north(200)
+    const road = alignment(200, 800)
+    road.points = [
+      { id: 'a', coordinate: origin, radiusM: 0 },
+      { id: 'b', coordinate: corner, radiusM: 60 },
+      { id: 'c', coordinate: offsetCoordinate(corner, 90, 200), radiusM: 0 },
+    ]
+    road.vertical = []
+    road.template = { ...road.template, crossfallPercent: 3 }
+    road.curveDesign = {
+      designSpeedKmh: 40,
+      maxSuperelevationPercent: 8,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 30,
+      wideningVehicleLengthM: 12,
+    }
+    // Curve from 200 − 60 = 140 m to 140 + 60·π/2 ≈ 234 m.
+    const middle = curveDesignAt(road, 187)!
+    expect(middle.inside).toBe('right')
+    // e = 40² / (127 · 60) − 0.15 = 0.06 → 6%; widening = 12² / 120 = 1.2 m.
+    expect(middle.superPercent).toBeCloseTo(100 * (1600 / 7620 - 0.15), 6)
+    expect(middle.extraWidth).toBeCloseTo(1.2, 6)
+    expect(effectiveWidths(road, 187)).toEqual({ leftWidth: 3, rightWidth: 4.2 })
+    expect(curveDesignAt(road, 125)!.ratio).toBeCloseTo(0.5, 6)
+    expect(curveDesignAt(road, 100)).toBeNull()
+    const station = nearestStation(analyzeRoad(road, flat, settings).stations, 190)!
+    const z = (offset: number) => station.section.find((p) => Math.abs(p.offset - offset) < 1e-6)!.design!
+    // Inside (right) edge falls e over 4.2 m; the outside (left) edge rises e over 3 m.
+    const e = 1600 / 7620 - 0.15
+    expect(z(4.2) - z(0)).toBeCloseTo(-e * 4.2, 6)
+    expect(z(-3) - z(0)).toBeCloseTo(e * 3, 6)
   })
 })

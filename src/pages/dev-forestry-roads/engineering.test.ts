@@ -607,3 +607,21 @@ describe('haul unit cost', () => {
     expect(haulUnitCost(DEFAULT_HAUL_SETTINGS, 20)).toBe(0)
   })
 })
+
+describe('culvert ditch dip', () => {
+  it('deepens the inlet-side ditch to the inlet invert and grades it back up at the dip', () => {
+    // Formation 1 m below flat ground: both sides have a 0.5 m V ditch whose bottom sits at 798.5.
+    const a = road(799)
+    a.template = { ...a.template, ditchWidth: 1, ditchDepth: 0.5 }
+    a.engineering!.culverts = [culvert({ inletInvertM: 797.5, ditchDipPercent: 2 })]
+    const at = (chainage: number, side: 'left' | 'right') => {
+      const s = analyzeRoad(a, flat, settings).stations.find((x) => Math.abs(x.chainage - chainage) < 1e-6)!
+      return s.section.find((p) => Math.abs(p.offset - (side === 'left' ? -3.5 : 3.5)) < 1e-6)!.design!
+    }
+    expect(at(50, 'left')).toBeCloseTo(797.5, 6)
+    expect(at(30, 'left')).toBeCloseTo(797.9, 6)
+    // Beyond 50 m of dip the normal ditch is deeper than the dip line, and the right ditch never dips.
+    expect(at(0, 'left')).toBeCloseTo(798.5, 6)
+    expect(at(50, 'right')).toBeCloseTo(798.5, 6)
+  })
+})

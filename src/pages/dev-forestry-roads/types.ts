@@ -26,6 +26,8 @@ export interface RoadTemplate {
   ditchWidth: number
   ditchDepth: number
   surfaceDepth: number
+  /** Flat ditch bottom inside the ditch width: 0 (or omitted) is a V ditch, up to the width is a U / box ditch. */
+  ditchBottomWidth?: number
   /** Optional side-specific values; omitted values inherit the symmetric base setting. */
   leftCrossfallPercent?: number
   rightCrossfallPercent?: number
@@ -37,6 +39,8 @@ export interface RoadTemplate {
   rightDitchWidth?: number
   leftDitchDepth?: number
   rightDitchDepth?: number
+  leftDitchBottomWidth?: number
+  rightDitchBottomWidth?: number
   leftSurfaceDepth?: number
   rightSurfaceDepth?: number
 }
@@ -50,6 +54,19 @@ export interface WidthOverride {
   side: 'left' | 'right' | 'both'
   extraWidth: number
 }
+/**
+ * Design-speed curve rules: superelevation e = V²/(127 R) − f, held between the normal crown and
+ * the maximum, rotated about the centreline, plus inside widening L²/(2R) for a vehicle of length L.
+ * Both run in linearly over the runoff length before each curve and out after it.
+ */
+export interface CurveDesign {
+  designSpeedKmh: number
+  maxSuperelevationPercent: number
+  sideFrictionFactor: number
+  runoffLengthM: number
+  /** Null for no curve widening. */
+  wideningVehicleLengthM: number | null
+}
 export interface Alignment {
   id: string
   name: string
@@ -62,6 +79,7 @@ export interface Alignment {
   /** Optional vertical standards and control points; unset values are not checked. */
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
+  curveDesign?: CurveDesign
 }
 export interface ContextFeature {
   id: string

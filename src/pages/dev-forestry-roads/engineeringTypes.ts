@@ -52,6 +52,11 @@ export interface Culvert {
   inletInvertM: number | null
   outletInvertM: number | null
   minCoverM: number
+  /**
+   * Ditch dip toward the inlet: the inlet-side (left) ditch is deepened so its bottom falls at this
+   * grade (%) to the inlet invert, like RoadEng's culvert dip. Omitted means no dip.
+   */
+  ditchDipPercent?: number
   /** CAD per installed barrel metre, plus the explicit fixed amount. */
   unitCost: number
   fixedCost: number
