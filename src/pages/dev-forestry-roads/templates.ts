@@ -2,6 +2,7 @@ import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate } 
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
+const bounded = (value: number, low: number, high: number) => Number.isFinite(value) && value >= low && value <= high
 const attributes = [
   'CrossfallPercent',
   'CutSlope',
@@ -21,14 +22,66 @@ export function sideValue(template: RoadTemplate, side: Side, attribute: Attribu
   return template[`${side}${attribute}`] ?? template[baseKey(attribute)] ?? 0
 }
 
+/**
+ * The crossfall a section uses on one side at a station. On a curve the section rotates about the
+ * centreline toward the superelevation `curve.superPercent` (at least the inside crown), the inside
+ * falling and the outside rising, moving linearly from the template value over the runoff ratio.
+ */
+export function sectionCrossfall(
+  template: RoadTemplate,
+  side: Side,
+  curve: { inside: Side; superPercent: number; ratio: number } | null,
+): number {
+  const crossfall = sideValue(template, side, 'CrossfallPercent')
+  if (!curve || curve.superPercent <= 0) return crossfall
+  const e = Math.max(curve.superPercent, sideValue(template, curve.inside, 'CrossfallPercent'))
+  const target = side === curve.inside ? e : -e
+  return crossfall + (target - crossfall) * curve.ratio
+}
+
+export type TemplateStarter = 'current' | 'single' | 'double' | 'landing' | 'urban'
+
+const STARTER_DIMENSIONS: Record<Exclude<TemplateStarter, 'current'>, Partial<RoadTemplate>> = {
+  single: { leftWidth: 3, rightWidth: 3, crossfallPercent: 4 },
+  double: { leftWidth: 4.5, rightWidth: 4.5, crossfallPercent: 4 },
+  landing: { leftWidth: 12, rightWidth: 3, crossfallPercent: 2, surfaceDepth: 0 },
+  // No ditch: a ditch bottom cannot be wider than the ditch, so it goes too.
+  urban: {
+    leftWidth: 3.5,
+    rightWidth: 3.5,
+    crossfallPercent: 2,
+    ditchWidth: 0,
+    ditchDepth: 0,
+    ditchBottomWidth: 0,
+    surfaceDepth: 0.3,
+  },
+}
+
+/**
+ * A new named template from a starting point. `current` copies the road section as it is; every
+ * other starter is symmetric, so it drops all side-specific values (ditch bottom widths included)
+ * and keeps the ditch bottom within the ditch. Throws when the result is out of range.
+ */
+export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter): RoadTemplate {
+  const template: RoadTemplate = { ...base }
+  if (starter !== 'current') {
+    Object.assign(template, STARTER_DIMENSIONS[starter])
+    for (const side of ['left', 'right'] as const)
+      for (const attribute of attributes) delete template[`${side}${attribute}`]
+    if (template.ditchBottomWidth !== undefined)
+      template.ditchBottomWidth = Math.max(0, Math.min(template.ditchBottomWidth, template.ditchWidth))
+  }
+  validateTemplate(template)
+  return template
+}
+
 export function validateTemplate(t: RoadTemplate): void {
-  const bounded = (value: number, low: number, high: number) => Number.isFinite(value) && value >= low && value <= high
   if (
     !bounded(t.leftWidth, 0.1, 50) ||
     !bounded(t.rightWidth, 0.1, 50) ||
     !bounded(t.crossfallPercent, 0, 20) ||
-    !bounded(t.cutSlope, 0.05, 10) ||
-    !bounded(t.fillSlope, 0.05, 10) ||
+    !bounded(t.cutSlope, 0.1, 10) ||
+    !bounded(t.fillSlope, 0.1, 10) ||
     !bounded(t.ditchWidth, 0, 10) ||
     !bounded(t.ditchDepth, 0, 5) ||
     !bounded(t.surfaceDepth, 0, 2)
@@ -37,8 +90,8 @@ export function validateTemplate(t: RoadTemplate): void {
   for (const side of ['left', 'right'] as const) {
     const valid =
       bounded(sideValue(t, side, 'CrossfallPercent'), -20, 20) &&
-      bounded(sideValue(t, side, 'CutSlope'), 0.05, 10) &&
-      bounded(sideValue(t, side, 'FillSlope'), 0.05, 10) &&
+      bounded(sideValue(t, side, 'CutSlope'), 0.1, 10) &&
+      bounded(sideValue(t, side, 'FillSlope'), 0.1, 10) &&
       bounded(sideValue(t, side, 'DitchWidth'), 0, 10) &&
       bounded(sideValue(t, side, 'DitchDepth'), 0, 5) &&
       bounded(sideValue(t, side, 'DitchBottomWidth'), 0, sideValue(t, side, 'DitchWidth')) &&
@@ -47,7 +100,11 @@ export function validateTemplate(t: RoadTemplate): void {
   }
 }
 
-/** Reject ambiguous overlapping assignments instead of changing their priority silently. */
+/**
+ * Reject ambiguous overlapping assignments instead of changing their priority silently. Numeric
+ * bounds match the editor fields and project-file parsing (`engineeringProject.ts`), so a value
+ * either can enter is one the analysis accepts.
+ */
 export function validateEngineering(e: AlignmentEngineering): void {
   if (
     e.templates.length > 50 ||
@@ -94,13 +151,9 @@ export function validateEngineering(e: AlignmentEngineering): void {
   for (const m of e.materials) {
     if (
       m.id === '__unclassified' ||
-      ![m.cutRate, m.reusableFraction, m.compactionFactor].every(Number.isFinite) ||
-      m.cutRate < 0 ||
-      m.cutRate > 10000000 ||
-      m.reusableFraction < 0 ||
-      m.reusableFraction > 1 ||
-      m.compactionFactor <= 0 ||
-      m.compactionFactor > 3 ||
+      !bounded(m.cutRate, 0, 10000) ||
+      !bounded(m.reusableFraction, 0, 1) ||
+      !bounded(m.compactionFactor, 0.1, 2) ||
       (m.purpose !== undefined && !['earthwork', 'stripping'].includes(m.purpose)) ||
       (m.purpose === 'stripping' && m.reusableFraction !== 0)
     )
@@ -133,55 +186,43 @@ export function validateEngineering(e: AlignmentEngineering): void {
     [
       h.freeHaulDistanceM,
       h.overhaulDistanceM,
+      h.freeHaulRate,
       h.overhaulRate,
       h.endHaulRate,
+      h.freeHaulLoadingRate,
+      h.overhaulLoadingRate,
+      h.endHaulLoadingRate,
       h.borrowRate,
       h.wasteRate,
-      h.mobilizationCost,
-      h.contingencyPercent,
-    ].some((v) => !Number.isFinite(v) || v < 0 || v > 1e12) ||
-    h.freeHaulDistanceM > 100000 ||
-    h.overhaulDistanceM < h.freeHaulDistanceM ||
-    h.overhaulDistanceM > 100000 ||
-    h.contingencyPercent > 100
+    ].some((v) => !bounded(v, 0, 100000)) ||
+    !bounded(h.mobilizationCost, 0, 1e9) ||
+    !bounded(h.contingencyPercent, 0, 100) ||
+    h.overhaulDistanceM < h.freeHaulDistanceM
   )
     throw new Error('Haul distances, rates and contingency are invalid; overhaul distance must include free haul.')
   for (const c of e.culverts) {
     if (
-      ![c.chainage, c.skewDegrees, c.lengthM, c.diameterM, c.minCoverM, c.unitCost, c.fixedCost].every(
-        Number.isFinite,
-      ) ||
-      c.chainage < 0 ||
-      c.chainage > 100000 ||
-      Math.abs(c.skewDegrees) > 80 ||
-      c.lengthM < 0.1 ||
-      c.lengthM > 500 ||
-      c.diameterM < 0.05 ||
-      c.diameterM > 20 ||
-      c.minCoverM < 0 ||
-      c.minCoverM > 100 ||
-      c.unitCost < 0 ||
-      c.fixedCost < 0 ||
-      c.unitCost > 1e12 ||
-      c.fixedCost > 1e12 ||
+      !bounded(c.chainage, 0, 100000) ||
+      !bounded(c.skewDegrees, -80, 80) ||
+      !bounded(c.lengthM, 0.2, 500) ||
+      !bounded(c.diameterM, 0.1, 20) ||
+      !bounded(c.minCoverM, 0, 100) ||
+      !bounded(c.unitCost, 0, 1000000) ||
+      !bounded(c.fixedCost, 0, 1e9) ||
+      (c.ditchDipPercent !== undefined && !bounded(c.ditchDipPercent, 0.1, 50)) ||
       (c.kind !== undefined && !['stream', 'cross-drain'].includes(c.kind)) ||
       [c.inletInvertM, c.outletInvertM].some((v) => v !== null && (!Number.isFinite(v) || Math.abs(v) > 12000))
     )
-      throw new Error('Culverts need valid stationing, size, cover, invert elevations and costs.')
+      throw new Error('Culverts need valid stationing, size, cover, ditch dip, invert elevations and costs.')
   }
   for (const s of e.sites) {
     if (
-      ![s.chainage, s.accessDistanceM, s.unitRate, s.fixedCost].every(Number.isFinite) ||
-      s.chainage < 0 ||
-      s.chainage > 100000 ||
-      s.accessDistanceM < 0 ||
-      s.accessDistanceM > 100000 ||
-      s.unitRate < 0 ||
-      s.fixedCost < 0 ||
-      s.unitRate > 1e12 ||
-      s.fixedCost > 1e12 ||
+      !bounded(s.chainage, 0, 100000) ||
+      !bounded(s.accessDistanceM, 0, 100000) ||
+      !bounded(s.unitRate, 0, 100000) ||
+      !bounded(s.fixedCost, 0, 1e9) ||
       !['borrow', 'waste'].includes(s.kind) ||
-      (s.capacityM3 !== null && (!Number.isFinite(s.capacityM3) || s.capacityM3 < 0 || s.capacityM3 > 1e12))
+      (s.capacityM3 !== null && !bounded(s.capacityM3, 0, 1e12))
     )
       throw new Error('Borrow/waste sites need valid stationing, access distance, capacity and costs.')
   }

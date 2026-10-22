@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { TabBar } from '@/components/ui/tab-bar'
+import { hasCompleteCoverage } from './analysisResult'
 import { formatRoadStation } from './Charts'
 import type { CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
 
@@ -155,13 +156,13 @@ export function EngineeringSummary({
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        {result && !result.complete && analysis.coveragePercent >= 99.999 && (
+        {result && !result.complete && hasCompleteCoverage(analysis) && (
           <InlineAlert tone="warning">
             Terrain sections are covered; engineering checks remain incomplete. Review structure inputs, station ranges
             and unallocated haul.
           </InlineAlert>
         )}
-        {analysis.coveragePercent < 99.999 && (
+        {!hasCompleteCoverage(analysis) && (
           <InlineAlert tone="warning">
             Covered subtotals · {fmt(analysis.coveragePercent)}% complete. Unsupported intervals are excluded.
           </InlineAlert>

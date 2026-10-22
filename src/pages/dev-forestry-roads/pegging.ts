@@ -1,4 +1,5 @@
 /** Survey-style peg measurements and ground-grade searches on the native sampler. */
+import { hasCompleteCoverage } from './analysisResult'
 import { distance, offsetCoordinate } from './engine'
 import type { Coordinate, TerrainSource } from './types'
 
@@ -106,7 +107,7 @@ export function findGradePeg(
     if (
       measurement.grade !== null &&
       Math.abs(measurement.grade - targetGrade) <= 0.01 &&
-      measurement.coveragePercent > 99.999
+      hasCompleteCoverage(measurement)
     ) {
       return { coordinate, measurement }
     }

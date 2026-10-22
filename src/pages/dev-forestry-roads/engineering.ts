@@ -1,6 +1,7 @@
 /** User-defined materials and structures applied to supported, sampled road sections. */
 import type {
   Alignment,
+  AlignmentEngineering,
   Coordinate,
   Culvert,
   CulvertAnalysis,
@@ -19,7 +20,9 @@ import type {
   RoadStation,
   TerrainSource,
 } from './types'
-import { sideValue, templateAt } from './templates'
+import { hasCompleteCoverage } from './analysisResult'
+import { curveDesignAt } from './engine'
+import { sectionCrossfall, templateAt } from './templates'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -118,13 +121,154 @@ function emptyHaul(enabled: boolean, complete: boolean): HaulSummary {
  * every class adds its loading rate. This is the piecewise haul-cost curve shown with the rates.
  */
 export function haulUnitCost(h: HaulSettings, distanceM: number) {
-  const free = distanceM <= h.freeHaulDistanceM + EPS,
-    over = !free && distanceM <= h.overhaulDistanceM + EPS
-  if (free) return (Math.max(0, distanceM) / 1000) * h.freeHaulRate + h.freeHaulLoadingRate
-  const charged = Math.max(0, distanceM - h.freeHaulDistanceM) / 1000
-  return over
-    ? charged * h.overhaulRate + h.overhaulLoadingRate
-    : charged * h.endHaulRate + h.endHaulLoadingRate
+  const charge = haulCharge(h, distanceM)
+  return charge.chargedKm * h[charge.rateKey] + h[charge.loadingRateKey]
+}
+
+const HAUL_CLASS_RATES = {
+  freehaul: { rateKey: 'freeHaulRate', loadingRateKey: 'freeHaulLoadingRate' },
+  overhaul: { rateKey: 'overhaulRate', loadingRateKey: 'overhaulLoadingRate' },
+  endhaul: { rateKey: 'endHaulRate', loadingRateKey: 'endHaulLoadingRate' },
+} as const satisfies Record<
+  HaulMovement['category'],
+  { rateKey: keyof HaulSettings; loadingRateKey: keyof HaulSettings }
+>
+
+/** The haul class of a movement `distanceM` long and the kilometres its distance rate is charged over. */
+function haulCharge(h: HaulSettings, distanceM: number) {
+  const category: HaulMovement['category'] =
+    distanceM <= h.freeHaulDistanceM + EPS
+      ? 'freehaul'
+      : distanceM <= h.overhaulDistanceM + EPS
+        ? 'overhaul'
+        : 'endhaul'
+  const chargedKm =
+    category === 'freehaul' ? Math.max(0, distanceM) / 1000 : Math.max(0, distanceM - h.freeHaulDistanceM) / 1000
+  return { category, chargedKm, ...HAUL_CLASS_RATES[category] }
+}
+
+/**
+ * One priced line of the haul, borrow, waste and site-preparation cost: `amount = quantity × rate`
+ * exactly. A null `rateKey` is a site's own rate or fixed cost rather than a haul setting.
+ */
+export interface HaulCostLine {
+  id: string
+  group: 'haul' | 'borrow' | 'waste' | 'sitePreparation'
+  item: string
+  quantity: number
+  unit: string
+  rate: number
+  rateUnit: string
+  rateKey: keyof HaulSettings | null
+  amount: number
+}
+
+const HAUL_CLASS_NAMES: Record<HaulMovement['category'], string> = {
+  freehaul: 'Free haul',
+  overhaul: 'Overhaul',
+  endhaul: 'Endhaul',
+}
+
+/**
+ * Splits the allocated haul cost into lines whose quantity × rate is their amount: per haul class
+ * and volume basis, its distance charge (m³·km) and its loading (m³) — compacted fill/borrow and
+ * bank waste are never added together — then borrow and waste per site at the site's rate, the
+ * unallocated remainder at the default rate, and each used site's preparation cost. The lines of a
+ * group sum to that group's cost in `EngineeringCosts`.
+ */
+export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalysis): HaulCostLine[] {
+  const h = e.haul,
+    lines: HaulCostLine[] = []
+  if (!h.enabled) return lines
+  for (const basis of ['compacted', 'bank'] as const) {
+    const label = basis === 'compacted' ? 'fill and borrow' : 'waste'
+    for (const category of ['freehaul', 'overhaul', 'endhaul'] as const) {
+      let work = 0,
+        volume = 0
+      for (const m of result.movements) {
+        if (m.volumeBasis !== basis) continue
+        const charge = haulCharge(h, m.distanceM)
+        if (charge.category !== category) continue
+        work += m.transportedVolumeM3 * charge.chargedKm
+        volume += m.transportedVolumeM3
+      }
+      const { rateKey, loadingRateKey } = HAUL_CLASS_RATES[category]
+      if (work > EPS)
+        lines.push({
+          id: `haul-${category}-${basis}`,
+          group: 'haul',
+          item: `${HAUL_CLASS_NAMES[category]} · ${label}`,
+          quantity: work,
+          unit: `${basis} m³·km`,
+          rate: h[rateKey],
+          rateUnit: '$/m³·km',
+          rateKey,
+          amount: work * h[rateKey],
+        })
+      if (volume > EPS)
+        lines.push({
+          id: `loading-${category}-${basis}`,
+          group: 'haul',
+          item: `${HAUL_CLASS_NAMES[category]} loading · ${label}`,
+          quantity: volume,
+          unit: `${basis} m³`,
+          rate: h[loadingRateKey],
+          rateUnit: '$/m³',
+          rateKey: loadingRateKey,
+          amount: volume * h[loadingRateKey],
+        })
+    }
+  }
+  const used: HaulSite[] = []
+  for (const kind of ['borrow', 'waste'] as const) {
+    const basis = kind === 'borrow' ? 'compacted' : 'bank'
+    for (const site of e.sites) {
+      if (site.kind !== kind) continue
+      const volume = result.movements
+        .filter((m) => m.kind === kind && (kind === 'borrow' ? m.sourceId : m.targetId) === site.id)
+        .reduce((sum, m) => sum + m.transportedVolumeM3, 0)
+      if (volume <= EPS) continue
+      used.push(site)
+      lines.push({
+        id: `${kind}-${site.id}`,
+        group: kind,
+        item: `${kind === 'borrow' ? 'Borrow supply' : 'Waste disposal'} · ${site.name}`,
+        quantity: volume,
+        unit: `${basis} m³`,
+        rate: site.unitRate,
+        rateUnit: '$/m³',
+        rateKey: null,
+        amount: volume * site.unitRate,
+      })
+    }
+    const unallocated = kind === 'borrow' ? result.haul.unallocatedBorrowM3 : result.haul.unallocatedWasteM3
+    const rateKey = kind === 'borrow' ? 'borrowRate' : 'wasteRate'
+    if (unallocated > EPS)
+      lines.push({
+        id: `${kind}-unallocated`,
+        group: kind,
+        item: `${kind === 'borrow' ? 'Borrow supply' : 'Waste disposal'} · no site, default rate`,
+        quantity: unallocated,
+        unit: `${basis} m³`,
+        rate: h[rateKey],
+        rateUnit: '$/m³',
+        rateKey,
+        amount: unallocated * h[rateKey],
+      })
+  }
+  for (const site of used)
+    lines.push({
+      id: `site-${site.id}`,
+      group: 'sitePreparation',
+      item: `Site preparation · ${site.name}`,
+      quantity: 1,
+      unit: 'lump sum',
+      rate: site.fixedCost,
+      rateUnit: '$',
+      rateKey: null,
+      amount: site.fixedCost,
+    })
+  return lines
 }
 
 /**
@@ -159,12 +303,7 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
   const movement = (input: Omit<HaulMovement, 'id' | 'category' | 'haulCost'>) => {
     if (movements.length >= 20000)
       throw new Error('Haul allocation exceeds 20,000 movements; split the road or simplify the material layers.')
-    const category =
-      input.distanceM <= h.freeHaulDistanceM + EPS
-        ? 'freehaul'
-        : input.distanceM <= h.overhaulDistanceM + EPS
-          ? 'overhaul'
-          : 'endhaul'
+    const { category } = haulCharge(h, input.distanceM)
     const haulCost = input.transportedVolumeM3 * haulUnitCost(h, input.distanceM)
     const row: HaulMovement = { ...input, id: `haul-${movements.length + 1}`, category, haulCost }
     movements.push(row)
@@ -418,10 +557,16 @@ function calculateCulvert(
         Math.abs(projected.along) < 0.01 &&
         projected.offset >= -widths.leftWidth - 1e-5 &&
         projected.offset <= widths.rightWidth + 1e-5
+      // The section's own crossfall here, superelevated on a curve, so cover is taken from the drawn formation.
       const formationElevation =
         inFormation && z !== null
           ? z -
-            (Math.abs(projected.offset) * sideValue(t, projected.offset < 0 ? 'left' : 'right', 'CrossfallPercent')) /
+            (Math.abs(projected.offset) *
+              sectionCrossfall(
+                t,
+                projected.offset < 0 ? 'left' : 'right',
+                curveDesignAt(alignment, projected.chainage),
+              )) /
               100
           : null
       const invertElevation = knownInverts
@@ -594,7 +739,7 @@ export function calculateEngineering(
       fill: b.fillVolumeM3!,
     })
   }
-  const coverageComplete = analysis.coveragePercent >= 100 - 1e-5
+  const coverageComplete = hasCompleteCoverage(analysis)
   const haul = allocateHaul(alignment, intervals, coverageComplete)
   const warnings = [...haul.warnings]
   if (

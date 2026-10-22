@@ -9,7 +9,7 @@ import { downloadText } from '@/lib/download'
 import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
 import { nearestStation } from './engine'
-import { validateTemplate } from './templates'
+import { templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
 import { formatRoadStation } from './Charts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type {
@@ -98,6 +98,8 @@ const sideFields: NumericField<RoadTemplate>[] = [
   { key: 'rightDitchWidth', label: 'Right ditch width (m)', max: 10 },
   { key: 'leftDitchDepth', label: 'Left ditch depth (m)', max: 5 },
   { key: 'rightDitchDepth', label: 'Right ditch depth (m)', max: 5 },
+  { key: 'leftDitchBottomWidth', label: 'Left ditch bottom width (m, 0 = V)', max: 10 },
+  { key: 'rightDitchBottomWidth', label: 'Right ditch bottom width (m, 0 = V)', max: 10 },
   { key: 'leftSurfaceDepth', label: 'Left surface depth (m)', max: 2 },
   { key: 'rightSurfaceDepth', label: 'Right surface depth (m)', max: 2 },
 ]
@@ -123,7 +125,7 @@ export function EngineeringControls({
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
   const [templateId, setTemplateId] = useState('')
-  const [preset, setPreset] = useState('current')
+  const [preset, setPreset] = useState<TemplateStarter>('current')
   const [libraryMode, setLibraryMode] = useState<'merge' | 'replace'>('merge')
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
@@ -323,7 +325,7 @@ export function EngineeringControls({
                 aria-label="Template starting point"
                 className={roadFieldClass}
                 value={preset}
-                onChange={(e) => setPreset(e.target.value)}
+                onChange={(e) => setPreset(e.target.value as TemplateStarter)}
               >
                 <option value="current">Current road section</option>
                 <option value="single">Forest single lane</option>
@@ -338,29 +340,20 @@ export function EngineeringControls({
               className="mt-2 w-full"
               disabled={design.templates.length >= 50}
               onClick={() => {
-                const template: RoadTemplate = { ...alignment.template }
-                const names: Record<string, string> = {
+                const names: Record<TemplateStarter, string> = {
                   current: 'Road section',
                   single: 'Forest single lane',
                   double: 'Forest double lane',
                   landing: 'Wide landing',
                   urban: 'Crowned road',
                 }
-                if (preset === 'single') Object.assign(template, { leftWidth: 3, rightWidth: 3, crossfallPercent: 4 })
-                if (preset === 'double')
-                  Object.assign(template, { leftWidth: 4.5, rightWidth: 4.5, crossfallPercent: 4 })
-                if (preset === 'landing')
-                  Object.assign(template, { leftWidth: 12, rightWidth: 3, crossfallPercent: 2, surfaceDepth: 0 })
-                if (preset === 'urban')
-                  Object.assign(template, {
-                    leftWidth: 3.5,
-                    rightWidth: 3.5,
-                    crossfallPercent: 2,
-                    ditchWidth: 0,
-                    ditchDepth: 0,
-                    surfaceDepth: 0.3,
-                  })
-                if (preset !== 'current') for (const field of sideFields) delete template[field.key]
+                let template: RoadTemplate
+                try {
+                  template = templateFromStarter(alignment.template, preset)
+                } catch (error) {
+                  w.setError(error instanceof Error ? error.message : 'Could not create template.')
+                  return
+                }
                 const id = uid()
                 edit((e) => ({
                   ...e,

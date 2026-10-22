@@ -1,9 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeRoad, distance, horizontalCurveSummary, offsetCoordinate, verticalCurveSummary } from './engine'
-import { haulUnitCost } from './engineering'
+import { COMPLETE_COVERAGE_PERCENT, hasCompleteCoverage } from './analysisResult'
+import {
+  alignmentLength,
+  analyzeRoad,
+  distance,
+  horizontalCurveSummary,
+  nearestStation,
+  offsetCoordinate,
+  verticalCurveSummary,
+} from './engine'
+import { haulCostLines, haulUnitCost } from './engineering'
 import { createEngineeringDesign, DEFAULT_HAUL_SETTINGS } from './engineeringTypes'
-import { sideValue, templateAt } from './templates'
-import type { Alignment, ContextFeature, Coordinate, Culvert, RoadSettings, TerrainSource } from './types'
+import {
+  sideValue,
+  templateAt,
+  templateFromStarter,
+  validateEngineering,
+  validateTemplate,
+  type TemplateStarter,
+} from './templates'
+import type {
+  Alignment,
+  AlignmentEngineering,
+  ContextFeature,
+  Coordinate,
+  Culvert,
+  RoadSettings,
+  RoadTemplate,
+  TerrainSource,
+} from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
 const north = (m: number) => offsetCoordinate(origin, 0, m)
@@ -623,5 +648,233 @@ describe('culvert ditch dip', () => {
     // Beyond 50 m of dip the normal ditch is deeper than the dip line, and the right ditch never dips.
     expect(at(0, 'left')).toBeCloseTo(798.5, 6)
     expect(at(50, 'right')).toBeCloseTo(798.5, 6)
+  })
+})
+
+describe('haul cost lines', () => {
+  it('prices every line as quantity × rate, keeps compacted and bank work apart and sums to the costs', () => {
+    // Cut at the start, fill at the end; half the cut is unusable, so there is waste, and borrow with no site.
+    const a = road()
+    a.vertical[1].elevation = 802
+    a.engineering!.materials = [
+      { id: 'soil', name: 'Soil', color: '#987', cutRate: 5, reusableFraction: 0.5, compactionFactor: 1 },
+    ]
+    a.engineering!.strata = [{ id: 'all', materialId: 'soil', start: 0, end: 100, topDepthM: 0, bottomDepthM: null }]
+    Object.assign(a.engineering!.haul, {
+      enabled: true,
+      freeHaulDistanceM: 25,
+      overhaulDistanceM: 70,
+      freeHaulRate: 1,
+      overhaulRate: 2,
+      endHaulRate: 3,
+      freeHaulLoadingRate: 0.5,
+      overhaulLoadingRate: 0.7,
+      endHaulLoadingRate: 0.9,
+      borrowRate: 6,
+      wasteRate: 4,
+    })
+    a.engineering!.sites = [
+      {
+        id: 'w',
+        name: 'Spoil',
+        kind: 'waste',
+        chainage: 10,
+        accessDistanceM: 40,
+        capacityM3: 50,
+        unitRate: 2,
+        fixedCost: 10,
+      },
+    ]
+    const e = analyzeRoad(a, flat, settings).engineering!,
+      lines = haulCostLines(a.engineering!, e)
+    for (const line of lines) expect(line.amount).toBe(line.quantity * line.rate)
+    const sum = (group: string) => lines.filter((l) => l.group === group).reduce((total, l) => total + l.amount, 0)
+    expect(sum('haul')).toBeCloseTo(e.costs.haul, 6)
+    expect(sum('borrow')).toBeCloseTo(e.costs.borrow, 6)
+    expect(sum('waste')).toBeCloseTo(e.costs.waste, 6)
+    expect(sum('sitePreparation')).toBe(e.costs.sitePreparation)
+    expect(e.costs.sitePreparation).toBe(10)
+    expect(e.costs.haul).toBeGreaterThan(0)
+    expect(e.haul.unallocatedBorrowM3).toBeGreaterThan(0)
+    expect(e.haul.unallocatedWasteM3).toBeGreaterThan(0)
+    // Loading lines carry each basis's moved volume; no line mixes compacted and bank units.
+    const loaded = (basis: string) =>
+      lines.filter((l) => l.group === 'haul' && l.unit === `${basis} m³`).reduce((total, l) => total + l.quantity, 0)
+    expect(loaded('compacted')).toBeCloseTo(e.haul.freeHaulM3 + e.haul.overhaulM3 + e.haul.endHaulM3, 6)
+    expect(loaded('bank')).toBeCloseTo(
+      e.haul.wasteFreeHaulBankM3 + e.haul.wasteOverhaulBankM3 + e.haul.wasteEndHaulBankM3,
+      6,
+    )
+    expect(loaded('bank')).toBeGreaterThan(0)
+    expect(lines.filter((l) => l.group === 'haul').every((l) => /^(compacted|bank) m³(·km)?$/.test(l.unit))).toBe(true)
+    // Free haul is charged over its whole distance; overhaul and endhaul only beyond free haul.
+    for (const basis of ['compacted', 'bank'] as const)
+      for (const category of ['freehaul', 'overhaul', 'endhaul'] as const) {
+        const expected = e.movements
+          .filter((m) => m.category === category && m.volumeBasis === basis)
+          .reduce(
+            (total, m) =>
+              total +
+              (m.transportedVolumeM3 * (category === 'freehaul' ? m.distanceM : Math.max(0, m.distanceM - 25))) / 1000,
+            0,
+          )
+        expect(lines.find((l) => l.id === `haul-${category}-${basis}`)?.quantity ?? 0).toBeCloseTo(expected, 6)
+      }
+    const site = lines.find((l) => l.id === 'waste-w')!
+    expect(site.quantity).toBeCloseTo(50, 6)
+    expect(site.rate).toBe(2)
+    expect(lines.find((l) => l.id === 'waste-unallocated')!.rate).toBe(4)
+    expect(lines.find((l) => l.id === 'borrow-unallocated')!.rate).toBe(6)
+  })
+
+  it('has no lines while haul allocation is off', () => {
+    const a = road()
+    a.vertical[1].elevation = 802
+    expect(haulCostLines(a.engineering!, analyzeRoad(a, flat, settings).engineering!)).toEqual([])
+  })
+})
+
+describe('culvert cover on a superelevated curve', () => {
+  it('takes the formation from the superelevated section, not the template crown', () => {
+    // North 200 m, then a right turn to the east on a 60 m radius, 2 m above flat ground.
+    const corner = north(200)
+    const a = road(802)
+    a.points = [
+      { id: 'a', coordinate: origin, radiusM: 0 },
+      { id: 'b', coordinate: corner, radiusM: 60 },
+      { id: 'c', coordinate: offsetCoordinate(corner, 90, 200), radiusM: 0 },
+    ]
+    a.vertical[1].chainage = alignmentLength(a)
+    a.template = { ...a.template, crossfallPercent: 3 }
+    a.curveDesign = {
+      designSpeedKmh: 40,
+      maxSuperelevationPercent: 8,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 30,
+      wideningVehicleLengthM: 12,
+    }
+    a.engineering!.culverts.push(culvert({ chainage: 190 }))
+    const r = analyzeRoad(a, flat, settings),
+      c = r.engineering!.culverts[0],
+      station = nearestStation(r.stations, 190)!
+    expect(station.chainage).toBeCloseTo(190, 6)
+    // The inside (right) edge, widened to 4.2 m, falls at e ≈ 6 % rather than the 3 % crown.
+    const e = 1600 / 7620 - 0.15
+    expect(station.rightWidth).toBeCloseTo(4.2, 6)
+    const edge = station.section.find((p) => Math.abs(p.offset - station.rightWidth) < 1e-6)!.design!
+    expect(edge).toBeCloseTo(802 - 4.2 * e, 6)
+    // Inverts 800 → 799.88 over the 12 m span; the edge is 6 + 4.2 m from the inlet.
+    const crown = 800 - (0.12 * (6 + 4.2)) / 12 + 0.6
+    expect(c.coverM).toBeCloseTo(edge - crown, 3)
+    expect(c.profile.find((p) => Math.abs(p.distanceM - (6 + 4.2)) < 1e-6)!.formationElevation).toBeCloseTo(edge, 3)
+    // The template crossfall would have read about 0.13 m more cover.
+    expect(802 - 4.2 * 0.03 - crown - c.coverM!).toBeGreaterThan(0.1)
+  })
+})
+
+describe('template starters', () => {
+  const uDitch: RoadTemplate = {
+    leftWidth: 3,
+    rightWidth: 3,
+    crossfallPercent: 3,
+    cutSlope: 1,
+    fillSlope: 1.5,
+    ditchWidth: 1.5,
+    ditchDepth: 0.5,
+    ditchBottomWidth: 1,
+    surfaceDepth: 0.2,
+    leftDitchWidth: 2,
+    leftDitchBottomWidth: 1.5,
+    rightDitchBottomWidth: 0.5,
+    rightCrossfallPercent: -2,
+  }
+  const sideKeys = (t: RoadTemplate) => Object.keys(t).filter((key) => /^(left|right)(?!Width$)/.test(key))
+
+  it('gives every starter a valid template from a U-ditch section, and the road keeps calculating', () => {
+    validateTemplate(uDitch)
+    for (const starter of ['current', 'single', 'double', 'landing', 'urban'] as TemplateStarter[]) {
+      const template = templateFromStarter(uDitch, starter)
+      expect(() => validateTemplate(template)).not.toThrow()
+      if (starter !== 'current') expect(sideKeys(template)).toEqual([])
+      const a = road()
+      a.template = { ...uDitch }
+      a.engineering!.templates.push({ id: starter, name: starter, template })
+      a.engineering!.assignments.push({
+        id: 'r',
+        templateId: starter,
+        side: 'both',
+        start: 20,
+        end: 80,
+        transitionM: 0,
+      })
+      expect(() => analyzeRoad(a, flat, settings)).not.toThrow()
+    }
+    const crowned = templateFromStarter(uDitch, 'urban')
+    expect(crowned).toMatchObject({ ditchWidth: 0, ditchDepth: 0, ditchBottomWidth: 0 })
+    expect(templateFromStarter(uDitch, 'current')).toEqual(uDitch)
+  })
+
+  it('keeps a shared ditch bottom inside the shared ditch once side widths are dropped', () => {
+    // Valid only through the side ditch widths: the shared bottom is wider than the shared ditch.
+    const base: RoadTemplate = { ...uDitch, ditchWidth: 1, ditchBottomWidth: 2, leftDitchWidth: 3, rightDitchWidth: 3 }
+    delete base.leftDitchBottomWidth
+    delete base.rightDitchBottomWidth
+    validateTemplate(base)
+    expect(templateFromStarter(base, 'single').ditchBottomWidth).toBe(1)
+  })
+
+  it('refuses a starter that would copy an out-of-range section', () => {
+    expect(() => templateFromStarter({ ...uDitch, cutSlope: 0.05 }, 'current')).toThrow(/supported ranges/)
+  })
+})
+
+describe('engineering validation bounds', () => {
+  const valid = (): AlignmentEngineering => {
+    const e = createEngineeringDesign()
+    e.materials = [{ id: 'm', name: 'Soil', color: '#987', cutRate: 10000, reusableFraction: 1, compactionFactor: 2 }]
+    e.culverts = [culvert({ lengthM: 0.2, diameterM: 0.1, ditchDipPercent: 0.1 })]
+    Object.assign(e.haul, { freeHaulRate: 100000, freeHaulLoadingRate: 100000, endHaulLoadingRate: 100000 })
+    return e
+  }
+
+  it('accepts the editor and project-file limits', () => {
+    expect(() => validateEngineering(valid())).not.toThrow()
+    const e = valid()
+    e.culverts[0].ditchDipPercent = 50
+    e.materials[0].compactionFactor = 0.1
+    expect(() => validateEngineering(e)).not.toThrow()
+    expect(() => validateTemplate({ ...road().template, cutSlope: 0.1, fillSlope: 0.1 })).not.toThrow()
+  })
+
+  it.each<[string, (e: AlignmentEngineering) => void]>([
+    ['free-haul rate', (e) => (e.haul.freeHaulRate = 100001)],
+    ['free-haul loading rate', (e) => (e.haul.freeHaulLoadingRate = -1)],
+    ['overhaul loading rate', (e) => (e.haul.overhaulLoadingRate = NaN)],
+    ['endhaul loading rate', (e) => (e.haul.endHaulLoadingRate = 1e6)],
+    ['overhaul rate', (e) => (e.haul.overhaulRate = 1e7)],
+    ['ditch dip below 0.1 %', (e) => (e.culverts[0].ditchDipPercent = 0.05)],
+    ['ditch dip above 50 %', (e) => (e.culverts[0].ditchDipPercent = 51)],
+    ['ditch dip that is not finite', (e) => (e.culverts[0].ditchDipPercent = Infinity)],
+    ['compaction factor above 2', (e) => (e.materials[0].compactionFactor = 2.5)],
+    ['compaction factor below 0.1', (e) => (e.materials[0].compactionFactor = 0.05)],
+    ['culvert span below 0.2 m', (e) => (e.culverts[0].lengthM = 0.15)],
+    ['culvert diameter below 0.1 m', (e) => (e.culverts[0].diameterM = 0.07)],
+    [
+      'batter slope below 0.1',
+      (e) => e.templates.push({ id: 't', name: 'T', template: { ...road().template, cutSlope: 0.07 } }),
+    ],
+  ])('rejects an out-of-range %s', (_, change) => {
+    const e = valid()
+    change(e)
+    expect(() => validateEngineering(e)).toThrow()
+  })
+})
+
+describe('complete coverage threshold', () => {
+  it('is the engine rule, 100 % less 1e-5', () => {
+    expect(COMPLETE_COVERAGE_PERCENT).toBe(100 - 1e-5)
+    expect(hasCompleteCoverage({ coveragePercent: 99.999995 })).toBe(true)
+    expect(hasCompleteCoverage({ coveragePercent: 99.9995 })).toBe(false)
+    expect(hasCompleteCoverage(analyzeRoad(road(), flat, settings))).toBe(true)
   })
 })

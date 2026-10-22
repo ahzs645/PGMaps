@@ -4,7 +4,8 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { AppSelect } from '@/components/ui/select'
 import { NumberField } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
-import { haulUnitCost } from './engineering'
+import { hasCompleteCoverage } from './analysisResult'
+import { haulCostLines, haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 
@@ -44,7 +45,8 @@ type Rate = {
   label: string
   min?: number
   max?: number
-  onChange: (value: number) => void
+  /** Omitted: the rate is shown, and edited where its note says. */
+  onChange?: (value: number) => void
 }
 type Row = {
   id: string
@@ -61,14 +63,20 @@ function RateCell({ rate }: { rate?: Rate }) {
   return (
     <span className="inline-flex items-center justify-end gap-1">
       <span className="w-24">
-        <NumberField
-          label={rate.label}
-          hideLabel
-          value={rate.value}
-          min={rate.min ?? 0}
-          max={rate.max ?? 100000}
-          onChange={rate.onChange}
-        />
+        {rate.onChange ? (
+          <NumberField
+            label={rate.label}
+            hideLabel
+            value={rate.value}
+            min={rate.min ?? 0}
+            max={rate.max ?? 100000}
+            onChange={rate.onChange}
+          />
+        ) : (
+          <span className="block px-2 text-right font-mono" aria-label={rate.label}>
+            {rate.value.toLocaleString('en-CA', { maximumFractionDigits: 6 })}
+          </span>
+        )}
       </span>
       <span className="w-14 text-left text-[10px] text-muted-foreground">{rate.unit}</span>
     </span>
@@ -118,6 +126,37 @@ export function CostBreakdown({
       ? { value: haul[key] as number, unit, label, max, onChange: (value) => onHaul({ [key]: value }) }
       : undefined
   const costs = result?.costs
+  const haulLines = result && alignment.engineering ? haulCostLines(alignment.engineering, result) : []
+  const haulRows: Row[] = haulLines.length
+    ? haulLines.map((line) => ({
+        id: line.id,
+        item: line.item,
+        quantity: line.quantity,
+        unit: line.unit,
+        // Only the default borrow and waste rates are edited here; the others have one place each.
+        rate: (line.rateKey === 'borrowRate' || line.rateKey === 'wasteRate'
+          ? haulRate(line.rateKey, line.rateKey === 'borrowRate' ? 'Borrow rate' : 'Waste rate', line.rateUnit, 100000)
+          : undefined) ?? { value: line.rate, unit: line.rateUnit, label: `${line.item} rate` },
+        amount: line.amount,
+        note:
+          line.rateKey === 'borrowRate' || line.rateKey === 'wasteRate'
+            ? 'No site in reach with capacity left; the default rate applies. Its haul is not priced.'
+            : line.rateKey
+              ? 'Haul class rates are edited below.'
+              : 'The site’s own rate or fixed cost; edit it in Engineering → Haul.',
+      }))
+    : [
+        {
+          id: 'haul',
+          item: 'Haul, borrow and waste',
+          quantity: null,
+          unit: '',
+          amount: costs ? costs.haul + costs.borrow + costs.waste + costs.sitePreparation : 0,
+          note: result?.haul.enabled
+            ? 'No material is moved, supplied or wasted.'
+            : 'Haul allocation is off; turn it on in Engineering → Haul.',
+        },
+      ]
   const rows: Row[] = costs
     ? [
         ...result.materials.map((m) => ({
@@ -171,40 +210,7 @@ export function CostBreakdown({
           amount: costs.structures,
           note: 'Installed cost per culvert; edit in Engineering → Drainage.',
         },
-        {
-          id: 'haul',
-          item: 'Haul beyond free haul',
-          quantity: result.haul.haulM3Km + result.haul.wasteHaulM3Km,
-          unit: 'm³·km',
-          amount: costs.haul,
-          note: 'Overhaul and endhaul rates below.',
-        },
-        {
-          id: 'borrow',
-          item: 'Borrow supply',
-          quantity: result.haul.borrowCompactedM3,
-          unit: 'm³',
-          rate: haulRate('borrowRate', 'Borrow rate', '$/m³', 10000),
-          amount: costs.borrow,
-          note: 'A borrow site with its own rate replaces this rate there.',
-        },
-        {
-          id: 'waste',
-          item: 'Waste disposal',
-          quantity: result.haul.wasteBankM3,
-          unit: 'bank m³',
-          rate: haulRate('wasteRate', 'Waste rate', '$/m³', 10000),
-          amount: costs.waste,
-          note: 'A waste site with its own rate replaces this rate there.',
-        },
-        {
-          id: 'site',
-          item: 'Site preparation',
-          quantity: alignment.engineering?.sites.length ?? 0,
-          unit: 'sites',
-          amount: costs.sitePreparation,
-          note: 'Fixed cost per borrow/waste site.',
-        },
+        ...haulRows,
         {
           id: 'mobilization',
           item: 'Mobilization',
@@ -261,8 +267,8 @@ export function CostBreakdown({
       summary={
         <p className="text-[11px] text-muted-foreground" data-testid="road-cost-status">
           Cost status:{' '}
-          {analysis.coveragePercent >= 99.999 && result?.complete !== false ? 'current, complete' : 'current, partial'}{' '}
-          · recalculated on every edit
+          {hasCompleteCoverage(analysis) && result?.complete !== false ? 'current, complete' : 'current, partial'} ·
+          recalculated on every edit
           {processMs === undefined
             ? ''
             : ` · process time ${processMs < 1000 ? `${Math.max(1, Math.round(processMs))} ms` : `${(processMs / 1000).toFixed(1)} s`}`}
@@ -310,7 +316,7 @@ export function CostBreakdown({
               {rows.map((row) => (
                 <tr key={row.id} data-cost-row={row.id} title={row.note}>
                   <td className="text-left">{row.item}</td>
-                  <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'sites' ? 0 : 1)}</td>
+                  <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'lump sum' ? 0 : 1)}</td>
                   <td className="text-left text-muted-foreground">{row.unit}</td>
                   <td>
                     <RateCell rate={row.rate} />
@@ -354,12 +360,12 @@ export function CostBreakdown({
               [
                 ['freeHaulDistanceM', 'Free haul (m)', 100000],
                 ['overhaulDistanceM', 'Overhaul limit (m)', 100000],
-                ['freeHaulRate', 'Free haul ($/m³·km)', 10000],
-                ['freeHaulLoadingRate', 'Free loading ($/m³)', 10000],
-                ['overhaulRate', 'Overhaul ($/m³·km)', 10000],
-                ['overhaulLoadingRate', 'Over loading ($/m³)', 10000],
-                ['endHaulRate', 'Endhaul ($/m³·km)', 10000],
-                ['endHaulLoadingRate', 'End loading ($/m³)', 10000],
+                ['freeHaulRate', 'Free haul ($/m³·km)', 100000],
+                ['freeHaulLoadingRate', 'Free loading ($/m³)', 100000],
+                ['overhaulRate', 'Overhaul ($/m³·km)', 100000],
+                ['overhaulLoadingRate', 'Over loading ($/m³)', 100000],
+                ['endHaulRate', 'Endhaul ($/m³·km)', 100000],
+                ['endHaulLoadingRate', 'End loading ($/m³)', 100000],
               ] as const
             ).map(([key, label, max]) => (
               <NumberField
