@@ -5,8 +5,9 @@
  * pieces are imported only when first needed. No DOM or network access beyond the wasm fetches,
  * and `setWhiteboxSources` lets a test hand the bytes in directly.
  *
- * The LAS header and VLRs are uncompressed in LAZ too, so the CRS always comes from them: the
- * GeoTIFF keys VLR (34735) or OGC WKT (2112), in a VLR or a LAS 1.4 EVLR.
+ * The LAS header and VLRs are uncompressed in LAZ too, so the CRS normally comes from them: the
+ * GeoTIFF keys VLR (34735) or OGC WKT (2112), in a VLR or a LAS 1.4 EVLR. For a LAZ whose header
+ * yields none, `readPointCloud` falls back to whitebox's `lidar_info`.
  */
 type Whitebox = typeof import('whitebox-wasm')
 type WhiteboxTools = typeof import('whitebox-wasm/tools')
@@ -100,6 +101,8 @@ export const GROUND_FILTER_DEFAULTS = {
 export const DEFAULT_MAX_POINTS = 3_000_000
 
 const NOISE = new Set([7, 18])
+/** Widest classification tile, well inside the 2,147 km that int32 millimetres hold. */
+const MAX_TILE_SIDE_M = 1_000_000
 const decoder = new TextDecoder()
 
 // --- wasm loading -------------------------------------------------------------------------------
@@ -446,7 +449,8 @@ export async function readPointCloud(
 
 /**
  * A LAS 1.2, point format 0 file of the given points (all of them, or `indices`), with a GeoTIFF
- * keys VLR when the CRS codes fit one. Coordinates are stored to the millimetre. The result also
+ * keys VLR when the CRS codes fit one. Coordinates are stored to the millimetre (coarser on an axis
+ * spanning over 2,147 km, so it cannot overflow int32). The result also
  * reads with `buildGroundGrid` in lasSurface.ts.
  */
 export function encodeLas(
@@ -478,8 +482,14 @@ export function encodeLas(
     min.fill(0)
     max.fill(0)
   }
-  const scale = 0.001,
-    origin = min.map((v) => Math.floor(v))
+  // Integer steps from the floor of each axis' minimum. Millimetres fit int32 up to 2,147 km, far
+  // beyond any tile, but an axis that ever spans more steps up a decade rather than wrap around.
+  const origin = min.map((v) => Math.floor(v)),
+    scale = max.map((v, d) => {
+      let s = 0.001
+      while ((v - origin[d]) / s > 2 ** 31 - 1) s *= 10
+      return s
+    })
   bytes.set(new TextEncoder().encode('LASF'), 0)
   view.setUint8(24, 1)
   view.setUint8(25, 2)
@@ -492,7 +502,7 @@ export function encodeLas(
   view.setUint32(107, n, true)
   view.setUint32(111, n, true)
   for (let d = 0; d < 3; d++) {
-    view.setFloat64(131 + d * 8, scale, true)
+    view.setFloat64(131 + d * 8, scale[d], true)
     view.setFloat64(155 + d * 8, origin[d], true)
     view.setFloat64(179 + d * 16, max[d], true)
     view.setFloat64(187 + d * 16, min[d], true)
@@ -509,9 +519,9 @@ export function encodeLas(
   }
   for (let k = 0, p = offset; k < n; k++, p += record) {
     const i = at(k)
-    view.setInt32(p, Math.round((cloud.x[i] - origin[0]) / scale), true)
-    view.setInt32(p + 4, Math.round((cloud.y[i] - origin[1]) / scale), true)
-    view.setInt32(p + 8, Math.round((cloud.z[i] - origin[2]) / scale), true)
+    view.setInt32(p, Math.round((cloud.x[i] - origin[0]) / scale[0]), true)
+    view.setInt32(p + 4, Math.round((cloud.y[i] - origin[1]) / scale[1]), true)
+    view.setInt32(p + 8, Math.round((cloud.z[i] - origin[2]) / scale[2]), true)
     view.setUint8(p + 14, 0b001_001) // return 1 of 1
     view.setUint8(p + 15, cloud.classification[i] & 0x1f)
   }
@@ -590,8 +600,12 @@ export async function classifyGround(
   }
   const buffer = Math.max(6, 3 * radius)
   const area = Math.max(maxX - minX, 1) * Math.max(maxY - minY, 1)
-  const single = candidates.length <= tilePoints * 1.5
-  const side = single ? Infinity : Math.max(2 * buffer, Math.sqrt((tilePoints * area) / candidates.length))
+  // WhiteboxTools writes its output in int32 millimetres from the tile's minimum and clamps
+  // anything past 2,147 km, so a sparse cloud wider than that still goes through in tiles.
+  const single = candidates.length <= tilePoints * 1.5 && Math.max(maxX - minX, maxY - minY) <= MAX_TILE_SIDE_M
+  const side = single
+    ? Infinity
+    : Math.min(MAX_TILE_SIDE_M, Math.max(2 * buffer, Math.sqrt((tilePoints * area) / candidates.length)))
   const cols = single ? 1 : Math.floor((maxX - minX) / side) + 1,
     rows = single ? 1 : Math.floor((maxY - minY) / side) + 1
   const tileOf = (i: number) =>
@@ -636,11 +650,20 @@ export async function classifyGround(
     const header = readPointCloudHeader(written)
     const back = decodeLas(written, header)
     if (back.x.length !== members.length) throw Error(`${tool} returned ${back.x.length} of ${members.length} points.`)
-    // The tools keep the input order; check it rather than trust it.
+    // The tools keep the input order; check it rather than trust it, to the coarser of the two
+    // files' coordinate steps.
+    const sent = readPointCloudHeader(tile).scale
+    const tolerance = 2 * Math.max(0.001, sent[0], sent[1], header.scale[0], header.scale[1])
     for (let k = 0; k < members.length; k++) {
       const i = members[k]
-      if (Math.abs(back.x[k] - cloud.x[i]) > 0.002 || Math.abs(back.y[k] - cloud.y[i]) > 0.002)
-        throw Error(`${tool} reordered the points; the classification cannot be mapped back.`)
+      const dx = back.x[k] - cloud.x[i],
+        dy = back.y[k] - cloud.y[i]
+      if (Math.abs(dx) > tolerance || Math.abs(dy) > tolerance)
+        throw Error(
+          `${tool} returned point ${k + 1} of ${members.length} in a tile ${Math.hypot(dx, dy).toFixed(3)} m ` +
+            `from where it was sent (${cloud.x[i].toFixed(3)}, ${cloud.y[i].toFixed(3)}): the points were ` +
+            'reordered or their coordinates changed, so the classification cannot be mapped back.',
+        )
     }
     for (let k = 0; k < core.length; k++) out[core[k]] = back.classification[k] === 2 ? 2 : 1
   }

@@ -310,5 +310,14 @@ describe('TIN surface', () => {
     expect(lines.map((l) => l.id)).toEqual(['ditch', 'feature 2 · part 1', 'feature 2 · part 2'])
     expect(lines[0].points[1]).toEqual([-122001, 54001, 699])
     expect(lines[1].points[0][2]).toBe(712)
+    // The other property spellings the doc comment lists; the first finite one wins.
+    const line = { type: 'LineString', coordinates: [[-122, 54]] }
+    const height = (properties: Record<string, unknown>) =>
+      readBreaklines({ type: 'Feature', properties, geometry: line }, (lon, lat) => [lon, lat])[0].points[0][2]
+    expect(height({ Z: 701 })).toBe(701)
+    expect(height({ ELEVATION: 702 })).toBe(702)
+    expect(height({ elev: 703 })).toBe(703)
+    expect(height({ z: 'high', elev: 704 })).toBe(704)
+    expect(height({})).toBeNull()
   })
 })

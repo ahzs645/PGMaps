@@ -643,36 +643,50 @@ export async function loadLas(
   const bytes = await file.arrayBuffer()
   const { readPointCloudHeader } = await import('./pointCloud')
   const header = readPointCloudHeader(new Uint8Array(bytes))
-  if (header.epsg === null)
-    throw Error('This point cloud has no projected CRS key. Assign one (for example with PDAL) before importing.')
-  const projection = roadProjection(header.epsg)
+  const noCrs = 'This point cloud has no projected CRS key. Assign one (for example with PDAL) before importing.'
+  // A LAS header is the whole story, but whitebox may still find a LAZ's CRS where the header
+  // keys have none, so that case waits for the worker's read (`breaklinesFor` below).
+  if (header.epsg === null && !header.compressed) throw Error(noCrs)
+  if (header.epsg !== null) roadProjection(header.epsg)
   const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
   if (!vertical) throw Error('Enter the vertical datum of the point-cloud elevations before importing.')
-  const breaklines =
-    options.surface === 'tin' && options.breaklines
-      ? (await import('./tinSurface')).readBreaklines(
-          options.breaklines,
-          (lon, lat) => projection.forward([lon, lat]) as [number, number],
-        )
-      : []
+  const tinSurface = options.surface === 'tin' && options.breaklines ? await import('./tinSurface') : null
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('')
   const { runPointCloudWorker } = await import('./pointCloudClient')
   const stages = { reading: 'Reading points', classifying: 'Classifying ground', gridding: 'Building the surface' }
+  // The header and hash are read; the bytes move to the worker rather than being copied, and are
+  // detached from here on. Breaklines are projected once the worker reports the CRS it read, so a
+  // LAZ whose CRS only whitebox finds gets them in that CRS, and a cloud with none is refused
+  // before the ground filter runs.
   const result = await runPointCloudWorker(bytes, {
     classify: options.classify,
-    surface: { method: options.surface, cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3, breaklines },
+    surface: { method: options.surface, cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3 },
+    transfer: true,
+    breaklinesFor: (epsg) => {
+      if (epsg === null) throw Error(noCrs)
+      const projection = roadProjection(epsg)
+      return tinSurface
+        ? tinSurface.readBreaklines(
+            options.breaklines,
+            (lon, lat) => projection.forward([lon, lat]) as [number, number],
+          )
+        : []
+    },
     signal: options.signal,
     onProgress: (stage, done, total) =>
       options.onProgress?.(`${stages[stage]}${total > 1 ? ` · ${done} of ${total} tiles` : ''}…`),
   })
+  const epsg = result.cloud.epsg
+  if (epsg === null) throw Error(noCrs)
+  const projection = roadProjection(epsg)
   const grid = result.surface!.grid
   const raster = validateRoadRaster({
     id: `terrain-${sha256.slice(0, 16)}`,
     name: `${file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
     kind: 'terrain',
-    epsg: header.epsg,
+    epsg,
     origin: grid.origin,
     pixelSize: grid.pixelSize,
     width: grid.width,
@@ -687,7 +701,7 @@ export async function loadLas(
     kind: 'geotiff',
     name: raster.name,
     resolutionM: localRasterResolution(raster, latitude),
-    epsg: header.epsg,
+    epsg,
     verticalReference: raster.verticalReference,
     sha256,
     raster,

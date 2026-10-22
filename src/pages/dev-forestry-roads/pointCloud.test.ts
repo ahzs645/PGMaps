@@ -13,6 +13,7 @@ import {
   readPointCloudHeader,
   setWhiteboxSources,
 } from './pointCloud'
+import { gridSurface } from './pointCloud.worker'
 
 const wasmDir = dirname(createRequire(import.meta.url).resolve('whitebox-wasm'))
 const toolsWasm = readFileSync(join(wasmDir, 'whitebox-cli.wasm'))
@@ -199,6 +200,63 @@ describe('LAS and LAZ point clouds', () => {
     expect(grid.groundPoints).toBe(1600)
     expect(readLasHeader(encodeLas({ ...cloud, verticalEpsg: 5703 }).slice().buffer).verticalEpsg).toBe(5703)
   })
+
+  it('grids over the ground points, so a far non-ground outlier leaves the cell alone', async () => {
+    const cloud = await readPointCloud(lasBytes)
+    const withOutlier = (cls: number) => {
+      const join = <T extends Float64Array | Uint8Array>(a: T, v: number) => {
+        const out = new (a.constructor as new (n: number) => T)(a.length + 1)
+        out.set(a)
+        out[a.length] = v
+        return out
+      }
+      const x = join(cloud.x, 505000),
+        y = join(cloud.y, 6004000),
+        z = join(cloud.z, 1500)
+      // `bounds` covers every point read, as readPointCloud reports it: the outlier included.
+      const [minX, minY, minZ] = cloud.bounds
+      const bounds: typeof cloud.bounds = [minX, minY, minZ, 505000, 6004000, 1500]
+      return { ...cloud, x, y, z, classification: join(cloud.classification, cls), count: x.length, bounds }
+    }
+    // A crown return 5 km off: 5,000 × 4,000 m of grid at 10,000 cells would be a ~45 m cell.
+    for (const method of ['mean', 'tin'] as const) {
+      const request = { method, cellM: 1, maxCells: 10_000, gapCells: 3 }
+      const clean = (await gridSurface(cloud, request)).grid
+      const stray = (await gridSurface(withOutlier(1), request)).grid
+      expect(clean).toMatchObject({ cellM: 1, width: 40, height: 40 })
+      expect(stray).toMatchObject({ cellM: 1, width: 40, height: 40, origin: clean.origin })
+      expect(stray.values).toEqual(clean.values)
+    }
+    // A ground outlier is part of the surface, so it still widens the grid.
+    const ground = (await gridSurface(withOutlier(2), { method: 'mean', cellM: 1, maxCells: 10_000 })).grid
+    expect(ground.cellM).toBeGreaterThan(40)
+  })
+
+  it('keeps millimetres across kilometres and steps coarser only past what int32 holds', async () => {
+    const decode = async (x: Float64Array, y: Float64Array) => {
+      const bytes = encodeLas({
+        x,
+        y,
+        z: Float64Array.of(800, 1100.125, 2950.5),
+        classification: Uint8Array.of(2, 1, 2),
+      })
+      return { scale: readPointCloudHeader(bytes).scale, cloud: await readPointCloud(bytes) }
+    }
+    // 3.5 km corner to corner: int32 millimetres hold 2,147 km, not 2,147 m, so nothing wraps.
+    const x = Float64Array.of(500000, 501234.567, 503500.004),
+      y = Float64Array.of(6000000, 6001500.25, 6003000.009)
+    const narrow = await decode(x, y)
+    expect(narrow.scale).toEqual([0.001, 0.001, 0.001])
+    for (let i = 0; i < 3; i++) {
+      expect(narrow.cloud.x[i]).toBeCloseTo(x[i], 6)
+      expect(narrow.cloud.y[i]).toBeCloseTo(y[i], 6)
+    }
+    // 2,500 km in x would wrap at the millimetre; that axis alone steps to the centimetre.
+    const wide = await decode(Float64Array.of(500000, 1700000.123, 3000000.456), y)
+    expect(wide.scale).toEqual([0.01, 0.001, 0.001])
+    expect(wide.cloud.x[2]).toBeCloseTo(3000000.46, 6)
+    expect(wide.cloud.y[1]).toBeCloseTo(6001500.25, 6)
+  })
 })
 
 describe('ground classification', () => {
@@ -241,5 +299,21 @@ describe('ground classification', () => {
     expect(classes.length).toBe(points.length)
     expect(score(classes).groundRecall).toBeGreaterThan(0.9)
     expect(score(classes).canopyAsGround).toBeLessThan(0.02)
+  })
+
+  it('classifies a sparse cloud kilometres wide as it does each patch alone', async () => {
+    const patch = await readPointCloud(unclassified)
+    const alone = Array.from(await classifyGround(patch))
+    const twoPatches = (dx: number, dy: number) => {
+      const join = (a: Float64Array, shift: number) => Float64Array.from([...a, ...a.map((v) => v + shift)])
+      const x = join(patch.x, dx),
+        y = join(patch.y, dy),
+        z = join(patch.z, 0)
+      return { ...patch, x, y, z, classification: new Uint8Array(x.length).fill(1), count: x.length }
+    }
+    // 4 km apart: one run of 4,000 points, the case once feared to overflow int32 millimetres.
+    expect(Array.from(await classifyGround(twoPatches(3000, 2500)))).toEqual([...alone, ...alone])
+    // 2,500 km apart, past what WhiteboxTools' own millimetre output holds: split into tiles.
+    expect(Array.from(await classifyGround(twoPatches(2_500_000, 0)))).toEqual([...alone, ...alone])
   })
 })

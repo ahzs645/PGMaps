@@ -314,8 +314,9 @@ export function gridFromPoints(
 
 /**
  * GeoJSON LineString, MultiLineString, Polygon and MultiPolygon features (rings become closed
- * breaklines) to breaklines in the grid's projection. z comes from a third coordinate, else a
- * `z`/`elevation` property, else null (taken from the ground).
+ * breaklines) to breaklines in the grid's projection. z comes from a third coordinate, else the
+ * first finite number among the `z`, `Z`, `elevation`, `ELEVATION` and `elev` properties, else null
+ * (taken from the ground).
  */
 export function readBreaklines(geojson: unknown, toGrid: (lon: number, lat: number) => [number, number]): Breakline[] {
   const out: Breakline[] = []

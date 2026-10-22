@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeArrayBuffer } from 'geotiff'
+import type { PointCloudResult, RunPointCloudOptions } from './pointCloudClient'
 import {
   LIDAR_BASE,
+  loadLas,
   loadRaster,
   loadTerrainMetadata,
   roadProjection,
@@ -11,6 +13,54 @@ import {
 import type { TerrainMetadata } from './types'
 
 afterEach(() => vi.unstubAllGlobals())
+
+// Worker stand-in: records the call, detaches the bytes as a transfer does, and reports the CRS
+// a LAZ read found (`worker.epsg`) before returning a 2 × 2 grid.
+const worker = vi.hoisted(() => ({
+  epsg: null as number | null,
+  calls: [] as Array<{ bytes: unknown; options: RunPointCloudOptions; breaklines?: unknown }>,
+}))
+vi.mock('./pointCloudClient', () => ({
+  runPointCloudWorker: vi.fn(async (bytes: ArrayBuffer, options: RunPointCloudOptions): Promise<PointCloudResult> => {
+    const call: (typeof worker.calls)[number] = { bytes, options }
+    worker.calls.push(call)
+    if (options.transfer) structuredClone(bytes, { transfer: [bytes] })
+    call.breaklines = options.breaklinesFor?.(worker.epsg)
+    const empty = { x: new Float64Array(), y: new Float64Array(), z: new Float64Array() }
+    return {
+      type: 'done',
+      cloud: {
+        ...empty,
+        classification: new Uint8Array(),
+        count: 4,
+        epsg: worker.epsg,
+        verticalEpsg: null,
+        version: '1.4',
+        format: 'laz',
+        bounds: [500000, 6000000, 800, 500001, 6000001, 803],
+        sourceCount: 4,
+        thinCellM: null,
+      },
+      surface: {
+        grid: {
+          epsg: worker.epsg,
+          origin: [500000.5, 6000000.5],
+          pixelSize: [1, -1],
+          width: 2,
+          height: 2,
+          values: [800, 801, 802, 803],
+          groundPoints: 4,
+          totalPoints: 4,
+          filledCells: 0,
+          cellM: 1,
+        },
+      },
+      summary: { total: 4, ground: 4, noise: 0, byClass: [{ cls: 2, count: 4 }] },
+      classifiedBy: null,
+      timings: { readMs: 0, classifyMs: 0, gridMs: 0 },
+    }
+  }),
+}))
 
 function fixture(pointPixels = false, noData = false) {
   const values = Array.from({ length: 16 }, (_, i) => 100 + (i % 4) * 2 + Math.floor(i / 4) * 3)
@@ -106,5 +156,67 @@ describe('road GeoTIFF sampling', () => {
     }
     await expect(loadTerrainMetadata(metadata)).rejects.toThrow('hash mismatch')
     expect(terrainFromMetadata(metadata)).toBeNull()
+  })
+})
+
+/** A header-only LAS 1.2 with no CRS keys; `compressed` sets the LAZ bit of the point format. */
+function headerOnly(compressed: boolean) {
+  const bytes = new Uint8Array(227)
+  const view = new DataView(bytes.buffer)
+  bytes.set(new TextEncoder().encode('LASF'), 0)
+  view.setUint8(24, 1)
+  view.setUint8(25, 2)
+  view.setUint16(94, 227, true)
+  view.setUint32(96, 227, true)
+  view.setUint8(104, compressed ? 0x80 : 0)
+  view.setUint16(105, 20, true)
+  return new File([bytes], compressed ? 'cloud.laz' : 'cloud.las')
+}
+
+describe('point-cloud import', () => {
+  afterEach(() => {
+    worker.calls.length = 0
+    worker.epsg = null
+  })
+
+  const breaklines = {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-123, 54.1, 700],
+        [-122.999, 54.1, 701],
+      ],
+    },
+  }
+
+  it('takes a LAZ CRS the worker finds when the header has none, projecting breaklines with it', async () => {
+    worker.epsg = 26910
+    const { metadata, summary } = await loadLas(headerOnly(true), 'CGVD2013; metres', {
+      classify: 'auto',
+      surface: 'tin',
+      breaklines,
+    })
+    expect(metadata).toMatchObject({ epsg: 26910, raster: { epsg: 26910, width: 2 } })
+    expect(summary).toMatch(/^LAZ 1\.4: 4 of 4 points are ground/)
+    // The bytes were handed over, not copied, and nothing read them after the transfer.
+    const [call] = worker.calls
+    expect(call.options.transfer).toBe(true)
+    expect(call.bytes).toBeInstanceOf(ArrayBuffer)
+    expect((call.bytes as ArrayBuffer).byteLength).toBe(0)
+    // Breaklines arrive in UTM 10N metres, built from the CRS the worker reported.
+    const [line] = call.breaklines as Array<{ points: Array<[number, number, number | null]> }>
+    const expected = roadProjection(26910).forward([-123, 54.1])
+    expect(line.points[0][0]).toBeCloseTo(expected[0], 6)
+    expect(line.points[0][1]).toBeCloseTo(expected[1], 6)
+    expect(line.points[0][2]).toBe(700)
+  })
+
+  it('refuses a cloud without a CRS: a LAS at once, a LAZ once the worker finds none either', async () => {
+    await expect(loadLas(headerOnly(false), 'CGVD2013; metres')).rejects.toThrow('no projected CRS key')
+    expect(worker.calls).toHaveLength(0)
+    await expect(loadLas(headerOnly(true), 'CGVD2013; metres')).rejects.toThrow('no projected CRS key')
+    expect(worker.calls).toHaveLength(1)
   })
 })
