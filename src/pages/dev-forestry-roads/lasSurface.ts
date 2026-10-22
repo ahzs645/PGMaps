@@ -1,8 +1,8 @@
 /**
  * Uncompressed LAS (1.0–1.4) point clouds to a bare-earth grid: ground-classified points
  * (class 2) are averaged per cell, short gaps are filled from their neighbours, and anything
- * wider stays missing rather than being invented. LAZ is compressed and not decoded here.
- * Pure: takes an ArrayBuffer, no DOM or network access.
+ * wider stays missing rather than being invented. LAZ is decoded by `pointCloud.ts`, whose points
+ * go through `gridGroundPoints`. Pure: no DOM or network access.
  */
 export interface LasHeader {
   version: string
@@ -90,20 +90,49 @@ export function readLasHeader(buffer: ArrayBuffer): LasHeader {
   return header
 }
 
+interface GridOptions {
+  cellM?: number
+  maxCells?: number
+  gapCells?: number
+}
+
 /** Average ground points into cells of `cellM` (grown if needed to stay within `maxCells`). */
 export function buildGroundGrid(
   buffer: ArrayBuffer,
-  {
-    cellM = 1,
-    maxCells = 4_194_304,
-    gapCells = 3,
-    classes = [2],
-  }: { cellM?: number; maxCells?: number; gapCells?: number; classes?: number[] } = {},
+  { classes = [2], ...options }: GridOptions & { classes?: number[] } = {},
 ): GroundGrid {
   const h = readLasHeader(buffer)
   const view = new DataView(buffer)
-  const spanX = h.max[0] - h.min[0],
-    spanY = h.max[1] - h.min[1]
+  // Classification: low five bits of byte 15 in formats 0–5, the whole byte 16 in formats 6–10.
+  const classAt = h.pointFormat >= 6 ? 16 : 15,
+    classMask = h.pointFormat >= 6 ? 0xff : 0x1f
+  const wanted = new Set(classes)
+  const x: number[] = [],
+    y: number[] = [],
+    z: number[] = []
+  for (let i = 0; i < h.points; i++) {
+    const at = h.pointOffset + i * h.pointLength
+    if (!wanted.has(view.getUint8(at + classAt) & classMask)) continue
+    x.push(view.getInt32(at, true) * h.scale[0] + h.offset[0])
+    y.push(view.getInt32(at + 4, true) * h.scale[1] + h.offset[1])
+    z.push(view.getInt32(at + 8, true) * h.scale[2] + h.offset[2])
+  }
+  const grid = gridGroundPoints({ x, y, z }, [h.min[0], h.min[1], h.max[0], h.max[1]], options)
+  return { ...grid, epsg: h.epsg, totalPoints: h.points }
+}
+
+/**
+ * The gridding behind `buildGroundGrid`, for points already decoded (a LAZ cloud, or one
+ * classified in the browser). Every point given is treated as ground.
+ */
+export function gridGroundPoints(
+  points: { x: ArrayLike<number>; y: ArrayLike<number>; z: ArrayLike<number> },
+  bounds: [minX: number, minY: number, maxX: number, maxY: number],
+  { cellM = 1, maxCells = 4_194_304, gapCells = 3 }: GridOptions = {},
+): GroundGrid {
+  const [minX, minY, maxX, maxY] = bounds
+  const spanX = maxX - minX,
+    spanY = maxY - minY
   if (!(spanX > 0 && spanY > 0)) throw Error('The point cloud has no horizontal extent.')
   let cell = Math.max(0.1, cellM)
   while ((Math.floor(spanX / cell) + 1) * (Math.floor(spanY / cell) + 1) > maxCells) cell *= 1.25
@@ -111,21 +140,12 @@ export function buildGroundGrid(
     height = Math.floor(spanY / cell) + 1
   const sum = new Float64Array(width * height),
     count = new Uint32Array(width * height)
-  // Classification: low five bits of byte 15 in formats 0–5, the whole byte 16 in formats 6–10.
-  const classAt = h.pointFormat >= 6 ? 16 : 15,
-    classMask = h.pointFormat >= 6 ? 0xff : 0x1f
-  const wanted = new Set(classes)
   let ground = 0
-  for (let i = 0; i < h.points; i++) {
-    const at = h.pointOffset + i * h.pointLength
-    if (!wanted.has(view.getUint8(at + classAt) & classMask)) continue
-    const x = view.getInt32(at, true) * h.scale[0] + h.offset[0],
-      y = view.getInt32(at + 4, true) * h.scale[1] + h.offset[1],
-      z = view.getInt32(at + 8, true) * h.scale[2] + h.offset[2]
-    const col = Math.floor((x - h.min[0]) / cell),
-      row = Math.floor((h.max[1] - y) / cell)
+  for (let i = 0; i < points.x.length; i++) {
+    const col = Math.floor((points.x[i] - minX) / cell),
+      row = Math.floor((maxY - points.y[i]) / cell)
     if (col < 0 || row < 0 || col >= width || row >= height) continue
-    sum[row * width + col] += z
+    sum[row * width + col] += points.z[i]
     count[row * width + col]++
     ground++
   }
@@ -167,14 +187,14 @@ export function buildGroundGrid(
     filled += changed
   }
   return {
-    epsg: h.epsg,
-    origin: [h.min[0] + cell / 2, h.max[1] - cell / 2],
+    epsg: null,
+    origin: [minX + cell / 2, maxY - cell / 2],
     pixelSize: [cell, -cell],
     width,
     height,
     values: values.map((v) => (v === null ? null : Math.round(v * 1000) / 1000)),
     groundPoints: ground,
-    totalPoints: h.points,
+    totalPoints: points.x.length,
     filledCells: filled,
     cellM: cell,
   }

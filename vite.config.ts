@@ -94,6 +94,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ import does
+  // not hit a mid-session re-optimisation ("Failed to fetch dynamically imported module").
+  optimizeDeps: { include: ['whitebox-wasm', 'whitebox-wasm/tools'] },
   build: {
     rollupOptions: {
       output: {
