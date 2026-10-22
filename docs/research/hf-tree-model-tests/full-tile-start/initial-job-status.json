@@ -1,0 +1,44 @@
+{
+  "stage": "full_tile_inference_running",
+  "coordinator_pid": 54619,
+  "started_utc": "2026-10-21T06:45:01Z",
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "total_returns": 84608005,
+  "total_core_tiles": 969,
+  "initial_estimate_hours": 28,
+  "maximum_wall_hours": 72,
+  "paid_job": false,
+  "models": {
+    "sat": {
+      "pid": 54624,
+      "return_code": null,
+      "stage": "full_tile_inference_running",
+      "model": "sat",
+      "completed_tiles": 14,
+      "total_tiles": 969,
+      "core_returns_processed": 231706,
+      "total_returns": 84608005,
+      "current_tile": "1-2",
+      "current_tile_windows": 50,
+      "current_tile_elapsed_seconds": 35.51890311398893,
+      "session_elapsed_seconds": 330.6617851089977,
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf"
+    },
+    "forainet": {
+      "pid": 54625,
+      "return_code": null,
+      "stage": "full_tile_inference_running",
+      "model": "forainet",
+      "completed_tiles": 15,
+      "total_tiles": 969,
+      "core_returns_processed": 355535,
+      "total_returns": 84608005,
+      "current_tile": "1-3",
+      "current_tile_windows": 10,
+      "current_tile_elapsed_seconds": 2.367841560015222,
+      "session_elapsed_seconds": 334.361158951011,
+      "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf"
+    }
+  },
+  "elapsed_hours": 0.09492760962910123
+}

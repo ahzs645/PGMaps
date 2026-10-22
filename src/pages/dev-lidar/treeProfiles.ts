@@ -15,13 +15,18 @@ export interface TreeProfile {
 
 /** Project original returns once; subsequent rotations stay in metric coordinates. */
 export function prepareTreeProfile(crop: TreeCrop): TreeProfile {
+  return prepareTreeProfileRange(crop, { minHeight: 2, maxHeight: 80 })
+}
+
+export function prepareTreeProfileRange(crop: TreeCrop, range: { minHeight: number; maxHeight: number }): TreeProfile {
   const [cx, cy] = toMetric(...crop.centre)
   const points: TreeProfile['points'] = []
   let radius = 1,
     maximum = 0,
     minimum = Infinity
   for (const p of crop.points) {
-    if (![p.lon, p.lat, p.height].every(Number.isFinite) || p.height < 2 || p.height > 80) continue
+    if (![p.lon, p.lat, p.height].every(Number.isFinite) || p.height < range.minHeight || p.height > range.maxHeight)
+      continue
     const [x, y] = toMetric(p.lon, p.lat)
     if (![x, y].every(Number.isFinite)) continue
     const east = x - cx,

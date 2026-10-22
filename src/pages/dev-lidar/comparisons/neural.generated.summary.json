@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "stage": "preliminary_partial_full_run",
+  "snapshot_utc": "2026-10-21T14:22:50.254229+00:00",
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "total_returns": 84608005,
+  "total_chunks": 969,
+  "common_chunks": 416,
+  "common_returns": 39346491,
+  "models": {
+    "sat": {
+      "assigned": 25149492,
+      "tree_class": 28356734,
+      "semantic_counts": {
+        "0": 10989757,
+        "1": 28356734
+      },
+      "inference_seconds": 27211.537386377604
+    },
+    "forainet": {
+      "assigned": 22016451,
+      "tree_class": 28380526,
+      "semantic_counts": {
+        "0": 6436934,
+        "1": 4529031,
+        "3": 24534180,
+        "4": 3730798,
+        "2": 115548
+      },
+      "inference_seconds": 27412.664596304996
+    }
+  },
+  "assignment_disagreement_returns": 6360525,
+  "whole_tile_complete": false,
+  "global_tree_counts_available": false,
+  "same_window_inputs_verified": true,
+  "bounds": [
+    -122.82506777262516,
+    53.88746967035691,
+    -122.79995729485762,
+    53.90004475828512
+  ],
+  "point_identity": "Original LAZ row; original classification omitted from display sample; no EPT node identity implied",
+  "display_sampling": "Up to 6000 evenly indexed original returns per selected core; network uses 0.2 m voxel representatives; labels transferred to all original returns",
+  "instance_scope": "Chunk-local IDs, not final seam-merged trees; model colours do not establish cross-model matches"
+}

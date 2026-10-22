@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "stage": "input_prepared_not_network_inference",
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "cache_manifest_sha256": "f791a86217e5e712fa67c09a14bcad323bbcf96cafec98e6216fe4188fc6cb7d",
+  "input_attributes": "XYZ only; source classes/heights retained in identity sidecar",
+  "points_omitted": 0,
+  "plots": [
+    {
+      "id": "crown-3146-north",
+      "returns": 65019,
+      "core_size_m": 25,
+      "buffer_m": 10,
+      "horizontal_crs": "EPSG:3157",
+      "vertical_crs": "EPSG:6647",
+      "z": "source elevation, not normalized height",
+      "nominal_accepted_returns_per_m2": 32.108148148148146,
+      "input_sha256": "9f68bb074dcfe74f80c7082d7c79af6a6f5293f689e618ccff58bbeb3654c014",
+      "array_sha256": "e5d97404c5d022594acb913e7fa4c54f23449e3e39ba1062a6d6a623cd4ed89f",
+      "ply_sha256": "1570d464e98c102c8d2eb48ebf21d1e2f3cb142d2637d93ab46d19220a54450a",
+      "identity_sha256": "17c4a5094f0608f94495bc8bf4fb503ee8eb987611c68e38e805c6b321adc0ba",
+      "nodes": [
+        "0-0-0-0",
+        "1-1-0-0",
+        "1-1-0-1",
+        "2-2-1-1",
+        "2-2-1-2",
+        "3-4-2-4",
+        "4-8-4-8",
+        "4-9-4-8",
+        "5-17-9-16",
+        "5-18-9-16"
+      ],
+      "centre_utm": [
+        512432.5,
+        5971384.5
+      ],
+      "instance_ground_truth_available": false
+    },
+    {
+      "id": "crown-85",
+      "returns": 83843,
+      "core_size_m": 25,
+      "buffer_m": 10,
+      "horizontal_crs": "EPSG:3157",
+      "vertical_crs": "EPSG:6647",
+      "z": "source elevation, not normalized height",
+      "nominal_accepted_returns_per_m2": 41.403950617283954,
+      "input_sha256": "7a66d05502e4a80b2d23dd6abf9d9b8bad87d6b9d4fd5f2fde06e1f85f8bb8f4",
+      "array_sha256": "5357b86ee469253ccdc98f8e7c40e6ec962bc09e55dd7567744c1d294e310082",
+      "ply_sha256": "33c8e99d77f19ba891562905830b70101f60095b822515fce89abe78b0aff27e",
+      "identity_sha256": "2b74f45a8363406b5d8d6562df4b09da321c5b4d3a6ecfcb388c180833038d2d",
+      "nodes": [
+        "0-0-0-0",
+        "1-1-0-0",
+        "1-1-0-1",
+        "2-3-1-1",
+        "2-3-1-2",
+        "3-6-2-3",
+        "3-6-2-4",
+        "4-12-4-7",
+        "4-12-4-8",
+        "5-24-8-15",
+        "5-24-8-16",
+        "5-24-9-16",
+        "5-25-8-15",
+        "5-25-8-16",
+        "5-25-9-15",
+        "5-25-9-16"
+      ],
+      "centre_utm": [
+        512804.5,
+        5971348.5
+      ],
+      "instance_ground_truth_available": false
+    },
+    {
+      "id": "crown-1",
+      "returns": 65258,
+      "core_size_m": 25,
+      "buffer_m": 10,
+      "horizontal_crs": "EPSG:3157",
+      "vertical_crs": "EPSG:6647",
+      "z": "source elevation, not normalized height",
+      "nominal_accepted_returns_per_m2": 32.22617283950617,
+      "input_sha256": "f0d24174c7dfb8c79236d86be54b84126f73fdb2f72191d45b1469e32897f995",
+      "array_sha256": "09602af1672cde3d4ebcba1b72ce4b11ad6f806220258911e5932e717a0b0d63",
+      "ply_sha256": "bf1c3a7a7c095183dda6bc869110361938ecacb5a2b6f480dc46dc474f93f6d8",
+      "identity_sha256": "e23d2ed7b399f577a523787659eba260c20ef7adbad48889205aba596ed3bd18",
+      "nodes": [
+        "0-0-0-0",
+        "1-0-0-1",
+        "2-0-0-2",
+        "3-1-1-4",
+        "4-2-2-8",
+        "4-3-2-8",
+        "5-5-4-16",
+        "5-6-4-16"
+      ],
+      "centre_utm": [
+        511819.5,
+        5971123.5
+      ],
+      "instance_ground_truth_available": false
+    }
+  ]
+}

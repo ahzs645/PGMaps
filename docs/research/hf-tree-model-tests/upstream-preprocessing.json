@@ -1,0 +1,39 @@
+{
+  "stage": "upstream_preprocessing_completed_network_inference_not_run",
+  "cuda_available": false,
+  "cuda_allocation_probe": "AssertionError: Torch not compiled with CUDA enabled",
+  "points_omitted": 0,
+  "plots": [
+    {
+      "plot": "crown-3146-north",
+      "returns": 65019,
+      "sat_preprocess_seconds": 0.22377162001794204,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.004422083991812542,
+      "forestformer_roundtrip_max_error_m": 1.8310547602595761e-06,
+      "forestformer_test_mode_has_no_truth": true
+    },
+    {
+      "plot": "crown-85",
+      "returns": 83843,
+      "sat_preprocess_seconds": 0.2973103060212452,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.005229492002399638,
+      "forestformer_roundtrip_max_error_m": 1.8310546465727384e-06,
+      "forestformer_test_mode_has_no_truth": true
+    },
+    {
+      "plot": "crown-1",
+      "returns": 65258,
+      "sat_preprocess_seconds": 0.26699194399407133,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.004115752002689987,
+      "forestformer_roundtrip_max_error_m": 1.8310547602595761e-06,
+      "forestformer_test_mode_has_no_truth": true
+    }
+  ],
+  "git_commits": {
+    "SegmentAnyTree": "a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9",
+    "FF3D_inference": "8159928c289ae18e6c7581ce73e2f6bfc4b6bae8"
+  }
+}

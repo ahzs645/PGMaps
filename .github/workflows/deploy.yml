@@ -234,7 +234,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lidar-snapshots-regenerated
-          path: src/pages/dev-lidar/*.generated.json
+          path: src/pages/dev-lidar/**/*.generated.json
           retention-days: 14
 
       - name: Verify complete LiDAR tiles

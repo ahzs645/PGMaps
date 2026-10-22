@@ -46,18 +46,20 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
             <option value="satellite">Satellite</option>
             <option value="none">None</option>
           </select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 gap-1 px-2 text-xs"
-            aria-expanded={c.showPanel}
-            aria-controls="lidar-sidebar"
-            onClick={() => c.setPanelOpen(!c.showPanel)}
-            disabled={!c.summary}
-          >
-            <PanelLeft className="size-3.5" />
-            {c.showPanel ? 'Hide panel' : 'Panels'}
-          </Button>
+          {c.tool?.id !== 'compare' && c.tool?.id !== 'volume' && c.tool?.id !== 'inventory' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1 px-2 text-xs"
+              aria-expanded={c.showPanel}
+              aria-controls="lidar-sidebar"
+              onClick={() => c.setPanelOpen(!c.showPanel)}
+              disabled={!c.summary}
+            >
+              <PanelLeft className="size-3.5" />
+              {c.showPanel ? 'Hide panel' : 'Panels'}
+            </Button>
+          )}
         </>
       )}
     </header>

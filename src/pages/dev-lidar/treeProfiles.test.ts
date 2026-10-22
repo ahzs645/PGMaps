@@ -2,7 +2,14 @@ import proj4 from 'proj4'
 import { describe, expect, it } from 'vitest'
 import { METRIC_CRS } from './sourceGrids'
 import type { TreeCrop } from './treeIsolation'
-import { canPinProfile, prepareTreeProfile, profileHorizontal, profileScale, treeProfilesSVG } from './treeProfiles'
+import {
+  canPinProfile,
+  prepareTreeProfileRange,
+  prepareTreeProfile,
+  profileHorizontal,
+  profileScale,
+  treeProfilesSVG,
+} from './treeProfiles'
 
 const metricCentre = [511819.5, 5971123.5]
 const centre = proj4(METRIC_CRS, 'EPSG:4326', metricCentre) as [number, number]
@@ -25,6 +32,13 @@ const crop: TreeCrop = {
   }),
 }
 describe('observed tree side profiles', () => {
+  it('allows the individual-tree inspector to include returns down to ground level', () => {
+    const points = crop.points.map((p) => ({ ...p, height: 1 }))
+    expect(prepareTreeProfile({ ...crop, points }).points).toHaveLength(0)
+    expect(prepareTreeProfileRange({ ...crop, points }, { minHeight: 0, maxHeight: 80 }).points).toHaveLength(
+      points.length,
+    )
+  })
   it('uses the source metric frame and per-return terrain heights', () => {
     const p = prepareTreeProfile(crop)
     expect(p.points[0].east).toBeCloseTo(-3, 3)

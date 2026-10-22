@@ -26,6 +26,19 @@ describe('focused LiDAR routes', () => {
     expect(resolveLidarRoute('/', '?view=analysis').tool?.id).toBe('forestry')
     expect(resolveLidarRoute('/dev/lidar', '?view=inspection').canonical).toBe('/dev/lidar/buildings/?panel=roofs')
   })
+  it('preserves valid comparison family links during canonical navigation', () => {
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=neural&inspect=trees').canonical).toBe(
+      '/dev/lidar/compare/?family=neural&inspect=trees',
+    )
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=rgb&inspect=trees').canonical).toBe(
+      '/dev/lidar/compare/?family=rgb',
+    )
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=neural').canonical).toBe(
+      '/dev/lidar/compare/?family=neural',
+    )
+    expect(resolveLidarRoute('/dev/lidar/compare/', '?family=unknown').canonical).toBe('/dev/lidar/compare/')
+    expect(resolveLidarRoute('/dev/lidar/trees/', '?family=neural').canonical).toBe('/dev/lidar/trees/')
+  })
   it('scopes analysis parameters to the tool and rejects unknown/nested paths', () => {
     expect(resolveLidarRoute('/dev/lidar/canopy/', '?view=models').mode).toBe('canopy-height')
     expect(resolveLidarRoute('/dev/lidar/forestry/', '?view=plots').canonical).toBe('/dev/lidar/forestry/?view=plots')

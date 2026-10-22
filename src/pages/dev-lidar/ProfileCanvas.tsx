@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IsolatedPoint, TreeCrop } from './treeIsolation'
 import { TREE_COLOURS } from './treeIsolation'
-import { prepareTreeProfile } from './treeProfiles'
+import { prepareTreeProfileRange } from './treeProfiles'
 import { inPolygon, pointKey, type InspectionState, type ProfileSettings } from './treeInspection'
 export type ProfileInteraction = 'pick' | 'pan' | 'polygon' | 'seed'
 export function ProfileCanvas({
@@ -38,7 +38,10 @@ export function ProfileCanvas({
   const [size, setSize] = useState({ width: 420, height: 360 }),
     [polygon, setPolygon] = useState<[number, number][]>([])
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
-  const prepared = useMemo(() => prepareTreeProfile(crop), [crop])
+  const prepared = useMemo(
+    () => prepareTreeProfileRange(crop, { minHeight: settings.minHeight, maxHeight: settings.maxHeight }),
+    [crop, settings.minHeight, settings.maxHeight],
+  )
   const points = useMemo(() => {
     const angle = (settings.angle * Math.PI) / 180
     return prepared.points
@@ -102,7 +105,7 @@ export function ProfileCanvas({
     ctx.font = '11px Arial'
     ctx.textAlign = 'right'
     ctx.fillStyle = '#374151'
-    for (let h = 0; h <= 80; h += top > 30 ? 10 : 5) {
+    for (let h = 0; h <= top; h += top > 30 ? 10 : 5) {
       const yy = y(h)
       if (yy < 20 || yy > size.height - 35) continue
       ctx.strokeStyle = '#e5e7eb'

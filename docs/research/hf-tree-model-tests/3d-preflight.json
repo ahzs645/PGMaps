@@ -1,0 +1,52 @@
+{
+  "stage": "upstream_preprocessing_completed_network_inference_not_run",
+  "cuda_available": false,
+  "cuda_allocation_probe": "AssertionError: Torch not compiled with CUDA enabled",
+  "remote_gpu_status": "hf_jobs MCP operation ps returned UNAVAILABLE: tool was not returned by tools/list",
+  "points_omitted": 0,
+  "plots": [
+    {
+      "plot": "crown-3146-north",
+      "returns": 65019,
+      "sat_preprocess_seconds": 0.20796139701269567,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.007504637003876269,
+      "forestformer_roundtrip_max_error_m": 1.8310547602595761e-06,
+      "forestformer_test_mode_has_no_truth": true
+    },
+    {
+      "plot": "crown-85",
+      "returns": 83843,
+      "sat_preprocess_seconds": 0.30476397098391317,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.0044847800163552165,
+      "forestformer_roundtrip_max_error_m": 1.8310546465727384e-06,
+      "forestformer_test_mode_has_no_truth": true
+    },
+    {
+      "plot": "crown-1",
+      "returns": 65258,
+      "sat_preprocess_seconds": 0.2251736810139846,
+      "sat_roundtrip_max_error_m": 1.9073486328125e-06,
+      "forestformer_preprocess_seconds": 0.0035057119966950268,
+      "forestformer_roundtrip_max_error_m": 1.8310547602595761e-06,
+      "forestformer_test_mode_has_no_truth": true
+    }
+  ],
+  "git_commits": {
+    "SegmentAnyTree": "a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9",
+    "FF3D_inference": "8159928c289ae18e6c7581ce73e2f6bfc4b6bae8",
+    "ForPT": "8304f57620fdffc35ac9a203ee844a015a875869",
+    "DeepForest": "081f1e07cf5e4fadc4f98480b1f1457d2bb782bd",
+    "CanopyRS": "86cf19ef3b5d8103e0d9d1c7cb03e9419b0abdea",
+    "detectron2": "b0fe2f0a5bb6496f65246ef35687a386a9f19202"
+  },
+  "forestformer_zip_members": [
+    {
+      "name": "clean_forestformer/epoch_3000_fix.pth",
+      "bytes": 230154197
+    }
+  ],
+  "forpt_instance_checkpoint_released": false,
+  "forpt_release_evidence": "README model zoo says Instance segmentation / FOR-instanceV2 / Coming soon"
+}

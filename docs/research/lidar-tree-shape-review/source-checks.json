@@ -1,0 +1,10 @@
+{
+  "original_points_checked": 7109,
+  "ept_nodes_checked": 28,
+  "source_sha256": "f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf",
+  "source_dtm_hash_matched": true,
+  "identity_coordinates_classes_and_withheld_flags_matched": true,
+  "independent_overlap_dimension_in_all_checked_ept_las": false,
+  "excluded_legacy_overlap_class12": true,
+  "scope": "Checks original EPT nodes; does not establish flag fidelity to the pre-conversion source LAZ."
+}

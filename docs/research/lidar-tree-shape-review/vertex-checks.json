@@ -1,0 +1,35 @@
+{
+  "scope": "Current application CPU vertex generation; does not verify WebGL drawing or the live canvas",
+  "results": [
+    {
+      "id": "crown-85",
+      "returns": 1479,
+      "max_horizontal_error_m": 1.8214658819778935e-7,
+      "max_vertical_error_m": 0.000001340327997922941
+    },
+    {
+      "id": "crown-3146",
+      "returns": 1115,
+      "max_horizontal_error_m": 1.673354562589567e-7,
+      "max_vertical_error_m": 0.0000013404584784382223
+    },
+    {
+      "id": "crown-12323",
+      "returns": 655,
+      "max_horizontal_error_m": 1.7010439507756032e-7,
+      "max_vertical_error_m": 6.687904097191222e-7
+    },
+    {
+      "id": "crown-15190",
+      "returns": 738,
+      "max_horizontal_error_m": 1.9790480365612816e-7,
+      "max_vertical_error_m": 3.3458170989320024e-7
+    },
+    {
+      "id": "crown-1",
+      "returns": 3122,
+      "max_horizontal_error_m": 4.131010931936e-7,
+      "max_vertical_error_m": 0.000002678097132502444
+    }
+  ]
+}

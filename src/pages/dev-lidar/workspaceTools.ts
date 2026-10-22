@@ -1,7 +1,16 @@
 import { ANALYSIS_MODES, type AnalysisMode } from './analysisWorkflows'
 
 export const LIDAR_BASE = '/dev/lidar/'
-export type LidarToolId = 'canopy' | 'trees' | 'forestry' | 'species' | 'buildings' | 'transects'
+export type LidarToolId =
+  | 'canopy'
+  | 'trees'
+  | 'forestry'
+  | 'species'
+  | 'buildings'
+  | 'transects'
+  | 'compare'
+  | 'volume'
+  | 'inventory'
 export interface LidarTool {
   id: LidarToolId
   title: string
@@ -11,6 +20,30 @@ export interface LidarTool {
   defaultMode: AnalysisMode | null
 }
 export const LIDAR_TOOLS: LidarTool[] = [
+  {
+    id: 'inventory',
+    title: 'Tree inventory',
+    description: 'Inspect crown attributes, modelled diameter and volume, and polygon summaries.',
+    outputs: 'ForestTools · neural candidates · stand tables · reviews',
+    modes: [],
+    defaultMode: null,
+  },
+  {
+    id: 'volume',
+    title: 'Forest volume',
+    description: 'See BC inventory volume with LiDAR context and adjustable harvest assumptions.',
+    outputs: 'BC VRI baseline · utilization & dead volume · harvest scenarios · Québec example',
+    modes: [],
+    defaultMode: null,
+  },
+  {
+    id: 'compare',
+    title: 'Compare models',
+    description: 'Compare executed model variants on linked maps and review their performance.',
+    outputs: 'Neural models · LiDAR labels · RGB masks · 3D shape review',
+    modes: [],
+    defaultMode: null,
+  },
   {
     id: 'canopy',
     title: 'Canopy',
@@ -82,6 +115,11 @@ export function resolveLidarRoute(pathname: string, search: string) {
   const mode = tool?.modes.includes(legacy as AnalysisMode) ? (legacy as AnalysisMode) : (tool?.defaultMode ?? null)
   const panel = legacy === 'inspection' || params.get('panel') === 'roofs' ? 'buildings' : null
   const valid = atRoot || !!tool
-  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}`
+  const family =
+    tool?.id === 'compare' && ['lidar', 'neural', 'rgb', 'shapes'].includes(params.get('family') ?? '')
+      ? params.get('family')
+      : null
+  const inspect = family === 'neural' && params.get('inspect') === 'trees' ? '&inspect=trees' : ''
+  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}${inspect}`
   return { tool, mode, panel, valid, canonical }
 }
