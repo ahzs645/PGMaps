@@ -5,6 +5,7 @@
  */
 import { horizontalGeometry } from './engine'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
+import type { ShapeLayer } from './shapefile'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
 
 export type ToGrid = (coordinate: Coordinate) => [number, number]
@@ -170,4 +171,98 @@ export function stakeoutCsv({
     }
   }
   return rows.join('\n') + '\n'
+}
+
+/** GIS layers for a zipped shapefile: every road centreline, the active road's stations, its culverts. */
+export function roadShapefileLayers(
+  alignments: Alignment[],
+  analyses: Map<string, RoadAnalysis>,
+  activeId: string,
+): ShapeLayer[] {
+  const active = analyses.get(activeId)
+  const round = (v: number | null | undefined, d = 2) =>
+    v == null || !Number.isFinite(v) ? null : Number(v.toFixed(d))
+  return [
+    {
+      name: 'road_centrelines',
+      type: 'polyline',
+      fields: [
+        { name: 'NAME', type: 'C', length: 80 },
+        { name: 'LENGTH_M', type: 'N', length: 12, decimals: 2 },
+        { name: 'MAXGRADE', type: 'N', length: 8, decimals: 2 },
+        { name: 'CUT_M3', type: 'N', length: 14, decimals: 1 },
+        { name: 'FILL_M3', type: 'N', length: 14, decimals: 1 },
+        { name: 'COST_CAD', type: 'N', length: 14, decimals: 0 },
+        { name: 'COVER_PCT', type: 'N', length: 7, decimals: 2 },
+      ],
+      features: alignments.flatMap((a) => {
+        const r = analyses.get(a.id)
+        return r && r.centerline.length > 1
+          ? [
+              {
+                parts: [r.centerline],
+                attributes: {
+                  NAME: a.name,
+                  LENGTH_M: round(r.length),
+                  MAXGRADE: round(r.maxGradePercent),
+                  CUT_M3: round(r.cutVolumeM3, 1),
+                  FILL_M3: round(r.fillVolumeM3, 1),
+                  COST_CAD: round(r.estimatedCost, 0),
+                  COVER_PCT: round(r.coveragePercent),
+                },
+              },
+            ]
+          : []
+      }),
+    },
+    {
+      name: 'road_stations',
+      type: 'point',
+      fields: [
+        { name: 'STATION_M', type: 'N', length: 12, decimals: 2 },
+        { name: 'GROUND_M', type: 'N', length: 10, decimals: 2 },
+        { name: 'DESIGN_M', type: 'N', length: 10, decimals: 2 },
+        { name: 'GRADE_PCT', type: 'N', length: 8, decimals: 2 },
+        { name: 'CUT_M2', type: 'N', length: 10, decimals: 2 },
+        { name: 'FILL_M2', type: 'N', length: 10, decimals: 2 },
+        { name: 'FLAGS', type: 'C', length: 200 },
+      ],
+      features: (active?.stations ?? []).map((s) => ({
+        point: s.coordinate,
+        attributes: {
+          STATION_M: round(s.chainage),
+          GROUND_M: round(s.groundElevation),
+          DESIGN_M: round(s.designElevation),
+          GRADE_PCT: round(s.gradePercent),
+          CUT_M2: round(s.cutAreaM2),
+          FILL_M2: round(s.fillAreaM2),
+          FLAGS: s.flags.join('; '),
+        },
+      })),
+    },
+    {
+      name: 'road_culverts',
+      type: 'polyline',
+      fields: [
+        { name: 'NAME', type: 'C', length: 80 },
+        { name: 'STATION_M', type: 'N', length: 12, decimals: 2 },
+        { name: 'DIAM_M', type: 'N', length: 8, decimals: 3 },
+        { name: 'COVER_M', type: 'N', length: 8, decimals: 2 },
+        { name: 'COST_CAD', type: 'N', length: 14, decimals: 0 },
+      ],
+      features: (active?.engineering?.culverts ?? []).map((c) => ({
+        parts: [[c.start, c.end]],
+        attributes: {
+          NAME: c.name,
+          STATION_M: round(c.chainage),
+          DIAM_M: round(
+            alignments.find((a) => a.id === activeId)?.engineering?.culverts.find((x) => x.id === c.id)?.diameterM,
+            3,
+          ),
+          COVER_M: round(c.coverM),
+          COST_CAD: round(c.installedCost, 0),
+        },
+      })),
+    },
+  ]
 }

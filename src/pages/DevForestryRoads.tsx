@@ -7,7 +7,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { AppSelect } from '@/components/ui/select'
 import { ResizableSplit } from '@/components/ui/resizable-split'
-import { downloadText } from '@/lib/download'
+import { downloadBlob, downloadText } from '@/lib/download'
 import {
   CableChart,
   CrossSectionChart,
@@ -50,7 +50,7 @@ import {
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
-import { landXml, stakeoutCsv } from './dev-forestry-roads/designExports'
+import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout } from './dev-forestry-roads/RoadPaneLayout'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
@@ -549,7 +549,7 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
-  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout') => {
+  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile') => {
     try {
       const safe = parseProject(project)
       if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview))
@@ -564,7 +564,22 @@ export default function DevForestryRoads() {
           `${basename}.geojson`,
           'application/geo+json',
         )
-      else if (kind === 'landxml' || kind === 'stakeout') {
+      else if (kind === 'shapefile') {
+        void (async () => {
+          try {
+            const [{ default: JSZip }, { writeShapefile }] = await Promise.all([
+              import('jszip'),
+              import('./dev-forestry-roads/shapefile'),
+            ])
+            const zip = new JSZip()
+            for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id))
+              for (const [name, bytes] of Object.entries(writeShapefile(layer))) zip.file(name, bytes)
+            downloadBlob(await zip.generateAsync({ type: 'blob' }), `${basename}-shapefiles.zip`)
+          } catch (error) {
+            w.setError(error instanceof Error ? error.message : 'Could not write the shapefiles.')
+          }
+        })()
+      } else if (kind === 'landxml' || kind === 'stakeout') {
         if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
         const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
         if (kind === 'landxml')
