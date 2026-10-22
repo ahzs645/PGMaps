@@ -278,6 +278,22 @@ export function positionAt(alignment: Alignment, chainage: number): { coordinate
   const p = location(compile(alignment), chainage)
   return { coordinate: p.coordinate, bearing: p.bearing }
 }
+/**
+ * Cut and fill areas of one section at a trial formation elevation, for search tools that try
+ * many levels at a station. Null areas mean the section is incomplete (missing ground or no
+ * daylight within the half-width).
+ */
+export function sectionAreasAt(
+  alignment: Alignment,
+  place: { coordinate: Coordinate; bearing: number },
+  chainage: number,
+  elevation: number,
+  halfWidth: number,
+  terrain: TerrainSource,
+): { cutAreaM2: number | null; fillAreaM2: number | null } {
+  const section = sectionAt(place.coordinate, place.bearing, elevation, alignment, chainage, halfWidth, terrain)
+  return { cutAreaM2: section.cutAreaM2, fillAreaM2: section.fillAreaM2 }
+}
 export function nearestStation(stations: RoadStation[], chainage: number): RoadStation | undefined {
   if (!stations.length) return undefined
   let lo = 0,

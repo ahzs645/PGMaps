@@ -7,6 +7,9 @@ import { formatRoadStation } from './Charts'
 import { nearestStation } from './engine'
 import { EMPTY_VERTICAL_STANDARDS, type VerticalControl, type VerticalStandards } from './verticalStandards'
 import { curveLengthsForK } from './verticalTools'
+import { DEFAULT_VERTICAL_OPTIMIZATION, optimizeVerticalProfile } from './verticalOptimizer'
+import { safeAnalyzeRoad } from './analysisResult'
+import { parseProject } from './project'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 const uid = () => crypto.randomUUID()
@@ -17,6 +20,41 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   const standards = alignment.verticalStandards ?? EMPTY_VERTICAL_STANDARDS
   const controls = alignment.verticalControls ?? []
   const [k, setK] = useState(4)
+  const [search, setSearch] = useState({
+    pviSpacingM: DEFAULT_VERTICAL_OPTIMIZATION.pviSpacingM,
+    maxDepthM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
+    levelStepM: DEFAULT_VERTICAL_OPTIMIZATION.levelStepM,
+    tieEndsToGround: true,
+  })
+  const optimize = async () => {
+    if (workspace.busy) return
+    const { project, source } = workspace
+    workspace.setError('')
+    workspace.setBusy('Optimizing the vertical profile…')
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    try {
+      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      const result = optimizeVerticalProfile(alignment, analysis.length, source, project.settings, { ...search, k })
+      const candidate = structuredClone(alignment)
+      candidate.id = uid()
+      candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
+      candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
+      candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
+      candidate.vertical = result.vertical.map((point) => ({ ...point, id: uid() }))
+      const after = safeAnalyzeRoad(candidate, source, project.settings, project.context)
+      workspace.commit(
+        parseProject({ ...project, alignments: [...project.alignments, candidate], activeAlignmentId: candidate.id }),
+      )
+      const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
+      workspace.setNotice(
+        `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original road is kept as an alternative.`,
+      )
+    } catch (cause) {
+      workspace.setError(cause instanceof Error ? cause.message : 'Could not optimize the profile.')
+    } finally {
+      workspace.setBusy('')
+    }
+  }
   const setStandards = (patch: Partial<VerticalStandards>) =>
     updateAlignment((a) => ({
       ...a,
@@ -168,6 +206,53 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             </Button>
           </div>
         </div>
+      </SidebarSection>
+      <SidebarSection title="Optimize vertical profile">
+        <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
+          Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
+          ranges, the road-wide maximum grade, curve K above and every control point. The result is a new alternative;
+          haul, borrow and waste are costed afterwards, not optimized.
+        </p>
+        <div className="grid grid-cols-3 gap-1">
+          <NumberField
+            label="PVI spacing (m)"
+            value={search.pviSpacingM}
+            min={10}
+            max={1000}
+            step={5}
+            onChange={(pviSpacingM) => setSearch((x) => ({ ...x, pviSpacingM }))}
+          />
+          <NumberField
+            label="Search ± (m)"
+            value={search.maxDepthM}
+            min={0.5}
+            max={30}
+            onChange={(maxDepthM) => setSearch((x) => ({ ...x, maxDepthM }))}
+          />
+          <NumberField
+            label="Level step (m)"
+            value={search.levelStepM}
+            min={0.1}
+            max={5}
+            onChange={(levelStepM) => setSearch((x) => ({ ...x, levelStepM }))}
+          />
+        </div>
+        <label className="mt-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={search.tieEndsToGround}
+            onChange={(e) => setSearch((x) => ({ ...x, tieEndsToGround: e.target.checked }))}
+          />
+          Tie both ends to ground
+        </label>
+        <Button
+          className="mt-2 w-full"
+          size="sm"
+          disabled={!!workspace.busy || analysis.length < 10 || !analysis.stations.length}
+          onClick={() => void optimize()}
+        >
+          Optimize profile (K {k})
+        </Button>
       </SidebarSection>
       <SidebarSection title="Control points">
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">

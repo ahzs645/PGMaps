@@ -615,6 +615,15 @@ export function ProfileChart({
           f.plotHeight /
           (displayedDomain[3] - displayedDomain[2]) /
           (f.plotWidth / (displayedDomain[1] - displayedDomain[0]))
+        // Curve labels need room: keep one only when it clears the previous kept label.
+        const labelledCurves = new Set<string>()
+        let lastLabelX = -Infinity
+        for (const curve of curves) {
+          const x = f.x(curve.chainage)
+          if (x - lastLabelX < 72) continue
+          labelledCurves.add(curve.pviId)
+          lastLabelX = x
+        }
         return (
           <>
             <svg
@@ -1058,7 +1067,7 @@ export function ProfileChart({
                 .map(({ p, index }) => (
                   <g key={p.id}>
                     {curves
-                      .filter((curve) => curve.pviId === p.id)
+                      .filter((curve) => curve.pviId === p.id && labelledCurves.has(curve.pviId))
                       .map((curve) => (
                         <text
                           key={curve.pviId}

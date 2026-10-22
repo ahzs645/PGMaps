@@ -16,6 +16,7 @@ export function curveLengthsForK(points: VerticalPoint[], k: number, minLengthM 
     return change < 1e-9 ? 0 : Math.max(minLengthM, k * change) / 2
   })
   // Each tangent between PVIs is shared by the two half-curves that meet on it.
+  const shrunk = pv.map(() => false)
   for (let pass = 0; pass < 3; pass++)
     for (let i = 0; i + 1 < pv.length; i++) {
       const gap = pv[i + 1].chainage - pv[i].chainage
@@ -24,7 +25,12 @@ export function curveLengthsForK(points: VerticalPoint[], k: number, minLengthM 
         const scale = gap / used
         halves[i] *= scale
         halves[i + 1] *= scale
+        shrunk[i] = shrunk[i + 1] = true
       }
     }
-  return pv.map((p, i) => ({ ...p, curveLength: Math.floor(halves[i] * 2 * 10) / 10 }))
+  // Round up to 0.1 m so K never lands just under the target; a shrunk curve rounds down to fit.
+  return pv.map((p, i) => ({
+    ...p,
+    curveLength: Math.max(0, shrunk[i] ? Math.floor(halves[i] * 20) : Math.ceil(halves[i] * 20 - 1e-9)) / 10,
+  }))
 }
