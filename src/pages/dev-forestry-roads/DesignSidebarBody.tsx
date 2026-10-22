@@ -4,13 +4,14 @@ import { Copy, Download, Mountain, Plus, Route, SlidersHorizontal, Trash2, Uploa
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
 import { VerticalDesignControls } from './VerticalDesignControls'
 import { CurveTools } from './CurveTools'
 import { distance } from './engine'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
+import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from './routing'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { RoadTemplate, WidthOverride } from './types'
@@ -28,7 +29,7 @@ export interface SidebarProps {
   onPoint: (id: string | null) => void
   onDuplicate: () => void
   onRemoveAlignment: () => void
-  onSuggest: () => void
+  onSuggest: (options: RouteSearchOptions) => void
   onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
   onSave: (kind: 'project' | 'geojson' | 'csv' | 'report') => void
   onProfile: (id: string) => void
@@ -42,6 +43,7 @@ export function DesignSidebar(p: SidebarProps) {
   const [tab, setTab] = useState<'terrain' | 'design' | 'template' | 'engineering' | 'review' | 'files'>('design')
   const [routeObjective, setRouteObjective] = useState<RoadOptimizationObjective>('balanced')
   const [corridorHalfWidthM, setCorridorHalfWidthM] = useState(180)
+  const [route, setRoute] = useState<RouteSearchOptions>(DEFAULT_ROUTE_OPTIONS)
   const { project, alignment, analysis, update, updateAlignment, source } = p.workspace
   const point = alignment.points.find((x) => x.id === p.selectedPoint)
   const tweakTemplate = (key: keyof RoadTemplate, value: number) =>
@@ -189,6 +191,33 @@ export function DesignSidebar(p: SidebarProps) {
                     >
                       {feature.name} <span className="text-muted-foreground">· {feature.kind}</span>
                     </button>
+                    {feature.kind === 'avoid' && feature.geometry.type === 'Polygon' && (
+                      <div
+                        className="w-20"
+                        title="Empty blocks the route search; a value lets it cross at this extra cost"
+                      >
+                        <OptionalNumberField
+                          label={`${feature.name} zone cost per metre`}
+                          hideLabel
+                          placeholder="blocked"
+                          value={feature.routeCostPerM ?? null}
+                          min={0}
+                          max={1e6}
+                          step={10}
+                          onChange={(cost) =>
+                            update((x) => ({
+                              ...x,
+                              context: x.context.map((c) => {
+                                if (c.id !== feature.id) return c
+                                const { routeCostPerM: _old, ...rest } = c
+                                void _old
+                                return cost === null ? rest : { ...rest, routeCostPerM: cost }
+                              }),
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -315,18 +344,61 @@ export function DesignSidebar(p: SidebarProps) {
                 size="sm"
                 className="mt-2 w-full"
                 disabled={project.alignments.length >= 20}
-                onClick={p.onSuggest}
+                onClick={() => p.onSuggest(route)}
               >
-                Suggest terrain-cost alternative
+                Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
               </Button>
+              <div className="mt-2 grid grid-cols-3 gap-1" data-testid="road-route-options">
+                <NumberField
+                  label="Road $/m"
+                  value={route.baseCostPerM}
+                  min={0.01}
+                  max={100000}
+                  step={10}
+                  onChange={(baseCostPerM) => setRoute((r) => ({ ...r, baseCostPerM }))}
+                />
+                <NumberField
+                  label="Crossing $"
+                  value={route.crossingCost}
+                  max={1e8}
+                  step={500}
+                  onChange={(crossingCost) => setRoute((r) => ({ ...r, crossingCost }))}
+                />
+                <NumberField
+                  label="Alternatives"
+                  value={route.alternatives}
+                  min={1}
+                  max={5}
+                  step={1}
+                  onChange={(alternatives) => setRoute((r) => ({ ...r, alternatives: Math.round(alternatives) }))}
+                />
+                <OptionalNumberField
+                  label="Start heading °"
+                  value={route.startHeading}
+                  min={0}
+                  max={360}
+                  step={5}
+                  onChange={(startHeading) => setRoute((r) => ({ ...r, startHeading }))}
+                />
+                <OptionalNumberField
+                  label="End heading °"
+                  value={route.endHeading}
+                  min={0}
+                  max={360}
+                  step={5}
+                  onChange={(endHeading) => setRoute((r) => ({ ...r, endHeading }))}
+                />
+              </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Baseline eight-neighbour terrain-cost search between endpoints, without curve constraints.
+                Eight-neighbour terrain-cost search between endpoints, without curve constraints. Cost is road $/m
+                scaled by sampled grade, plus each stream crossing and the $/m of any review area given a zone cost; the
+                defaults are placeholders. Headings hold the first and last legs within ±45°.
               </p>
               <div className="mt-3 space-y-2 rounded-md border p-2" data-testid="road-corridor-optimizer">
                 <p className="text-xs font-semibold">Optimize sketched road corridor</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Peg two endpoints and optional intermediate guide points first. The sketched shape defines the
-                  centre of a search corridor; all results remain editable road alternatives.
+                  Peg two endpoints and optional intermediate guide points first. The sketched shape defines the centre
+                  of a search corridor; all results remain editable road alternatives.
                 </p>
                 <Field label="Preference">
                   <select
@@ -355,14 +427,19 @@ export function DesignSidebar(p: SidebarProps) {
                 <Button
                   size="sm"
                   className="w-full"
-                  disabled={project.alignments.length >= 20 || corridorHalfWidthM < 25 || corridorHalfWidthM > 1000 || !Number.isFinite(corridorHalfWidthM)}
+                  disabled={
+                    project.alignments.length >= 20 ||
+                    corridorHalfWidthM < 25 ||
+                    corridorHalfWidthM > 1000 ||
+                    !Number.isFinite(corridorHalfWidthM)
+                  }
                   onClick={() => p.onOptimize(routeObjective, corridorHalfWidthM)}
                 >
                   Optimize sketched corridor
                 </Button>
                 <p className="text-[11px] text-muted-foreground">
-                  Uses the current grade and minimum-radius settings as screening inputs. Not a certified road
-                  design: inspect each candidate’s vertical profile, geometric curves, crossings and earthworks.
+                  Uses the current grade and minimum-radius settings as screening inputs. Not a certified road design:
+                  inspect each candidate’s vertical profile, geometric curves, crossings and earthworks.
                 </p>
               </div>
             </SidebarSection>

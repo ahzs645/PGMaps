@@ -296,6 +296,9 @@ function parseContext(raw: unknown): ContextFeature {
     name: text(r.name, 'Context name'),
     kind: r.kind as ContextFeature['kind'],
     geometry,
+    ...(r.kind === 'avoid' && r.routeCostPerM !== undefined && r.routeCostPerM !== null
+      ? { routeCostPerM: number(r.routeCostPerM, 'Zone route cost', 0, 1e6) }
+      : {}),
   }
 }
 function validateContextBudget(context: ContextFeature[]) {

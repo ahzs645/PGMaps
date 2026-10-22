@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestRoute } from './routing'
+import { suggestRoute, suggestRoutes } from './routing'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 const R = 6371008.8,
@@ -115,5 +115,51 @@ describe('bounded terrain-cost route suggestion', () => {
     expect(() => suggestRoute(point(0, 0), point(200, 0), flat, { ...settings, maxGradePercent: 0 })).toThrow(/grade/)
     expect(() => suggestRoute(point(0, 0), point(16000, 0), flat, settings)).toThrow(/15 km/)
     expect(() => suggestRoute(point(0, 0), point(1, 0), flat, settings)).toThrow(/2 m apart/)
+  })
+})
+
+describe('route search costs, headings and alternatives', () => {
+  const flat = terrain(() => 800)
+  const start = point(0, 0),
+    end = point(400, 0)
+  it('returns distinct alternatives ranked by cost', () => {
+    const result = suggestRoutes(start, end, flat, settings, [], { alternatives: 4 })
+    expect(result.routes.length).toBeGreaterThan(1)
+    const costs = result.routes.map((r) => r.cost)
+    expect([...costs].sort((a, b) => a - b)).toEqual(costs)
+    expect(result.routes[0].lengthM).toBeCloseTo(400, -1)
+    expect(result.message).toContain('ranked alternatives')
+  })
+
+  it('prices stream crossings in dollars and detours when a crossing costs more than the way round', () => {
+    const stream: ContextFeature = {
+      id: 's',
+      name: 'Creek',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [point(200, -60), point(200, 60)] },
+    }
+    const cheap = suggestRoutes(start, end, flat, settings, [stream], { crossingCost: 1 }).routes[0]
+    expect(cheap.crossings).toBe(1)
+    const dear = suggestRoutes(start, end, flat, settings, [stream], { crossingCost: 1e7 }).routes[0]
+    expect(dear.crossings).toBe(0)
+    expect(dear.lengthM).toBeGreaterThan(cheap.lengthM)
+  })
+
+  it('crosses a cost zone at its price instead of being blocked', () => {
+    const zone = { ...box(150, -300, 250, 300), routeCostPerM: 50 }
+    const through = suggestRoutes(start, end, flat, settings, [zone]).routes[0]
+    // 100 m inside at $50/m extra on a $100/m base.
+    expect(through.cost).toBeCloseTo(400 * 100 + 100 * 50, -3)
+    expect(() => suggestRoute(start, end, flat, settings, [box(150, -900, 250, 900)])).toThrow()
+  })
+
+  it('leaves the start and reaches the end within 45° of fixed headings', () => {
+    const route = suggestRoutes(start, end, flat, settings, [], { startHeading: 0, endHeading: 180 }).routes[0]
+    const [x1, y1] = xy(...route.coordinates[1])
+    expect(Math.abs((Math.atan2(x1, y1) * 180) / Math.PI)).toBeLessThanOrEqual(45 + 1e-6)
+    const [xa, ya] = xy(...route.coordinates.at(-2)!),
+      [xb, yb] = xy(...route.coordinates.at(-1)!)
+    const arrive = ((Math.atan2(xb - xa, yb - ya) * 180) / Math.PI + 360) % 360
+    expect(Math.abs(arrive - 180)).toBeLessThanOrEqual(45 + 1e-6)
   })
 })

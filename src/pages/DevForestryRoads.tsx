@@ -46,7 +46,7 @@ import {
   loadRaster,
   loadRegionalTerrain,
 } from './dev-forestry-roads/terrain'
-import { suggestRoute } from './dev-forestry-roads/routing'
+import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { RoadPaneLayout, ROAD_LAYOUT_OPTIONS, type RoadLayout } from './dev-forestry-roads/RoadPaneLayout'
@@ -772,18 +772,28 @@ export default function DevForestryRoads() {
       w.setError(error instanceof Error ? error.message : 'Could not export project.')
     }
   }
-  const suggest = () =>
+  const suggest = (options: RouteSearchOptions) =>
     void run('Searching terrain-cost routes…', async () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      const result = suggestRoute(
+      const result = suggestRoutes(
         alignment.points[0].coordinate,
         alignment.points[alignment.points.length - 1].coordinate,
         source,
         project.settings,
         project.context,
+        { ...options, alternatives: Math.min(options.alternatives, 20 - project.alignments.length) },
       )
-      const next = newAlignment(result.coordinates, `${alignment.name} · terrain-cost suggestion`, alignment.template)
-      w.commit(parseProject({ ...project, alignments: [...project.alignments, next], activeAlignmentId: next.id }))
+      const created = result.routes.map((route, rank) =>
+        newAlignment(
+          route.coordinates,
+          `${alignment.name} · terrain-cost ${result.routes.length > 1 ? `#${rank + 1} ` : ''}($${Math.round(route.cost).toLocaleString('en-CA')})`,
+          alignment.template,
+        ),
+      )
+      const next = created[0]
+      w.commit(
+        parseProject({ ...project, alignments: [...project.alignments, ...created], activeAlignmentId: next.id }),
+      )
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
       w.setNotice(result.message)

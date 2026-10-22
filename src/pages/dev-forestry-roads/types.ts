@@ -68,6 +68,8 @@ export interface ContextFeature {
   name: string
   kind: 'stream' | 'avoid' | 'existing-road' | 'harvest'
   geometry: GeoJSON.LineString | GeoJSON.Polygon
+  /** On an avoid polygon: route search may cross it at this extra CAD per metre instead of being blocked. */
+  routeCostPerM?: number
 }
 export interface CableLine {
   id: string
