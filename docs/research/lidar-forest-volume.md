@@ -14,10 +14,10 @@ The fetched envelope contains 40 records, including 33 treed ones; only **30 inv
 
 | Result | Value |
 | --- | --- |
-| Supported LiDAR footprint, BC Albers | 228.17497 ha |
-| Treed inventory area | 169.38973 ha |
-| Non-treed inventory area | 58.78523 ha |
-| Inventory net live volume | 36,796.19 m³ |
+| Supported LiDAR footprint, BC Albers | 228.16966 ha |
+| Treed inventory area | 169.38863 ha |
+| Non-treed inventory area | 58.78103 ha |
+| Inventory net live volume | 36,795.93 m³ |
 | Inventory projected date | 2025-12-31 |
 
 The [VRI data dictionary](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/stewardship/forest-analysis-inventory/data-management/standards/vegcomp_poly_rank1_data_dictionaryv5_2019.pdf) defines `LIVE_STAND_VOLUME_125/175/225` and the corresponding dead fields as **net m³/ha** at the respective utilization levels, already deducting decay, waste and breakage. The UI therefore applies no second defect deduction or gross-to-merchantable conversion. All 22.5 cm volumes are unreported here; selecting that option clears volume numbers to unavailable. Dead volumes are mostly null; requesting dead inclusion adds only reported components and labels the live-only remainder as a **partial known sum**.
@@ -26,7 +26,7 @@ The pure shared module `src/lib/forestry/vriVolume.ts` carries the AVAST-aligned
 
 Selection, utilization, age, dead-volume and retention/recovery changes update the map and totals immediately. Exports preserve original inventory fields, nullable components, rule results, source/grid hashes, area method and scenario assumptions. The default 0% retained and 100% extraction recovery are neutral planning assumptions. The projected date is distinct from the inventory reference/interpretation dates and LiDAR acquisition; later disturbance is not automatically depleted.
 
-Refresh/rebuild with `npx tsx scripts/lidar/fetch_vri_volume.ts`, then `python scripts/lidar/build_vri_volume.py` in the geospatial environment. The raw snapshot and generated products are app-owned, like the earlier local species snapshot; no scraper-owned vendor datasets are modified. Tests independently project output polygon rings back to BC Albers, account for holes, reconcile coverage and weighted volume, match raw snapshot attributes/hashes, check height-grid provenance and exercise rule changes, partial/missing data, selection and scenario export.
+Refresh the inventory with `npx tsx scripts/lidar/fetch_vri_volume.ts`. `vri.generated.json` pins the height grid's bytes, so rebuild it from CI's products, not a local build: `scripts/lidar/regenerate_snapshots.py` runs `build_vri_volume.py` with the other snapshots. The raw snapshot and generated products are app-owned, like the earlier local species snapshot; no scraper-owned vendor datasets are modified. Tests independently project output polygon rings back to BC Albers, account for holes, reconcile coverage and weighted volume, match raw snapshot attributes/hashes, check height-grid provenance and exercise rule changes, partial/missing data, selection and scenario export.
 
 ## Completed example: Forêt Montmorency
 

@@ -60,8 +60,8 @@ describe('VRI volume snapshot and area accounting', () => {
       expect(area).toBeCloseTo(f.properties.area_ha, 5)
     }
     const total = vriTotals(vriRows(data, VRI_BASELINE_RULES))
-    expect(total.known_net_m3).toBeCloseTo(36796.189872, 4)
-    expect(total.area_ha).toBeCloseTo(169.3897328, 6)
+    expect(total.known_net_m3).toBeCloseTo(36795.93292, 4)
+    expect(total.area_ha).toBeCloseTo(169.3886322, 6)
     expect(total.mean_m3_ha).toBeCloseTo(total.known_net_m3! / total.area_ha, 8)
     expect(data.coverage.treed_ha + data.coverage.non_treed_ha + data.coverage.unmapped_ha).toBeCloseTo(
       data.coverage.supported_ha,
