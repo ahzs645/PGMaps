@@ -138,6 +138,24 @@ test('profile zoom, pan, fit and vertical exaggeration affect only the display',
   expect(returned[0]).toBeCloseTo(zoomed[0], 5)
   expect(returned[1]).toBeCloseTo(zoomed[1], 5)
 
+  // Wheel zoom about the pointer, then a horizontal scroll pans; neither scrolls the page.
+  const plot = (await chart.boundingBox())!
+  await page.mouse.move(plot.x + plot.width * 0.5, plot.y + plot.height * 0.5)
+  const scrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)
+  await page.mouse.wheel(0, -240)
+  await expect
+    .poll(async () => (await rangeOf(chart))[1] - (await rangeOf(chart))[0])
+    .toBeLessThan(returned[1] - returned[0])
+  const wheeled = await rangeOf(chart)
+  await page.mouse.wheel(200, 0)
+  await expect.poll(async () => (await rangeOf(chart))[0]).toBeGreaterThan(wheeled[0])
+  expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(scrollBefore)
+  for (let notch = 0; notch < 8; notch++) await page.mouse.wheel(0, 400)
+  await expect.poll(() => rangeOf(chart)).toEqual(initial)
+  await page.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
+  await page.getByRole('button', { name: 'Pan profile forward', exact: true }).click()
+  await page.getByRole('button', { name: 'Pan profile backward', exact: true }).click()
+
   await page.getByLabel('Profile vertical exaggeration', { exact: true }).selectOption('5')
   await expect.poll(async () => Number(await chart.getAttribute('data-vertical-exaggeration'))).toBeCloseTo(5, 5)
   await expectLinkedStation(page, 200)

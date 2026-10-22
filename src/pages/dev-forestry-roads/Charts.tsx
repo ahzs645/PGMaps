@@ -424,6 +424,42 @@ export function ProfileChart({
       start = clamp(visibleStart + (direction * span) / 2, 0, Math.max(0, analysis.length - span))
     setViewRange([start, start + span])
   }
+  // Wheel and trackpad: zoom about the pointer's chainage; horizontal scroll (or Shift+wheel) pans.
+  // A native, non-passive listener so the page does not scroll while the pointer is on the chart.
+  const wheelState = useRef({ visibleStart, visibleEnd, length: analysis.length, setViewRange })
+  useEffect(() => {
+    wheelState.current = { visibleStart, visibleEnd, length: analysis.length, setViewRange }
+  })
+  const [wheelSvg, setWheelSvg] = useState<SVGSVGElement | null>(null)
+  useEffect(() => {
+    if (!wheelSvg) return
+    const onWheel = (event: WheelEvent) => {
+      const state = wheelState.current
+      const length = Math.max(1, state.length)
+      const span = state.visibleEnd - state.visibleStart
+      const box = wheelSvg.getBoundingClientRect()
+      const left = box.width < 380 ? 48 : 58
+      const fraction = clamp((event.clientX - box.left - left) / Math.max(1, box.width - left - 16), 0, 1)
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey) {
+        if (span >= length - 1e-6) return
+        event.preventDefault()
+        const delta = ((event.shiftKey ? event.deltaY : event.deltaX) / Math.max(1, box.width)) * span
+        const start = clamp(state.visibleStart + delta, 0, Math.max(0, length - span))
+        state.setViewRange([start, start + span])
+        return
+      }
+      event.preventDefault()
+      const anchor = state.visibleStart + fraction * span
+      // Pinch arrives as ctrl+wheel with small deltas: scale it up to match a wheel notch.
+      const factor = Math.exp(clamp(event.deltaY, -200, 200) * (event.ctrlKey ? 0.01 : 0.0025))
+      const next = clamp(span * factor, Math.min(10, length), length)
+      if (next >= length - 1e-6) return state.setViewRange(null)
+      const start = clamp(anchor - fraction * next, 0, Math.max(0, length - next))
+      state.setViewRange([start, start + next])
+    }
+    wheelSvg.addEventListener('wheel', onWheel, { passive: false })
+    return () => wheelSvg.removeEventListener('wheel', onWheel)
+  }, [wheelSvg])
   const active = analysis.stations.reduce<RoadStation | undefined>(
     (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
     undefined,
@@ -615,18 +651,40 @@ export function ProfileChart({
           f.plotHeight /
           (displayedDomain[3] - displayedDomain[2]) /
           (f.plotWidth / (displayedDomain[1] - displayedDomain[0]))
-        // Curve labels need room: keep one only when it clears the previous kept label.
+        // Dense profiles (an optimized line, a zoomed-out long road) drop annotation before data:
+        // curve bands and labels go first, then callouts thin out, then the PVI handles shrink.
+        const pviXs = sorted
+          .filter((p) => p.chainage >= displayedDomain[0] && p.chainage <= displayedDomain[1])
+          .map((p) => f.x(p.chainage))
+        const gaps = pviXs
+          .slice(1)
+          .map((x, i) => x - pviXs[i])
+          .sort((a, b) => a - b)
+        const typicalGap = gaps.length ? gaps[Math.floor(gaps.length / 2)] : Infinity
+        const dense = typicalGap < 44
         const labelledCurves = new Set<string>()
         let lastLabelX = -Infinity
-        for (const curve of curves) {
-          const x = f.x(curve.chainage)
-          if (x - lastLabelX < 72) continue
-          labelledCurves.add(curve.pviId)
-          lastLabelX = x
+        if (!dense)
+          for (const curve of curves) {
+            const x = f.x(curve.chainage)
+            if (x - lastLabelX < 96) continue
+            labelledCurves.add(curve.pviId)
+            lastLabelX = x
+          }
+        const calloutIds = new Set<string>()
+        let lastCalloutX = -Infinity
+        for (const p of sorted) {
+          if (p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) continue
+          const x = f.x(p.chainage)
+          if (x - lastCalloutX < 30) continue
+          calloutIds.add(p.id)
+          lastCalloutX = x
         }
+        const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
         return (
           <>
             <svg
+              ref={setWheelSvg}
               width={width}
               height={height}
               className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -713,7 +771,7 @@ export function ProfileChart({
               />
               <g clipPath={`url(#profile-${id})`}>
                 {curves
-                  .filter((curve) => curve.valid)
+                  .filter((curve) => curve.valid && !dense && f.x(curve.end) - f.x(curve.start) >= 6)
                   .map((curve) => (
                     <g key={curve.pviId} pointerEvents="none">
                       <rect
@@ -960,11 +1018,7 @@ export function ProfileChart({
                     )
                   })}
                 {sorted
-                  .filter((p, index, all) => {
-                    if (p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) return false
-                    const previous = all[index - 1]
-                    return !previous || f.x(p.chainage) - f.x(previous.chainage) > 13
-                  })
+                  .filter((p) => calloutIds.has(p.id))
                   .map((p) => {
                     const x = f.x(p.chainage),
                       bottom = height - f.bottom
@@ -1093,7 +1147,7 @@ export function ProfileChart({
                       data-pvi="true"
                       cx={f.x(p.chainage)}
                       cy={f.y(p.elevation)}
-                      r={6}
+                      r={handleRadius}
                       fill="hsl(var(--background))"
                       stroke={ROAD_CHART_COLORS.design}
                       strokeWidth={2}

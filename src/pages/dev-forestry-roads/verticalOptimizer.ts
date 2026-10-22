@@ -12,9 +12,9 @@
  * It minimizes cut × cut rate + fill × fill rate. Haul, borrow, waste and clearing are evaluated by
  * the full analysis afterwards; they are not optimized. Pure: no DOM or network access.
  */
-import { positionAt, sectionAreasAt } from './engine'
+import { analyzeRoad, positionAt, sectionAreasAt } from './engine'
 import { gradeWindowAt } from './verticalStandards'
-import { curveLengthsForK } from './verticalTools'
+import { curveLengthsForK, simplifyProfile } from './verticalTools'
 import type { Alignment, RoadSettings, TerrainSource, VerticalPoint } from './types'
 
 export interface VerticalOptimizationOptions {
@@ -29,6 +29,12 @@ export interface VerticalOptimizationOptions {
   /** Cost added per metre of road whose section cannot close (missing ground or no daylight). */
   incompletePenaltyPerM: number
   maxSectionSolves: number
+  /**
+   * The search places a PVI at every spacing step; afterwards, PVIs that move the line by less than
+   * this are dropped, provided the simpler line still meets every limit at no more than 1% extra
+   * earthwork cost. 0 keeps every PVI.
+   */
+  simplifyToleranceM: number
 }
 export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   pviSpacingM: 50,
@@ -38,6 +44,7 @@ export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   tieEndsToGround: true,
   incompletePenaltyPerM: 5000,
   maxSectionSolves: 60000,
+  simplifyToleranceM: 0.3,
 }
 export interface VerticalOptimizationResult {
   vertical: VerticalPoint[]
@@ -266,22 +273,50 @@ export function optimizeVerticalProfile(
     return Math.abs(g2 - g1) * 100 > 0.05
   })
   const minimum = alignment.verticalStandards?.minCurveLengthM ?? 0
-  const vertical = curveLengthsForK(
-    kept.map((p, i) => ({
-      id: `opt-${i}-${Math.round(p.chainage * 10)}`,
-      chainage: p.chainage,
-      elevation: p.elevation,
-      curveLength: 0,
-    })),
-    o.k,
-    minimum,
-  )
+  const fitted = (line: { chainage: number; elevation: number }[]) =>
+    curveLengthsForK(
+      line.map((p, i) => ({
+        id: `opt-${i}-${Math.round(p.chainage * 10)}`,
+        chainage: p.chainage,
+        elevation: p.elevation,
+        curveLength: 0,
+      })),
+      o.k,
+      minimum,
+    )
+  let vertical = fitted(kept)
+  let simplified = false
+  if (o.simplifyToleranceM > 0 && vertical.length > 3) {
+    const lighter = fitted(
+      simplifyProfile(
+        vertical,
+        o.simplifyToleranceM,
+        controls.map((c) => c.chainage),
+      ),
+    )
+    if (lighter.length < vertical.length) {
+      const check = (v: VerticalPoint[]) => analyzeRoad({ ...alignment, vertical: v }, terrain, settings)
+      const full = check(vertical),
+        light = check(lighter)
+      const earthwork = (a: ReturnType<typeof check>) =>
+        a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
+      const ok =
+        !light.verticalChecks?.length &&
+        light.maxGradePercent <= settings.maxGradePercent + 1e-6 &&
+        light.coveragePercent >= full.coveragePercent - 1e-6 &&
+        earthwork(light) <= earthwork(full) * 1.01 + 1
+      if (ok) {
+        vertical = lighter
+        simplified = true
+      }
+    }
+  }
   return {
     vertical,
     estimatedEarthworkCost: best.cell.cost,
     pviCount: vertical.length,
     levelsPerPvi: 2 * ladder + 1,
     sectionSolves: solves,
-    message: `Optimized ${vertical.length} PVIs at ${o.pviSpacingM} m spacing, ±${o.maxDepthM} m in ${o.levelStepM} m steps, K ${o.k}.`,
+    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m in ${o.levelStepM} m steps, K ${o.k}.`,
   }
 }

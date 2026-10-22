@@ -34,3 +34,36 @@ export function curveLengthsForK(points: VerticalPoint[], k: number, minLengthM 
     curveLength: Math.max(0, shrunk[i] ? Math.floor(halves[i] * 20) : Math.ceil(halves[i] * 20 - 1e-9)) / 10,
   }))
 }
+
+/**
+ * Douglas–Peucker on the grade line: drop PVIs whose removal moves the line by no more than
+ * `toleranceM` vertically. Ends and `keep` stations (control points) always stay.
+ */
+export function simplifyProfile(points: VerticalPoint[], toleranceM: number, keep: number[] = []): VerticalPoint[] {
+  const pv = [...points].sort((a, b) => a.chainage - b.chainage)
+  if (pv.length < 3 || !(toleranceM > 0)) return pv
+  const kept = new Set<number>([0, pv.length - 1])
+  pv.forEach((p, i) => {
+    if (keep.some((s) => Math.abs(s - p.chainage) < 1e-6)) kept.add(i)
+  })
+  const anchors = [...kept].sort((a, b) => a - b)
+  const split = (a: number, b: number) => {
+    let worst = -1,
+      far = toleranceM
+    for (let i = a + 1; i < b; i++) {
+      const t = (pv[i].chainage - pv[a].chainage) / (pv[b].chainage - pv[a].chainage)
+      const line = pv[a].elevation + (pv[b].elevation - pv[a].elevation) * t
+      const off = Math.abs(pv[i].elevation - line)
+      if (off > far) {
+        far = off
+        worst = i
+      }
+    }
+    if (worst < 0) return
+    kept.add(worst)
+    split(a, worst)
+    split(worst, b)
+  }
+  for (let i = 1; i < anchors.length; i++) split(anchors[i - 1], anchors[i])
+  return pv.filter((_, i) => kept.has(i))
+}

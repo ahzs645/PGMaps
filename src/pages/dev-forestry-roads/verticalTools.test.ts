@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { optimizeVerticalProfile } from './verticalOptimizer'
-import { curveLengthsForK } from './verticalTools'
+import { curveLengthsForK, simplifyProfile } from './verticalTools'
 import type { Alignment, Coordinate, TerrainSource } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -108,5 +108,29 @@ describe('vertical profile optimizer', () => {
     expect(() =>
       optimizeVerticalProfile(road(), 400, steep, { ...settings, maxGradePercent: 5 }, { maxDepthM: 2 }),
     ).toThrow(/No profile meets/)
+  })
+})
+
+describe('profile simplification', () => {
+  it('drops PVIs within tolerance and keeps ends, real breaks and controls', () => {
+    const line = [0, 50, 100, 150, 200, 250].map((chainage, i) => ({
+      id: `p${i}`,
+      chainage,
+      // A straight 2% grade with a 0.1 m wobble at 50 m and a real break at 150 m.
+      elevation:
+        800 + 0.02 * Math.min(chainage, 150) - 0.03 * Math.max(0, chainage - 150) + (chainage === 50 ? 0.1 : 0),
+      curveLength: 0,
+    }))
+    expect(simplifyProfile(line, 0.3).map((p) => p.chainage)).toEqual([0, 150, 250])
+    expect(simplifyProfile(line, 0.3, [100]).map((p) => p.chainage)).toEqual([0, 100, 150, 250])
+    expect(simplifyProfile(line, 0.05).map((p) => p.chainage)).toContain(50)
+  })
+
+  it('keeps the optimizer result within its limits after simplifying', () => {
+    const result = optimizeVerticalProfile(road(), 400, hump, settings, { pviSpacingM: 25, k: 4 })
+    const full = optimizeVerticalProfile(road(), 400, hump, settings, { pviSpacingM: 25, k: 4, simplifyToleranceM: 0 })
+    expect(result.vertical.length).toBeLessThanOrEqual(full.vertical.length)
+    const checked = analyzeRoad({ ...road(), vertical: result.vertical }, hump, settings)
+    expect(checked.maxGradePercent).toBeLessThanOrEqual(12 + 1e-6)
   })
 })
