@@ -6,6 +6,7 @@
  * Quantities use average end areas; mass is compacted available cut minus fill.
  * They are covered subtotals, never estimates silently bridged across DEM holes.
  */
+import { checkVerticalDesign } from './verticalStandards'
 import type {
   Alignment,
   CableAnalysis,
@@ -898,6 +899,23 @@ export function analyzeRoad(
     (s) => s.gradePercent !== null && Math.abs(s.gradePercent) > settings.maxGradePercent + EPS,
   ).length
   if (badGrades) warnings.push(`${badGrades} stations exceed the ${settings.maxGradePercent}% grade limit.`)
+  const verticalChecks =
+    alignment.vertical.length > 1 && (alignment.verticalStandards || alignment.verticalControls?.length)
+      ? checkVerticalDesign({
+          standards: alignment.verticalStandards,
+          controls: alignment.verticalControls,
+          curves: profile.curves,
+          pvis: [...alignment.vertical].sort((a, b) => a.chainage - b.chainage),
+          stations,
+          length: path.length,
+          valueAt: (s) => profile.value(s),
+        })
+      : []
+  for (const check of verticalChecks) nearestStation(stations, check.chainage)?.flags.push(check.message)
+  if (verticalChecks.length)
+    warnings.push(
+      `${verticalChecks.length} vertical standard or control check${verticalChecks.length === 1 ? '' : 's'} failed; see the flagged stations.`,
+    )
   if (stations.some((s) => s.flags.some((v) => v.startsWith('Avoidance area:'))))
     warnings.push('The alignment enters a supplied avoidance area.')
   const balanceM3 = cutVolumeM3 * settings.shrinkFactor - fillVolumeM3
@@ -920,6 +938,7 @@ export function analyzeRoad(
     completeLength,
     coveragePercent,
     warnings: [...new Set(warnings)],
+    ...(verticalChecks.length ? { verticalChecks } : {}),
   }
   if (alignment.engineering) {
     const engineering = calculateEngineering(alignment, result, settings, terrain, {

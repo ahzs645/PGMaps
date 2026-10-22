@@ -72,3 +72,69 @@ export function NumberField({
     </Field>
   )
 }
+
+/** A number that may be unset: an empty field is `null` ("not checked"), shown by the placeholder. */
+export function OptionalNumberField({
+  label,
+  value,
+  onChange,
+  min = -100000,
+  max = 100000,
+  step = 0.1,
+  placeholder = 'off',
+  hideLabel = false,
+}: {
+  label: string
+  value: number | null
+  onChange: (value: number | null) => void
+  min?: number
+  max?: number
+  step?: number
+  placeholder?: string
+  hideLabel?: boolean
+}) {
+  const shown = value === null ? '' : String(Number(value.toFixed(6)))
+  const [input, setInput] = useState({ value, text: shown })
+  const draft = input.value === value ? input.text : shown
+  const finish = () => {
+    if (!draft.trim()) {
+      onChange(null)
+      setInput({ value: null, text: '' })
+      return
+    }
+    const n = Number(draft)
+    if (Number.isFinite(n)) {
+      const bounded = Math.min(max, Math.max(min, n))
+      onChange(bounded)
+      setInput({ value: bounded, text: String(bounded) })
+    } else setInput({ value, text: shown })
+  }
+  return (
+    <Field label={label} hideLabel={hideLabel}>
+      <input
+        className={roadFieldClass}
+        type="number"
+        value={draft}
+        min={min}
+        max={max}
+        step={step}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const text = e.target.value
+          const n = Number(text)
+          if (!text.trim()) {
+            setInput({ value: null, text })
+            onChange(null)
+          } else if (Number.isFinite(n) && n >= min && n <= max) {
+            setInput({ value: n, text })
+            onChange(n)
+          } else setInput({ value, text })
+        }}
+        onBlur={finish}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') finish()
+        }}
+      />
+    </Field>
+  )
+}

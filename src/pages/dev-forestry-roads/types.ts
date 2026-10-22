@@ -1,6 +1,8 @@
 import type { LocalRaster } from '../dev-forestry/types'
 import type { ElevationSource } from '../dev-forestry/terrain'
 import type { AlignmentEngineering, EngineeringAnalysis } from './engineeringTypes'
+import type { VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
+export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
 export type Coordinate = [number, number]
@@ -57,6 +59,9 @@ export interface Alignment {
   template: RoadTemplate
   overrides: WidthOverride[]
   engineering?: AlignmentEngineering
+  /** Optional vertical standards and control points; unset values are not checked. */
+  verticalStandards?: VerticalStandards
+  verticalControls?: VerticalControl[]
 }
 export interface ContextFeature {
   id: string
@@ -162,6 +167,8 @@ export interface RoadAnalysis {
   coveragePercent: number
   warnings: string[]
   engineering?: EngineeringAnalysis
+  /** Failed vertical standard / control checks, each also flagged on its nearest station. */
+  verticalChecks?: VerticalCheck[]
 }
 export interface CableSample {
   distance: number

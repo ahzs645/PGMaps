@@ -7,6 +7,7 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
+import { VerticalDesignControls } from './VerticalDesignControls'
 import { distance } from './engine'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { DrawMode } from './PlanView'
@@ -554,6 +555,7 @@ export function DesignSidebar(p: SidebarProps) {
                 ))}
               </div>
             </SidebarSection>
+            <VerticalDesignControls workspace={p.workspace} />
           </div>
 
           <div hidden={tab !== 'template'} className="space-y-4">

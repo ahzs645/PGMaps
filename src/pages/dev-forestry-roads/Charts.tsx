@@ -481,6 +481,10 @@ export function ProfileChart({
   ]
     .filter(Boolean)
     .join(' · ')
+  const failingCurve = (chainage: number) =>
+    (analysis.verticalChecks ?? []).some(
+      (check) => (check.kind === 'k' || check.kind === 'curve-length') && Math.abs(check.chainage - chainage) < 0.01,
+    )
   const control = 'h-5 min-w-5 rounded px-1 text-[10px] leading-none'
   // Pan, zoom and vertical scale float over the chart's top edge instead of taking a row under it.
   const toolbar = (exaggeration: number, width: number) => (
@@ -982,6 +986,66 @@ export function ProfileChart({
                     )
                   })}
               </g>
+              {!terrainOnly &&
+                (alignment.verticalControls ?? [])
+                  .filter((c) => c.chainage >= displayedDomain[0] && c.chainage <= displayedDomain[1])
+                  .map((c) => {
+                    const x = f.x(c.chainage)
+                    const failed = (analysis.verticalChecks ?? []).some(
+                      (check) => check.kind.startsWith('control') && Math.abs(check.chainage - c.chainage) < 0.01,
+                    )
+                    const color = failed ? ROAD_CHART_COLORS.selected : '#15803d'
+                    const level = nearestOf(analysis.stations, c.chainage)?.designElevation
+                    const gradeY = c.elevation ?? level
+                    return (
+                      <g key={`control-${c.id}`} pointerEvents="none" data-vertical-control={failed ? 'fail' : 'pass'}>
+                        {c.elevation !== null && (
+                          <>
+                            <line
+                              x1={x}
+                              x2={x}
+                              y1={f.y(c.elevation + c.toleranceAboveM)}
+                              y2={f.y(c.elevation - c.toleranceBelowM)}
+                              stroke={color}
+                              strokeWidth={3}
+                              strokeLinecap="round"
+                              opacity={0.75}
+                            />
+                            <rect
+                              x={x - 4}
+                              y={f.y(c.elevation) - 4}
+                              width={8}
+                              height={8}
+                              fill="hsl(var(--background))"
+                              stroke={color}
+                              strokeWidth={2}
+                            />
+                          </>
+                        )}
+                        {c.gradePercent !== null && finite(gradeY) && (
+                          <line
+                            x1={f.x(c.chainage - 12)}
+                            x2={f.x(c.chainage + 12)}
+                            y1={f.y(gradeY - (c.gradePercent * 12) / 100)}
+                            y2={f.y(gradeY + (c.gradePercent * 12) / 100)}
+                            stroke={color}
+                            strokeWidth={2}
+                            strokeDasharray="3 2"
+                          />
+                        )}
+                        <title>
+                          Control {formatRoadStation(c.chainage)}
+                          {c.elevation !== null
+                            ? ` · Z ${format(c.elevation, 2)} (+${format(c.toleranceAboveM, 2)}/−${format(c.toleranceBelowM, 2)} m)`
+                            : ''}
+                          {c.gradePercent !== null
+                            ? ` · grade ${format(c.gradePercent)} ±${format(c.gradeTolerancePercent)}%`
+                            : ''}
+                          {failed ? ' · not met' : ' · met'}
+                        </title>
+                      </g>
+                    )
+                  })}
               {sorted
                 .map((p, index) => ({ p, index }))
                 .filter(
@@ -1002,7 +1066,11 @@ export function ProfileChart({
                           y={Math.max(f.top + 10, f.y(p.elevation) - 13)}
                           textAnchor="middle"
                           fontSize="9"
-                          fill={curve.valid ? ROAD_CHART_COLORS.mass : ROAD_CHART_COLORS.selected}
+                          fill={
+                            curve.valid && !failingCurve(curve.chainage)
+                              ? ROAD_CHART_COLORS.mass
+                              : ROAD_CHART_COLORS.selected
+                          }
                           stroke="hsl(var(--background))"
                           strokeWidth={3}
                           paintOrder="stroke"

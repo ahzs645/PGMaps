@@ -15,6 +15,8 @@ import type {
   RoadSettings,
   RoadTemplate,
   TerrainMetadata,
+  VerticalControl,
+  VerticalStandards,
   WidthOverride,
 } from './types'
 
@@ -121,6 +123,53 @@ function parseOverride(raw: unknown): WidthOverride {
     extraWidth: number(r.extraWidth, 'Extra width', 0, 50),
   }
 }
+const optionalNumber = (value: unknown, label: string, min: number, max: number) =>
+  value === null || value === undefined ? null : number(value, label, min, max)
+function parseVerticalStandards(raw: unknown): VerticalStandards {
+  const r = object(raw, 'Vertical standards')
+  const gradeRanges = list(r.gradeRanges, 'Grade ranges', 100).map((rawRange) => {
+    const g = object(rawRange, 'Grade range')
+    const range = {
+      id: id(g.id, 'Grade range ID'),
+      start: optionalNumber(g.start, 'Grade range start', 0, 100000),
+      end: optionalNumber(g.end, 'Grade range end', 0, 100000),
+      minGradePercent: optionalNumber(g.minGradePercent, 'Minimum grade', -100, 100),
+      maxGradePercent: optionalNumber(g.maxGradePercent, 'Maximum grade', -100, 100),
+    }
+    if (range.start !== null && range.end !== null && range.end <= range.start)
+      throw Error('Grade range stations must increase.')
+    if (
+      range.minGradePercent !== null &&
+      range.maxGradePercent !== null &&
+      range.maxGradePercent < range.minGradePercent
+    )
+      throw Error('A grade range maximum cannot be below its minimum.')
+    return range
+  })
+  unique(gradeRanges, 'Grade ranges')
+  return {
+    gradeRanges,
+    minSagK: optionalNumber(r.minSagK, 'Minimum sag K', 0, 1000),
+    minCrestK: optionalNumber(r.minCrestK, 'Minimum crest K', 0, 1000),
+    minCurveLengthM: optionalNumber(r.minCurveLengthM, 'Minimum vertical curve length', 0, 10000),
+    minTangentLengthM: optionalNumber(r.minTangentLengthM, 'Minimum tangent length', 0, 10000),
+  }
+}
+function parseVerticalControl(raw: unknown): VerticalControl {
+  const c = object(raw, 'Vertical control point')
+  const control = {
+    id: id(c.id, 'Control point ID'),
+    chainage: number(c.chainage, 'Control station', 0, 100000),
+    elevation: optionalNumber(c.elevation, 'Control elevation', -12000, 12000),
+    toleranceAboveM: number(c.toleranceAboveM, 'Tolerance above', 0, 1000),
+    toleranceBelowM: number(c.toleranceBelowM, 'Tolerance below', 0, 1000),
+    gradePercent: optionalNumber(c.gradePercent, 'Control grade', -100, 100),
+    gradeTolerancePercent: number(c.gradeTolerancePercent, 'Grade tolerance', 0, 100),
+  }
+  if (control.elevation === null && control.gradePercent === null)
+    throw Error('A vertical control point needs an elevation, a grade or both.')
+  return control
+}
 function parseAlignment(raw: unknown): Alignment {
   const r = object(raw, 'Alignment'),
     key = id(r.id, 'Alignment ID')
@@ -165,6 +214,16 @@ function parseAlignment(raw: unknown): Alignment {
     template: parseTemplate(r.template),
     overrides,
     ...(r.engineering === undefined ? {} : { engineering: parseEngineering(r.engineering, parseTemplate) }),
+    ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
+    ...(r.verticalControls === undefined
+      ? {}
+      : {
+          verticalControls: (() => {
+            const controls = list(r.verticalControls, 'Vertical control points', 200).map(parseVerticalControl)
+            unique(controls, 'Vertical control points')
+            return controls
+          })(),
+        }),
   }
 }
 function parseTerrain(raw: unknown): TerrainMetadata {
