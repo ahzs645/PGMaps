@@ -33,9 +33,11 @@ jobs:
 
       - run: npm ci
 
-      - name: Read bcdatamapper source revision
+      # Both scraper submodules feed public/data, so a pointer move in either
+      # must miss the cache.
+      - name: Read scraper submodule revisions
         id: data-source
-        run: echo "revision=$(git rev-parse HEAD:vendor/bcdatamapper)" >> "$GITHUB_OUTPUT"
+        run: echo "revision=$(git rev-parse HEAD:vendor/bcdatamapper)-$(git rev-parse HEAD:vendor/canadadatamapper)" >> "$GITHUB_OUTPUT"
 
       # A hit is extracted over the checkout, so the key hashes every tracked
       # file under public/data (nothing else is there yet) or a stale cached

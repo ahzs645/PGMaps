@@ -7,3 +7,6 @@
 [submodule "packages/geo-toolkit"]
 	path = packages/geo-toolkit
 	url = https://github.com/ahzs645/geo-toolkit.git
+[submodule "vendor/canadadatamapper"]
+	path = vendor/canadadatamapper
+	url = https://github.com/ahzs645/canadadatamapper.git

@@ -101,7 +101,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/maplibre-gl')) return 'maplibre'
+          // The trailing slash matters: without it maplibre-gl-lidar, and the
+          // luma.gl 9.4 nested under it, joined this always-loaded chunk and
+          // clashed with deck.gl's luma.gl 9.3 on every deck.gl page.
+          if (id.includes('node_modules/maplibre-gl/')) return 'maplibre'
           if (id.includes('node_modules/@turf')) return 'turf'
         },
       },

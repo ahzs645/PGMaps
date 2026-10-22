@@ -8,7 +8,7 @@ import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
-import { MapLineLayer } from '@/components/ui/map-layers'
+import { MapLineLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MapOverlay, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ToggleRow } from '@/components/ui/toggle-row'
@@ -22,6 +22,19 @@ import { fetchJson } from '@/lib/fetchJson'
 import { formatBytes, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import {
+  CELL_SITE_BAND_COLORS,
+  CELL_SITE_OPERATOR_GROUPS,
+  CELL_SITES_MANIFEST_URL,
+  CELL_SITES_URL,
+  cellSitePieData,
+  cellSiteTooltipRows,
+  countSitesByGroup,
+  filterCellSites,
+  type CellSiteCollection,
+  type CellSiteFeature,
+  type CellSitesManifest,
+} from './dev-networks/cellSites'
 
 const DEV_NETWORK_DATA_BASE = '/__dev_network_data'
 
@@ -469,6 +482,42 @@ function DevNetworkDeckOverlay({
   return null
 }
 
+/**
+ * ISED sites as operator-split donut clusters: the centre counts sites, wedges
+ * count the operators on them, so a shared mast adds to each of its operators.
+ * Clicking a single site opens its detail card.
+ */
+function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; visibleGroups: ReadonlySet<string> }) {
+  const { map } = useMap()
+  const popupRef = useRef<maplibregl.Popup | null>(null)
+  const data = useMemo(() => cellSitePieData(sites, visibleGroups), [sites, visibleGroups])
+
+  useEffect(() => () => { popupRef.current?.remove() }, [])
+  useEffect(() => { popupRef.current?.remove() }, [sites])
+
+  return <MapPieClusterLayer
+    data={data}
+    bandColors={CELL_SITE_BAND_COLORS}
+    preAggregated
+    expandOverlappingPoints
+    clusterRadius={52}
+    onPointClick={properties => {
+      const site = sites[Number(properties.siteIndex)]
+      if (!site || !map) return
+      popupRef.current?.remove()
+      const { properties: details } = site
+      popupRef.current = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
+        .setLngLat(site.geometry.coordinates as [number, number])
+        .setHTML(mapTooltipHtml({
+          title: details.operators.length > 1 ? `Shared site · ${details.operators.length} operators` : `${details.operators[0]} site`,
+          subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
+          rows: cellSiteTooltipRows(details),
+        }))
+        .addTo(map)
+    }}
+  />
+}
+
 function NetworkGridNavigation({ sourceLevel }: { sourceLevel: string }) {
   const { map } = useMap()
   return <MapOverlay position="top-left" className="p-2 text-xs">
@@ -503,6 +552,13 @@ export default function DevNetworks() {
   const [bellManifest, setBellManifest] = useState<BellManifest | null>(null)
   const [rogersManifest, setRogersManifest] = useState<RogersManifest | null>(null)
   const [telusManifest, setTelusManifest] = useState<TelusManifest | null>(null)
+  const [cellSiteData, setCellSiteData] = useState<CellSiteCollection | null>(null)
+  const [cellSitesManifest, setCellSitesManifest] = useState<CellSitesManifest | null>(null)
+  const [cellSitesError, setCellSitesError] = useState<string | null>(null)
+  const [visibleSiteGroupIds, setVisibleSiteGroupIds] = useState<string[]>(() => CELL_SITE_OPERATOR_GROUPS.map(group => group.id))
+  const visibleSiteGroups = useMemo(() => new Set(visibleSiteGroupIds), [visibleSiteGroupIds])
+  const cellSites = useMemo(() => filterCellSites(cellSiteData, visibleSiteGroups), [cellSiteData, visibleSiteGroups])
+  const siteCountsByGroup = useMemo(() => countSitesByGroup(cellSitesManifest), [cellSitesManifest])
   const visibleBellKey = visibleBellLayerIds.join('|')
   const visibleCrtcKey = visibleCrtcIds.join('|')
   const crtcLayers = useMemo(() => crtcResources.flatMap(resource => {
@@ -532,6 +588,15 @@ export default function DevNetworks() {
     // Cached payloads stay unchanged; only visibility or inventory starts a fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleCrtcKey, crtcResources])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchJson<CellSitesManifest>(CELL_SITES_MANIFEST_URL, controller.signal).then(setCellSitesManifest).catch(() => {})
+    void fetchJson<CellSiteCollection>(CELL_SITES_URL, controller.signal)
+      .then(setCellSiteData)
+      .catch(error => { if (!controller.signal.aborted) setCellSitesError((error as Error).message) })
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     fetch(`${DEV_NETWORK_DATA_BASE}/bell/output/manifest.json`)
@@ -636,11 +701,41 @@ export default function DevNetworks() {
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="Network Coverage Dev Map"
-      subtitle="TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG snapshots"
+      subtitle="ISED cell sites with TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG coverage"
       icon={RadioTower}
       iconClassName="bg-primary text-primary-foreground"
       titleClassName="text-base"
     >
+      <SidebarSection
+        title="Cell sites (ISED)"
+        icon={RadioTower}
+        actions={<span className="text-xs text-muted-foreground">{cellSiteData ? `${formatNumber(cellSites.length)} shown` : cellSitesError ? 'unavailable' : 'loading'}</span>}
+      >
+        <div className="space-y-1.5">
+          {CELL_SITE_OPERATOR_GROUPS.map(group => {
+            const active = visibleSiteGroups.has(group.id)
+            return (
+              <button key={group.id} type="button" className={layerButtonClass(active)} aria-pressed={active}
+                onClick={() => setVisibleSiteGroupIds(current => active ? current.filter(id => id !== group.id) : [...current, group.id])}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: `rgb(${group.color.join(', ')})` }} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{group.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{formatNumber(siteCountsByGroup.get(group.id), { fallback: 'unknown' })} sites</span>
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+        {cellSitesError && <p role="status" className="mt-2 text-xs text-destructive">{cellSitesError}</p>}
+        <p className="mt-2 text-xs text-muted-foreground">
+          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED{cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}. Clusters split by operator as you zoom; the centre counts sites, and a shared mast adds a wedge for each operator on it. Click a site for details. Reported sites, not measured coverage; Other includes ~5.9k railway radio sites.
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{cellSitesManifest?.attribution ?? 'Contains information licensed under the Open Government Licence – Canada (ISED).'}</p>
+      </SidebarSection>
+
       <SidebarSection title="Raster view" icon={Grid2X2}>
         <SegmentedControl label="Raster representation" value={rasterView} onChange={setRasterView}
           options={[{ value: 'image', label: 'Source image', icon: Image }, { value: 'grid', label: 'Box grid', icon: Grid2X2 }]} />
@@ -884,6 +979,7 @@ export default function DevNetworks() {
           sourceLevel={sourceLevel}
           crtcLayers={crtcLayers}
         />
+        {cellSites.length > 0 && <CellSitePieLayer sites={cellSites} visibleGroups={visibleSiteGroups} />}
         {crtcLayers.filter(({ resource }) => resource.id.includes('major-roads')).map(({ resource, data }) => <MapLineLayer
           key={resource.id} sourceKey={resource.id} data={data} sourceTolerance={0}
           color="#235791" width={1} opacity={0.72}
