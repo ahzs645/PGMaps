@@ -68,6 +68,42 @@ export function filterCellSites(collection: CellSiteCollection | null, visible: 
   return collection.features.filter((feature) => visibleGroupsAtSite(feature.properties, visible).length > 0)
 }
 
+/** Wedge colours for MapPieClusterLayer, in CELL_SITE_OPERATOR_GROUPS order. */
+export const CELL_SITE_BAND_COLORS = CELL_SITE_OPERATOR_GROUPS.map(
+  ({ color }) => `#${color.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`,
+)
+
+/**
+ * Pre-aggregated pie input: each site counts once (`count`, the donut's centre
+ * number) and adds one to every visible group on its mast (`bandCounts`), so a
+ * shared mast contributes a wedge to each operator on it. MapLibre stringifies
+ * nested properties, so detail lookups go through `siteIndex` into `sites`.
+ */
+export function cellSitePieData(
+  sites: readonly CellSiteFeature[],
+  visible: ReadonlySet<string>,
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: 'FeatureCollection',
+    features: sites.map((site, siteIndex) => {
+      const groups = visibleGroupsAtSite(site.properties, visible)
+      const present = new Set(groups.map((group) => group.id))
+      return {
+        type: 'Feature',
+        geometry: site.geometry,
+        properties: {
+          siteIndex,
+          count: 1,
+          bandCounts: CELL_SITE_OPERATOR_GROUPS.map((group) => (present.has(group.id) ? 1 : 0)),
+          color: CELL_SITE_BAND_COLORS[CELL_SITE_OPERATOR_GROUPS.indexOf(groups[0])],
+          spiderTitle: site.properties.operators.join(' · '),
+          spiderSubtitle: [site.properties.location, site.properties.technologies.join(', ')].filter(Boolean).join(' · '),
+        },
+      }
+    }),
+  }
+}
+
 /** Sites per group, counting a shared mast once for each group on it. */
 export function countSitesByGroup(manifest: CellSitesManifest | null) {
   const counts = new Map<string, number>()

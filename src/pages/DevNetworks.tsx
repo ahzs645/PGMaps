@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MVTLayer, TileLayer } from '@deck.gl/geo-layers'
-import { BitmapLayer, GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
+import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-react'
@@ -8,7 +8,7 @@ import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
-import { MapLineLayer } from '@/components/ui/map-layers'
+import { MapLineLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MapOverlay, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ToggleRow } from '@/components/ui/toggle-row'
@@ -23,13 +23,14 @@ import { formatBytes, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import {
+  CELL_SITE_BAND_COLORS,
   CELL_SITE_OPERATOR_GROUPS,
   CELL_SITES_MANIFEST_URL,
   CELL_SITES_URL,
+  cellSitePieData,
   cellSiteTooltipRows,
   countSitesByGroup,
   filterCellSites,
-  visibleGroupsAtSite,
   type CellSiteCollection,
   type CellSiteFeature,
   type CellSitesManifest,
@@ -193,8 +194,6 @@ function DevNetworkDeckOverlay({
   onGridError,
   sourceLevel,
   crtcLayers,
-  cellSites,
-  visibleSiteGroups,
 }: {
   visibleTelusLayerIds: string[]
   visibleBellLayerIds: string[]
@@ -207,8 +206,6 @@ function DevNetworkDeckOverlay({
   onGridError: (error: string) => void
   sourceLevel: string
   crtcLayers: CrtcLayerData[]
-  cellSites: CellSiteFeature[]
-  visibleSiteGroups: ReadonlySet<string>
 }) {
   const { map, isLoaded } = useMap()
   const tooltipRef = useRef<maplibregl.Popup | null>(null)
@@ -479,42 +476,46 @@ function DevNetworkDeckOverlay({
       }))
     }
 
-    if (cellSites.length) {
-      // Drawn last so towers sit above every coverage layer. A white ring marks
-      // a mast shared by more than one visible operator group.
-      layers.push(new ScatterplotLayer<CellSiteFeature>({
-        id: 'dev-network-ised-cell-sites',
-        data: cellSites,
-        pickable: true,
-        stroked: true,
-        radiusUnits: 'pixels',
-        getRadius: 3.5,
-        radiusMinPixels: 2,
-        lineWidthUnits: 'pixels',
-        getLineWidth: 1,
-        getPosition: site => site.geometry.coordinates as [number, number],
-        getFillColor: site => [...(visibleGroupsAtSite(site.properties, visibleSiteGroups)[0]?.color ?? [100, 116, 139]), 230],
-        getLineColor: site => visibleGroupsAtSite(site.properties, visibleSiteGroups).length > 1 ? [255, 255, 255, 255] : [15, 23, 42, 140],
-        updateTriggers: { getFillColor: [...visibleSiteGroups].join('|'), getLineColor: [...visibleSiteGroups].join('|') },
-        onHover: info => {
-          const popup = tooltipRef.current
-          if (!popup || !map) return
-          const site = info.object
-          if (!site) { popup.remove(); return }
-          const [longitude, latitude] = site.geometry.coordinates
-          popup.setLngLat([longitude, latitude]).setHTML(mapTooltipHtml({
-            title: site.properties.operators.length > 1 ? `Shared site · ${site.properties.operators.length} operators` : `${site.properties.operators[0]} site`,
-            subtitle: `ISED spectrum licence site${site.properties.province ? ` · ${site.properties.province}` : ''}`,
-            rows: cellSiteTooltipRows(site.properties),
-          })).addTo(map)
-        },
-      }))
-    }
-
     overlay.setProps({ layers })
-  }, [overlayRef, bellDataById, bellRenderMode, map, isLoaded, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds, rasterView, cellPixels, showGridLines, onGridError, sourceLevel, crtcLayers, cellSites, visibleSiteGroups])
+  }, [overlayRef, bellDataById, bellRenderMode, map, isLoaded, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds, rasterView, cellPixels, showGridLines, onGridError, sourceLevel, crtcLayers])
 
   return null
+}
+
+/**
+ * ISED sites as operator-split donut clusters: the centre counts sites, wedges
+ * count the operators on them, so a shared mast adds to each of its operators.
+ * Clicking a single site opens its detail card.
+ */
+function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; visibleGroups: ReadonlySet<string> }) {
+  const { map } = useMap()
+  const popupRef = useRef<maplibregl.Popup | null>(null)
+  const data = useMemo(() => cellSitePieData(sites, visibleGroups), [sites, visibleGroups])
+
+  useEffect(() => () => { popupRef.current?.remove() }, [])
+  useEffect(() => { popupRef.current?.remove() }, [sites])
+
+  return <MapPieClusterLayer
+    data={data}
+    bandColors={CELL_SITE_BAND_COLORS}
+    preAggregated
+    expandOverlappingPoints
+    clusterRadius={52}
+    onPointClick={properties => {
+      const site = sites[Number(properties.siteIndex)]
+      if (!site || !map) return
+      popupRef.current?.remove()
+      const { properties: details } = site
+      popupRef.current = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
+        .setLngLat(site.geometry.coordinates as [number, number])
+        .setHTML(mapTooltipHtml({
+          title: details.operators.length > 1 ? `Shared site · ${details.operators.length} operators` : `${details.operators[0]} site`,
+          subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
+          rows: cellSiteTooltipRows(details),
+        }))
+        .addTo(map)
+    }}
+  />
 }
 
 function NetworkGridNavigation({ sourceLevel }: { sourceLevel: string }) {
@@ -730,7 +731,7 @@ export default function DevNetworks() {
         </div>
         {cellSitesError && <p role="status" className="mt-2 text-xs text-destructive">{cellSitesError}</p>}
         <p className="mt-2 text-xs text-muted-foreground">
-          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED{cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}. White rings mark masts shared by visible operators. Reported sites, not measured coverage; Other includes ~5.9k railway radio sites.
+          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED{cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}. Clusters split by operator as you zoom; the centre counts sites, and a shared mast adds a wedge for each operator on it. Click a site for details. Reported sites, not measured coverage; Other includes ~5.9k railway radio sites.
         </p>
         <p className="mt-1 text-xs text-muted-foreground">{cellSitesManifest?.attribution ?? 'Contains information licensed under the Open Government Licence – Canada (ISED).'}</p>
       </SidebarSection>
@@ -977,9 +978,8 @@ export default function DevNetworks() {
           onGridError={setGridError}
           sourceLevel={sourceLevel}
           crtcLayers={crtcLayers}
-          cellSites={cellSites}
-          visibleSiteGroups={visibleSiteGroups}
         />
+        {cellSites.length > 0 && <CellSitePieLayer sites={cellSites} visibleGroups={visibleSiteGroups} />}
         {crtcLayers.filter(({ resource }) => resource.id.includes('major-roads')).map(({ resource, data }) => <MapLineLayer
           key={resource.id} sourceKey={resource.id} data={data} sourceTolerance={0}
           color="#235791" width={1} opacity={0.72}

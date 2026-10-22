@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CELL_SITE_BAND_COLORS,
+  cellSitePieData,
   cellSiteTooltipRows,
   countSitesByGroup,
   filterCellSites,
@@ -51,6 +53,22 @@ describe('ISED cell sites', () => {
     expect(filterCellSites(collection, new Set(['other']))).toHaveLength(1)
     expect(filterCellSites(collection, new Set(['Rogers']))).toHaveLength(0)
     expect(filterCellSites(null, new Set(['Bell']))).toEqual([])
+  })
+
+  it('gives a shared mast one site count and a wedge per visible operator', () => {
+    const pie = cellSitePieData(collection.features, new Set(['Bell', 'TELUS', 'other']))
+    const bands = (index: number) => pie.features[index].properties?.bandCounts as number[]
+    expect(pie.features[0].properties).toMatchObject({ siteIndex: 0, count: 1, color: CELL_SITE_BAND_COLORS[0] })
+    expect(bands(0).slice(0, 2)).toEqual([1, 1])
+    expect(bands(0).reduce((a, b) => a + b, 0)).toBe(2)
+    expect(bands(1).at(-1)).toBe(1)
+    expect(CELL_SITE_BAND_COLORS[0]).toBe('#0054a6')
+  })
+
+  it('drops the wedge of a hidden operator', () => {
+    const pie = cellSitePieData(collection.features.slice(0, 1), new Set(['TELUS']))
+    expect(pie.features[0].properties?.bandCounts).toEqual([0, 1, 0, 0, 0, 0, 0, 0])
+    expect(pie.features[0].properties?.color).toBe(CELL_SITE_BAND_COLORS[1])
   })
 
   it('sums manifest site counts into groups', () => {
