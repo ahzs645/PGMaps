@@ -32,7 +32,7 @@ export interface SidebarProps {
   onRemoveAlignment: () => void
   onSuggest: (options: RouteSearchOptions) => void
   onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
-  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile') => void
+  onSave: (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile' | 'plotbook') => void
   onProfile: (id: string) => void
   activeProfile: string | null
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -1052,6 +1052,9 @@ export function DesignSidebar(p: SidebarProps) {
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => p.onSave('shapefile')}>
                   Shapefile (zip)
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => p.onSave('plotbook')}>
+                  Plot book (A3)
                 </Button>
               </div>
               <p className="mt-2 text-[11px] leading-4 text-muted-foreground">

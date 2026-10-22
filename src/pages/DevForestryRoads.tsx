@@ -554,7 +554,7 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
-  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile') => {
+  const save = (kind: 'project' | 'geojson' | 'csv' | 'report' | 'landxml' | 'stakeout' | 'shapefile' | 'plotbook') => {
     try {
       const safe = parseProject(project)
       if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview))
@@ -569,7 +569,50 @@ export default function DevForestryRoads() {
           `${basename}.geojson`,
           'application/geo+json',
         )
-      else if (kind === 'shapefile') {
+      else if (kind === 'plotbook') {
+        if (terrainProfile) throw Error('Return to the road before plotting design sheets.')
+        void (async () => {
+          try {
+            const [{ plotBookHtml }, { buildTerrainDisplay }] = await Promise.all([
+              import('./dev-forestry-roads/plotBook'),
+              import('./dev-forestry-roads/terrainDisplay'),
+            ])
+            // Contours for the plan: the road's extent plus a margin, from the same terrain source.
+            const lng = analysis.centerline.map((c) => c[0]),
+              lat = analysis.centerline.map((c) => c[1])
+            const margin = 0.002
+            let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined
+            try {
+              contours = buildTerrainDisplay(
+                source,
+                [
+                  Math.min(...lng) - margin,
+                  Math.min(...lat) - margin,
+                  Math.max(...lng) + margin,
+                  Math.max(...lat) + margin,
+                ],
+                256,
+              ).contours
+            } catch {
+              contours = undefined
+            }
+            downloadText(
+              plotBookHtml({
+                projectName: safe.name,
+                alignment,
+                analysis,
+                terrain: project.terrain,
+                contours,
+                ...exportGrid(project.terrain, alignment.points[0].coordinate),
+              }),
+              `${basename}-plot-book.html`,
+              'text/html;charset=utf-8',
+            )
+          } catch (error) {
+            w.setError(error instanceof Error ? error.message : 'Could not build the plot book.')
+          }
+        })()
+      } else if (kind === 'shapefile') {
         void (async () => {
           try {
             const [{ default: JSZip }, { writeShapefile }] = await Promise.all([
@@ -615,7 +658,11 @@ export default function DevForestryRoads() {
           `${basename}-report.html`,
           'text/html;charset=utf-8',
         )
-      w.setNotice(kind === 'report' ? 'Report downloaded. Open it and use Print / Save as PDF.' : 'Export downloaded.')
+      w.setNotice(
+        kind === 'report' || kind === 'plotbook'
+          ? `${kind === 'plotbook' ? 'Plot book' : 'Report'} downloaded. Open it and use Print / Save as PDF.`
+          : 'Export downloaded.',
+      )
       w.setError('')
     } catch (error) {
       w.setError(error instanceof Error ? error.message : 'Could not export project.')
