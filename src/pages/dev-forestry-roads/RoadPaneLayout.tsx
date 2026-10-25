@@ -28,9 +28,12 @@ export function RoadPaneLayout({
   data,
   storageId = layout,
   hidden = [],
+  focusedPane,
 }: {
   layout: RoadLayout
   hidden?: RoadPaneId[]
+  /** Small workspaces show one view at a time without unmounting the others. */
+  focusedPane?: RoadPaneId
   /** Where pane sizes are remembered: the preset id, or a saved layout's own id. */
   storageId?: string
   plan: ReactNode
@@ -39,17 +42,20 @@ export function RoadPaneLayout({
   data: ReactNode
 }) {
   const linked = !['engineering', 'pegging'].includes(layout) || !data
+  const isHidden = (id: RoadPaneId) => hidden.includes(id) || (!!focusedPane && focusedPane !== id)
   return (
     <ResizableSplit
       direction="row"
+      splitQuery="(min-width: 0px)"
       storageKey={roadPaneKey(storageId, 'columns')}
       className="min-h-0 flex-1"
       data-testid="road-connected-layout"
       data-layout={layout}
+      data-focused-pane={focusedPane}
       panes={[
         {
           id: 'plan-column',
-          hidden: hidden.includes('plan') && (linked || hidden.includes('data')),
+          hidden: isHidden('plan') && (linked || isHidden('data')),
           label: linked ? 'plan' : 'plan column',
           size: linked ? 1.05 : 1,
           min: 300,
@@ -57,12 +63,13 @@ export function RoadPaneLayout({
           content: (
             <ResizableSplit
               direction="column"
+              splitQuery="(min-width: 0px)"
               storageKey={roadPaneKey(storageId, 'plan-data')}
               className="h-full"
               panes={[
                 {
                   id: 'plan',
-                  hidden: hidden.includes('plan'),
+                  hidden: isHidden('plan'),
                   label: 'plan',
                   content: plan,
                   size: 1.1,
@@ -74,7 +81,7 @@ export function RoadPaneLayout({
                   : [
                       {
                         id: 'data',
-                        hidden: hidden.includes('data'),
+                        hidden: isHidden('data'),
                         label: 'data',
                         content: data,
                         size: 0.9,
@@ -88,7 +95,7 @@ export function RoadPaneLayout({
         },
         {
           id: 'views',
-          hidden: hidden.includes('profile') && hidden.includes('detail'),
+          hidden: isHidden('profile') && isHidden('detail'),
           label: 'view column',
           size: 1,
           min: 320,
@@ -96,12 +103,13 @@ export function RoadPaneLayout({
           content: (
             <ResizableSplit
               direction="column"
+              splitQuery="(min-width: 0px)"
               storageKey={roadPaneKey(storageId, 'views')}
               className="h-full"
               panes={[
                 {
                   id: 'profile',
-                  hidden: hidden.includes('profile'),
+                  hidden: isHidden('profile'),
                   label: 'profile',
                   content: profile,
                   size: 0.9,
@@ -110,7 +118,7 @@ export function RoadPaneLayout({
                 },
                 {
                   id: 'detail',
-                  hidden: hidden.includes('detail'),
+                  hidden: isHidden('detail'),
                   label: 'detail view',
                   content: detail,
                   size: 1,

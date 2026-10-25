@@ -59,9 +59,11 @@ export function LayoutPicker({
   portalContainer,
   hiddenPanels,
   onHiddenPanels,
+  compact = false,
 }: {
   selection: string
   hiddenPanels: RoadPaneId[]
+  compact?: boolean
   onHiddenPanels: (hidden: RoadPaneId[]) => void
   onSelect: (selection: string) => void
   saved: SavedLayout[]
@@ -107,18 +109,20 @@ export function LayoutPicker({
   }
   return (
     <>
-      <AppSelect
-        value={selection}
-        onValueChange={(value) => (value === MANAGE ? setOpen(true) : onSelect(value))}
-        options={[
-          ...ROAD_LAYOUT_OPTIONS,
-          ...saved.map((s) => ({ value: `saved:${s.id}`, label: `★ ${s.name}` })),
-          { value: MANAGE, label: 'Save or manage layouts…' },
-        ]}
-        triggerAriaLabel="Road view layout"
-        triggerClassName="h-8 w-[min(15rem,60vw)] text-xs"
-        contentClassName="text-xs"
-      />
+      <span className={compact ? 'hidden' : 'contents'}>
+        <AppSelect
+          value={selection}
+          onValueChange={(value) => (value === MANAGE ? setOpen(true) : onSelect(value))}
+          options={[
+            ...ROAD_LAYOUT_OPTIONS,
+            ...saved.map((s) => ({ value: `saved:${s.id}`, label: `★ ${s.name}` })),
+            { value: MANAGE, label: 'Save or manage layouts…' },
+          ]}
+          triggerAriaLabel="Road view layout"
+          triggerClassName="h-8 w-[min(15rem,60vw)] text-xs"
+          contentClassName="text-xs"
+        />
+      </span>
       <Button
         size="icon"
         variant="outline"

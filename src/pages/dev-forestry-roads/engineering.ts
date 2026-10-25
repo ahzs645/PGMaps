@@ -330,7 +330,12 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
     const run = runs.get(interval.run)!
     let remaining = amount
     const candidates = availableSites
-      .filter((s) => s.kind === kind && s.chainage >= run.start - EPS && s.chainage <= run.end + EPS)
+      .filter((s) => {
+        // Mandatory calculation stations are rounded to micrometres in analyzeRoad.
+        // Match that registration for reachability, keeping entered chainage for haul distances.
+        const station = Math.round(s.chainage * 1e6) / 1e6
+        return s.kind === kind && station >= run.start - EPS && station <= run.end + EPS
+      })
       .sort(
         (a, b) =>
           Math.abs(a.chainage - interval.chainage) +

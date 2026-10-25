@@ -100,7 +100,9 @@ async function prepare(page: Page) {
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
   await page.goto('/dev/forestry/road-design?example=training')
-  await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
+  if ((page.viewportSize()?.width ?? 1512) < 768)
+    await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toHaveText('Road design')
+  else await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect
     .poll(async () => (await mapState(page))?.layers)
@@ -108,7 +110,10 @@ async function prepare(page: Page) {
       expect.arrayContaining(['road-terrain', 'road-contours', 'road-corridor', 'road-alignments', 'road-section']),
     )
   await expect.poll(async () => (await mapState(page))?.renderedRoads ?? 0).toBeGreaterThan(0)
+  const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
+  if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
+  if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Plan', exact: true }).click()
   return errors
 }
 
@@ -156,7 +161,11 @@ async function fillNumber(page: Page, name: string, value: number) {
 }
 async function linkedStation(page: Page, station: number) {
   await expect(page.getByTestId('road-active-map-station')).toHaveAttribute('data-chainage', String(station))
+  const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
+  const selected = (await tabs.isVisible()) ? await tabs.getByRole('tab', { selected: true }).innerText() : null
+  if (selected) await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', String(station))
+  if (selected && selected !== 'Profile') await tabs.getByRole('tab', { name: selected, exact: true }).click()
   await expect(page.getByLabel('Selected station metres', { exact: true })).toHaveValue(
     String(Number(station.toFixed(1))),
   )
@@ -427,6 +436,7 @@ test('phone views fit the viewport and preserve station selection through panel 
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const errors = await prepare(page)
+  await page.getByRole('button', { name: 'Show road controls', exact: true }).click()
   await page.getByRole('button', { name: 'Hide road controls', exact: true }).click()
   await expect(page.getByRole('complementary', { name: 'Road design controls', exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -442,6 +452,10 @@ test('phone views fit the viewport and preserve station selection through panel 
   await page.screenshot({ path: testInfo.outputPath('mobile-plan-fullscreen.png') })
   await page.keyboard.press('Escape')
   await linkedStation(page, 200)
+  await page
+    .getByRole('tablist', { name: 'Visible road pane', exact: true })
+    .getByRole('tab', { name: 'Profile', exact: true })
+    .click()
   await page.getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true }).click()
   const profilePanel = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
   await expect(profilePanel).toHaveAttribute('data-fullscreen', 'true')

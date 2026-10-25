@@ -115,6 +115,44 @@ describe('vertical profile optimizer', () => {
     expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { k: -1 })).toThrow(/K of 0 or more/)
     expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { pviSpacingM: 5 })).toThrow(/PVI spacing/)
   })
+
+  it('does not return a fitted profile that misses a tight elevation control', () => {
+    const alignment = road()
+    alignment.verticalControls = [
+      {
+        id: 'fixed-crossing',
+        chainage: 200,
+        elevation: 805,
+        toleranceAboveM: 0,
+        toleranceBelowM: 0,
+        gradePercent: null,
+        gradeTolerancePercent: 0,
+      },
+    ]
+    expect(() => optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })).toThrow(/fitted profile.*control/i)
+  })
+
+  it('bounds level transitions before a fine-level search can freeze the workspace', () => {
+    expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { maxTransitions: 100 })).toThrow(
+      /transition budget.*coarser level step/i,
+    )
+  })
+
+  it('does not return fitted curves below the entered standards', () => {
+    const alignment = road()
+    alignment.verticalStandards = {
+      gradeRanges: [],
+      minSagK: 100,
+      minCrestK: 100,
+      minCurveLengthM: null,
+      minTangentLengthM: null,
+    }
+    expect(() => optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })).toThrow(/fitted profile.*standard/i)
+  })
+
+  it('rejects non-finite search inputs before allocating levels', () => {
+    expect(() => optimizeVerticalProfile(road(), 400, hump, settings, { maxDepthM: Infinity })).toThrow(/finite/)
+  })
 })
 
 describe('profile simplification', () => {

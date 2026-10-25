@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { writeArrayBuffer } from 'geotiff'
+import { fromArrayBuffer, writeArrayBuffer } from 'geotiff'
 import type { PointCloudResult, RunPointCloudOptions } from './pointCloudClient'
 import {
   LIDAR_BASE,
+  exportGrid,
+  localMetricGrid,
   loadLas,
   loadRaster,
   loadTerrainMetadata,
@@ -11,6 +13,7 @@ import {
   terrainFromMetadata,
 } from './terrain'
 import type { TerrainMetadata } from './types'
+import { offsetCoordinate } from './engine'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -62,7 +65,7 @@ vi.mock('./pointCloudClient', () => ({
   }),
 }))
 
-function fixture(pointPixels = false, noData = false) {
+function fixture(pointPixels = false, noData = false, tiepoint = [0, 0, 0, 512500, 5972000, 0]) {
   const values = Array.from({ length: 16 }, (_, i) => 100 + (i % 4) * 2 + Math.floor(i / 4) * 3)
   if (noData) values[5] = 255
   const buffer: ArrayBuffer = writeArrayBuffer(values, {
@@ -72,7 +75,7 @@ function fixture(pointPixels = false, noData = false) {
     SampleFormat: [1],
     SamplesPerPixel: [1],
     ModelPixelScale: [1, 1, 0],
-    ModelTiepoint: [0, 0, 0, 512500, 5972000, 0],
+    ModelTiepoint: tiepoint,
     ProjectedCSTypeGeoKey: 3157,
     GTModelTypeGeoKey: 1,
     GTRasterTypeGeoKey: pointPixels ? 2 : 1,
@@ -81,6 +84,42 @@ function fixture(pointPixels = false, noData = false) {
   return new File([buffer], 'native-1m-fixture.tif', { type: 'image/tiff' })
 }
 const coordinate = (x: number, y: number) => roadProjection(3157).inverse([x, y]) as [number, number]
+
+describe('ground-metre drainage projection', () => {
+  it.each([
+    [-120.4, 50.67],
+    [-119.2, 50.27],
+    [151.2, -33.9],
+  ] as [number, number][])('keeps local distances in ground metres at %s, %s', (lon, lat) => {
+    const origin: [number, number] = [lon, lat]
+    const grid = localMetricGrid(origin)
+    const start = grid.toGrid(origin)
+    for (const bearing of [0, 90]) {
+      const point = offsetCoordinate(origin, bearing, 100)
+      const end = grid.toGrid(point)
+      // The road uses mean-Earth-radius chainage; UTM uses an ellipsoid. Both are
+      // ground metre measures, within 1%, rather than Mercator's ~157 m here.
+      expect(Math.hypot(end[0] - start[0], end[1] - start[1])).toBeGreaterThan(99)
+      expect(Math.hypot(end[0] - start[0], end[1] - start[1])).toBeLessThan(101)
+      expect(grid.toLonLat(end)[0]).toBeCloseTo(point[0], 8)
+      expect(grid.toLonLat(end)[1]).toBeCloseTo(point[1], 8)
+    }
+    expect(grid.epsg >= 32700).toBe(lat < 0)
+  })
+
+  it('preserves the source CRS for exports while drainage uses its local metric grid', () => {
+    const at: [number, number] = [-120.4, 50.67]
+    const metadata: TerrainMetadata = {
+      kind: 'geotiff',
+      name: 'Web Mercator DEM',
+      resolutionM: 6,
+      verticalReference: 'metres',
+      epsg: 3857,
+    }
+    expect(exportGrid(metadata, at).epsg).toBe(3857)
+    expect(localMetricGrid(at).epsg).toBe(32610)
+  })
+})
 
 describe('road GeoTIFF sampling', () => {
   it('honours RasterPixelIsArea centres including edge samples and bilinear values', async () => {
@@ -95,6 +134,46 @@ describe('road GeoTIFF sampling', () => {
     expect(Number.isNaN(source.elevationAt(...coordinate(512500.25, 5971999.5)))).toBe(true)
     expect(terrainBounds(metadata)).not.toBeNull()
     expect(terrainFromMetadata(metadata)!.elevationAt(...coordinate(512501.75, 5971998.25))).toBeCloseTo(106.25, 6)
+  })
+
+  it('registers a tiepoint at nonzero raster coordinates at the correct map position', async () => {
+    const { metadata, source } = await loadRaster(
+      fixture(false, false, [10, 20, 0, 512510, 5971980, 0]),
+      'CGVD2013; metres',
+    )
+    expect(metadata.raster?.origin).toEqual([512500.5, 5971999.5])
+    expect(source.elevationAt(...coordinate(512501.75, 5971998.25))).toBeCloseTo(106.25, 6)
+    expect(terrainFromMetadata(metadata)!.elevationAt(...coordinate(512501.75, 5971998.25))).toBeCloseTo(106.25, 6)
+  })
+
+  it('compares a decimal GDAL no-data tag at the Float32 sample precision', async () => {
+    const noData = -9999.999
+    // geotiff's writer encodes byte pixels only; retain its metadata and write a Float32 strip.
+    const byteFixture = writeArrayBuffer(new Array(16).fill(0), {
+      width: 4,
+      height: 4,
+      BitsPerSample: [32],
+      SampleFormat: [3],
+      SamplesPerPixel: [1],
+      StripByteCounts: [64],
+      ModelPixelScale: [1, 1, 0],
+      ModelTiepoint: [0, 0, 0, 512500, 5972000, 0],
+      ProjectedCSTypeGeoKey: 3157,
+      GTModelTypeGeoKey: 1,
+      GTRasterTypeGeoKey: 1,
+      GDAL_NODATA: String(noData),
+    })
+    const image = await (await fromArrayBuffer(byteFixture)).getImage()
+    const offset = image.fileDirectory.StripOffsets[0]
+    const bytes = new Uint8Array(offset + 16 * 4)
+    bytes.set(new Uint8Array(byteFixture))
+    const view = new DataView(bytes.buffer)
+    const littleEndian = view.getUint16(0) === 0x4949
+    for (let i = 0; i < 16; i++) view.setFloat32(offset + i * 4, i === 5 ? noData : 100 + i, littleEndian)
+    const { metadata, source } = await loadRaster(new File([bytes], 'float32-nodata.tif'), 'CGVD2013; metres')
+    expect(metadata.raster?.values[5]).toBeNull()
+    expect(Number.isNaN(source.elevationAt(...coordinate(512501, 5971999)))).toBe(true)
+    expect(source.elevationAt(...coordinate(512503, 5971997))).toBeCloseTo(112.5, 6)
   })
 
   it('does not shift RasterPixelIsPoint samples another half pixel', async () => {

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { NumberField } from './Controls'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
@@ -112,6 +113,10 @@ export function DrainagePanel({
       )}
       {run && (
         <>
+          <p className="text-muted-foreground">
+            Select a station to inspect it on the plan. Enter known or proposed culverts in Engineering → Drainage, then
+            re-run to check whether flow reaches them.
+          </p>
           {stale && (
             <p role="status" className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-900">
               The road, its culverts, the road settings, the terrain or these inputs changed since this run. It is not
@@ -208,41 +213,82 @@ export function DrainagePanel({
           <section aria-label="Culvert sizing">
             <h3 className="mb-1 font-medium">Culvert sizing (Rational method, full-pipe Manning)</h3>
             {run.culverts.length ? (
-              <EngineeringTable>
-                <thead>
-                  <tr>
-                    <ColumnHeader label="Culvert" className="text-left" />
-                    <ColumnHeader label="Catchment" unit="ha design / existing" />
-                    <ColumnHeader label="Peak Q" unit="m³/s" />
-                    <ColumnHeader label="Capacity" unit="m³/s" />
-                    <ColumnHeader label="Slope" unit="%" />
-                    <ColumnHeader label="Diameter" unit="m entered / min" />
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                <div className="space-y-2 md:hidden">
                   {run.culverts.map((c) => (
-                    <tr key={c.id} data-adequate={c.adequate}>
-                      <td className="text-left">
+                    <article
+                      key={c.id}
+                      aria-label={`Culvert check ${c.name}`}
+                      data-adequate={c.adequate}
+                      className="rounded-md border p-2"
+                    >
+                      <p className="break-words font-medium">
                         {c.name} · {station(c.chainage)}
-                      </td>
-                      <td>
-                        {n(c.designAreaHa, 2)} / {n(c.existingAreaHa, 2)}
-                      </td>
-                      <td>{n(c.designFlowM3s, 3)}</td>
-                      <td className={c.adequate ? undefined : 'font-medium text-red-700 dark:text-red-400'}>
-                        {n(c.capacityM3s, 3)}
-                      </td>
-                      <td title={c.slopeAssumed ? 'Assumed: inverts missing or not falling' : undefined}>
-                        {n(c.slope * 100, 1)}
-                        {c.slopeAssumed ? '*' : ''}
-                      </td>
-                      <td>
-                        {n(c.diameterM, 2)} / {c.minimumDiameterM === null ? '> 3.0' : n(c.minimumDiameterM, 2)}
-                      </td>
-                    </tr>
+                      </p>
+                      <p
+                        className={c.adequate ? 'text-muted-foreground' : 'font-medium text-red-700 dark:text-red-400'}
+                      >
+                        {c.adequate ? 'Capacity carries the modeled peak' : 'Modeled peak exceeds pipe capacity'}
+                      </p>
+                      <ReadoutGrid
+                        className="mt-2"
+                        minColumnWidth="100%"
+                        items={[
+                          { label: 'Peak Q', value: `${n(c.designFlowM3s, 3)} m³/s` },
+                          {
+                            label: 'Capacity',
+                            value: `${n(c.capacityM3s, 3)} m³/s`,
+                            tone: c.adequate ? 'default' : 'warning',
+                          },
+                          { label: 'Catchment D/E (ha)', value: `${n(c.designAreaHa, 2)} / ${n(c.existingAreaHa, 2)}` },
+                          {
+                            label: 'Diameter / min (m)',
+                            value: `${n(c.diameterM, 2)} / ${c.minimumDiameterM === null ? '> 3.0' : n(c.minimumDiameterM, 2)}`,
+                          },
+                          { label: 'Slope', value: `${n(c.slope * 100, 1)}%${c.slopeAssumed ? ' (assumed)' : ''}` },
+                        ]}
+                      />
+                    </article>
                   ))}
-                </tbody>
-              </EngineeringTable>
+                </div>
+                <div className="hidden md:block">
+                  <EngineeringTable>
+                    <thead>
+                      <tr>
+                        <ColumnHeader label="Culvert" className="text-left" />
+                        <ColumnHeader label="Catchment" unit="ha design / existing" />
+                        <ColumnHeader label="Peak Q" unit="m³/s" />
+                        <ColumnHeader label="Capacity" unit="m³/s" />
+                        <ColumnHeader label="Slope" unit="%" />
+                        <ColumnHeader label="Diameter" unit="m entered / min" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {run.culverts.map((c) => (
+                        <tr key={c.id} data-adequate={c.adequate}>
+                          <td className="text-left">
+                            {c.name} · {station(c.chainage)}
+                          </td>
+                          <td>
+                            {n(c.designAreaHa, 2)} / {n(c.existingAreaHa, 2)}
+                          </td>
+                          <td>{n(c.designFlowM3s, 3)}</td>
+                          <td className={c.adequate ? undefined : 'font-medium text-red-700 dark:text-red-400'}>
+                            {n(c.capacityM3s, 3)}
+                          </td>
+                          <td title={c.slopeAssumed ? 'Assumed: inverts missing or not falling' : undefined}>
+                            {n(c.slope * 100, 1)}
+                            {c.slopeAssumed ? '*' : ''}
+                          </td>
+                          <td>
+                            {n(c.diameterM, 2)} / {c.minimumDiameterM === null ? '> 3.0' : n(c.minimumDiameterM, 2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </EngineeringTable>
+                </div>
+              </>
             ) : (
               <p className="text-muted-foreground">
                 This road has no culverts. Add them in the sidebar's culvert inventory.

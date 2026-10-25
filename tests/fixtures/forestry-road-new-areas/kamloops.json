@@ -1,0 +1,18 @@
+{
+  "name": "kamloops",
+  "url": "https://s3.amazonaws.com/elevation-tiles-prod/geotiff/13/1357/2754.tif",
+  "sha256": "37917d47255ba71057a4855dc82428a873ed888952e081c5618325f4235c3900",
+  "sourceProject": "https://registry.opendata.aws/terrain-tiles/",
+  "horizontalCrs": "EPSG:3857",
+  "verticalReference": "AWS Terrain Tiles; EGM96 orthometric metres (product assumption); regional screening DEM",
+  "bounds": [-120.36616802215578, 50.65297057627304, -120.32230854034424, 50.68076995242681],
+  "dimensions": [512, 512],
+  "groundSampleSpacingM": 6.054200167478542,
+  "guide": [
+    [-120.34525814522408, 50.66749550487837],
+    [-120.34399166587707, 50.66703186657923],
+    [-120.34321844443832, 50.66624501492194]
+  ],
+  "selectionRule": "Fixed tile centre; endpoints 100m either side along local contour orientation from 10m central gradient; middle control 25m left of contour. Not selected from optimization successes.",
+  "scope": "One regional source tile; resampled ground spacing does not establish source resolution or surveyed bare earth. EGM96 is entered product assumption, not independently verified local vertical datum. No actual road, exclusion, watercourse or field layers supplied."
+}

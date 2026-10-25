@@ -341,7 +341,7 @@ export function TerrainPreview({
 
   return (
     <div
-      className="relative flex h-full min-h-[240px] min-w-0 flex-col"
+      className="relative flex h-full min-h-0 min-w-0 flex-col"
       data-testid="road-terrain-preview"
       data-station={active?.chainage ?? station}
       data-terrain-only={terrainOnly}
@@ -350,7 +350,7 @@ export function TerrainPreview({
       data-open-gap-cells={sourceGeometry?.openGapCells ?? 0}
       aria-label={`${sourceLabel} 3D preview`}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-2 py-1.5">
+      <div className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto border-b px-2 py-1.5 [&>div]:shrink-0">
         <SegmentedControl
           value={mode}
           onChange={(value) => setMode(value as 'orbit' | 'follow')}
@@ -481,7 +481,7 @@ export function TerrainPreview({
           Estimated patches · display only
         </p>
       )}
-      <ChartViewport className="min-h-[170px] flex-1" minHeight={170} initialHeight={240}>
+      <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={240}>
         {(height) => (
           <SizedChart height={height}>
             {(width) => {

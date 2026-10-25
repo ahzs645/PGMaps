@@ -55,10 +55,15 @@ async function prepare(page: Page) {
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
   await page.goto('/dev/forestry/road-design?example=training')
-  await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
+  if ((page.viewportSize()?.width ?? 1512) < 768)
+    await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toHaveText('Road design')
+  else await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect.poll(async () => (await mapState(page))?.renderedRoads ?? 0).toBeGreaterThan(0)
+  const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
+  if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
+  if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Plan', exact: true }).click()
   return errors
 }
 
@@ -409,24 +414,36 @@ test('every pane boundary drags, and each layout keeps its own sizes', async ({ 
   expect(errors).toEqual([])
 })
 
-test('phone widths stack the panes with a height handle under each view', async ({ page }) => {
+test('phone widths switch bounded panes without scrolling or losing the shared station', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const errors = await prepare(page)
-  await expect(
-    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout' }),
-  ).toBeVisible()
-  await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-split', 'stacked')
+  await expect(page.getByRole('button', { name: 'Screen presets & panels', exact: true })).toBeVisible()
+  await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-focused-pane', 'plan')
   await expect(page.getByRole('separator', { name: 'Resize plan and view column', exact: true })).toHaveCount(0)
   const plan = page.getByRole('region', { name: 'Plan · alignment & terrain', exact: true })
-  const before = await heightOf(plan)
-  await dragBy(page, page.getByRole('separator', { name: 'Resize plan height', exact: true }), 0, 100)
-  await expect.poll(() => heightOf(plan)).toBeCloseTo(before + 100, -1)
+  await expect(plan).toBeVisible()
+  await selectStation(page, 200)
+  await page
+    .getByRole('tablist', { name: 'Visible road pane', exact: true })
+    .getByRole('tab', { name: 'Profile', exact: true })
+    .click()
   const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
-  const profileBefore = await heightOf(profile)
-  await dragBy(page, page.getByRole('separator', { name: 'Resize profile height', exact: true }), 0, -80)
-  await expect.poll(() => heightOf(profile)).toBeCloseTo(profileBefore - 80, -1)
-  await expect(page.getByRole('separator', { name: 'Resize detail view height', exact: true })).toBeAttached()
+  await expect(profile).toBeVisible()
+  await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', '200')
+  await expect(plan).toBeHidden()
+  await page
+    .getByRole('tablist', { name: 'Visible road pane', exact: true })
+    .getByRole('tab', { name: 'Detail', exact: true })
+    .click()
+  await expect(page.getByTestId('road-section-chart')).toBeVisible()
+  await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '200')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  expect(
+    await page.evaluate(() => {
+      const shell = document.getElementById('main-content')!
+      return shell.scrollHeight <= shell.clientHeight + 1
+    }),
+  ).toBe(true)
   expect(errors).toEqual([])
 })
 

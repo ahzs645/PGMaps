@@ -15,6 +15,14 @@ const box = (x0: number, y0: number, x1: number, y1: number): ContextFeature => 
 const barrier = (kind: 'avoid' | 'stream', coordinates: Coordinate[]): ContextFeature => ({ id: kind, name: kind, kind, geometry: { type: 'LineString', coordinates } })
 
 describe('verified sketched-corridor search', () => {
+  it('gives guide and corridor guidance when geometry work is exhausted without exclusions', () => {
+    expect(() => optimizeRoadCorridor([point(0, 0), point(100, 30), point(200, 0)], flat, settings, [], {
+      ...options, maxGeometryOperations: 10,
+    })).toThrow(/Corridor geometry budget reached; narrow the corridor, shorten or simplify the guide/)
+    expect(() => optimizeRoadCorridor([point(0, 0), point(200, 0)], flat, settings, [], {
+      ...options, maxGeometryOperations: 15000001,
+    })).toThrow(/Invalid geometry search budget/)
+  })
   it('retains exact endpoints, is deterministic and does not mutate inputs', () => {
     const guide = [point(0, 0), point(300, 0)], before = JSON.stringify({ guide, settings, options })
     const a = optimizeRoadCorridor(guide, flat, settings, [], options)

@@ -62,6 +62,8 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/dev/networks': 'Networks',
   '/dev/transit': 'Travel Times',
   '/dev/viewshed': 'Viewshed',
+  '/dev/forestry/road-design': 'Road design',
+  '/dev/forestry/roads': 'Road design',
   '/dev/aqmap': 'AQ Map',
   '/dev/aqmap/main': 'AQ Map',
   '/dev/aqmap/ring': 'AQ Map',
@@ -70,6 +72,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
 export function Navbar() {
   const location = useLocation()
   const isHomePage = location.pathname === '/'
+  const isRoadDesignPage = ['/dev/forestry/road-design', '/dev/forestry/roads'].includes(location.pathname)
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileSubmenu, setMobileSubmenu] = useState<'pgdata' | 'misc' | null>(null)
@@ -333,7 +336,7 @@ export function Navbar() {
           )}
 
           <Link to="/" className="hidden shrink-0 items-center gap-2 md:flex">
-            <span className="text-base font-semibold md:text-lg">PGMaps</span>
+            <span className="text-base font-semibold md:text-lg">{isRoadDesignPage ? 'Road design' : 'PGMaps'}</span>
           </Link>
 
           <button

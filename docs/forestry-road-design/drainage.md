@@ -16,6 +16,8 @@ trusted and what the check assumes. The method is specified in the
   is never finer than 1 m, and it grows in 1.25× steps when the corridor plus buffer needs more
   than 4,194,304 cells. A long or diagonal road can end up on 2–4 m cells, which is wider than
   the default 1 m V ditch.
+  A warning identifies cells coarser than 2 m; narrower ditches and culvert channels
+  may be unresolved even when the calculation finishes.
 - **Check coverage first.** Only stations with a design elevation are burned into the surface.
   A station without ground, or a side that never reaches a catch point, leaves a gap or a step in
   the prism, and water routes through it as if the road were not there.
@@ -108,8 +110,9 @@ run is higher.
   and stream positions depend on DEM detail and noise.
 - **The grid edge and data holes are outlets.** Every cell on the edge of the sampled rectangle,
   and every cell next to a missing one, drains off the grid. Water from beyond the edge is never
-  counted, so a catchment that extends past the buffer is reported smaller than it is, with no
-  warning. The same happens where the terrain itself ends (the published LiDAR is one tile) or
+  counted, so a catchment that extends past the buffer is reported smaller than it is. Every run
+  warns about this finite catchment; missing sampled ground receives an additional warning.
+  The same happens where the terrain itself ends (the published LiDAR is one tile) or
   has no-data gaps (often water bodies in a DTM). The buffer cannot add ground the terrain does
   not have.
 - **The sampled rectangle is axis-aligned** on the projected grid, around the centreline and catch
@@ -118,6 +121,9 @@ run is higher.
 - **The grid is a resampling.** Cells are sampled at their centres from the active terrain, on a
   new grid aligned to the corridor rather than to the source cells. On a raster source that is
   interpolated between source cells.
+  The analysis projection is local UTM in ground metres, independent of the source CRS.
+  Web Mercator map metres must not be used as ground metres for buffer distances or areas;
+  source cells and export coordinates retain their recorded CRS.
 - **Surface runoff only.** No infiltration, interception, snowmelt, subsurface flow, channel
   hydraulics or storage routing.
 
@@ -159,6 +165,16 @@ crossings are red lines drawn straight from entry to exit (not along the ditch),
 without a culvert are amber, and new ponds are small blue dots. Drainage layers are hidden while
 a terrain profile is open.
 
+Selecting a table station updates the linked views. In a focused mobile layout it also opens
+the plan, so the selected location is visible immediately. Mobile culvert cards put modeled
+peak flow, capacity, catchments, diameters and the assumed/measured slope together; desktop
+retains the comparison table.
+
+When a pipe's existing-ground catchment is at least 0.05 ha but its design catchment falls
+below half of that, the run warns to inspect diverted flow, the inlet and terrain detail.
+The capacity comparison still uses the modeled design catchment; a small modeled flow is
+not evidence that the original upstream water has disappeared or that the pipe is suitable.
+
 ### A worked reading: the published LiDAR road
 
 The draft road on the published LiDAR tile is about 1,050 m long, sampled at 1.29 million 1 m
@@ -195,7 +211,7 @@ false ponds or false breaks.
 | Minimum diameter "> 3.0"                                          | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
 | Results did not change after an edit                              | The run is stale; runs are not recalculated                                          | Re-run. The plan hides a stale run until you do                                      |
 | Plan header reads "Drainage out of date · re-run it to show flow" | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
-| Drainage panel empty after reload                                 | Runs are not saved with the project or autosave; the inputs are                      | Re-run after opening a project                                                       |
+| Drainage panel empty after reload                                 | Runs are not saved; inputs are remembered in this browser only                       | Re-run after opening a project                                                       |
 | Streams in odd parallel lines on a planar slope                   | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
 
 ## What it does not do

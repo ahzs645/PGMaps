@@ -4,6 +4,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
+  BarChart3,
   Download,
   FolderOpen,
   PanelLeftClose,
@@ -22,6 +23,9 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { AppSelect } from '@/components/ui/select'
 import { ResizableSplit } from '@/components/ui/resizable-split'
+import { TabBar } from '@/components/ui/tab-bar'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import './dev-forestry-roads/workspace.css'
 import { downloadBlob, downloadText } from '@/lib/download'
 import {
   CableChart,
@@ -66,6 +70,7 @@ import {
   loadRaster,
   loadRegionalTerrain,
   exportGrid,
+  localMetricGrid,
 } from './dev-forestry-roads/terrain'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
@@ -78,6 +83,21 @@ import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
   v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-CA', { maximumFractionDigits: decimals })
+const compactNumber = new Intl.NumberFormat('en-CA', { notation: 'compact', maximumFractionDigits: 1 })
+const summaryLabel = (full: string, mobile: string) => (
+  <span title={full}>
+    <span className="md:hidden">{mobile}</span>
+    <span className="hidden md:inline">{full}</span>
+  </span>
+)
+const summaryValue = (full: string, mobile: string) => (
+  <span title={full}>
+    <span className="md:hidden" aria-hidden="true">
+      {mobile}
+    </span>
+    <span className="sr-only md:not-sr-only">{full}</span>
+  </span>
+)
 const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
 function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEMPLATE): Alignment {
   return {
@@ -106,6 +126,13 @@ export default function DevForestryRoads() {
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const [dismissedBusyId, setDismissedBusyId] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
+  const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
+  const tinyHeight = useMediaQuery('(max-height: 480px)')
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [controlsOpen, setControlsOpen] = useState(false)
+  const controlsShown = focusMode ? controlsOpen : !collapsed
+  const [focusPane, setFocusPane] = useState<RoadPaneId>('plan')
   const [mode, setMode] = useState<DrawMode>('inspect')
   const [draft, setDraft] = useState<Coordinate[]>([])
   const [hover, setHover] = useState<Coordinate | null>(null)
@@ -138,6 +165,13 @@ export default function DevForestryRoads() {
   })
   const { base: layout, storageId: layoutStorageId } = resolveLayout(layoutSelection, savedLayouts)
   const [hiddenPanels, setHiddenPanels] = useRoadPanels(layoutStorageId, layout)
+  const focusOptions = [
+    { value: 'plan' as const, label: 'Plan' },
+    { value: 'profile' as const, label: 'Profile' },
+    { value: 'detail' as const, label: 'Detail' },
+    ...(['engineering', 'pegging'].includes(layout) ? [{ value: 'data' as const, label: 'Data' }] : []),
+  ].filter((option) => !hiddenPanels.includes(option.value))
+  const focusedPane = focusOptions.some((option) => option.value === focusPane) ? focusPane : focusOptions[0]?.value
   const visiblePanelCount = [
     'plan',
     'profile',
@@ -526,7 +560,7 @@ export default function DevForestryRoads() {
     void run('Routing flow on the existing and design surfaces…', async () => {
       // Let the busy state paint before a second or two of synchronous routing.
       await new Promise((resolve) => setTimeout(resolve, 30))
-      const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+      const grid = localMetricGrid(alignment.points[0].coordinate)
       const result = runDrainage({
         terrain: source,
         analysis,
@@ -964,20 +998,24 @@ export default function DevForestryRoads() {
     <div
       ref={ref}
       data-fullscreen={fullscreen || undefined}
-      className={`flex min-h-full flex-col gap-2 bg-muted/20 px-3 pb-3 pt-20 xl:h-[calc(100dvh-64px)] xl:min-h-[720px] md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1300] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3 [&[data-fullscreen]]:overflow-auto`}
+      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 px-3 pb-3 pt-20 md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1300] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
       data-testid="road-workspace"
+      data-compact={compact || undefined}
+      data-focus-mode={focusMode || undefined}
+      data-tiny-height={tinyHeight || undefined}
+      data-summary-open={summaryOpen || undefined}
     >
       <header
         className="flex shrink-0 flex-wrap items-center justify-between gap-2"
         data-testid="road-workspace-header"
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="hidden min-w-0 items-center gap-2 md:flex">
           <Button variant="ghost" size="icon" className="size-8" asChild>
             <Link to="/dev/forestry" aria-label="Back to forestry tools">
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
-          <div>
+          <div className="road-workspace-title min-w-0">
             <h1 className="text-lg font-semibold tracking-tight">Forest road design</h1>
             <p
               role="status"
@@ -991,15 +1029,31 @@ export default function DevForestryRoads() {
           <span
             title={planningBasis}
             data-testid="road-planning-basis"
-            className={`hidden cursor-help rounded-full border px-2 py-1 text-[10px] sm:block ${project.terrain.kind === 'demo' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'}`}
+            className={`road-source-badge hidden cursor-help rounded-full border px-2 py-1 text-[10px] sm:block ${project.terrain.kind === 'demo' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'}`}
           >
             {project.terrain.kind === 'demo'
-              ? 'SYNTHETIC TRAINING'
+              ? compact
+                ? 'SYNTHETIC'
+                : 'SYNTHETIC TRAINING'
               : `${project.terrain.resolutionM.toFixed(1)} m TERRAIN`}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1">
+          {tinyHeight && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              aria-label={summaryOpen ? 'Hide road summary' : 'Show road summary'}
+              aria-expanded={summaryOpen}
+              title="Road summary and cost estimate"
+              onClick={() => setSummaryOpen(!summaryOpen)}
+            >
+              <BarChart3 className="size-4" />
+            </Button>
+          )}
           <LayoutPicker
+            compact={compact || focusMode}
             hiddenPanels={hiddenPanels}
             onHiddenPanels={setHiddenPanels}
             selection={layoutSelection}
@@ -1027,10 +1081,11 @@ export default function DevForestryRoads() {
             variant="outline"
             size="icon"
             className="size-8"
-            aria-label={collapsed ? 'Show road controls' : 'Hide road controls'}
-            onClick={() => setCollapsed(!collapsed)}
+            aria-label={controlsShown ? 'Hide road controls' : 'Show road controls'}
+            aria-expanded={controlsShown}
+            onClick={() => (focusMode ? setControlsOpen(!controlsOpen) : setCollapsed(!collapsed))}
           >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            {controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
           </Button>
           <Button
             variant="outline"
@@ -1057,13 +1112,26 @@ export default function DevForestryRoads() {
               Show loading notification
             </Button>
           )}
-          <Button variant="outline" size="sm" disabled={!!w.busy} onClick={() => requestFile('project')}>
-            <FolderOpen className="mr-1 size-3" />
-            Open
+          <Button
+            variant="outline"
+            size="sm"
+            className="size-8 px-0 md:w-auto md:px-3"
+            title="Open project"
+            disabled={!!w.busy}
+            onClick={() => requestFile('project')}
+          >
+            <FolderOpen className="size-4 md:mr-1 md:size-3" />
+            <span className="sr-only md:not-sr-only">Open</span>
           </Button>
-          <Button size="sm" disabled={!!w.busy} onClick={() => setFilesOpen(true)}>
-            <Download className="mr-1 size-3" />
-            Save
+          <Button
+            size="sm"
+            className="size-8 px-0 md:w-auto md:px-3"
+            title="Save & export"
+            disabled={!!w.busy}
+            onClick={() => setFilesOpen(true)}
+          >
+            <Download className="size-4 md:mr-1 md:size-3" />
+            <span className="sr-only md:not-sr-only">Save</span>
           </Button>
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
@@ -1149,23 +1217,32 @@ export default function DevForestryRoads() {
       <StatGroup
         variant="tiles"
         size="sm"
-        className="shrink-0"
+        className="road-summary shrink-0"
         items={[
-          { label: 'Length', value: `${number(displayedAnalysis.length, 0)} m` },
+          { key: 'length', label: 'Length', value: `${number(displayedAnalysis.length, 0)} m` },
           {
-            label: 'Ground elevation',
+            key: 'elevation',
+            label: summaryLabel('Ground elevation', 'Elevation (m)'),
             value: groundValues.length
-              ? `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)} m`
+              ? summaryValue(
+                  `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)} m`,
+                  `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)}`,
+                )
               : 'Missing',
           },
           {
-            label: terrainProfile ? 'Max ground grade' : 'Max design grade',
+            key: 'grade',
+            label: summaryLabel(
+              terrainProfile ? 'Max ground grade' : 'Max design grade',
+              terrainProfile ? 'Ground grade' : 'Max grade',
+            ),
             value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
             tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
           },
           ...(terrainProfile
             ? [
                 {
+                  key: 'grade-range',
                   label: 'Grade range',
                   value: grades.length
                     ? `${number(Math.min(...grades))} to ${number(Math.max(...grades))}%`
@@ -1174,15 +1251,29 @@ export default function DevForestryRoads() {
               ]
             : [
                 {
-                  label: !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
+                  key: 'earthworks',
+                  label: summaryLabel(
+                    !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
+                    !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
+                  ),
                   value: displayedAnalysis.stations.length
-                    ? `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`
+                    ? summaryValue(
+                        `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`,
+                        `${compactNumber.format(Math.round(displayedAnalysis.cutVolumeM3))}/${compactNumber.format(Math.round(displayedAnalysis.fillVolumeM3))}`,
+                      )
                     : 'Unavailable',
                 },
                 {
-                  label: 'Covered estimate',
+                  key: 'cost',
+                  label: summaryLabel(
+                    'Covered estimate',
+                    hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                  ),
                   value: displayedAnalysis.stations.length
-                    ? `$${number(displayedAnalysis.estimatedCost, 0)}`
+                    ? summaryValue(
+                        `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                        `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                      )
                     : 'Unavailable',
                   // Opens the calculation: quantities × editable rates.
                   onToggle: displayedAnalysis.stations.length ? () => setCostOpen((open) => !open) : undefined,
@@ -1190,7 +1281,8 @@ export default function DevForestryRoads() {
                   toggleLabel: 'Show how the covered estimate is calculated',
                 },
                 {
-                  label: 'Complete sections',
+                  key: 'coverage',
+                  label: summaryLabel('Complete sections', 'Coverage'),
                   value: `${number(displayedAnalysis.coveragePercent)}%`,
                   tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
                 },
@@ -1199,77 +1291,78 @@ export default function DevForestryRoads() {
       />
       <ResizableSplit
         direction="row"
-        splitQuery="(min-width: 1024px)"
+        splitQuery="(min-width: 0px)"
         storageKey="pgmaps-road-panes:sidebar"
-        className="min-h-0 flex-1"
+        className={`relative min-h-0 flex-1 ${focusMode ? 'road-focus-split' : ''}`}
         panes={[
-          ...(collapsed
-            ? []
-            : [
-                {
-                  id: 'sidebar',
-                  label: 'road controls',
-                  size: 0.22,
-                  min: 240,
-                  max: 560,
-                  stackedHeight: 'auto' as const,
-                  content: (
-                    <DesignSidebar
-                      workspace={{ ...w, station }}
-                      mode={mode}
-                      onMode={beginMode}
-                      onFile={requestFile}
-                      onTerrain={loadTerrain}
-                      verticalReference={verticalReference}
-                      onVerticalReference={setVerticalReference}
-                      pointCloud={pointCloud}
-                      onPointCloud={setPointCloud}
-                      breaklines={breaklines?.name ?? null}
-                      onClearBreaklines={() => setBreaklines(null)}
-                      selectedPoint={selectedPoint}
-                      onPoint={setSelectedPoint}
-                      onProfile={selectProfile}
-                      activeProfile={activeProfile}
-                      onDuplicate={() => {
-                        const a = structuredClone(alignment)
-                        a.id = uid()
-                        a.name = `${a.name} copy`
-                        a.color = colors[project.alignments.length % colors.length]
-                        a.points = a.points.map((p) => ({ ...p, id: uid() }))
-                        a.vertical = a.vertical.map((p) => ({ ...p, id: uid() }))
-                        a.overrides = a.overrides.map((p) => ({ ...p, id: uid() }))
-                        if (
-                          !commitValidated({
-                            ...project,
-                            alignments: [...project.alignments, a],
-                            activeAlignmentId: a.id,
-                          })
-                        )
-                          return
-                        setActiveProfile(null)
-                      }}
-                      onRemoveAlignment={() =>
-                        w.update((p) => ({
-                          ...p,
-                          alignments: p.alignments.filter((a) => a.id !== alignment.id),
-                          activeAlignmentId: p.alignments.find((a) => a.id !== alignment.id)!.id,
-                        }))
-                      }
-                      onSuggest={suggest}
-                      onPreviewTemplate={(template, name) => {
-                        setPegPreview(null)
-                        setTemplatePreview({ template: structuredClone(template), name })
-                        setActiveProfile(null)
-                        setDetail('section')
-                        setMode('inspect')
-                        setDraft([])
-                      }}
-                      onCloseTemplatePreview={() => setTemplatePreview(null)}
-                      onQuantities={() => setDetail('engineering')}
-                    />
-                  ),
-                },
-              ]),
+          {
+            id: 'sidebar',
+            hidden: !controlsShown,
+            label: 'road controls',
+            size: 0.22,
+            min: 240,
+            max: 560,
+            stackedHeight: 'auto' as const,
+            className: focusMode ? 'absolute inset-y-0 left-0 z-40 w-[min(22rem,100%)] bg-card shadow-xl' : undefined,
+            content: (
+              <DesignSidebar
+                workspace={{ ...w, station }}
+                mode={mode}
+                onMode={(next) => {
+                  beginMode(next)
+                  if (focusMode) setControlsOpen(false)
+                }}
+                onFile={requestFile}
+                onTerrain={loadTerrain}
+                verticalReference={verticalReference}
+                onVerticalReference={setVerticalReference}
+                pointCloud={pointCloud}
+                onPointCloud={setPointCloud}
+                breaklines={breaklines?.name ?? null}
+                onClearBreaklines={() => setBreaklines(null)}
+                selectedPoint={selectedPoint}
+                onPoint={setSelectedPoint}
+                onProfile={selectProfile}
+                activeProfile={activeProfile}
+                onDuplicate={() => {
+                  const a = structuredClone(alignment)
+                  a.id = uid()
+                  a.name = `${a.name} copy`
+                  a.color = colors[project.alignments.length % colors.length]
+                  a.points = a.points.map((p) => ({ ...p, id: uid() }))
+                  a.vertical = a.vertical.map((p) => ({ ...p, id: uid() }))
+                  a.overrides = a.overrides.map((p) => ({ ...p, id: uid() }))
+                  if (
+                    !commitValidated({
+                      ...project,
+                      alignments: [...project.alignments, a],
+                      activeAlignmentId: a.id,
+                    })
+                  )
+                    return
+                  setActiveProfile(null)
+                }}
+                onRemoveAlignment={() =>
+                  w.update((p) => ({
+                    ...p,
+                    alignments: p.alignments.filter((a) => a.id !== alignment.id),
+                    activeAlignmentId: p.alignments.find((a) => a.id !== alignment.id)!.id,
+                  }))
+                }
+                onSuggest={suggest}
+                onPreviewTemplate={(template, name) => {
+                  setPegPreview(null)
+                  setTemplatePreview({ template: structuredClone(template), name })
+                  setActiveProfile(null)
+                  setDetail('section')
+                  setMode('inspect')
+                  setDraft([])
+                }}
+                onCloseTemplatePreview={() => setTemplatePreview(null)}
+                onQuantities={() => setDetail('engineering')}
+              />
+            ),
+          },
           {
             id: 'main',
             label: 'connected views',
@@ -1277,7 +1370,22 @@ export default function DevForestryRoads() {
             min: 480,
             stackedHeight: 'auto' as const,
             content: (
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2" aria-label="Connected road views">
+              <main
+                className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+                aria-label="Connected road views"
+              >
+                {focusMode && (
+                  <TabBar
+                    label="Visible road pane"
+                    value={focusedPane ?? 'plan'}
+                    onChange={(value) => {
+                      setFocusPane(value as RoadPaneId)
+                      setControlsOpen(false)
+                    }}
+                    options={focusOptions}
+                    stretch
+                  />
+                )}
                 {!displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
                 )}
@@ -1383,6 +1491,7 @@ export default function DevForestryRoads() {
                 )}
                 <RoadPaneLayout
                   layout={layout}
+                  focusedPane={focusMode ? focusedPane : undefined}
                   hidden={hiddenPanels}
                   storageId={layoutStorageId}
                   plan={
@@ -1393,7 +1502,7 @@ export default function DevForestryRoads() {
                       actions={
                         <>
                           {' '}
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="road-plan-hint text-[10px] text-muted-foreground">
                             {drainageOnPlan
                               ? 'Blue design streams · dashed existing · red redirected · amber low point'
                               : drainageStale && !terrainProfile
@@ -1422,6 +1531,19 @@ export default function DevForestryRoads() {
                             draft={draft}
                             onDraw={onDraw}
                             onMovePoint={movePoint}
+                            onInsertPoint={(afterId, coordinate) => {
+                              if (busy || alignment.points.length >= 2000) return
+                              const index = alignment.points.findIndex((point) => point.id === afterId)
+                              if (index < 0 || index === alignment.points.length - 1) return
+                              const point = { id: uid(), coordinate, radiusM: 0 }
+                              updateAlignment((road) => ({
+                                ...road,
+                                points: [...road.points.slice(0, index + 1), point, ...road.points.slice(index + 1)],
+                              }))
+                              setSelectedPoint(point.id)
+                              setMode('edit')
+                              w.setNotice('Middle control added. Drag it to choose the road pathway.')
+                            }}
                             onHover={setHover}
                             onSelectPoint={setSelectedPoint}
                             selectedPoint={selectedPoint}
@@ -1498,6 +1620,7 @@ export default function DevForestryRoads() {
                       actions={
                         <>
                           <AppSelect
+                            className="min-w-0"
                             value={detail}
                             onValueChange={(value) => setDetail(value as typeof detail)}
                             options={[
@@ -1513,7 +1636,7 @@ export default function DevForestryRoads() {
                               { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
                             ]}
                             triggerAriaLabel="Road detail view"
-                            triggerClassName="h-8 w-32 text-xs"
+                            triggerClassName="h-8 w-32 max-w-full text-xs"
                             contentClassName="z-[1500] text-xs"
                           />
                           {detail === 'section' && !terrainProfile && (
@@ -1682,7 +1805,10 @@ export default function DevForestryRoads() {
                                 onSettings={changeDrainageSettings}
                                 onRun={checkDrainage}
                                 busy={!!busy}
-                                onStation={w.setStation}
+                                onStation={(chainage) => {
+                                  w.setStation(chainage)
+                                  if (focusMode) setFocusPane('plan')
+                                }}
                               />
                             )}
                             {detail === 'compare' && (
@@ -1809,7 +1935,7 @@ export default function DevForestryRoads() {
                   }
                 />
                 <div
-                  className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2"
+                  className="road-station-controller flex shrink-0 flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2"
                   data-testid="road-station-controller"
                 >
                   <Button
@@ -1844,7 +1970,7 @@ export default function DevForestryRoads() {
                       min={0}
                       max={Math.ceil(displayedAnalysis.length * 10) / 10}
                       step="any"
-                      className="w-28 rounded border bg-background px-1 py-1 font-mono"
+                      className="w-20 rounded border bg-background px-1 py-1 font-mono"
                       title="Selects the nearest calculated station. Press Enter or leave the field to apply."
                       value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
                       onChange={(e) => setStationEntry({ value: station, text: e.target.value })}

@@ -226,6 +226,12 @@ avoid indentation multiplying raster file size. A SHA-256 records the original
 GeoTIFF bytes; embedded values and geometry are validated on project import.
 The stored checksum identifies the source file, not a newly created GeoTIFF.
 
+When a new DEM does not overlap the active road, importing it fits the map to its
+coverage instead of returning to unrelated old roads. **Fit terrain coverage** is
+also available on the map; Map display settings contains **Fit selected road**.
+The all-road Fit control remains available, and existing roads are retained.
+Opening a saved project fits its active road when that road overlaps the terrain.
+
 ### Regional DEM
 
 Regional Terrarium terrain is a coarse screening fallback, not a LiDAR
@@ -344,9 +350,31 @@ boundary. Maps keep their drawing buffer during pointer resizing and resize it
 once on release to avoid flashing. Chart labels cannot be selected by dragging.
 Each layout stores its own sizes in `localStorage` under
 `pgmaps-road-panes:<layout>:<split>` (`pgmaps-road-panes:sidebar` for the sidebar);
-storage that refuses writes leaves the defaults in place. Below 1280 px the view
-panes stack (below 1024 px the sidebar too), each with a handle underneath that
-resizes its height, so a phone page still resizes vertically.
+storage that refuses writes leaves the defaults in place. The workspace fills its
+available height without page scrolling. Below 1280 px wide, or at most 620 px high,
+Plan / Profile / Detail / Data tabs show one pane at a time; the map and other pane
+components stay mounted, and returning to a larger window restores the saved split
+layout. Road controls open over the views on these screens rather than pushing them
+down. Forms and tables scroll inside their own panes.
+
+At short desktop heights (up to 760 px), summary tiles become a compact horizontal
+strip. Phones use a three-column, two-row summary with short labels and single-line
+values, so every metric fits without sideways scrolling. Large quantities and costs
+use compact display notation; full values remain in accessible text and the cost dialog.
+Open and Save are icon-only on phones, retaining their accessible
+names; desktop shows their text labels. The page navigation title is “Road design”.
+Pane-header actions match the view dropdown's 32 px height, including in short
+windows. Close and fullscreen controls stay square; on narrow panes the dropdown
+can shrink so the adjacent actions remain fully visible.
+Mobile omits the duplicate workspace heading, back link, action subtitle and terrain
+badge beneath that navigation; the desktop heading row remains visible.
+At 480 px high or less, **Show road summary** opens the numbers and cost action
+on demand over the views, reserving that space for the plot by default.
+Chart slots below 260 px collapse their readouts into **Show chart details** while
+keeping the plot and station controls visible. The pane tabs respect the selected
+screen preset and closed panels; resizing never changes the road or saved layout.
+On phones, the cross-section's four adjustment buttons share one row with their
+full accessible labels; the group captions and hover text beneath them are hidden.
 
 “Save or manage layouts…” at the bottom of the layout picker saves the current arrangement
 under a name. A saved layout (★) starts from the current pane sizes, then remembers its own
@@ -410,6 +438,21 @@ starting alignment on the published LiDAR tile is an editable example, not an
 existing or optimized road; its name says “review required”. Action notices
 (exports, optimizer results, restores) replace the header subtitle for eight
 seconds in a polite live region instead of occupying a dismissible row.
+
+## Editing the road path
+
+Design → **Peg road** starts a new alignment: click the start, any middle guide points and the end,
+then **Finish road**. **Inspect** selects roads and stations. **Edit points** shows draggable
+numbered controls for the start, end and middle points. **Select start** and **Select end** in
+Horizontal points also enter edit mode and reveal their numeric coordinates.
+
+In edit mode, click a **+** between two control points to insert a middle control, then drag it
+to shape the pathway. The + sits on the control leg; changing controls can alter fitted curves,
+so inspect the curve warnings afterwards. The map previews the drag; releasing it updates the
+profile, sections and quantities and records one Undo action. Click **Duplicate road** before
+editing to keep the original path as an alternative, then switch paths with **Active road**.
+A corridor optimizer's middle guide points shape its search corridor; they are not mandatory
+waypoints. Manually edited control points remain part of the saved alignment.
 
 ## Geometry and calculations
 
@@ -875,7 +918,9 @@ The search places a PVI at every spacing step. Afterwards the line is simplified
 (Douglas–Peucker, 0.3 m), and the simpler line is kept only if it still meets every limit
 at no more than 1 % extra cost. On the LiDAR road below, that gives 15 PVIs instead of 22. Curves are sized from K and the result becomes a new
 alternative road, with the covered estimates before and after in the notice. If no profile
-meets the limits, the optimizer says why instead of returning one.
+meets the limits after curve fitting, the optimizer says which standard or control failed
+instead of returning one. The search stops at 5,000,000 level transitions across all price
+runs (`maxTransitions`), so fine-level searches may need a coarser step or smaller depth.
 
 On the published LiDAR tile (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 4, ends free)
 the search took about 1.3 s in a desktop browser. It lowered the covered estimate from
@@ -897,9 +942,10 @@ If two spirals would turn more than the deflection, the curve falls back to a si
 with a warning. Superelevation and widening run in linearly over max(runoff, spiral length),
 ending at the SC, and out from the CS over the same length (`curveDesignAt`). A runoff no
 longer than the spiral follows it exactly, 0 at the TS and full at the SC; extra runoff starts
-on the tangent before the TS or after the ST, so neither drops back to 0 at a spiral end. Where
-a reverse curve's two spirals meet and the runoff is longer than the spirals, the crossfall
-still flips sides at that point. Spirals export to LandXML as `<Spiral spiType="clothoid">`,
+on the tangent before the TS or after the ST. Between opposite curves, the transition is
+limited to each spiral plus half the intervening tangent, so both return to normal crown and
+zero curve widening at its midpoint. Review the crossfall rotation rate where that shortens
+the entered runoff. Spirals export to LandXML as `<Spiral spiType="clothoid">`,
 and the bulk radius fit accounts for their longer tangents.
 
 ### Horizontal curve tools
@@ -923,7 +969,11 @@ on the ground as it is with flow on the ground the road leaves behind.
 1. **Sample** (`surfaceGrid.ts`): the active terrain is sampled at its native resolution
    (at least 1 m, grown to stay within 4.19 million cells). The area covered is the
    catch-line corridor plus an upslope buffer, 250 m by default, so catchments above the
-   road are not cut off. Missing ground stays missing.
+   road can be included. Drainage uses a local UTM ground-metre grid, including for
+   imported Web Mercator rasters; projected Web Mercator distances and areas would
+   distort the buffer, contributing areas and flow estimates. Export CRS stays unchanged.
+   Missing ground stays missing. Results warn about the finite catchment, missing ground
+   and analysis cells coarser than 2 m.
 2. **Burn the road** (`designSurface.ts`): neighbouring stations' sections are joined into
    triangles, matched by template position (centreline, formation edge, ditch bottom,
    catch point), and rasterized at design elevation. Outside the catch lines the ground
@@ -959,6 +1009,8 @@ alternatives do not stale it. A stale run stays in the panel with a notice but i
 the plan, whose header then reads "Drainage out of date · re-run it to show flow". The
 drainage inputs are remembered in this browser (`pgmaps-road-drainage-settings`); runs are not
 saved, since they recompute in seconds and hold tens of megabytes of grids.
+Selecting a drainage-table station updates linked views; focused mobile layouts also
+open the plan so the location and flow overlay can be inspected immediately.
 
 On the published LiDAR road (1.29 million 1 m cells, about 4 s in the browser), the check
 finds five stream crossings. The one at 0+866 (5.2 ha) is carried 184 m to the road's end.
@@ -1105,6 +1157,12 @@ HTML, with paginated text/tables and profile/cross-section plots. Both are direc
 PDF downloads; the existing HTML report and A3 plot book remain available.
 The plan uses the shared styled `AppSelect` for terrain display, a settings popover
 for overlays/context, and the shared collapsible `MapLegendPanel`. Fit is above zoom.
+The legend is anchored 8 px from the plan's bottom/right edges in both states;
+expanded content is bounded to the available map height.
+Basemap attribution remains accessible above the scale bar at the lower left.
+The distance scale is fixed 8 px from the map's left and bottom edges on phones too; it
+does not inherit the shared map controls' mobile-sheet/legend clearance. Fit,
+terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settings.
 
 - Project JSON: `pgmaps-road-project-v1`, full editable alignment/vertical/
   widening/template/settings/context/cable/profile state, optional engineering
@@ -1187,7 +1245,7 @@ project, and retains the last valid save when an intermediate edit is invalid.
 Training-mode saves use a separate key from the normal current project, so they never
 overwrite it; `?example=training` always opens the example fresh and does not read that key
 back. A
-failed initial restore keeps normal autosave disabled until an explicit
+failed initial restore or local-storage read keeps normal autosave disabled until an explicit
 successful recovery/source action. Undo/redo history is in-memory; downloading
 the project remains the portable way to preserve work across browsers/devices.
 
@@ -1255,11 +1313,25 @@ The dedicated view suite checks chart navigation without model mutation,
 shared profile/band/mass ranges, actual aspect/context source changes, section
 level edits and connected four-pane layouts. It also drags and keyboard-resizes
 every pane boundary, checks sizes survive a reload per layout and reset on
-double-click, resizes stacked panes at phone width without horizontal overflow,
+double-click, switches focused panes at phone width without page scrolling,
 and checks the header layout picker, the absent footer and status row, the
 profile toolbar's position on the chart and the section's up-station labels.
+`forestry-road-responsive.spec.ts` checks fourteen desktop/tablet/phone/landscape
+sizes (including 844 × 320 and 667 × 375), actual chart/canvas bounds, retained map/station state,
+short controls, 3D, fullscreen and collapsed/expanded legend anchoring.
 Most workflows use explicitly synthetic training terrain and a stub basemap;
-they do not substitute for a real-source check. Run from the repository root:
+they do not substitute for a real-source check. The optional
+[new-area desktop/mobile journeys](forestry-road-new-area-check.md) start with real
+Kamloops and Vernon DEM imports and navigate using only the rendered controls or
+pointer/touch gestures. They verify editing, optimization, exports and reopening.
+The follow-up [optimization option comparison](forestry-road-optimization-options-check.md)
+checks all three corridor preferences on one guide, both profile objectives and
+explicit haul/site sensitivities, including exact endpoint-site registration.
+The separate
+[real DEM workflow check](forestry-road-workflow-check.md) imports a separate public
+GeoTIFF at three locations, pegs and saves roads, optimizes their plan and profile,
+then verifies device restoration and downloaded-project reopening without external
+network access. Run the ordinary browser suite from the repository root:
 
 ```sh
 npm run toolkit:build

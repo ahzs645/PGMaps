@@ -1,0 +1,230 @@
+/* A bounded engineering workspace: shrink chrome before sacrificing the plots. */
+.road-workspace .road-map-legend {
+  /* Expanded legends can share the fit control's corner on short maps. */
+  z-index: 40;
+}
+
+/* This map has no overlaid phone sheet. Its scale stays at the map edge. */
+.road-workspace [data-testid='road-plan-view'] .road-map-scale {
+  left: 0.5rem;
+  bottom: 0.5rem;
+}
+
+.road-workspace .road-map-controls > div {
+  gap: 0.25rem;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.road-workspace .road-map-controls button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: 0.375rem;
+  background: hsl(var(--background));
+  box-shadow: 0 1px 2px #0000000d;
+}
+
+.road-workspace .road-map-controls button:hover {
+  background: hsl(var(--accent));
+}
+
+/* Attribution sits above the scale, leaving both bottom corners aligned. */
+.road-workspace [data-testid='road-plan-view'] .maplibregl-ctrl-bottom-right {
+  left: 0.5rem;
+  right: auto;
+  bottom: 2rem;
+  z-index: 20;
+}
+
+.road-workspace[data-compact] {
+  gap: 0.375rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.road-workspace[data-compact] .road-plan-hint {
+  display: none;
+}
+
+.road-workspace[data-compact] .road-source-badge {
+  display: inline-flex;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.5625rem;
+}
+
+.road-workspace[data-compact] .road-summary {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+}
+
+.road-workspace[data-compact] .road-summary > div {
+  flex: 1 0 5.25rem;
+  padding: 0.25rem 0.375rem;
+}
+
+.road-workspace[data-compact] .road-station-controller {
+  gap: 0.375rem;
+  padding: 0.25rem 0.375rem;
+}
+
+.road-focus-split > [role='separator'] {
+  display: none;
+}
+
+/* Keep panel actions and long names from forcing horizontal overflow. */
+.road-workspace [data-pane] > section > div:first-child > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.road-workspace [data-pane] > section > div:first-child button {
+  /* Match the view dropdown, including when the workspace is short. */
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.road-workspace[data-focus-mode] [data-pane] > section > div:first-child > h2 {
+  flex: 1;
+}
+
+.road-workspace[data-compact] [data-pane] > section {
+  padding: 0.5rem;
+}
+
+.road-workspace[data-tiny-height] .road-summary {
+  display: none;
+}
+
+.road-workspace[data-tiny-height][data-summary-open] .road-summary {
+  position: absolute;
+  inset-inline: 0.5rem;
+  bottom: 3.25rem;
+  z-index: 50;
+  display: flex;
+  padding: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
+  box-shadow: 0 4px 16px #0002;
+}
+
+.road-workspace[data-tiny-height] [data-pane] > section {
+  padding: 0.25rem;
+}
+
+@media (max-width: 767px) {
+  .road-workspace-title h1 {
+    font-size: 0.875rem;
+  }
+
+  .road-workspace-title [role='status'] {
+    max-width: 12rem;
+  }
+
+  .road-workspace .road-station-controller output {
+    max-width: 100%;
+    font-size: 0.625rem;
+  }
+
+  .road-workspace [data-pane='detail'] > section > div:first-child {
+    flex-wrap: wrap;
+  }
+
+  .road-workspace [data-pane='detail'] > section > div:first-child > h2 {
+    display: none;
+  }
+}
+
+@media (max-height: 620px) {
+  .road-workspace:not([data-fullscreen]) {
+    padding-top: 0.5rem;
+  }
+
+  .road-workspace-title [role='status'] {
+    display: none;
+  }
+
+  .road-workspace .road-station-controller output:not(:has([data-testid='road-station-terrain-gap'])) {
+    display: none;
+  }
+
+  .road-workspace .road-station-controller input[type='range'] {
+    min-width: 3rem;
+  }
+
+  .road-workspace .road-summary > div {
+    flex-direction: row;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.375rem;
+    padding-top: 0.125rem;
+    padding-bottom: 0.125rem;
+  }
+
+  .road-workspace .road-summary dt {
+    font-size: 0.625rem;
+  }
+
+  .road-workspace .road-summary dd {
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .road-workspace [aria-label='Visible road pane'] [role='tab'] {
+    padding-top: 0.125rem;
+    padding-bottom: 0.125rem;
+  }
+
+  .road-workspace [data-pane] > section > div:first-child {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* The mobile global navigation floats over the page; reserve its actual toolbar row. */
+@media (max-width: 767px) and (max-height: 620px) {
+  .road-workspace:not([data-fullscreen]) {
+    padding-top: 4.25rem;
+  }
+}
+
+/* All six mobile measurements fit at once; units live in labels, not on extra lines. */
+@media (max-width: 767px) {
+  .road-workspace[data-compact] .road-summary,
+  .road-workspace[data-tiny-height][data-summary-open] .road-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+    overflow: visible;
+  }
+
+  .road-workspace[data-tiny-height]:not([data-summary-open]) .road-summary {
+    display: none;
+  }
+
+  .road-workspace[data-compact] .road-summary > div {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    padding: 0.25rem 0.5rem;
+    text-align: left;
+  }
+
+  .road-workspace .road-summary dt {
+    overflow: visible;
+    font-size: 0.625rem;
+    line-height: 0.875rem;
+    text-overflow: clip;
+  }
+
+  .road-workspace .road-summary dd {
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+    white-space: nowrap;
+  }
+}

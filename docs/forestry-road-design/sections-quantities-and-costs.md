@@ -124,8 +124,10 @@ nearest remaining usable cut in the same unbroken run of complete sections. It i
 scenario, not an optimum. An interval's own cut is at distance zero, so it balances itself first;
 any loading rate you enter is charged on that zero-distance volume too. Distance is chainage
 difference plus the site's entered access distance. A gap in coverage splits the road into
-separate runs, and a site outside a run is never used. A new site copies the default borrow or
-waste rate when you add it and keeps that rate afterwards.
+separate runs, and a site outside a run is never used. Reachability registers the site's chainage
+at the calculation stations' micrometre precision, so an exact road-end site remains reachable
+when the final station rounds down. Haul distances retain the entered chainage. A new site copies
+the default borrow or waste rate when you add it and keeps that rate afterwards.
 
 **Haul in the cost breakdown** (`haulCostLines` in `engineering.ts`). Every haul, borrow, waste and
 site row is quantity × rate = amount, and each group's rows add up to its cost:

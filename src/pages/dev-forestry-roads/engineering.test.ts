@@ -441,6 +441,48 @@ describe('culvert geometry and cover', () => {
 })
 
 describe('mass-haul allocation and unit costs', () => {
+  it.each(['borrow', 'waste'] as const)(
+    'uses a %s site at the exact road end despite calculation-station rounding',
+    (kind) => {
+      const a = road(kind === 'borrow' ? 802 : 798, 206.4207594)
+      const end = alignmentLength(a)
+      Object.assign(a.engineering!.haul, { enabled: true, endHaulRate: 4 })
+      a.engineering!.sites = [
+        {
+          id: 'endpoint-site',
+          name: 'Road-end site',
+          kind,
+          chainage: end,
+          accessDistanceM: 1000,
+          capacityM3: null,
+          unitRate: 7,
+          fixedCost: 500,
+        },
+      ]
+      const result = analyzeRoad(a, flat, settings)
+      // The actual endpoint rounds down by more than the geometry epsilon.
+      expect(end - result.stations.at(-1)!.chainage).toBeGreaterThan(1e-7)
+      const e = result.engineering!
+      expect(e.haul.complete).toBe(true)
+      expect(e.haul.unallocatedBorrowM3).toBe(0)
+      expect(e.haul.unallocatedWasteM3).toBe(0)
+      const movements = e.movements.filter((m) => m.kind === kind)
+      expect(movements.length).toBeGreaterThan(0)
+      expect(movements.every((m) => (kind === 'borrow' ? m.fromChainage : m.toChainage) === end)).toBe(true)
+      expect(e.costs[kind]).toBeGreaterThan(0)
+      expect(e.costs.haul).toBeGreaterThan(0)
+      expect(e.costs.sitePreparation).toBe(500)
+      expect(e.warnings).toEqual([])
+
+      // Registering the endpoint must not make an actually off-road site reachable.
+      a.engineering!.sites[0].chainage = end + 0.001
+      const outside = analyzeRoad(a, flat, settings).engineering!
+      expect(outside.haul.complete).toBe(false)
+      expect(outside.movements.filter((m) => m.kind === kind)).toHaveLength(0)
+      expect(outside.costs.sitePreparation).toBe(0)
+    },
+  )
+
   it('conserves compacted cut-to-fill volumes and uses only distance beyond free haul for movement cost', () => {
     const a = road()
     a.vertical[1].elevation = 802

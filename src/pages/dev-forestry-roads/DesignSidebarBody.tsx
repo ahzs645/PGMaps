@@ -5,6 +5,7 @@ import { Copy, Mountain, Plus, Route, SlidersHorizontal, Trash2, Upload } from '
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
 import { EngineeringControls } from './EngineeringControls'
@@ -94,10 +95,7 @@ export function DesignSidebar(p: SidebarProps) {
     }))
   }
   return (
-    <aside
-      aria-label="Road design controls"
-      className="flex min-h-0 min-w-0 max-h-[60vh] lg:max-h-none flex-col rounded-xl border bg-card"
-    >
+    <aside aria-label="Road design controls" className="flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card">
       <fieldset disabled={!!p.workspace.busy} className="contents">
         <div className="border-b p-2">
           <TabBar
@@ -367,26 +365,24 @@ export function DesignSidebar(p: SidebarProps) {
                 />
               </Field>
               <div className="mt-2 flex flex-wrap gap-1">
-                <Button size="sm" onClick={() => p.onMode('road')} disabled={project.alignments.length >= 20}>
+                <Button
+                  size="sm"
+                  onClick={() => p.onMode('road')}
+                  aria-pressed={p.mode === 'road'}
+                  disabled={project.alignments.length >= 20}
+                >
                   <Plus className="mr-1 size-3" />
                   Peg road
                 </Button>
                 <Button
                   size="sm"
-                  variant={p.mode === 'edit' ? 'secondary' : 'outline'}
-                  onClick={() => p.onMode(p.mode === 'edit' ? 'inspect' : 'edit')}
-                >
-                  Edit points
-                </Button>
-                <Button
-                  size="icon"
-                  className="size-8"
                   variant="outline"
                   aria-label="Duplicate active alignment"
+                  title="Keep this road and edit a separate path alternative"
                   onClick={p.onDuplicate}
                   disabled={project.alignments.length >= 20}
                 >
-                  <Copy className="size-3" />
+                  <Copy className="mr-1 size-3" /> Duplicate road
                 </Button>
                 <Button
                   size="icon"
@@ -399,9 +395,29 @@ export function DesignSidebar(p: SidebarProps) {
                   <Trash2 className="size-3" />
                 </Button>
               </div>
+              <SegmentedControl
+                className="mt-2"
+                size="sm"
+                label="Road map tool"
+                value={p.mode}
+                onChange={p.onMode}
+                options={[
+                  { value: 'inspect', label: 'Inspect', title: 'Select stations and roads without moving controls' },
+                  {
+                    value: 'edit',
+                    label: 'Edit points',
+                    title: 'Drag start/end controls or add middle controls with +',
+                  },
+                ]}
+              />
               <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                Peg points on the plan. Drag numbered controls to edit. The profile, section and quantities update
-                together. Sharp corners need a fitted radius before use as a road design.
+                Peg road: click the start, optional middle points, then the end and Finish road. Edit points: drag any
+                numbered control; click + between controls to add a middle point. Inspect returns to station selection.
+                Profile, sections and quantities update when you release a drag.
+              </p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                To compare paths, Duplicate road and move its middle controls; choose the saved path with Active road.
+                Sharp corners need a fitted radius before use as a road design.
               </p>
               <Button
                 variant="outline"
@@ -508,6 +524,28 @@ export function DesignSidebar(p: SidebarProps) {
               </div>
             </SidebarSection>
             <SidebarSection title="Horizontal points">
+              <div className="mb-2 flex gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    p.onMode('edit')
+                    p.onPoint(alignment.points[0]?.id ?? null)
+                  }}
+                >
+                  Select start
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    p.onMode('edit')
+                    p.onPoint(alignment.points.at(-1)?.id ?? null)
+                  }}
+                >
+                  Select end
+                </Button>
+              </div>
               <CurveTools workspace={p.workspace} />
               <select
                 aria-label="Selected horizontal point"
@@ -521,7 +559,8 @@ export function DesignSidebar(p: SidebarProps) {
                 <option value="">Select a control point</option>
                 {alignment.points.map((x, i) => (
                   <option key={x.id} value={x.id}>
-                    Point {i + 1} · radius {x.radiusM} m
+                    Point {i + 1}
+                    {i === 0 ? ' · start' : i === alignment.points.length - 1 ? ' · end' : ''} · radius {x.radiusM} m
                   </option>
                 ))}
               </select>

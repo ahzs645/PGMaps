@@ -338,16 +338,48 @@ function ChartSlot({
   children: (width: number, height: number) => ReactNode
   footer?: ReactNode
 }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [compact, setCompact] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const resize = () => setCompact(element.clientHeight > 0 && element.clientHeight < 260)
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto">
-      <div className="relative flex min-h-[175px] flex-1 shrink-0 flex-col">
-        <ChartViewport className="min-h-0 flex-1" minHeight={175} initialHeight={230}>
+    <div
+      ref={ref}
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+      data-chart-slot
+      data-compact={compact || undefined}
+    >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
         </ChartViewport>
       </div>
       {footer && (
-        <div className="min-h-[64px] shrink space-y-1 overflow-y-auto overscroll-contain border-t px-3 py-2">
-          {footer}
+        <div className={`flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`}>
+          {compact && (
+            <button
+              type="button"
+              className="shrink-0 px-3 py-1 text-left text-[11px] font-medium hover:bg-muted"
+              aria-expanded={detailsOpen}
+              onClick={() => setDetailsOpen(!detailsOpen)}
+            >
+              {detailsOpen ? 'Hide chart details' : 'Show chart details'}
+            </button>
+          )}
+          <div
+            hidden={compact && !detailsOpen}
+            className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2"
+          >
+            {footer}
+          </div>
         </div>
       )}
     </div>
@@ -1450,9 +1482,13 @@ export function CrossSectionChart({
           />
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
           {(onShift || (!terrainOnly && onVerticalShift)) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+            <div
+              role="group"
+              aria-label="Road section adjustments"
+              className="flex flex-nowrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground md:flex-wrap"
+            >
               {onShift && (
-                <div className="flex items-center gap-1">
+                <div role="group" aria-label="Shift alignment" className="flex shrink-0 items-center gap-1">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1462,7 +1498,7 @@ export function CrossSectionChart({
                   >
                     ← 1 m
                   </Button>
-                  <span>Shift alignment</span>
+                  <span className="sr-only md:not-sr-only">Shift alignment</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1475,7 +1511,7 @@ export function CrossSectionChart({
                 </div>
               )}
               {!terrainOnly && onVerticalShift && (
-                <div className="flex items-center gap-1">
+                <div role="group" aria-label="Formation level" className="flex shrink-0 items-center gap-1">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1485,7 +1521,7 @@ export function CrossSectionChart({
                   >
                     ↓ 0.25 m
                   </Button>
-                  <span>Formation level</span>
+                  <span className="sr-only md:not-sr-only">Formation level</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1511,7 +1547,10 @@ export function CrossSectionChart({
               . Unassigned depths remain unclassified.
             </p>
           )}
-          <p className="min-h-4 text-[10px] tabular-nums text-muted-foreground" data-testid="road-section-probe">
+          <p
+            className="hidden min-h-4 text-[10px] tabular-nums text-muted-foreground md:block"
+            data-testid="road-section-probe"
+          >
             {hovered ? (
               <>
                 Offset {format(hovered.x, 2)} m · ground {format(hovered.ground, 2)} m

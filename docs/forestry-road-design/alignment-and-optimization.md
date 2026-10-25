@@ -59,16 +59,18 @@ and the sketched corridor optimizer. The geometry itself is specified in the
 | Vertical curve                | half its length must fit each adjoining tangent            | `engine.ts` `verticalProfile`                        | Curve dropped, warning                                       |
 | PVI spacing                   | at least 10 m (UI 10–1,000 m)                              | `verticalOptimizer.ts`, `VerticalDesignControls.tsx` | Error                                                        |
 | Search ±, level step, K       | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
+| Level transitions             | 5,000,000 across all price runs (`maxTransitions`)         | `verticalOptimizer.ts`                               | Error: coarsen the level step, reduce depth or widen spacing |
 | Section solves                | 60,000 (`maxSectionSolves`)                                | `verticalOptimizer.ts`                               | Error: widen spacing or coarsen the step                     |
 | Depth band between PVIs       | ± (search ± plus about four level steps); ±7 m at defaults | `verticalOptimizer.ts` `rows`                        | Station priced as incomplete                                 |
 | Incomplete-section penalty    | $5,000 per m (`incompletePenaltyPerM`)                     | `verticalOptimizer.ts`                               | Added to the search cost only                                |
 | Simplification                | 0.3 m; kept if cost rises at most 1 % + $1                 | `verticalOptimizer.ts` `finish`                      | Unsimplified line kept                                       |
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)      | `verticalOptimizer.ts` `prices`                      | —                                                            |
 
-The dynamic programme's own work is not budgeted. It grows with the cube of the levels per
-PVI (2 × search ÷ step + 1), five times over for **Total cost**, and it runs on the page's main
-thread. At the defaults (±5 m, 0.5 m) that is 21 levels. At ±30 m in 0.1 m steps it is 601
-levels, about 2 × 10⁸ transitions per PVI. Expect the tab to freeze.
+The dynamic programme runs on the page's main thread and stops at its level-transition
+budget. Its work grows with the cube of the levels per PVI (2 × search ÷ step + 1), up to
+five times over for **Total cost**. At the defaults (±5 m, 0.5 m) that is 21 levels; a fine
+±30 m search in 0.1 m steps has 601 levels and will usually need a coarser step to finish.
+The search refuses non-finite inputs and more than 500 proposed PVIs before allocating levels.
 
 ### Route search
 
@@ -85,16 +87,20 @@ levels, about 2 × 10⁸ transitions per PVI. Expect the tab to freeze.
 
 ### Sketched corridor optimizer
 
-| Limit                                   | Value                                                      | Enforced in                                     | When exceeded                                 |
-| --------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
-| Guide points                            | 2–100                                                      | `corridorOptimizer.ts` `search`                 | Error                                         |
-| Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km           | `corridorOptimizer.ts`                          | Error                                         |
-| Corridor half-width                     | 25–1,000 m (default 180 m)                                 | `corridorOptimizer.ts`, `DesignSidebarBody.tsx` | Error or button disabled                      |
-| Ground-grade limit                      | 1–30 %, taken from the road's grade limit                  | `corridorOptimizer.ts`                          | Error                                         |
-| Minimum radius                          | 5–1,000 m, taken from the road settings                    | `corridorOptimizer.ts`                          | Error                                         |
-| Search states                           | 50,000 (`maxStates`)                                       | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
-| Terrain samples; geometry operations    | 3,500,000; 15,000,000                                      | `corridorOptimizer.ts`                          | Error                                         |
-| Candidate length                        | the lesser of 15 km and 3 × sketch length + 4 × half-width | `corridorOptimizer.ts`                          | Branch not searched                           |
+| Limit                                   | Value                                                                 | Enforced in                                     | When exceeded                                 |
+| --------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
+| Guide points                            | 2–100                                                                 | `corridorOptimizer.ts` `search`                 | Error                                         |
+| Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                      | `corridorOptimizer.ts`                          | Error                                         |
+| Corridor half-width                     | 25–1,000 m (default 180 m)                                            | `corridorOptimizer.ts`, `DesignSidebarBody.tsx` | Error or button disabled                      |
+| Ground-grade limit                      | 1–30 %, taken from the road's grade limit                             | `corridorOptimizer.ts`                          | Error                                         |
+| Minimum radius                          | 5–1,000 m, taken from the road settings                               | `corridorOptimizer.ts`                          | Error                                         |
+| Search states                           | 50,000 (`maxStates`)                                                  | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
+| Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 15,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
+| Candidate length                        | the lesser of 15 km and 3 × sketch length + 4 × half-width            | `corridorOptimizer.ts`                          | Branch not searched                           |
+
+Geometry operations include guide-distance and corridor checks even with no supplied constraints.
+If that budget is reached, narrow the corridor, shorten/simplify the guide or crop constraints.
+The API accepts a lower geometry-operation budget; it cannot raise the 15,000,000 ceiling.
 
 ### Pegging
 
@@ -122,9 +128,10 @@ Widening L²/(2R) goes on the inside edge only.
 of **Runoff** and the spiral, ending at the SC, and run out from the CS over the same length
 (`curveDesignAt` in `engine.ts`). With runoff no longer than the spiral they follow the spiral
 exactly: 0 at the TS, full at the SC. A longer runoff starts the extra length on the tangent
-before the TS (after the ST), so the ratio never falls back to 0 at a spiral end. Where two
-spirals of a reverse curve meet with no tangent between them and the runoff is longer than the
-spirals, the crossfall flips sides at the meeting point (see [Known issues](known-issues.md)).
+before the TS (after the ST). Between opposite curves, each transition is limited to its
+spiral plus half the intervening tangent. Both reach normal crown and zero curve widening
+at the tangent midpoint, including when the spiral lengths differ. Closely spaced reverse
+curves can therefore have a shorter effective runoff than entered; review the rotation rate.
 The tolerance in **Best fit every corner** uses the simple-curve external distance
 E = R(sec(Δ/2) − 1). With spirals the arc sits farther from the corner, so the fitted curve can
 miss the tolerance.
@@ -159,11 +166,12 @@ and last tangents are exempt from the minimum tangent length.
 - The grade window of an interval is read at its midpoint only. A grade range that starts or
   ends inside an interval is checked properly only by the re-analysis.
 - The search uses the one **Curve K** for both sags and crests. It ignores **Min sag K**,
-  **Min crest K**, **Min curve** and **Min tangent**. Curves are sized afterwards, at least the
-  minimum curve length, and shrunk to fit their tangents.
+  **Min crest K** and **Min tangent** while searching. Curves are sized afterwards, at least
+  **Min curve**, and shrunk to fit their tangents. The fitted result must pass all entered
+  standards before it is returned; a failure asks for adjusted inputs and creates no road.
 - Controls are held on the straight grade line. A curve fitted afterwards moves the formation
   at a grade break by its middle ordinate, A × L ÷ 800 metres (A in %, L in m). A tight
-  control at a grade break can fail the re-check.
+  control at a grade break can fail the re-check; that candidate is rejected instead of adopted.
 - Between PVIs, a station more than about the search ± plus four level steps from ground is
   priced as incomplete at $5,000 per m. Deep fills over a gully between PVIs are discouraged,
   not costed.
@@ -200,9 +208,10 @@ point at the elevation it must meet and run again.
 
 **Simplification.** The search places a PVI every spacing step. Douglas–Peucker at 0.3 m then
 drops PVIs, and the simpler line is kept only if it has no vertical check failures, no grade
-over the limit, no less coverage and no more than 1 % + $1 extra cost. Only that simplified
-line is re-checked before it is kept. The unsimplified result is returned even when it fails a
-standard, for example a minimum K higher than the **Curve K** you ran with. Read the checks.
+over the limit, no less coverage and no more than 1 % + $1 extra objective cost.
+Both simplified and unsimplified candidates must pass the final vertical standards,
+controls and road-wide grade checks before a result is returned. If no tested candidate
+passes, optimization reports an error and creates no road.
 
 **Infeasible.** "No profile meets the grade, curvature and control limits past _x_ m" names the
 first PVI where no level pair survives. Untie the ends, widen the search, lower K or relax a
@@ -237,25 +246,25 @@ inputs and similar coverage.
 
 ## How problems show up
 
-| Symptom                                                                   | Likely cause                                                 | What to do                                                       |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| "Curve at point _n_ does not fit its tangents; the sharp PI is retained." | Radius too large for the legs                                | Shorten the radius, move PIs apart, or run **Fit sharp corners** |
-| "Curve at point _n_ overlaps an adjacent curve"                           | Two trims share a short leg                                  | Reduce one radius or lengthen the leg                            |
-| "Spirals at point _n_ are longer than its deflection allows"              | Ls / R at least Δ                                            | Shorten the spirals or raise the radius                          |
-| Crossfall flips sides where two spirals of a reverse curve meet           | Runoff longer than the spirals on a spiral-to-spiral reverse | Set runoff no longer than the spirals, or add a tangent between  |
-| Tight curves at full e max with no flag                                   | Radius below the design-speed radius                         | Raise **Minimum radius** to V²/(127(e + f))                      |
-| "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                      | Shorten the curve or use **Set every curve from K**              |
-| Optimized profile fails K or tangent checks                               | Search uses one K and no tangent length                      | Rerun with **Curve K** at least the larger minimum K             |
-| Control point fails after optimizing                                      | Curve moved the formation at a grade break                   | Widen the tolerance or move the control off the break            |
-| Optimized road ends far above or below ground                             | Ends untied                                                  | Add end controls and rerun                                       |
-| "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval  | Widen spacing, coarsen the step or shorten the road              |
-| "Use a K of 0 or more; 0 fits no vertical curves."                        | A K below 0 or not a number reached the search               | Enter a K of 0 or more                                           |
-| Browser stops responding during "Optimizing the vertical profile…"        | Too many levels per PVI                                      | Coarsen the step or narrow the search                            |
-| Route is a zigzag of 45° legs                                             | Eight-direction grid                                         | Simplify the PIs, fit curves, then recheck grade                 |
-| Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                     | Design a profile and copy the engineering inputs first           |
-| "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                  | Lower the grade limit before using the corridor optimizer        |
-| "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                       | Set a minimum radius in that range                               |
-| "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps          | Change the grade, bearing or distance                            |
+| Symptom                                                                   | Likely cause                                                | What to do                                                             |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| "Curve at point _n_ does not fit its tangents; the sharp PI is retained." | Radius too large for the legs                               | Shorten the radius, move PIs apart, or run **Fit sharp corners**       |
+| "Curve at point _n_ overlaps an adjacent curve"                           | Two trims share a short leg                                 | Reduce one radius or lengthen the leg                                  |
+| "Spirals at point _n_ are longer than its deflection allows"              | Ls / R at least Δ                                           | Shorten the spirals or raise the radius                                |
+| Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent    | Inspect the crossfall rotation rate and lengthen the tangent if needed |
+| Tight curves at full e max with no flag                                   | Radius below the design-speed radius                        | Raise **Minimum radius** to V²/(127(e + f))                            |
+| "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                     | Shorten the curve or use **Set every curve from K**                    |
+| Optimized profile fails K or tangent checks                               | Search uses one K and no tangent length                     | Rerun with **Curve K** at least the larger minimum K                   |
+| Control point fails after optimizing                                      | Curve moved the formation at a grade break                  | Widen the tolerance or move the control off the break                  |
+| Optimized road ends far above or below ground                             | Ends untied                                                 | Add end controls and rerun                                             |
+| "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval | Widen spacing, coarsen the step or shorten the road                    |
+| "Use a K of 0 or more; 0 fits no vertical curves."                        | A K below 0 or not a number reached the search              | Enter a K of 0 or more                                                 |
+| Browser stops responding during "Optimizing the vertical profile…"        | Too many levels per PVI                                     | Coarsen the step or narrow the search                                  |
+| Route is a zigzag of 45° legs                                             | Eight-direction grid                                        | Simplify the PIs, fit curves, then recheck grade                       |
+| Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                    | Design a profile and copy the engineering inputs first                 |
+| "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                 | Lower the grade limit before using the corridor optimizer              |
+| "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                      | Set a minimum radius in that range                                     |
+| "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps         | Change the grade, bearing or distance                                  |
 
 ## What it does not do
 

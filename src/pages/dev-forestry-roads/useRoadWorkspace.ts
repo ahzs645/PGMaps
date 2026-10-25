@@ -118,13 +118,23 @@ export function useRoadWorkspace() {
     abort.current = controller
     async function open() {
       try {
-        const saved = await storedProject().catch(() => undefined)
-        if (controller.signal.aborted) return
         // ?example=training is a deliberate, network-free teaching/testing mode.
         if (new URLSearchParams(location.search).get('example') === 'training') {
           setCanPersist(true)
           return
         }
+        let saved: RoadProject | undefined
+        try {
+          saved = await storedProject()
+        } catch {
+          // A failed read does not establish that this device has no project. In
+          // particular, a transient storage failure must not authorize replacing
+          // an existing save with the default terrain once storage recovers.
+          throw Error(
+            'Could not read the locally saved road project. Reopen a project or explicitly choose terrain to recover.',
+          )
+        }
+        if (controller.signal.aborted) return
         if (saved) {
           await restore(parseProject(saved), controller.signal)
           if (!controller.signal.aborted) setNotice('Restored your locally saved road project.')

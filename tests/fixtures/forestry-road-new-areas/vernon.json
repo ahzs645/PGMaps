@@ -1,0 +1,20 @@
+{
+  "name": "vernon",
+  "url": "https://s3.amazonaws.com/elevation-tiles-prod/geotiff/13/1381/2768.tif",
+  "sha256": "83126970daa6c1cc134fc3e016f24904fec3fa9f758ab6a8cd989ca61e635dc8",
+  "sourceProject": "https://registry.opendata.aws/terrain-tiles/",
+  "horizontalCrs": "EPSG:3857",
+  "verticalReference": "AWS Terrain Tiles; EGM96 orthometric metres (product assumption); regional screening DEM",
+  "bounds": [-119.31148052215576, 50.2612812628404, -119.26762104034424, 50.28931183419987],
+  "dimensions": [512, 512],
+  "groundSampleSpacingM": 6.104560454302623,
+  "guide": [
+    [-119.29911412675631, 50.268209935767175],
+    [-119.30054653480357, 50.26806494387696],
+    [-119.3019171812972, 50.26836785874083]
+  ],
+  "selectionRule": "Explicit retry after failed tile-centre searches: first successful of fixed fraction sequence(.25,.25),(.75,.25),(.25,.75),(.75,.75); endpoints100m either side along10m-gradient contour orientation; middle25m left. Success selected for UI usability, not unbiased regional validation.",
+  "scope": "One regional source tile, no actual road/exclusion/watercourse/field data. Sample spacing is not surveyed accuracy or original source resolution. EGM96 is entered product assumption, not independently verified local datum.",
+  "initialSelectionRule": "Fixed tile centre; endpoints100m either side along local contour from10m gradient; middle25m left. No optimizer-success selection.",
+  "fraction": [0.25, 0.25]
+}

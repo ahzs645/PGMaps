@@ -75,6 +75,24 @@ export function runDrainage({
     manningN: settings.manningN,
     streamThresholdM2: settings.streamThresholdHa * 10_000,
   })
+  result.warnings.push(
+    'Contributing areas stop at the sampled buffer and terrain-data edges. Increase the upslope buffer and compare catchments before relying on the flow estimate.',
+  )
+  let missingCells = 0
+  for (const value of existing.values) if (!Number.isFinite(value)) missingCells++
+  if (missingCells)
+    result.warnings.push(
+      `${missingCells.toLocaleString('en-CA')} sampled cells have no ground. Data gaps act as outlets and can cut off upstream catchments; load terrain covering the contributing area.`,
+    )
+  if (existing.cellM > 2)
+    result.warnings.push(
+      `${existing.cellM.toFixed(2)} m cells may not resolve narrow ditches or culvert channels. Use finer bare-earth terrain to review local drainage details.`,
+    )
+  for (const culvert of result.culverts)
+    if (culvert.existingAreaHa >= 0.05 && culvert.designAreaHa < culvert.existingAreaHa / 2)
+      result.warnings.push(
+        `${culvert.name}: the modeled design catchment (${culvert.designAreaHa.toFixed(2)} ha) is much smaller than the existing-ground catchment (${culvert.existingAreaHa.toFixed(2)} ha). Inspect diverted flow, the inlet location and terrain detail before relying on this pipe check.`,
+      )
   const features: GeoJSON.Feature[] = [
     ...result.existing.streams.features.map((f) => ({
       ...f,

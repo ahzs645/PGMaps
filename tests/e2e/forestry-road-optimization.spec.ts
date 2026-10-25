@@ -154,6 +154,7 @@ test('discard and cancellation never change the saved road', async ({ page }) =>
 test('optimization review stays usable on a phone viewport', async ({ page }, info) => {
   const { errors, project } = await prepare(page)
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Show road controls', exact: true }).click()
   const review = await optimize(page)
   const box = await review.boundingBox()
   expect(box).not.toBeNull()

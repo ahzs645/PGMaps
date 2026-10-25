@@ -6,11 +6,14 @@ These are places where the workspace does something other than what its controls
 were reproduced; **read** ones were found by reading the code. Remove an entry in the same change
 that fixes it, and add one, with the file and function, when you find a new defect.
 
-## Results that can be wrong
+## Fixed on 2026-10-24
 
-| Area    | Issue                                                                                                                                                                                                                                                                                                                                                                                               | Where                       | Status |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------ |
-| Spirals | Where a curve's exit spiral meets the next curve's entry spiral (a reverse curve with no tangent between) and the runoff is longer than the spirals, each spiral keeps part of its own curve's superelevation at the shared point, so the crossfall flips from one side to the other there instead of passing through the normal crown. With runoff no longer than the spirals both are at 0 there. | `engine.ts` `curveDesignAt` | read   |
+- Reverse curves with closely spaced spirals now return to normal crown and zero curve
+  widening at the midpoint of the intervening tangent. Opposing runoff is limited to each
+  spiral plus half that tangent. The failure was reproduced with 20 m spirals, 30 m runoff
+  and a 0.02 m tangent, and checked with unequal spiral lengths too (`spiral.test.ts`).
+  Exact touching spiral trims are rejected as overlapping geometry, so the earlier description
+  of a no-tangent case was corrected to the reproducible short-tangent case.
 
 ## Fixed on 2026-10-22
 

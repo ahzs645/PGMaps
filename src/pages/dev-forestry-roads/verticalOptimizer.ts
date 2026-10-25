@@ -29,6 +29,8 @@ export interface VerticalOptimizationOptions {
   /** Cost added per metre of road whose section cannot close (missing ground or no daylight). */
   incompletePenaltyPerM: number
   maxSectionSolves: number
+  /** Total candidate level transitions across all imbalance-price runs. */
+  maxTransitions: number
   /**
    * The search places a PVI at every spacing step; afterwards, PVIs that move the line by less than
    * this are dropped, provided the simpler line still meets every limit at no more than 1% extra
@@ -50,6 +52,7 @@ export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   tieEndsToGround: true,
   incompletePenaltyPerM: 5000,
   maxSectionSolves: 60000,
+  maxTransitions: 5000000,
   simplifyToleranceM: 0.3,
   objective: 'earthwork',
 }
@@ -92,10 +95,34 @@ export function optimizeVerticalProfile(
   options: Partial<VerticalOptimizationOptions> = {},
 ): VerticalOptimizationResult {
   const o = { ...DEFAULT_VERTICAL_OPTIMIZATION, ...options }
+  if (
+    ![
+      length,
+      o.pviSpacingM,
+      o.levelStepM,
+      o.maxDepthM,
+      o.k,
+      o.incompletePenaltyPerM,
+      o.maxSectionSolves,
+      o.maxTransitions,
+      o.simplifyToleranceM,
+    ].every(Number.isFinite)
+  )
+    throw Error('Use finite profile search inputs.')
   if (!(length > 1)) throw Error('The road is too short to optimize.')
   if (o.pviSpacingM < 10 || o.levelStepM <= 0 || o.maxDepthM <= 0)
     throw Error('Use a PVI spacing of at least 10 m and positive depth and level steps.')
   if (!(o.k >= 0)) throw Error('Use a K of 0 or more; 0 fits no vertical curves.')
+  if (
+    !Number.isInteger(o.maxTransitions) ||
+    o.maxTransitions < 1 ||
+    !Number.isInteger(o.maxSectionSolves) ||
+    o.maxSectionSolves < 1 ||
+    o.incompletePenaltyPerM < 0 ||
+    o.simplifyToleranceM < 0
+  )
+    throw Error('Use positive integer search budgets and non-negative penalties and tolerance.')
+  if (o.objective !== 'earthwork' && o.objective !== 'total') throw Error('Choose a valid profile objective.')
   const source = memoTerrain(terrain)
   const sample = Math.max(2, settings.stationInterval)
   const controls = (alignment.verticalControls ?? []).filter((c) => c.chainage >= 0 && c.chainage <= length)
@@ -103,6 +130,8 @@ export function optimizeVerticalProfile(
   // PVI stations: regular spacing, the ends and every control point.
   const marks = new Set<number>([0, length])
   const count = Math.max(1, Math.round(length / o.pviSpacingM))
+  if (count + 1 + controls.length > 500)
+    throw Error('The profile search needs too many PVIs; use wider spacing or fewer controls.')
   for (let i = 1; i < count; i++) marks.add(Math.round(((length * i) / count) * 1000) / 1000)
   for (const c of controls) marks.add(c.chainage)
   const pvis = [...marks].sort((a, b) => a - b).filter((s, i, all) => !i || s - all[i - 1] > 1)
@@ -118,12 +147,16 @@ export function optimizeVerticalProfile(
 
   // Candidate levels per PVI: a ladder around ground, narrowed by any control or tied end.
   const ladder = Math.round(o.maxDepthM / o.levelStepM)
+  if (2 * ladder + 1 > o.maxTransitions)
+    throw Error('Profile transition budget exceeded; use a coarser level step or a smaller search depth.')
   const levels = pvis.map((s, i) => {
     const ground = pviGround[i]!
     const control = controls.find((c) => Math.abs(c.chainage - s) < 1e-6 && c.elevation !== null)
     if (control) {
       const low = control.elevation! - control.toleranceBelowM,
         high = control.elevation! + control.toleranceAboveM
+      if ((high - low) / o.levelStepM + 1 > o.maxTransitions)
+        throw Error('Profile transition budget exceeded; use a coarser level step or narrower control tolerances.')
       const values = [control.elevation!]
       for (let z = Math.ceil(low / o.levelStepM) * o.levelStepM; z <= high + EPS; z += o.levelStepM) values.push(z)
       return [...new Set(values.map((z) => Math.round(z * 1000) / 1000))].sort((a, b) => a - b)
@@ -243,11 +276,19 @@ export function optimizeVerticalProfile(
   // DP over (previous level, current level) at each PVI.
   type Cell = { cost: number; back: number }
   const n = pvis.length
+  let transitions = 0
+  const transition = () => {
+    if (++transitions > o.maxTransitions)
+      throw Error(
+        'Profile transition budget exceeded; use a coarser level step, a smaller search depth or wider PVI spacing.',
+      )
+  }
   const solve = () => {
     let frontier = new Map<string, Cell>()
     const states: Map<string, Cell>[] = []
     for (let a = 0; a < levels[0].length; a++)
       for (let b = 0; b < levels[1].length; b++) {
+        transition()
         const g = grade(0, a, b)
         if (!gradeAllowed(0, g) || !controlsAllowed(0, a, b)) continue
         frontier.set(`${a}:${b}`, { cost: costOf(0, a, b), back: -1 })
@@ -259,6 +300,7 @@ export function optimizeVerticalProfile(
         const [a, b] = key.split(':').map(Number)
         const g1 = grade(i - 1, a, b)
         for (let c = 0; c < levels[i + 1].length; c++) {
+          transition()
           const g2 = grade(i, b, c)
           if (!gradeAllowed(i, g2) || !curvable(i, g1, g2) || !controlsAllowed(i, b, c)) continue
           const cost = cell.cost + costOf(i, b, c)
@@ -351,13 +393,27 @@ export function optimizeVerticalProfile(
   const unit = Math.max(1, settings.fillRate, haul?.borrowRate ?? 0, haul?.wasteRate ?? 0)
   const prices = o.objective === 'total' ? [0, 0.25, 0.5, 1, 2].map((x) => x * unit) : [0]
   let chosenResult: (ReturnType<typeof finish> & { cost: number; price: number }) | null = null
+  let failedCheck = ''
   for (const price of prices) {
     imbalancePrice = price
     const solved = solve()
     const result = finish(solved.chosen)
+    // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it
+    // outside a station-range limit. Only a rechecked candidate can be adopted.
+    const checkFailure =
+      result.analysis.verticalChecks?.[0]?.message ??
+      (result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6 ? 'Road-wide maximum grade exceeded.' : '')
+    if (checkFailure) {
+      failedCheck = checkFailure
+      continue
+    }
     if (!chosenResult || score(result.analysis) < score(chosenResult.analysis))
       chosenResult = { ...result, cost: solved.cost, price }
   }
+  if (!chosenResult)
+    throw Error(
+      `The fitted profile failed a vertical standard or control: ${failedCheck} Adjust Curve K, PVI spacing, search depth or control tolerances and run again; no road was changed.`,
+    )
   const { vertical, simplified } = chosenResult!
   return {
     vertical,

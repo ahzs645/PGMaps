@@ -1,7 +1,7 @@
 import type { RoadSelectionRange } from './roadSelection'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
-import { LocateFixed, Settings2, X } from 'lucide-react'
+import { LocateFixed, Mountain, Settings2, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
@@ -18,10 +18,12 @@ import {
 import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
+import { safeAnalyzeRoad } from './analysisResult'
 import type { Alignment, ContextFeature, Coordinate, RoadAnalysis, RoadProject, TerrainSource } from './types'
 
 export type DrawMode = 'inspect' | 'edit' | 'road' | 'profile' | 'cable' | 'stream' | 'avoid'
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
+type FitRequest = { revision: number; target: 'roads' | 'active' | 'terrain' }
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   stream: 'Streams',
   'existing-road': 'Existing roads',
@@ -42,6 +44,7 @@ interface PlanProps {
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
+  onInsertPoint?: (afterId: string, coordinate: Coordinate) => void
   onHover: (coordinate: Coordinate | null) => void
   onSelectPoint: (id: string) => void
   selectedPoint: string | null
@@ -101,6 +104,9 @@ function Layers(
     showLabels: boolean
     showEarthwork: boolean
     hiddenContextKinds: ContextFeature['kind'][]
+    onPointDragStart: (id: string) => void
+    onPointDragEnd: (id: string, coordinate: Coordinate) => void
+    fitRequest: FitRequest
   },
 ) {
   const { map, isLoaded } = useMap()
@@ -135,6 +141,7 @@ function Layers(
   )
   const activeAlignmentId = props.alignment.id
   const previousFit = useRef('')
+  const previousManualFit = useRef(0)
   const analysis = props.analyses.get(props.alignment.id)!
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -479,19 +486,52 @@ function Layers(
 
   useEffect(() => {
     if (!map || !isLoaded) return
-    const key = `${props.project.terrain.sha256 ?? props.project.terrain.name}:${props.fitRevision}`
+    const key = `${props.project.terrain.sha256 ?? props.project.terrain.name}:${props.fitRevision}:${props.fitRequest.revision}`
     if (key === previousFit.current) return
-    const coordinates = props.project.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
-    if (coordinates.length)
-      map.fitBounds(
-        [
-          [Math.min(...coordinates.map((p) => p[0])), Math.min(...coordinates.map((p) => p[1]))],
-          [Math.max(...coordinates.map((p) => p[0])), Math.max(...coordinates.map((p) => p[1]))],
-        ],
-        { padding: 45, maxZoom: 16, duration: 0 },
-      )
+    const activeCoordinates = props.alignment.points.map((p) => p.coordinate)
+    const extent = (coordinates: Coordinate[]) =>
+      [
+        [Math.min(...coordinates.map((p) => p[0])), Math.min(...coordinates.map((p) => p[1]))],
+        [Math.max(...coordinates.map((p) => p[0])), Math.max(...coordinates.map((p) => p[1]))],
+      ] as [Coordinate, Coordinate]
+    const activeBounds = activeCoordinates.length ? extent(activeCoordinates) : null
+    const intersects =
+      bounds &&
+      activeBounds &&
+      activeBounds[0][0] <= bounds[2] &&
+      activeBounds[1][0] >= bounds[0] &&
+      activeBounds[0][1] <= bounds[3] &&
+      activeBounds[1][1] >= bounds[1]
+    const manual = previousManualFit.current !== props.fitRequest.revision
+    // A new DEM may be hundreds of kilometres from the existing roads. Reveal its
+    // coverage rather than silently refitting those unrelated controls.
+    const target = manual ? props.fitRequest.target : bounds && !intersects ? 'terrain' : 'active'
+    const coordinates =
+      target === 'roads'
+        ? props.project.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
+        : activeCoordinates
+    const fitBounds =
+      target === 'terrain' && bounds
+        ? ([
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ] as [Coordinate, Coordinate])
+        : coordinates.length
+          ? extent(coordinates)
+          : null
+    if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
     previousFit.current = key
-  }, [map, isLoaded, props.project.terrain, props.project.alignments, props.fitRevision])
+    previousManualFit.current = props.fitRequest.revision
+  }, [
+    map,
+    isLoaded,
+    bounds,
+    props.alignment,
+    props.project.terrain,
+    props.project.alignments,
+    props.fitRevision,
+    props.fitRequest,
+  ])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -937,25 +977,61 @@ function Layers(
         props.alignment.points.map((p, index) => (
           <MapMarker
             key={p.id}
+            className="z-10"
             longitude={p.coordinate[0]}
             latitude={p.coordinate[1]}
             draggable
+            onDragStart={() => props.onPointDragStart(p.id)}
             onDrag={({ lng, lat }) => props.onMovePoint(p.id, [lng, lat])}
+            onDragEnd={({ lng, lat }) => props.onPointDragEnd(p.id, [lng, lat])}
             onClick={() => props.onSelectPoint(p.id)}
           >
             <MarkerContent>
               <button
                 aria-label={`Horizontal point ${index + 1}`}
+                title={`${index === 0 ? 'Start' : index === props.alignment.points.length - 1 ? 'End' : `Control ${index + 1}`} · drag to move`}
                 aria-pressed={props.selectedPoint === p.id}
-                className={`size-6 rounded-full border-2 bg-background text-[10px] font-bold shadow ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}
+                className={`size-7 cursor-grab touch-none rounded-full border-2 bg-background text-[10px] font-bold shadow active:cursor-grabbing ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}
               >
                 {index + 1}
               </button>
             </MarkerContent>
           </MapMarker>
         ))}
+      {props.mode === 'edit' &&
+        props.onInsertPoint &&
+        props.alignment.points.length < 2000 &&
+        props.alignment.points.slice(1).map((end, index) => {
+          const start = props.alignment.points[index]
+          const length = distance(start.coordinate, end.coordinate)
+          if (length <= 0.4) return null
+          const coordinate = positionAt({ ...props.alignment, points: [start, end] }, length / 2).coordinate
+          return (
+            <MapMarker
+              className="z-10"
+              key={`insert-${start.id}-${end.id}`}
+              longitude={coordinate[0]}
+              latitude={coordinate[1]}
+            >
+              <MarkerContent>
+                <button
+                  type="button"
+                  aria-label={`Add control between points ${index + 1} and ${index + 2}`}
+                  title="Add a middle control, then drag it to shape the road"
+                  className="flex size-6 cursor-cell items-center justify-center rounded-full border border-dashed border-blue-600 bg-background/95 text-base font-bold leading-none text-blue-700 shadow"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    props.onInsertPoint?.(start.id, coordinate)
+                  }}
+                >
+                  +
+                </button>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
       {chosen && (
-        <MapMarker longitude={chosen.coordinate[0]} latitude={chosen.coordinate[1]}>
+        <MapMarker className="pointer-events-none" longitude={chosen.coordinate[0]} latitude={chosen.coordinate[1]}>
           <MarkerContent>
             <div
               data-testid="road-active-map-station"
@@ -1044,8 +1120,8 @@ function Layers(
             collapsible
             defaultCollapsed
             width="sm"
-            className="bottom-10 right-2 workspace-desktop:bottom-10 workspace-desktop:right-2 workspace-desktop:p-2"
-            contentClassName="max-h-44 overflow-y-auto text-[10px]"
+            className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
+            contentClassName="min-h-0 max-h-44 overflow-y-auto text-[10px]"
           >
             <div className="mt-1 max-h-40 space-y-1 overflow-y-auto border-t pt-1">
               <p className="truncate font-medium" title={props.project.terrain.name}>
@@ -1113,6 +1189,28 @@ function Layers(
 }
 
 export function PlanView(props: PlanProps) {
+  const [drag, setDrag] = useState<{ original: Alignment; id: string; coordinate: Coordinate } | null>(null)
+  const previewAlignment = useMemo(
+    () =>
+      drag && drag.original === props.alignment && props.mode === 'edit'
+        ? {
+            ...props.alignment,
+            points: props.alignment.points.map((point) =>
+              point.id === drag.id ? { ...point, coordinate: drag.coordinate } : point,
+            ),
+          }
+        : null,
+    [drag, props.alignment, props.mode],
+  )
+  const previewAnalyses = useMemo(() => {
+    if (!previewAlignment) return props.analyses
+    const analyses = new globalThis.Map(props.analyses)
+    analyses.set(
+      previewAlignment.id,
+      safeAnalyzeRoad(previewAlignment, props.source, props.project.settings, props.project.context),
+    )
+    return analyses
+  }, [previewAlignment, props.analyses, props.source, props.project.settings, props.project.context])
   const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
   const [showContours, setShowContours] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
@@ -1121,7 +1219,10 @@ export function PlanView(props: PlanProps) {
   const contextKinds = (Object.keys(CONTEXT_LABELS) as ContextFeature['kind'][]).filter((kind) =>
     props.project.context.some((feature) => feature.kind === kind),
   )
-  const [fit, setFit] = useState(0)
+  const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
+  const fit = (target: FitRequest['target']) =>
+    setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
+  const hasTerrainBounds = !!terrainBounds(props.project.terrain)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const settingsButton = useRef<HTMLButtonElement>(null)
@@ -1147,7 +1248,7 @@ export function PlanView(props: PlanProps) {
   const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
   return (
     <div
-      className={`relative h-full min-h-[280px] overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
+      className={`relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
       data-testid="road-plan-view"
       data-drawing={drawing}
     >
@@ -1156,38 +1257,55 @@ export function PlanView(props: PlanProps) {
         zoom={14}
         controls={
           <>
-            <Button
-              size="icon"
-              variant="outline"
-              className="absolute right-2 top-2 z-30 size-11 bg-background shadow-sm workspace-desktop:size-8"
-              aria-label="Fit road alignments"
-              onClick={() => setFit((n) => n + 1)}
-            >
-              <LocateFixed className="size-4" />
-            </Button>
-            <MapControls
-              position="top-right"
-              showZoom
-              showCompass={false}
-              className="top-[3.75rem] workspace-desktop:top-12"
-            />
+            <div className="absolute right-2 top-2 z-30 flex gap-1">
+              <Button
+                size="icon"
+                variant="outline"
+                className="size-8 bg-background shadow-sm"
+                aria-label="Fit road alignments"
+                title="Fit all road alignments"
+                onClick={() => fit('roads')}
+              >
+                <LocateFixed className="size-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                className="size-8 bg-background shadow-sm"
+                aria-label="Fit terrain coverage"
+                title="Fit the loaded DEM coverage"
+                disabled={!hasTerrainBounds}
+                onClick={() => fit('terrain')}
+              >
+                <Mountain className="size-4" />
+              </Button>
+            </div>
+            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls top-12" />
           </>
         }
         showLoadingOverlay={false}
       >
         <Layers
           {...props}
-          fitRevision={props.fitRevision + fit}
+          alignment={previewAlignment ?? props.alignment}
+          analyses={previewAnalyses}
+          onPointDragStart={(id) => props.onSelectPoint(id)}
+          onMovePoint={(id, coordinate) => setDrag({ original: props.alignment, id, coordinate })}
+          onPointDragEnd={(id, coordinate) => {
+            setDrag(null)
+            props.onMovePoint(id, coordinate)
+          }}
+          fitRequest={fitRequest}
           terrainLayer={terrainLayer}
           showContours={showContours}
           showLabels={showLabels}
           showEarthwork={showEarthwork}
           hiddenContextKinds={hiddenContextKinds}
         />
-        <MapScaleBar position="bottom-left" />
+        <MapScaleBar position="bottom-left" className="road-map-scale left-2 bottom-2" />
       </Map>
       <div
-        className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] items-center gap-1"
+        className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
         <AppSelect
@@ -1235,6 +1353,17 @@ export function PlanView(props: PlanProps) {
                   <X className="size-3" />
                 </Button>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mb-2 w-full"
+                onClick={() => {
+                  fit('active')
+                  setSettingsOpen(false)
+                }}
+              >
+                Fit selected road
+              </Button>
               {(
                 [
                   ['Contours', showContours, setShowContours],
@@ -1271,6 +1400,14 @@ export function PlanView(props: PlanProps) {
           )}
         </div>
       </div>
+      {props.mode === 'edit' && (
+        <div
+          className="pointer-events-none absolute left-2 top-12 z-20 max-w-[calc(100%-4rem)] rounded-md border bg-background/95 px-2 py-1 text-[11px] shadow"
+          data-testid="road-edit-help"
+        >
+          Drag numbered controls to move the start, end or path. Click + to add a middle control.
+        </div>
+      )}
     </div>
   )
 }

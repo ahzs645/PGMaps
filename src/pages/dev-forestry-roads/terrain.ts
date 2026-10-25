@@ -245,6 +245,11 @@ export function exportGrid(metadata: TerrainMetadata, at: Coordinate) {
       toLonLat: (xy: [number, number]) => projection.inverse([...xy]) as Coordinate,
     }
   }
+  return localMetricGrid(at)
+}
+
+/** Local ground-metre analysis grid; Web Mercator metres distort distances and drainage areas. */
+export function localMetricGrid(at: Coordinate) {
   const zone = Math.max(1, Math.min(60, Math.floor((at[0] + 180) / 6) + 1)),
     south = at[1] < 0
   const projection = proj4(
@@ -584,9 +589,19 @@ export async function loadRaster(
     throw Error('Convert projected horizontal coordinates to metres before importing.')
   const origin = image.getOrigin(),
     size = image.getResolution(),
+    tiepoint = image.fileDirectory.ModelTiepoint,
     shift = keys.GTRasterTypeGeoKey === 2 ? 0 : 0.5
+  // getOrigin returns the model coordinate of the tiepoint, which need not be pixel (0, 0).
+  if (tiepoint?.length === 6) {
+    origin[0] -= tiepoint[0] * size[0]
+    origin[1] -= tiepoint[1] * size[1]
+  }
   const rasterValues = await image.readRasters({ samples: [0], interleave: true }),
-    noData = image.getGDALNoData()
+    declaredNoData = image.getGDALNoData(),
+    // The ASCII tag can have more precision than its Float32 pixels. Compare in the
+    // sample's representation so a rounded sentinel cannot become a deep terrain pit.
+    noData =
+      declaredNoData !== null && rasterValues instanceof Float32Array ? Math.fround(declaredNoData) : declaredNoData
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('')

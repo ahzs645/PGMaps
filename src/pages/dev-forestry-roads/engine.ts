@@ -401,10 +401,11 @@ export function curveDesignAt(
   const onSpiral = pieces.findIndex(
     (piece) => piece.spiral && chainage >= piece.station - EPS && chainage <= piece.station + piece.length + EPS,
   )
+  const arcIndices = pieces.flatMap((piece, i) => (piece.radius === null ? [] : [i]))
   let best: { piece: Piece; distance: number; ratio: number } | null = null
-  for (let i = 0; i < pieces.length; i++) {
+  for (let arc = 0; arc < arcIndices.length; arc++) {
+    const i = arcIndices[arc]
     const piece = pieces[i]
-    if (piece.radius === null) continue
     if (onSpiral >= 0 && onSpiral !== i - 1 && onSpiral !== i + 1) continue
     const before = piece.station - chainage,
       after = chainage - (piece.station + piece.length)
@@ -413,8 +414,31 @@ export function curveDesignAt(
     const entry = pieces[i - 1]?.spiral?.kappa0 === 0 ? pieces[i - 1] : null,
       exit = pieces[i + 1]?.spiral?.kappa1 === 0 ? pieces[i + 1] : null
     const spiral = before > 0 ? entry : after > 0 ? exit : null
-    const transition = spiral ? Math.max(runoff, spiral.length) : runoff
-    const ratio = distance <= EPS ? 1 : transition > 0 ? clamp(1 - distance / transition, 0, 1) : 0
+    let transition = spiral ? Math.max(runoff, spiral.length) : runoff
+    const neighbourIndex = before > 0 ? arcIndices[arc - 1] : after > 0 ? arcIndices[arc + 1] : undefined
+    if (neighbourIndex !== undefined) {
+      const neighbour = pieces[neighbourIndex]
+      if ((piece.sweep ?? 0) * (neighbour.sweep ?? 0) < 0) {
+        const neighbourSpiral =
+          before > 0
+            ? pieces[neighbourIndex + 1]?.spiral?.kappa1 === 0
+              ? pieces[neighbourIndex + 1]
+              : null
+            : pieces[neighbourIndex - 1]?.spiral?.kappa0 === 0
+              ? pieces[neighbourIndex - 1]
+              : null
+        const ownLength = spiral?.length ?? 0
+        const gap =
+          before > 0
+            ? piece.station - ownLength - (neighbour.station + neighbour.length + (neighbourSpiral?.length ?? 0))
+            : neighbour.station - (neighbourSpiral?.length ?? 0) - (piece.station + piece.length + ownLength)
+        // Opposing runoff must meet at normal crown. Share the intervening tangent,
+        // preserving each spiral's full length even when their lengths differ.
+        transition = Math.min(transition, ownLength + Math.max(0, gap) / 2)
+      }
+    }
+    const ratio =
+      distance <= EPS ? 1 : transition > 0 && distance < transition - EPS ? clamp(1 - distance / transition, 0, 1) : 0
     if (!best || ratio > best.ratio || (ratio === best.ratio && distance < best.distance))
       best = { piece, distance, ratio }
   }

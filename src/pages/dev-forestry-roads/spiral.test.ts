@@ -146,6 +146,56 @@ describe('clothoid transitions', () => {
     expect(curveDesignAt(a, sc - 1)!.ratio).toBeCloseTo((sc - 1 - ts) / 40, 6)
   })
 
+  it('returns to the normal crown between closely spaced reverse spirals with overlapping runoff', () => {
+    for (const secondSpiral of [20, 10]) {
+      const gap = 0.02
+      const separation =
+        spiralTangent(80, Math.PI / 2, 20).trim + spiralTangent(80, Math.PI / 2, secondSpiral).trim + gap
+      const coordinate = (x: number, y: number) =>
+        offsetCoordinate(origin, (Math.atan2(x, y) * 180) / Math.PI, Math.hypot(x, y))
+      const a: Alignment = {
+        ...road(20),
+        points: [
+          [0, 0],
+          [0, 300],
+          [separation, 300],
+          [separation, 600],
+        ].map(([x, y], i) => ({
+          id: `reverse-${i}`,
+          coordinate: coordinate(x, y),
+          radiusM: i === 1 || i === 2 ? 80 : 0,
+          spiralM: i === 1 ? 20 : i === 2 ? secondSpiral : 0,
+        })),
+        curveDesign: {
+          designSpeedKmh: 50,
+          maxSuperelevationPercent: 8,
+          sideFrictionFactor: 0.15,
+          runoffLengthM: 30,
+          wideningVehicleLengthM: 12,
+        },
+      }
+      const pieces = horizontalGeometry(a)
+      const arcs = pieces.filter((p) => p.kind === 'arc')
+      expect(arcs).toHaveLength(2)
+      const firstSt = arcs[0].station + arcs[0].length + 20
+      const secondTs = arcs[1].station - secondSpiral
+      expect(secondTs - firstSt).toBeGreaterThan(0)
+      expect(secondTs - firstSt).toBeLessThan(0.03)
+      const crown = (firstSt + secondTs) / 2
+      expect(curveDesignAt(a, crown)).toBeNull()
+      const before = curveDesignAt(a, crown - 0.001)!
+      const after = curveDesignAt(a, crown + 0.001)!
+      expect(before.inside).toBe('right')
+      expect(after.inside).toBe('left')
+      expect(before.ratio).toBeLessThan(0.001)
+      expect(after.ratio).toBeLessThan(0.001)
+      expect(before.extraWidth).toBeLessThan(0.001)
+      expect(after.extraWidth).toBeLessThan(0.001)
+      expect(curveDesignAt(a, arcs[0].station + arcs[0].length)!.ratio).toBe(1)
+      expect(curveDesignAt(a, arcs[1].station)!.ratio).toBe(1)
+    }
+  })
+
   it('falls back to a simple curve when two spirals would exceed the deflection', () => {
     const warnings = analyzeRoad(road(200, 60), { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS).warnings
     expect(warnings.some((w) => w.startsWith('Spirals at point 2'))).toBe(true)

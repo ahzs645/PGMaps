@@ -18,6 +18,7 @@ export interface RoadOptimizationOptions {
   /** Smaller budgets can be used in tests or on constrained devices. */
   maxStates?: number
   maxTerrainSamples?: number
+  maxGeometryOperations?: number
 }
 export interface CorridorMetrics {
   lengthM: number
@@ -192,6 +193,8 @@ function* search(
   if (!Number.isFinite(settings.minRadius) || settings.minRadius < 5 || settings.minRadius > 1000) throw Error('Minimum radius must be 5–1,000 m.')
   const maxStates = options.maxStates ?? 50000, maxSamples = options.maxTerrainSamples ?? 3500000
   if (!Number.isInteger(maxStates) || maxStates < 1 || maxStates > 70000 || !Number.isInteger(maxSamples) || maxSamples < 100 || maxSamples > 5000000) throw Error('Invalid search budget.')
+  const maxGeometry = options.maxGeometryOperations ?? 15000000
+  if (!Number.isInteger(maxGeometry) || maxGeometry < 1 || maxGeometry > 15000000) throw Error('Invalid geometry search budget.')
   const frame = corridorFrame(guide[0]), sketch = guide.map(frame.toXY), end = sketch[sketch.length - 1]
   const direct = norm(end)
   const sketchLength = sketch.slice(1).reduce((s, p, i) => s + norm(delta(p, sketch[i])), 0)
@@ -205,7 +208,7 @@ function* search(
   const segments: Segment[] = [], polygons: Array<{ rings: XY[][]; box: number[] }> = []
   let vertices = 0, operations = 0, calls = 0, explored = 0
   const abort = () => { if (control.signal?.aborted) throw new DOMException('Road optimization cancelled.', 'AbortError') }
-  const geometryBudget = (n = 1) => { operations += n; if (operations > 15000000) throw Error('Exclusion geometry budget reached; crop the constraint layers.') }
+  const geometryBudget = (n = 1) => { operations += n; if (operations > maxGeometry) throw Error('Corridor geometry budget reached; narrow the corridor, shorten or simplify the guide, or crop supplied constraints.') }
   for (const feature of context) {
     if (feature.kind !== 'stream' && feature.kind !== 'avoid') continue
     const raw = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates : [feature.geometry.coordinates]
