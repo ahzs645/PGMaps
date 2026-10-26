@@ -9,7 +9,7 @@ import {
 import { BCInteriorBenchmark } from './BCInteriorBenchmark'
 import { BCCoastBenchmark } from './BCCoastBenchmark'
 import { ReferenceLink, ReferenceSelect } from './CostReferenceControls'
-import { CostRateTools } from './CostRateTools'
+import { CostRateTools } from './CostRateToolsPanel'
 
 /** Source evidence and independent benchmarks never write the project's unit rates. */
 export function BCCostReferences() {

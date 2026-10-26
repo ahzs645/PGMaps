@@ -8,8 +8,8 @@ import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
-import { CostReadiness } from './CostReadiness'
-import { BCCostReferences } from './BCCostReferences'
+import { CostReadiness } from './CostReadinessPanel'
+import { BCCostReferences } from './BCCostReferencesPanel'
 
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
