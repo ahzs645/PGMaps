@@ -521,8 +521,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   const errors = await prepare(page)
   const original = await saveProject(page)
   const tile = page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true })
-  const headline = async () =>
-    Number((await tile.locator('xpath=..').locator('dd').textContent())!.replace(/[$,]/g, ''))
+  const headline = async () => Number((await tile.locator('xpath=..').locator('dd').innerText()).replace(/[$,]/g, ''))
   const before = await headline()
   await tile.click()
   const dialog = page.getByTestId('road-cost-dialog')

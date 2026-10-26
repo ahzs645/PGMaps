@@ -806,23 +806,51 @@ in Engineering → Haul. An edit recalculates the whole road, so the line, the t
 headline tile and every linked view change together, and the dialog shows the
 change since it opened. Rates are saved with the project, and undo reverts them.
 
-**Where the default rates come from.** The one preset, _PG Maps placeholder rates_
-(`DEFAULT_ROAD_SETTINGS` in `terrain.ts`: cut $12/bank m³, fill $8/m³, surfacing
-$40/m³, clearing $1.50/m², reusable-cut factor 0.9), consists of round planning
-numbers. They are not taken from a published cost survey or appraisal manual, and
-they carry no regional adjustment. Editing any base rate makes the preset read
-_Custom · this project_. Choosing the preset again restores all five rates.
-Material, structure and haul rates are per project and start at zero (unpriced).
+**Where the default rates come from.** The direct unit-price preset, _PG Maps
+placeholder rates_ (`DEFAULT_ROAD_SETTINGS` in `terrain.ts`: cut $12/bank m³,
+fill $8/m³, surfacing $40/m³, clearing $1.50/m²), contains round planning
+numbers with no published source, price date or regional adjustment. Editing a
+base rate makes the preset read _Custom · this project_. Restoring the preset
+changes only these four prices; the independently entered reusable-cut factor
+is preserved. Material, structure and haul rates remain per project.
 
-BC's stumpage appraisal manuals cost road differently. The
-[Interior Appraisal Manual](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior-appraisal-manual/iam_2023_master.pdf)
-estimates subgrade cost in $/km from road-group equations in side slope and
-biogeoclimatic zone, with [engineering cost estimates](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior_ece_procedures_07_2024.pdf)
-for cases the tables do not cover, such as rock over 50% or steep side slopes. The
-[Coast Appraisal Manual](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/coast-timber-pricing/coast-appraisal-manual/2009_coast_master.pdf)
-has its own road development section. None of them gives per-m³ unit rates that could
-seed this table directly. A regional preset would need either a sourced per-m³ rate
-set or a separate per-km cross-check that implements those equations.
+**Coverage is not budget completeness.** The dialog describes calculation
+freshness and section coverage separately from cost scope.
+`costReadiness.ts` identifies remaining placeholder values independently,
+positive work with zero amounts, unclassified material, disabled/unallocated
+haul and structures needing review. With haul off it screens the aggregate
+minimum borrow as max(0, covered fill − assumed usable compacted cut), using
+material-aware cut when available. This assumes that usable material can reach
+fill: it is neither a site allocation nor a priced addition. Zero-cost work
+needs a price, an inclusion elsewhere or an explicit exclusion. No generic
+percentage of budget completeness is inferred.
+
+**BC cost references.** The dialog's regional browser covers all eight natural
+resource regions with dated primary sources, local material lists and explicit
+quote gaps. The [BC cost evidence guide](forestry-road-design/bc-cost-evidence.md)
+records the source inventory, unit-basis cautions and remaining calculation work.
+The 2026 Interior and Coast appraisal comparisons use their published **2024 cost
+base**, separately from the itemized total. Neither is an automatic regional
+multiplier or a contractor price.
+
+- `bcInteriorCost.ts` implements IAM 4.3.2.3 subgrade equations for groups
+  2–12. Road group, uphill side slope, rock percentage, road type, BEC and
+  moisture must be entered; known ECE cases are refused. Group 1 requires the
+  Coast methodology through Interior ECE procedures. Optional section length
+  scales the comparison only; it does not fill gaps in the designed road.
+- `bcCoastCost.ts` implements CAM Table 5-1 construction categories, rock
+  hardness and reviewed isolation/point-of-origin additions. The allowance
+  bundles activities including its category's ballast/surfacing, so it must not
+  be added to the quantity-based road estimate. Isolation uses eligible timber
+  volume fraction, not road-length fraction.
+- The comparison controls require applicability review, retain unknowns and
+  export assumptions, source metadata and results as JSON. Their temporary
+  inputs are not part of the saved road project; project rates are untouched.
+- `costRateTools.ts` converts tonne or loose-yard quotes to compacted-volume
+  supply prices using explicit conversion factors, computes full-cycle truck
+  cost per compacted m³, and derives productive equipment/crew cost per bank
+  m³. It provides no assumed density, swell, payload, cycle or production rate.
+  Results are components to scope, not automatically applied prices.
 
 ### Deterministic terrain-cost route assistance
 

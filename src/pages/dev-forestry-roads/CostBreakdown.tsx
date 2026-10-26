@@ -8,6 +8,8 @@ import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
+import { CostReadiness } from './CostReadiness'
+import { BCCostReferences } from './BCCostReferences'
 
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
@@ -17,7 +19,7 @@ const quantity = (value: number | null, digits = 1) =>
     : value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
 /** The base unit rates a preset sets; engineering inputs (materials, haul, structures) stay per project. */
-export const RATE_KEYS = ['cutRate', 'fillRate', 'surfacingRate', 'clearingRate', 'shrinkFactor'] as const
+export const RATE_KEYS = ['cutRate', 'fillRate', 'surfacingRate', 'clearingRate'] as const
 type RateKey = (typeof RATE_KEYS)[number]
 
 export const RATE_PRESETS: {
@@ -266,9 +268,8 @@ export function CostBreakdown({
       subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
       summary={
         <p className="text-[11px] text-muted-foreground" data-testid="road-cost-status">
-          Cost status:{' '}
-          {hasCompleteCoverage(analysis) && result?.complete !== false ? 'current, complete' : 'current, partial'} ·
-          recalculated on every edit
+          Calculation updated · section coverage {hasCompleteCoverage(analysis) ? 'complete' : 'partial'}
+          {result?.complete === false ? ' · engineering inputs incomplete' : ''} · recalculated on every edit
           {processMs === undefined
             ? ''
             : ` · process time ${processMs < 1000 ? `${Math.max(1, Math.round(processMs))} ms` : `${(processMs / 1000).toFixed(1)} s`}`}
@@ -277,8 +278,8 @@ export function CostBreakdown({
       contentProps={{ 'data-testid': 'road-cost-dialog' }}
     >
       <div className="space-y-3 text-xs">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-56 flex-col gap-1 text-muted-foreground">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex min-w-0 flex-col gap-1 text-muted-foreground sm:min-w-56 sm:shrink-0">
             Rate preset
             <AppSelect
               value={preset?.id ?? 'custom'}
@@ -295,12 +296,17 @@ export function CostBreakdown({
               contentClassName="z-[1500] text-xs"
             />
           </label>
-          <p className="min-w-0 flex-1 text-[11px] leading-4 text-muted-foreground" data-testid="road-rate-source">
+          <p
+            className="min-w-0 flex-1 break-words text-[11px] leading-4 text-muted-foreground"
+            data-testid="road-rate-source"
+          >
             {preset
               ? preset.source
               : 'Rates edited for this project. They are saved with the project file and are not tied to a published source.'}
           </p>
         </div>
+        <CostReadiness analysis={analysis} alignment={alignment} settings={settings} />
+        <BCCostReferences />
         <div className="overflow-x-auto">
           <EngineeringTable data-testid="road-cost-calculation">
             <thead>

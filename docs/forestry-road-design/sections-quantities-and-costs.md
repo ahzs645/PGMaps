@@ -26,7 +26,7 @@ this page says when their results can be trusted and what they quietly assume.
 - **Material horizons entered.** Without horizons all cut is _unclassified excavation_ at the base
   cut rate, fully reusable at the reusable cut factor. The terrain says nothing about rock, soil
   or organics.
-- **Rates replaced and dated by you.** The only rate preset is placeholder numbers (see
+- **Rates replaced and dated by you.** The only direct unit-price preset is placeholder numbers (see
   [What the cost estimate covers](#what-the-cost-estimate-covers)). Material, structure, haul,
   borrow, waste and mobilization rates start at zero, which means unpriced, not free.
 - **Haul turned on if balance matters.** Haul allocation is off by default. While it is off the
@@ -178,12 +178,12 @@ taxes, and escalation to a construction date. Haul, borrow and waste for an unba
 missing entirely while haul allocation is off.
 
 **The rate preset.** `RATE_PRESETS` has one entry, _PG Maps placeholder rates_. It copies
-`DEFAULT_ROAD_SETTINGS` (`terrain.ts`): cut $12/bank m³, fill $8/m³, surfacing $40/m³, clearing
-$1.50/m² and a reusable cut factor of 0.9. Its source note says these are round planning numbers
+`DEFAULT_ROAD_SETTINGS` (`terrain.ts`): cut $12/bank m³, fill $8/m³, surfacing $40/m³ and clearing
+$1.50/m². Its source note says these are round planning numbers
 set in the code. They cite no published cost survey or appraisal manual, carry no price date, and
 have no regional adjustment; they are the same everywhere in BC and in every year. Choosing the
-preset also resets the reusable cut factor, which changes the mass balance, not only the price.
-Any edit to the five values shows _Custom · this project_.
+preset preserves the separately entered reusable cut factor and material balance.
+Any edit to the four prices shows _Custom · this project_.
 
 Replace the preset before the number leaves the workspace: with your own contract or historical
 rates, dated, for the area and season you are planning. BC's appraisal manuals cost road in $/km
@@ -191,11 +191,22 @@ from road-group equations, not per m³, so they cannot seed this table directly;
 [Itemized scenario cost](../forestry-road-design.md#itemized-scenario-cost) section links them and
 explains why.
 
-**Cost status.** The dialog reads "current, complete" only when coverage is complete (at least
-`COMPLETE_COVERAGE_PERCENT`, 100 − 1e-5 %, in `analysisResult.ts`, the rule the tiles, summary,
-report and pegging also use) and
-the engineering result is complete (all culverts resolved, no unallocated borrow or waste, no
-culvert past the road end). Otherwise it reads "current, partial".
+**Cost status.** Calculation freshness and section coverage are labelled separately.
+Coverage is complete at `COMPLETE_COVERAGE_PERCENT` (100 − 1e-5 %, in
+`analysisResult.ts`); incomplete engineering is also identified. Neither establishes
+pricing confidence or a complete budget. The review panel flags remaining placeholder
+prices, unpriced work, material assumptions, unallocated haul and crossing/culvert
+gaps. With haul off, it screens minimum borrow demand from the covered material balance
+without adding an invented price or extrapolating missing intervals.
+
+**Regional evidence and rate tools.** The BC reference browser links all eight regions
+to current manual editions and primary supplier sources. Missing public prices remain
+quote-required. Separate Interior subgrade and Coast bundled-road comparisons retain
+their 2024 cost base and explicit applicability limits; they never replace the road's
+unit rates. Download their JSON to retain temporary comparison inputs. The conversion
+tools require an entered density or loose-to-compacted factor, full truck cycle and
+payload, or net crew productivity as appropriate. See
+[BC cost evidence and estimation roadmap](bc-cost-evidence.md).
 
 ## How problems show up
 
