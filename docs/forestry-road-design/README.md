@@ -14,6 +14,7 @@ problem shows up on screen. The calculations themselves are specified in the
 | [Terrain and point clouds](terrain-and-point-clouds.md)            | choose or import terrain, or trust any elevation, grade or volume taken from it                |
 | [Alignment and optimization](alignment-and-optimization.md)        | design curves and grades, or accept an optimized profile, route or corridor                    |
 | [Sections, quantities and costs](sections-quantities-and-costs.md) | quote cut, fill, haul, disturbance or a cost, or compare alternatives on them                  |
+| [BC cost evidence and estimation roadmap](bc-cost-evidence.md) | select regional sources, compare appraisal allowances or convert supplier quotes |
 | [Drainage](drainage.md)                                            | use stream crossings, cross-drain candidates, ponding or culvert sizes                         |
 | [Exports and project files](exports-and-project-files.md)          | hand a file to someone else, open it in another program, or rely on autosave to keep your work |
 | [Known issues](known-issues.md)                                    | trust a result from an area with a known defect                                                |
