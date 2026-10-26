@@ -3,7 +3,9 @@ import {
   alignmentLength,
   analyzeCable,
   analyzeRoad,
+  beyondReachFlag,
   curveDesignAt,
+  isBeyondReachFlag,
   distance,
   effectiveWidths,
   nearestStation,
@@ -173,6 +175,28 @@ describe('formation geometry and quantities', () => {
     expect(result.clearingAreaM2).toBeCloseTo(1000, 4)
     expect(result.estimatedCost).toBeCloseTo(800 * 3 + 120 * 4 + 1000 * 0.5, 4)
     expect(result.balanceM3).toBeCloseTo(-800, 4)
+  })
+
+  it('says a batter ran past the section reach, rather than blaming the terrain, when the road is too high', () => {
+    // 30 m of fill on a 1:1 batter catches 33 m out; the reach stops at 30 m.
+    const high = analyzeRoad(alignment(100, 830), flat, settings)
+    expect(high.coveragePercent).toBe(0)
+    for (const station of high.stations) {
+      expect(station.complete).toBe(false)
+      expect(station.flags).toEqual(expect.arrayContaining([beyondReachFlag('Left', 30), beyondReachFlag('Right', 30)]))
+    }
+    expect(beyondReachFlag('Right', 30)).toBe('Right daylight unresolved: batter runs past the 30 m section reach')
+    // The same reach closes it once it is long enough.
+    expect(
+      analyzeRoad(alignment(100, 830), flat, { ...settings, crossSectionHalfWidth: 40 }).coveragePercent,
+    ).toBeCloseTo(100, 6)
+    // Terrain that ends before the catch point is a terrain gap, not a reach problem.
+    const edge: TerrainSource = {
+      elevationAt: (lng) => (local([lng, origin[1]]).east > 10 ? Number.NaN : 800),
+    }
+    const gap = analyzeRoad(alignment(100, 810), edge, settings)
+    expect(gap.stations[3].flags.some(isBeyondReachFlag)).toBe(false)
+    expect(gap.stations[3].flags).toContain('Right daylight unresolved: extend section or check terrain')
   })
 
   it('includes crossfall in both running surface and daylight cut', () => {

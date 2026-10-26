@@ -273,6 +273,23 @@ function parseTerrain(raw: unknown): TerrainMetadata {
       throw Error('Terrain provenance URLs must use HTTPS without credentials.')
     result.sourceUrl = url.href
   }
+  if (r.bounds !== undefined) {
+    const b = r.bounds
+    if (
+      result.kind !== 'regional' ||
+      !Array.isArray(b) ||
+      b.length !== 4 ||
+      !b.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
+      b[0] >= b[2] ||
+      b[1] >= b[3] ||
+      b[0] < -180 ||
+      b[2] > 180 ||
+      b[1] < -85 ||
+      b[3] > 85
+    )
+      throw Error('Regional terrain bounds must be [west, south, east, north] in degrees.')
+    result.bounds = [b[0], b[1], b[2], b[3]]
+  }
   if (r.raster !== undefined) {
     result.raster = validateRoadRaster(r.raster)
     if (

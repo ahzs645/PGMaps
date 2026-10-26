@@ -5,7 +5,7 @@ import { demResolutionMeters, demTileRange, type Bounds } from '../dev-forestry/
 import { localRasterResolution, rasterProjection } from '../dev-forestry/localRaster'
 import type { LocalRaster } from '../dev-forestry/types'
 import { METRIC_CRS, readSourceGrid, type SourceGrid } from '../dev-lidar/sourceGrids'
-import { alignmentLength, positionAt } from './engine'
+import { alignmentLength, offsetCoordinate, positionAt } from './engine'
 import type {
   Alignment,
   Coordinate,
@@ -136,6 +136,27 @@ function exampleAlignment(
     },
   ]
   return alignment
+}
+
+/**
+ * A straight 300 m road across `centre`, so a new project on new terrain has something to drag
+ * or replace (a project always holds at least one road). It follows the ground until PVIs are added.
+ */
+export function starterAlignment(centre: Coordinate, lengthM = 300): Alignment {
+  const id = crypto.randomUUID()
+  return {
+    id,
+    name: 'First road · drag its ends',
+    color: '#d97706',
+    points: [270, 90].map((bearing, i) => ({
+      id: `${id}-p${i}`,
+      coordinate: offsetCoordinate(centre, bearing, lengthM / 2),
+      radiusM: 0,
+    })),
+    vertical: [],
+    template: { ...DEFAULT_TEMPLATE },
+    overrides: [],
+  }
 }
 
 export function createDemoProject(): RoadProject {
@@ -538,13 +559,17 @@ export async function loadLidarTerrain(
     sha256: hash,
   }
   loaded.set(terrainKey(metadata), { source, bounds })
-  // A transparent example alignment on the real terrain, not a surveyed or optimized road.
+  // A transparent example alignment on the real terrain, not a surveyed or optimized road. The
+  // line was picked from the DTM so that no no-data cell lies within 60 m of it (sections stay
+  // complete at any reach up to that) and the ground grade over 50 m stays under 8 %, so a new
+  // user sees a whole road rather than gaps. Moving it means checking both again.
   const coords: Coordinate[] = [
-    [0.15, 0.35],
-    [0.3, 0.4],
-    [0.45, 0.48],
-    [0.6, 0.52],
-    [0.75, 0.6],
+    [0.3656, 0.9122],
+    [0.3595, 0.7081],
+    [0.3838, 0.5863],
+    [0.3353, 0.4502],
+    [0.3322, 0.4037],
+    [0.2928, 0.2676],
   ].map(
     ([u, v]) =>
       projection.inverse([
@@ -770,6 +795,7 @@ export async function loadRegionalTerrain(
     epsg: 3857,
     verticalReference: 'Mixed-source regional DEM; vertical datum/accuracy unverified for design',
     sourceUrl: 'https://registry.opendata.aws/terrain-tiles/',
+    bounds: [bounds[0], bounds[1], bounds[2], bounds[3]],
   }
   loaded.set(terrainKey(metadata), { source: grid, bounds: [...bounds] })
   return { metadata, source: grid }

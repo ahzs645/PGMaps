@@ -7,6 +7,7 @@ import {
   BarChart3,
   Download,
   FolderOpen,
+  LibraryBig,
   PanelLeftClose,
   PanelLeftOpen,
   Pause,
@@ -29,6 +30,7 @@ import './dev-forestry-roads/workspace.css'
 import { downloadBlob, downloadText } from '@/lib/download'
 import {
   CableChart,
+  ChartHeader,
   CrossSectionChart,
   formatRoadStation,
   MassHaulChart,
@@ -71,7 +73,10 @@ import {
   loadRegionalTerrain,
   exportGrid,
   localMetricGrid,
+  starterAlignment,
+  terrainBounds,
 } from './dev-forestry-roads/terrain'
+import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
@@ -206,6 +211,9 @@ export default function DevForestryRoads() {
   const [playing, setPlaying] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
   const [filesOpen, setFilesOpen] = useState(false)
+  const [projectsOpen, setProjectsOpen] = useState(false)
+  // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
+  const pendingProject = useRef<string | null>(null)
   const planMap = useRef<MapLibreMap | null>(null)
   const onPlanReady = useCallback((map: MapLibreMap | null) => {
     planMap.current = map
@@ -610,9 +618,9 @@ export default function DevForestryRoads() {
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
     void run('Loading terrain…', async (signal) => {
       if (kind === 'demo') {
-        w.setSource(demoTerrain)
-        w.commit(createDemoProject())
-        w.setNotice('Synthetic training project loaded.')
+        await w.flush()
+        w.startProject(createDemoProject(), demoTerrain)
+        w.setNotice('Opened the training example as a new project. Your previous project is under Projects.')
       } else {
         const loaded =
           kind === 'lidar'
@@ -644,6 +652,79 @@ export default function DevForestryRoads() {
       setFitRevision((n) => n + 1)
       w.setStation(0)
     })
+  /** A new project on `terrain`, with one straight road at `centre` to drag or replace. */
+  const startOn = (name: string, terrain: RoadProject['terrain'], terrainSource: TerrainSource, centre: Coordinate) => {
+    const road = starterAlignment(centre)
+    w.startProject(
+      parseProject({
+        ...createDemoProject(),
+        name,
+        terrain,
+        alignments: [road],
+        activeAlignmentId: road.id,
+        context: [],
+        cables: [],
+        profiles: [],
+        settings: project.settings,
+      }),
+      terrainSource,
+    )
+    setMode('edit')
+  }
+  const createProject = (start: NewProject) => {
+    if (start.kind === 'import') {
+      pendingProject.current = start.name
+      requestFile('terrain')
+      return
+    }
+    void run('Starting a new project…', async (signal) => {
+      if (start.kind === 'training') {
+        await w.flush()
+        w.startProject({ ...createDemoProject(), name: start.name }, demoTerrain)
+      } else if (start.kind === 'lidar') {
+        const loaded = await loadLidarTerrain(signal, w.setBusy)
+        if (signal.aborted) return
+        await w.flush()
+        const alignments = loaded.alignments!
+        w.startProject(
+          {
+            ...createDemoProject(),
+            name: start.name,
+            terrain: loaded.metadata,
+            alignments,
+            activeAlignmentId: alignments[0].id,
+            context: [],
+            cables: [],
+            profiles: [],
+          },
+          loaded.source,
+        )
+      } else {
+        const [lon, lat] = start.centre
+        const dLat = start.sizeKm / 2 / 111.32,
+          dLon = dLat / Math.cos((lat * Math.PI) / 180)
+        w.setBusy('Loading regional terrain…')
+        const loaded = await loadRegionalTerrain([lon - dLon, lat - dLat, lon + dLon, lat + dLat], signal)
+        if (signal.aborted) return
+        await w.flush()
+        startOn(start.name, loaded.metadata, loaded.source, start.centre)
+      }
+      w.setNotice(
+        start.kind === 'regional'
+          ? `Started ${start.name}. Drag the ends of the first road, or use Peg road to draw your own.`
+          : `Started ${start.name}.`,
+      )
+      setActiveProfile(null)
+      setFitRevision((n) => n + 1)
+    })
+  }
+  const switchProject = (id: string) =>
+    void run('Opening project…', async (signal) => {
+      await w.openProject(id, signal)
+      setActiveProfile(null)
+      setFitRevision((n) => n + 1)
+      w.setNotice('Opened from this browser’s projects.')
+    })
   const requestFile = (kind: FileKind) => {
     if (w.busy) return
     fileKind.current = kind
@@ -672,6 +753,20 @@ export default function DevForestryRoads() {
             })
           : { ...(await loadRaster(file, verticalReference)), summary: '' }
         if (signal.aborted) return
+        const name = pendingProject.current
+        pendingProject.current = null
+        if (name !== null) {
+          const bounds = terrainBounds(loaded.metadata)
+          if (!bounds) throw Error('Could not locate the imported terrain.')
+          await w.flush()
+          startOn(name, loaded.metadata, loaded.source, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
+          w.setNotice(
+            `${loaded.summary ? `${loaded.summary} ` : ''}New project on ${file.name}. Drag the ends of the first road, or use Peg road to draw your own.`,
+          )
+          w.enablePersistence()
+          setFitRevision((n) => n + 1)
+          return
+        }
         w.setSource(loaded.source)
         w.commit({ ...project, terrain: loaded.metadata })
         w.setNotice(
@@ -700,8 +795,12 @@ export default function DevForestryRoads() {
             : layers
         } else raw = JSON.parse(await file.text())
         if (signal.aborted) return
-        if (fileKind.current === 'project') await w.restore(parseProject(raw), signal)
-        else if (fileKind.current === 'alignment') {
+        if (fileKind.current === 'project') {
+          const opened = parseProject(raw)
+          await w.flush()
+          // A project file opens as its own project; the one that was open stays saved.
+          await w.restore(opened, signal)
+        } else if (fileKind.current === 'alignment') {
           const lines = importAlignmentGeoJson(raw).map((a) => ({
             ...a,
             id: uid(),
@@ -1112,6 +1211,20 @@ export default function DevForestryRoads() {
               Show loading notification
             </Button>
           )}
+          {(w.projectId || w.library.length > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
+              aria-label="Projects"
+              title={`Projects · ${project.name}`}
+              disabled={!!w.busy}
+              onClick={() => setProjectsOpen(true)}
+            >
+              <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
+              <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -1136,6 +1249,32 @@ export default function DevForestryRoads() {
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
       </header>
+      <ProjectsDialog
+        open={projectsOpen}
+        onOpenChange={setProjectsOpen}
+        library={w.library}
+        activeId={w.projectId}
+        centre={(() => {
+          const [x0, y0, x1, y1] = boundsOf(project)
+          return [(x0 + x1) / 2, (y0 + y1) / 2]
+        })()}
+        busy={!!busy}
+        onOpen={switchProject}
+        onDuplicate={(id) =>
+          void w.duplicateProject(id).then(
+            () => w.setNotice('Duplicated. The copy is in Projects.'),
+            (cause) => w.setError(cause instanceof Error ? cause.message : 'Could not duplicate the project.'),
+          )
+        }
+        onDelete={(id) =>
+          void w
+            .removeProject(id)
+            .catch((cause) => w.setError(cause instanceof Error ? cause.message : 'Could not delete the project.'))
+        }
+        onOpenFile={() => requestFile('project')}
+        onCreate={createProject}
+        portalContainer={ref.current}
+      />
       <FilesDialog
         open={filesOpen}
         onOpenChange={setFilesOpen}
@@ -1564,332 +1703,350 @@ export default function DevForestryRoads() {
                     </FullscreenPanel>
                   }
                   profile={
-                    <FullscreenPanel
-                      actions={closePanel('profile')}
-                      title={
-                        terrainProfile ? 'Terrain profile · elevation & distance' : 'Road profile · ground & formation'
-                      }
-                      compact
-                      className="flex min-h-0 flex-1 flex-col"
-                    >
-                      {() => (
-                        <div className="min-h-0 flex-1">
-                          <ProfileChart
-                            selectedRange={terrainProfile ? undefined : selectedRange}
-                            onViewRangeChange={onProfileRange}
-                            selectedCulvertId={currentCulvertId}
-                            onSelectCulvert={selectCulvert}
-                            terrainOnly={!!terrainProfile}
-                            analysis={profileAnalysis}
-                            alignment={displayedAlignment}
-                            station={station}
-                            onStation={w.setStation}
-                            onVerticalChange={
-                              busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
-                                ? undefined
-                                : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
-                            }
-                          />
-                        </div>
+                    <ChartHeader storageKey="pgmaps-road-chart-view:profile">
+                      {(chartSlot) => (
+                        <FullscreenPanel
+                          actions={
+                            <>
+                              {chartSlot}
+                              {closePanel('profile')}
+                            </>
+                          }
+                          title={
+                            terrainProfile
+                              ? 'Terrain profile · elevation & distance'
+                              : 'Road profile · ground & formation'
+                          }
+                          compact
+                          className="flex min-h-0 flex-1 flex-col"
+                        >
+                          {() => (
+                            <div className="min-h-0 flex-1">
+                              <ProfileChart
+                                selectedRange={terrainProfile ? undefined : selectedRange}
+                                onViewRangeChange={onProfileRange}
+                                selectedCulvertId={currentCulvertId}
+                                onSelectCulvert={selectCulvert}
+                                terrainOnly={!!terrainProfile}
+                                analysis={profileAnalysis}
+                                alignment={displayedAlignment}
+                                station={station}
+                                onStation={w.setStation}
+                                onVerticalChange={
+                                  busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                    ? undefined
+                                    : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
+                                }
+                              />
+                            </div>
+                          )}
+                        </FullscreenPanel>
                       )}
-                    </FullscreenPanel>
+                    </ChartHeader>
                   }
                   detail={
-                    <FullscreenPanel
-                      title={
-                        detail === 'section'
-                          ? 'Cross-section'
-                          : detail === 'terrain'
-                            ? '3D terrain'
-                            : detail === 'mass'
-                              ? 'Mass haul'
-                              : detail === 'table'
-                                ? 'Station schedule'
-                                : detail === 'compare'
-                                  ? 'Compare alternatives'
-                                  : detail === 'pegs'
-                                    ? 'Pegging data'
-                                    : detail === 'engineering'
-                                      ? 'Engineering quantities'
-                                      : detail === 'landing'
-                                        ? 'Landing deflection explorer'
-                                        : detail === 'drainage'
-                                          ? 'Drainage · existing vs design surface'
-                                          : 'D-line clearance'
-                      }
-                      actions={
-                        <>
-                          <AppSelect
-                            className="min-w-0"
-                            value={detail}
-                            onValueChange={(value) => setDetail(value as typeof detail)}
-                            options={[
-                              { value: 'section', label: 'Section' },
-                              { value: 'terrain', label: '3D' },
-                              { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
-                              { value: 'table', label: 'Stations' },
-                              { value: 'compare', label: 'Compare' },
-                              { value: 'cable', label: 'D-line' },
-                              { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
-                              { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
-                              { value: 'landing', label: 'Landing' },
-                              { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
-                            ]}
-                            triggerAriaLabel="Road detail view"
-                            triggerClassName="h-8 w-32 max-w-full text-xs"
-                            contentClassName="z-[1500] text-xs"
-                          />
-                          {detail === 'section' && !terrainProfile && (
-                            <Button size="sm" variant="outline" disabled={!at || !!busy} onClick={saveSection}>
-                              Section CSV
-                            </Button>
-                          )}
-                          {closePanel('detail')}
-                        </>
-                      }
-                      compact
-                      className="flex min-h-0 flex-1 flex-col"
-                    >
-                      {() => (
-                        <div className="flex min-h-0 flex-1 flex-col gap-2">
-                          <div className="min-h-0 flex-1">
-                            {detail === 'section' && (
-                              <CrossSectionChart
-                                selectedCulvertId={currentCulvertId}
-                                onSelectCulvert={selectCulvert}
-                                alignment={displayedAlignment}
-                                analysis={displayedAnalysis}
-                                terrainOnly={!!terrainProfile}
-                                station={
-                                  terrainProfile && at
-                                    ? {
-                                        ...at,
-                                        section: at.section.map((s) => ({ ...s, design: null })),
-                                        cutAreaM2: null,
-                                        fillAreaM2: null,
-                                        leftDaylightM: null,
-                                        rightDaylightM: null,
-                                      }
-                                    : at
-                                }
-                                onShift={
-                                  busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
-                                    ? undefined
-                                    : shiftSection
-                                }
-                                onVerticalShift={
-                                  busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
-                                    ? undefined
-                                    : shiftFormation
-                                }
+                    <ChartHeader storageKey="pgmaps-road-chart-view:detail">
+                      {(chartSlot) => (
+                        <FullscreenPanel
+                          title={
+                            detail === 'section'
+                              ? 'Cross-section'
+                              : detail === 'terrain'
+                                ? '3D terrain'
+                                : detail === 'mass'
+                                  ? 'Mass haul'
+                                  : detail === 'table'
+                                    ? 'Station schedule'
+                                    : detail === 'compare'
+                                      ? 'Compare alternatives'
+                                      : detail === 'pegs'
+                                        ? 'Pegging data'
+                                        : detail === 'engineering'
+                                          ? 'Engineering quantities'
+                                          : detail === 'landing'
+                                            ? 'Landing deflection explorer'
+                                            : detail === 'drainage'
+                                              ? 'Drainage · existing vs design surface'
+                                              : 'D-line clearance'
+                          }
+                          actions={
+                            <>
+                              <AppSelect
+                                className="min-w-0"
+                                value={detail}
+                                onValueChange={(value) => setDetail(value as typeof detail)}
+                                options={[
+                                  { value: 'section', label: 'Section' },
+                                  { value: 'terrain', label: '3D' },
+                                  { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
+                                  { value: 'table', label: 'Stations' },
+                                  { value: 'compare', label: 'Compare' },
+                                  { value: 'cable', label: 'D-line' },
+                                  { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
+                                  { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
+                                  { value: 'landing', label: 'Landing' },
+                                  { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
+                                ]}
+                                triggerAriaLabel="Road detail view"
+                                triggerClassName="h-8 w-32 max-w-full text-xs"
+                                contentClassName="z-[1500] text-xs"
                               />
-                            )}
-                            {detail === 'terrain' && (
-                              <TerrainPreview
-                                selectedRange={terrainProfile ? undefined : selectedRange}
-                                selectedCulvertId={currentCulvertId}
-                                onSelectCulvert={selectCulvert}
-                                terrainOnly={!!terrainProfile}
-                                sourceLabel={project.terrain.name}
-                                analysis={displayedAnalysis}
-                                terrain={source}
-                                station={station}
-                                onStation={w.setStation}
-                                playing={playing}
-                              />
-                            )}
-                            {detail === 'mass' && !terrainProfile && (
-                              <MassHaulChart
-                                selectedRange={selectedRange}
-                                viewRange={sharedProfileRange}
-                                analysis={displayedAnalysis}
-                                station={station}
-                                onStation={w.setStation}
-                              />
-                            )}
-                            {detail === 'table' && (
-                              <DesignSchedules
-                                alignment={displayedAlignment}
-                                analysis={displayedAnalysis}
-                                station={station}
-                                onStation={setStation}
-                                terrainOnly={!!terrainProfile}
-                                onVerticalChange={
-                                  busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview
-                                    ? undefined
-                                    : (vertical) =>
-                                        commitValidated({
-                                          ...project,
-                                          alignments: project.alignments.map((a) =>
-                                            a.id === alignment.id ? { ...a, vertical } : a,
-                                          ),
-                                        })
-                                }
-                              >
-                                <StationTable
-                                  terrainOnly={!!terrainProfile}
-                                  analysis={displayedAnalysis}
-                                  station={station}
-                                  onStation={w.setStation}
-                                />
-                              </DesignSchedules>
-                            )}
-                            {detail === 'pegs' && !terrainProfile && (
-                              <PeggingEditor
-                                alignment={draftAlignment ?? alignment}
-                                analysis={displayedAnalysis}
-                                source={source}
-                                disabled={!!busy || mode === 'road' || !!templatePreview}
-                                onStation={setStation}
-                                onPoint={setSelectedPoint}
-                                onPreview={setOverlay}
-                                onPreviewAlignment={previewPeg}
-                                onChange={(next) =>
-                                  commitValidated({
-                                    ...project,
-                                    alignments: project.alignments.map((a) => (a.id === next.id ? next : a)),
-                                  })
-                                }
-                              />
-                            )}
-                            {detail === 'engineering' && !terrainProfile && (
-                              <EngineeringSummary
-                                selectedCulvertId={currentCulvertId}
-                                onSelectCulvert={selectCulvert}
-                                analysis={displayedAnalysis}
-                                settings={project.settings}
-                                station={station}
-                                onStation={setStation}
-                                onExport={() => {
-                                  try {
-                                    parseProject(project)
-                                    if (draftAlignment || numericPegAlignment || templatePreview)
-                                      throw Error(
-                                        'Finish or close the design preview before exporting calculated results.',
-                                      )
-                                    downloadText(
-                                      engineeringCsv(displayedAnalysis, project.terrain),
-                                      'road-engineering-quantities.csv',
-                                      'text/csv;charset=utf-8',
-                                    )
-                                  } catch (error) {
-                                    w.setError(error instanceof Error ? error.message : 'Could not export quantities.')
-                                  }
-                                }}
-                              />
-                            )}
-                            {detail === 'landing' && (
-                              <RadialDeflectionPanel
-                                source={source}
-                                center={at?.coordinate ?? null}
-                                centerLabel={formatRoadStation(at?.chainage ?? 0)}
-                                sourceLabel={project.terrain.name}
-                                onPreview={setOverlay}
-                                selectedSpokeId={selectedSpokeId}
-                                onSelectSpoke={setSelectedSpokeId}
-                                onAdopt={(line) => {
-                                  if (commitValidated({ ...project, cables: [...project.cables, line] })) {
-                                    selectCable(line.id)
-                                    w.setNotice(
-                                      'Selected landing spoke saved as an editable D-line. Its map and profile now share the same span cursor.',
-                                    )
-                                  }
-                                }}
-                              />
-                            )}
-                            {detail === 'drainage' && !terrainProfile && (
-                              <DrainagePanel
-                                run={drainageEntry?.run ?? null}
-                                stale={drainageStale}
-                                settings={drainageSettings}
-                                onSettings={changeDrainageSettings}
-                                onRun={checkDrainage}
-                                busy={!!busy}
-                                onStation={(chainage) => {
-                                  w.setStation(chainage)
-                                  if (focusMode) setFocusPane('plan')
-                                }}
-                              />
-                            )}
-                            {detail === 'compare' && (
-                              <CompareAlternatives
-                                alignments={project.alignments}
-                                analyses={w.analyses}
-                                activeId={alignment.id}
-                                onSelect={selectAlignment}
-                              />
-                            )}
-                            {detail === 'cable' &&
-                              (cableResult.error ? (
-                                <InlineAlert tone="error">{cableResult.error}</InlineAlert>
-                              ) : cableAnalysis ? (
-                                <div className="flex h-full min-h-0 flex-col">
-                                  <select
-                                    aria-label="Active D-line"
-                                    className="mb-1 rounded border bg-background text-xs"
-                                    value={cableLine.id}
-                                    onChange={(e) => selectCable(e.target.value)}
+                              {detail === 'section' && !terrainProfile && (
+                                <Button size="sm" variant="outline" disabled={!at || !!busy} onClick={saveSection}>
+                                  Section CSV
+                                </Button>
+                              )}
+                              {chartSlot}
+                              {closePanel('detail')}
+                            </>
+                          }
+                          compact
+                          className="flex min-h-0 flex-1 flex-col"
+                        >
+                          {() => (
+                            <div className="flex min-h-0 flex-1 flex-col gap-2">
+                              <div className="min-h-0 flex-1">
+                                {detail === 'section' && (
+                                  <CrossSectionChart
+                                    selectedCulvertId={currentCulvertId}
+                                    onSelectCulvert={selectCulvert}
+                                    alignment={displayedAlignment}
+                                    analysis={displayedAnalysis}
+                                    terrainOnly={!!terrainProfile}
+                                    station={
+                                      terrainProfile && at
+                                        ? {
+                                            ...at,
+                                            section: at.section.map((s) => ({ ...s, design: null })),
+                                            cutAreaM2: null,
+                                            fillAreaM2: null,
+                                            leftDaylightM: null,
+                                            rightDaylightM: null,
+                                          }
+                                        : at
+                                    }
+                                    onShift={
+                                      busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                        ? undefined
+                                        : shiftSection
+                                    }
+                                    onVerticalShift={
+                                      busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                        ? undefined
+                                        : shiftFormation
+                                    }
+                                  />
+                                )}
+                                {detail === 'terrain' && (
+                                  <TerrainPreview
+                                    selectedRange={terrainProfile ? undefined : selectedRange}
+                                    selectedCulvertId={currentCulvertId}
+                                    onSelectCulvert={selectCulvert}
+                                    terrainOnly={!!terrainProfile}
+                                    sourceLabel={project.terrain.name}
+                                    analysis={displayedAnalysis}
+                                    terrain={source}
+                                    station={station}
+                                    onStation={w.setStation}
+                                    playing={playing}
+                                  />
+                                )}
+                                {detail === 'mass' && !terrainProfile && (
+                                  <MassHaulChart
+                                    selectedRange={selectedRange}
+                                    viewRange={sharedProfileRange}
+                                    analysis={displayedAnalysis}
+                                    station={station}
+                                    onStation={w.setStation}
+                                  />
+                                )}
+                                {detail === 'table' && (
+                                  <DesignSchedules
+                                    alignment={displayedAlignment}
+                                    analysis={displayedAnalysis}
+                                    station={station}
+                                    onStation={setStation}
+                                    terrainOnly={!!terrainProfile}
+                                    onVerticalChange={
+                                      busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview
+                                        ? undefined
+                                        : (vertical) =>
+                                            commitValidated({
+                                              ...project,
+                                              alignments: project.alignments.map((a) =>
+                                                a.id === alignment.id ? { ...a, vertical } : a,
+                                              ),
+                                            })
+                                    }
                                   >
-                                    {project.cables.map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {c.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {cableResult.summary && (
-                                    <details
-                                      className="mb-1 rounded border px-2 py-1 text-[11px]"
-                                      data-testid="road-cable-summary"
-                                    >
-                                      <summary className="cursor-pointer">
-                                        Horizontal span {number(cableResult.summary.horizontalSpanM)} m · assumed sag{' '}
-                                        {number(cableResult.summary.assumedSagM)} m
-                                      </summary>
-                                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-                                        <span>
-                                          Support Δ elevation {number(cableResult.summary.supportElevationDifferenceM)}{' '}
-                                          m
-                                        </span>
-                                        <span>
-                                          Straight chord {number(cableResult.summary.straightSupportChordM)} m
-                                        </span>
-                                        <span>
-                                          Sampled cable geometry{' '}
-                                          {number(cableResult.summary.sampledGeometricCableLengthM)} m
-                                        </span>
-                                        <span>Known ground {number(cableResult.summary.knownGroundPercent)}%</span>
-                                      </div>
-                                      <p className="mt-1 text-muted-foreground">
-                                        Geometric lengths describe the entered sag model; equipment, tension and
-                                        operating loads are not calculated.
-                                      </p>
-                                    </details>
-                                  )}
-                                  <div className="mb-1 flex gap-1">
-                                    <Button size="sm" variant="outline" onClick={() => saveCableProfile('csv')}>
-                                      D-line CSV
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
-                                      D-line report
-                                    </Button>
-                                  </div>
-                                  <div className="min-h-0 flex-1">
-                                    <CableChart
-                                      analysis={cableAnalysis}
-                                      distance={cableDistance}
-                                      onDistance={setCableDistance}
+                                    <StationTable
+                                      terrainOnly={!!terrainProfile}
+                                      analysis={displayedAnalysis}
+                                      station={station}
+                                      onStation={w.setStation}
                                     />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="p-4 text-sm text-muted-foreground">
-                                  Draw a D-line in Review to inspect an assumed cable-clearance profile.
-                                </div>
-                              ))}
-                          </div>
-                        </div>
+                                  </DesignSchedules>
+                                )}
+                                {detail === 'pegs' && !terrainProfile && (
+                                  <PeggingEditor
+                                    alignment={draftAlignment ?? alignment}
+                                    analysis={displayedAnalysis}
+                                    source={source}
+                                    disabled={!!busy || mode === 'road' || !!templatePreview}
+                                    onStation={setStation}
+                                    onPoint={setSelectedPoint}
+                                    onPreview={setOverlay}
+                                    onPreviewAlignment={previewPeg}
+                                    onChange={(next) =>
+                                      commitValidated({
+                                        ...project,
+                                        alignments: project.alignments.map((a) => (a.id === next.id ? next : a)),
+                                      })
+                                    }
+                                  />
+                                )}
+                                {detail === 'engineering' && !terrainProfile && (
+                                  <EngineeringSummary
+                                    selectedCulvertId={currentCulvertId}
+                                    onSelectCulvert={selectCulvert}
+                                    analysis={displayedAnalysis}
+                                    settings={project.settings}
+                                    station={station}
+                                    onStation={setStation}
+                                    onExport={() => {
+                                      try {
+                                        parseProject(project)
+                                        if (draftAlignment || numericPegAlignment || templatePreview)
+                                          throw Error(
+                                            'Finish or close the design preview before exporting calculated results.',
+                                          )
+                                        downloadText(
+                                          engineeringCsv(displayedAnalysis, project.terrain),
+                                          'road-engineering-quantities.csv',
+                                          'text/csv;charset=utf-8',
+                                        )
+                                      } catch (error) {
+                                        w.setError(
+                                          error instanceof Error ? error.message : 'Could not export quantities.',
+                                        )
+                                      }
+                                    }}
+                                  />
+                                )}
+                                {detail === 'landing' && (
+                                  <RadialDeflectionPanel
+                                    source={source}
+                                    center={at?.coordinate ?? null}
+                                    centerLabel={formatRoadStation(at?.chainage ?? 0)}
+                                    sourceLabel={project.terrain.name}
+                                    onPreview={setOverlay}
+                                    selectedSpokeId={selectedSpokeId}
+                                    onSelectSpoke={setSelectedSpokeId}
+                                    onAdopt={(line) => {
+                                      if (commitValidated({ ...project, cables: [...project.cables, line] })) {
+                                        selectCable(line.id)
+                                        w.setNotice(
+                                          'Selected landing spoke saved as an editable D-line. Its map and profile now share the same span cursor.',
+                                        )
+                                      }
+                                    }}
+                                  />
+                                )}
+                                {detail === 'drainage' && !terrainProfile && (
+                                  <DrainagePanel
+                                    run={drainageEntry?.run ?? null}
+                                    stale={drainageStale}
+                                    settings={drainageSettings}
+                                    onSettings={changeDrainageSettings}
+                                    onRun={checkDrainage}
+                                    busy={!!busy}
+                                    onStation={(chainage) => {
+                                      w.setStation(chainage)
+                                      if (focusMode) setFocusPane('plan')
+                                    }}
+                                  />
+                                )}
+                                {detail === 'compare' && (
+                                  <CompareAlternatives
+                                    alignments={project.alignments}
+                                    analyses={w.analyses}
+                                    activeId={alignment.id}
+                                    onSelect={selectAlignment}
+                                  />
+                                )}
+                                {detail === 'cable' &&
+                                  (cableResult.error ? (
+                                    <InlineAlert tone="error">{cableResult.error}</InlineAlert>
+                                  ) : cableAnalysis ? (
+                                    <div className="flex h-full min-h-0 flex-col">
+                                      <select
+                                        aria-label="Active D-line"
+                                        className="mb-1 rounded border bg-background text-xs"
+                                        value={cableLine.id}
+                                        onChange={(e) => selectCable(e.target.value)}
+                                      >
+                                        {project.cables.map((c) => (
+                                          <option key={c.id} value={c.id}>
+                                            {c.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      {cableResult.summary && (
+                                        <details
+                                          className="mb-1 rounded border px-2 py-1 text-[11px]"
+                                          data-testid="road-cable-summary"
+                                        >
+                                          <summary className="cursor-pointer">
+                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m · assumed
+                                            sag {number(cableResult.summary.assumedSagM)} m
+                                          </summary>
+                                          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                                            <span>
+                                              Support Δ elevation{' '}
+                                              {number(cableResult.summary.supportElevationDifferenceM)} m
+                                            </span>
+                                            <span>
+                                              Straight chord {number(cableResult.summary.straightSupportChordM)} m
+                                            </span>
+                                            <span>
+                                              Sampled cable geometry{' '}
+                                              {number(cableResult.summary.sampledGeometricCableLengthM)} m
+                                            </span>
+                                            <span>Known ground {number(cableResult.summary.knownGroundPercent)}%</span>
+                                          </div>
+                                          <p className="mt-1 text-muted-foreground">
+                                            Geometric lengths describe the entered sag model; equipment, tension and
+                                            operating loads are not calculated.
+                                          </p>
+                                        </details>
+                                      )}
+                                      <div className="mb-1 flex gap-1">
+                                        <Button size="sm" variant="outline" onClick={() => saveCableProfile('csv')}>
+                                          D-line CSV
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
+                                          D-line report
+                                        </Button>
+                                      </div>
+                                      <div className="min-h-0 flex-1">
+                                        <CableChart
+                                          analysis={cableAnalysis}
+                                          distance={cableDistance}
+                                          onDistance={setCableDistance}
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="p-4 text-sm text-muted-foreground">
+                                      Draw a D-line in Review to inspect an assumed cable-clearance profile.
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </FullscreenPanel>
                       )}
-                    </FullscreenPanel>
+                    </ChartHeader>
                   }
                   data={
                     !['engineering', 'pegging'].includes(layout) ? null : (

@@ -10,6 +10,7 @@ import {
 import { terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadOptimizationResult } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { Alignment, RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { expandRoadSection } from './road-sidebar'
 
 test.skip(
   process.env.PGMAPS_ROAD_OPTIONS !== '1' || !process.env.PGMAPS_ROAD_OPTIONS_PROJECT,
@@ -74,6 +75,7 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
     // The baseline is an actual UI-produced edited road file, opened afresh for every preference.
     await open(page, baselinePath, baseline.activeAlignmentId)
     expect(await save(page)).toEqual(baseline)
+    await expandRoadSection(page, 'road-route-tools')
     await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
     await page.getByLabel('Corridor half-width metres', { exact: true }).fill('100')
     await expect(page.getByLabel('Corridor optimization objective', { exact: true })).toHaveValue(objective)

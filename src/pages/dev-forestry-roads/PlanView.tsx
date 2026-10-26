@@ -6,7 +6,14 @@ import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from 
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
-import { distance, horizontalCurveSummary, nearestStation, offsetCoordinate, positionAt } from './engine'
+import {
+  distance,
+  horizontalCurveSummary,
+  isBeyondReachFlag,
+  nearestStation,
+  offsetCoordinate,
+  positionAt,
+} from './engine'
 import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
 import { terrainBounds } from './terrain'
 import {
@@ -19,7 +26,15 @@ import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
-import type { Alignment, ContextFeature, Coordinate, RoadAnalysis, RoadProject, TerrainSource } from './types'
+import type {
+  Alignment,
+  ContextFeature,
+  Coordinate,
+  RoadAnalysis,
+  RoadProject,
+  RoadStation,
+  TerrainSource,
+} from './types'
 
 export type DrawMode = 'inspect' | 'edit' | 'road' | 'profile' | 'cable' | 'stream' | 'avoid'
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
@@ -313,43 +328,50 @@ function Layers(
       props.terrainOnly,
     ],
   )
-  const corridor = useMemo(
-    () =>
-      fc(
-        (props.terrainOnly ? [] : analysis.stations.slice(1)).flatMap((b, i) => {
-          const a = analysis.stations[i]
-          if (
-            !a.complete ||
-            !b.complete ||
-            a.leftDaylightM === null ||
-            a.rightDaylightM === null ||
-            b.leftDaylightM === null ||
-            b.rightDaylightM === null
-          )
-            return []
-          const points = [
-            offsetCoordinate(a.coordinate, a.bearing - 90, Math.abs(a.leftDaylightM)),
-            offsetCoordinate(b.coordinate, b.bearing - 90, Math.abs(b.leftDaylightM)),
-            offsetCoordinate(b.coordinate, b.bearing + 90, Math.abs(b.rightDaylightM)),
-            offsetCoordinate(a.coordinate, a.bearing + 90, Math.abs(a.rightDaylightM)),
-          ]
-          return [
-            {
-              type: 'Feature' as const,
-              geometry: { type: 'Polygon' as const, coordinates: [[...points, points[0]]] },
-              properties: {
-                chainage: (a.chainage + b.chainage) / 2,
-                color:
-                  (a.cutAreaM2 ?? 0) + (b.cutAreaM2 ?? 0) >= (a.fillAreaM2 ?? 0) + (b.fillAreaM2 ?? 0)
-                    ? '#d97706'
-                    : '#3b82f6',
-              },
+  const corridor = useMemo(() => {
+    const reach = props.project.settings.crossSectionHalfWidth
+    // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
+    // than dropped: the road is still there, the section just cannot close it.
+    const extent = (s: RoadStation, side: 'Left' | 'Right') => {
+      const daylight = side === 'Left' ? s.leftDaylightM : s.rightDaylightM
+      if (daylight !== null) return { offset: Math.abs(daylight), beyond: false }
+      if (s.groundElevation === null || !s.flags.some((f) => f.startsWith(side) && isBeyondReachFlag(f))) return null
+      return { offset: reach, beyond: true }
+    }
+    return fc(
+      (props.terrainOnly ? [] : analysis.stations.slice(1)).flatMap((b, i) => {
+        const a = analysis.stations[i]
+        const al = extent(a, 'Left'),
+          bl = extent(b, 'Left'),
+          br = extent(b, 'Right'),
+          ar = extent(a, 'Right')
+        if (!al || !bl || !br || !ar) return []
+        const beyond = al.beyond || bl.beyond || br.beyond || ar.beyond
+        if (!beyond && (!a.complete || !b.complete)) return []
+        const points = [
+          offsetCoordinate(a.coordinate, a.bearing - 90, al.offset),
+          offsetCoordinate(b.coordinate, b.bearing - 90, bl.offset),
+          offsetCoordinate(b.coordinate, b.bearing + 90, br.offset),
+          offsetCoordinate(a.coordinate, a.bearing + 90, ar.offset),
+        ]
+        return [
+          {
+            type: 'Feature' as const,
+            geometry: { type: 'Polygon' as const, coordinates: [[...points, points[0]]] },
+            properties: {
+              chainage: (a.chainage + b.chainage) / 2,
+              beyond,
+              color: beyond
+                ? '#dc2626'
+                : (a.cutAreaM2 ?? 0) + (b.cutAreaM2 ?? 0) >= (a.fillAreaM2 ?? 0) + (b.fillAreaM2 ?? 0)
+                  ? '#d97706'
+                  : '#3b82f6',
             },
-          ]
-        }),
-      ),
-    [analysis, props.terrainOnly],
-  )
+          },
+        ]
+      }),
+    )
+  }, [analysis, props.terrainOnly, props.project.settings.crossSectionHalfWidth])
   const formation = useMemo(
     () =>
       fc(
@@ -614,6 +636,13 @@ function Layers(
       paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.28 },
     })
     add({
+      id: 'road-corridor-reach',
+      type: 'line',
+      source: 'road-corridor',
+      filter: ['==', ['get', 'beyond'], true],
+      paint: { 'line-color': '#dc2626', 'line-width': 1.2, 'line-dasharray': [2, 2] },
+    })
+    add({
       id: 'road-formation',
       type: 'fill',
       source: 'road-formation',
@@ -739,7 +768,7 @@ function Layers(
     if (map.getLayer('road-terrain'))
       map.setLayoutProperty('road-terrain', 'visibility', props.terrainLayer === 'none' ? 'none' : 'visible')
     map.setLayoutProperty('road-contours', 'visibility', props.showContours ? 'visible' : 'none')
-    for (const id of ['road-corridor', 'road-formation', 'road-edges', 'road-ditches'])
+    for (const id of ['road-corridor', 'road-corridor-reach', 'road-formation', 'road-edges', 'road-ditches'])
       map.setLayoutProperty(id, 'visibility', props.showEarthwork && !props.terrainOnly ? 'visible' : 'none')
     // Keep all analytical overlays above a replaced terrain image/style.
     for (const id of [
@@ -747,6 +776,7 @@ function Layers(
       'road-context-fill',
       'road-context-line',
       'road-corridor',
+      'road-corridor-reach',
       'road-formation',
       'road-edges',
       'road-ditches',
@@ -1171,8 +1201,8 @@ function Layers(
               </p>
               {props.showEarthwork && !props.terrainOnly && (
                 <p>
-                  Envelope: amber predominant cut · blue predominant fill · grey formation edges · blue dashed ditch
-                  bottoms
+                  Envelope: amber predominant cut · blue predominant fill · red dashed batter past the section reach ·
+                  grey formation edges · blue dashed ditch bottoms
                 </p>
               )}
               <p>

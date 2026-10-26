@@ -370,8 +370,10 @@ Mobile omits the duplicate workspace heading, back link, action subtitle and ter
 badge beneath that navigation; the desktop heading row remains visible.
 At 480 px high or less, **Show road summary** opens the numbers and cost action
 on demand over the views, reserving that space for the plot by default.
-Chart slots below 260 px collapse their readouts into **Show chart details** while
-keeping the plot and station controls visible. The pane tabs respect the selected
+The profile and detail panel headers carry a **Chart details layout** switch (`ChartHeader`,
+`Charts.tsx`): chart only, chart with its readouts below, or readouts only, so the details work
+as a tab. Until someone picks, a chart slot below 260 px shows the chart only and a taller one
+shows both. The choice is kept per panel in this browser and holds when the detail view changes. The pane tabs respect the selected
 screen preset and closed panels; resizing never changes the road or saved layout.
 On phones, the cross-section's four adjustment buttons share one row with their
 full accessible labels; the group captions and hover text beneath them are hidden.
@@ -435,7 +437,10 @@ by average end areas; field and engineering review required for construction) is
 hover title of the terrain badge in the header, and is documented here and in
 [Geometric quantities and coverage](#geometric-quantities-and-coverage). The
 starting alignment on the published LiDAR tile is an editable example, not an
-existing or optimized road; its name says “review required”. Action notices
+existing or optimized road; its name says “review required”. It was chosen from the DTM
+(`loadLidarTerrain`) so that no no-data cell lies within 60 m of the centreline and the
+ground grade over any 50 m stays under 8 %: about 930 m with every section complete. Only
+a browser without a saved project gets it, or one replacing the training example. Action notices
 (exports, optimizer results, restores) replace the header subtitle for eight
 seconds in a polite live region instead of occupying a dismissible row.
 
@@ -526,6 +531,10 @@ cut/fill H:V batters, ditch width/depth and surfacing depth. Omitted side values
 inherit the symmetric template setting. The V-ditch is added only on a cut
 side. Daylight is solved against the supplied terrain source; missing terrain
 or unresolved daylight within the section width prevents a complete section.
+The station flag says which: a batter still above or below the ground where the
+reach ends is `beyondReachFlag` ("batter runs past the N m section reach"), and
+the plan draws it in red out to the reach rather than dropping the envelope;
+terrain that runs out first keeps "extend section or check terrain".
 
 Each alignment may store named template definitions and station-range
 assignments. An assignment applies to the left, right or both sides. It can
@@ -922,7 +931,7 @@ meets the limits after curve fitting, the optimizer says which standard or contr
 instead of returning one. The search stops at 5,000,000 level transitions across all price
 runs (`maxTransitions`), so fine-level searches may need a coarser step or smaller depth.
 
-On the published LiDAR tile (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 4, ends free)
+On the published LiDAR tile's earlier example road (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 4, ends free)
 the search took about 1.3 s in a desktop browser. It lowered the covered estimate from
 $795,170 to $420,793 at the 12 % maximum grade. With both ends tied to ground, the road's
 25 % drop near its end cannot be met at 12 % within ±5 m, and the optimizer reports that.
@@ -1242,9 +1251,11 @@ must not be treated as a successful loading of a different terrain.
 
 Autosave uses browser-local IndexedDB, validates before replacing the saved
 project, and retains the last valid save when an intermediate edit is invalid.
-Training-mode saves use a separate key from the normal current project, so they never
-overwrite it; `?example=training` always opens the example fresh and does not read that key
-back. A
+Each project has its own slot in a browser-local library (`projectLibrary.ts`); see
+[Autosave and restore](forestry-road-design/exports-and-project-files.md#autosave-and-restore)
+for new projects, switching and the stored keys. Training-mode saves use a separate key outside
+the library, so they never overwrite a project; `?example=training` always opens the example
+fresh and does not read that key back. A
 failed initial restore or local-storage read keeps normal autosave disabled until an explicit
 successful recovery/source action. Undo/redo history is in-memory; downloading
 the project remains the portable way to preserve work across browsers/devices.

@@ -200,11 +200,16 @@ test('short workspace keeps controls internally scrollable, reaches all engineer
   }
   await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
   const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
-  const details = profile.getByRole('button', { name: 'Show chart details', exact: true })
-  await expect(details).toBeVisible()
-  await details.click()
-  await expect(profile.getByRole('button', { name: 'Hide chart details', exact: true })).toBeVisible()
+  // A short chart starts folded; the header switch shows the details under it or on their own.
+  const views = profile.getByRole('group', { name: 'Chart details layout', exact: true })
+  await expect(views.getByRole('button', { name: 'Chart only', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await views.getByRole('button', { name: 'Chart with details below', exact: true }).click()
+  await expect(profile.locator('[data-chart-slot]')).toHaveAttribute('data-chart-view', 'both')
   await expectContained(page)
+  await views.getByRole('button', { name: 'Details only', exact: true }).click()
+  await expect(profile.locator('[data-chart-slot]')).toHaveAttribute('data-chart-view', 'details')
+  await expectContained(page)
+  await views.getByRole('button', { name: 'Chart with details below', exact: true }).click()
   await profile.getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true }).click()
   await expect(profile).toHaveAttribute('data-fullscreen', 'true')
   await expect

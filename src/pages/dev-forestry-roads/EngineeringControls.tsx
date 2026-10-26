@@ -1,8 +1,8 @@
+import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { createEngineeringDesign } from './engineeringTypes'
@@ -237,24 +237,29 @@ export function EngineeringControls({
     w.setStation(chainage)
   }
   return (
-    <div className="space-y-3" data-testid="road-engineering-controls">
-      <TabBar
-        label="Engineering inputs"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'templates', label: 'Templates' },
-          { value: 'materials', label: 'Ground' },
-          { value: 'culverts', label: 'Drainage' },
-          { value: 'haul', label: 'Haul' },
-        ]}
-      />
-      <Button size="sm" variant="outline" className="w-full" onClick={onQuantities}>
-        Show quantities & cost breakdown
-      </Button>
+    <div data-testid="road-engineering-controls">
+      <div className="space-y-2 border-b p-3">
+        <TabBar
+          label="Engineering inputs"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'templates', label: 'Templates' },
+            { value: 'materials', label: 'Ground' },
+            { value: 'culverts', label: 'Drainage' },
+            { value: 'haul', label: 'Haul' },
+          ]}
+        />
+        <Button size="sm" variant="outline" className="w-full" onClick={onQuantities}>
+          Show quantities & cost breakdown
+        </Button>
+      </div>
       {tab === 'templates' && (
         <>
-          <SidebarSection title="Named template library">
+          <RoadSection
+            title="Named template library"
+            help="Road, landing and asymmetric sections can be reused by station range. Presets are editable starting dimensions. Optional side values override the symmetric section. Positive crossfall falls away from the crown; negative rises."
+          >
             <input
               ref={libraryInput}
               data-testid="road-library-input"
@@ -318,10 +323,6 @@ export function EngineeringControls({
                 <option value="replace">Replace library & clear assignments</option>
               </select>
             </Field>
-            <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-              Road, landing and asymmetric sections can be reused by station range. Presets are editable starting
-              dimensions.
-            </p>
             <Field label="Template starting point">
               <select
                 aria-label="Template starting point"
@@ -416,10 +417,6 @@ export function EngineeringControls({
                 <Fields value={candidate} fields={templateFields} onChange={updateTemplate} />
                 <details className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
-                  <p className="my-2 text-[11px] text-muted-foreground">
-                    Optional side values override the symmetric section. Positive crossfall falls away from the crown;
-                    negative rises.
-                  </p>
                   <div className="space-y-2">
                     {sideFields.map((field) => (
                       <div key={String(field.key)} className="flex items-end gap-1">
@@ -506,8 +503,11 @@ export function EngineeringControls({
                 />
               </div>
             )}
-          </SidebarSection>
-          <SidebarSection title="Template station assignments">
+          </RoadSection>
+          <RoadSection
+            title="Template station assignments"
+            help="Ranges on the same side must not overlap. Transitions blend from the base section within each end of the range. Landings/turnouts remain additional width overrides."
+          >
             <Button
               variant="outline"
               size="sm"
@@ -587,20 +587,15 @@ export function EngineeringControls({
                 />
               </div>
             ))}
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Ranges on the same side must not overlap. Transitions blend from the base section within each end of the
-              range. Landings/turnouts remain additional width overrides.
-            </p>
-          </SidebarSection>
+          </RoadSection>
         </>
       )}
       {tab === 'materials' && (
         <>
-          <SidebarSection title="Ground material definitions">
-            <p className="mb-2 text-[11px] text-muted-foreground">
-              Enter measured or assumed ground layers. Terrain elevations alone do not identify soil or rock. Unassigned
-              excavation stays explicitly unclassified.
-            </p>
+          <RoadSection
+            title="Ground material definitions"
+            help="Enter measured or assumed ground layers. Terrain elevations alone do not identify soil or rock. Unassigned excavation stays explicitly unclassified."
+          >
             <Button
               size="sm"
               variant="outline"
@@ -680,8 +675,11 @@ export function EngineeringControls({
                 />
               </div>
             ))}
-          </SidebarSection>
-          <SidebarSection title="Station ranges & ground horizons">
+          </RoadSection>
+          <RoadSection
+            title="Station ranges & ground horizons"
+            help="Depths are vertical below original ground. Horizons cannot overlap. Excavated stripping is reported separately and never reused; this does not model stripping or undercut beneath fill areas."
+          >
             <Button
               size="sm"
               variant="outline"
@@ -763,19 +761,14 @@ export function EngineeringControls({
                 </label>
               </div>
             ))}
-            <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-              Depths are vertical below original ground. Horizons cannot overlap. Excavated stripping is reported
-              separately and never reused; this does not model stripping or undercut beneath fill areas.
-            </p>
-          </SidebarSection>
+          </RoadSection>
         </>
       )}
       {tab === 'culverts' && (
-        <SidebarSection title="Culvert inventory & geometry">
-          <p className="mb-2 text-[11px] text-muted-foreground">
-            Place structures by road station. Skew, dimensions and entered inverts drive plan geometry, cover checks and
-            installed cost.
-          </p>
+        <RoadSection
+          title="Culvert inventory & geometry"
+          help="Place structures by road station. Skew, dimensions and entered inverts drive plan geometry, cover checks and installed cost. Invert initialization is a draft at the requested centre cover, not a survey. Dimensions and cover do not establish hydraulic capacity or fish passage."
+        >
           <Button size="sm" variant="outline" disabled={design.culverts.length >= 100} onClick={() => newCulvert()}>
             Add culvert at station
           </Button>
@@ -905,15 +898,11 @@ export function EngineeringControls({
               </div>
             )
           })}
-          <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-            Invert initialization is a draft at the requested centre cover, not a survey. Dimensions and cover do not
-            establish hydraulic capacity or fish passage.
-          </p>
-        </SidebarSection>
+        </RoadSection>
       )}
       {tab === 'haul' && (
         <>
-          <div className="space-y-2 rounded-lg border p-3">
+          <div className="m-3 space-y-2 rounded-lg border p-3">
             <label className="mb-3 flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
@@ -934,7 +923,10 @@ export function EngineeringControls({
             </p>
           </div>
           <RoadSettingsDialog title="Haul & cost settings" open={haulOpen} onOpenChange={setHaulOpen} busy={!!w.busy}>
-            <SidebarSection title="Haul & cost assumptions">
+            <RoadSection
+              title="Haul & cost assumptions"
+              help="Allocations use a deterministic nearest-source plan within covered intervals. Haul distance follows road chainage plus site access. This is a cost scenario, not a global route or haul optimizer."
+            >
               <Fields<HaulSettings>
                 value={design.haul}
                 fields={[
@@ -953,12 +945,11 @@ export function EngineeringControls({
                 ]}
                 onChange={(p) => edit((e) => ({ ...e, haul: { ...e.haul, ...p } }))}
               />
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Allocations use a deterministic nearest-source plan within covered intervals. Haul distance follows road
-                chainage plus site access. This is a cost scenario, not a global route or haul optimizer.
-              </p>
-            </SidebarSection>
-            <SidebarSection title="Borrow pits & waste sites">
+            </RoadSection>
+            <RoadSection
+              title="Borrow pits & waste sites"
+              help="Limited sites leave any unallocated borrow or waste visible. Borrow uses compacted volume; waste uses bank volume. Site rates replace the matching default procurement/disposal rate."
+            >
               <div className="flex gap-1">
                 {(['borrow', 'waste'] as const).map((kind) => (
                   <Button
@@ -1039,16 +1030,12 @@ export function EngineeringControls({
                   </label>
                 </div>
               ))}
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Limited sites leave any unallocated borrow or waste visible. Borrow uses compacted volume; waste uses
-                bank volume. Site rates replace the matching default procurement/disposal rate.
-              </p>
-            </SidebarSection>
+            </RoadSection>
           </RoadSettingsDialog>
         </>
       )}
       {at && (
-        <p className="border-t pt-2 text-[11px] text-muted-foreground">
+        <p className="px-3 py-2 text-[11px] text-muted-foreground">
           Editing {alignment.name} · selected station {formatRoadStation(at.chainage)}
         </p>
       )}

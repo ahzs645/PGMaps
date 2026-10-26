@@ -125,6 +125,8 @@ export interface TerrainMetadata {
   sourceUrl?: string
   sha256?: string
   raster?: LocalRaster
+  /** Regional DEMs only: the extent loaded, [west, south, east, north], so reopening loads it again. */
+  bounds?: [number, number, number, number]
 }
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'

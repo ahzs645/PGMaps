@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { NumberField, OptionalNumberField } from './Controls'
 import { formatRoadStation } from './Charts'
+import { RoadSection } from './SidebarParts'
 import { nearestStation } from './engine'
 import { EMPTY_VERTICAL_STANDARDS, type VerticalControl, type VerticalStandards } from './verticalStandards'
 import { curveLengthsForK } from './verticalTools'
@@ -72,13 +74,26 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   }
   const checks = analysis.verticalChecks ?? []
   const designed = alignment.vertical.length > 1
+  const standardCount =
+    standards.gradeRanges.length +
+    [standards.minSagK, standards.minCrestK, standards.minCurveLengthM, standards.minTangentLengthM].filter(
+      (v) => v !== null,
+    ).length
   return (
     <>
-      <SidebarSection title="Vertical standards">
-        <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          Signed grade limits by station range, minimum K and lengths. Empty fields are not checked; the road-wide
-          maximum grade still applies.
-        </p>
+      <CollapsibleSection
+        label="Vertical standards"
+        summary={standardCount ? `${standardCount} set` : 'None set'}
+        defaultOpen={standardCount > 0}
+        toggleProps={{ 'data-testid': 'road-vertical-standards' }}
+        contentClassName="px-3 pb-3"
+        actions={
+          <InfoTip label="About vertical standards">
+            Signed grade limits by station range, minimum K and curve and tangent lengths. Empty fields are not checked;
+            the road-wide maximum grade still applies.
+          </InfoTip>
+        }
+      >
         <div className="space-y-2">
           {standards.gradeRanges.map((range, index) => (
             <div
@@ -187,34 +202,40 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
               onChange={(minTangentLengthM) => setStandards({ minTangentLengthM })}
             />
           </div>
-          <div className="flex items-end gap-2">
-            <div className="w-24">
-              <NumberField label="Curve K" value={k} min={0.1} max={1000} onChange={setK} />
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={alignment.vertical.length < 3}
-              title="Sets each interior PVI's curve length to K × its grade change, at least the minimum curve length"
-              onClick={() =>
-                updateAlignment((a) => ({
-                  ...a,
-                  vertical: curveLengthsForK(a.vertical, k, a.verticalStandards?.minCurveLengthM ?? 0),
-                }))
-              }
-            >
-              Set every curve from K
-            </Button>
-          </div>
         </div>
-      </SidebarSection>
-      <SidebarSection title="Optimize vertical profile">
-        <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
-          ranges, the road-wide maximum grade, curve K above and every control point. The result is a new alternative.
-          “Total cost” also prices each interval's cut/fill imbalance and keeps the line the full analysis prices
-          lowest, with haul, borrow and waste.
-        </p>
+      </CollapsibleSection>
+      <RoadSection
+        title="Optimize vertical profile"
+        help={
+          <>
+            Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
+            ranges, the road-wide maximum grade, curve K and every control point. The result is a new alternative.
+            “Total cost” also prices each interval's cut/fill imbalance and keeps the line the full analysis prices
+            lowest, with haul, borrow and waste.
+            <br />
+            Curve K also sets every curve length at once: K × the grade change, at least the minimum curve length.
+          </>
+        }
+      >
+        <div className="mb-2 flex items-end gap-2">
+          <div className="w-24">
+            <NumberField label="Curve K" value={k} min={0.1} max={1000} onChange={setK} />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={alignment.vertical.length < 3}
+            title="Sets each interior PVI's curve length to K × its grade change, at least the minimum curve length"
+            onClick={() =>
+              updateAlignment((a) => ({
+                ...a,
+                vertical: curveLengthsForK(a.vertical, k, a.verticalStandards?.minCurveLengthM ?? 0),
+              }))
+            }
+          >
+            Set every curve from K
+          </Button>
+        </div>
         <div className="grid grid-cols-3 gap-1">
           <NumberField
             label="PVI spacing (m)"
@@ -267,12 +288,11 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         >
           Optimize profile (K {k})
         </Button>
-      </SidebarSection>
-      <SidebarSection title="Control points">
-        <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          Elevations and grades the profile must hold, each with a tolerance. Leave a target empty to check only the
-          other.
-        </p>
+      </RoadSection>
+      <RoadSection
+        title="Control points"
+        help="Elevations and grades the profile must hold, each with a tolerance. Leave a target empty to check only the other."
+      >
         <div className="space-y-2">
           {controls.map((c, index) => (
             <div key={c.id} className="rounded border p-2" data-vertical-control>
@@ -404,7 +424,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             The profile meets every set standard and control.
           </p>
         )}
-      </SidebarSection>
+      </RoadSection>
     </>
   )
 }

@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { createElement, useEffect } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readLibrary, readProject } from './projectLibrary'
 import { createDemoProject, demoTerrain, loadLidarTerrain, roadProjection } from './terrain'
 import type { Coordinate, RoadProject } from './types'
 import { useRoadWorkspace, type RoadWorkspace } from './useRoadWorkspace'
@@ -116,7 +117,9 @@ describe('road workspace persistence', () => {
       workspace.update((project) => ({ ...project, name: 'New saved road' }))
     })
     await vi.waitFor(() => expect(workspace.saving).toBe('Saved on this device'), { timeout: 2000 })
-    expect((await stored(indexedDB as IDBFactory))?.name).toBe('New saved road')
+    const { entries, activeId } = await readLibrary()
+    expect(entries.map((e) => e.name)).toEqual(['New saved road'])
+    expect((await readProject(activeId!))?.name).toBe('New saved road')
   })
 
   it('autosaves an edited imported DEM project and restores its road and embedded elevations on a fresh mount', async () => {
@@ -180,5 +183,59 @@ describe('road workspace persistence', () => {
     expect(workspace.project.terrain.raster).toEqual(raster)
     expect(workspace.source.elevationAt(...original.alignments[0].points[0].coordinate)).toBe(800)
     expect(loadLidarTerrain).not.toHaveBeenCalled()
+  })
+})
+
+describe('local project library', () => {
+  const saved = () => vi.waitFor(() => expect(workspace.saving).toBe('Saved on this device'), { timeout: 2000 })
+
+  it('moves the single pre-library autosave into the library and keeps it open', async () => {
+    await stored(indexedDB as IDBFactory, { ...createDemoProject(), name: 'Saved before the library' })
+    await openWorkspace()
+    expect(loadLidarTerrain).not.toHaveBeenCalled()
+    expect(workspace.project.name).toBe('Saved before the library')
+    expect(workspace.library.map((e) => e.name)).toEqual(['Saved before the library'])
+    expect(workspace.projectId).toBe(workspace.library[0].id)
+  })
+
+  it('keeps every project, switches between them without losing edits, and reopens the last one', async () => {
+    await openWorkspace()
+    const first = workspace.projectId!
+    await act(async () => {
+      workspace.update((project) => ({ ...project, name: 'First road project' }))
+    })
+    await saved()
+    // A project opened from a file becomes a new project; it does not overwrite the open one.
+    await act(async () => {
+      await workspace.restore({ ...createDemoProject(), name: 'From a file' })
+    })
+    const second = workspace.projectId!
+    expect(second).not.toBe(first)
+    await act(async () => {
+      workspace.update((project) => ({ ...project, name: 'From a file, edited' }))
+    })
+    await act(async () => {
+      await workspace.openProject(first)
+    })
+    expect(workspace.project.name).toBe('First road project')
+    expect(workspace.library.map((e) => e.name).sort()).toEqual(['First road project', 'From a file, edited'])
+    await act(async () => {
+      await workspace.duplicateProject(second)
+    })
+    expect(workspace.library.map((e) => e.name)).toContain('From a file, edited copy')
+    await expect(workspace.removeProject(first)).rejects.toThrow(/Open another project/)
+    await act(async () => {
+      await workspace.removeProject(second)
+    })
+    expect(workspace.library.map((e) => e.name).sort()).toEqual(['First road project', 'From a file, edited copy'])
+    expect(await readProject(second)).toBeUndefined()
+
+    await act(async () => {
+      renderer!.unmount()
+    })
+    renderer = undefined
+    await openWorkspace()
+    expect(workspace.projectId).toBe(first)
+    expect(workspace.project.name).toBe('First road project')
   })
 })

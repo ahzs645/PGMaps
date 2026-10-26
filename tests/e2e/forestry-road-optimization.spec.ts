@@ -2,6 +2,7 @@ import { expect, test, type Page, type Download } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import { distance, positionAt } from '../../src/pages/dev-forestry-roads/engine'
+import { expandRoadSection } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(150000)
@@ -42,6 +43,7 @@ async function prepare(page: Page) {
   project.context = []; project.cables = []; project.profiles = []
   project.settings.minRadius = 20; project.settings.maxGradePercent = 12
   await openProject(page, project)
+  await expandRoadSection(page, 'road-route-tools')
   await page.getByLabel('Corridor half-width metres', { exact: true }).fill('100')
   return { errors, project: await saved(page) }
 }
@@ -138,6 +140,7 @@ test('discard and cancellation never change the saved road', async ({ page }) =>
   cancellationProject.context = [{ id: 'cancel-barrier', name: 'Cancellation test exclusion', kind: 'avoid', geometry: { type: 'Polygon', coordinates: [[frame.fromXY([450, -500]), frame.fromXY([550, -500]), frame.fromXY([550, 1000]), frame.fromXY([450, 1000]), frame.fromXY([450, -500])]] } }]
   await openProject(page, cancellationProject)
   const beforeCancellation = await saved(page)
+  await expandRoadSection(page, 'road-route-tools')
   await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption('contour')
   await page.getByLabel('Corridor half-width metres', { exact: true }).fill('300')
   await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()

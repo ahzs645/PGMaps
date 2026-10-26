@@ -493,6 +493,7 @@ test('failed saved-terrain restoration cannot autosave synthetic fallback over t
         open.onsuccess = () => {
           const database = open.result
           const transaction = database.transaction('projects', 'readwrite')
+          // The pre-library autosave slot: the next normal load moves it into the library.
           transaction.objectStore('projects').put(project, 'current')
           transaction.oncomplete = () => {
             database.close()
@@ -524,10 +525,14 @@ test('failed saved-terrain restoration cannot autosave synthetic fallback over t
         open.onsuccess = () => {
           const database = open.result
           const transaction = database.transaction('projects', 'readonly')
-          const request = transaction.objectStore('projects').get('current')
-          request.onsuccess = () => resolve(request.result as RoadProject)
+          const store = transaction.objectStore('projects')
+          const active = store.get('active')
+          active.onsuccess = () => {
+            const request = store.get(`project:${active.result}`)
+            request.onsuccess = () => resolve(request.result as RoadProject)
+            request.onerror = () => reject(request.error)
+          }
           transaction.oncomplete = () => database.close()
-          request.onerror = () => reject(request.error)
         }
       }),
   )

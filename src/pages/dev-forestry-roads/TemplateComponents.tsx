@@ -83,9 +83,12 @@ export function TemplateComponents({
                   <li key={kind} role="treeitem" aria-selected={selected.side === side && selected.kind === kind}>
                     <button
                       className={`w-full truncate rounded px-1 text-left ${selected.side === side && selected.kind === kind ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                      aria-label={`${COMPONENTS[kind].name}-${side}`}
+                      title={`${COMPONENTS[kind].name}-${side}`}
                       onClick={() => setSelected({ side, kind })}
                     >
-                      {COMPONENTS[kind].name}-{side}
+                      {/* The group already names the side; the short name fits a narrow sidebar. */}
+                      {COMPONENTS[kind].name.split(' · ')[0]}
                     </button>
                   </li>
                 ))}

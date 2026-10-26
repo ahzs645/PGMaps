@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { expandRoadSection } from './road-sidebar'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -194,6 +195,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     ['balanced', 60],
     ['shortest', 100],
   ] as const) {
+    await expandRoadSection(page, 'road-route-tools')
     await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
     await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
     await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()

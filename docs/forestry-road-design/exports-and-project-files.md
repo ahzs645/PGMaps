@@ -70,6 +70,7 @@ book.
 | GeoJSON import                       | 20,000,000 characters, 500 features; lines: 20 roads, 2,000 vertices                                                          | `project.ts`, `features`, `importAlignmentGeoJson`                         | Refused                                                                                         |
 | Library JSON                         | 2,000,000 characters                                                                                                          | `project.ts`, `importRoadLibrary`                                          | Refused                                                                                         |
 | Autosave delay                       | 650 ms after the last edit                                                                                                    | `useRoadWorkspace.ts`                                                      | —                                                                                               |
+| New project from a regional DEM      | A 1–10 km square around the chosen point (default 3 km); at most 64 z12 DEM tiles                                             | `ProjectsDialog.tsx`; `terrain.ts` `loadRegionalTerrain`                   | Field clamps; error before loading                                                              |
 | Undo history                         | 30 steps; edits within 450 ms merge into one                                                                                  | `useRoadWorkspace.ts`, `commit`                                            | Oldest step dropped                                                                             |
 | Section and stake interval           | 20 m (nearest calculated station)                                                                                             | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)          | Fixed                                                                                           |
 | Plot book sheets                     | 250 m per plan-and-profile sheet; 12 sections per sheet                                                                       | `plotBook.ts`, `plotBookHtml`                                              | More sheets; no upper limit                                                                     |
@@ -181,28 +182,39 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 
 ### Autosave and restore
 
+- **Projects are kept in a library in this browser.** **Projects** in the header lists them with
+  their terrain, road count and last edit; open, duplicate or delete one there (the open project
+  cannot be deleted). **New project** starts from a regional DEM around a chosen place (a square
+  1–10 km wide, recorded as the terrain's `bounds` so a reopened project loads the same square),
+  an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example. A project always holds
+  at least one road, so the first three start with a straight 300 m road (`starterAlignment`) to
+  drag or replace; the BC sample brings its example road. Opening a project file, and the sidebar's
+  **Training example**, start a new project too; the one that was open stays saved.
 - **Autosave writes the whole validated project to IndexedDB** (`pgmaps-forestry-roads-v1`, key
-  `current`) 650 ms after each edit, embedded raster included. The header shows "Saved on this
-  device", "Local save unavailable — download your project" or "Last valid save retained: …". Below
-  the `xl` breakpoint it shows a small dot instead, whose tooltip and label carry the text.
+  `project:<id>`, listed under `library`, with `active` naming the one to reopen;
+  `projectLibrary.ts`) 650 ms after each edit, embedded raster included. Switching projects saves
+  the open one first. A pre-library save under `current` moves into the library on first load. The
+  header shows "Saved on this device", "Local save unavailable — download your project" or "Last
+  valid save retained: …". Below the `xl` breakpoint it shows a small dot instead, whose tooltip and
+  label carry the text.
 - **An invalid edit does not overwrite the last valid save.** The message names the problem.
 - **Autosave pauses while an error banner is shown,** and while the workspace is busy. Dismiss
   the banner to resume.
-- **One save per browser profile.** Two tabs of the workspace in the same browser write the same
-  key; the last edit wins with no warning.
+- **One tab per project.** Two tabs with the same project open write the same key; the last edit
+  wins with no warning.
 - **Private windows and quotas.** Where IndexedDB is unavailable or full, autosave fails with the
   "unavailable" message and the previous save, if any, remains. In a private window the save is
   discarded when the window closes. A project with a large embedded raster is the most likely to
   hit a quota.
 - **`?example=training` saves under a separate key (`training`) but never restores from it,** by
   design: training mode always starts fresh from the synthetic hillside, and its saves never
-  overwrite your `current` project.
+  touch the library.
 - **A restore that fails changes nothing.** The current project stays, undo history is kept, and
   the message says what is missing. If the saved project cannot be restored when the page opens,
   the training hillside is shown, the saved project is left untouched and autosave stays off
-  until you open a project, import a file or load terrain. After that the next autosave replaces
-  the unrestored save, and the workspace cannot download it for you. Fix the cause (for example
-  the network, for published LiDAR) and reload before you edit.
+  until you open a project, import a file or load terrain. That work then saves as a new project,
+  so the save that could not be restored stays in the library to retry once the cause is fixed
+  (for example the network, for published LiDAR).
 - **Unknown fields are dropped.** Parsing rebuilds the project from the fields it knows. A file
   edited by hand or written by a newer version loses anything extra on the next save.
 

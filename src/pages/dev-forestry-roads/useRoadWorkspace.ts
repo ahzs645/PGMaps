@@ -3,35 +3,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { safeAnalyzeRoad } from './analysisResult'
 import { createDemoProject, demoTerrain, loadLidarTerrain, terrainFromMetadata } from './terrain'
 import { parseProject } from './project'
+import {
+  addProject,
+  deleteProject,
+  readLibrary,
+  readProject,
+  writeProject,
+  writeTraining,
+  type LibraryEntry,
+} from './projectLibrary'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
 
-const DATABASE = 'pgmaps-forestry-roads-v1'
-async function storedProject(value?: RoadProject, key = 'current'): Promise<RoadProject | undefined> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 1)
-    request.onupgradeneeded = () => request.result.createObjectStore('projects')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const db = request.result,
-        transaction = db.transaction('projects', value ? 'readwrite' : 'readonly')
-      const operation = value
-        ? transaction.objectStore('projects').put(value, key)
-        : transaction.objectStore('projects').get(key)
-      let result: RoadProject | undefined
-      operation.onsuccess = () => {
-        if (!value) result = operation.result as RoadProject | undefined
-      }
-      transaction.oncomplete = () => {
-        db.close()
-        resolve(result)
-      }
-      transaction.onerror = () => {
-        db.close()
-        reject(transaction.error)
-      }
-    }
-  })
-}
+const training = () => new URLSearchParams(location.search).get('example') === 'training'
 
 export function useRoadWorkspace() {
   const [project, setProject] = useState(createDemoProject)
@@ -52,6 +35,17 @@ export function useRoadWorkspace() {
   const [canPersist, setCanPersist] = useState(false)
   const [saving, setSaving] = useState('')
   const [revision, setRevision] = useState(0)
+  // The open project's slot in this browser's library; null in training mode, which keeps its own.
+  const [projectId, setProjectIdState] = useState<string | null>(null)
+  // Saves read the id from a ref, so two quick saves never open two slots.
+  const projectIdRef = useRef<string | null>(null)
+  const setProjectId = useCallback((id: string | null) => {
+    projectIdRef.current = id
+    setProjectIdState(id)
+  }, [])
+  const [library, setLibrary] = useState<LibraryEntry[]>([])
+  const libraryRef = useRef(library)
+  libraryRef.current = library
   const history = useRef<{ past: RoadProject[]; future: RoadProject[] }>({ past: [], future: [] })
   const lastEdit = useRef(0)
   const abort = useRef<AbortController | null>(null)
@@ -80,8 +74,9 @@ export function useRoadWorkspace() {
     [update],
   )
 
+  /** Opens a project. `id` is its library slot; omit it to keep the project as a new one. */
   const restore = useCallback(
-    async (next: RoadProject, signal?: AbortSignal) => {
+    async (next: RoadProject, signal?: AbortSignal, id: string | null = crypto.randomUUID()) => {
       let terrain = terrainFromMetadata(next.terrain)
       if (!terrain && next.terrain.kind === 'geotiff') {
         const { loadTerrainMetadata } = await import('./terrain')
@@ -90,12 +85,14 @@ export function useRoadWorkspace() {
       if (!terrain && next.terrain.kind === 'regional') {
         const coords = next.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
         const { loadRegionalTerrain } = await import('./terrain')
+        // The recorded extent where there is one (older files have none), widened to every road.
+        const recorded = next.terrain.bounds
         const loaded = await loadRegionalTerrain(
           [
-            Math.min(...coords.map((p) => p[0])) - 0.001,
-            Math.min(...coords.map((p) => p[1])) - 0.001,
-            Math.max(...coords.map((p) => p[0])) + 0.001,
-            Math.max(...coords.map((p) => p[1])) + 0.001,
+            Math.min(recorded?.[0] ?? Infinity, ...coords.map((p) => p[0] - 0.001)),
+            Math.min(recorded?.[1] ?? Infinity, ...coords.map((p) => p[1] - 0.001)),
+            Math.max(recorded?.[2] ?? -Infinity, ...coords.map((p) => p[0] + 0.001)),
+            Math.max(recorded?.[3] ?? -Infinity, ...coords.map((p) => p[1] + 0.001)),
           ],
           signal,
         )
@@ -108,9 +105,23 @@ export function useRoadWorkspace() {
       commit(next, false)
       setStation(0)
       history.current = { past: [], future: [] }
+      if (!training()) setProjectId(id)
       setCanPersist(true)
     },
-    [commit],
+    [commit, setProjectId],
+  )
+  /** Makes an already-built project the open one, in a new library slot. */
+  const startProject = useCallback(
+    (next: RoadProject, terrain: TerrainSource) => {
+      setSource(terrain)
+      commit(next, false)
+      setStation(0)
+      setFeatureSelection(null)
+      history.current = { past: [], future: [] }
+      if (!training()) setProjectId(crypto.randomUUID())
+      setCanPersist(true)
+    },
+    [commit, setProjectId],
   )
 
   useEffect(() => {
@@ -119,13 +130,18 @@ export function useRoadWorkspace() {
     async function open() {
       try {
         // ?example=training is a deliberate, network-free teaching/testing mode.
-        if (new URLSearchParams(location.search).get('example') === 'training') {
+        if (training()) {
           setCanPersist(true)
           return
         }
-        let saved: RoadProject | undefined
+        let saved: RoadProject | undefined, savedId: string | null
         try {
-          saved = await storedProject()
+          const stored = await readLibrary()
+          setLibrary(stored.entries)
+          savedId = stored.entries.some((e) => e.id === stored.activeId)
+            ? stored.activeId
+            : (stored.entries[0]?.id ?? null)
+          saved = savedId ? await readProject(savedId) : undefined
         } catch {
           // A failed read does not establish that this device has no project. In
           // particular, a transient storage failure must not authorize replacing
@@ -136,27 +152,26 @@ export function useRoadWorkspace() {
         }
         if (controller.signal.aborted) return
         if (saved) {
-          await restore(parseProject(saved), controller.signal)
+          await restore(parseProject(saved), controller.signal, savedId)
           if (!controller.signal.aborted) setNotice('Restored your locally saved road project.')
         } else {
           const loaded = await loadLidarTerrain(controller.signal, setBusy)
           if (controller.signal.aborted) return
-          setCanPersist(true)
           const alignments = loaded.alignments!
           const initial = createDemoProject()
-          setSource(loaded.source)
-          commit(
+          startProject(
             {
               ...initial,
-              name: 'BC LiDAR road planning',
+              name: 'BC LiDAR sample',
               terrain: loaded.metadata,
               alignments,
               activeAlignmentId: alignments[0].id,
               context: [],
               cables: [],
             },
-            false,
+            loaded.source,
           )
+          setNotice('This is the BC LiDAR sample. Start your own from Projects → New project.')
         }
       } catch (cause) {
         if (!controller.signal.aborted)
@@ -172,16 +187,28 @@ export function useRoadWorkspace() {
     }
     void open()
     return () => controller.abort()
-  }, [commit, restore, setBusy])
+  }, [restore, startProject, setBusy])
 
+  const persist = useCallback(
+    async (value: RoadProject) => {
+      if (training()) return writeTraining(value)
+      // Nothing is open after a startup restore failed; the explicit action that enabled saving
+      // starts a new slot, so the save that could not be restored is never overwritten.
+      let id = projectIdRef.current
+      if (!id) {
+        id = crypto.randomUUID()
+        setProjectId(id)
+      }
+      setLibrary(await writeProject(id, value, libraryRef.current))
+    },
+    [setProjectId],
+  )
   useEffect(() => {
     if (!ready || !canPersist || busy || error) return
     const timer = window.setTimeout(() => {
       setSaving('Saving locally…')
-      const key = new URLSearchParams(location.search).get('example') === 'training' ? 'training' : 'current'
       try {
-        const valid = parseProject(project)
-        storedProject(valid, key)
+        persist(parseProject(project))
           .then(() => setSaving('Saved on this device'))
           .catch(() => setSaving('Local save unavailable — download your project'))
       } catch (cause) {
@@ -189,7 +216,47 @@ export function useRoadWorkspace() {
       }
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [project, ready, canPersist, busy, error])
+  }, [project, ready, canPersist, busy, error, persist])
+
+  /** Saves the open project now, so switching away never loses the last edits. */
+  const flush = useCallback(async () => {
+    try {
+      await persist(parseProject(current.current))
+    } catch {
+      // An invalid draft keeps its last valid save, as autosave does.
+    }
+  }, [persist])
+  const openProject = useCallback(
+    async (id: string, signal?: AbortSignal) => {
+      await flush()
+      const stored = await readProject(id)
+      if (!stored) {
+        setLibrary(await deleteProject(id, libraryRef.current))
+        throw Error('That project is no longer saved in this browser.')
+      }
+      const project = parseProject(stored)
+      await restore(project, signal, id)
+      // Record it as the one to reopen now, not at the next autosave.
+      setLibrary(await writeProject(id, project, libraryRef.current))
+    },
+    [flush, restore],
+  )
+  const duplicateProject = useCallback(
+    async (id: string) => {
+      const stored = id === projectId ? current.current : await readProject(id)
+      if (!stored) throw Error('That project is no longer saved in this browser.')
+      const copy = parseProject({ ...stored, name: `${stored.name} copy`.slice(0, 200) })
+      setLibrary(await addProject(crypto.randomUUID(), copy, libraryRef.current))
+    },
+    [projectId],
+  )
+  const removeProject = useCallback(
+    async (id: string) => {
+      if (id === projectId) throw Error('Open another project before deleting this one.')
+      setLibrary(await deleteProject(id, libraryRef.current))
+    },
+    [projectId],
+  )
 
   // Every edit recalculates every alternative; the time is reported as the cost process time.
   const { analyses, processMs } = useMemo(() => {
@@ -246,6 +313,13 @@ export function useRoadWorkspace() {
     update,
     updateAlignment,
     restore,
+    startProject,
+    projectId,
+    library,
+    flush,
+    openProject,
+    duplicateProject,
+    removeProject,
     enablePersistence: () => setCanPersist(true),
     ready,
     setSource,

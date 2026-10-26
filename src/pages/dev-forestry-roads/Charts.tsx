@@ -1,5 +1,7 @@
 import type { RoadSelectionRange } from './roadSelection'
 import {
+  createContext,
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -9,9 +11,12 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
+import { ChartLine, PanelBottom, Rows3 } from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
@@ -330,6 +335,48 @@ function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
   )
 }
 
+/** Chart alone, chart with its readouts under it, or the readouts alone (the chart as a tab). */
+export type ChartView = 'chart' | 'both' | 'details'
+const CHART_VIEWS: ChartView[] = ['chart', 'both', 'details']
+type ChartHeaderValue = { target: HTMLElement | null; view: ChartView | null; setView: (view: ChartView) => void }
+const ChartHeaderContext = createContext<ChartHeaderValue | null>(null)
+
+/**
+ * Gives the charts inside a panel a place in its header for their view switch, and keeps the
+ * chosen view for the panel, so it holds when the panel shows a different chart. Render `slot`
+ * among the panel's header actions. `storageKey` remembers the choice in this browser.
+ */
+export function ChartHeader({
+  storageKey,
+  children,
+}: {
+  storageKey?: string
+  children: (slot: ReactNode) => ReactNode
+}) {
+  const [target, setTarget] = useState<HTMLElement | null>(null)
+  const [view, setStoredView] = useState<ChartView | null>(() => {
+    try {
+      const saved = storageKey ? localStorage.getItem(storageKey) : null
+      return CHART_VIEWS.includes(saved as ChartView) ? (saved as ChartView) : null
+    } catch {
+      return null
+    }
+  })
+  const setView = (next: ChartView) => {
+    setStoredView(next)
+    try {
+      if (storageKey) localStorage.setItem(storageKey, next)
+    } catch {
+      // Private windows can refuse storage; the choice still holds for this session.
+    }
+  }
+  return (
+    <ChartHeaderContext.Provider value={{ target, view, setView }}>
+      {children(<span ref={setTarget} className="contents" />)}
+    </ChartHeaderContext.Provider>
+  )
+}
+
 function ChartSlot({
   children,
   footer,
@@ -340,7 +387,8 @@ function ChartSlot({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  const header = useContext(ChartHeaderContext)
+  const [localView, setLocalView] = useState<ChartView | null>(null)
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -350,36 +398,53 @@ function ChartSlot({
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+  // Until someone picks, a short chart folds its readouts away and a tall one shows both.
+  const chosen = header ? header.view : localView
+  const view: ChartView = !footer ? 'chart' : (chosen ?? (compact ? 'chart' : 'both'))
+  const switcher = footer && (
+    <SegmentedControl
+      size="sm"
+      fullWidth={false}
+      label="Chart details layout"
+      value={view}
+      onChange={header ? header.setView : setLocalView}
+      options={[
+        { value: 'chart', label: 'Chart only', icon: ChartLine, iconOnly: true },
+        { value: 'both', label: 'Chart with details below', icon: PanelBottom, iconOnly: true },
+        { value: 'details', label: 'Details only', icon: Rows3, iconOnly: true },
+      ]}
+    />
+  )
   return (
     <div
       ref={ref}
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
       data-chart-slot
       data-compact={compact || undefined}
+      data-chart-view={view}
     >
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      {switcher &&
+        (header?.target ? (
+          createPortal(switcher, header.target)
+        ) : (
+          <div className="flex shrink-0 justify-end pb-1">{switcher}</div>
+        ))}
+      <div className={`relative min-h-0 flex-1 flex-col ${view === 'details' ? 'hidden' : 'flex'}`}>
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
         </ChartViewport>
       </div>
       {footer && (
-        <div className={`flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`}>
-          {compact && (
-            <button
-              type="button"
-              className="shrink-0 px-3 py-1 text-left text-[11px] font-medium hover:bg-muted"
-              aria-expanded={detailsOpen}
-              onClick={() => setDetailsOpen(!detailsOpen)}
-            >
-              {detailsOpen ? 'Hide chart details' : 'Show chart details'}
-            </button>
-          )}
-          <div
-            hidden={compact && !detailsOpen}
-            className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2"
-          >
-            {footer}
-          </div>
+        <div
+          className={
+            view === 'chart'
+              ? 'hidden'
+              : view === 'details'
+                ? 'flex min-h-0 flex-1 flex-col'
+                : `flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`
+          }
+        >
+          <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">{footer}</div>
         </div>
       )}
     </div>

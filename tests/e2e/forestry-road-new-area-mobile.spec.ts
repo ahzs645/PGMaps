@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { expandRoadSection } from './road-sidebar'
 
 const demPath = process.env.PGMAPS_ROAD_NEW_AREA_DEM
 test.skip(!demPath, 'Supply a real GeoTIFF for the opt-in new-area mobile journey.')
@@ -332,6 +333,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       ['balanced', 100],
       ['shortest', 25],
     ] as const) {
+      await expandRoadSection(page, 'road-route-tools')
       await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
       await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
       await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).tap()

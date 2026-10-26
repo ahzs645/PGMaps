@@ -14,6 +14,7 @@ import {
   terrainBounds,
   terrainFromMetadata,
   validateRoadRaster,
+  starterAlignment,
   DEMO_ORIGIN,
 } from './terrain'
 import type { RoadAnalysis } from './types'
@@ -140,6 +141,34 @@ describe('road project boundary', () => {
       12,
     )
   })
+  it('keeps a regional extent so a reopened project loads the same square, and starts new projects on one road', () => {
+    const road = starterAlignment([-120.33, 50.67])
+    const project = {
+      ...createDemoProject(),
+      terrain: {
+        kind: 'regional' as const,
+        name: 'Regional Terrarium DEM · coarse screening',
+        resolutionM: 25,
+        verticalReference: 'Mixed-source regional DEM',
+        bounds: [-120.35, 50.65, -120.31, 50.69] as [number, number, number, number],
+      },
+      alignments: [road],
+      activeAlignmentId: road.id,
+    }
+    expect(parseProject(JSON.parse(serializeProject(project))).terrain.bounds).toEqual(project.terrain.bounds)
+    expect(road.points).toHaveLength(2)
+    expect(road.vertical).toEqual([])
+    for (const bounds of [
+      [-120.31, 50.65, -120.35, 50.69],
+      [0, 0, 1],
+      [0, -90, 1, 1],
+    ])
+      expect(() => parseProject({ ...project, terrain: { ...project.terrain, bounds } })).toThrow(/bounds/)
+    expect(() =>
+      parseProject({ ...project, terrain: { ...createDemoProject().terrain, bounds: project.terrain.bounds } }),
+    ).toThrow(/bounds/)
+  })
+
   it('rejects malformed, non-finite, oversized and ambiguous projects', () => {
     const p = createDemoProject()
     expect(() => parseProject({ ...p, settings: { ...p.settings, stationInterval: 0 } })).toThrow(/interval/i)

@@ -49,7 +49,7 @@ and the sketched corridor optimizer. The geometry itself is specified in the
 | Maximum superelevation; side friction f     | 0–20 %; 0–1                              | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
 | Runoff; widening vehicle length             | 0–1,000 m; 0–50 m                        | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
 | Stations per analysis                       | 3,000 (`MAX_STATIONS`)                   | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
-| Road alternatives per project               | 20                                       | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `DesignSidebarBody.tsx` | Buttons disabled or error                                       |
+| Road alternatives per project               | 20                                       | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
 
 ### Vertical alignment and profile optimizer
 
@@ -91,7 +91,7 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 | --------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
 | Guide points                            | 2–100                                                                 | `corridorOptimizer.ts` `search`                 | Error                                         |
 | Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                      | `corridorOptimizer.ts`                          | Error                                         |
-| Corridor half-width                     | 25–1,000 m (default 180 m)                                            | `corridorOptimizer.ts`, `DesignSidebarBody.tsx` | Error or button disabled                      |
+| Corridor half-width                     | 25–1,000 m (default 180 m)                                            | `corridorOptimizer.ts`, `sidebar/DesignTab.tsx` | Error or button disabled                      |
 | Ground-grade limit                      | 1–30 %, taken from the road's grade limit                             | `corridorOptimizer.ts`                          | Error                                         |
 | Minimum radius                          | 5–1,000 m, taken from the road settings                               | `corridorOptimizer.ts`                          | Error                                         |
 | Search states                           | 50,000 (`maxStates`)                                                  | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |

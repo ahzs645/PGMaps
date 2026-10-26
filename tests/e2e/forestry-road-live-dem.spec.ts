@@ -4,6 +4,7 @@ import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { expandRoadSection } from './road-sidebar'
 
 // Opt-in real-data workflow. See docs/forestry-road-workflow-check.md for the download command.
 const demPath = process.env.PGMAPS_ROAD_DEM_PATH
@@ -121,6 +122,7 @@ for (const [site, u, v] of [
       ['balanced', 100],
       ['shortest', 25],
     ] as const) {
+      await expandRoadSection(page, 'road-route-tools')
       await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
       await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
       await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
@@ -173,8 +175,12 @@ for (const [site, u, v] of [
             request.onsuccess = () => {
               const db = request.result
               const transaction = db.transaction('projects', 'readonly')
-              const read = transaction.objectStore('projects').get('current')
-              read.onsuccess = () => resolve(read.result?.activeAlignmentId)
+              const store = transaction.objectStore('projects')
+              const active = store.get('active')
+              active.onsuccess = () => {
+                const read = store.get(`project:${active.result}`)
+                read.onsuccess = () => resolve(read.result?.activeAlignmentId)
+              }
               transaction.oncomplete = () => db.close()
             }
           })

@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
+import { expandRoadSection } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -38,6 +39,7 @@ const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', 
 
 test('vertical standards, control points and the profile optimizer', async ({ page }) => {
   const errors = await prepare(page)
+  await expandRoadSection(page, 'road-vertical-standards')
   await page.getByLabel('Min sag K', { exact: true }).fill('4')
   await page.getByLabel('Min crest K', { exact: true }).fill('4')
   await page.getByLabel('Min sag K', { exact: true }).press('Tab')
@@ -66,6 +68,7 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText(/Set \d+ curves?/)
 
   const count = await roads(page).count()
+  await expandRoadSection(page, 'road-route-tools')
   await page.getByLabel('Alternatives', { exact: true }).fill('3')
   await page.getByLabel('Alternatives', { exact: true }).press('Tab')
   await page.getByRole('button', { name: 'Suggest terrain-cost alternatives', exact: true }).click()

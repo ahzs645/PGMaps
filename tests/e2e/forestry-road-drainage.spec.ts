@@ -5,6 +5,7 @@ import proj4 from 'proj4'
 import { expect, test, type Page } from '@playwright/test'
 import { initTools, runTool } from 'whitebox-wasm/tools'
 import { lasFile } from './road-fixtures'
+import { expandRoadSection } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)
@@ -89,6 +90,7 @@ test('LAZ import classifies ground in the browser and builds a TIN with breaklin
 
   const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
   await workflow.getByRole('tab', { name: 'Terrain' }).click()
+  await expandRoadSection(page, 'road-point-cloud-options')
   await page.getByRole('combobox', { name: 'Point-cloud surface', exact: true }).selectOption('tin')
   // A draped breakline across the cloud (WGS84, from its UTM 10N corners).
   const utm = proj4('+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs', 'EPSG:4326')

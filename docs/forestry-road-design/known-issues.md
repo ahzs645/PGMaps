@@ -6,6 +6,17 @@ These are places where the workspace does something other than what its controls
 were reproduced; **read** ones were found by reading the code. Remove an entry in the same change
 that fixes it, and add one, with the file and function, when you find a new defect.
 
+## Fixed on 2026-10-26
+
+- A grade line far above or below the ground no longer looks like the road breaking. Where a batter
+  is still in the air (or underground) at the section reach, the plan used to drop the envelope
+  at that station, so a tall fill drew as a widening fan that stopped dead. The station flag now
+  says "batter runs past the N m section reach" (`beyondReachFlag`, `engine.ts`) instead of the
+  catch-all "extend section or check terrain", which now means terrain ran out first. The plan
+  draws those intervals as a red dashed band out to the reach, and the Design and Review tabs list
+  them with **Extend reach to 100 m**. Station CSV and report flags read differently from older
+  exports for these stations; quantities are unchanged.
+
 ## Fixed on 2026-10-24
 
 - Reverse curves with closely spaced spirals now return to normal crown and zero curve

@@ -26,12 +26,22 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         '.',
     )
   }
+  const setSpirals = () => {
+    updateAlignment((a) => ({
+      ...a,
+      points: a.points.map((p) => {
+        const { spiralM: _old, ...rest } = p
+        void _old
+        return spiral > 0 && p.radiusM > 0 ? { ...rest, spiralM: spiral } : rest
+      }),
+    }))
+    setNotice(spiral > 0 ? `Set ${spiral} m spirals on every curve.` : 'Removed the spirals.')
+  }
+  // Each row is the action and the one value it uses, so the three tools read as a short list.
   return (
-    <div className="mt-3 space-y-2 rounded border p-2" data-testid="road-curve-tools">
-      <div className="flex items-end gap-2">
-        <div className="w-24">
-          <NumberField label="Default radius (m)" value={radius} min={1} max={10000} step={1} onChange={setRadius} />
-        </div>
+    <div className="mt-2 rounded-md border p-2" data-testid="road-curve-tools">
+      <p className="mb-1 text-xs font-medium">Bulk curve tools</p>
+      <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-end gap-x-2 gap-y-1.5">
         <Button
           size="sm"
           variant="outline"
@@ -41,11 +51,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         >
           Fit sharp corners
         </Button>
-      </div>
-      <div className="flex items-end gap-2">
-        <div className="w-24">
-          <NumberField label="Tolerance (m)" value={tolerance} min={0.1} max={500} onChange={setTolerance} />
-        </div>
+        <NumberField label="Radius (m)" value={radius} min={1} max={10000} step={1} onChange={setRadius} />
         <Button
           size="sm"
           variant="outline"
@@ -55,30 +61,17 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         >
           Best fit every corner
         </Button>
-      </div>
-      <div className="flex items-end gap-2">
-        <div className="w-24">
-          <NumberField label="Spirals (m)" value={spiral} max={2000} step={5} onChange={setSpiral} />
-        </div>
+        <NumberField label="Tolerance (m)" value={tolerance} min={0.1} max={500} onChange={setTolerance} />
         <Button
           size="sm"
           variant="outline"
           disabled={!alignment.points.some((p) => p.radiusM > 0)}
           title="Clothoid transitions of this length on both sides of every curve; 0 removes them"
-          onClick={() => {
-            updateAlignment((a) => ({
-              ...a,
-              points: a.points.map((p) => {
-                const { spiralM: _old, ...rest } = p
-                void _old
-                return spiral > 0 && p.radiusM > 0 ? { ...rest, spiralM: spiral } : rest
-              }),
-            }))
-            setNotice(spiral > 0 ? `Set ${spiral} m spirals on every curve.` : 'Removed the spirals.')
-          }}
+          onClick={setSpirals}
         >
           Set spirals on every curve
         </Button>
+        <NumberField label="Spirals (m)" value={spiral} max={2000} step={5} onChange={setSpiral} />
       </div>
     </div>
   )
@@ -92,6 +85,11 @@ const CURVE_DESIGN_START = {
   wideningVehicleLengthM: null,
 }
 
+export const CURVE_DESIGN_HELP =
+  'e = V²/(127 R) − f, between the crown and the maximum, rotated about the centreline; inside widening L²/(2R). ' +
+  'Both run in over the runoff before each curve. Leave the speed empty for none. The values are entries, not a ' +
+  'road-class standard.'
+
 /** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
 export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace }) {
   const { alignment, updateAlignment } = workspace
@@ -100,11 +98,6 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
     updateAlignment((a) => ({ ...a, curveDesign: { ...(a.curveDesign ?? CURVE_DESIGN_START), ...patch } }))
   return (
     <div className="space-y-2" data-testid="road-curve-design">
-      <p className="text-[11px] leading-4 text-muted-foreground">
-        e = V²/(127 R) − f, between the crown and the maximum, rotated about the centreline; inside widening L²/(2R).
-        Both run in over the runoff before each curve. Leave the speed empty for none. The values are entries, not a
-        road-class standard.
-      </p>
       <div className="grid grid-cols-2 gap-2">
         <OptionalNumberField
           label="Design speed (km/h)"

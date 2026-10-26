@@ -715,6 +715,14 @@ type SectionResult = Pick<
 /** A dip never deepens a ditch past this, whatever the inlet invert. */
 export const MAX_DITCH_DIP_DEPTH = 4
 
+/**
+ * Station flag for a batter that is still above (fill) or below (cut) the ground where the
+ * section reach ends: the formation is too far from the ground there for the reach to close it.
+ */
+export const beyondReachFlag = (side: 'Left' | 'Right', reachM: number) =>
+  `${side} daylight unresolved: batter runs past the ${Number(reachM.toFixed(1))} m section reach`
+export const isBeyondReachFlag = (flag: string) => / daylight unresolved: batter runs past the /.test(flag)
+
 function sectionAt(
   coordinate: Coordinate,
   heading: number,
@@ -744,6 +752,8 @@ function sectionAt(
     ditch: boolean
     slope: number
     daylight: number | null
+    /** Why `daylight` is null: the batter ran past the reach, or terrain ran out first. */
+    unresolved: 'reach' | 'terrain' | null
     crossfall: number
     ditchWidth: number
     ditchDepth: number
@@ -771,7 +781,8 @@ function sectionAt(
     const outer = width + (ditch ? ditchWidth : 0),
       g = ground(sign * outer)
     let slope = 0,
-      daylight: number | null = null
+      daylight: number | null = null,
+      reached = outer > halfWidth
     if (z !== null && g !== null && outer <= halfWidth) {
       const difference = g - edgeZ
       if (Math.abs(difference) < EPS) daylight = outer
@@ -810,9 +821,11 @@ function sectionAt(
           a = b
           da = db
         }
+        reached = daylight === null && a >= halfWidth - EPS
       }
     }
-    return { width, outer, edgeZ, ditch, slope, daylight, crossfall, ditchWidth, ditchDepth, ditchSideRun }
+    const unresolved = daylight !== null || z === null ? null : reached ? 'reach' : 'terrain'
+    return { width, outer, edgeZ, ditch, slope, daylight, unresolved, crossfall, ditchWidth, ditchDepth, ditchSideRun }
   }
   const left = side(-1, leftWidth),
     right = side(1, rightWidth)
@@ -852,8 +865,16 @@ function sectionAt(
   }
   const section: SectionSample[] = ordered.map((offset) => ({ offset, ground: ground(offset), design: design(offset) }))
   if (z === null) flags.push('Formation elevation unavailable')
-  if (left.daylight === null) flags.push('Left daylight unresolved: extend section or check terrain')
-  if (right.daylight === null) flags.push('Right daylight unresolved: extend section or check terrain')
+  for (const [name, s] of [
+    ['Left', left],
+    ['Right', right],
+  ] as const)
+    if (s.daylight === null)
+      flags.push(
+        s.unresolved === 'reach'
+          ? beyondReachFlag(name, halfWidth)
+          : `${name} daylight unresolved: extend section or check terrain`,
+      )
   let complete = z !== null && left.daylight !== null && right.daylight !== null
   const inner = section.filter((p) => p.design !== null)
   if (inner.some((p) => p.ground === null)) {
