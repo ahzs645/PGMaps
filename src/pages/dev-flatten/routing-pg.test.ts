@@ -1,15 +1,10 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { defaultTrip, findFamily, isCityCoordinate, loadModel, readTrip, routeGpx, snapPoint, tripHash, type Model } from './routing'
+import { defaultTrip, findFamily, isCityCoordinate, readTrip, routeGpx, snapPoint, tripHash, type Model } from './routing'
+import { loadTestModel } from './testModel'
 
 let model: Model
 beforeAll(async () => {
-  vi.stubGlobal('fetch', async (url: string) => {
-    const bytes = await readFile(path.resolve('public', url.replace(/^\//, '')))
-    return new Response(bytes)
-  })
-  model = await loadModel(false, 'pg')
+  model = await loadTestModel('pg')
 })
 afterAll(() => vi.unstubAllGlobals())
 

@@ -14,20 +14,13 @@ export interface MapExperience {
 
 export const MAP_EXPERIENCES: MapExperience[] = [
   {
-    id: 'flatten-pg',
-    title: 'Flatten PG',
-    description: 'Compare Prince George walking and cycling routes by distance and estimated climbing, plan loops, and export GPX.',
+    id: 'flatten',
+    title: 'Flatten',
+    description:
+      'Compare walking and cycling routes by distance and climbing, plan loops and export GPX, in Prince George (/dev/flatten/pg) or San Francisco (/dev/flatten); the sidebar switches city.',
     path: '/dev/flatten/pg',
     stage: 'lab',
-    tags: ['walking', 'cycling', 'routing', 'elevation', 'prince george'],
-  },
-  {
-    id: 'flatten-sf',
-    title: 'Flatten SF',
-    description: 'Compare walking and cycling routes across San Francisco by distance and climbing, plan loops, and export GPX.',
-    path: '/dev/flatten',
-    stage: 'lab',
-    tags: ['walking', 'cycling', 'routing', 'elevation', 'san francisco'],
+    tags: ['walking', 'cycling', 'routing', 'elevation', 'prince george', 'san francisco'],
   },
   {
     id: 'projects',

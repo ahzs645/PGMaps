@@ -1,4 +1,20 @@
-import { Beaker, CircleDollarSign, CircleDot, Clock3, Compass, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, TreePine, Wind } from 'lucide-react'
+import {
+  Beaker,
+  CircleDollarSign,
+  CircleDot,
+  Clock3,
+  Compass,
+  Handshake,
+  Loader2,
+  MapPinned,
+  MousePointerClick,
+  Palette,
+  RadioTower,
+  ShieldAlert,
+  Table2,
+  TreePine,
+  Wind,
+} from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
@@ -7,7 +23,8 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 const devEntries: DevEntry[] = [
   {
     title: 'LiDAR explorer',
-    description: 'Native LiDAR workbench with terrain, canopy-height proxy, crown and roof candidates, actual GeoLibre algorithm runs and full-cloud streaming.',
+    description:
+      'Native LiDAR workbench with terrain, canopy-height proxy, crown and roof candidates, actual GeoLibre algorithm runs and full-cloud streaming.',
     href: '/dev/lidar',
     icon: MapPinned,
     color: 'bg-cyan-700',
@@ -15,7 +32,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Viewshed',
-    description: 'Drag an observer across 3D terrain, compare seated and standing visibility, check the sun against ridges, or import a local DEM.',
+    description:
+      'Drag an observer across 3D terrain, compare seated and standing visibility, check the sun against ridges, or import a local DEM.',
     href: '/dev/viewshed',
     icon: MapPinned,
     color: 'bg-rose-600',
@@ -24,7 +42,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Nechako portal',
-    description: 'Bundled research data, maps and timelines, portal services and search, GIS imports, monitoring and a full capability comparison.',
+    description:
+      'Bundled research data, maps and timelines, portal services and search, GIS imports, monitoring and a full capability comparison.',
     href: '/dev/nechako',
     icon: MapPinned,
     color: 'bg-teal-700',
@@ -38,27 +57,25 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Water temperature',
-    description: 'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
+    description:
+      'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
     href: '/dev/water-temperature',
     icon: CircleDot,
     color: 'bg-sky-600',
     label: '/dev/water-temperature',
   },
   {
-    title: 'Flatten PG',
-    description: 'Prince George walking and cycling routes, with live dragging, elevation estimates, shortest-to-flattest trade-offs, loops and GPX export.',
+    title: 'Flatten',
+    description:
+      'Walking and cycling routes in Prince George and San Francisco, with live dragging, shortest-to-flattest trade-offs, loops, elevation profiles and GPX export.',
     href: '/dev/flatten/pg',
     icon: MapPinned,
     color: 'bg-emerald-600',
-    label: '/dev/flatten/pg',
-  },
-  {
-    title: 'Flatten SF',
-    description: 'Walking and cycling routes across San Francisco, with a shortest-to-flattest slider, loops, elevation profiles and GPX export.',
-    href: '/dev/flatten',
-    icon: MapPinned,
-    color: 'bg-emerald-600',
     label: '/dev/flatten',
+    subpages: [
+      { label: 'Prince George', href: '/dev/flatten/pg' },
+      { label: 'San Francisco', href: '/dev/flatten' },
+    ],
   },
   {
     title: 'Colour palettes',
@@ -70,20 +87,25 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Climate vulnerability',
-    description: 'MHCCA input explorer, 80-variable source audit, and index reproducibility checks using shared FSA boundaries.',
+    description:
+      'MHCCA input explorer, 80-variable source audit, and index reproducibility checks using shared FSA boundaries.',
     href: '/dev/climate-vulnerability',
     icon: MapPinned,
     color: 'bg-teal-700',
     label: '/dev/climate-vulnerability',
   },
-  ...(import.meta.env.DEV ? [{
-    title: 'Early development',
-    description: 'Local EDI review: historical and current results, source releases, and boundary editions.',
-    href: '/dev/early-learning',
-    icon: MapPinned,
-    color: 'bg-emerald-600',
-    label: '/dev/early-learning',
-  }] : []),
+  ...(import.meta.env.DEV
+    ? [
+        {
+          title: 'Early development',
+          description: 'Local EDI review: historical and current results, source releases, and boundary editions.',
+          href: '/dev/early-learning',
+          icon: MapPinned,
+          color: 'bg-emerald-600',
+          label: '/dev/early-learning',
+        },
+      ]
+    : []),
   {
     title: 'AQMap',
     description: 'Air-quality map prototype with URL state, overlays, smoke layers, and AQMap-style controls.',
@@ -95,7 +117,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Boundaries',
-    description: 'Study-area comparison page for community, school, health, regional, census, watershed, and NR boundaries.',
+    description:
+      'Study-area comparison page for community, school, health, regional, census, watershed, and NR boundaries.',
     href: '/dev/boundaries',
     icon: MapPinned,
     color: 'bg-teal-600',
@@ -120,7 +143,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Data Table',
-    description: 'Felt-style bottom data table — resizable pane, All/Visible filter, and a virtualized grid over City of PG layers.',
+    description:
+      'Felt-style bottom data table — resizable pane, All/Visible filter, and a virtualized grid over City of PG layers.',
     href: '/dev/data',
     icon: Table2,
     color: 'bg-amber-600',
@@ -128,7 +152,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Interaction Lab',
-    description: 'Map interaction prototype for search, measuring, layer visibility, feature popups, and selection flows.',
+    description:
+      'Map interaction prototype for search, measuring, layer visibility, feature popups, and selection flows.',
     href: '/dev/interact',
     icon: MousePointerClick,
     color: 'bg-emerald-600',
@@ -161,7 +186,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Transit Travel Times',
-    description: 'Prince George travel-time colours and contours from a movable starting point, with scheduled bus journeys, walking comparison, address search and shareable views.',
+    description:
+      'Prince George travel-time colours and contours from a movable starting point, with scheduled bus journeys, walking comparison, address search and shareable views.',
     href: '/dev/transit',
     icon: Clock3,
     color: 'bg-emerald-700',
@@ -177,7 +203,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Outdoors Planner',
-    description: 'Hunting/fishing trip planner over the WMU PMTiles layer — waypoints, routes, and closure/hunt areas save as JSON, share as a link, and export/import as files, with a real MU 7-42 sample plan.',
+    description:
+      'Hunting/fishing trip planner over the WMU PMTiles layer — waypoints, routes, and closure/hunt areas save as JSON, share as a link, and export/import as files, with a real MU 7-42 sample plan.',
     href: '/dev/outdoors',
     icon: Compass,
     color: 'bg-green-700',
@@ -200,7 +227,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Fallout Sites',
-    description: 'Canadian fallout reporting posts, nuclear shelter references, and communication lines imported from KML.',
+    description:
+      'Canadian fallout reporting posts, nuclear shelter references, and communication lines imported from KML.',
     href: '/dev/fallout',
     icon: ShieldAlert,
     color: 'bg-red-700',
@@ -208,7 +236,8 @@ const devEntries: DevEntry[] = [
   },
   {
     title: 'Acknowledgement Builder',
-    description: 'Multi-source acknowledgement prototype for comparing territory, consultation, treaty, and verified wording sources.',
+    description:
+      'Multi-source acknowledgement prototype for comparing territory, consultation, treaty, and verified wording sources.',
     href: '/dev/acknowledgement',
     icon: Handshake,
     color: 'bg-teal-700',

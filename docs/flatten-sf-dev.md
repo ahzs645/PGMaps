@@ -1,7 +1,9 @@
-# Flatten SF development page
+# Flatten development page
 
 `/dev/flatten` (San Francisco) and `/dev/flatten/pg` (Prince George) are native
-PGMaps React/TypeScript pages using the same page, worker and controls. They use the shared
+PGMaps React/TypeScript pages using the same page, worker and controls, listed as one
+**Flatten** card in the dev library with a link per city; the sidebar's City control
+switches between them. Both URLs stay, so existing share links keep working. They use the shared
 `MapSectionLayout`, `MapSidebarShell`, search fields, segmented controls,
 sliders, statistics, toggles, scale and map controls. MapLibre renders the
 imported streets, hillshade, route alternatives and draggable endpoints.

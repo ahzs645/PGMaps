@@ -3,7 +3,6 @@ import { Bundle, Geometry, Graph, Grid, loadBundle, type Route, type RouteStats,
 import { Index } from './search.js'
 
 export const MILE = 1609.344
-export const ASSET_BASE = assetBase('sf')
 export type Place = { lon: number; lat: number; label: string }
 export type Point = Place & { node: number }
 export type Units = 'mi' | 'km'

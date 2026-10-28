@@ -49,7 +49,7 @@ test('native map preserves routing, search, exports and shared-route state', asy
   expect((await summary(shared)).route).toMatchObject({ distanceMeters: selected.route.distanceMeters, climbMeters: selected.route.climbMeters, index: selected.route.index })
   await shared.close()
   await page.goto('/dev')
-  await expect(page.getByRole('link', { name: 'Open Flatten SF', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open Flatten', exact: true })).toBeVisible()
   expect(errors).toEqual([])
 })
 

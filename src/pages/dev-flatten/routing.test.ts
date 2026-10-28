@@ -1,15 +1,10 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { defaultTrip, findFamily, loadModel, readTrip, routeGpx, tripHash, type Model } from './routing'
+import { defaultTrip, findFamily, readTrip, routeGpx, tripHash, type Model } from './routing'
+import { loadTestModel } from './testModel'
 
 let model: Model
 beforeAll(async () => {
-  vi.stubGlobal('fetch', async (url: string) => {
-    const bytes = await readFile(path.resolve('public/data/flatten-sf', path.basename(url)))
-    return new Response(bytes, { headers: { 'Content-Length': String(bytes.length) } })
-  })
-  model = await loadModel()
+  model = await loadTestModel('sf', true)
 }, 30000)
 afterAll(() => vi.unstubAllGlobals())
 
