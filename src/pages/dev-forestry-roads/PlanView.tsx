@@ -5,7 +5,7 @@ import { LocateFixed, Mountain, Settings2, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
-import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import {
   distance,
   horizontalCurveSummary,
@@ -1151,12 +1151,31 @@ function Layers(
             defaultCollapsed
             width="sm"
             className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
-            contentClassName="min-h-0 max-h-44 overflow-y-auto text-[10px]"
+            contentClassName="min-h-0 max-h-64 overflow-y-auto text-[11px]"
           >
-            <div className="mt-1 max-h-40 space-y-1 overflow-y-auto border-t pt-1">
-              <p className="truncate font-medium" title={props.project.terrain.name}>
-                {props.project.terrain.name}
-              </p>
+            <div className="mt-1 space-y-2 border-t pt-1.5">
+              {props.terrainOnly ? (
+                <LegendItem color="#0284c7" swatchShape="line" label="Terrain transect" />
+              ) : (
+                <MapLegendSection title="Road">
+                  <LegendItem color="#d97706" swatchShape="line" label="Within the grade limit" />
+                  <LegendItem
+                    color="#dc2626"
+                    swatchShape="line"
+                    label={`Over ${props.project.settings.maxGradePercent}% grade`}
+                  />
+                  <LegendItem color="#9ca3af" swatchShape="line" label="No terrain under it" />
+                </MapLegendSection>
+              )}
+              {props.showEarthwork && !props.terrainOnly && (
+                <MapLegendSection title="Earthwork">
+                  <LegendItem color="rgba(217,119,6,0.45)" swatchShape="square" label="Mostly cut" />
+                  <LegendItem color="rgba(59,130,246,0.45)" swatchShape="square" label="Mostly fill" />
+                  <LegendItem color="#dc2626" swatchShape="dashed-line" label="Batter past section reach" />
+                  <LegendItem color="#78716c" swatchShape="dashed-line" label="Formation edge" />
+                  <LegendItem color="#0369a1" swatchShape="dashed-line" label="Ditch bottom" />
+                </MapLegendSection>
+              )}
               {props.terrainLayer === 'slope' && (
                 <MapGradientLegendItem
                   className="py-1"
@@ -1195,20 +1214,12 @@ function Layers(
                   </p>
                 </>
               )}
-              <p>
-                {props.showContours ? `${display.contourInterval} m contours · ` : ''}display sampled at ~
-                {Math.round(display.resolutionM)} m; analysis uses native terrain
-              </p>
-              {props.showEarthwork && !props.terrainOnly && (
-                <p>
-                  Envelope: amber predominant cut · blue predominant fill · red dashed batter past the section reach ·
-                  grey formation edges · blue dashed ditch bottoms
-                </p>
-              )}
-              <p>
-                {props.terrainOnly
-                  ? 'Blue terrain transect'
-                  : 'Orange alignment · red over grade limit · grey terrain gap'}
+              <p
+                className="truncate border-t pt-1 text-muted-foreground"
+                title={`${props.project.terrain.name}. The map is drawn from terrain sampled at about ${Math.round(display.resolutionM)} m; every calculation uses the native terrain.`}
+              >
+                {props.showContours ? `${display.contourInterval} m contours · ` : ''}
+                {props.project.terrain.name}
               </p>
             </div>
           </MapLegendPanel>

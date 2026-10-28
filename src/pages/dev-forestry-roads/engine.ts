@@ -7,6 +7,7 @@
  * They are covered subtotals, never estimates silently bridged across DEM holes.
  */
 import { checkVerticalDesign } from './verticalStandards'
+import { MAX_DRAG_GRADE } from './verticalTools'
 import type {
   Alignment,
   CableAnalysis,
@@ -600,6 +601,13 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
   if (pv.some((p, i) => i > 0 && p.chainage - pv[i - 1].chainage < 0.001))
     throw new Error('Vertical control points must have distinct stations at least 1 mm apart.')
   const slope = (i: number) => (pv[i + 1].elevation - pv[i].elevation) / (pv[i + 1].chainage - pv[i].chainage)
+  // A tangent this steep is almost always two PVIs pushed together; past the last PVI the road
+  // extends it, so the formation can drop hundreds of metres in a few decimetres.
+  for (let i = 0; i < pv.length - 1; i++)
+    if (Math.abs(slope(i)) > MAX_DRAG_GRADE)
+      warnings.push(
+        `The tangent from ${pv[i].chainage.toFixed(1)} m to ${pv[i + 1].chainage.toFixed(1)} m is ${(100 * slope(i)).toLocaleString('en-CA', { maximumFractionDigits: 0 })} %: check for PVIs placed almost on top of each other.`,
+      )
   const curves = pv.map((p, i) => {
     if (!p.curveLength || !i || i === pv.length - 1) return null
     const half = p.curveLength / 2

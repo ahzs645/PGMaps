@@ -20,6 +20,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
+import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import type { Alignment, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
 
@@ -650,26 +651,19 @@ export function ProfileChart({
     if (!onVerticalChange) return
     const index = original.findIndex((p) => p.id === id)
     if (index < 0) return
-    const minimum = index === 0 ? 0 : original[index - 1].chainage + 0.1
-    const maximum = index === original.length - 1 ? analysis.length : original[index + 1].chainage - 0.1
-    const fixedChainage =
-      index === 0 && original.length > 1
-        ? original[0].chainage
-        : index === original.length - 1 && original.length > 1
-          ? original[index].chainage
-          : clamp(chainage, minimum, maximum)
+    const placed = constrainPviDrag(original, index, chainage, elevation, analysis.length)
     onVerticalChange(
       original.map((p) =>
         p.id === id
           ? {
               ...p,
-              chainage: Math.round(fixedChainage * 100) / 100,
-              elevation: clamp(Math.round(elevation * 100) / 100, -12000, 12000),
+              chainage: Math.round(placed.chainage * 100) / 100,
+              elevation: Math.round(placed.elevation * 100) / 100,
             }
           : p,
       ),
     )
-    onStation(fixedChainage)
+    onStation(placed.chainage)
   }
   const profileValues = analysis.stations
     .map((s) => (terrainOnly ? s.groundElevation : s.designElevation))
@@ -912,7 +906,7 @@ export function ProfileChart({
                     },
                   ]
                 }
-                if (baseline.some((p) => Math.abs(p.chainage - chainage) < 1)) return
+                if (baseline.some((p) => Math.abs(p.chainage - chainage) < MIN_PVI_GAP_M)) return
                 onVerticalChange(
                   [
                     ...baseline,

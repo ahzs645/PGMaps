@@ -815,7 +815,10 @@ changes only these four prices; the independently entered reusable-cut factor
 is preserved. Material, structure and haul rates remain per project.
 
 **Coverage is not budget completeness.** The dialog describes calculation
-freshness and section coverage separately from cost scope.
+freshness and section coverage separately from cost scope. Above the table, one
+row holds the rate preset (its source note behind an (i)) and **BC references**,
+and one amber line counts the review items; **Review** lists them in their own
+dialog, so the calculation table stays in view.
 `costReadiness.ts` identifies remaining placeholder values independently,
 positive work with zero amounts, unclassified material, disabled/unallocated
 haul and structures needing review. With haul off it screens the aggregate
@@ -825,7 +828,7 @@ fill: it is neither a site allocation nor a priced addition. Zero-cost work
 needs a price, an inclusion elsewhere or an explicit exclusion. No generic
 percentage of budget completeness is inferred.
 
-**BC cost references.** The dialog's regional browser covers all eight natural
+**BC cost references.** **BC references** opens a dialog over the estimate whose regional browser covers all eight natural
 resource regions with dated primary sources, local material lists and explicit
 quote gaps. The [BC cost evidence guide](forestry-road-design/bc-cost-evidence.md)
 records the source inventory, unit-basis cautions and remaining calculation work.

@@ -244,6 +244,22 @@ describe('formation geometry and quantities', () => {
 })
 
 describe('vertical design and station-specific widths', () => {
+  it('warns about a near-vertical tangent made by PVIs pushed together, which the road end extends', () => {
+    // The reported case: a PVI dragged to 0.1 m before the end PVI, 39 m above it, on a road
+    // that runs 0.46 m past that end PVI.
+    const road = alignment(100.46, 800)
+    road.vertical = [
+      { id: 'a', chainage: 0, elevation: 745, curveLength: 0 },
+      { id: 'b', chainage: 99.9, elevation: 739.5, curveLength: 0 },
+      { id: 'c', chainage: 100, elevation: 700.29, curveLength: 0 },
+    ]
+    const result = analyzeRoad(road, flat, settings)
+    expect(result.stations.at(-1)!.designElevation!).toBeLessThan(560)
+    expect(result.warnings.some((w) => /99\.9 m to 100\.0 m is -39,210 %: check for PVIs/.test(w))).toBe(true)
+    road.vertical[1] = { ...road.vertical[1], chainage: 50, elevation: 740 }
+    expect(analyzeRoad(road, flat, settings).warnings.some((w) => /check for PVIs/.test(w))).toBe(false)
+  })
+
   it('calculates 10 percent from 10 m rise over 100 horizontal metres', () => {
     const road = alignment()
     road.vertical[1].elevation = 810

@@ -67,3 +67,43 @@ export function simplifyProfile(points: VerticalPoint[], toleranceM: number, kee
   for (let i = 1; i < anchors.length; i++) split(anchors[i - 1], anchors[i])
   return pv.filter((_, i) => kept.has(i))
 }
+
+/** Closest a dragged or added PVI may come to its neighbours along the road. */
+export const MIN_PVI_GAP_M = 5
+/** Steepest tangent a profile drag may create (100 % = 45°); the road's grade limit still flags far less. */
+export const MAX_DRAG_GRADE = 1
+
+/**
+ * Where a PVI dragged in the profile lands. The end PVIs keep their stations; the others stay
+ * `MIN_PVI_GAP_M` from their neighbours, and the level is held so neither adjacent tangent is
+ * steeper than `MAX_DRAG_GRADE`. Without that, a PVI pushed against its neighbour made a
+ * centimetre-long tangent of tens of thousands of percent, which the road end then extended.
+ */
+export function constrainPviDrag(
+  sorted: readonly VerticalPoint[],
+  index: number,
+  chainage: number,
+  elevation: number,
+  roadLength: number,
+): { chainage: number; elevation: number } {
+  const previous = sorted[index - 1],
+    next = sorted[index + 1]
+  let station = sorted[index].chainage
+  if (previous && next) {
+    const lo = previous.chainage + MIN_PVI_GAP_M,
+      hi = next.chainage - MIN_PVI_GAP_M
+    // Too little room between the neighbours to move along the road: keep the station.
+    if (lo <= hi) station = Math.min(hi, Math.max(lo, chainage))
+  } else if (sorted.length === 1) station = Math.min(roadLength, Math.max(0, chainage))
+  let low = -12000,
+    high = 12000
+  for (const neighbour of [previous, next]) {
+    if (!neighbour) continue
+    const run = Math.abs(station - neighbour.chainage)
+    low = Math.max(low, neighbour.elevation - MAX_DRAG_GRADE * run)
+    high = Math.min(high, neighbour.elevation + MAX_DRAG_GRADE * run)
+  }
+  // Neighbours already steeper than the cap between them: do not force the level outside both.
+  const level = low <= high ? Math.min(high, Math.max(low, elevation)) : elevation
+  return { chainage: station, elevation: Math.min(12000, Math.max(-12000, level)) }
+}

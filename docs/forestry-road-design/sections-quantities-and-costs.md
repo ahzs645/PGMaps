@@ -179,8 +179,8 @@ missing entirely while haul allocation is off.
 
 **The rate preset.** `RATE_PRESETS` has one entry, _PG Maps placeholder rates_. It copies
 `DEFAULT_ROAD_SETTINGS` (`terrain.ts`): cut $12/bank m³, fill $8/m³, surfacing $40/m³ and clearing
-$1.50/m². Its source note says these are round planning numbers
-set in the code. They cite no published cost survey or appraisal manual, carry no price date, and
+$1.50/m². Its source note, behind the (i) beside **Rate preset**, says these are round planning
+numbers set in the code. They cite no published cost survey or appraisal manual, carry no price date, and
 have no regional adjustment; they are the same everywhere in BC and in every year. Choosing the
 preset preserves the separately entered reusable cut factor and material balance.
 Any edit to the four prices shows _Custom · this project_.
@@ -194,7 +194,8 @@ explains why.
 **Cost status.** Calculation freshness and section coverage are labelled separately.
 Coverage is complete at `COMPLETE_COVERAGE_PERCENT` (100 − 1e-5 %, in
 `analysisResult.ts`); incomplete engineering is also identified. Neither establishes
-pricing confidence or a complete budget. The review panel flags remaining placeholder
+pricing confidence or a complete budget. The amber review line above the table counts the
+items; **Review** opens them in a dialog. They flag remaining placeholder
 prices, unpriced work, material assumptions, unallocated haul and crossing/culvert
 gaps. With haul off, it screens minimum borrow demand from the covered material balance
 without adding an invented price or extrapolating missing intervals.

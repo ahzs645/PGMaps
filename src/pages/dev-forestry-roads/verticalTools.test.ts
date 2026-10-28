@@ -3,7 +3,7 @@ import { analyzeRoad, offsetCoordinate } from './engine'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { createEngineeringDesign } from './engineeringTypes'
 import { optimizeVerticalProfile } from './verticalOptimizer'
-import { curveLengthsForK, simplifyProfile } from './verticalTools'
+import { constrainPviDrag, curveLengthsForK, MAX_DRAG_GRADE, MIN_PVI_GAP_M, simplifyProfile } from './verticalTools'
 import type { Alignment, Coordinate, TerrainSource } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -199,5 +199,29 @@ describe('total-cost profile optimization', () => {
       analyzeRoad({ ...alignment, vertical }, hump, settings).estimatedCost
     expect(cost(total.vertical)).toBeLessThanOrEqual(cost(earthwork.vertical) + 1e-6)
     expect(total.message).toMatch(/lowest total cost with imbalance at \$/)
+  })
+})
+
+describe('constrainPviDrag', () => {
+  const pvi = (chainage: number, elevation: number) => ({ id: `p${chainage}`, chainage, elevation, curveLength: 0 })
+  const line = [pvi(0, 800), pvi(500, 790), pvi(1000, 780)]
+
+  it('keeps a dragged PVI 5 m from its neighbours and the end PVIs on their stations', () => {
+    expect(constrainPviDrag(line, 1, 999.9, 780, 1000).chainage).toBe(1000 - MIN_PVI_GAP_M)
+    expect(constrainPviDrag(line, 1, 0.2, 800, 1000).chainage).toBe(MIN_PVI_GAP_M)
+    expect(constrainPviDrag(line, 2, 600, 780, 1000).chainage).toBe(1000)
+    expect(constrainPviDrag(line, 0, 300, 800, 1000).chainage).toBe(0)
+  })
+
+  it('holds the level so no adjacent tangent passes 100 %', () => {
+    // Pushed against the end at 40 m above it: the reported −39,217 % case is now at most 100 %.
+    const placed = constrainPviDrag(line, 1, 999.9, 820, 1000)
+    expect(placed.elevation).toBeCloseTo(780 + MAX_DRAG_GRADE * MIN_PVI_GAP_M, 9)
+    expect(constrainPviDrag(line, 1, 500, 790.5, 1000).elevation).toBe(790.5)
+  })
+
+  it('leaves a PVI where it is when its neighbours leave no room', () => {
+    const tight = [pvi(0, 800), pvi(4, 801), pvi(8, 802)]
+    expect(constrainPviDrag(tight, 1, 7, 801, 8).chainage).toBe(4)
   })
 })

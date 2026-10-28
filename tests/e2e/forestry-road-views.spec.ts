@@ -526,7 +526,12 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   await tile.click()
   const dialog = page.getByTestId('road-cost-dialog')
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByTestId('road-rate-source')).toContainText('not taken from a published cost survey')
+  // The preset's source sits behind its (i); a second click closes it without closing the dialog.
+  const about = dialog.getByRole('button', { name: 'About this rate preset', exact: true })
+  await about.click()
+  await expect(page.getByTestId('road-rate-source')).toContainText('not taken from a published cost survey')
+  await about.click()
+  await expect(page.getByTestId('road-rate-source')).toHaveCount(0)
   await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
     /PG Maps placeholder rates/,
   )

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { AppSelect } from '@/components/ui/select'
+import { InfoTip } from '@/components/ui/info-tip'
 import { NumberField } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
@@ -278,9 +279,18 @@ export function CostBreakdown({
       contentProps={{ 'data-testid': 'road-cost-dialog' }}
     >
       <div className="space-y-3 text-xs">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex min-w-0 flex-col gap-1 text-muted-foreground sm:min-w-56 sm:shrink-0">
-            Rate preset
+        <div className="flex flex-wrap items-end gap-2" data-testid="road-rate-sources">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-muted-foreground sm:max-w-72">
+            <span className="flex items-center gap-1">
+              Rate preset
+              <InfoTip label="About this rate preset">
+                <span data-testid="road-rate-source">
+                  {preset
+                    ? preset.source
+                    : 'Rates edited for this project. They are saved with the project file and are not tied to a published source.'}
+                </span>
+              </InfoTip>
+            </span>
             <AppSelect
               value={preset?.id ?? 'custom'}
               onValueChange={(id) => {
@@ -296,17 +306,14 @@ export function CostBreakdown({
               contentClassName="z-[1500] text-xs"
             />
           </label>
-          <p
-            className="min-w-0 flex-1 break-words text-[11px] leading-4 text-muted-foreground"
-            data-testid="road-rate-source"
-          >
-            {preset
-              ? preset.source
-              : 'Rates edited for this project. They are saved with the project file and are not tied to a published source.'}
-          </p>
+          <BCCostReferences portalContainer={portalContainer} />
         </div>
-        <CostReadiness analysis={analysis} alignment={alignment} settings={settings} />
-        <BCCostReferences />
+        <CostReadiness
+          analysis={analysis}
+          alignment={alignment}
+          settings={settings}
+          portalContainer={portalContainer}
+        />
         <div className="overflow-x-auto">
           <EngineeringTable data-testid="road-cost-calculation">
             <thead>
