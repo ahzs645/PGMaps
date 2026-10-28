@@ -1,11 +1,15 @@
-import { CalendarDays, CaseSensitive, Check, ChevronDown, Hash, Maximize2, Minimize2, Search, Square, SquareCheck, Table2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, BarChart3, CalendarDays, CaseSensitive, Check, ChevronDown, Hash, Maximize2, Minimize2, Search, Square, SquareCheck, Table2, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { ActionMenu } from '@/components/ui/action-menu'
+import { AnchoredPopover } from '@/components/ui/anchored-popover'
+import { LayerSwatch, type LayerSwatchShape } from '@/components/ui/layer-list-item'
 import { SearchInput } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
 
 /** Row height in px. Fixed so the virtualizer can measure without a layout pass. */
@@ -31,8 +35,10 @@ export interface MapFeatureTableLayer<TLayerId extends string = string> {
   id: TLayerId
   label: string
   color: string
-  shape?: 'fill' | 'line'
+  shape?: LayerSwatchShape
 }
+
+export type MapFeatureTableSortDirection = 'asc' | 'desc'
 
 export interface MapFeatureTableColumn<TRow> {
   id: string
@@ -44,6 +50,8 @@ export interface MapFeatureTableColumn<TRow> {
   widthClassName?: string
   getValue: (row: TRow) => ReactNode
   getSearchValue?: (row: TRow) => string
+  /** Comparable value for `sortable` tables; null sorts last. Defaults to the search value. */
+  getSortValue?: (row: TRow) => number | string | null
 }
 
 interface MapFeatureTablePanelProps<TRow, TLayerId extends string> {
@@ -80,6 +88,26 @@ interface MapFeatureTablePanelProps<TRow, TLayerId extends string> {
   /** Notifies the map host so expensive canvas resizes can be deferred during a drag. */
   onResizeStart?: () => void
   onResizeEnd?: () => void
+  /** Adds Sort ascending/descending to each column header's menu, like Felt's table. */
+  sortable?: boolean
+  /**
+   * Adds "Column stats" to each column header's menu. Receives the rows as shown
+   * (after search and filters); return null when a column has nothing to show.
+   */
+  renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
+}
+
+interface TableSort {
+  columnId: string
+  direction: MapFeatureTableSortDirection
+}
+
+function compareSortValues(a: number | string | null, b: number | string | null): number {
+  if (a === b) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), undefined, { numeric: true })
 }
 
 export function MapTableButton({
@@ -146,8 +174,18 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   onHeightChange,
   onResizeStart,
   onResizeEnd,
+  sortable = false,
+  renderColumnStats,
 }: MapFeatureTablePanelProps<TRow, TLayerId>) {
+  const isMobile = useIsMobile()
   const [uncontrolledQuery, setUncontrolledQuery] = useState('')
+  // Keyed by layer, so switching layers drops a sort on a column the new layer may not have.
+  const [sortState, setSortState] = useState<(TableSort & { layer: TLayerId }) | null>(null)
+  const sort = sortState && sortState.layer === selectedLayer ? sortState : null
+  const setSort = useCallback(
+    (next: TableSort | null) => setSortState(next ? { ...next, layer: selectedLayer } : null),
+    [selectedLayer],
+  )
   const [layerPickerOpen, setLayerPickerOpen] = useState(false)
   const [uncontrolledHeight, setUncontrolledHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
   const panelHeight = controlledHeight ?? uncontrolledHeight
@@ -168,6 +206,20 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
     })
   }, [columns, query, rows])
 
+  const sortedRows = useMemo(() => {
+    const column = sort ? columns.find((candidate) => candidate.id === sort.columnId) : undefined
+    if (!sort || !column) return filteredRows
+    const valueOf = column.getSortValue ?? ((row: TRow) => column.getSearchValue?.(row) ?? String(column.getValue(row) ?? ''))
+    const keyed = filteredRows.map((row, index) => ({ row, index, value: valueOf(row) }))
+    keyed.sort((a, b) => {
+      // Empty cells stay at the bottom in both directions.
+      if (a.value === null || b.value === null) return compareSortValues(a.value, b.value) || a.index - b.index
+      const order = compareSortValues(a.value, b.value)
+      return (sort.direction === 'asc' ? order : -order) || a.index - b.index
+    })
+    return keyed.map((entry) => entry.row)
+  }, [columns, filteredRows, sort])
+
   /**
    * `paneActions` puts expand/close on the toolbar row itself (Felt keeps the whole
    * table chrome on one line). Mobile passes none, since the sheet card supplies its
@@ -175,7 +227,7 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
    */
   const renderBody = (paneActions?: TablePaneActions) => (
     <TableBody
-      rows={filteredRows}
+      rows={sortedRows}
       totalRowCount={rows.length}
       columns={columns}
       layers={layers}
@@ -191,6 +243,10 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
       viewModeToggle={viewModeToggle}
       collapsibleSearch={collapsibleSearch}
       paneActions={paneActions}
+      sortable={sortable}
+      sort={sort}
+      renderColumnStats={renderColumnStats}
+      onSortChange={setSort}
       onQueryChange={setQuery}
       onLayerPickerOpenChange={setLayerPickerOpen}
       onLayerChange={onLayerChange}
@@ -203,8 +259,10 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
     <>
       {mobileCard ? (
         /* Rendered as a MobileFeatureCard so the table joins the same mobile card
-           stack as a focused feature, instead of colliding with it. */
-        <MobileFeatureCard
+           stack as a focused feature, instead of colliding with it. Mounted on
+           phones only: an open card makes MapSectionLayout swallow the next
+           sidebar click to bring the sheet forward, at any width. */
+        isMobile && <MobileFeatureCard
           stackId="map-feature-table"
           title={title}
           /* No subtitle: the layer picker in the toolbar below already names the layer. */
@@ -403,6 +461,10 @@ function TableBody<TRow, TLayerId extends string>({
   viewModeToggle,
   collapsibleSearch,
   paneActions,
+  sortable,
+  sort,
+  renderColumnStats,
+  onSortChange,
   onQueryChange,
   onLayerPickerOpenChange,
   onLayerChange,
@@ -425,6 +487,10 @@ function TableBody<TRow, TLayerId extends string>({
   viewModeToggle: boolean
   collapsibleSearch: boolean
   paneActions?: TablePaneActions
+  sortable: boolean
+  sort: TableSort | null
+  renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
+  onSortChange: (sort: TableSort | null) => void
   onQueryChange: (query: string) => void
   onLayerPickerOpenChange: (open: boolean) => void
   onLayerChange: (layer: TLayerId) => void
@@ -454,7 +520,7 @@ function TableBody<TRow, TLayerId extends string>({
                 aria-expanded={layerPickerOpen}
                 onClick={() => onLayerPickerOpenChange(!layerPickerOpen)}
               >
-                <LayerGlyph color={activeLayer.color} shape={activeLayer.shape ?? 'fill'} />
+                <LayerSwatch color={activeLayer.color} shape={activeLayer.shape ?? 'fill'} />
                 <span className="truncate">{activeLayer.label}</span>
                 <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
               </button>
@@ -527,6 +593,10 @@ function TableBody<TRow, TLayerId extends string>({
         getRowId={getRowId}
         emptyMessage={emptyMessage}
         selectedRowId={selectedRowId}
+        sortable={sortable}
+        sort={sort}
+        renderColumnStats={renderColumnStats}
+        onSortChange={onSortChange}
         onSelect={onSelect}
       />
     </div>
@@ -622,6 +692,10 @@ function TableGrid<TRow>({
   getRowId,
   emptyMessage,
   selectedRowId,
+  sortable,
+  sort,
+  renderColumnStats,
+  onSortChange,
   onSelect,
 }: {
   rows: TRow[]
@@ -629,6 +703,10 @@ function TableGrid<TRow>({
   getRowId: (row: TRow) => string
   emptyMessage: string
   selectedRowId: string | null
+  sortable: boolean
+  sort: TableSort | null
+  renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
+  onSortChange: (sort: TableSort | null) => void
   onSelect: (row: TRow) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -660,12 +738,33 @@ function TableGrid<TRow>({
           <div role="rowgroup" className="sticky top-0 z-10 bg-background">
             <div role="row" style={gridStyle} className="border-b border-border text-left text-xs text-muted-foreground">
               <div role="columnheader" className="flex items-center px-3 py-2 font-medium">#</div>
-              {columns.map((column) => (
-                <div key={column.id} role="columnheader" className={cn('flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium', column.widthClassName)}>
-                  <ColumnTypeGlyph type={column.type ?? 'text'} />
-                  <span className="block truncate" title={column.header}>{column.header}</span>
-                </div>
-              ))}
+              {columns.map((column) => {
+                const direction = sort?.columnId === column.id ? sort.direction : null
+                return (
+                  <div
+                    key={column.id}
+                    role="columnheader"
+                    aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
+                    className={cn('flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium', (sortable || renderColumnStats) && 'px-1.5 py-1', column.widthClassName)}
+                  >
+                    {sortable || renderColumnStats ? (
+                      <ColumnHeaderMenu
+                        column={column}
+                        rows={rows}
+                        direction={direction}
+                        sortable={sortable}
+                        renderColumnStats={renderColumnStats}
+                        onSortChange={onSortChange}
+                      />
+                    ) : (
+                      <>
+                        <ColumnTypeGlyph type={column.type ?? 'text'} />
+                        <span className="block truncate" title={column.header}>{column.header}</span>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -707,6 +806,57 @@ function TableGrid<TRow>({
         </div>
       </div>
     </div>
+  )
+}
+
+/** Header label that opens Felt's column menu: sort, reset sort, column stats. */
+function ColumnHeaderMenu<TRow>({
+  column,
+  rows,
+  direction,
+  sortable,
+  renderColumnStats,
+  onSortChange,
+}: {
+  column: MapFeatureTableColumn<TRow>
+  rows: TRow[]
+  direction: MapFeatureTableSortDirection | null
+  sortable: boolean
+  renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
+  onSortChange: (sort: TableSort | null) => void
+}) {
+  const anchorRef = useRef<HTMLSpanElement>(null)
+  const [statsOpen, setStatsOpen] = useState(false)
+  const closeStats = useCallback(() => setStatsOpen(false), [])
+  const SortIcon = direction === 'asc' ? ArrowUp : direction === 'desc' ? ArrowDown : null
+
+  return (
+    <span ref={anchorRef} className="flex min-w-0 flex-1">
+      <ActionMenu
+        label={`${column.header} column options`}
+        align="start"
+        width={200}
+        triggerClassName="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        trigger={
+          <>
+            <ColumnTypeGlyph type={column.type ?? 'text'} />
+            <span className="block truncate" title={column.header}>{column.header}</span>
+            {SortIcon && <SortIcon className="size-3.5 shrink-0 text-foreground" aria-label={direction === 'asc' ? 'Sorted ascending' : 'Sorted descending'} />}
+          </>
+        }
+        items={[
+          sortable && direction !== 'asc' && { id: 'asc', label: 'Sort ascending', icon: <ArrowUp className="size-4" />, onSelect: () => onSortChange({ columnId: column.id, direction: 'asc' }) },
+          sortable && direction !== 'desc' && { id: 'desc', label: 'Sort descending', icon: <ArrowDown className="size-4" />, onSelect: () => onSortChange({ columnId: column.id, direction: 'desc' }) },
+          sortable && direction && { id: 'reset', label: 'Reset sort', icon: <X className="size-4" />, onSelect: () => onSortChange(null) },
+          renderColumnStats && { id: 'stats', label: 'Column stats', icon: <BarChart3 className="size-4" />, onSelect: () => setStatsOpen(true) },
+        ]}
+      />
+      {renderColumnStats && (
+        <AnchoredPopover anchorRef={anchorRef} open={statsOpen} onClose={closeStats} width={272} role="dialog" ariaLabel={`${column.header} statistics`}>
+          {renderColumnStats(column.id, rows)}
+        </AnchoredPopover>
+      )}
+    </span>
   )
 }
 
@@ -843,7 +993,7 @@ function LayerPicker<TLayerId extends string>({
       <div role="listbox" aria-label="Table layer" className="min-h-0 flex-1 overflow-auto py-1">
         {visibleLayers.map((item) => (
           <button key={item.id} type="button" role="option" aria-selected={selectedLayer === item.id} className={cn('flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted', selectedLayer === item.id && 'bg-muted')} onClick={() => onLayerChange(item.id)}>
-            <LayerGlyph color={item.color} shape={item.shape ?? 'fill'} />
+            <LayerSwatch color={item.color} shape={item.shape ?? 'fill'} />
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
             {selectedLayer === item.id ? <Check className="size-4" /> : <span className="size-4" />}
           </button>
@@ -912,11 +1062,4 @@ function TableRow<TRow>({
       })}
     </div>
   )
-}
-
-function LayerGlyph({ color, shape }: { color: string; shape: 'fill' | 'line' }) {
-  if (shape === 'line') {
-    return <span className="block h-1 w-6 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-  }
-  return <span className="block size-4 shrink-0 rounded border" style={{ backgroundColor: color, borderColor: color }} />
 }

@@ -53,6 +53,58 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
   (e.g. the selected item) into view under the toolbar. The food map sidebar
   is the reference implementation.
 
+## Layer workspaces
+
+Felt-style "layers, legend, table" pages. `/dev/data` is the reference.
+
+- `LayerListItem` (`layer-list-item.tsx`): one layer in a list that is also
+  the legend. It shows the swatch, the name, a line of facts (rows, snapshot
+  date), a loading or error state, an `actions` slot for an `ActionMenu`, and
+  an eye toggle. `children` are the legend rows, hidden while the layer is off.
+  `onOpen` makes the name a button that opens the layer's own panel.
+  `LayerSwatch` draws the mark on its own (`fill`, `line` or `point`); the
+  feature table uses it too.
+- `ActionMenu` (`action-menu.tsx`): an overflow menu with actions,
+  `checked`/`radio` items, separators and labels. Arrow keys, Home/End and
+  Escape work, and Escape returns focus to the trigger. Pass `trigger` to
+  replace the "⋯" icon, for example with a column header's label. `label` is
+  always the trigger's accessible name.
+- `AnchoredPopover` (`anchored-popover.tsx`): the portal panel `ActionMenu` is
+  built on. Use it on its own for small read-only panels, such as column
+  statistics. It flips above the anchor when there is no room below, and
+  closes when its anchor has no size (a hidden mobile copy). Neither piece
+  belongs inside a modal dialog: the portal sits outside the dialog's focus
+  trap.
+- `FileDropTarget` (`file-drop-target.tsx`): wraps a map. While files are
+  dragged over it, it shows a "drop to add" overlay, then hands the parent a
+  `File[]`. Dragged text and links are ignored.
+- `ColumnStatsSummary` (`column-stats.tsx`): Felt's column stats: rows with a
+  value, empty rows, distinct values, min/median/max/mean/sum for numbers, and
+  the most common values for text. Pass the column's own `formatValue`.
+- `MapFeatureTablePanel` (`components/map/MapFeatureTable.tsx`) opts into a
+  column header menu with `sortable` (Sort ascending/descending, Reset sort,
+  read through each column's `getSortValue`). `renderColumnStats(columnId,
+  rows)` adds "Column stats" to the same menu. Its phone card is mounted only
+  on phones. An open `MobileFeatureCard` makes `MapSectionLayout` swallow the
+  next sidebar click at any width, so keep feature cards behind
+  `ResponsiveFeatureDetail` or an `isMobile` check.
+
+Logic for these pages lives in `src/lib/` and has no DOM access:
+
+- `featureAttributes.ts` infers column types, display names and formats from
+  GeoJSON properties. Overrides set curated names, formats and order; the
+  bookkeeping columns (OBJECTID, GlobalID, Shape__*) go last. The module
+  formats cells, sorts values and computes `columnStats`. Use one schema for
+  the table, popups, tooltips and legends.
+- `layerStyle.ts` holds a layer's style as data (`simple`, `categories`,
+  `range`, `size`). One object yields the MapLibre colour and size
+  expressions and the legend rows, so the layer and its legend cannot drift
+  apart. Classes come from the toolkit's `resolvePaletteScale`.
+- `geoFileImport.ts` reads dropped files (GeoJSON, zipped shapefile, KML, CSV
+  with latitude/longitude columns) into a FeatureCollection in the page. Its
+  `GeoFileImportError` messages are written for the person who dropped the
+  file.
+
 ## Dialogs
 
 - `DialogShell` (`dialog-shell.tsx`): pinned title row with a finger-sized

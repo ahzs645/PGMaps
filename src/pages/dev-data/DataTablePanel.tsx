@@ -1,25 +1,31 @@
-import { useMemo } from 'react'
-import { MapFeatureTablePanel, type MapFeatureTableColumn, type MapFeatureTableLayer } from '@/components/map/MapFeatureTable'
+import { useCallback, useMemo } from 'react'
 import {
-  DEV_DATA_LAYERS,
-  DEV_DATA_LAYER_BY_ID,
+  MapFeatureTablePanel,
+  type MapFeatureTableColumn,
+  type MapFeatureTableLayer,
+} from '@/components/map/MapFeatureTable'
+import { ColumnStatsSummary } from '@/components/ui/column-stats'
+import { attributeSortValue, columnStats, formatAttribute } from '@/lib/featureAttributes'
+import { primaryColor } from '@/lib/layerStyle'
+import {
   FEATURE_ID_KEY,
-  formatCellValue,
+  effectiveStyle,
+  featureInBounds,
+  filteredCollection,
+  numberFormatter,
   type DataFeature,
-  type DataLayerId,
-} from './data'
-import { featureInBounds, type LayerState, type ViewportBounds } from './useDataLayers'
+  type LoadedLayer,
+  type ViewportBounds,
+} from './layerData'
+import type { DataLayer } from './model'
 
-const tableLayers: Array<MapFeatureTableLayer<DataLayerId>> = DEV_DATA_LAYERS.map((layer) => ({
-  id: layer.id,
-  label: layer.label,
-  color: layer.color,
-  shape: layer.shape,
-}))
+const COLUMN_WIDTHS = { text: 170, numeric: 130, datetime: 130 } as const
 
 export function DataTablePanel({
-  layerId,
-  state,
+  layer,
+  layers,
+  loaded,
+  getLayer,
   bounds,
   showOnlyInView,
   selectedFeatureId,
@@ -27,14 +33,15 @@ export function DataTablePanel({
   onHeightChange,
   onResizeStart,
   onResizeEnd,
-  viewModeToggle,
   onShowOnlyInViewChange,
   onLayerChange,
   onClose,
   onSelect,
 }: {
-  layerId: DataLayerId
-  state: LayerState
+  layer: DataLayer
+  layers: readonly DataLayer[]
+  loaded: LoadedLayer
+  getLayer: (id: string) => LoadedLayer
   bounds: ViewportBounds | null
   showOnlyInView: boolean
   selectedFeatureId: string | null
@@ -42,48 +49,76 @@ export function DataTablePanel({
   onHeightChange: (height: number) => void
   onResizeStart?: () => void
   onResizeEnd?: () => void
-  viewModeToggle: boolean
   onShowOnlyInViewChange: (enabled: boolean) => void
-  onLayerChange: (layerId: DataLayerId) => void
+  onLayerChange: (layerId: string) => void
   onClose: () => void
   onSelect: (feature: DataFeature) => void
 }) {
-  const definition = DEV_DATA_LAYER_BY_ID.get(layerId)
+  const style = effectiveStyle(layer, loaded)
+  const tableLayers = useMemo<Array<MapFeatureTableLayer>>(
+    () =>
+      layers.map((candidate) => ({
+        id: candidate.id,
+        label: candidate.label,
+        color: primaryColor(effectiveStyle(candidate, getLayer(candidate.id))),
+        shape: candidate.geometry,
+      })),
+    [getLayer, layers],
+  )
 
-  const columns = useMemo<Array<MapFeatureTableColumn<DataFeature>>>(() => {
-    if (!definition) return []
-    return definition.columns.map((column) => ({
-      id: column.key,
-      header: column.header,
-      type: column.type,
-      width: column.width,
-      getValue: (feature) => formatCellValue(feature.properties[column.key], column.type),
-      getSearchValue: (feature) => formatCellValue(feature.properties[column.key], column.type),
-    }))
-  }, [definition])
+  const columns = useMemo<Array<MapFeatureTableColumn<DataFeature>>>(
+    () =>
+      loaded.attributes.map((attribute) => ({
+        id: attribute.key,
+        header: attribute.label,
+        type: attribute.type,
+        width: COLUMN_WIDTHS[attribute.type],
+        getValue: (feature) => formatAttribute(feature.properties[attribute.key], attribute),
+        getSortValue: (feature) => attributeSortValue(feature.properties[attribute.key], attribute),
+      })),
+    [loaded.attributes],
+  )
 
   const rows = useMemo(() => {
-    const features = state.collection.features
+    const features = filteredCollection(loaded.collection, layer, style).features
     if (!showOnlyInView || !bounds) return features
     return features.filter((feature) => featureInBounds(feature, bounds))
-  }, [bounds, showOnlyInView, state.collection])
+  }, [bounds, layer, loaded.collection, showOnlyInView, style])
 
-  const emptyMessage = state.status === 'loading'
-    ? 'Loading rows…'
-    : state.status === 'error'
-      ? `Could not load this layer${state.error ? `: ${state.error}` : ''}`
-      : state.status === 'idle'
-        ? 'Switch this layer on to load its rows'
-        : showOnlyInView
-          ? 'No rows in the current view'
-          : 'No rows'
+  const renderColumnStats = useCallback(
+    (columnId: string, shownRows: DataFeature[]) => {
+      const attribute = loaded.attributes.find((candidate) => candidate.key === columnId)
+      if (!attribute) return null
+      return (
+        <ColumnStatsSummary
+          title={attribute.label}
+          stats={columnStats(shownRows, attribute)}
+          formatValue={numberFormatter(attribute)}
+        />
+      )
+    },
+    [loaded.attributes],
+  )
+
+  const emptyMessage =
+    loaded.status === 'loading'
+      ? 'Loading rows…'
+      : loaded.status === 'error'
+        ? `Could not load this layer${loaded.error ? `: ${loaded.error}` : ''}`
+        : loaded.status === 'idle'
+          ? 'Show this layer to load its rows'
+          : layer.filter
+            ? 'No rows match the layer filter'
+            : showOnlyInView
+              ? 'No rows in the current view'
+              : 'No rows'
 
   return (
     <MapFeatureTablePanel
       rows={rows}
       columns={columns}
       layers={tableLayers}
-      selectedLayer={layerId}
+      selectedLayer={layer.id}
       getRowId={(feature) => feature.properties[FEATURE_ID_KEY]}
       selectedRowId={selectedFeatureId}
       emptyMessage={emptyMessage}
@@ -96,9 +131,11 @@ export function DataTablePanel({
       onLayerChange={onLayerChange}
       onClose={onClose}
       onSelect={onSelect}
-      viewModeToggle={viewModeToggle}
+      viewModeToggle
       resizable
       collapsibleSearch
+      sortable
+      renderColumnStats={renderColumnStats}
     />
   )
 }

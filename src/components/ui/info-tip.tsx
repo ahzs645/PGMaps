@@ -8,8 +8,8 @@ const GAP = 6,
 
 /**
  * Help text behind an (i) button: hover or focus shows it, a click or tap pins it, Escape or
- * leaving closes it. The bubble renders in a portal at fixed position, so a scrolling sidebar or
- * an `overflow-hidden` card cannot clip it. Use it for explanations a reader needs once, not for
+ * leaving closes it. The bubble renders in a portal at fixed position above dialogs, so a
+ * scrolling sidebar or an `overflow-hidden` card cannot clip it. Use it for explanations a reader needs once, not for
  * a warning they must see: those stay inline (`InlineAlert`).
  */
 export function InfoTip({
@@ -126,13 +126,14 @@ export function InfoTip({
             id={id}
             style={{ left: 0, top: 0, visibility: 'hidden' }}
             className={cn(
-              'fixed z-[1000] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg',
+              'fixed z-[2000] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg',
               bubbleClassName,
             )}
           >
             {children}
           </span>,
-          document.body,
+          // A fullscreen workspace shows only its own subtree, so the bubble goes there.
+          document.fullscreenElement ?? document.body,
         )}
     </span>
   )
