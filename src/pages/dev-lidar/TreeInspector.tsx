@@ -65,7 +65,7 @@ export function TreeInspector({
     [seeds, setSeeds] = useState<IsolatedPoint[]>([]),
     [target, setTarget] = useState(''),
     [mergeFrom, setMergeFrom] = useState('')
-  const [note, setNote] = useState(''),
+  const [note, setNote] = useState(() => (crown ? (state.reviews[crown.properties.id]?.note ?? '') : '')),
     [reviewFilter, setReviewFilter] = useState('all'),
     [localMessage, setLocalMessage] = useState('')
   const [galleryOpen, setGalleryOpen] = useState(false)
@@ -78,15 +78,18 @@ export function TreeInspector({
       (reviewFilter === 'all' || (state.reviews[id]?.decision ?? 'unreviewed') === reviewFilter),
   )
   const index = filtered.indexOf(id ?? '')
-  useEffect(() => {
-    setSelected(new Set())
-    setSeeds([])
-    onPick(null)
+  const [previousReview, setPreviousReview] = useState({ id, reviews: state.reviews })
+  if (previousReview.id !== id || previousReview.reviews !== state.reviews) {
+    setPreviousReview({ id, reviews: state.reviews })
+    if (previousReview.id !== id) {
+      setSelected(new Set())
+      setSeeds([])
+    }
     setNote(id ? (state.reviews[id]?.note ?? '') : '')
-  }, [id])
+  }
   useEffect(() => {
-    if (id) setNote(state.reviews[id]?.note ?? '')
-  }, [id, state.reviews])
+    onPick(null)
+  }, [id, onPick])
   const allCrops = useMemo(
     () => [...controller.pinned.filter((c) => c.id !== crop?.id), ...(crop ? [crop] : [])],
     [controller.pinned, crop],

@@ -236,6 +236,7 @@ function DevForestryVisuals() {
   const reverseRoadsRef = useRef<RoadCandidate[]>([])
 
   const analysis = useVisibilityAnalysis()
+  const { run: runAnalysis, cancel: cancelAnalysis } = analysis
   const rawResult = analysis.state.result
   const key = useMemo(() => sceneFingerprint(scene), [scene])
   const isStale = useMemo(
@@ -297,9 +298,12 @@ function DevForestryVisuals() {
     numericalReady: !!result?.quality?.numericalReady,
     assessment: viaAssessment,
   })
-  const updateViaReview = useCallback((patch: Partial<ViaReview>) => {
-    setScene((current) => ({ ...current, viaReview: { ...current.viaReview, ...patch } }))
-  }, [])
+  const updateViaReview = useCallback(
+    (patch: Partial<ViaReview>) => {
+      setScene((current) => ({ ...current, viaReview: { ...current.viaReview, ...patch } }))
+    },
+    [setScene],
+  )
   useEffect(() => {
     if (saved.key !== key) return
     try {
@@ -365,19 +369,25 @@ function DevForestryVisuals() {
     [result, scene.viewpoint.id, preliminaryDrive],
   )
 
-  const setViewpoint = useCallback((viewpoint: Viewpoint) => {
-    setScene((current) => ({ ...current, viewpoint }))
-    setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
-  }, [])
+  const setViewpoint = useCallback(
+    (viewpoint: Viewpoint) => {
+      setScene((current) => ({ ...current, viewpoint }))
+      setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
+    },
+    [setScene],
+  )
 
-  const addTarget = useCallback((target: TargetPolygon) => {
-    setScene((current) => ({
-      ...current,
-      targets: [...current.targets, target],
-      activeLandformId: target.role === 'landscape' ? target.id : current.activeLandformId,
-    }))
-    setSelectedTargetId(target.id)
-  }, [])
+  const addTarget = useCallback(
+    (target: TargetPolygon) => {
+      setScene((current) => ({
+        ...current,
+        targets: [...current.targets, target],
+        activeLandformId: target.role === 'landscape' ? target.id : current.activeLandformId,
+      }))
+      setSelectedTargetId(target.id)
+    },
+    [setScene],
+  )
 
   const handleMapPoint = useCallback(
     (position: [number, number]) => {
@@ -392,7 +402,7 @@ function DevForestryVisuals() {
       if (drawMode === 'none') return
       setDraftCoordinates((current) => [...current, position])
     },
-    [drawMode],
+    [drawMode, setScene],
   )
 
   const finishDraft = useCallback(() => {
@@ -421,7 +431,7 @@ function DevForestryVisuals() {
     }
     setDraftCoordinates([])
     setDrawMode('none')
-  }, [addTarget, draftCoordinates, drawMode])
+  }, [addTarget, draftCoordinates, drawMode, setScene])
 
   const handleDrawModeChange = useCallback((mode: DrawMode) => {
     setDrive((current) => ({ ...current, active: false, playing: false }))
@@ -491,7 +501,7 @@ function DevForestryVisuals() {
         setImportMessage(`Could not read ${file.name}: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
-    [fitBounds],
+    [fitBounds, setScene],
   )
 
   /**
@@ -583,7 +593,7 @@ function DevForestryVisuals() {
       harvestCount: harvest.status === 'fulfilled' ? harvest.value.areas.length : current.harvestCount,
       stands: stands.status === 'fulfilled' ? stands.value.stands : current.stands,
     }))
-  }, [])
+  }, [setScene])
 
   /** Adopts an inventory polygon as the landform, carrying its rating across. */
   const adoptCandidate = useCallback(
@@ -612,7 +622,7 @@ function DevForestryVisuals() {
       })
       setSelectedTargetId(adoptedId)
     },
-    [addTarget],
+    [addTarget, setScene],
   )
   const handleAdoptUnit = useCallback(
     (id: string) => {
@@ -641,31 +651,34 @@ function DevForestryVisuals() {
   // The landform a terrain suggestion replaced, kept until the next scene
   // change so the reviewer can put it back.
   const [replacedLandform, setReplacedLandform] = useState<{ previous: TargetPolygon; adoptedId: string } | null>(null)
-  const adoptTerrainCandidate = useCallback((candidate: TerrainCandidate) => {
-    // It replaces the landform the reviewer was assessing against — two
-    // overlapping landforms of the same colour read as one muddle — and
-    // inherits that one's objective and VAC.
-    const current = findSceneLandform(sceneRef.current)
-    const adopted: TargetPolygon = {
-      id: createId('landform'),
-      name: `Terrain landform around ${candidate.blockName}`,
-      role: 'landscape',
-      objectiveId: current?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
-      vac: current?.vac ?? null,
-      harvestYear: null,
-      clearcutPercent: null,
-      geometry: candidate.geometry,
-      source: 'Suggested from terrain; review against the view',
-    }
-    setScene((scene) => ({
-      ...scene,
-      targets: [...scene.targets.filter((target) => target.id !== current?.id), adopted],
-      activeLandformId: adopted.id,
-    }))
-    setSelectedTargetId(adopted.id)
-    setReplacedLandform(current ? { previous: current, adoptedId: adopted.id } : null)
-    setTerrainCandidate(null)
-  }, [])
+  const adoptTerrainCandidate = useCallback(
+    (candidate: TerrainCandidate) => {
+      // It replaces the landform the reviewer was assessing against — two
+      // overlapping landforms of the same colour read as one muddle — and
+      // inherits that one's objective and VAC.
+      const current = findSceneLandform(sceneRef.current)
+      const adopted: TargetPolygon = {
+        id: createId('landform'),
+        name: `Terrain landform around ${candidate.blockName}`,
+        role: 'landscape',
+        objectiveId: current?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
+        vac: current?.vac ?? null,
+        harvestYear: null,
+        clearcutPercent: null,
+        geometry: candidate.geometry,
+        source: 'Suggested from terrain; review against the view',
+      }
+      setScene((scene) => ({
+        ...scene,
+        targets: [...scene.targets.filter((target) => target.id !== current?.id), adopted],
+        activeLandformId: adopted.id,
+      }))
+      setSelectedTargetId(adopted.id)
+      setReplacedLandform(current ? { previous: current, adoptedId: adopted.id } : null)
+      setTerrainCandidate(null)
+    },
+    [setScene],
+  )
   const undoTerrainLandform = useCallback(() => {
     if (!replacedLandform) return
     const { previous, adoptedId } = replacedLandform
@@ -676,7 +689,7 @@ function DevForestryVisuals() {
     }))
     setSelectedTargetId(previous.id)
     setReplacedLandform(null)
-  }, [replacedLandform])
+  }, [replacedLandform, setScene])
 
   const showCandidate = useCallback(
     (unit: BcSensitivityUnit) => {
@@ -700,13 +713,13 @@ function DevForestryVisuals() {
         }
         setCameraEye(null)
         setDrive((current) => ({ ...current, active: false, playing: false, positionMeters: 0 }))
-        analysis.run(input)
+        runAnalysis(input)
       } catch (error) {
         setPendingPreview(null)
         setImportMessage(error instanceof Error ? error.message : String(error))
       }
     },
-    [analysis.run, inventory.units],
+    [runAnalysis, inventory.units],
   )
   const handleRun = useCallback(() => {
     setPendingPreview(null)
@@ -714,8 +727,8 @@ function DevForestryVisuals() {
   }, [runForScene, scene])
   const cancelPreview = useCallback(() => {
     setPendingPreview(null)
-    analysis.cancel()
-  }, [analysis.cancel])
+    cancelAnalysis()
+  }, [cancelAnalysis])
   const openPreview = useCallback(
     (view?: SavedDriveView) => {
       const error = previewInputError(scene)
@@ -788,7 +801,7 @@ function DevForestryVisuals() {
       `Locked onto ${snapped.road.name} — ${(lineLengthMeters(snapped.coordinates) / 1000).toFixed(2)} km, ` +
         `moved about ${snapped.meanOffsetMeters.toFixed(0)} m.`,
     )
-  }, [scene.viewpoint.coordinates])
+  }, [scene.viewpoint.coordinates, setScene])
 
   /** Scores every road on screen by how much of the selected block it can see. */
   const handleRunReverse = useCallback(() => {
@@ -840,7 +853,7 @@ function DevForestryVisuals() {
         ),
       )
     },
-    [fitBounds],
+    [fitBounds, setScene],
   )
 
   const handleZoomToTarget = useCallback(
@@ -917,7 +930,7 @@ function DevForestryVisuals() {
     setSnapMessage(
       `Added ${added.length} road${added.length === 1 ? '' : 's'} as site disturbance at ${ROAD_DISTURBANCE_WIDTH_METERS} m wide. Run again to count them on line (b).`,
     )
-  }, [scene])
+  }, [scene, setScene])
 
   /** The run written up on FS1252, for somebody to check every figure in. */
   const handleExportReport = useCallback(() => {
@@ -1010,7 +1023,7 @@ function DevForestryVisuals() {
         setImportMessage(`Could not import: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
-    [scene, cancelPreview, fitBounds],
+    [scene, cancelPreview, setScene, fitBounds],
   )
 
   const handleLoadSample = useCallback(
@@ -1032,7 +1045,7 @@ function DevForestryVisuals() {
         runForScene(sample)
       }
     },
-    [analysis, fitBounds, runForScene],
+    [analysis, fitBounds, runForScene, setScene],
   )
 
   const handleClearScene = useCallback(() => {
@@ -1048,7 +1061,7 @@ function DevForestryVisuals() {
     setImportMessage(null)
     setDrawMode('none')
     setDraftCoordinates([])
-  }, [analysis])
+  }, [analysis, setScene])
 
   const blockCollection = useMemo(() => targetsToGeoJson(scene.targets, 'block'), [scene.targets])
   const landscapeCollection = useMemo(() => targetsToGeoJson(scene.targets, 'landscape'), [scene.targets])
@@ -1428,28 +1441,34 @@ function DevForestryVisuals() {
     return `<strong>${name}</strong><br/>${area} ha`
   }, [])
 
-  const handleTargetChange = useCallback((targetId: string, patch: Partial<TargetPolygon>) => {
-    setScene((current) => ({
-      ...current,
-      targets: current.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target)),
-      // A target re-roled to a landform becomes the active one; the active landform re-roled to anything else is dropped.
-      activeLandformId:
-        patch.role === 'landscape'
-          ? targetId
-          : current.activeLandformId === targetId && patch.role
-            ? null
-            : current.activeLandformId,
-    }))
-  }, [])
+  const handleTargetChange = useCallback(
+    (targetId: string, patch: Partial<TargetPolygon>) => {
+      setScene((current) => ({
+        ...current,
+        targets: current.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target)),
+        // A target re-roled to a landform becomes the active one; the active landform re-roled to anything else is dropped.
+        activeLandformId:
+          patch.role === 'landscape'
+            ? targetId
+            : current.activeLandformId === targetId && patch.role
+              ? null
+              : current.activeLandformId,
+      }))
+    },
+    [setScene],
+  )
 
-  const handleRemoveTarget = useCallback((targetId: string) => {
-    setScene((current) => ({
-      ...current,
-      targets: current.targets.filter((target) => target.id !== targetId),
-      activeLandformId: current.activeLandformId === targetId ? null : current.activeLandformId,
-    }))
-    setSelectedTargetId((current) => (current === targetId ? null : current))
-  }, [])
+  const handleRemoveTarget = useCallback(
+    (targetId: string) => {
+      setScene((current) => ({
+        ...current,
+        targets: current.targets.filter((target) => target.id !== targetId),
+        activeLandformId: current.activeLandformId === targetId ? null : current.activeLandformId,
+      }))
+      setSelectedTargetId((current) => (current === targetId ? null : current))
+    },
+    [setScene],
+  )
 
   const stops = useMemo(
     () => candidateDriveViews(result, drive.lookAtTargetId ?? selectedTargetId),

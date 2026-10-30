@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   isCityCoordinate,
   loadModel,
@@ -39,26 +39,24 @@ export function useFlatten(cityId: CityId = 'sf') {
   const [focus, setFocus] = useState<'from' | 'to'>('from')
   const [dragging, setDragging] = useState(false)
   const [fitRequest, setFitRequest] = useState(0)
-  const routingWorker = useRef<RoutingWorker | null>(null)
-  useEffect(() => {
-    try {
-      routingWorker.current = new RoutingWorker(cityId)
-    } catch {
-      setNotice('Could not start the routing worker. Reload to try again.')
-    }
-    return () => {
-      routingWorker.current?.dispose()
-      routingWorker.current = null
-    }
-  }, [cityId])
+  const [routingWorker, setRoutingWorker] = useState<RoutingWorker | null>(null)
   useEffect(() => {
     let active = true
+    let instance: RoutingWorker | null = null
     void loadModel(false, cityId).then(
       (value) => {
-        if (active) {
-          setModel(value)
-          setLoading(false)
+        if (!active) return
+        // The model and worker form one resource lifecycle. Starting the worker
+        // here also lets Retry recover a failed constructor rather than keeping
+        // a permanently missing worker behind a successfully loaded map.
+        try {
+          instance = new RoutingWorker(cityId)
+        } catch {
+          setNotice('Could not start the routing worker. Retry to try again.')
         }
+        setRoutingWorker(instance)
+        setModel(value)
+        setLoading(false)
       },
       (cause: unknown) => {
         if (active) {
@@ -69,6 +67,7 @@ export function useFlatten(cityId: CityId = 'sf') {
     )
     return () => {
       active = false
+      instance?.dispose()
     }
   }, [retry, cityId])
   useEffect(() => {
@@ -105,9 +104,9 @@ export function useFlatten(cityId: CityId = 'sf') {
   const searchKey = `${dragging ? 'preview' : 'full'}:${inputKey}`
   const searchTrip = useMemo(() => JSON.parse(inputKey) as Trip, [inputKey])
   useEffect(() => {
-    if (!model || !routingWorker.current) return
+    if (!model || !routingWorker || loading) return
     const controller = new AbortController()
-    void routingWorker.current
+    void routingWorker
       .route(searchTrip, dragging, controller.signal, (partial) => {
         if (!controller.signal.aborted) {
           setSearch({ key: searchKey, family: partial, searching: true, error: null })
@@ -132,7 +131,7 @@ export function useFlatten(cityId: CityId = 'sf') {
         },
       )
     return () => controller.abort()
-  }, [model, searchTrip, searchKey, dragging])
+  }, [model, routingWorker, loading, searchTrip, searchKey, dragging])
   const setPoint = useCallback(
     (which: 'from' | 'to', place: Place | null, reframe = false) => {
       if (!model) return

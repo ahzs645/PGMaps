@@ -49,7 +49,20 @@ export function DriveCamera(props: Props) {
   const { map, isLoaded } = useMap()
   const controllerRef = useRef<DriveController | null>(null)
   const [status, setStatus] = useState<DriveStatus>('waiting-for-terrain')
-  const [view, setView] = useState({ yaw: 0, tilt: 0 })
+  const [view, setView] = useState(() => props.restoredLook ?? { yaw: 0, tilt: 0 })
+  const [lookReset, setLookReset] = useState({
+    lookAt: props.lookAt,
+    seekVersion: props.seekVersion,
+    active: props.active,
+  })
+  if (
+    lookReset.lookAt !== props.lookAt ||
+    lookReset.seekVersion !== props.seekVersion ||
+    lookReset.active !== props.active
+  ) {
+    setLookReset({ lookAt: props.lookAt, seekVersion: props.seekVersion, active: props.active })
+    setView(props.restoredLook ?? { yaw: 0, tilt: 0 })
+  }
   // Folded to one bar on a phone, where the panel, caption and sheet together
   // otherwise cover most of the road view it is there to show.
   const [optionsExpanded, setOptionsExpanded] = useState(
@@ -68,9 +81,6 @@ export function DriveCamera(props: Props) {
     [props.roadCoordinates, props.stations],
   )
   const path = useMemo(() => roadPath(coordinates), [coordinates])
-  useEffect(() => {
-    setView(propsRef.current.restoredLook ?? { yaw: 0, tilt: 0 })
-  }, [props.lookAt, props.seekVersion, props.active])
   useEffect(() => {
     propsRef.current.onLookChange?.(view)
   }, [view])

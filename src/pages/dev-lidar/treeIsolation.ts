@@ -31,7 +31,10 @@ export function treeFeatures(data: TreeIsolation, options: WorkflowOptions): Wor
         (!options.treeHideEdge || !f.properties.edge),
     )
     .map((f) => {
-      const { runs, ...p } = f.properties
+      const p = Object.fromEntries(Object.entries(f.properties).filter(([key]) => key !== 'runs')) as Omit<
+        CrownProperties,
+        'runs'
+      >
       return {
         ...f,
         properties: {

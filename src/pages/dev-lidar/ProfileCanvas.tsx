@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IsolatedPoint, TreeCrop } from './treeIsolation'
 import { TREE_COLOURS } from './treeIsolation'
 import { prepareTreeProfileRange } from './treeProfiles'
@@ -72,8 +72,11 @@ export function ProfileCanvas({
   const top = settings.lockScale ? sharedHeight : Math.max(5, prepared.maximum),
     radius = settings.lockScale ? sharedRadius : prepared.radius + 1
   const scale = Math.min((size.width - 70) / (radius * 2), (size.height - 65) / top) * settings.zoom
-  const x = (h: number) => size.width / 2 + (h + settings.panX) * scale,
-    y = (h: number) => size.height - 35 - (h + settings.panY) * scale
+  const x = useCallback((h: number) => size.width / 2 + (h + settings.panX) * scale, [size.width, settings.panX, scale])
+  const y = useCallback(
+    (h: number) => size.height - 35 - (h + settings.panY) * scale,
+    [size.height, settings.panY, scale],
+  )
   const invert = (px: number, py: number): [number, number] => [
     (px - size.width / 2) / scale - settings.panX,
     (size.height - 35 - py) / scale - settings.panY,
@@ -86,9 +89,19 @@ export function ProfileCanvas({
     observer.observe(frame.current)
     return () => observer.disconnect()
   }, [])
-  useEffect(() => {
+  const polygonKey = JSON.stringify([
+    crop.id,
+    interaction,
+    settings.angle,
+    settings.mode,
+    settings.width,
+    settings.offset,
+  ])
+  const [previousPolygonKey, setPreviousPolygonKey] = useState(polygonKey)
+  if (previousPolygonKey !== polygonKey) {
+    setPreviousPolygonKey(polygonKey)
     setPolygon([])
-  }, [crop.id, interaction, settings.angle, settings.mode, settings.width, settings.offset])
+  }
   useEffect(() => {
     const c = canvas.current
     if (!c) return
@@ -162,7 +175,7 @@ export function ProfileCanvas({
       ctx.stroke()
     }
     ctx.restore()
-  }, [points, picked, selected, seeds, settings, size, polygon, scale])
+  }, [points, picked, selected, seeds, settings, size, polygon, scale, assignments, crop.id, radius, top, x, y])
   const pos = (e: React.PointerEvent) => {
     const r = canvas.current!.getBoundingClientRect()
     return [e.clientX - r.left, e.clientY - r.top] as [number, number]

@@ -17,8 +17,6 @@ export function LandformSuggestions({
   onShow: (unit: BcSensitivityUnit) => void
   onAdopt: (unit: BcSensitivityUnit) => void
 }) {
-  const [data, setData] = useState<Awaited<ReturnType<typeof loadVisualInventorySnapshot>> | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [searchMode, setSearchMode] = useState<'road' | 'block'>('road')
   const [blockId, setBlockId] = useState('')
@@ -36,28 +34,34 @@ export function LandformSuggestions({
   )
   const hasAnchor = searchPoints.length > 0
   const tooLarge = useRoad && (east - west > 1.5 || north - south > 1.5 || road.length > 5000)
-  useEffect(() => {
-    if (!hasAnchor || tooLarge) {
-      setData(null)
-      return
-    }
-    let cancelled = false
-    setError(null)
-    setData(null)
+  const request = useMemo(() => {
+    if (!hasAnchor || tooLarge) return null
     const scale = metersPerDegree(Math.max(Math.abs(south), Math.abs(north))),
       dx = 25000 / scale.lng,
       dy = 25000 / scale.lat
-    loadVisualInventorySnapshot([west - dx, south - dy, east + dx, north + dy])
+    return { bounds: [west - dx, south - dy, east + dx, north + dy] as [number, number, number, number], attempt }
+  }, [hasAnchor, tooLarge, west, east, south, north, attempt])
+  const [state, setState] = useState<{
+    request: typeof request
+    data: Awaited<ReturnType<typeof loadVisualInventorySnapshot>> | null
+    error: string | null
+  } | null>(null)
+  const data = state?.request === request ? (state?.data ?? null) : null
+  const error = state?.request === request ? (state?.error ?? null) : null
+  useEffect(() => {
+    if (!request) return
+    let cancelled = false
+    loadVisualInventorySnapshot(request.bounds)
       .then((value) => {
-        if (!cancelled) setData(value)
+        if (!cancelled) setState({ request, data: value, error: null })
       })
       .catch((e) => {
-        if (!cancelled) setError(String(e))
+        if (!cancelled) setState({ request, data: null, error: String(e) })
       })
     return () => {
       cancelled = true
     }
-  }, [hasAnchor, tooLarge, west, east, south, north, attempt])
+  }, [request])
   const candidates = useMemo(
     () =>
       data && hasAnchor && !tooLarge

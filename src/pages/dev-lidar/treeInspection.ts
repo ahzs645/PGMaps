@@ -209,7 +209,10 @@ export function inProfile(
     angle = (settings.angle * Math.PI) / 180
   return Math.abs(-x * Math.sin(angle) + y * Math.cos(angle) - settings.offset) <= settings.width / 2 + 1e-8
 }
-export function sliceOverlay(crop: TreeCrop | null, settings: ProfileSettings): FeatureCollection<Polygon> {
+export function sliceOverlay(
+  crop: TreeCrop | null,
+  settings: Pick<ProfileSettings, 'mode' | 'angle' | 'width' | 'offset'>,
+): FeatureCollection<Polygon> {
   if (!crop || settings.mode !== 'slice') return { type: 'FeatureCollection', features: [] }
   const [cx, cy] = toMetric(...crop.centre),
     a = (settings.angle * Math.PI) / 180

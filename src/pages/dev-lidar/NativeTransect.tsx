@@ -1,5 +1,6 @@
 import { NativeSelect } from '@/components/ui/form-field'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
+import { useKeyedState } from './useKeyedState'
 import type { ElevationProfile, LidarControl } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
@@ -64,11 +65,10 @@ export function NativeTransect({
   control: TransectControl
   onControl: (c: TransectControl) => void
 }) {
-  const [normalized, setNormalized] = useState<ReturnType<typeof normalizeNativeProfile>>([]),
-    [error, setError] = useState('')
+  const requestKey = useMemo(() => [profile, data, base], [profile, data, base])
+  const [normalized, setNormalized] = useKeyedState<ReturnType<typeof normalizeNativeProfile>>(requestKey, () => [])
+  const [error, setError] = useKeyedState(requestKey, () => '')
   useEffect(() => {
-    setNormalized([])
-    setError('')
     if (!profile || !data) return
     let active = true
     readSourceGrid(base, 'dtm-1m.tif', data.input_sha256['dtm-1m.tif'])
@@ -82,7 +82,7 @@ export function NativeTransect({
     return () => {
       active = false
     }
-  }, [profile, data, base])
+  }, [profile, data, base, setNormalized, setError])
   const maximum = Math.max(
       5,
       normalized.reduce((m, p) => Math.max(m, p.height ?? 0), 0),

@@ -2,6 +2,7 @@ import contextUrl from './species-context.generated.json?url'
 import speciesUrl from './species.generated.json?url'
 import type { SpeciesContext, SpeciesData } from './species'
 import { useEffect, useState } from 'react'
+import { useKeyedState } from './useKeyedState'
 import heatmapUrl from './heatmaps.generated.json?url'
 import type { CanopyHeatmaps } from './canopyHeatmaps'
 import workflowUrl from './workflows.generated.json?url'
@@ -13,23 +14,22 @@ export { default as cityJsonUrl } from './buildings.generated.city.jsonl?url'
 export { workflowUrl, modelUrl, forestUrl, speciesUrl, contextUrl, heatmapUrl }
 
 export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHash: string) {
-  const [data, setData] = useState<{
+  const [attempt, setAttempt] = useState(0)
+  const requestKey = JSON.stringify([analysisBase, sourceHash, attempt])
+  const [data, setData] = useKeyedState<{
     workflows: WorkflowData
     models: ModelData
     forestry: ForestData
     species: SpeciesData
     speciesContext: SpeciesContext
     heatmaps: CanopyHeatmaps
-  } | null>(null)
-  const [error, setError] = useState('')
-  const [attempt, setAttempt] = useState(0)
+  } | null>(requestKey, () => null, enabled)
+  const [error, setError] = useKeyedState(requestKey, () => '', enabled)
   useEffect(() => {
     if (!enabled) return
     const abort = new AbortController()
     const timeout = window.setTimeout(() => abort.abort(), 30000)
     let active = true
-    setData(null)
-    setError('')
     const digests: Record<string, string> = {}
     const read = async (url: string) => {
       const response = await fetch(url, { signal: abort.signal })
@@ -105,6 +105,6 @@ export function useWorkflowData(enabled: boolean, analysisBase: string, sourceHa
       abort.abort()
       window.clearTimeout(timeout)
     }
-  }, [enabled, analysisBase, sourceHash, attempt])
+  }, [enabled, analysisBase, sourceHash, attempt, setData, setError])
   return { data, error, retry: () => setAttempt((n) => n + 1) }
 }

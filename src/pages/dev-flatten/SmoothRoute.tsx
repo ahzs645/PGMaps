@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { MapRoute } from '@/components/ui/map'
 
 /** Two persistent line buffers let MapLibre crossfade on the GPU. */
@@ -8,15 +8,14 @@ export const SmoothRoute = memo(function SmoothRoute({ coordinates }: { coordina
     coordinates: [coordinates, []],
   })
   const transition = useMemo(() => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160), [])
-  useLayoutEffect(() => {
-    setBuffers((current) => {
-      if (current.coordinates[current.active] === coordinates) return current
-      const next = 1 - current.active
-      const updated = current.coordinates.slice()
-      updated[next] = coordinates
-      return { active: next, coordinates: updated }
-    })
-  }, [coordinates])
+  // Derive the next buffer before committing children so MapLibre never sees a
+  // frame with new route coordinates and the previous buffer's visibility.
+  if (buffers.coordinates[buffers.active] !== coordinates) {
+    const next = 1 - buffers.active
+    const updated = buffers.coordinates.slice()
+    updated[next] = coordinates
+    setBuffers({ active: next, coordinates: updated })
+  }
   return (
     <>
       {buffers.coordinates.map((points, index) => (

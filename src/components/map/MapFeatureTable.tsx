@@ -762,6 +762,7 @@ function TableGrid<TRow>({
   onSortChange: (sort: TableSort | null) => void
   onSelect: (row: TRow) => void
 }) {
+  'use no memo' // TanStack Virtual exposes mutable instance methods; keep this owner outside React Compiler.
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualize = rows.length > VIRTUALIZE_THRESHOLD
 
@@ -773,6 +774,8 @@ function TableGrid<TRow>({
     }
   }, [columns])
 
+  // TanStack's virtualizer is mutable and deliberately excluded from compiler memoization above.
+  // eslint-disable-next-line react-hooks/incompatible-library -- Preserve live virtualizer reads; memoizing its methods can freeze scrolling.
   const virtualizer = useVirtualizer({
     count: virtualize ? rows.length : 0,
     getScrollElement: () => scrollRef.current,

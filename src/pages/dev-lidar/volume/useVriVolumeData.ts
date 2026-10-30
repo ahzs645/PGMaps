@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useKeyedState } from '../useKeyedState'
 import { checkVriVolumeData, type VriVolumeData } from './vri'
 import dataUrl from './vri.generated.json?url'
 
 export function useVriVolumeData(source?: string) {
-  const [data, setData] = useState<VriVolumeData | null>(null),
-    [error, setError] = useState(''),
-    [attempt, setAttempt] = useState(0)
+  const [attempt, setAttempt] = useState(0)
+  const requestKey = JSON.stringify([source, attempt])
+  const [data, setData] = useKeyedState<VriVolumeData | null>(requestKey, () => null, true)
+  const [error, setError] = useKeyedState(requestKey, () => '', true)
   useEffect(() => {
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 30000)
-    setData(null)
-    setError('')
     fetch(dataUrl, { signal: abort.signal })
       .then((r) => {
         if (!r.ok) throw Error('VRI volume snapshot unavailable')
@@ -29,6 +29,6 @@ export function useVriVolumeData(source?: string) {
       abort.abort()
       clearTimeout(timer)
     }
-  }, [source, attempt])
+  }, [source, attempt, setData, setError])
   return { data, error, retry: () => setAttempt((n) => n + 1) }
 }

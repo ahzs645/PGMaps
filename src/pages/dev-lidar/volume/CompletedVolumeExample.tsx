@@ -17,10 +17,10 @@ import {
   type VolumeExample,
 } from './example'
 import exampleUrl from './example.generated.json?url'
+import { useKeyedState } from '../useKeyedState'
 
 export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
   const [data, setData] = useState<VolumeExample | null>(null),
-    [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0)
   const [layer, setLayer] = useState('volume'),
     [showReferences, setShowReferences] = useState(true),
@@ -32,11 +32,11 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
     [panelOpen, setPanelOpen] = useState<boolean | null>(null)
   const mobile = useIsMobile(),
     panel = panelOpen ?? !mobile
+  const [error, setError] = useKeyedState(attempt, () => '')
   useEffect(() => {
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 30000)
-    setError('')
     fetch(exampleUrl, { signal: abort.signal })
       .then((r) => {
         if (!r.ok) throw Error('Completed volume example unavailable')
@@ -54,7 +54,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
       abort.abort()
       clearTimeout(timer)
     }
-  }, [attempt])
+  }, [attempt, setError])
   const features = useMemo(
     () =>
       data && {

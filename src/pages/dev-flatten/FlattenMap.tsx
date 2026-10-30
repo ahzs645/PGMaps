@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { LngLatBounds, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { Map as AppMap, MapControls, MapMarker, MarkerContent, MapScaleBar, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
@@ -51,7 +51,9 @@ function Scene({
   const lastFit = useRef('')
   const { model, trip, family, selected, setPoint, focus, setDragging } = controller
   const setPointRef = useRef(setPoint)
-  setPointRef.current = setPoint
+  useLayoutEffect(() => {
+    setPointRef.current = setPoint
+  }, [setPoint])
   const pendingDrag = useRef<{ which: 'from' | 'to'; lng: number; lat: number } | null>(null)
   const dragTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDragUpdate = useRef(-Infinity)

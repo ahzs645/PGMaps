@@ -1,5 +1,5 @@
 import { NativeSelect } from '@/components/ui/form-field'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
 import type { Basemap } from '../basemaps'
@@ -19,8 +19,8 @@ export function RgbComparison({
   selectedModel?: string
 }) {
   const [sampleId, setSampleId] = useState('osbs'),
-    [a, setA] = useState('deepforest'),
-    [b, setB] = useState('canopy-maskrcnn'),
+    [a, setA] = useState(selectedModel || 'deepforest'),
+    [b, setB] = useState(!selectedModel || selectedModel === 'deepforest' ? 'canopy-maskrcnn' : 'deepforest'),
     [threshold, setThreshold] = useState(0.25),
     [masks, setMasks] = useState(true),
     [truth, setTruth] = useState(true),
@@ -28,12 +28,14 @@ export function RgbComparison({
     [linked, setLinked] = useState(true),
     [camera, setCamera] = useState<ComparisonCamera | null>(null),
     [reset, setReset] = useState(0)
-  useEffect(() => {
+  const [previousSelectedModel, setPreviousSelectedModel] = useState(selectedModel)
+  if (previousSelectedModel !== selectedModel) {
+    setPreviousSelectedModel(selectedModel)
     if (selectedModel) {
       setA(selectedModel)
       setB(selectedModel === 'deepforest' ? 'canopy-maskrcnn' : 'deepforest')
     }
-  }, [selectedModel])
+  }
   const sample = data.rgb.samples.find((s) => s.id === sampleId) ?? data.rgb.samples[0]
   const fa = useMemo(() => rgbFeatures(sample, a, threshold, masks), [sample, a, threshold, masks]),
     fb = useMemo(() => rgbFeatures(sample, b, threshold, masks), [sample, b, threshold, masks])

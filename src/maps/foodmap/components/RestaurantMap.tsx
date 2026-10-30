@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useMemo, useSyncExternalStore, useCallback } from 'react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
 import { MapMarker, MarkerContent, MarkerPopup, MarkerTooltip, useMap } from '@/components/ui/map'
@@ -267,19 +267,21 @@ export function RestaurantMap({
   // revealed on zoom-in.
   const isRevealStyle = markerStyle === 'heat' || markerStyle === 'cluster'
   const revealZoom = markerStyle === 'cluster' ? CLUSTER_REVEAL_ZOOM : HEAT_REVEAL_ZOOM
-  const [dotsRevealed, setDotsRevealed] = useState(true)
-  useEffect(() => {
-    if (!map || !isRevealStyle) {
-      setDotsRevealed(true)
-      return
-    }
-    const update = () => setDotsRevealed(map.getZoom() >= revealZoom)
-    update()
-    map.on('zoom', update)
-    return () => {
-      map.off('zoom', update)
-    }
-  }, [map, isRevealStyle, revealZoom])
+  const subscribeZoom = useCallback(
+    (notify: () => void) => {
+      if (!map || !isRevealStyle) return () => {}
+      map.on('zoom', notify)
+      return () => {
+        map.off('zoom', notify)
+      }
+    },
+    [map, isRevealStyle],
+  )
+  const readDotsRevealed = useCallback(
+    () => !map || !isRevealStyle || map.getZoom() >= revealZoom,
+    [map, isRevealStyle, revealZoom],
+  )
+  const dotsRevealed = useSyncExternalStore(subscribeZoom, readDotsRevealed, () => true)
 
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
     () => ({

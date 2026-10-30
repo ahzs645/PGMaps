@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useKeyedState } from './useKeyedState'
 import { checkAnalysisSummary } from './data'
 import type { AnalysisSummary } from './types'
 export function useLidarSummary(analysisBase: string) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null)
-  const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const requestKey = JSON.stringify([analysisBase, attempt])
+  const [error, setError] = useKeyedState(requestKey, () => '')
   useEffect(() => {
     const controller = new AbortController()
     let timedOut = false
@@ -13,7 +15,6 @@ export function useLidarSummary(analysisBase: string) {
       timedOut = true
       controller.abort()
     }, 20_000)
-    setError('')
     fetch(new URL('summary.json', analysisBase), { signal: controller.signal })
       .then(async (r) => {
         if (!r.ok) throw Error('The processed analysis is not available in this deployment.')
@@ -32,7 +33,7 @@ export function useLidarSummary(analysisBase: string) {
       controller.abort()
       window.clearTimeout(timeout)
     }
-  }, [analysisBase, attempt])
+  }, [analysisBase, attempt, setError])
 
   return { summary, error, retrySummary: () => setAttempt((n) => n + 1) }
 }
