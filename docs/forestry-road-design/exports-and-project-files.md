@@ -66,6 +66,7 @@ book.
 | Names / IDs                          | Names 1–200 characters; IDs 1–100 of `A–Z a–z 0–9 _ . : -`                                                                    | `project.ts`, `text`, `id`                                                 | Refused                                                                                         |
 | Latitude                             | Strictly between −85° and 85°                                                                                                 | `project.ts`, `coordinate`                                                 | Refused                                                                                         |
 | Embedded raster                      | 2 × 2 to 4,194,304 cells; values −12,000 to 12,000 m                                                                          | `terrain.ts`, `MAX_ROAD_RASTER_CELLS`, `validateRoadRaster`                | Refused as invalid                                                                              |
+| Saved complete-access comparison     | Canonical input signature at most 8 MiB; 1,000 source allocations; 75,000 IDs per path list; 4,000 unique network cost items | `fullCostRecord.ts`, `MAX_FULL_COST_SIGNATURE_BYTES`, `MAX_RECORD_ALLOCATIONS`, `MAX_RECORD_PATH_IDS`, `MAX_RECORD_COST_ITEMS` | Adoption or project import refuses an oversized record                                          |
 | Vertical datum text                  | 1–300 characters                                                                                                              | `project.ts`, `parseTerrain`                                               | Refused                                                                                         |
 | GeoJSON import                       | 20,000,000 characters, 500 features; lines: 20 roads, 2,000 vertices                                                          | `project.ts`, `features`, `importAlignmentGeoJson`                         | Refused                                                                                         |
 | Library JSON                         | 2,000,000 characters                                                                                                          | `project.ts`, `importRoadLibrary`                                          | Refused                                                                                         |
@@ -179,6 +180,21 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 
 - **Profile and section plots are fitted to their boxes,** with different horizontal and
   vertical scales. They show shape, not true slope. Use the plot book for equal-scale sections.
+- **An adopted complete-access comparison has a separate total.** The report keeps the
+  covered construction estimate and engineering ledger, then shows the saved complete access
+  cost, assessment date, current/stale input status, component costs, material allocations,
+  loaded/empty-return path IDs and adoption-time road/source evidence. Do not add the two totals.
+  A stale comparison retains its original evidence and is labelled for recalculation.
+- **GeoJSON alignment properties keep the same distinction.**
+  `covered_construction_estimate_cad` is the calculated engineering estimate;
+  `complete_access_cost_cad`, `complete_access_cost_as_of` and
+  `complete_access_cost_status` identify an adopted snapshot when present.
+  `complete_access_cost` contains its ledger, source/path IDs and decoded reviewed inputs,
+  including dated road evidence and terrain metadata without raster cells. Current means exact
+  model inputs and `FULL_COST_MODEL_VERSION` match, not field verification. A changed cost or
+  eligibility model must bump that version; legacy or unfamiliar versions remain readable and
+  are stale. The project JSON retains the canonical input
+  signature and is the editable restoration format; GeoJSON import does not restore a comparison.
 
 ### Autosave and restore
 

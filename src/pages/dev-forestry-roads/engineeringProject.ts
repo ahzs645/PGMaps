@@ -108,10 +108,20 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
   })
   const sites = items(r.sites, 'Borrow and waste sites', 100).map((raw) => {
     const v = record(raw, 'Haul site')
+    if (v.enabled !== undefined && typeof v.enabled !== 'boolean') throw Error('Haul site enabled must be a boolean.')
     return {
       id: key(v.id, 'Haul site ID'),
       name: name(v.name, 'Haul site name'),
       kind: oneOf(v.kind, ['borrow', 'waste'] as const, 'Haul site kind'),
+      ...(v.enabled === undefined ? {} : { enabled: v.enabled as boolean }),
+      ...(v.sourceNotes === undefined
+        ? {}
+        : {
+            sourceNotes:
+              typeof v.sourceNotes === 'string' && v.sourceNotes.length <= 2000
+                ? v.sourceNotes
+                : name(v.sourceNotes, 'Source notes', 2000),
+          }),
       chainage: numeric(v.chainage, 'Haul site station'),
       accessDistanceM: numeric(v.accessDistanceM, 'Site access distance', 0, 100000),
       capacityM3: v.capacityM3 === null ? null : numeric(v.capacityM3, 'Site capacity', 0, 1e12),
@@ -123,6 +133,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
   if (typeof h.enabled !== 'boolean') throw Error('Haul enabled must be a boolean.')
   const haul = {
     enabled: h.enabled,
+    ...(h.siteSelection === undefined
+      ? {}
+      : { siteSelection: oneOf(h.siteSelection, ['nearest', 'delivered-cost'] as const, 'Site selection') }),
     freeHaulDistanceM: numeric(h.freeHaulDistanceM, 'Free-haul distance'),
     overhaulDistanceM: numeric(h.overhaulDistanceM, 'Overhaul limit'),
     // Added later: older files have no free-haul or loading rates, which means zero.
@@ -177,7 +190,37 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       )
         throw Error('Material horizons cannot overlap in station and depth. Split their ranges.')
     }
-  const result = { templates, assignments, materials, strata, culverts, sites, haul }
+  const surfacingSupply =
+    r.surfacingSupply === undefined
+      ? undefined
+      : (() => {
+          const s = record(r.surfacingSupply, 'Surfacing supply')
+          if (typeof s.enabled !== 'boolean') throw Error('Surfacing supply enabled must be a boolean.')
+          if (typeof s.sourceNotes !== 'string' || s.sourceNotes.length > 2000)
+            throw Error('Surfacing source notes must contain at most 2,000 characters.')
+          return {
+            enabled: s.enabled,
+            name: name(s.name, 'Surfacing source name'),
+            acquisitionRate: numeric(s.acquisitionRate, 'Aggregate acquisition rate'),
+            processingRate: numeric(s.processingRate, 'Aggregate processing rate'),
+            loadingRate: numeric(s.loadingRate, 'Aggregate loading rate'),
+            haulDistanceKm: numeric(s.haulDistanceKm, 'Aggregate one-way haul distance', 0, 1000),
+            haulRate: numeric(s.haulRate, 'Aggregate haul rate'),
+            placementRate: numeric(s.placementRate, 'Aggregate placement rate'),
+            capacityM3: s.capacityM3 === null ? null : numeric(s.capacityM3, 'Aggregate capacity', 0, 1e12),
+            sourceNotes: s.sourceNotes,
+          }
+        })()
+  const result = {
+    templates,
+    assignments,
+    materials,
+    strata,
+    culverts,
+    sites,
+    haul,
+    ...(surfacingSupply ? { surfacingSupply } : {}),
+  }
   validateEngineering(result)
   return result
 }

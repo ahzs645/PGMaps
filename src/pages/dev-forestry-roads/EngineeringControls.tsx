@@ -9,6 +9,9 @@ import { createEngineeringDesign } from './engineeringTypes'
 import { downloadText } from '@/lib/download'
 import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
+import { GravelSourcesPanel } from './GravelSourcesPanel'
+import { surfacingSupplyCost } from './gravel'
+import { ReferenceSelect } from './CostReferenceControls'
 import { nearestStation } from './engine'
 import { templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
 import { formatRoadStation } from './Charts'
@@ -118,20 +121,37 @@ export function EngineeringControls({
   onPreviewTemplate,
   onClosePreview,
   onQuantities,
+  previewActive = false,
+  aggregateOpen = false,
+  onAggregateOpenChange,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
   onClosePreview?: () => void
   onQuantities: () => void
+  previewActive?: boolean
+  aggregateOpen?: boolean
+  onAggregateOpenChange?: (open: boolean) => void
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
   const [haulOpen, setHaulOpen] = useState(false)
+  const activeTab = aggregateOpen ? 'haul' : tab
+  const changeHaulOpen = (open: boolean) => {
+    setHaulOpen(open)
+    onAggregateOpenChange?.(open)
+    setTab('haul')
+  }
   const [templateId, setTemplateId] = useState('')
   const [preset, setPreset] = useState<TemplateStarter>('current')
   const [libraryMode, setLibraryMode] = useState<'merge' | 'replace'>('merge')
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  const aggregate = surfacingSupplyCost(
+    analysis.surfaceVolumeM3,
+    project.settings.surfacingRate,
+    design.surfacingSupply,
+  )
   const selected = design.templates.find((t) => t.id === templateId) ?? design.templates[0]
   const [templateCandidate, setTemplateCandidate] = useState<TemplateCandidate>(() => ({
     alignmentId: alignment.id,
@@ -179,10 +199,19 @@ export function EngineeringControls({
     }))
   const updateTemplate = (changes: Partial<RoadTemplate>) => {
     if (!selected || !candidate) return
+    const next = { ...candidate, ...changes }
     setTemplateCandidate((previous) => ({
       ...previous,
-      value: { ...previous.value, ...changes } as RoadTemplate,
+      value: next,
     }))
+    if (previewActive) {
+      try {
+        validateTemplate(next)
+        onPreviewTemplate(next, `${selected.name} · unsaved candidate`)
+      } catch {
+        // Keep the last valid preview while an interdependent width/depth edit is incomplete.
+      }
+    }
   }
   const saveTemplate = () => {
     if (!selected || !candidate) return
@@ -241,7 +270,7 @@ export function EngineeringControls({
       <div className="space-y-2 border-b p-3">
         <TabBar
           label="Engineering inputs"
-          value={tab}
+          value={activeTab}
           onChange={setTab}
           options={[
             { value: 'templates', label: 'Templates' },
@@ -250,11 +279,35 @@ export function EngineeringControls({
             { value: 'haul', label: 'Haul' },
           ]}
         />
+        <div className="space-y-1.5 rounded border bg-muted/20 p-2" data-testid="road-aggregate-summary">
+          <p className="text-[11px] text-muted-foreground">
+            {design.surfacingSupply?.enabled ? (
+              <>
+                Aggregate: <span className="font-medium text-foreground">{design.surfacingSupply.name}</span> ·{' '}
+                {aggregate.suppliedM3.toFixed(1)} m³ at ${aggregate.rate.toFixed(2)}/m³ ·{' '}
+                {aggregate.fallbackM3.toFixed(1)} m³ at the base rate.
+              </>
+            ) : (
+              <>Aggregate uses the base surfacing rate (${project.settings.surfacingRate.toFixed(2)}/m³).</>
+            )}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setTab('haul')
+              setHaulOpen(true)
+            }}
+          >
+            Aggregate source
+          </Button>
+        </div>
         <Button size="sm" variant="outline" className="w-full" onClick={onQuantities}>
           Show quantities & cost breakdown
         </Button>
       </div>
-      {tab === 'templates' && (
+      {activeTab === 'templates' && (
         <>
           <RoadSection
             title="Named template library"
@@ -440,11 +493,7 @@ export function EngineeringControls({
                           size="sm"
                           variant="ghost"
                           disabled={candidate[field.key] === undefined}
-                          onClick={() => {
-                            const next = { ...candidate }
-                            delete next[field.key]
-                            setTemplateCandidate((previous) => ({ ...previous, value: next }))
-                          }}
+                          onClick={() => updateTemplate({ [field.key]: undefined })}
                         >
                           Inherit
                         </Button>
@@ -590,7 +639,7 @@ export function EngineeringControls({
           </RoadSection>
         </>
       )}
-      {tab === 'materials' && (
+      {activeTab === 'materials' && (
         <>
           <RoadSection
             title="Ground material definitions"
@@ -764,7 +813,7 @@ export function EngineeringControls({
           </RoadSection>
         </>
       )}
-      {tab === 'culverts' && (
+      {activeTab === 'culverts' && (
         <RoadSection
           title="Culvert inventory & geometry"
           help="Place structures by road station. Skew, dimensions and entered inverts drive plan geometry, cover checks and installed cost. Invert initialization is a draft at the requested centre cover, not a survey. Dimensions and cover do not establish hydraulic capacity or fish passage."
@@ -900,7 +949,7 @@ export function EngineeringControls({
           })}
         </RoadSection>
       )}
-      {tab === 'haul' && (
+      {activeTab === 'haul' && (
         <>
           <div className="m-3 space-y-2 rounded-lg border p-3">
             <label className="mb-3 flex items-center gap-2 text-xs">
@@ -922,11 +971,37 @@ export function EngineeringControls({
               {design.haul.enabled ? 'Allocations enabled' : 'Allocations disabled'}
             </p>
           </div>
-          <RoadSettingsDialog title="Haul & cost settings" open={haulOpen} onOpenChange={setHaulOpen} busy={!!w.busy}>
+          <RoadSettingsDialog
+            title="Haul & cost settings"
+            open={haulOpen || aggregateOpen}
+            onOpenChange={changeHaulOpen}
+            busy={!!w.busy}
+          >
+            <GravelSourcesPanel
+              road={alignment.points.map((point) => point.coordinate)}
+              source={design.surfacingSupply}
+              volumeM3={analysis.surfaceVolumeM3}
+              baseRate={project.settings.surfacingRate}
+              onChange={(surfacingSupply) => edit((e) => ({ ...e, surfacingSupply }))}
+            />
             <RoadSection
               title="Haul & cost assumptions"
-              help="Allocations use a deterministic nearest-source plan within covered intervals. Haul distance follows road chainage plus site access. This is a cost scenario, not a global route or haul optimizer."
+              help="Allocations use a deterministic chainage-order plan within covered intervals. Choose nearest or lowest delivered batch cost. Haul distance follows road chainage plus site access. This is a cost scenario, not a global route or haul optimizer."
             >
+              <ReferenceSelect
+                label="Borrow / waste site selection"
+                value={design.haul.siteSelection ?? 'nearest'}
+                options={[
+                  { value: 'nearest', label: 'Nearest source' },
+                  { value: 'delivered-cost', label: 'Lowest delivered batch cost' },
+                ]}
+                onChange={(siteSelection) =>
+                  edit((e) => ({
+                    ...e,
+                    haul: { ...e.haul, siteSelection: siteSelection as HaulSettings['siteSelection'] },
+                  }))
+                }
+              />
               <Fields<HaulSettings>
                 value={design.haul}
                 fields={[
@@ -982,6 +1057,14 @@ export function EngineeringControls({
               </div>
               {design.sites.map((s, index) => (
                 <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
+                  <label className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={s.enabled !== false}
+                      onChange={(event) => patch('sites', s.id, { enabled: event.target.checked })}
+                    />
+                    Include {s.name} in allocations
+                  </label>
                   <Name
                     value={s.name}
                     label="Haul site name"
@@ -993,7 +1076,7 @@ export function EngineeringControls({
                     onClick={() => {
                       w.setFeatureSelection({ alignmentId: alignment.id, kind: 'site', id: s.id })
                       w.setStation(s.chainage)
-                      setHaulOpen(false)
+                      changeHaulOpen(false)
                     }}
                   >
                     {s.kind} · select {formatRoadStation(s.chainage)}
@@ -1028,6 +1111,20 @@ export function EngineeringControls({
                     />
                     Unbounded scenario capacity
                   </label>
+                  <Field label={`Site ${index + 1} source / access notes`}>
+                    <textarea
+                      className={roadFieldClass}
+                      rows={2}
+                      maxLength={2000}
+                      value={s.sourceNotes ?? ''}
+                      onChange={(event) => patch('sites', s.id, { sourceNotes: event.target.value })}
+                    />
+                  </Field>
+                  {s.kind === 'borrow' && (
+                    <Button size="sm" variant="outline" onClick={() => patch('sites', s.id, { unitRate: 0 })}>
+                      Set borrow acquisition price to $0
+                    </Button>
+                  )}
                 </div>
               ))}
             </RoadSection>

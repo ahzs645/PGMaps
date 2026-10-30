@@ -1,7 +1,8 @@
 import type { RoadFeatureSelection } from './roadSelection'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { safeAnalyzeRoad } from './analysisResult'
-import { createDemoProject, demoTerrain, loadLidarTerrain, terrainFromMetadata } from './terrain'
+import { createDemoProject, demoTerrain, terrainFromMetadata } from './terrain'
+import { loadRoadScenario } from './scenarios'
 import { parseProject } from './project'
 import {
   addProject,
@@ -155,23 +156,10 @@ export function useRoadWorkspace() {
           await restore(parseProject(saved), controller.signal, savedId)
           if (!controller.signal.aborted) setNotice('Restored your locally saved road project.')
         } else {
-          const loaded = await loadLidarTerrain(controller.signal, setBusy)
+          const loaded = await loadRoadScenario('bc-lidar', { signal: controller.signal, onProgress: setBusy })
           if (controller.signal.aborted) return
-          const alignments = loaded.alignments!
-          const initial = createDemoProject()
-          startProject(
-            {
-              ...initial,
-              name: 'BC LiDAR sample',
-              terrain: loaded.metadata,
-              alignments,
-              activeAlignmentId: alignments[0].id,
-              context: [],
-              cables: [],
-            },
-            loaded.source,
-          )
-          setNotice('This is the BC LiDAR sample. Start your own from Projects → New project.')
+          startProject(loaded.project, loaded.source)
+          setNotice(`${loaded.notice} Start your own from Projects → New project.`)
         }
       } catch (cause) {
         if (!controller.signal.aborted)
@@ -209,7 +197,13 @@ export function useRoadWorkspace() {
       setSaving('Saving locally…')
       try {
         persist(parseProject(project))
-          .then(() => setSaving('Saved on this device'))
+          .then(() =>
+            setSaving(
+              training()
+                ? 'Training session saved · reload starts fresh; download to keep edits'
+                : 'Saved on this device',
+            ),
+          )
           .catch(() => setSaving('Local save unavailable — download your project'))
       } catch (cause) {
         setSaving(`Last valid save retained: ${cause instanceof Error ? cause.message : 'correct the current inputs'}`)

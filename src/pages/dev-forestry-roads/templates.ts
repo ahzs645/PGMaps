@@ -183,6 +183,7 @@ export function validateEngineering(e: AlignmentEngineering): void {
   const h = e.haul
   if (
     typeof h.enabled !== 'boolean' ||
+    (h.siteSelection !== undefined && !['nearest', 'delivered-cost'].includes(h.siteSelection)) ||
     [
       h.freeHaulDistanceM,
       h.overhaulDistanceM,
@@ -222,10 +223,28 @@ export function validateEngineering(e: AlignmentEngineering): void {
       !bounded(s.unitRate, 0, 100000) ||
       !bounded(s.fixedCost, 0, 1e9) ||
       !['borrow', 'waste'].includes(s.kind) ||
+      (s.enabled !== undefined && typeof s.enabled !== 'boolean') ||
+      (s.sourceNotes !== undefined && (typeof s.sourceNotes !== 'string' || s.sourceNotes.length > 2000)) ||
       (s.capacityM3 !== null && !bounded(s.capacityM3, 0, 1e12))
     )
       throw new Error('Borrow/waste sites need valid stationing, access distance, capacity and costs.')
   }
+  const supply = e.surfacingSupply
+  if (
+    supply &&
+    (typeof supply.enabled !== 'boolean' ||
+      typeof supply.name !== 'string' ||
+      !supply.name.trim() ||
+      supply.name.length > 200 ||
+      typeof supply.sourceNotes !== 'string' ||
+      supply.sourceNotes.length > 2000 ||
+      [supply.acquisitionRate, supply.processingRate, supply.loadingRate, supply.haulRate, supply.placementRate].some(
+        (v) => !bounded(v, 0, 100000),
+      ) ||
+      !bounded(supply.haulDistanceKm, 0, 1000) ||
+      (supply.capacityM3 !== null && !bounded(supply.capacityM3, 0, 1e12)))
+  )
+    throw new Error('Surfacing supply needs valid rates, haul distance, compacted capacity and source notes.')
 }
 
 export function templateAt(alignment: Alignment, chainage: number): ResolvedTemplate {

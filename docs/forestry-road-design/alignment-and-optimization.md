@@ -6,6 +6,12 @@ and the sketched corridor optimizer. The geometry itself is specified in the
 [workspace contract](../forestry-road-design.md#geometry-and-calculations) and
 [corridor optimization](../forestry-road-optimization.md); this guide says when to trust it.
 
+See [Forester constraints and route comparisons](planning-constraints.md) for sourced BC
+planning considerations, saved route assumptions, clearance/slope screens, reviewed road
+reuse and live preview behavior.
+
+The final-connector adoption gate is documented in [Final connector checks](final-connector-checks.md), including dense-section/terrain/geometry budgets and unknown results.
+
 ## Before you rely on a design
 
 - **No sharp PIs left.** A corner with radius 0, or a radius that does not fit its tangents,
@@ -76,16 +82,16 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 
 ### Route search
 
-| Limit                            | Value                                                                                            | Enforced in                  | When exceeded                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- | ---------------------------------- |
-| Endpoint separation              | 2 m–15 km                                                                                        | `routing.ts` `suggestRoutes` | Error                              |
-| Ground-grade limit               | above 0 % and at most 60 %                                                                       | `routing.ts`                 | Error                              |
-| Search margin; grid              | 35 % of separation (80–1,000 m); at most 96 nodes per side (`MAX_GRID_SIDE`), at least 2 m apart | `routing.ts`                 | —                                  |
-| Grid nodes                       | 10,000 per attempt (`MAX_VISITED`); 40,000 × alternatives in total                               | `routing.ts`                 | Error                              |
-| Fine-check retries               | 4 attempts                                                                                       | `routing.ts` `search`        | Error; no unchecked route returned |
-| Terrain samples; geometry checks | 450,000; 2,000,000                                                                               | `routing.ts`                 | Error                              |
-| Stream and exclusion vertices    | 20,000                                                                                           | `routing.ts`                 | Error                              |
-| Alternatives                     | 1–5; at most 70 % shared edges                                                                   | `routing.ts`                 | Fewer alternatives returned        |
+| Limit                                                 | Value                                                                                                                             | Enforced in                  | When exceeded                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------- |
+| Endpoint separation                                   | 2 m–15 km                                                                                                                         | `routing.ts` `suggestRoutes` | Error                              |
+| Ground-grade limit                                    | above 0 % and at most 60 %                                                                                                        | `routing.ts`                 | Error                              |
+| Search margin; grid                                   | Automatic 35 % of separation (80–1,000 m), or entered 20–1,000 m; at most 96 nodes per side (`MAX_GRID_SIDE`), at least 2 m apart | `routing.ts`                 | —                                  |
+| Grid nodes                                            | 10,000 per attempt (`MAX_VISITED`); 40,000 × alternatives in total                                                                | `routing.ts`                 | Error                              |
+| Fine-check retries                                    | 4 attempts                                                                                                                        | `routing.ts` `search`        | Error; no unchecked route returned |
+| Terrain samples; geometry checks                      | 450,000; 2,000,000                                                                                                                | `routing.ts`                 | Error                              |
+| Stream, exclusion and eligible existing-road vertices | 20,000                                                                                                                            | `routing.ts`                 | Error                              |
+| Alternatives                                          | 1–5; at most 70 % shared edges                                                                                                    | `routing.ts`                 | Fewer alternatives returned        |
 
 ### Sketched corridor optimizer
 
@@ -282,7 +288,7 @@ inputs and similar coverage.
 - Keep culvert cover, ditch drainage or crossing grades in mind while optimizing the profile.
 - Fit curves or spirals to a route result, or keep route and corridor results inside the
   original road's engineering, curve design and vertical inputs.
-- Treat interior sketch points as compulsory waypoints, or apply exclusion buffers to the
-  constructed footprint.
+- Treat interior sketch points as compulsory waypoints, or validate the constructed footprint
+  against exclusions. The terrain-cost search applies the entered centreline clearance only.
 - Prove that no road exists where a search fails. Failure means none was found inside these
   bounds.

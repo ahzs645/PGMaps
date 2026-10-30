@@ -6,6 +6,7 @@ import { formatRoadStation } from '../Charts'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadSettings } from '../types'
+import { surfacingSupplyCost } from '../gravel'
 
 const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
   [
@@ -22,8 +23,20 @@ const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
     100,
     'How far out from the centreline each section looks for where the cut or fill batter meets the ground. A high fill or deep cut needs more; a station whose batter runs past it is drawn red on the plan and left out of quantities.',
   ],
-  ['maxGradePercent', 'Grade limit (%)', 0.1, 100, 'Stations steeper than this are drawn red and flagged.'],
-  ['minRadius', 'Minimum radius (m)', 0, 10000, 'Horizontal curves tighter than this are flagged.'],
+  [
+    'maxGradePercent',
+    'Grade limit (%)',
+    0.1,
+    100,
+    'Station grades above this threshold are flagged. Terrain-cost route search accepts limits above 0% up to 60%; the corridor optimizer needs 1–30%. This input does not certify a road standard.',
+  ],
+  [
+    'minRadius',
+    'Minimum radius (m)',
+    0,
+    10000,
+    'Horizontal curves tighter than this are flagged. The corridor optimizer needs 5–1,000 m; the terrain-cost grid search does not fit curves.',
+  ],
 ]
 const RATES = [
   ['cutRate', 'Cut ($/m³)'],
@@ -34,7 +47,9 @@ const RATES = [
 ] as const
 
 export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }) {
-  const { project, analysis, update } = p.workspace
+  const { project, alignment, analysis, update } = p.workspace
+  const aggregateSource = alignment.engineering?.surfacingSupply
+  const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
   const setting = (key: keyof RoadSettings, value: number) =>
     update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))
   return (
@@ -92,6 +107,11 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
             <NumberField
               key={key}
               label={label}
+              hint={
+                key === 'surfacingRate'
+                  ? 'Base surfacing rate. An enabled aggregate source supplies its entered capacity at its delivered rate; only the remainder uses this base rate. Open Engineering → Aggregate source to review the source.'
+                  : undefined
+              }
               value={project.settings[key]}
               min={key === 'shrinkFactor' ? 0.1 : 0}
               max={key === 'shrinkFactor' ? 2 : 10000}
@@ -99,16 +119,33 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
             />
           ))}
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground" data-testid="road-review-aggregate-summary">
+          {aggregateSource?.enabled ? (
+            <>
+              Active aggregate source: <span className="font-medium">{aggregateSource.name}</span> ·{' '}
+              {aggregate.suppliedM3.toFixed(1)} m³ at ${aggregate.rate.toFixed(2)}/m³. The base surfacing rate applies
+              to the remaining {aggregate.fallbackM3.toFixed(1)} m³.
+            </>
+          ) : (
+            <>No aggregate source is enabled. The base surfacing rate applies to all covered surfacing volume.</>
+          )}{' '}
+          Open Engineering → Aggregate source to change the source.
+        </p>
         <Button
           variant="ghost"
           size="sm"
           className="mt-2 h-7 w-full justify-between px-2 text-xs"
           onClick={() => p.onTab('engineering')}
         >
-          Materials, drainage & haul inputs
+          Materials, drainage, aggregate & haul inputs
           <ArrowRight className="size-3" />
         </Button>
       </RoadSection>
+      <div className="p-3">
+        <Button size="sm" variant="outline" className="w-full whitespace-normal" onClick={p.onCompareCompleteCosts}>
+          Review connected access & complete route costs
+        </Button>
+      </div>
       <CableLines {...p} />
     </>
   )

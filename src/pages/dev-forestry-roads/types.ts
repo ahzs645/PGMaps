@@ -2,6 +2,11 @@ import type { LocalRaster } from '../dev-forestry/types'
 import type { ElevationSource } from '../dev-forestry/terrain'
 import type { AlignmentEngineering, EngineeringAnalysis } from './engineeringTypes'
 import type { VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
+import type { RouteSearchOptions } from './routing'
+import type { RoadNetworkEvidence } from './roadNetworkTypes'
+import type { RoadConditionObservation, RoadConditionPolicy } from './roadCondition'
+import type { TotalCostPlanning } from './fullCostPlanning'
+import type { FullCostReviewRecord } from './fullCostRecord'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -82,6 +87,23 @@ export interface Alignment {
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
   curveDesign?: CurveDesign
+  fullCostRecord?: FullCostReviewRecord
+  /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */
+  networkEntryRoadId?: string
+  /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
+  fsrConnection?: {
+    targetFeatureId: string
+    targetName: string
+    targetCoordinate: Coordinate
+    originCoordinate: Coordinate
+    originAlignmentId: string
+    endpoint: 'start' | 'end'
+    preference: 'nearest' | 'lowest-cost' | 'chosen'
+    networkScope: string
+    straightLineDistanceM: number
+    routeLengthM: number
+    searchCost: number
+  }
 }
 export interface ContextFeature {
   id: string
@@ -90,6 +112,31 @@ export interface ContextFeature {
   geometry: GeoJSON.LineString | GeoJSON.Polygon
   /** On an avoid polygon: route search may cross it at this extra CAD per metre instead of being blocked. */
   routeCostPerM?: number
+  /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
+  roadEvidence?: ExistingRoadEvidence
+}
+export interface ExistingRoadEvidence {
+  source: 'bc-ften' | 'user' | 'scenario'
+  /** FSR identity comes from the source file-type code, never the name or file ID. */
+  roadClass?: 'fsr' | 'permit' | 'user'
+  fileTypeCode?: string
+  lifecycleStatus?: string
+  sourceId?: string
+  sourceUrl?: string
+  retrievedAt?: string
+  status?: string
+  awardDate?: string
+  retirementDate?: string
+  constructionYear?: number
+  condition: 'unknown' | 'serviceable' | 'rehabilitation' | 'closed'
+  conditionBasis: 'unreviewed' | 'assumed' | 'field-verified'
+  /** Explicit planning opt-in, never inferred from a permit status or a record date. */
+  reuseAllowed: boolean
+  /** A refreshed line changed geometry; retained evidence/restrictions require explicit scope review. */
+  geometryReviewRequired?: boolean
+  network?: RoadNetworkEvidence
+  observations?: RoadConditionObservation[]
+  conditionPolicy?: RoadConditionPolicy
 }
 export interface CableLine {
   id: string
@@ -131,10 +178,16 @@ export interface TerrainMetadata {
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'
   name: string
+  /** Persistent library loading/coverage evidence, retained when a scenario is saved. */
+  scenario?: { id: string; contextWarnings: string[]; terrainCoveragePercent: number }
   activeAlignmentId: string
   alignments: Alignment[]
   terrain: TerrainMetadata
   settings: RoadSettings
+  /** Optional saved route-search assumptions; older projects retain the current defaults. */
+  routeSearch?: RouteSearchOptions
+  /** Explicit vehicle, network, evidence, supply and final-check inputs for complete route comparisons. */
+  totalCostPlanning?: TotalCostPlanning
   context: ContextFeature[]
   cables: CableLine[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]

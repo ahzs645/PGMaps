@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { ArrowLeft, Copy, FolderOpen, Mountain, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import type { LibraryEntry } from './projectLibrary'
 import type { Coordinate } from './types'
+import { ROAD_SCENARIOS, type RoadScenarioId } from './scenarios'
 
 /** How a new project gets its terrain. Every kind but the BC sample starts with one straight road. */
 export type NewProject = { name: string } & (
@@ -68,6 +69,7 @@ export function ProjectsDialog({
   onDelete,
   onOpenFile,
   onCreate,
+  onScenario,
   portalContainer,
 }: {
   open: boolean
@@ -82,9 +84,10 @@ export function ProjectsDialog({
   onDelete: (id: string) => void
   onOpenFile: () => void
   onCreate: (start: NewProject) => void
+  onScenario?: (id: RoadScenarioId) => void
   portalContainer?: HTMLElement | null
 }) {
-  const [view, setView] = useState<'list' | 'new'>('list')
+  const [view, setView] = useState<'list' | 'new' | 'scenarios'>('list')
   const [confirm, setConfirm] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<NewProject['kind']>('regional')
@@ -111,13 +114,19 @@ export function ProjectsDialog({
     <PanelDialog
       open={open}
       onOpenChange={close}
-      title={view === 'list' ? 'Projects' : 'New project'}
-      subtitle={view === 'list' ? 'Saved in this browser' : 'Choose where its terrain comes from'}
+      title={view === 'list' ? 'Projects & scenarios' : view === 'scenarios' ? 'Scenario library' : 'New project'}
+      subtitle={
+        view === 'list'
+          ? 'Saved in this browser'
+          : view === 'scenarios'
+            ? 'Each example loads its own terrain and map context'
+            : 'Choose where its terrain comes from'
+      }
       size="lg"
       portalContainer={portalContainer}
       contentProps={{ 'data-testid': 'road-projects-dialog' }}
     >
-      <fieldset disabled={busy} className="space-y-4">
+      <fieldset disabled={busy} className="min-w-0 space-y-4">
         {view === 'list' ? (
           <>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -136,6 +145,12 @@ export function ProjectsDialog({
                 Open project file
               </Button>
             </div>
+            {onScenario && (
+              <Button variant="outline" className="w-full" onClick={() => setView('scenarios')}>
+                <LibraryBig className="size-4" />
+                Browse {ROAD_SCENARIOS.length} example scenarios
+              </Button>
+            )}
             <ul className="divide-y rounded-lg border" aria-label="Saved projects">
               {library.map((entry) => {
                 const current = entry.id === activeId
@@ -225,6 +240,43 @@ export function ProjectsDialog({
               copy or move one to another device. Imported terrain is stored with its project.
             </p>
           </>
+        ) : view === 'scenarios' ? (
+          <>
+            <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
+              <ArrowLeft className="size-4" />
+              All projects
+            </Button>
+            <div className="grid gap-3 sm:grid-cols-2" aria-label="Road scenario library">
+              {ROAD_SCENARIOS.map((scenario) => (
+                <article key={scenario.id} className="flex flex-col gap-2 rounded-lg border p-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">{scenario.name}</h3>
+                    <p className="mt-0.5 text-xs font-medium text-primary">{scenario.terrain}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{scenario.detail}</p>
+                  <p className="text-xs text-muted-foreground">{scenario.focus}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-auto w-full"
+                    aria-label={`Load ${scenario.name}`}
+                    onClick={() => {
+                      onScenario?.(scenario.id)
+                      close(false)
+                    }}
+                  >
+                    <Mountain className="size-3.5" />
+                    Load scenario
+                  </Button>
+                </article>
+              ))}
+            </div>
+            <InlineAlert>
+              Every scenario opens as a new editable project. Your current project stays in Projects. Public road
+              tenures and harvest openings load for the real landscapes; missing sources are reported. A mapped road
+              does not establish its age, condition or permission to use it.
+            </InlineAlert>
+          </>
         ) : (
           <>
             <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
@@ -241,13 +293,31 @@ export function ProjectsDialog({
               />
             </Field>
             <div role="radiogroup" aria-label="Starting terrain" className="grid gap-2 sm:grid-cols-2">
-              {STARTS.map((start) => (
+              {STARTS.map((start, index) => (
                 <button
                   key={start.kind}
                   type="button"
                   role="radio"
                   aria-checked={kind === start.kind}
+                  tabIndex={kind === start.kind ? 0 : -1}
                   onClick={() => setKind(start.kind)}
+                  onKeyDown={(event) => {
+                    if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+                    event.preventDefault()
+                    const next =
+                      event.key === 'Home'
+                        ? 0
+                        : event.key === 'End'
+                          ? STARTS.length - 1
+                          : (index +
+                              (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) +
+                              STARTS.length) %
+                            STARTS.length
+                    setKind(STARTS[next].kind)
+                    event.currentTarget.parentElement
+                      ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+                      [next]?.focus()
+                  }}
                   className={`rounded-lg border p-3 text-left transition-colors ${kind === start.kind ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted'}`}
                 >
                   <span className="block text-sm font-medium">{start.title}</span>

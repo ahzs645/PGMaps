@@ -121,7 +121,7 @@ describe('same-source aspect preview', () => {
     expect(images.get(missing.aspect)!.pixels.every((value) => value === 0)).toBe(true)
   })
 
-  it('keeps a missing cell and unavailable neighboring gradients transparent without inventing flat aspects', () => {
+  it('keeps actual no-data transparent and retains supported gradients beside a gap', () => {
     const images = captureCanvas()
     const cell = 0.002 / 32
     const display = buildTerrainDisplay(
@@ -136,16 +136,38 @@ describe('same-source aspect preview', () => {
     )
     const aspect = images.get(display.aspect)!,
       elevation = images.get(display.elevation)!
+    expect(pixel(aspect, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
     for (const [column, row] of [
-      [16, 16],
       [15, 16],
       [17, 16],
       [16, 15],
       [16, 17],
     ])
-      expect(pixel(aspect, column, row)[3]).toBe(0)
+      expect(pixel(aspect, column, row)).toEqual([
+        ...rgb(TERRAIN_ASPECT_STOPS.find((stop) => stop.value === 180)!.color),
+        255,
+      ])
     expect(pixel(elevation, 16, 16)[3]).toBe(0)
     expect(pixel(elevation, 15, 16)[3]).toBe(255)
     expect(pixel(aspect, 15, 15)).toEqual([...rgb(TERRAIN_ASPECT_STOPS.find((stop) => stop.value === 180)!.color), 255])
+  })
+
+  it('does not invent a gradient where neither side of an axis has supported ground', () => {
+    const images = captureCanvas()
+    const cell = 0.002 / 32
+    const display = buildTerrainDisplay(
+      {
+        elevationAt: (longitude, latitude) =>
+          latitude < 0 && latitude > -cell && !(longitude > 0 && longitude < cell)
+            ? NaN
+            : 400 + longitude * metresPerDegree * 0.2,
+      },
+      bounds,
+      32,
+    )
+    expect(pixel(images.get(display.elevation)!, 16, 16)[3]).toBe(255)
+    expect(pixel(images.get(display.aspect)!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
   })
 })

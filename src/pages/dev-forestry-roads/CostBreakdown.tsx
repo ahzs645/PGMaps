@@ -7,6 +7,7 @@ import { NumberField } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
+import { surfacingSupplyCost } from './gravel'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 import { CostReadiness } from './CostReadinessPanel'
@@ -129,6 +130,39 @@ export function CostBreakdown({
       ? { value: haul[key] as number, unit, label, max, onChange: (value) => onHaul({ [key]: value }) }
       : undefined
   const costs = result?.costs
+  const supply = alignment.engineering?.surfacingSupply
+  const surfacing = surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, supply)
+  const surfacingRows: Row[] = supply?.enabled
+    ? [
+        {
+          id: 'surfacing-source',
+          item: `Surfacing · ${supply.name}`,
+          quantity: surfacing.suppliedM3,
+          unit: 'compacted m³',
+          rate: { value: surfacing.rate, unit: '$/m³', label: 'Delivered aggregate rate' },
+          amount: surfacing.suppliedM3 * surfacing.rate,
+          note: 'Acquisition + processing + loading + entered one-way haul + placement. Edit in Engineering → Haul & cost settings.',
+        },
+        {
+          id: 'surfacing',
+          item: 'Surfacing · remaining supply',
+          quantity: surfacing.fallbackM3,
+          unit: 'compacted m³',
+          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
+          amount: surfacing.fallbackM3 * settings.surfacingRate,
+          note: 'Volume beyond the entered source capacity uses this base rate.',
+        },
+      ]
+    : [
+        {
+          id: 'surfacing',
+          item: 'Surfacing',
+          quantity: analysis.surfaceVolumeM3,
+          unit: 'm³',
+          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
+          amount: costs?.surfacing ?? analysis.surfaceVolumeM3 * settings.surfacingRate,
+        },
+      ]
   const haulLines = result && alignment.engineering ? haulCostLines(alignment.engineering, result) : []
   const haulRows: Row[] = haulLines.length
     ? haulLines.map((line) => ({
@@ -189,14 +223,7 @@ export function CostBreakdown({
           rate: setting('fillRate', 'Fill rate', '$/m³'),
           amount: costs.fill,
         },
-        {
-          id: 'surfacing',
-          item: 'Surfacing',
-          quantity: analysis.surfaceVolumeM3,
-          unit: 'm³',
-          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
-          amount: costs.surfacing,
-        },
+        ...surfacingRows,
         {
           id: 'clearing',
           item: 'Clearing',

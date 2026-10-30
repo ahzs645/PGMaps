@@ -1,11 +1,12 @@
 /** Terrain adapters keep the source resolution, datum and missing-data footprint explicit. */
 import proj4 from 'proj4'
-import { loadElevationGrid } from '../dev-forestry/demLoader'
+import { loadElevationGrid, type TileDecoder } from '../dev-forestry/demLoader'
 import { demResolutionMeters, demTileRange, type Bounds } from '../dev-forestry/terrain'
 import { localRasterResolution, rasterProjection } from '../dev-forestry/localRaster'
 import type { LocalRaster } from '../dev-forestry/types'
 import { METRIC_CRS, readSourceGrid, type SourceGrid } from '../dev-lidar/sourceGrids'
 import { alignmentLength, offsetCoordinate, positionAt } from './engine'
+import { requireScenarioTerrain } from './scenarioCoverage'
 import type {
   Alignment,
   Coordinate,
@@ -215,6 +216,23 @@ export function createDemoProject(): RoadProject {
         geometry: {
           type: 'LineString',
           coordinates: [demoCoordinate(-150, -250), demoCoordinate(0, 0), demoCoordinate(60, 260)],
+        },
+      },
+      {
+        id: 'demo-harvest',
+        name: 'Synthetic harvest block · planning example',
+        kind: 'harvest',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              demoCoordinate(1100, 570),
+              demoCoordinate(1420, 570),
+              demoCoordinate(1420, 850),
+              demoCoordinate(1100, 850),
+              demoCoordinate(1100, 570),
+            ],
+          ],
         },
       },
       {
@@ -584,6 +602,8 @@ export async function loadLidarTerrain(
     source,
     '#d97706',
   )
+  // Re-check every publication: a new DTM must not leave the initial road's sections over no-data.
+  requireScenarioTerrain([alignment], source, DEFAULT_ROAD_SETTINGS.crossSectionHalfWidth)
   onProgress?.('Native 1 m LiDAR terrain ready; unsupported cells remain missing.')
   return { metadata, source, alignments: [alignment] }
 }
@@ -768,6 +788,7 @@ export async function loadLas(
 export async function loadRegionalTerrain(
   bounds: Bounds,
   signal?: AbortSignal,
+  decode?: TileDecoder,
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource }> {
   if (
     bounds.length !== 4 ||
@@ -783,7 +804,7 @@ export async function loadRegionalTerrain(
   const zoom = 12,
     range = demTileRange(bounds, zoom, 100)
   if (range.tileCount > 64) throw Error('Zoom in to a smaller area before loading regional terrain (maximum 64 tiles).')
-  const { grid, missingTileCount } = await loadElevationGrid({ range, signal, concurrency: 4 })
+  const { grid, missingTileCount } = await loadElevationGrid({ range, signal, concurrency: 4, decode })
   checkAbort(signal)
   if (missingTileCount === range.tileCount)
     throw Error('Regional terrain could not be loaded; your existing design is unchanged.')

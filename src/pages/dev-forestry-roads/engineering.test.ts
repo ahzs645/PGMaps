@@ -441,6 +441,123 @@ describe('culvert geometry and cover', () => {
 })
 
 describe('mass-haul allocation and unit costs', () => {
+  it('recompares delivered batch setup costs after a limited source is exhausted', () => {
+    const a = road(802, 6.25)
+    Object.assign(a.engineering!.haul, { enabled: true, siteSelection: 'delivered-cost' })
+    a.engineering!.sites = [
+      {
+        id: 'a',
+        name: 'Limited free source',
+        kind: 'borrow',
+        chainage: 0,
+        accessDistanceM: 0,
+        capacityM3: 90,
+        unitRate: 0,
+        fixedCost: 0,
+      },
+      {
+        id: 'b',
+        name: 'Large setup',
+        kind: 'borrow',
+        chainage: 0,
+        accessDistanceM: 0,
+        capacityM3: 1000,
+        unitRate: 1,
+        fixedCost: 1000,
+      },
+      {
+        id: 'c',
+        name: 'Small remainder',
+        kind: 'borrow',
+        chainage: 0,
+        accessDistanceM: 0,
+        capacityM3: 10,
+        unitRate: 30,
+        fixedCost: 0,
+      },
+    ]
+    const result = analyzeRoad(a, flat, { ...settings, stationInterval: 100 }).engineering!
+    expect(result.haul.borrowCompactedM3).toBeCloseTo(100, 5)
+    expect(result.movements.some((m) => m.sourceId === 'b')).toBe(false)
+    expect(
+      result.movements.filter((m) => m.sourceId === 'c').reduce((sum, m) => sum + m.transportedVolumeM3, 0),
+    ).toBeCloseTo(10, 5)
+    expect(result.costs.borrow).toBeCloseTo(300, 5)
+    expect(result.costs.sitePreparation).toBe(0)
+  })
+
+  it('compares free nearby borrow using delivered costs and excludes disabled sources', () => {
+    const a = road(802)
+    Object.assign(a.engineering!.haul, {
+      enabled: true,
+      siteSelection: 'delivered-cost',
+      freeHaulDistanceM: 0,
+      endHaulRate: 2,
+      endHaulLoadingRate: 3,
+      borrowRate: 30,
+    })
+    a.engineering!.sites = [
+      {
+        id: 'paid',
+        name: 'Paid',
+        kind: 'borrow',
+        chainage: 50,
+        accessDistanceM: 0,
+        capacityM3: null,
+        unitRate: 20,
+        fixedCost: 0,
+      },
+      {
+        id: 'free',
+        name: 'Free material',
+        kind: 'borrow',
+        chainage: 50,
+        accessDistanceM: 1000,
+        capacityM3: 500,
+        unitRate: 0,
+        fixedCost: 100,
+      },
+    ]
+    const priced = analyzeRoad(a, flat, settings).engineering!
+    expect(
+      priced.movements.filter((m) => m.sourceId === 'free').reduce((sum, m) => sum + m.transportedVolumeM3, 0),
+    ).toBeCloseTo(500, 6)
+    expect(priced.costs.haul).toBeGreaterThan(0)
+    expect(priced.costs.sitePreparation).toBe(100)
+    a.engineering!.sites[1].enabled = false
+    const disabled = analyzeRoad(a, flat, settings).engineering!
+    expect(disabled.movements.some((m) => m.sourceId === 'free')).toBe(false)
+    expect(disabled.costs.sitePreparation).toBe(0)
+    expect(disabled.costs.total).toBeGreaterThan(priced.costs.total)
+  })
+
+  it('prices limited surfacing supply independently of borrow haul and keeps it in total cost', () => {
+    const a = road(800)
+    a.template.surfaceDepth = 0.2
+    a.engineering!.surfacingSupply = {
+      enabled: true,
+      name: 'Free pit-run stockpile',
+      acquisitionRate: 0,
+      processingRate: 1,
+      loadingRate: 2,
+      haulDistanceKm: 1,
+      haulRate: 3,
+      placementRate: 4,
+      capacityM3: 50,
+      sourceNotes: 'Assumed compacted supply; verify grading.',
+    }
+    const supplied = analyzeRoad(a, flat, settings)
+    expect(supplied.surfaceVolumeM3).toBeCloseTo(120, 5)
+    expect(supplied.engineering!.costs.surfacing).toBeCloseTo(50 * 10 + 70 * settings.surfacingRate, 5)
+    a.engineering!.surfacingSupply.enabled = false
+    const base = analyzeRoad(a, flat, settings)
+    expect(base.engineering!.costs.surfacing).toBeCloseTo(120 * settings.surfacingRate, 5)
+    expect(supplied.engineering!.costs.total - base.engineering!.costs.total).toBeCloseTo(
+      50 * (10 - settings.surfacingRate),
+      5,
+    )
+  })
+
   it.each(['borrow', 'waste'] as const)(
     'uses a %s site at the exact road end despite calculation-station rounding',
     (kind) => {

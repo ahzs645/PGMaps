@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, OptionalNumberField, roadFieldClass } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
@@ -37,6 +38,30 @@ export function TerrainTab(p: SidebarProps) {
             {project.terrain.verticalReference}
           </p>
         </div>
+        {project.terrain.kind === 'regional' && (
+          <InlineAlert tone="warning" className="mt-2">
+            Regional terrain supports corridor screening. Use checked bare-earth LiDAR or your own DEM before relying on
+            earthwork quantities, ditches or culvert cover.
+          </InlineAlert>
+        )}
+        {project.scenario && (
+          <div className="mt-2 space-y-1.5 text-[11px] text-muted-foreground" data-testid="road-scenario-evidence">
+            <p>
+              Initial library terrain check · {project.scenario.terrainCoveragePercent.toFixed(0)}% of sampled
+              section-corridor ground covered at load. Current section completeness is shown in the summary above.
+            </p>
+            <p>
+              Context in this project: {project.context.filter((feature) => feature.kind === 'existing-road').length}{' '}
+              road sections · {project.context.filter((feature) => feature.kind === 'harvest').length} harvest polygons.
+              Public road tenures do not include every built road.
+            </p>
+            {project.scenario.contextWarnings.map((warning, index) => (
+              <InlineAlert key={index} tone="warning">
+                {warning}
+              </InlineAlert>
+            ))}
+          </div>
+        )}
         <Button className="mt-2 w-full" size="sm" disabled={busy} onClick={() => p.onTerrain('lidar')}>
           Load BC 1 m LiDAR sample
         </Button>

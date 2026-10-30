@@ -212,9 +212,19 @@ export function buildTerrainDisplay(
         values[north * width + col],
         values[south * width + col],
       ]
-      if (!neighbours.every(Number.isFinite)) continue
-      const zx = (neighbours[1] - neighbours[0]) / ((east - west) * dx)
-      const zy = (neighbours[2] - neighbours[3]) / ((south - north) * dy)
+      // A missing neighbour does not erase measured ground at this pixel. Prefer a central
+      // difference, then a supported one-sided difference. Never bridge a gap or replace a
+      // missing centre with an interpolated height: true no-data remains transparent.
+      const gradient = (before: number, after: number, beforeDistance: number, afterDistance: number) => {
+        if (beforeDistance && afterDistance && Number.isFinite(before) && Number.isFinite(after))
+          return (after - before) / (beforeDistance + afterDistance)
+        if (afterDistance && Number.isFinite(after)) return (after - value) / afterDistance
+        if (beforeDistance && Number.isFinite(before)) return (value - before) / beforeDistance
+        return NaN
+      }
+      const zx = gradient(neighbours[0], neighbours[1], (col - west) * dx, (east - col) * dx)
+      const zy = gradient(neighbours[3], neighbours[2], (south - row) * dy, (row - north) * dy)
+      if (!Number.isFinite(zx) || !Number.isFinite(zy)) continue
       const normal = Math.hypot(zx, zy, 1)
       // Sun from north-west at 45 degrees; local x is east and y is north.
       const light = clamp((-zx * -0.5 - zy * 0.5 + Math.SQRT1_2) / normal, 0, 1)

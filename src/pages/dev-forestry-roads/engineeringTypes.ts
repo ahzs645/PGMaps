@@ -63,6 +63,8 @@ export interface Culvert {
 }
 export interface HaulSettings {
   enabled: boolean
+  /** Omitted preserves the original nearest-source allocation. */
+  siteSelection?: 'nearest' | 'delivered-cost'
   freeHaulDistanceM: number
   overhaulDistanceM: number
   /** CAD/(transported m³·km) over the whole distance of a free-haul movement. Zero is free haul. */
@@ -84,6 +86,9 @@ export interface HaulSite {
   id: string
   name: string
   kind: 'borrow' | 'waste'
+  /** Omitted means enabled, preserving older projects. */
+  enabled?: boolean
+  sourceNotes?: string
   chainage: number
   accessDistanceM: number
   /** Borrow capacity is compacted m³; waste capacity is bank m³. Null is unbounded. */
@@ -91,6 +96,20 @@ export interface HaulSite {
   /** CAD per compacted borrow m³ or bank waste m³. Replaces the matching default rate. */
   unitRate: number
   fixedCost: number
+}
+/** Entered single-source surfacing scenario; all rates use compacted m³. */
+export interface SurfacingSupply {
+  enabled: boolean
+  name: string
+  acquisitionRate: number
+  processingRate: number
+  loadingRate: number
+  haulDistanceKm: number
+  haulRate: number
+  placementRate: number
+  /** Remainder uses the project's base surfacing rate. Null is an unbounded scenario. */
+  capacityM3: number | null
+  sourceNotes: string
 }
 export interface AlignmentEngineering {
   templates: TemplateDefinition[]
@@ -100,6 +119,7 @@ export interface AlignmentEngineering {
   culverts: Culvert[]
   haul: HaulSettings
   sites: HaulSite[]
+  surfacingSupply?: SurfacingSupply
 }
 
 export interface ResolvedTemplate {

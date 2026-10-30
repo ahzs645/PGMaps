@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -11,6 +11,8 @@ import { VerticalDesignControls } from '../VerticalDesignControls'
 import { distance } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import type { RoadOptimizationObjective } from '../corridorOptimizer'
+import { FsrConnectionControls } from '../FsrConnectionControls'
+import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps } from '../DesignSidebarBody'
 
@@ -110,6 +112,34 @@ export function DesignTab(p: SidebarProps) {
           />
         </div>
       </RoadSection>
+      <div className="space-y-2 border-y p-3" data-testid="full-cost-planning-controls">
+        <Button size="sm" className="w-full" onClick={p.onCompareCompleteCosts} disabled={!!p.workspace.busy}>
+          Compare complete route costs
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          Compare construction, connected road reuse, rehabilitation and delivered gravel costs. Each candidate must
+          pass final curve, loaded-grade and full road-footprint checks.
+        </p>
+        <FullCostRecordSummary alignment={alignment} project={project} onOpenComparison={p.onCompareCompleteCosts} />
+      </div>
+      <div className="grid grid-cols-2 gap-1 px-3 py-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-auto min-h-8 whitespace-normal text-xs"
+          onClick={p.onShowExistingRoads}
+        >
+          Review existing roads
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-auto min-h-8 whitespace-normal text-xs"
+          onClick={p.onShowEngineering}
+        >
+          Gravel &amp; aggregate costs
+        </Button>
+      </div>
       <RouteFinding {...p} full={full} />
       <HorizontalPoints {...p} />
       <VerticalAlignment {...p} />
@@ -119,9 +149,38 @@ export function DesignTab(p: SidebarProps) {
 }
 
 function RouteFinding(p: SidebarProps & { full: boolean }) {
-  const [route, setRoute] = useState<RouteSearchOptions>(DEFAULT_ROUTE_OPTIONS)
+  const [livePreview, setLivePreview] = useState(false)
+  const { onPreviewRoute } = p
+  const { project, source, alignment } = p.workspace
+  const route = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
+  const setRoute = (change: (current: RouteSearchOptions) => RouteSearchOptions) =>
+    p.workspace.update((current) => ({
+      ...current,
+      routeSearch: change(current.routeSearch ?? DEFAULT_ROUTE_OPTIONS),
+    }))
+  useEffect(() => {
+    if (!onPreviewRoute) return
+    if (!livePreview) {
+      onPreviewRoute(null)
+      return
+    }
+    const timer = window.setTimeout(() => onPreviewRoute({ ...route, alternatives: 1 }), 500)
+    return () => window.clearTimeout(timer)
+  }, [livePreview, route, project.settings, project.context, source, alignment.id, alignment.points, onPreviewRoute])
+  useEffect(() => () => onPreviewRoute?.(null), [onPreviewRoute])
+  const eligibleRoads = project.context.filter(
+    (feature) =>
+      feature.kind === 'existing-road' &&
+      feature.roadEvidence?.reuseAllowed &&
+      feature.roadEvidence.condition !== 'closed',
+  ).length
   const [objective, setObjective] = useState<RoadOptimizationObjective>('balanced')
   const [halfWidth, setHalfWidth] = useState(180)
+  const validCorridorSettings =
+    project.settings.maxGradePercent >= 1 &&
+    project.settings.maxGradePercent <= 30 &&
+    project.settings.minRadius >= 5 &&
+    project.settings.minRadius <= 1000
   const validWidth = Number.isFinite(halfWidth) && halfWidth >= 25 && halfWidth <= 1000
   return (
     <CollapsibleSection
@@ -137,9 +196,122 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           <InfoTip label="About terrain-cost search">
             An eight-neighbour search between the road's endpoints, without curve constraints. Cost is road $/m scaled
             by sampled grade, plus each stream crossing and the $/m of any avoidance area given a zone cost. The
-            defaults are placeholders. Headings hold the first and last legs within ±45°.
+            defaults are placeholders. Clearance and terrain-slope inputs screen the centreline, not the final road
+            footprint. Headings hold the first and last legs within ±45°.
           </InfoTip>
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Maximum grade %"
+            value={project.settings.maxGradePercent}
+            min={0.1}
+            max={100}
+            step={0.5}
+            hint="Absolute sampled ground grade for this route search; the designed vertical profile is checked separately."
+            onChange={(maxGradePercent) =>
+              p.workspace.update((current) => ({ ...current, settings: { ...current.settings, maxGradePercent } }))
+            }
+          />
+          <NumberField
+            label="Minimum radius (m)"
+            value={project.settings.minRadius}
+            min={0}
+            max={10000}
+            step={5}
+            hint="Used by the corridor optimizer and curve checks. The terrain-cost grid result has sharp corners until curves are fitted."
+            onChange={(minRadius) =>
+              p.workspace.update((current) => ({ ...current, settings: { ...current.settings, minRadius } }))
+            }
+          />
+          <OptionalNumberField
+            label="Terrain slope limit %"
+            value={route.maxTerrainSlopePercent}
+            min={1}
+            max={300}
+            step={5}
+            hint="Optional maximum magnitude of the terrain gradient, measured east/west and north/south. Missing neighbour samples block the route. This is not a slope-stability assessment."
+            onChange={(maxTerrainSlopePercent) => setRoute((current) => ({ ...current, maxTerrainSlopePercent }))}
+          />
+          <NumberField
+            label="Slope sample ±m"
+            value={route.terrainSlopeSampleM}
+            min={1}
+            max={100}
+            step={1}
+            disabled={route.maxTerrainSlopePercent === null}
+            onChange={(terrainSlopeSampleM) => setRoute((current) => ({ ...current, terrainSlopeSampleM }))}
+          />
+          <NumberField
+            label="Exclusion clearance (m)"
+            value={route.exclusionBufferM}
+            max={500}
+            step={5}
+            hint="Centreline distance outside blocked exclusion polygons and lines. Set this to cover the expected road/clearing width and your project-specific setback. Cost zones stay passable."
+            onChange={(exclusionBufferM) => setRoute((current) => ({ ...current, exclusionBufferM }))}
+          />
+          <OptionalNumberField
+            label="Search margin (m)"
+            value={route.searchMarginM}
+            min={20}
+            max={1000}
+            step={20}
+            placeholder="automatic"
+            onChange={(searchMarginM) => setRoute((current) => ({ ...current, searchMarginM }))}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={route.allowStreamCrossings}
+            onChange={(event) => setRoute((current) => ({ ...current, allowStreamCrossings: event.target.checked }))}
+          />
+          Allow priced stream crossings
+        </label>
+        {!route.allowStreamCrossings && (
+          <NumberField
+            label="Stream clearance (m)"
+            value={route.streamBufferM}
+            max={500}
+            step={5}
+            hint="Distance from imported stream linework when crossings are forbidden. This is an entered screening distance, not an automatic legal riparian classification. Import assessed riparian polygons as exclusions."
+            onChange={(streamBufferM) => setRoute((current) => ({ ...current, streamBufferM }))}
+          />
+        )}
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={route.reuseExistingRoads}
+            onChange={(event) => setRoute((current) => ({ ...current, reuseExistingRoads: event.target.checked }))}
+          />
+          Prefer reviewed existing roads ({eligibleRoads} eligible)
+        </label>
+        {route.reuseExistingRoads && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberField
+                label="Retained road cost %"
+                value={route.existingRoadCostFactor * 100}
+                min={5}
+                max={100}
+                step={5}
+                hint="Portion of base road cost retained near eligible existing roads. Include rehabilitation in this assumption; the search does not estimate condition."
+                onChange={(percent) => setRoute((current) => ({ ...current, existingRoadCostFactor: percent / 100 }))}
+              />
+              <NumberField
+                label="Road proximity (m)"
+                value={route.roadSnapDistanceM}
+                min={1}
+                max={50}
+                step={1}
+                onChange={(roadSnapDistanceM) => setRoute((current) => ({ ...current, roadSnapDistanceM }))}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Mark individual roads eligible after reviewing access and condition. Proximity is a cost preference; it
+              does not verify a connection.
+            </p>
+          </>
+        )}
         <div className="grid grid-cols-3 gap-1">
           <NumberField
             label="Road $/m"
@@ -181,10 +353,29 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             onChange={(endHeading) => setRoute((r) => ({ ...r, endHeading }))}
           />
         </div>
+        {onPreviewRoute && (
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />
+            Live route preview
+          </label>
+        )}
+        {livePreview && (
+          <p className="text-[11px] text-muted-foreground">
+            Preview refreshes after a short pause while you type or use the arrow keys. Save an alternative to keep it.
+          </p>
+        )}
         <Button variant="outline" size="sm" className="w-full" disabled={p.full} onClick={() => p.onSuggest(route)}>
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
         </Button>
       </div>
+      {p.onConnectFsr && (
+        <FsrConnectionControls
+          key={`${p.workspace.projectId ?? 'training'}:${alignment.id}`}
+          {...p}
+          options={route}
+          full={p.full}
+        />
+      )}
       <div className="space-y-2 border-t pt-3" data-testid="road-corridor-optimizer">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold">Optimize sketched road corridor</p>
@@ -195,6 +386,15 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             earthworks.
           </InfoTip>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          The corridor optimizer uses grade, radius and mapped exclusions. The terrain-slope, stream-crossing, setback
+          and reuse settings above apply to terrain-cost and FSR searches.
+        </p>
+        {!validCorridorSettings && (
+          <InlineAlert tone="warning">
+            Corridor search requires grade 1–30% and radius 5–1,000 m. Adjust the shared fields above to enable it.
+          </InlineAlert>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Preference">
             <select
@@ -224,7 +424,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         <Button
           size="sm"
           className="w-full"
-          disabled={p.full || !validWidth}
+          disabled={p.full || !validWidth || !validCorridorSettings}
           onClick={() => p.onOptimize(objective, halfWidth)}
         >
           Optimize sketched corridor

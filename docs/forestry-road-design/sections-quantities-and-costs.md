@@ -5,6 +5,10 @@ ground materials, haul, culverts and the covered cost estimate. The calculations
 the [workspace contract](../forestry-road-design.md#cross-sections-template-libraries-and-widening);
 this page says when their results can be trusted and what they quietly assume.
 
+See [gravel and aggregate sources](gravel-sources.md) for nearby BC candidate lookup,
+zero-acquisition-price surfacing scenarios, source capacity/disable controls and
+the optional delivered-cost borrow/waste allocation.
+
 ## Before you rely on a quantity or cost
 
 - **Complete sections = 100 %.** The headline tile and the cost dialog subtitle show the share of

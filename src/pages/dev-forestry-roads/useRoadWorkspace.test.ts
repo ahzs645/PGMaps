@@ -18,6 +18,10 @@ vi.mock('./terrain', async (importOriginal) => {
     })),
   }
 })
+vi.mock('./existingRoads', () => ({ loadBcExistingRoads: vi.fn(async () => []) }))
+vi.mock('../dev-forestry/bcVisualInventory', () => ({
+  fetchHarvestedAreas: vi.fn(async () => ({ areas: [], truncated: false })),
+}))
 
 const DATABASE = 'pgmaps-forestry-roads-v1'
 let renderer: ReactTestRenderer | undefined

@@ -88,6 +88,14 @@
   flex-shrink: 0;
 }
 
+/* The chart view track fits the same 32 px row as its neighboring header controls. */
+.road-workspace [data-pane] .road-chart-view-switcher[role='group'] > button {
+  height: 1.75rem;
+  min-height: 1.75rem;
+  width: 2rem;
+  padding: 0;
+}
+
 .road-workspace[data-focus-mode] [data-pane] > section > div:first-child > h2 {
   flex: 1;
 }

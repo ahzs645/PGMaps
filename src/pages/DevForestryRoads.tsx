@@ -37,7 +37,10 @@ import {
   ProfileChart,
 } from './dev-forestry-roads/Charts'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
-import type { PointCloudChoice } from './dev-forestry-roads/DesignSidebarBody'
+import type { PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
+import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
+import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
+import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
@@ -67,7 +70,6 @@ import {
   createDemoProject,
   DEFAULT_TEMPLATE,
   demoTerrain,
-  loadLidarTerrain,
   loadLas,
   loadRaster,
   loadRegionalTerrain,
@@ -77,13 +79,24 @@ import {
   terrainBounds,
 } from './dev-forestry-roads/terrain'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
+import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
+import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
+import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
+import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
-import type { Alignment, Coordinate, RoadProject, RoadTemplate, TerrainSource } from './dev-forestry-roads/types'
+import type {
+  Alignment,
+  ContextFeature,
+  Coordinate,
+  RoadProject,
+  RoadTemplate,
+  TerrainSource,
+} from './dev-forestry-roads/types'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
@@ -104,6 +117,18 @@ const summaryValue = (full: string, mobile: string) => (
   </span>
 )
 const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
+function fitContextRoad(map: MapLibreMap, road: ContextFeature) {
+  if (road.geometry.type !== 'LineString') return
+  const points = road.geometry.coordinates
+  map.resize()
+  map.fitBounds(
+    [
+      [Math.min(...points.map((point) => point[0])), Math.min(...points.map((point) => point[1]))],
+      [Math.max(...points.map((point) => point[0])), Math.max(...points.map((point) => point[1]))],
+    ],
+    { padding: 48, maxZoom: 16, duration: 350 },
+  )
+}
 function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEMPLATE): Alignment {
   return {
     id: uid(),
@@ -129,7 +154,6 @@ export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
-  const [dismissedBusyId, setDismissedBusyId] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
   const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
@@ -197,6 +221,147 @@ export default function DevForestryRoads() {
     </Button>
   )
   const [overlay, setOverlay] = useState<GeoJSON.FeatureCollection>({ type: 'FeatureCollection', features: [] })
+  const [completeCostPreview, setCompleteCostPreview] = useState<{
+    project: RoadProject
+    source: TerrainSource
+    preview: FullCostPreview
+  } | null>(null)
+  const costPreview =
+    completeCostPreview?.project === project && completeCostPreview.source === source
+      ? completeCostPreview.preview
+      : null
+  const [fsrDiscovery, setFsrDiscovery] = useState<{
+    guide: Alignment
+    source: TerrainSource
+    origin: Coordinate
+    scope: string
+  } | null>(null)
+  const [fsrTarget, setFsrTarget] = useState<{
+    guide: Alignment
+    source: TerrainSource
+    id: string
+    endpoint: 'start' | 'end'
+  } | null>(null)
+  const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
+  const previewFsrTarget = useCallback(
+    (id: string | null, endpoint: 'start' | 'end') => {
+      if (id) setReviewedRoad(null)
+      setFsrTarget(id ? { guide: alignment, source, id, endpoint } : null)
+    },
+    [alignment, source],
+  )
+  const reviewRoad = useCallback(
+    (road: ContextFeature | null) => {
+      setReviewedRoad((previous) => (previous?.source === source ? (road ? { id: road.id, source } : null) : null))
+    },
+    [source],
+  )
+  const targetPoint = useMemo(() => {
+    if (fsrTarget?.guide !== alignment || fsrTarget.source !== source) return null
+    const origin = (fsrTarget.endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
+    return (
+      nearestFsrConnections(origin, project.context, 10).find((target) => target.featureId === fsrTarget.id) ?? null
+    )
+  }, [fsrTarget, alignment, source, project.context])
+  const [routePreviewState, setRoutePreviewState] = useState<{
+    guide: Alignment
+    source: TerrainSource
+    settings: RoadProject['settings']
+    context: RoadProject['context']
+    options: RoadProject['routeSearch']
+    route?: ReturnType<typeof suggestRoutes>['routes'][number]
+    error?: string
+  } | null>(null)
+  const previewRoute = useCallback(
+    (options: RouteSearchOptions | null) => {
+      if (!options) {
+        setRoutePreviewState(null)
+        return
+      }
+      const inputs = {
+        guide: alignment,
+        source,
+        settings: project.settings,
+        context: project.context,
+        options: project.routeSearch,
+      }
+      try {
+        const result = suggestRoutes(
+          alignment.points[0].coordinate,
+          alignment.points.at(-1)!.coordinate,
+          source,
+          project.settings,
+          project.context,
+          { ...options, alternatives: 1 },
+        )
+        setRoutePreviewState({ ...inputs, route: result.routes[0] })
+      } catch (cause) {
+        setRoutePreviewState({ ...inputs, error: cause instanceof Error ? cause.message : 'No route preview found.' })
+      }
+    },
+    [alignment, source, project.settings, project.context, project.routeSearch],
+  )
+  const routePreview =
+    routePreviewState?.guide === alignment &&
+    routePreviewState.source === source &&
+    routePreviewState.settings === project.settings &&
+    routePreviewState.context === project.context &&
+    routePreviewState.options === project.routeSearch
+      ? routePreviewState
+      : null
+  const mapFsrTarget = useMemo(() => {
+    if (targetPoint) return targetPoint
+    if ((fsrTarget?.guide === alignment && fsrTarget.source === source) || reviewedRoad?.source === source) return null
+    const record = alignment.fsrConnection
+    if (
+      !record ||
+      distance(alignment.points[0].coordinate, record.originCoordinate) > 0.1 ||
+      distance(alignment.points.at(-1)!.coordinate, record.targetCoordinate) > 0.1
+    )
+      return null
+    if (!project.context.some((road) => road.id === record.targetFeatureId && road.kind === 'existing-road'))
+      return null
+    return { featureId: record.targetFeatureId, coordinate: record.targetCoordinate, name: record.targetName }
+  }, [targetPoint, fsrTarget, alignment, source, reviewedRoad, project.context])
+  const planOverlay = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: [
+        ...overlay.features,
+        ...(costPreview?.overlay.features ?? []),
+        ...project.context
+          .filter((road) =>
+            mapFsrTarget
+              ? road.id === mapFsrTarget.featureId
+              : reviewedRoad?.source === source && reviewedRoad.id === road.id,
+          )
+          .map((road) => ({
+            type: 'Feature' as const,
+            geometry: road.geometry,
+            properties: { kind: 'reviewed-existing-road', color: '#0284c7', selected: true, label: road.name },
+          })),
+        ...(mapFsrTarget
+          ? [
+              {
+                type: 'Feature' as const,
+                geometry: { type: 'Point' as const, coordinates: mapFsrTarget.coordinate },
+                properties: { kind: 'fsr-target', color: '#0284c7', label: `FSR junction: ${mapFsrTarget.name}` },
+              },
+            ]
+          : []),
+        ...(routePreview?.route
+          ? [
+              {
+                type: 'Feature' as const,
+                geometry: { type: 'LineString' as const, coordinates: routePreview.route.coordinates },
+                properties: { kind: 'live-route-preview', color: '#e11d48', label: 'Live route preview' },
+              },
+            ]
+          : []),
+      ],
+    }),
+    [overlay, costPreview, routePreview, project.context, mapFsrTarget, reviewedRoad, source],
+  )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
   const [templatePreview, setTemplatePreview] = useState<{ template: RoadTemplate; name: string } | null>(null)
   const [pegPreview, setPegPreview] = useState<{ base: Alignment; preview: Alignment; source: TerrainSource } | null>(
@@ -212,12 +377,42 @@ export default function DevForestryRoads() {
   const [costOpen, setCostOpen] = useState(false)
   const [filesOpen, setFilesOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
+  const [completeCostOpen, setCompleteCostOpen] = useState(false)
+  const [workflowTab, setWorkflowTab] = useState<SidebarTab>('design')
+  const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
+  const openCompleteCosts = () => {
+    if (!project.totalCostPlanning)
+      update((current) => ({ ...current, totalCostPlanning: createTotalCostPlanningDefaults() }))
+    setCompleteCostOpen(true)
+  }
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const planMap = useRef<MapLibreMap | null>(null)
+  const pendingLocateRoad = useRef<ContextFeature | null>(null)
   const onPlanReady = useCallback((map: MapLibreMap | null) => {
     planMap.current = map
+    if (map && pendingLocateRoad.current) {
+      fitContextRoad(map, pendingLocateRoad.current)
+      pendingLocateRoad.current = null
+    }
   }, [])
+  const locateRoad = useCallback(
+    (road: ContextFeature) => {
+      if (targetPoint?.featureId !== road.id) setFsrTarget(null)
+      setReviewedRoad({ id: road.id, source })
+      if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((panel) => panel !== 'plan'))
+      setFocusPane('plan')
+      if (focusMode) setControlsOpen(false)
+      pendingLocateRoad.current = road
+      requestAnimationFrame(() => {
+        if (planMap.current && pendingLocateRoad.current) {
+          fitContextRoad(planMap.current, pendingLocateRoad.current)
+          pendingLocateRoad.current = null
+        }
+      })
+    },
+    [source, hiddenPanels, setHiddenPanels, focusMode, targetPoint],
+  )
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
@@ -277,7 +472,13 @@ export default function DevForestryRoads() {
     (preview: Alignment | null) => setPegPreview(preview ? { base: alignment, preview, source } : null),
     [alignment, source],
   )
-  const displayedAlignment = draftAlignment ?? terrainProfile ?? numericPegAlignment ?? templateAlignment ?? alignment
+  const displayedAlignment =
+    draftAlignment ?? terrainProfile ?? numericPegAlignment ?? costPreview?.alignment ?? templateAlignment ?? alignment
+  const completeCostRecord = displayedAlignment === alignment ? alignment.fullCostRecord : undefined
+  const completeCostCurrent = useMemo(
+    () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
+    [completeCostRecord, alignment, project],
+  )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
     const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, [])
@@ -412,7 +613,7 @@ export default function DevForestryRoads() {
   const saveSection = () => {
     if (!at) return
     try {
-      if (draftAlignment || numericPegAlignment || templatePreview)
+      if (draftAlignment || numericPegAlignment || templatePreview || costPreview)
         throw Error('Finish or close the design preview before exporting calculated results.')
       const template =
         displayedAnalysis.engineering?.stations.find((s) => s.chainage === at.chainage)?.template ??
@@ -431,6 +632,7 @@ export default function DevForestryRoads() {
     setOverlay({ type: 'FeatureCollection', features: [] })
     setTemplatePreview(null)
     setSelectedSpokeId(null)
+    setReviewedRoad(null)
   }, [project.activeAlignmentId, source])
   const selectCable = (id: string) => {
     setActiveCable(id)
@@ -621,30 +823,23 @@ export default function DevForestryRoads() {
         await w.flush()
         w.startProject(createDemoProject(), demoTerrain)
         w.setNotice('Opened the training example as a new project. Your previous project is under Projects.')
-      } else {
-        const loaded =
-          kind === 'lidar'
-            ? await loadLidarTerrain(signal, w.setBusy)
-            : await loadRegionalTerrain(boundsOf(project), signal)
+      } else if (kind === 'lidar') {
+        const loaded = await loadRoadScenario('bc-lidar', { signal, onProgress: w.setBusy })
         if (signal.aborted) return
-        const replacingDemo = project.terrain.kind === 'demo' && kind === 'lidar'
-        const alignments =
-          replacingDemo && 'alignments' in loaded && loaded.alignments
-            ? (loaded.alignments as Alignment[])
-            : project.alignments
+        await w.flush()
+        if (signal.aborted) return
+        w.startProject(loaded.project, loaded.source)
+        w.setNotice(loaded.notice)
+      } else {
+        const loaded = await loadRegionalTerrain(boundsOf(project), signal)
+        if (signal.aborted) return
         w.setSource(loaded.source)
         w.commit({
           ...project,
           terrain: loaded.metadata,
-          alignments,
-          activeAlignmentId: alignments[0].id,
-          ...(replacingDemo ? { context: [], cables: [], profiles: [], name: 'BC LiDAR road planning' } : {}),
+          scenario: undefined,
         })
-        w.setNotice(
-          kind === 'lidar'
-            ? 'Loaded the native 1 m LiDAR DTM. Example alignments remain unverified planning geometry.'
-            : 'Regional reconnaissance DEM loaded. Quantities use this coarser source.',
-        )
+        w.setNotice('Regional reconnaissance DEM loaded. Quantities use this coarser source.')
       }
       w.enablePersistence()
       beginMode('inspect')
@@ -682,23 +877,11 @@ export default function DevForestryRoads() {
         await w.flush()
         w.startProject({ ...createDemoProject(), name: start.name }, demoTerrain)
       } else if (start.kind === 'lidar') {
-        const loaded = await loadLidarTerrain(signal, w.setBusy)
+        const loaded = await loadRoadScenario('bc-lidar', { signal, onProgress: w.setBusy })
         if (signal.aborted) return
         await w.flush()
-        const alignments = loaded.alignments!
-        w.startProject(
-          {
-            ...createDemoProject(),
-            name: start.name,
-            terrain: loaded.metadata,
-            alignments,
-            activeAlignmentId: alignments[0].id,
-            context: [],
-            cables: [],
-            profiles: [],
-          },
-          loaded.source,
-        )
+        if (signal.aborted) return
+        w.startProject({ ...loaded.project, name: start.name }, loaded.source)
       } else {
         const [lon, lat] = start.centre
         const dLat = start.sizeKm / 2 / 111.32,
@@ -724,6 +907,20 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
       w.setNotice('Opened from this browser’s projects.')
+    })
+  const openScenario = (id: RoadScenarioId) =>
+    void run('Loading scenario terrain and context…', async (signal) => {
+      const loaded = await loadRoadScenario(id, { signal, onProgress: w.setBusy })
+      if (signal.aborted) return
+      await w.flush()
+      if (signal.aborted) return
+      w.startProject(loaded.project, loaded.source)
+      beginMode('inspect')
+      setActiveProfile(null)
+      setSelectedPoint(null)
+      setRoutePreviewState(null)
+      setFitRevision((n) => n + 1)
+      w.setNotice(loaded.notice)
     })
   const requestFile = (kind: FileKind) => {
     if (w.busy) return
@@ -768,7 +965,7 @@ export default function DevForestryRoads() {
           return
         }
         w.setSource(loaded.source)
-        w.commit({ ...project, terrain: loaded.metadata })
+        w.commit({ ...project, terrain: loaded.metadata, scenario: undefined })
         w.setNotice(
           `${loaded.summary ? `${loaded.summary} ` : ''}Imported terrain is now used by every analysis view. Alignments outside its footprint have missing elevations.`,
         )
@@ -824,7 +1021,7 @@ export default function DevForestryRoads() {
   const save = (kind: RoadExport) => {
     try {
       const safe = parseProject(project)
-      if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview))
+      if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
         throw Error('Finish or close the design preview before exporting calculated results.')
       if (kind !== 'project' && !displayedAnalysis.stations.length)
         throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
@@ -1007,6 +1204,163 @@ export default function DevForestryRoads() {
       setFitRevision((n) => n + 1)
       w.setNotice(result.message)
     })
+  const findFsrContext = async (origin: Coordinate, signal: AbortSignal, minimumCandidates = 1) => {
+    let context = project.context
+    const importedFsrNetwork = context.some(
+      (feature) =>
+        feature.kind === 'existing-road' &&
+        feature.roadEvidence?.roadClass === 'fsr' &&
+        feature.roadEvidence.source === 'user',
+    )
+    let networkScope = importedFsrNetwork
+      ? 'The search used the identified FSRs in the user-provided network loaded in this project.'
+      : 'The search used the loaded synthetic scenario FSR network.'
+    if (project.terrain.kind !== 'demo' && !importedFsrNetwork) {
+      const network = await loadNearestBcFsrs(origin, signal, minimumCandidates)
+      if (signal.aborted) return
+      networkScope = `Active BC FSR sections were queried within ${network.searchedRadiusM / 1000} km of the selected endpoint.`
+      const merged = new Map(context.map((feature) => [feature.id, feature]))
+      for (const road of network.roads) {
+        const previous = merged.get(road.id)
+        merged.set(road.id, {
+          ...road,
+          roadEvidence: road.roadEvidence
+            ? refreshedRoadEvidence(road.roadEvidence, previous?.roadEvidence)
+            : previous?.roadEvidence,
+        })
+      }
+      context = parseProject({ ...project, context: [...merged.values()] }).context
+      w.commit({ ...project, context })
+      if (!network.nearest.length)
+        throw Error(
+          `${networkScope} No active mapped FSR was found within the 10 km discovery limit. Import a wider local FSR network to search farther.`,
+        )
+    }
+    return { context, scope: networkScope }
+  }
+  const discoverFsrs = (endpoint: 'start' | 'end') =>
+    void run('Finding nearby FSR choices…', async (signal) => {
+      const origin = (endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
+      const discovered = await findFsrContext(origin, signal, 3)
+      if (signal.aborted || !discovered) return
+      setFsrDiscovery({ guide: alignment, source, origin, scope: discovered.scope })
+      w.setNotice(
+        `${nearestFsrConnections(origin, discovered.context, 10).length} nearby FSR choices. Choose a named section or use automatic selection. ${discovered.scope}`,
+      )
+    })
+  const connectFsr = (
+    options: RouteSearchOptions,
+    preference: 'nearest' | 'lowest-cost',
+    endpoint: 'start' | 'end',
+    terrainMode: 'current' | 'regional' = 'current',
+    targetFeatureId?: string,
+  ) =>
+    void run('Finding nearby mapped Forest Service Roads…', async (signal) => {
+      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      const origin = (endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
+      const discovered = targetFeatureId
+        ? {
+            context: project.context,
+            scope:
+              fsrDiscovery?.guide === alignment &&
+              fsrDiscovery.source === source &&
+              distance(fsrDiscovery.origin, origin) < 0.1
+                ? fsrDiscovery.scope
+                : 'The selected mapped FSR in the loaded project network was used.',
+          }
+        : await findFsrContext(origin, signal)
+      if (signal.aborted || !discovered) return
+      const { context, scope: networkScope } = discovered
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (signal.aborted) return
+      let connectionSource = source
+      let connectionTerrain = project.terrain
+      if (terrainMode === 'regional') {
+        const targets = targetFeatureId
+          ? nearestFsrConnections(origin, context, 10).filter((target) => target.featureId === targetFeatureId)
+          : nearestFsrConnections(origin, context)
+        if (!targets.length)
+          throw Error(
+            `${networkScope} No active mapped FSR target was found. Load or import an identified FSR network.`,
+          )
+        const coordinates = [
+          ...project.alignments.flatMap((road) => road.points.map((point) => point.coordinate)),
+          ...targets.map((target) => target.coordinate),
+        ]
+        const margin = Math.max(1000, options.searchMarginM ?? 0, ...targets.map((target) => target.distanceM * 0.4))
+        const dLat = margin / 111195
+        const dLon = dLat / Math.cos((origin[1] * Math.PI) / 180)
+        w.setBusy('Loading regional terrain across the proposed FSR connections…')
+        const loaded = await loadRegionalTerrain(
+          [
+            Math.min(...coordinates.map((point) => point[0])) - dLon,
+            Math.min(...coordinates.map((point) => point[1])) - dLat,
+            Math.max(...coordinates.map((point) => point[0])) + dLon,
+            Math.max(...coordinates.map((point) => point[1])) + dLat,
+          ],
+          signal,
+        )
+        if (signal.aborted) return
+        connectionSource = loaded.source
+        connectionTerrain = loaded.metadata
+      }
+      w.setBusy('Screening terrain routes to nearby FSR connection points…')
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (signal.aborted) return
+      const result = suggestFsrConnections(
+        origin,
+        connectionSource,
+        project.settings,
+        context,
+        options,
+        preference,
+        targetFeatureId,
+      )
+      const connector = newAlignment(
+        result.selected.coordinates,
+        `${alignment.name} → ${result.selected.target.name} · FSR connection`.slice(0, 200),
+        alignment.template,
+      )
+      connector.fsrConnection = {
+        targetFeatureId: result.selected.target.featureId,
+        targetName: result.selected.target.name,
+        targetCoordinate: result.selected.target.coordinate,
+        originCoordinate: origin,
+        originAlignmentId: alignment.id,
+        endpoint,
+        preference: targetFeatureId ? 'chosen' : preference,
+        networkScope,
+        straightLineDistanceM: result.selected.target.distanceM,
+        routeLengthM: result.selected.lengthM,
+        searchCost: result.selected.cost,
+      }
+      const next = parseProject({
+        ...project,
+        ...(terrainMode === 'regional'
+          ? {
+              name: `${project.name} · regional FSR connection`.slice(0, 200),
+              terrain: connectionTerrain,
+              scenario: undefined,
+            }
+          : {}),
+        context,
+        alignments: [...project.alignments, connector],
+        activeAlignmentId: connector.id,
+      })
+      if (terrainMode === 'regional') {
+        await w.flush()
+        if (signal.aborted) return
+        w.startProject(next, connectionSource)
+      } else w.commit(next)
+      setActiveProfile(null)
+      setRoutePreviewState(null)
+      setReviewedRoad(null)
+      setFsrTarget(null)
+      setFitRevision((n) => n + 1)
+      w.setNotice(
+        `${result.message} ${networkScope}${terrainMode === 'regional' ? ' Opened a separate regional reconnaissance project; your original terrain project remains saved.' : ''}`,
+      )
+    })
   const shiftSection = (metres: number) => {
     if (busy || !at || terrainProfile || draftAlignment) return
     const target = offsetCoordinate(at.coordinate, at.bearing + 90, metres)
@@ -1046,7 +1400,16 @@ export default function DevForestryRoads() {
     }
   }
   const shiftFormation = (delta: number) => {
-    if (busy || !at || at.designElevation === null || terrainProfile || draftAlignment || templatePreview) return
+    if (
+      busy ||
+      !at ||
+      at.designElevation === null ||
+      terrainProfile ||
+      draftAlignment ||
+      templatePreview ||
+      costPreview
+    )
+      return
     const vertical = [...alignment.vertical]
     if (!vertical.length) {
       const first = analysis.stations[0],
@@ -1108,7 +1471,7 @@ export default function DevForestryRoads() {
         className="flex shrink-0 flex-wrap items-center justify-between gap-2"
         data-testid="road-workspace-header"
       >
-        <div className="hidden min-w-0 items-center gap-2 md:flex">
+        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <Button variant="ghost" size="icon" className="size-8" asChild>
             <Link to="/dev/forestry" aria-label="Back to forestry tools">
               <ArrowLeft className="size-4" />
@@ -1206,25 +1569,18 @@ export default function DevForestryRoads() {
           >
             <Redo2 className="size-4" />
           </Button>
-          {w.busy && dismissedBusyId === w.busyId && (
-            <Button variant="outline" size="sm" onClick={() => setDismissedBusyId(null)}>
-              Show loading notification
-            </Button>
-          )}
-          {(w.projectId || w.library.length > 0) && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
-              aria-label="Projects"
-              title={`Projects · ${project.name}`}
-              disabled={!!w.busy}
-              onClick={() => setProjectsOpen(true)}
-            >
-              <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
-              <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
+            aria-label="Projects"
+            title={`Projects · ${project.name}`}
+            disabled={!!w.busy}
+            onClick={() => setProjectsOpen(true)}
+          >
+            <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
+            <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1273,7 +1629,44 @@ export default function DevForestryRoads() {
         }
         onOpenFile={() => requestFile('project')}
         onCreate={createProject}
+        onScenario={openScenario}
         portalContainer={ref.current}
+      />
+      <FullCostPlanningDialog
+        workspace={w}
+        open={completeCostOpen}
+        onOpenChange={setCompleteCostOpen}
+        portalContainer={ref.current}
+        onPreview={(preview) => {
+          setCompleteCostPreview(preview ? { project, source, preview } : null)
+          if (preview) {
+            setControlsOpen(false)
+            setActiveProfile(null)
+            setTemplatePreview(null)
+            setPegPreview(null)
+            setMode('inspect')
+            setDraft([])
+            setSelectedPoint(null)
+            setStation(0)
+            setFitRevision((revision) => revision + 1)
+          }
+        }}
+        onAdopt={() => {
+          setCompleteCostPreview(null)
+          setActiveProfile(null)
+          setTemplatePreview(null)
+          setPegPreview(null)
+          setMode('inspect')
+          setDraft([])
+          setSelectedPoint(null)
+          setFitRevision((revision) => revision + 1)
+        }}
+        onReviewRoads={(id) => {
+          setWorkflowTab('terrain')
+          setCollapsed(false)
+          setControlsOpen(true)
+          setRoadReviewRequest((previous) => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
+        }}
       />
       <FilesDialog
         open={filesOpen}
@@ -1295,7 +1688,7 @@ export default function DevForestryRoads() {
         processMs={w.processMs}
         onSettings={(patch) => update((p) => ({ ...p, settings: { ...p.settings, ...patch } }))}
         onHaul={
-          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview || costPreview
             ? undefined
             : (patch) =>
                 updateAlignment((a) =>
@@ -1305,7 +1698,7 @@ export default function DevForestryRoads() {
                 )
         }
         onMaterialRate={
-          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+          busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview || costPreview
             ? undefined
             : (id, cutRate) =>
                 updateAlignment((a) =>
@@ -1336,7 +1729,7 @@ export default function DevForestryRoads() {
           ...(w.error
             ? [{ id: 'road-error', tone: 'error' as const, message: w.error, onDismiss: () => w.setError('') }]
             : []),
-          ...(w.busy && dismissedBusyId !== w.busyId
+          ...(w.busy
             ? [
                 {
                   id: `road-busy-${w.busyId}`,
@@ -1347,7 +1740,6 @@ export default function DevForestryRoads() {
                       {w.busyCancel.label}
                     </Button>
                   ) : undefined,
-                  onDismiss: () => setDismissedBusyId(w.busyId),
                 },
               ]
             : []),
@@ -1404,20 +1796,42 @@ export default function DevForestryRoads() {
                 },
                 {
                   key: 'cost',
-                  label: summaryLabel(
-                    'Covered estimate',
-                    hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                  ),
-                  value: displayedAnalysis.stations.length
-                    ? summaryValue(
-                        `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                        `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                      )
-                    : 'Unavailable',
+                  label: costPreview
+                    ? 'Candidate complete cost'
+                    : completeCostRecord
+                      ? 'Complete access cost'
+                      : summaryLabel(
+                          'Base engineering estimate',
+                          hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                        ),
+                  value: costPreview
+                    ? costPreview.totalCost === null
+                      ? costPreview.status === 'infeasible'
+                        ? 'Not feasible'
+                        : 'Unpriced'
+                      : `$${number(costPreview.totalCost, 0)}`
+                    : completeCostRecord
+                      ? completeCostCurrent
+                        ? `$${number(completeCostRecord.totalCost, 0)}`
+                        : 'Recalculate'
+                      : displayedAnalysis.stations.length
+                        ? summaryValue(
+                            `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                            `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                          )
+                        : 'Unavailable',
                   // Opens the calculation: quantities × editable rates.
-                  onToggle: displayedAnalysis.stations.length ? () => setCostOpen((open) => !open) : undefined,
-                  pressed: costOpen,
-                  toggleLabel: 'Show how the covered estimate is calculated',
+                  onToggle:
+                    costPreview || completeCostRecord
+                      ? openCompleteCosts
+                      : displayedAnalysis.stations.length
+                        ? () => setCostOpen((open) => !open)
+                        : undefined,
+                  pressed: costPreview || completeCostRecord ? completeCostOpen : costOpen,
+                  toggleLabel:
+                    costPreview || completeCostRecord
+                      ? 'Review complete route costs'
+                      : 'Show how the covered estimate is calculated',
                 },
                 {
                   key: 'coverage',
@@ -1446,6 +1860,11 @@ export default function DevForestryRoads() {
             content: (
               <DesignSidebar
                 workspace={{ ...w, station }}
+                workflowTab={workflowTab}
+                onWorkflowTabChange={setWorkflowTab}
+                roadReviewRequest={roadReviewRequest}
+                onCompareCompleteCosts={openCompleteCosts}
+                readOnlyPreview={!!costPreview}
                 mode={mode}
                 onMode={(next) => {
                   beginMode(next)
@@ -1489,6 +1908,14 @@ export default function DevForestryRoads() {
                   }))
                 }
                 onSuggest={suggest}
+                onConnectFsr={connectFsr}
+                onDiscoverFsrs={discoverFsrs}
+                fsrDiscovery={fsrDiscovery}
+                onPreviewFsrTarget={previewFsrTarget}
+                onLocateRoad={locateRoad}
+                onReviewRoad={reviewRoad}
+                onPreviewRoute={previewRoute}
+                templatePreviewActive={!!templatePreview}
                 onPreviewTemplate={(template, name) => {
                   setPegPreview(null)
                   setTemplatePreview({ template: structuredClone(template), name })
@@ -1527,6 +1954,39 @@ export default function DevForestryRoads() {
                 )}
                 {!displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
+                )}
+                {routePreview && (
+                  <div
+                    role="status"
+                    data-testid="road-live-route-preview"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                  >
+                    <span>
+                      {routePreview.error
+                        ? `Live route preview: ${routePreview.error}`
+                        : `Live route preview · ${number(routePreview.route?.lengthM)} m · search score $${number(routePreview.route?.cost, 0)} · dashed pink on plan. Use Suggest to save an alternative; profile and quantities show the active road.`}
+                    </span>
+                  </div>
+                )}
+                {costPreview && (
+                  <div
+                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                    data-testid="full-cost-map-preview"
+                  >
+                    <span>
+                      <strong>Complete-cost candidate preview: {costPreview.alignment.name}.</strong> Teal: reused
+                      access; gold: loaded supply haul; purple: empty return. Profile and sections show this exact
+                      connector.
+                    </span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={openCompleteCosts}>
+                        Return to comparison
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setCompleteCostPreview(null)}>
+                        Close preview
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {isDrawing && (
                   <div
@@ -1666,12 +2126,12 @@ export default function DevForestryRoads() {
                             station={station}
                             onStation={w.setStation}
                             onSelectAlignment={selectAlignment}
-                            mode={mode}
+                            mode={costPreview ? 'inspect' : mode}
                             draft={draft}
                             onDraw={onDraw}
                             onMovePoint={movePoint}
                             onInsertPoint={(afterId, coordinate) => {
-                              if (busy || alignment.points.length >= 2000) return
+                              if (busy || costPreview || alignment.points.length >= 2000) return
                               const index = alignment.points.findIndex((point) => point.id === afterId)
                               if (index < 0 || index === alignment.points.length - 1) return
                               const point = { id: uid(), coordinate, radiusM: 0 }
@@ -1692,7 +2152,7 @@ export default function DevForestryRoads() {
                             onSelectCable={selectCable}
                             cableDistance={cableDistance}
                             onCableDistance={setCableDistance}
-                            overlay={overlay}
+                            overlay={planOverlay}
                             drainage={drainageOnPlan}
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
@@ -1733,7 +2193,12 @@ export default function DevForestryRoads() {
                                 station={station}
                                 onStation={w.setStation}
                                 onVerticalChange={
-                                  busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                  busy ||
+                                  terrainProfile ||
+                                  draftAlignment ||
+                                  numericPegAlignment ||
+                                  templatePreview ||
+                                  costPreview
                                     ? undefined
                                     : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
                                 }
@@ -1826,12 +2291,22 @@ export default function DevForestryRoads() {
                                         : at
                                     }
                                     onShift={
-                                      busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                      busy ||
+                                      terrainProfile ||
+                                      draftAlignment ||
+                                      numericPegAlignment ||
+                                      templatePreview ||
+                                      costPreview
                                         ? undefined
                                         : shiftSection
                                     }
                                     onVerticalShift={
-                                      busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview
+                                      busy ||
+                                      terrainProfile ||
+                                      draftAlignment ||
+                                      numericPegAlignment ||
+                                      templatePreview ||
+                                      costPreview
                                         ? undefined
                                         : shiftFormation
                                     }
@@ -1868,7 +2343,12 @@ export default function DevForestryRoads() {
                                     onStation={setStation}
                                     terrainOnly={!!terrainProfile}
                                     onVerticalChange={
-                                      busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview
+                                      busy ||
+                                      draftAlignment ||
+                                      numericPegAlignment ||
+                                      terrainProfile ||
+                                      templatePreview ||
+                                      costPreview
                                         ? undefined
                                         : (vertical) =>
                                             commitValidated({
@@ -1889,10 +2369,10 @@ export default function DevForestryRoads() {
                                 )}
                                 {detail === 'pegs' && !terrainProfile && (
                                   <PeggingEditor
-                                    alignment={draftAlignment ?? alignment}
+                                    alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
                                     analysis={displayedAnalysis}
                                     source={source}
-                                    disabled={!!busy || mode === 'road' || !!templatePreview}
+                                    disabled={!!busy || mode === 'road' || !!templatePreview || !!costPreview}
                                     onStation={setStation}
                                     onPoint={setSelectedPoint}
                                     onPreview={setOverlay}
@@ -1916,7 +2396,7 @@ export default function DevForestryRoads() {
                                     onExport={() => {
                                       try {
                                         parseProject(project)
-                                        if (draftAlignment || numericPegAlignment || templatePreview)
+                                        if (draftAlignment || numericPegAlignment || templatePreview || costPreview)
                                           throw Error(
                                             'Finish or close the design preview before exporting calculated results.',
                                           )
@@ -1972,6 +2452,8 @@ export default function DevForestryRoads() {
                                     analyses={w.analyses}
                                     activeId={alignment.id}
                                     onSelect={selectAlignment}
+                                    project={project}
+                                    onCompareCompleteCosts={openCompleteCosts}
                                   />
                                 )}
                                 {detail === 'cable' &&
@@ -2062,10 +2544,10 @@ export default function DevForestryRoads() {
                           <div className="min-h-0 flex-1">
                             {layout === 'pegging' && !terrainProfile ? (
                               <PeggingEditor
-                                alignment={draftAlignment ?? alignment}
+                                alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
                                 analysis={displayedAnalysis}
                                 source={source}
-                                disabled={!!busy || mode === 'road' || !!templatePreview}
+                                disabled={!!busy || mode === 'road' || !!templatePreview || !!costPreview}
                                 onStation={setStation}
                                 onPoint={setSelectedPoint}
                                 onPreview={setOverlay}
@@ -2128,12 +2610,34 @@ export default function DevForestryRoads() {
                       max={Math.ceil(displayedAnalysis.length * 10) / 10}
                       step="any"
                       className="w-20 rounded border bg-background px-1 py-1 font-mono"
-                      title="Selects the nearest calculated station. Press Enter or leave the field to apply."
+                      title="Updates the linked views as you type. Arrow keys select the next or previous calculated station."
                       value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
-                      onChange={(e) => setStationEntry({ value: station, text: e.target.value })}
+                      onChange={(e) => {
+                        const text = e.target.value
+                        const value = Number(text)
+                        if (text.trim() && Number.isFinite(value)) {
+                          const bounded = Math.max(0, Math.min(displayedAnalysis.length, value))
+                          setStation(bounded)
+                          setStationEntry({
+                            value: nearestStation(displayedAnalysis.stations, bounded)?.chainage ?? 0,
+                            text,
+                          })
+                        } else setStationEntry({ value: station, text })
+                      }}
                       onBlur={finishStationEntry}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') finishStationEntry()
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          const next =
+                            e.key === 'ArrowUp'
+                              ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                                displayedAnalysis.length)
+                              : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                                  ?.chainage ?? 0)
+                          setStationEntry(null)
+                          setStation(next)
+                        }
                       }}
                     />
                   </label>

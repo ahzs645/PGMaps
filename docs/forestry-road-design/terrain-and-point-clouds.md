@@ -43,6 +43,28 @@ companion.
 
 ## Choosing a terrain source
 
+### The scenario library
+
+**Projects → Browse example scenarios** opens nine editable examples. Prince George uses the verified
+native 1 m LiDAR tile. Tabor Mountain, Kamloops, Vernon and Smithers use their own regional DEMs and
+geographic extents, for corridor screening only. The four offline training scenes cover the hillside,
+reuse of an assumed old road, local gravel with zero acquisition cost, and connected full-cost access.
+Their roads, blocks, road
+conditions and material availability are synthetic inputs.
+
+Each real landscape requests nearby public FTEN road-tenure sections and consolidated harvest openings.
+These layers can be empty at a place, and FTEN is not an inventory of every built road. A failed or
+over-budget layer is reported, with no invented replacement. Loading a scenario creates a new project
+after its terrain and sampled road-section corridor have passed the coverage check; it leaves the
+previous project saved. The library uses the same native analytical sampler in the plan, profile,
+sections and 3D preview. It never swaps in training terrain when a real source fails.
+
+The Terrain tab retains the scenario's initial sampled ground coverage and any public-context load
+warnings after the toast disappears and after save/reopen. This records the initial load, not the
+completeness of later edits: check the current section completeness in the summary. Terrain coverage
+does not prove that a batter daylights or a road meets the grade limit. Regional draft alternatives
+use a bounded orientation screen and terrain-sampled starting profiles; they still require review.
+
 | Source                                                                    | Resolution                                   | Good for                                                    | Not for                                                                     |
 | ------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
 | [Training hillside](../forestry-road-design.md#offline-training-hillside) | Analytic function, labelled 1 m              | Learning the tool offline (`?example=training`)             | Any real location or quantity                                               |
@@ -73,6 +95,9 @@ companion.
 | Ground points cleared near breaklines | 0.02 m                                                                          | `tinSurface.ts`, `CLEAR_M`                                                             | Dropped from the TIN                                                                                                                           |
 | Breakline height conflict             | 0.01 m at a shared vertex                                                       | `tinSurface.ts`, `densify`                                                             | Earlier line's z kept; reported in the summary                                                                                                 |
 | Regional DEM request                  | 64 zoom-12 tiles (about 5.7 km each at 54° N)                                   | `terrain.ts`, `loadRegionalTerrain`                                                    | Refused: zoom in. All tiles missing is an error; some missing stay no-data                                                                     |
+| Scenario corridor ground check        | 10 m station/section sampling; at most 100,000 samples                        | `scenarioCoverage.ts`, `SCENARIO_TERRAIN_STEP_M`, `MAX_SCENARIO_TERRAIN_SAMPLES`           | A missing corridor sample refuses the scenario before replacing the open project; narrow sub-sample gaps can remain                              |
+| Regional scenario initialization      | 24 orientations × two alternatives, at up to two lengths; profile controls ≤60 m apart | `scenarios.ts`, `REGIONAL_SCENARIO_ORIENTATIONS`, `REGIONAL_SCENARIO_SCALES`, `SCENARIO_PROFILE_STEP_M` | Chooses a complete, lower-grade draft where available; this screen does not solve access, environmental constraints or road-network connectivity |
+| Scenario public context request       | 12 seconds shared by roads and harvested areas; project limits 500 features / 50,000 vertices | `scenarios.ts`, `SCENARIO_CONTEXT_TIMEOUT_MS`, `scenarioContext`; `project.ts`      | Successful layers are kept; failed layer messages persist in the Terrain tab; over-budget combined context is refused explicitly                |
 | Regional DEM extent                   | Alignment extent + 0.001°, then + 100 m                                         | `DevForestryRoads.tsx` `boundsOf`; `loadRegionalTerrain` (`demTileRange` pad)          | Ground outside the loaded tiles is missing; reload after extending the road                                                                    |
 | Plan terrain preview                  | 192 samples on the longer side (helper allows 32–384)                           | `PlanView.tsx`; `terrainDisplay.ts`, `buildTerrainDisplay`                             | Display only; calculations are unaffected                                                                                                      |
 | Contour segments                      | 60,000                                                                          | `terrainDisplay.ts`, `MAX_CONTOUR_SEGMENTS`                                            | Interval doubles from 1 m (2, 4, 8 m…) and the overlay shows it                                                                                |
@@ -95,6 +120,12 @@ others. The outer half cell of a raster is outside its footprint (only a 1e-6-ce
 tolerance is allowed). Calculated stations, sections and routing read this sampler directly,
 not the plan image, contours or 3D mesh (see
 [Terrain display and connected views](../forestry-road-design.md#terrain-display-and-connected-views)).
+
+**Plan pinholes.** A missing DEM cell stays transparent in every plan image and missing in analysis.
+Hillshade, slope and aspect use a supported one-sided gradient where a finite cell borders a gap,
+instead of erasing that measured neighbour too. If neither side of an axis has terrain, that
+gradient is unavailable. Contours still stop at missing source cells. This reduces enlarged white
+pinholes without filling analytical terrain or claiming a height across a gap.
 
 **GeoTIFF registration and no-data.** Without a `GTRasterTypeGeoKey` the raster is treated as
 PixelIsArea, and the origin moves half a cell to the first cell centre. A tiepoint at nonzero

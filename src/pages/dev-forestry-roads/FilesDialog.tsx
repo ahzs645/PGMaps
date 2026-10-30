@@ -132,7 +132,7 @@ export function FilesDialog({
       </fieldset>
       <a
         className="mt-5 inline-block text-xs text-muted-foreground underline"
-        href="https://github.com/ahzs645/PGMaps/blob/codex/forestry-road-design/docs/forestry-road-design.md"
+        href="https://github.com/ahzs645/PGMaps/blob/HEAD/docs/forestry-road-design.md"
         target="_blank"
         rel="noreferrer"
       >

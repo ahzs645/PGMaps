@@ -64,6 +64,47 @@ const analysis: RoadAnalysis = {
 }
 
 describe('road project boundary', () => {
+  it('rejects array-coerced enum inputs so an avoid constraint cannot bypass downstream checks', () => {
+    const project = createDemoProject()
+    const feature = { ...project.context[0], kind: ['avoid'] }
+    expect(() => parseProject({ ...project, context: [feature] })).toThrow(/Context kind/)
+    const geojson = { type: 'Feature', properties: { kind: ['avoid'] }, geometry: feature.geometry }
+    expect(() => importContextGeoJson(geojson)).toThrow(/Context kind/)
+    expect(() => importAlignmentGeoJson(geojson)).toThrow(/kind must be a string/)
+    expect(() => parseProject({ ...project, terrain: { ...project.terrain, kind: ['demo'] } })).toThrow(
+      /terrain source kind/,
+    )
+    for (const invalid of [
+      { kind: ['turnout'], side: 'left' },
+      { kind: 'turnout', side: ['left'] },
+    ]) {
+      const alignment = {
+        ...project.alignments[0],
+        overrides: [{ id: 'turnout', name: 'Turnout', start: 10, end: 20, taper: 2, extraWidth: 2, ...invalid }],
+      }
+      expect(() => parseProject({ ...project, alignments: [alignment] })).toThrow(/Widening/)
+    }
+    expect(() =>
+      parseProject({
+        ...project,
+        alignments: [{ ...project.alignments[0], fsrConnection: { endpoint: 'end', preference: ['chosen'] } }],
+      }),
+    ).toThrow(/FSR connection preference/)
+    expect(() =>
+      importContextGeoJson({
+        ...geojson,
+        crs: { type: 'name', properties: { name: ['EPSG:4326'] } },
+      }),
+    ).toThrow(/Reproject/)
+    expect(() =>
+      importContextGeoJson({
+        ...geojson,
+        properties: { kind: 'avoid' },
+        geometry: { ...feature.geometry, type: [feature.geometry.type] },
+      }),
+    ).toThrow(/line or polygon geometry/)
+  })
+
   it('round-trips the full supported UI vertical ranges and rejects unsupported latitude edges', () => {
     const project = createDemoProject()
     project.alignments[0].vertical = [

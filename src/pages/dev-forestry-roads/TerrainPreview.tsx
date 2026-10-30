@@ -350,7 +350,7 @@ export function TerrainPreview({
       data-open-gap-cells={sourceGeometry?.openGapCells ?? 0}
       aria-label={`${sourceLabel} 3D preview`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto border-b px-2 py-1.5 [&>div]:shrink-0">
+      <div className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto border-b px-2 py-1.5 [&>*]:shrink-0">
         <SegmentedControl
           value={mode}
           onChange={(value) => setMode(value as 'orbit' | 'follow')}

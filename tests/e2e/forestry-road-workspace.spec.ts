@@ -273,7 +273,7 @@ test('engineering settings locate features across the connected views', async ({
   expect(errors).toEqual([])
 })
 
-test('loading toasts stay dismissed through progress and errors appear as top notifications', async ({ page }) => {
+test('loading notifications align inline without a dismiss button and errors remain dismissible', async ({ page }) => {
   const errors = await prepare(page)
   let releaseManifest!: () => void
   let releaseTerrain!: () => void
@@ -305,14 +305,14 @@ test('loading toasts stay dismissed through progress and errors appear as top no
   await expect(toast).toContainText('Reading the published')
   const box = (await toast.boundingBox())!
   expect(box.y).toBeLessThan(30)
-  await toast.getByRole('button', { name: 'Dismiss loading notification', exact: true }).click()
+  await expect(toast.getByRole('button', { name: 'Dismiss loading notification', exact: true })).toHaveCount(0)
+  const icon = (await toast.locator('svg').first().boundingBox())!
+  const message = (await toast.getByRole('status').boundingBox())!
+  expect(Math.abs(icon.y + icon.height / 2 - (message.y + message.height / 2))).toBeLessThanOrEqual(1)
   releaseManifest()
   await expect.poll(() => terrainRequested).toBe(true)
-  await expect(toast).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-  await page.getByRole('button', { name: 'Show loading notification', exact: true }).click()
   await expect(toast).toContainText('Loading and verifying')
-  await toast.getByRole('button', { name: 'Dismiss loading notification', exact: true }).click()
   releaseTerrain()
   const error = page.getByTestId('workspace-toast-error')
   await expect(error).toBeVisible()

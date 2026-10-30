@@ -7,7 +7,7 @@
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 type XY = [number, number]
-type Segment = { a: XY; b: XY; bounds: [number, number, number, number]; avoid: boolean }
+type Segment = { a: XY; b: XY; bounds: [number, number, number, number]; avoid: boolean; clearance: number }
 /** A blocked exclusion, or a passable zone that adds `costPerM` CAD per metre travelled inside it. */
 type Polygon = { rings: XY[][]; bounds: [number, number, number, number]; costPerM: number | null }
 
@@ -21,6 +21,20 @@ export interface RouteSearchOptions {
   endHeading: number | null
   /** Ranked, distinct alternatives to return (1–5). */
   alternatives: number
+  /** Null disables this sampled 2D terrain-gradient screen; not a terrain-stability assessment. */
+  maxTerrainSlopePercent: number | null
+  terrainSlopeSampleM: number
+  /** Centreline clearance from blocked avoid features; accounts for neither final cut/fill nor clearing. */
+  exclusionBufferM: number
+  /** Applied only when stream crossings are forbidden. Imported stream geometry is not a surveyed bank. */
+  streamBufferM: number
+  allowStreamCrossings: boolean
+  /** Null uses the bounded default; an explicit margin is 20–1,000 m. */
+  searchMarginM: number | null
+  /** Discounts only roads individually marked eligible for reuse. It does not establish connectivity or condition. */
+  reuseExistingRoads: boolean
+  existingRoadCostFactor: number
+  roadSnapDistanceM: number
 }
 /**
  * The defaults keep the original relative weighting (a crossing worth 80 m of level road). They are
@@ -32,6 +46,15 @@ export const DEFAULT_ROUTE_OPTIONS: RouteSearchOptions = {
   startHeading: null,
   endHeading: null,
   alternatives: 1,
+  maxTerrainSlopePercent: null,
+  terrainSlopeSampleM: 5,
+  exclusionBufferM: 0,
+  streamBufferM: 0,
+  allowStreamCrossings: true,
+  searchMarginM: null,
+  reuseExistingRoads: false,
+  existingRoadCostFactor: 0.4,
+  roadSnapDistanceM: 8,
 }
 export interface RouteCandidate {
   coordinates: Coordinate[]
@@ -87,6 +110,31 @@ function intersects(a: XY, b: XY, c: XY, d: XY) {
   return onSegment(a, c, d) || onSegment(b, c, d) || onSegment(c, a, b) || onSegment(d, a, b)
 }
 
+function pointSegmentDistance(p: XY, a: XY, b: XY) {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1]
+  const denominator = dx * dx + dy * dy
+  const t = denominator ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / denominator)) : 0
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+}
+
+function segmentDistance(a: XY, b: XY, c: XY, d: XY) {
+  if (intersects(a, b, c, d)) return 0
+  return Math.min(
+    pointSegmentDistance(a, c, d),
+    pointSegmentDistance(b, c, d),
+    pointSegmentDistance(c, a, b),
+    pointSegmentDistance(d, a, b),
+  )
+}
+
+const expandBounds = (bounds: [number, number, number, number], distance: number): [number, number, number, number] => [
+  bounds[0] - distance,
+  bounds[1] - distance,
+  bounds[2] + distance,
+  bounds[3] + distance,
+]
+
 function inRing(point: XY, ring: XY[]) {
   let inside = false
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -136,6 +184,46 @@ class MinHeap {
   }
 }
 
+/** Validates portable route assumptions, retaining defaults for fields absent in older projects. */
+export function parseRouteSearchOptions(input?: unknown): RouteSearchOptions {
+  if (input !== undefined && (!input || typeof input !== 'object' || Array.isArray(input)))
+    throw Error('Route search settings must be an object.')
+  const values = input as Record<string, unknown> | undefined
+  const options = Object.fromEntries(
+    Object.entries(DEFAULT_ROUTE_OPTIONS).map(([key, fallback]) => [
+      key,
+      values?.[key] === undefined ? fallback : values[key],
+    ]),
+  ) as unknown as RouteSearchOptions
+  if (
+    !Number.isFinite(options.baseCostPerM) ||
+    !Number.isFinite(options.crossingCost) ||
+    !(options.baseCostPerM > 0) ||
+    !(options.crossingCost >= 0)
+  )
+    throw Error('Use a positive road cost per metre and a non-negative crossing cost.')
+  const finiteRange = (value: number, min: number, max: number) =>
+    Number.isFinite(value) && value >= min && value <= max
+  if (!finiteRange(options.exclusionBufferM, 0, 500) || !finiteRange(options.streamBufferM, 0, 500))
+    throw Error('Use stream and exclusion clearances between 0 and 500 m.')
+  if (options.maxTerrainSlopePercent !== null && !finiteRange(options.maxTerrainSlopePercent, 1, 300))
+    throw Error('Use a terrain-slope limit between 1% and 300%, or leave it off.')
+  if (!finiteRange(options.terrainSlopeSampleM, 1, 100))
+    throw Error('Use a terrain-slope sample distance between 1 and 100 m.')
+  if (options.searchMarginM !== null && !finiteRange(options.searchMarginM, 20, 1000))
+    throw Error('Use a search margin between 20 and 1,000 m, or leave it automatic.')
+  if (!finiteRange(options.existingRoadCostFactor, 0.05, 1) || !finiteRange(options.roadSnapDistanceM, 1, 50))
+    throw Error('Use an existing-road cost factor of 0.05–1 and a proximity distance of 1–50 m.')
+  if (!finiteRange(options.alternatives, 1, 5) || !Number.isInteger(options.alternatives))
+    throw Error('Use 1–5 whole route alternatives.')
+  if (typeof options.allowStreamCrossings !== 'boolean' || typeof options.reuseExistingRoads !== 'boolean')
+    throw Error('Route crossing and road reuse switches must be true or false.')
+  for (const heading of [options.startHeading, options.endHeading])
+    if (heading !== null && !finiteRange(heading, 0, 360))
+      throw Error('Use headings between 0° and 360°, or leave them off.')
+  return options
+}
+
 export function suggestRoute(
   start: Coordinate,
   end: Coordinate,
@@ -155,9 +243,7 @@ export function suggestRoutes(
   context: ContextFeature[] = [],
   input: Partial<RouteSearchOptions> = {},
 ): { routes: RouteCandidate[]; message: string; visited: number } {
-  const options = { ...DEFAULT_ROUTE_OPTIONS, ...input }
-  if (!(options.baseCostPerM > 0) || !(options.crossingCost >= 0))
-    throw Error('Use a positive road cost per metre and a non-negative crossing cost.')
+  const options = parseRouteSearchOptions(input)
   const wanted = Math.max(1, Math.min(5, Math.round(options.alternatives)))
   if (
     ![start, end].every(
@@ -175,7 +261,7 @@ export function suggestRoutes(
   if (direct < 2) throw Error('Place the road endpoints at least 2 m apart.')
   if (direct > 15_000)
     throw Error('Keep each route suggestion within 15 km; split a longer road into planning sections.')
-  const margin = Math.max(80, Math.min(1000, direct * 0.35))
+  const margin = options.searchMarginM ?? Math.max(80, Math.min(1000, direct * 0.35))
   const bounds: [number, number, number, number] = [
     Math.min(0, target[0]) - margin,
     Math.min(0, target[1]) - margin,
@@ -196,12 +282,18 @@ export function suggestRoutes(
         ? target
         : [bounds[0] + (id % columns) * spacing, bounds[1] + Math.floor(id / columns) * spacing]
   const segments: Segment[] = [],
-    polygons: Polygon[] = []
+    polygons: Polygon[] = [],
+    reusableRoads: { a: XY; b: XY; bounds: [number, number, number, number] }[] = []
   let vertices = 0,
     geometryChecks = 0,
     samples = 0
   for (const feature of context) {
-    if (!['stream', 'avoid'].includes(feature.kind)) continue
+    const reusable =
+      options.reuseExistingRoads &&
+      feature.kind === 'existing-road' &&
+      feature.roadEvidence?.reuseAllowed === true &&
+      feature.roadEvidence.condition !== 'closed'
+    if (!['stream', 'avoid'].includes(feature.kind) && !reusable) continue
     const paths = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates : [feature.geometry.coordinates]
     const converted = paths.map((path) => path.map((p) => toXY([p[0], p[1]])))
     vertices += converted.reduce((sum, path) => sum + path.length, 0)
@@ -209,7 +301,19 @@ export function suggestRoutes(
       throw Error('Crop stream and exclusion inputs to the routing area first (maximum 20,000 vertices).')
     if (!converted.length || !converted[0].length) continue
     const featureBounds = xyBounds(converted[0])
-    if (!boundsOverlap(featureBounds, bounds)) continue
+    const clearance =
+      feature.kind === 'avoid' ? options.exclusionBufferM : !options.allowStreamCrossings ? options.streamBufferM : 0
+    if (!boundsOverlap(expandBounds(featureBounds, reusable ? options.roadSnapDistanceM : clearance), bounds)) continue
+    if (reusable) {
+      for (const path of converted)
+        for (let i = 1; i < path.length; i++)
+          reusableRoads.push({
+            a: path[i - 1],
+            b: path[i],
+            bounds: expandBounds(xyBounds([path[i - 1], path[i]]), options.roadSnapDistanceM),
+          })
+      continue
+    }
     const zoneCost = feature.kind === 'avoid' && Number.isFinite(feature.routeCostPerM) ? feature.routeCostPerM! : null
     if (feature.kind === 'avoid' && feature.geometry.type === 'Polygon')
       polygons.push({ rings: converted, bounds: featureBounds, costPerM: zoneCost })
@@ -217,9 +321,15 @@ export function suggestRoutes(
     if (zoneCost !== null) continue
     for (const path of converted)
       for (let i = 1; i < path.length; i++) {
-        const edgeBounds = xyBounds([path[i - 1], path[i]])
+        const edgeBounds = expandBounds(xyBounds([path[i - 1], path[i]]), clearance)
         if (boundsOverlap(edgeBounds, bounds))
-          segments.push({ a: path[i - 1], b: path[i], bounds: edgeBounds, avoid: feature.kind === 'avoid' })
+          segments.push({
+            a: path[i - 1],
+            b: path[i],
+            bounds: edgeBounds,
+            avoid: feature.kind === 'avoid' || !options.allowStreamCrossings,
+            clearance,
+          })
       }
   }
   const geometryBudget = (operations = 1) => {
@@ -249,6 +359,24 @@ export function suggestRoutes(
       buckets[id].push(index)
     }
   })
+  const roadBuckets: number[][] = Array.from({ length: bucketCount * bucketCount }, () => [])
+  reusableRoads.forEach((segment, index) => {
+    for (const id of bucketIds(segment.bounds)) {
+      geometryBudget()
+      roadBuckets[id].push(index)
+    }
+  })
+  const reuseFactorAt = (point: XY) => {
+    if (!reusableRoads.length) return 1
+    for (const index of roadBuckets[bucketIds([point[0], point[1], point[0], point[1]])[0]]) {
+      geometryBudget()
+      const segment = reusableRoads[index]
+      if (pointSegmentDistance(point, segment.a, segment.b) <= options.roadSnapDistanceM)
+        return options.existingRoadCostFactor
+    }
+    return 1
+  }
+  const heuristicCostPerM = options.baseCostPerM * (reusableRoads.length ? options.existingRoadCostFactor : 1)
   const inside = (p: XY, polygon: Polygon) => {
     if (!boundsOverlap(polygon.bounds, [p[0], p[1], p[0], p[1]])) return false
     geometryBudget(polygon.rings.reduce((sum, ring) => sum + ring.length, 0))
@@ -265,12 +393,38 @@ export function suggestRoutes(
       )
     return terrain.elevationAt(...toCoordinate(p))
   }
+  const nearBlockedFeature = (point: XY) => {
+    const area: [number, number, number, number] = [point[0], point[1], point[0], point[1]]
+    for (const index of buckets[bucketIds(area)[0]]) {
+      const segment = segments[index]
+      if (!segment.avoid || !boundsOverlap(segment.bounds, area)) continue
+      geometryBudget()
+      if (pointSegmentDistance(point, segment.a, segment.b) <= segment.clearance + 1e-7) return true
+    }
+    return false
+  }
   if (excluded([0, 0]) || excluded(target))
     throw Error('A route endpoint is inside an exclusion polygon. Move the endpoint outside the excluded area.')
+  if (nearBlockedFeature([0, 0]) || nearBlockedFeature(target))
+    throw Error('A route endpoint violates an exclusion or stream clearance. Move it outside the blocked corridor.')
   const startElevation = read([0, 0]),
     endElevation = read(target)
   if (!Number.isFinite(startElevation) || !Number.isFinite(endElevation))
     throw Error('Both road endpoints need valid terrain coverage.')
+  const terrainSlopeOk = (point: XY) => {
+    if (options.maxTerrainSlopePercent === null) return true
+    const d = options.terrainSlopeSampleM
+    const west = read([point[0] - d, point[1]]),
+      east = read([point[0] + d, point[1]]),
+      south = read([point[0], point[1] - d]),
+      north = read([point[0], point[1] + d])
+    return (
+      [west, east, south, north].every(Number.isFinite) &&
+      (Math.hypot(east - west, north - south) / (2 * d)) * 100 <= options.maxTerrainSlopePercent + 1e-6
+    )
+  }
+  if (!terrainSlopeOk([0, 0]) || !terrainSlopeOk(target))
+    throw Error('A route endpoint has missing terrain-slope coverage or exceeds the sampled terrain-slope limit.')
   const elevations = new Float64Array(size).fill(NaN),
     loaded = new Uint8Array(size)
   const elevationAt = (id: number) => {
@@ -301,6 +455,7 @@ export function suggestRoutes(
       geometryBudget()
       const segment = segments[index]
       if (!boundsOverlap(segment.bounds, edgeBounds)) continue
+      if (segment.avoid && segmentDistance(a, b, segment.a, segment.b) <= segment.clearance + 1e-7) return Infinity
       if (intersects(a, b, segment.a, segment.b)) {
         if (segment.avoid) return Infinity
         crossings++
@@ -314,12 +469,13 @@ export function suggestRoutes(
       const f = i / count
       const point: XY = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]
       const elevation = i === count ? zB : read(point)
-      if (!Number.isFinite(elevation)) return Infinity
+      if (!Number.isFinite(elevation) || !terrainSlopeOk(point)) return Infinity
       const grade = (Math.abs(elevation - previous) / distance) * 100
       if (grade > settings.maxGradePercent + 1e-6) return Infinity
-      cost += distance * options.baseCostPerM * (1 + 3 * (grade / settings.maxGradePercent) ** 2)
+      const middle: XY = [a[0] + (b[0] - a[0]) * (f - 0.5 / count), a[1] + (b[1] - a[1]) * (f - 0.5 / count)]
+      cost +=
+        distance * options.baseCostPerM * reuseFactorAt(middle) * (1 + 3 * (grade / settings.maxGradePercent) ** 2)
       if (zones.length) {
-        const middle: XY = [a[0] + (b[0] - a[0]) * (f - 0.5 / count), a[1] + (b[1] - a[1]) * (f - 0.5 / count)]
         cost += distance * zoneCostAt(middle)
       }
       previous = elevation
@@ -335,11 +491,15 @@ export function suggestRoutes(
     return difference <= 45 + 1e-6
   }
   if (startId === endId) {
-    const cost = segmentCost([0, 0], target, startElevation, endElevation, 1)
-    if (!Number.isFinite(cost))
-      throw Error('The direct connection does not meet the terrain, exclusion and grade constraints.')
+    const cost = segmentCost([0, 0], target, startElevation, endElevation, 1, 0)
+    if (
+      !Number.isFinite(cost) ||
+      !headingOk([0, 0], target, options.startHeading) ||
+      !headingOk([0, 0], target, options.endHeading)
+    )
+      throw Error('The direct connection does not meet the terrain, heading, clearance and grade constraints.')
     return {
-      routes: [{ coordinates: [[...start], [...end]], cost, lengthM: direct, crossings: 0 }],
+      routes: [{ coordinates: [[...start], [...end]], cost, lengthM: direct, crossings: crossingsOf.get(0) ?? 0 }],
       message: `Terrain-cost route suggestion: direct connection checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Review the designed profile and curves separately.`,
       visited: 2,
     }
@@ -356,7 +516,7 @@ export function suggestRoutes(
         closed = new Uint8Array(size)
       const heap = new MinHeap()
       costs[startId] = 0
-      heap.push({ node: startId, score: direct * options.baseCostPerM })
+      heap.push({ node: startId, score: direct * heuristicCostPerM })
       let visited = 0,
         found = false
       while (heap.length) {
@@ -399,7 +559,7 @@ export function suggestRoutes(
           parent[next] = node
           heap.push({
             node: next,
-            score: nextCost + Math.hypot(q[0] - target[0], q[1] - target[1]) * options.baseCostPerM,
+            score: nextCost + Math.hypot(q[0] - target[0], q[1] - target[1]) * heuristicCostPerM,
           })
         }
       }
@@ -438,7 +598,7 @@ export function suggestRoutes(
   }
   if (!found.length)
     throw Error(
-      `No terrain-cost path in this bounded area meets the ${settings.maxGradePercent}% sampled ground-grade limit${options.startHeading !== null || options.endHeading !== null ? ', the end headings' : ''}, terrain coverage and exclusions. This does not rule out a field-designed road or a wider search.`,
+      `No terrain-cost path in this bounded area meets the ${settings.maxGradePercent}% sampled ground-grade limit${options.startHeading !== null || options.endHeading !== null ? ', the end headings' : ''}, terrain coverage, slope and clearance constraints. This does not rule out a field-designed road or a wider search.`,
     )
   // Keep the verified grid vertices. Rounding or unconstrained smoothing could
   // move a route into an obstacle or invalidate the grade/coverage checks.
@@ -464,7 +624,7 @@ export function suggestRoutes(
   const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
   return {
     routes,
-    message: `Terrain-cost route suggestion${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Exclusion polygons are blocked; cost zones and stream crossings add their entered costs. Curves, earthworks and engineering feasibility require review.`,
+    message: `Terrain-cost route suggestion${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Exclusions use ${options.exclusionBufferM} m centreline clearance; stream crossings are ${options.allowStreamCrossings ? 'priced' : `blocked with ${options.streamBufferM} m clearance`}.${options.maxTerrainSlopePercent === null ? '' : ` Sampled terrain gradient ≤${options.maxTerrainSlopePercent}% over ±${options.terrainSlopeSampleM} m.`}${reusableRoads.length ? ` Reviewed road corridors within ${options.roadSnapDistanceM} m use ${options.existingRoadCostFactor}× road cost; proximity does not establish connection or usability.` : ''} Cost zones add their entered costs. Curves, earthworks and engineering feasibility require review.`,
     visited: totalVisited,
   }
 }

@@ -1074,6 +1074,71 @@ function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType
   }
 }
 
+/**
+ * Final-candidate checks can inspect dense sections without changing analysis/cost station budgets.
+ * Geometry and the independent profile compile once; callers own their sample and terrain budgets.
+ */
+export function createRoadStationSampler(
+  alignment: Alignment,
+  terrain: TerrainSource,
+  settings: RoadSettings,
+): {
+  length: number
+  boundaries: number[]
+  warnings: string[]
+  at: (chainage: number) => RoadStation
+} {
+  validate(alignment, settings)
+  const path = compile(alignment),
+    warnings = [...path.warnings]
+  const profile = verticalProfile(alignment.vertical, warnings)
+  const boundaries = [0, path.length, ...path.boundaries, ...profile.knots, ...engineeringKnots(alignment)]
+  for (const range of alignment.overrides) {
+    const taper = Math.min(range.taper, (range.end - range.start) / 2)
+    boundaries.push(range.start, range.start + taper, range.end - taper, range.end)
+    if (!taper) boundaries.push(range.start - 1e-5, range.end + 1e-5)
+  }
+  return {
+    length: path.length,
+    boundaries: [...new Set(boundaries.filter((s) => s >= 0 && s <= path.length))].sort((a, b) => a - b),
+    warnings,
+    at(chainage) {
+      if (!Number.isFinite(chainage) || chainage < 0 || chainage > path.length + EPS)
+        throw Error('Road section station must lie inside the compiled alignment.')
+      const s = Math.min(path.length, chainage),
+        p = location(path, s)
+      const groundElevation = finite(terrain.elevationAt(...p.coordinate)),
+        vertical = profile.value(s)
+      const designElevation = vertical?.elevation ?? groundElevation
+      const section = sectionAt(
+        p.coordinate,
+        p.bearing,
+        designElevation,
+        alignment,
+        s,
+        settings.crossSectionHalfWidth,
+        terrain,
+      )
+      return {
+        index: 0,
+        chainage: s,
+        coordinate: p.coordinate,
+        bearing: p.bearing,
+        groundElevation,
+        designElevation,
+        gradePercent: vertical?.grade ?? null,
+        groundGradePercent: null,
+        curveRadiusM: p.radius,
+        ...effectiveWidths(alignment, s),
+        ...section,
+        cutVolumeM3: null,
+        fillVolumeM3: null,
+        massM3: null,
+      }
+    },
+  }
+}
+
 /** Road quantities are formation cut/fill; added landing width is unsurfaced. */
 export function analyzeRoad(
   alignment: Alignment,

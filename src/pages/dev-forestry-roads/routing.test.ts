@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestRoute, suggestRoutes } from './routing'
+import { DEFAULT_ROUTE_OPTIONS, parseRouteSearchOptions, suggestRoute, suggestRoutes } from './routing'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 const R = 6371008.8,
@@ -161,5 +161,135 @@ describe('route search costs, headings and alternatives', () => {
       [xb, yb] = xy(...route.coordinates.at(-1)!)
     const arrive = ((Math.atan2(xb - xa, yb - ya) * 180) / Math.PI + 360) % 360
     expect(Math.abs(arrive - 180)).toBeLessThanOrEqual(45 + 1e-6)
+  })
+})
+
+describe('forester-entered route constraints', () => {
+  const flat = terrain(() => 800)
+  const start = point(0, 0),
+    end = point(400, 0)
+  it('keeps the whole centreline outside an entered exclusion clearance', () => {
+    const result = suggestRoutes(start, end, flat, settings, [box(150, -20, 250, 20)], { exclusionBufferM: 25 })
+      .routes[0]
+    const samples = sampleReturned(result.coordinates, flat)
+    for (const sample of samples) {
+      const dx = Math.max(150 - sample.x, 0, sample.x - 250)
+      const dy = Math.max(-20 - sample.y, 0, sample.y - 20)
+      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(25 - 0.01)
+    }
+    expect(() =>
+      suggestRoutes(point(140, 0), end, flat, settings, [box(150, -20, 250, 20)], { exclusionBufferM: 25 }),
+    ).toThrow(/endpoint.*clearance/i)
+  })
+
+  it('can forbid streams and retain the entered setback around their ends', () => {
+    const stream: ContextFeature = {
+      id: 's',
+      name: 'Creek',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [point(200, -40), point(200, 40)] },
+    }
+    const result = suggestRoutes(start, end, flat, settings, [stream], {
+      allowStreamCrossings: false,
+      streamBufferM: 20,
+    }).routes[0]
+    expect(result.crossings).toBe(0)
+    for (const sample of sampleReturned(result.coordinates, flat)) {
+      const nearestY = Math.max(-40, Math.min(40, sample.y))
+      expect(Math.hypot(sample.x - 200, sample.y - nearestY)).toBeGreaterThanOrEqual(20 - 0.01)
+    }
+    const barrier = {
+      ...stream,
+      geometry: { type: 'LineString' as const, coordinates: [point(200, -2000), point(200, 2000)] },
+    }
+    expect(() => suggestRoutes(start, end, flat, settings, [barrier], { allowStreamCrossings: false })).toThrow(
+      /No terrain-cost path/,
+    )
+  })
+
+  it('distinguishes gentle along-road grade from steep terrain side slope', () => {
+    const hillside = terrain((_x, y) => 800 + y * 0.8),
+      hillsideSettings = { ...settings, maxGradePercent: 30 }
+    expect(suggestRoutes(start, end, hillside, hillsideSettings).routes.length).toBe(1)
+    expect(() => suggestRoutes(start, end, hillside, hillsideSettings, [], { maxTerrainSlopePercent: 60 })).toThrow(
+      /terrain-slope limit/,
+    )
+    expect(
+      suggestRoutes(start, end, hillside, hillsideSettings, [], { maxTerrainSlopePercent: 90 }).routes.length,
+    ).toBe(1)
+  })
+
+  it('does not invent slope coverage at terrain edges', () => {
+    const edge = terrain((_x, y) => (y < -1 ? NaN : 800))
+    expect(() => suggestRoutes(start, end, edge, settings, [], { maxTerrainSlopePercent: 60 })).toThrow(
+      /missing terrain-slope coverage/,
+    )
+  })
+
+  it('discounts only explicitly reviewed roads and keeps hard constraints', () => {
+    const road: ContextFeature = {
+      id: 'road',
+      name: 'Old road',
+      kind: 'existing-road',
+      geometry: { type: 'LineString', coordinates: [start, end] },
+      roadEvidence: {
+        source: 'user',
+        sourceId: 'example',
+        sourceUrl: '',
+        retrievedAt: '2026-10-28',
+        status: 'unknown',
+        condition: 'unknown',
+        conditionBasis: 'assumed',
+        reuseAllowed: true,
+      },
+    }
+    const ordinary = suggestRoutes(start, end, flat, settings, [road]).routes[0]
+    const reuse = suggestRoutes(start, end, flat, settings, [road], { reuseExistingRoads: true }).routes[0]
+    expect(reuse.cost).toBeLessThan(ordinary.cost * 0.5)
+    const unknown = { ...road, roadEvidence: undefined }
+    expect(
+      suggestRoutes(start, end, flat, settings, [unknown], { reuseExistingRoads: true }).routes[0].cost,
+    ).toBeCloseTo(ordinary.cost)
+    const closed: ContextFeature = { ...road, roadEvidence: { ...road.roadEvidence!, condition: 'closed' } }
+    expect(
+      suggestRoutes(start, end, flat, settings, [closed], { reuseExistingRoads: true }).routes[0].cost,
+    ).toBeCloseTo(ordinary.cost)
+    const constrained = suggestRoutes(start, end, flat, settings, [road, box(150, -20, 250, 20)], {
+      reuseExistingRoads: true,
+    }).routes[0]
+    expect(
+      sampleReturned(constrained.coordinates, flat).some((p) => p.x >= 150 && p.x <= 250 && Math.abs(p.y) <= 20),
+    ).toBe(false)
+  })
+
+  it('rejects nonfinite and out-of-budget planning options', () => {
+    for (const options of [
+      { exclusionBufferM: NaN },
+      { streamBufferM: 501 },
+      { searchMarginM: 10 },
+      { terrainSlopeSampleM: 0 },
+      { maxTerrainSlopePercent: -1 },
+      { existingRoadCostFactor: 0 },
+      { roadSnapDistanceM: 100 },
+    ])
+      expect(() => suggestRoutes(start, end, flat, settings, [], options)).toThrow()
+  })
+})
+
+describe('portable route assumptions', () => {
+  it('fills missing options from neutral defaults and rejects invalid serialized types', () => {
+    expect(parseRouteSearchOptions({ exclusionBufferM: 25 })).toEqual({
+      ...DEFAULT_ROUTE_OPTIONS,
+      exclusionBufferM: 25,
+    })
+    for (const value of [
+      null,
+      [],
+      { allowStreamCrossings: 'false' },
+      { reuseExistingRoads: 1 },
+      { startHeading: Infinity },
+      { alternatives: 2.5 },
+    ])
+      expect(() => parseRouteSearchOptions(value)).toThrow()
   })
 })

@@ -9,15 +9,23 @@ These guides say what each part of the workspace assumes, where its limits are a
 problem shows up on screen. The calculations themselves are specified in the
 [workspace contract](../forestry-road-design.md); the guides link to it rather than repeat it.
 
-| Guide                                                              | Read it before you…                                                                            |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| [Terrain and point clouds](terrain-and-point-clouds.md)            | choose or import terrain, or trust any elevation, grade or volume taken from it                |
-| [Alignment and optimization](alignment-and-optimization.md)        | design curves and grades, or accept an optimized profile, route or corridor                    |
-| [Sections, quantities and costs](sections-quantities-and-costs.md) | quote cut, fill, haul, disturbance or a cost, or compare alternatives on them                  |
-| [BC cost evidence and estimation roadmap](bc-cost-evidence.md) | select regional sources, compare appraisal allowances or convert supplier quotes |
-| [Drainage](drainage.md)                                            | use stream crossings, cross-drain candidates, ponding or culvert sizes                         |
-| [Exports and project files](exports-and-project-files.md)          | hand a file to someone else, open it in another program, or rely on autosave to keep your work |
-| [Known issues](known-issues.md)                                    | trust a result from an area with a known defect                                                |
+| Guide                                                                 | Read it before you…                                                                                       |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [Terrain and point clouds](terrain-and-point-clouds.md)               | choose or import terrain, or trust any elevation, grade or volume taken from it                           |
+| [Alignment and optimization](alignment-and-optimization.md)           | design curves and grades, or accept an optimized profile, route or corridor                               |
+| [Forester constraints and route comparisons](planning-constraints.md) | choose screening constraints, reviewed existing-road reuse or live route previews                         |
+| [Existing roads and reuse](existing-roads.md)                         | load BC roads or user linework, review age/condition evidence, or enable existing-road cost preferences   |
+| [Dated road-condition evidence](road-condition-evidence.md)             | assess inspection or imagery age, resolve conflicting findings and closures, or review refreshed road geometry |
+| [Gravel and aggregate sources](gravel-sources.md)                     | compare local or zero-acquisition aggregate, delivered costs, source capacities and nearby BC pit records |
+| [Full-cost horizontal alternatives](full-cost-alternatives.md)         | choose a new connector using checked geometry, connected loaded/return haul, finite supply and reused-road costs |
+| [Connected road network](connected-network.md)                         | review real junctions, access restrictions, rehabilitation and dated bridge load ratings |
+| [Final connector checks](final-connector-checks.md)                     | assess fitted curves, loaded grades, crossings and the full cut/fill footprint before adopting a comparison |
+| [Connected-access training scenario](full-cost-training-scenario.md)    | try the offline road-network, gravel-haul, rehabilitation, bridge-closure and dated-evidence comparisons |
+| [Sections, quantities and costs](sections-quantities-and-costs.md)    | quote cut, fill, haul, disturbance or a cost, or compare alternatives on them                             |
+| [BC cost evidence and estimation roadmap](bc-cost-evidence.md)        | select regional sources, compare appraisal allowances or convert supplier quotes                          |
+| [Drainage](drainage.md)                                               | use stream crossings, cross-drain candidates, ponding or culvert sizes                                    |
+| [Exports and project files](exports-and-project-files.md)             | hand a file to someone else, open it in another program, or rely on autosave to keep your work            |
+| [Known issues](known-issues.md)                                       | trust a result from an area with a known defect                                                           |
 
 ## Five checks that apply everywhere
 

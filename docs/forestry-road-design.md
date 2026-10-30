@@ -82,7 +82,10 @@ road-design criteria or universally appropriate LiDAR processing parameters.
   `pointCloudClient.ts` run point clouds off the main thread.
 - `routing.ts` provides deterministic, bounded terrain-cost A\* route
   assistance. Its inputs and returned geometry are separate from the designed
-  vertical profile and earthwork-cost calculation.
+  vertical profile and earthwork-cost calculation. Optional project `routeSearch` settings are
+  validated by `parseRouteSearchOptions`, retained in project/library saves, and include
+  explicit clearance, stream-crossing, terrain-slope and reviewed-road proximity assumptions.
+  See [Forester constraints and route comparisons](forestry-road-design/planning-constraints.md).
 - `terrainDisplay.ts` makes bounded hillshade, slope, aspect, elevation and contour
   previews from the selected source; those display products never replace the
   terrain sampler used for calculations.
@@ -105,6 +108,15 @@ road-design criteria or universally appropriate LiDAR processing parameters.
   processing remains in the existing `scripts/lidar/` pipeline.
 
 ## Terrain choices
+
+The **Projects** dialog includes a built-in library of nine scenarios: the native Prince George
+LiDAR tile; regional Tabor Mountain, Kamloops, Vernon and Smithers maps; and offline hillside,
+existing-road-reuse, local-gravel and connected full-cost access training scenes. `scenarios.ts` loads terrain and public
+road/harvest context together, checks the sampled section corridor before opening, and retains
+load-time source warnings in `RoadProject.scenario`. Each load starts a new editable project.
+The regional draft screen tests bounded orientations/lengths and samples starting profile controls;
+it does not establish a recommended route. The [terrain guide](forestry-road-design/terrain-and-point-clouds.md#the-scenario-library)
+records provenance, limits and the distinction between a ground-coverage check and complete sections.
 
 ### Offline training hillside
 
@@ -670,6 +682,15 @@ When no engineering definitions are present, this reduces to the original
 
 ### Haul, borrow and waste scenarios
 
+The [gravel and aggregate source guide](forestry-road-design/gravel-sources.md)
+documents the optional surfacing supply scenario, BC pit candidate lookup and
+site enable/disable controls. Surfacing supply prices acquisition, processing,
+loading, entered one-way haul and placement separately; finite capacity leaves
+the rest at the base surfacing rate. The total-cost vertical optimizer scores
+these entered costs. Horizontal route/corridor search does not choose a pit or
+solve delivery routes. Borrow/waste sites optionally use delivered batch cost
+instead of nearest-site order; each batch is re-ranked after capacity is used.
+
 Haul allocation is disabled by default. Enabling it runs a deterministic
 allocation scenario, not a global optimum: fill intervals are visited in
 chainage order and draw from the nearest remaining reusable cut in the same
@@ -1204,7 +1225,7 @@ The distance scale is fixed 8 px from the map's left and bottom edges on phones 
 does not inherit the shared map controls' mobile-sheet/legend clearance. Fit,
 terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settings.
 
-- Project JSON: `pgmaps-road-project-v1`, full editable alignment/vertical/
+- Project JSON: `pgmaps-road-project-v1`, optional saved `routeSearch` assumptions, full editable alignment/vertical/
   widening/template/settings/context/cable/profile state, optional engineering
   definitions/assignments/materials/structures/haul assumptions and terrain provenance.
 - Library JSON: `pgmaps-road-library-v1`, portable named template and material
@@ -1396,6 +1417,8 @@ bytes. The smoke script writes no generated data:
 node --import tsx scripts/forestry/check-road-terrain.ts
 # When Node supports this flag and the environment requires its configured proxy:
 node --use-env-proxy --import tsx scripts/forestry/check-road-terrain.ts
+# Check every library scene with real terrain and bounded public context (optional IDs narrow it):
+node --use-env-proxy --import tsx scripts/forestry/check-road-scenarios.ts
 ```
 
 For a live visual check, open the normal route without `?example=training`,

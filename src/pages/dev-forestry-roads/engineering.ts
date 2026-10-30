@@ -1,4 +1,5 @@
 /** User-defined materials and structures applied to supported, sampled road sections. */
+import { surfacingSupplyCost } from './gravel'
 import type {
   Alignment,
   AlignmentEngineering,
@@ -298,7 +299,9 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
       entries: p.cut.filter((m) => m.usable > EPS).map((m) => ({ ...m, remaining: m.usable })),
       available: p.cut.reduce((sum, m) => sum + m.usable, 0),
     }))
-  const availableSites = e.sites.map((s) => ({ ...s, remaining: s.capacityM3 ?? Infinity }))
+  const availableSites = e.sites
+    .filter((s) => s.enabled !== false)
+    .map((s) => ({ ...s, remaining: s.capacityM3 ?? Infinity }))
   const usedSites = new Set<string>()
   const movement = (input: Omit<HaulMovement, 'id' | 'category' | 'haulCost'>) => {
     if (movements.length >= 20000)
@@ -329,22 +332,35 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
   ) => {
     const run = runs.get(interval.run)!
     let remaining = amount
-    const candidates = availableSites
-      .filter((s) => {
-        // Mandatory calculation stations are rounded to micrometres in analyzeRoad.
-        // Match that registration for reachability, keeping entered chainage for haul distances.
-        const station = Math.round(s.chainage * 1e6) / 1e6
-        return s.kind === kind && station >= run.start - EPS && station <= run.end + EPS
-      })
-      .sort(
-        (a, b) =>
-          Math.abs(a.chainage - interval.chainage) +
-            a.accessDistanceM -
-            Math.abs(b.chainage - interval.chainage) -
-            b.accessDistanceM || a.id.localeCompare(b.id),
-      )
-    for (const site of candidates) {
-      if (remaining <= EPS) break
+    const candidates = availableSites.filter((s) => {
+      // Mandatory calculation stations are rounded to micrometres in analyzeRoad.
+      // Match that registration for reachability, keeping entered chainage for haul distances.
+      const station = Math.round(s.chainage * 1e6) / 1e6
+      return s.kind === kind && station >= run.start - EPS && station <= run.end + EPS
+    })
+    const compare = (a: (typeof candidates)[number], b: (typeof candidates)[number]) => {
+      const da = Math.abs(a.chainage - interval.chainage) + a.accessDistanceM
+      const db = Math.abs(b.chainage - interval.chainage) + b.accessDistanceM
+      if (h.siteSelection === 'delivered-cost') {
+        // Compare this interval's available batches, including setup only if unused.
+        // Chainage-order allocation is deterministic, not a global haul solution.
+        const rate = (s: typeof a, d: number) =>
+          s.remaining <= EPS
+            ? Infinity
+            : s.unitRate +
+              haulUnitCost(h, d) +
+              (usedSites.has(s.id) ? 0 : s.fixedCost) / Math.min(remaining, s.remaining)
+        const difference = rate(a, da) - rate(b, db)
+        if (Number.isFinite(difference) && Math.abs(difference) > EPS) return difference
+        if (a.remaining <= EPS && b.remaining > EPS) return 1
+        if (b.remaining <= EPS && a.remaining > EPS) return -1
+      }
+      return da - db || a.id.localeCompare(b.id)
+    }
+    while (remaining > EPS) {
+      // A capacity-limited cheap source changes the next batch size and setup cost per m³.
+      const site = candidates.filter((s) => s.remaining > EPS).sort(compare)[0]
+      if (!site) break
       const volume = Math.min(remaining, site.remaining)
       if (volume <= EPS) continue
       site.remaining -= volume
@@ -773,7 +789,7 @@ export function calculateEngineering(
     cut: materialResults.filter((m) => m.purpose !== 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
     stripping: materialResults.filter((m) => m.purpose === 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
     fill: analysis.fillVolumeM3 * settings.fillRate,
-    surfacing: analysis.surfaceVolumeM3 * settings.surfacingRate,
+    surfacing: surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, e.surfacingSupply).cost,
     clearing: analysis.clearingAreaM2 * settings.clearingRate,
     structures: culverts.reduce((sum, c) => sum + c.installedCost, 0),
     ...haul.costs,

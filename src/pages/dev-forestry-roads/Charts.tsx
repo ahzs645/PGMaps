@@ -405,6 +405,7 @@ function ChartSlot({
   const switcher = footer && (
     <SegmentedControl
       size="sm"
+      className="road-chart-view-switcher"
       fullWidth={false}
       label="Chart details layout"
       value={view}

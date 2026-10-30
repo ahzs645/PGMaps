@@ -2,15 +2,13 @@ import type { ReactNode } from 'react'
 import { CircleAlert, LoaderCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export interface RoadToast {
+export type RoadToast = {
   id: string
   message: string
-  tone: 'loading' | 'error'
-  onDismiss: () => void
   action?: ReactNode
-}
+} & ({ tone: 'loading' } | { tone: 'error'; onDismiss: () => void })
 
-/** Host-owned notifications; dismissing one never cancels the underlying work. */
+/** Loading stays visible until the job finishes; errors can be dismissed. */
 export function RoadNotifications({ items }: { items: RoadToast[] }) {
   return (
     <section
@@ -21,29 +19,34 @@ export function RoadNotifications({ items }: { items: RoadToast[] }) {
         <div
           key={item.id}
           data-testid={`workspace-toast-${item.tone}`}
-          className="pointer-events-auto flex items-start gap-3 rounded-xl border bg-background p-3 text-sm text-foreground shadow-xl"
+          className="pointer-events-auto space-y-1 rounded-xl border bg-background p-3 text-sm text-foreground shadow-xl"
         >
-          {item.tone === 'loading' ? (
-            <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
-          ) : (
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p role={item.tone === 'error' ? 'alert' : 'status'} className="text-xs leading-5">
+          <div className="flex items-center gap-3">
+            {item.tone === 'loading' ? (
+              <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin text-primary" />
+            ) : (
+              <CircleAlert aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+            )}
+            <p
+              role={item.tone === 'error' ? 'alert' : 'status'}
+              className="min-w-0 flex-1 break-words text-xs leading-5"
+            >
               {item.message}
             </p>
-            {item.action}
+            {item.tone === 'error' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0"
+                aria-label="Dismiss error notification"
+                onClick={item.onDismiss}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
-            aria-label={item.tone === 'loading' ? 'Dismiss loading notification' : 'Dismiss error notification'}
-            onClick={item.onDismiss}
-          >
-            <X className="size-4" />
-          </Button>
+          {item.action && <div className="pl-7">{item.action}</div>}
         </div>
       ))}
     </section>

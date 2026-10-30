@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import type { Alignment, RoadAnalysis } from './types'
+import { isFullCostRecordCurrent } from './fullCostRecord'
+import type { Alignment, RoadAnalysis, RoadProject } from './types'
 
 const number = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
@@ -11,7 +13,7 @@ const METRICS: Metric[] = [
   { id: 'grade', label: 'Max grade', unit: '%', value: (r) => r.maxGradePercent, digits: 1 },
   { id: 'disturbance', label: 'Disturbance', unit: 'm²', value: (r) => r.clearingAreaM2 },
   { id: 'earthworks', label: 'Earthworks', unit: 'm³ cut+fill', value: (r) => r.cutVolumeM3 + r.fillVolumeM3 },
-  { id: 'cost', label: 'Covered cost', unit: 'CAD', value: (r) => r.estimatedCost },
+  { id: 'cost', label: 'Base engineering', unit: 'CAD', value: (r) => r.estimatedCost },
 ]
 
 export function compareMetric(base: RoadAnalysis, other: RoadAnalysis, id: string) {
@@ -26,14 +28,27 @@ export function CompareAlternatives({
   analyses,
   activeId,
   onSelect,
+  project,
+  onCompareCompleteCosts,
 }: {
   alignments: Alignment[]
   analyses: Map<string, RoadAnalysis>
   activeId: string
   onSelect: (id: string) => void
+  project?: RoadProject
+  onCompareCompleteCosts?: () => void
 }) {
   const [baselineId, setBaselineId] = useState(alignments[0]?.id ?? '')
   const baseline = analyses.get(alignments.some((a) => a.id === baselineId) ? baselineId : alignments[0].id)!
+  const completeCosts = useMemo(
+    () =>
+      new Map(
+        alignments
+          .filter((road) => road.fullCostRecord)
+          .map((road) => [road.id, project && isFullCostRecordCurrent(road, project)]),
+      ),
+    [alignments, project],
+  )
   return (
     <div className="h-full space-y-2 overflow-auto" data-testid="road-compare">
       <label className="flex items-center gap-2 text-xs">
@@ -59,6 +74,7 @@ export function CompareAlternatives({
               <ColumnHeader key={m.id} label={m.label} unit={m.unit} />
             ))}
             <ColumnHeader label="Coverage" unit="%" />
+            {completeCosts.size > 0 && <ColumnHeader label="Saved complete access" unit="CAD" />}
           </tr>
         </thead>
         <tbody>
@@ -96,6 +112,15 @@ export function CompareAlternatives({
                   )
                 })}
                 <td>{available ? number(result.coveragePercent, 1) : '—'}</td>
+                {completeCosts.size > 0 && (
+                  <td>
+                    {a.fullCostRecord
+                      ? completeCosts.get(a.id)
+                        ? `$${number(a.fullCostRecord.totalCost)}`
+                        : 'Stale — recalculate'
+                      : 'Not compared'}
+                  </td>
+                )}
               </tr>
             )
           })}
@@ -103,8 +128,14 @@ export function CompareAlternatives({
       </EngineeringTable>
       <p className="text-[11px] text-muted-foreground">
         Changes are against the baseline on the same terrain and rates. Disturbance is the area between catch points.
-        Partial quantities are not directly comparable with complete ones.
+        Partial quantities are not directly comparable with complete ones. Base engineering estimates exclude the
+        complete connected-access and delivered-supply comparison.
       </p>
+      {onCompareCompleteCosts && (
+        <Button size="sm" variant="outline" onClick={onCompareCompleteCosts}>
+          Compare complete access and supply costs
+        </Button>
+      )}
     </div>
   )
 }

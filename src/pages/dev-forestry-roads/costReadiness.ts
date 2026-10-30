@@ -1,5 +1,6 @@
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines } from './engineering'
+import { surfacingSupplyCost } from './gravel'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 
@@ -39,10 +40,12 @@ export function assessCostReadiness(
   const unclassified = result
     ? (result.materials.find((material) => material.materialId === '__unclassified')?.bankCutM3 ?? 0)
     : analysis.cutVolumeM3
+  const supply = engineering?.surfacingSupply
+  const surfacing = surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, supply)
   const baseItems: { key: BaseRateKey; label: string; quantity: number }[] = [
     { key: 'cutRate', label: 'unclassified excavation', quantity: unclassified },
     { key: 'fillRate', label: 'fill placement', quantity: analysis.fillVolumeM3 },
-    { key: 'surfacingRate', label: 'surfacing', quantity: analysis.surfaceVolumeM3 },
+    { key: 'surfacingRate', label: 'surfacing', quantity: surfacing.fallbackM3 },
     { key: 'clearingRate', label: 'clearing', quantity: analysis.clearingAreaM2 },
   ]
   const placeholderItems = baseItems.filter(
@@ -63,6 +66,14 @@ export function assessCostReadiness(
   const unpricedItems = baseItems
     .filter((item) => item.quantity > EPS && settings[item.key] === 0)
     .map((item) => item.label)
+  if (surfacing.suppliedM3 > EPS && surfacing.rate === 0) unpricedItems.push('delivered surfacing aggregate')
+  if (supply?.enabled && surfacing.suppliedM3 > EPS && !supply.sourceNotes.trim())
+    flags.push({
+      id: 'aggregate-source-evidence',
+      label: 'Aggregate source assumptions need evidence',
+      detail:
+        'Record supply access, material suitability, compacted quantity and a dated quote or explicit zero-acquisition agreement in Engineering → Haul & cost settings. Mapped tenure is not a supply agreement.',
+    })
   for (const material of result?.materials ?? [])
     if (material.materialId !== '__unclassified' && material.bankCutM3 > EPS && material.excavationCost === 0)
       unpricedItems.push(`excavation of ${material.name}`)

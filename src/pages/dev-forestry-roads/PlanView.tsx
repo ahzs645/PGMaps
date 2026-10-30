@@ -16,6 +16,7 @@ import {
 } from './engine'
 import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
 import { terrainBounds } from './terrain'
+import { roadPlanFitCoordinates } from './planFit'
 import {
   buildTerrainDisplay,
   TERRAIN_SLOPE_STOPS,
@@ -527,11 +528,14 @@ function Layers(
     const manual = previousManualFit.current !== props.fitRequest.revision
     // A new DEM may be hundreds of kilometres from the existing roads. Reveal its
     // coverage rather than silently refitting those unrelated controls.
-    const target = manual ? props.fitRequest.target : bounds && !intersects ? 'terrain' : 'active'
-    const coordinates =
-      target === 'roads'
-        ? props.project.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
-        : activeCoordinates
+    const target = manual
+      ? props.fitRequest.target
+      : bounds && !intersects
+        ? 'terrain'
+        : props.project.totalCostPlanning
+          ? 'roads'
+          : 'active'
+    const coordinates = target === 'terrain' ? [] : roadPlanFitCoordinates(props.project, target, props.alignment)
     const fitBounds =
       target === 'terrain' && bounds
         ? ([
@@ -544,16 +548,7 @@ function Layers(
     if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
     previousFit.current = key
     previousManualFit.current = props.fitRequest.revision
-  }, [
-    map,
-    isLoaded,
-    bounds,
-    props.alignment,
-    props.project.terrain,
-    props.project.alignments,
-    props.fitRevision,
-    props.fitRequest,
-  ])
+  }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -750,6 +745,7 @@ function Layers(
       paint: {
         'line-color': ['coalesce', ['get', 'color'], '#7c3aed'],
         'line-width': ['case', ['==', ['get', 'selected'], true], 5, 3],
+        'line-offset': ['match', ['get', 'pathRole'], 'loaded', 3, 'return', -3, 0],
         'line-dasharray': [3, 1],
       },
     })
@@ -1289,7 +1285,7 @@ export function PlanView(props: PlanProps) {
   const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
   return (
     <div
-      className={`relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
+      className={`isolate relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
       data-testid="road-plan-view"
       data-drawing={drawing}
     >

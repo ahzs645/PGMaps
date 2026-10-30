@@ -82,6 +82,14 @@ export function NumberField({
         onBlur={finish}
         onKeyDown={(e) => {
           if (e.key === 'Enter') finish()
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault()
+            const parsed = Number(draft)
+            const current = draft.trim() && Number.isFinite(parsed) ? parsed : value
+            const next = Number(Math.min(max, Math.max(min, current + (e.key === 'ArrowUp' ? step : -step))).toFixed(6))
+            setInput({ value: next, text: String(next) })
+            if (next !== value) onChange(next)
+          }
         }}
       />
     </Field>
@@ -150,6 +158,15 @@ export function OptionalNumberField({
         onBlur={finish}
         onKeyDown={(e) => {
           if (e.key === 'Enter') finish()
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault()
+            const parsed = Number(draft)
+            const current =
+              draft.trim() && Number.isFinite(parsed) ? parsed : (value ?? Math.max(min, Math.min(max, 0)))
+            const next = Number(Math.min(max, Math.max(min, current + (e.key === 'ArrowUp' ? step : -step))).toFixed(6))
+            setInput({ value: next, text: String(next) })
+            if (next !== value) onChange(next)
+          }
         }}
       />
     </Field>
