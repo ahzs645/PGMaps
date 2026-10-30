@@ -42,6 +42,9 @@ export const PLAN_DRAINAGE_STYLES: Record<string, { label: string; color: string
   diversion: { label: 'Redirected flow', color: '#dc2626', shape: 'line' },
   pond: { label: 'New ponding', color: '#2563eb', shape: 'circle' },
   'low-point': { label: 'Unrelieved low point', color: '#f59e0b', shape: 'circle' },
+  catchment: { label: 'Selected upstream catchment', color: '#0891b2', shape: 'area' },
+  watershed: { label: 'D8 watershed partitions', color: '#7c3aed', shape: 'area' },
+  'pour-point': { label: 'Snapped drainage pour point', color: '#0891b2', shape: 'circle' },
 }
 
 function geometryShape(feature: GeoJSON.Feature): PlanLegendShape | null {
@@ -211,10 +214,14 @@ export function buildPlanLegend({
   const drainage = section('drainage', 'Drainage analysis')
   for (const feature of sources.drainage?.features ?? []) {
     const role = feature.properties?.role
-    const shape = geometryShape(feature)
+    const shape =
+      (role === 'catchment' || role === 'watershed') && ['Polygon', 'MultiPolygon'].includes(feature.geometry.type)
+        ? 'area'
+        : geometryShape(feature)
     if (!shape) continue
     const style =
-      shape === 'circle'
+      PLAN_DRAINAGE_STYLES[String(role)] ??
+      (shape === 'circle'
         ? role === 'pond'
           ? PLAN_DRAINAGE_STYLES.pond
           : role === 'low-point'
@@ -226,7 +233,7 @@ export function buildPlanLegend({
             ? PLAN_DRAINAGE_STYLES.diversion
             : role === 'stream-design'
               ? PLAN_DRAINAGE_STYLES['stream-design']
-              : { label: 'Drainage flow', color: '#0369a1', shape: 'line' as const }
+              : { label: 'Drainage flow', color: '#0369a1', shape: 'line' as const })
     drainage.add({ id: `drainage-${role}-${shape}`, ...style })
   }
   drainage.finish()

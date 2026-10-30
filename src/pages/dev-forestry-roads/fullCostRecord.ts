@@ -1,10 +1,10 @@
-/** Portable adoption snapshots. Currentness means exact relevant inputs still match, not field approval. */
-import type { Alignment, RoadProject } from './types'
+/** Portable adoption snapshots. Currentness checks relevant inputs and numeric change fingerprints, not field approval. */
+import type { Alignment, RoadProject, TerrainMetadata } from './types'
 import type { FullCostCandidateResult, FullCostLedger } from './fullCostComparison'
 
 export const MAX_FULL_COST_SIGNATURE_BYTES = 8 * 1024 * 1024
 /** Bump when quantity, eligibility or cost semantics change so older totals require recalculation. */
-export const FULL_COST_MODEL_VERSION = 'connected-access-2026-10-v1'
+export const FULL_COST_MODEL_VERSION = 'connected-access-2026-10-v3-content'
 const MAX_RECORD_ALLOCATIONS = 1000
 const MAX_RECORD_PATH_IDS = 75000
 const MAX_RECORD_COST_ITEMS = 4000
@@ -75,7 +75,7 @@ export interface FullCostReviewRecord {
   warnings: string[]
 }
 
-/** Exact canonical JSON: object keys sort, array order stays meaningful and no hash can collide. */
+/** Canonical bounded metadata: object keys sort and array order stays meaningful. */
 function canonicalJson(value: unknown): string {
   const chunks: string[] = []
   const encoder = new TextEncoder()
@@ -130,15 +130,20 @@ function canonicalJson(value: unknown): string {
 }
 
 export function fullCostInputSignature(alignment: Alignment, project: RoadProject): string {
-  const geometry = Object.fromEntries(Object.entries(alignment).filter(([key]) => key !== 'fullCostRecord'))
-  const terrain = {
-    ...project.terrain,
-    ...(project.terrain.raster
-      ? {
-          raster: Object.fromEntries(Object.entries(project.terrain.raster).filter(([key]) => key !== 'values')),
-        }
-      : {}),
-  }
+  // Sibling profiles and their historical records do not change the effective selected design.
+  // Excluding their record signatures also prevents recursively nesting signatures on each adoption.
+  const geometry = Object.fromEntries(
+    Object.entries(alignment).filter(
+      ([key]) =>
+        ![
+          'fullCostRecord',
+          'verticalAlternatives',
+          'activeVerticalAlternativeId',
+          'verticalAlternativeCostMode',
+        ].includes(key),
+    ),
+  )
+  const terrain = analyticalTerrainSignature(project.terrain)
   return canonicalJson({
     modelVersion: FULL_COST_MODEL_VERSION,
     alignment: geometry,
@@ -147,6 +152,67 @@ export function fullCostInputSignature(alignment: Alignment, project: RoadProjec
     context: project.context,
     terrain,
   })
+}
+
+/**
+ * Bounded streaming change detector, not an authenticity digest. Feed IEEE-754 words and an
+ * explicit null tag without allocating raster-sized JSON. Deliberately uncached: an imported
+ * project may alter cells in place while retaining its source file checksum and array identity.
+ */
+export function numericContentFingerprint(values: ArrayLike<number | null>): string {
+  let a = 2166136261,
+    b = 2246822519
+  const bits = new DataView(new ArrayBuffer(8))
+  const word = (value: number) => {
+    a = Math.imul(a ^ value, 16777619)
+    b = Math.imul(b ^ ((value << 13) | (value >>> 19)), 3266489917)
+  }
+  word(0x47524944)
+  word(values.length)
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i]
+    if (value === null) {
+      word(0x4e554c4c)
+      continue
+    }
+    if (!Number.isFinite(value)) throw Error('Terrain signature content must contain finite numbers or explicit nulls.')
+    word(0x4e554d42)
+    bits.setFloat64(0, value, true)
+    word(bits.getUint32(0, true))
+    word(bits.getUint32(4, true))
+  }
+  return `numeric-v1-${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`
+}
+
+/** Analytical cells and source TINs affect currentness; independent image layers never do. */
+export function analyticalTerrainSignature(metadata: TerrainMetadata): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...metadata }
+  delete result.backgrounds
+  const rasterSignature = (r: NonNullable<TerrainMetadata['raster']>) => ({
+    ...Object.fromEntries(Object.entries(r).filter(([key]) => key !== 'values')),
+    valuesFingerprint: numericContentFingerprint(r.values),
+  })
+  if (metadata.raster) result.raster = rasterSignature(metadata.raster)
+  if (metadata.referenceSurfaces)
+    result.referenceSurfaces = metadata.referenceSurfaces.map((s) => ({
+      id: s.id,
+      name: s.name,
+      raster: rasterSignature(s.raster),
+    }))
+  if (metadata.preparation?.tin) {
+    const tin = metadata.preparation.tin
+    result.preparation = {
+      ...metadata.preparation,
+      tin: {
+        vertexCount: tin.elevations.length,
+        faceCount: tin.triangles.length / 3,
+        coordinatesFingerprint: numericContentFingerprint(tin.coordinates),
+        elevationsFingerprint: numericContentFingerprint(tin.elevations),
+        trianglesFingerprint: numericContentFingerprint(tin.triangles),
+      },
+    }
+  }
+  return result
 }
 
 const object = (raw: unknown, label: string): Record<string, unknown> => {

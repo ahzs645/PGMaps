@@ -109,7 +109,9 @@ async function svgImage(element: Element) {
     const canvas = document.createElement('canvas')
     canvas.width = width * 2
     canvas.height = height * 2
-    const context = canvas.getContext('2d')!
+    // This offscreen canvas is read back immediately. Keep it CPU-backed so
+    // report rasterization does not wait on the live map's WebGL render queue.
+    const context = canvas.getContext('2d', { willReadFrequently: true })!
     context.fillStyle = 'white'
     context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0)

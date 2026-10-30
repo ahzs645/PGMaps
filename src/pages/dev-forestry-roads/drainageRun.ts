@@ -7,6 +7,14 @@ import { burnRoad } from './designSurface'
 import { analyzeDrainage, type DrainageAnalysis } from './hydrology'
 import { corridorBounds, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import type { Culvert, RoadAnalysis, TerrainSource } from './types'
+import {
+  delineateCatchment,
+  delineateWatersheds,
+  type CatchmentResult,
+  type DrainageGrid,
+  type PourPoint,
+  type CatchmentProperties,
+} from './drainageCatchments'
 
 export interface DrainageSettings {
   /** Design storm intensity, mm/h. */
@@ -34,6 +42,9 @@ export interface DrainageRun extends DrainageAnalysis {
   settings: DrainageSettings
   /** Features for the plan, each with a `role` (see PlanView's `drainage` prop). */
   plan: GeoJSON.FeatureCollection
+  grid: DrainageGrid
+  catchment?: CatchmentResult
+  watersheds?: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, CatchmentProperties>
 }
 
 export function runDrainage({
@@ -45,6 +56,8 @@ export function runDrainage({
   resolutionM,
   settings,
   maxCells = 4_194_304,
+  pourPoint,
+  watershedMinAreaHa,
 }: {
   terrain: TerrainSource
   analysis: RoadAnalysis
@@ -55,6 +68,9 @@ export function runDrainage({
   resolutionM: number
   settings: DrainageSettings
   maxCells?: number
+  pourPoint?: PourPoint
+  /** Omitted skips watershed partitioning. Zero includes every raster outlet basin within the output budget. */
+  watershedMinAreaHa?: number
 }): DrainageRun {
   if (!analysis.stations.some((s) => s.designElevation !== null))
     throw Error('The road has no design elevations on this terrain, so there is no design surface to route over.')
@@ -93,7 +109,39 @@ export function runDrainage({
       result.warnings.push(
         `${culvert.name}: the modeled design catchment (${culvert.designAreaHa.toFixed(2)} ha) is much smaller than the existing-ground catchment (${culvert.existingAreaHa.toFixed(2)} ha). Inspect diverted flow, the inlet location and terrain detail before relying on this pipe check.`,
       )
+  const grid: DrainageGrid = {
+    origin: existing.origin,
+    cellM: existing.cellM,
+    width: existing.width,
+    height: existing.height,
+  }
+  const catchmentSurface = pourPoint?.surface === 'existing' ? result.existing : result.design
+  const catchment = pourPoint
+    ? delineateCatchment(grid, catchmentSurface.directions, catchmentSurface.accumulation, pourPoint, toGrid, toLonLat)
+    : undefined
+  const watersheds =
+    watershedMinAreaHa === undefined
+      ? undefined
+      : delineateWatersheds(grid, catchmentSurface.directions, toLonLat, {
+          minAreaHa: watershedMinAreaHa,
+          surface: pourPoint?.surface ?? 'design',
+        })
+  if (catchment?.feature.properties.truncated)
+    result.warnings.push(
+      'The selected catchment touches the sampled grid edge or missing terrain. Its area may be truncated; expand terrain/buffer and compare.',
+    )
   const features: GeoJSON.Feature[] = [
+    ...(watersheds?.features ?? []),
+    ...(catchment
+      ? [
+          catchment.feature,
+          {
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: catchment.snappedCoordinate },
+            properties: { role: 'pour-point', areaHa: catchment.feature.properties.areaHa },
+          },
+        ]
+      : []),
     ...result.existing.streams.features.map((f) => ({
       ...f,
       properties: { ...f.properties, role: 'stream-existing' },
@@ -125,6 +173,9 @@ export function runDrainage({
     cells: existing.width * existing.height,
     changedCells: burned.changedCells,
     settings,
+    grid,
+    catchment,
+    watersheds,
     plan: { type: 'FeatureCollection', features },
   }
 }

@@ -199,7 +199,8 @@
     "shpjs": "^6.2.0",
     "sql.js": "1.15.1",
     "tailwind-merge": "^2.2.0",
-    "whitebox-wasm": "0.6.1"
+    "whitebox-wasm": "0.6.1",
+    "yalps": "0.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

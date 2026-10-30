@@ -1,6 +1,8 @@
 /** Bounded validation for optional engineering inputs in v1 road projects. */
 import type { AlignmentEngineering, RoadTemplate } from './types'
 import { validateEngineering } from './templates'
+import { parseAllocationPolicy } from './allocationPolicy'
+import { parseSitePreparation } from './sectionAssembly'
 
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error(`${label} must be an object.`)
@@ -65,6 +67,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       cutRate: numeric(v.cutRate, 'Material excavation rate', 0, 10000),
       reusableFraction: numeric(v.reusableFraction, 'Reusable material fraction', 0, 1),
       compactionFactor: numeric(v.compactionFactor, 'Compaction factor', 0.1, 2),
+      ...(v.quality === undefined ? {} : { quality: numeric(v.quality, 'Material quality', 0, 100) }),
+      ...(v.cutSlope === undefined ? {} : { cutSlope: numeric(v.cutSlope, 'Material cut slope H:V', 0.1, 10) }),
+      ...(v.fillSlope === undefined ? {} : { fillSlope: numeric(v.fillSlope, 'Material fill slope H:V', 0.1, 10) }),
       ...(v.purpose === undefined
         ? {}
         : { purpose: oneOf(v.purpose, ['earthwork', 'stripping'] as const, 'Material purpose') }),
@@ -127,6 +132,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       capacityM3: v.capacityM3 === null ? null : numeric(v.capacityM3, 'Site capacity', 0, 1e12),
       unitRate: numeric(v.unitRate, 'Site unit rate', 0, 100000),
       fixedCost: numeric(v.fixedCost, 'Site fixed cost', 0, 1e9),
+      ...(v.materialId === undefined ? {} : { materialId: key(v.materialId, 'Site material') }),
     }
   })
   const h = record(r.haul, 'Haul settings')
@@ -211,6 +217,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
             sourceNotes: s.sourceNotes,
           }
         })()
+  const policy = parseAllocationPolicy(r)
   const result = {
     templates,
     assignments,
@@ -218,7 +225,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     strata,
     culverts,
     sites,
-    haul,
+    ...policy,
+    haul: { ...haul, ...policy.haul },
+    ...(r.sitePreparation === undefined ? {} : { sitePreparation: parseSitePreparation(r.sitePreparation) }),
     ...(surfacingSupply ? { surfacingSupply } : {}),
   }
   validateEngineering(result)

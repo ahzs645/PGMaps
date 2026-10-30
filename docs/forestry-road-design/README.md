@@ -22,10 +22,17 @@ problem shows up on screen. The calculations themselves are specified in the
 | [Final connector checks](final-connector-checks.md)                     | assess fitted curves, loaded grades, crossings and the full cut/fill footprint before adopting a comparison |
 | [Connected-access training scenario](full-cost-training-scenario.md)    | try the offline road-network, gravel-haul, rehabilitation, bridge-closure and dated-evidence comparisons |
 | [Sections, quantities and costs](sections-quantities-and-costs.md)    | quote cut, fill, haul, disturbance or a cost, or compare alternatives on them                             |
+| [Section assemblies and site preparation](section-assemblies.md) | construct stripped ground, material-sensitive batters, components, keyed fill and layered surfaces |
+| [Material allocation](material-allocation.md) | require suitable fill, enforce construction directions/sidecast, or solve economic supply and disposal |
+| [Terrain preparation and survey](terrain-preparation-and-survey.md) | preserve corridor density, mosaic/edit/combine surfaces, import backgrounds or reduce a field traverse |
+| [Drawings and vertical alternatives](drawings-and-vertical-alternatives.md) | keep several profiles under one horizontal road or author portable plot-book chapters and labels |
 | [BC cost evidence and estimation roadmap](bc-cost-evidence.md)        | select regional sources, compare appraisal allowances or convert supplier quotes                          |
 | [Drainage](drainage.md)                                               | use stream crossings, cross-drain candidates, ponding or culvert sizes                                    |
 | [Exports and project files](exports-and-project-files.md)             | hand a file to someone else, open it in another program, or rely on autosave to keep your work            |
+| [Drawings and vertical alternatives](drawings-and-vertical-alternatives.md) | compare named profiles on shared horizontal geometry, or author portable report chapters and safe drawing labels |
 | [Known issues](known-issues.md)                                       | trust a result from an area with a known defect                                                           |
+| [RoadEng / Terrain Tools gap audit — 30 October 2026](reference-gap-audit-2026-10-30.md) | compare the current app with the supplied software folder and prioritize remaining work |
+| [Reference implementation and validation](implementation-and-validation-2026-10-30.md) | review the delivered audit extensions, scenario checks and mobile verification |
 
 ## Five checks that apply everywhere
 

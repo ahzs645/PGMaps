@@ -41,7 +41,11 @@ export function assessCostReadiness(
     ? (result.materials.find((material) => material.materialId === '__unclassified')?.bankCutM3 ?? 0)
     : analysis.cutVolumeM3
   const supply = engineering?.surfacingSupply
-  const surfacing = surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, supply)
+  const surfacing = surfacingSupplyCost(
+    Math.max(0, analysis.surfaceVolumeM3 - (result?.materialLayerVolumeM3 ?? 0)),
+    settings.surfacingRate,
+    supply,
+  )
   const baseItems: { key: BaseRateKey; label: string; quantity: number }[] = [
     { key: 'cutRate', label: 'unclassified excavation', quantity: unclassified },
     { key: 'fillRate', label: 'fill placement', quantity: analysis.fillVolumeM3 },
@@ -56,6 +60,13 @@ export function assessCostReadiness(
       id: 'partial-sections',
       label: 'Unsupported intervals remain outside the estimate',
       detail: `${quantity(analysis.coveragePercent)}% of the road has complete sampled sections. Missing intervals have no quantity or cost allowance; this is not a confidence percentage.`,
+    })
+  if (result?.haul.optimizationStatus === 'infeasible')
+    flags.push({
+      id: 'infeasible-material-plan',
+      label: 'Material supply and construction rules are infeasible',
+      detail:
+        'The entered material quality, capacities, movement directions or sidecast limits cannot meet all demands. The displayed work subtotal omits an unresolved material prescription and cannot establish a complete estimate. Review the allocation warnings and sources.',
     })
   if (placeholderItems.length)
     flags.push({

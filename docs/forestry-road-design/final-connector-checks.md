@@ -34,8 +34,10 @@ in the loaded direction is compared with the adverse limit; downhill is compared
 favourable limit. Both limits and direction begin unknown. They are not inferred from an
 absolute ground-grade threshold. The independent formation still uses the ordinary
 vertical-curve and station-range checks; missing PVIs do not become a designed profile.
-The returned fixed start-to-end uphill/downhill extrema also let material-haul evaluation check loaded inbound aggregate or fill separately from outbound timber or waste. Optional maximum cut depth and fill height compare ground with the formation, ditch and
-batter elevations across the whole represented section.
+The returned fixed start-to-end uphill/downhill extrema also let material-haul evaluation check loaded inbound aggregate or fill separately from outbound timber or waste. Optional maximum cut depth includes original-ground removal to the design or prepared ground,
+whichever is deeper, including stripped margins outside the prism. Maximum fill height measures
+the constructed formation/ditch/batter above prepared ground where preparation is present;
+otherwise it uses original ground. Survey observations remain unchanged in the section data.
 
 The [BC Engineering Manual](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/resource-roads/engineering-manual/engineering_manual.pdf)
 (May 25, 2026, §3.5.2 and Table 3-5) distinguishes favourable/adverse grades and connects

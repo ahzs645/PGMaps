@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Download, FileDown, FileJson, FolderOpen, Map as MapIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { Field, roadFieldClass } from './Controls'
 import type { FileKind } from './DesignSidebarBody'
+import type { RoadReportSettings } from './reportSettings'
+import { ReportSettingsEditor } from './ReportSettingsEditor'
 
 export type RoadExport =
   | 'project'
@@ -16,6 +18,8 @@ export type RoadExport =
   | 'stakeout'
   | 'shapefile'
   | 'plotbook'
+  | 'terrain-landxml'
+  | 'terrain-ascii'
 
 export function FilesDialog({
   open,
@@ -26,6 +30,8 @@ export function FilesDialog({
   onSave,
   busy,
   portalContainer,
+  reportSettings,
+  onReportSettings,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,7 +41,10 @@ export function FilesDialog({
   onSave: (kind: RoadExport) => void
   busy: boolean
   portalContainer?: HTMLElement | null
+  reportSettings?: RoadReportSettings
+  onReportSettings?: (settings: RoadReportSettings) => void
 }) {
+  const [drawingSetup, setDrawingSetup] = useState(false)
   const group = (title: string, children: ReactNode) => (
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -109,7 +118,9 @@ export function FilesDialog({
                 ['landxml', 'LandXML'],
                 ['stakeout', 'Stakeout CSV'],
                 ['shapefile', 'Shapefile (zip)'],
-                ['plotbook', 'Plot book (A3)'],
+                ['plotbook', `Plot book (${reportSettings?.paper ?? 'A3'})`],
+                ['terrain-landxml', 'Terrain surface LandXML'],
+                ['terrain-ascii', 'Terrain ASCII grid'],
                 ['report', 'Report HTML'],
               ] as const
             ).map(([kind, label]) => (
@@ -129,6 +140,21 @@ export function FilesDialog({
             </Button>
           </div>,
         )}
+        {onReportSettings &&
+          group(
+            'Drawing setup',
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-expanded={drawingSetup}
+                onClick={() => setDrawingSetup(!drawingSetup)}
+              >
+                Configure plot book
+              </Button>
+              {drawingSetup && <ReportSettingsEditor value={reportSettings} onChange={onReportSettings} />}
+            </>,
+          )}
       </fieldset>
       <a
         className="mt-5 inline-block text-xs text-muted-foreground underline"

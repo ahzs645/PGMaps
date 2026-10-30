@@ -68,6 +68,6 @@ export async function runPointCloudWorker(
       reject(Error(event.message || 'The point-cloud worker failed to start.'))
     }
     const message: PointCloudWorkerRequest = { ...request, bytes, askBreaklines: Boolean(breaklinesFor) }
-    worker.postMessage(message, [bytes])
+    worker.postMessage(message, [bytes, ...(message.additionalBytes ?? [])])
   })
 }

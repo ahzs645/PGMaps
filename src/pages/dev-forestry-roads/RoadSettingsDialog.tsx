@@ -29,7 +29,7 @@ export function RoadSettingsDialog({
         </Button>
       }
     >
-      <fieldset disabled={busy} className="space-y-5">
+      <fieldset disabled={busy} className="min-w-0 w-full space-y-5">
         {children}
       </fieldset>
     </PanelDialog>

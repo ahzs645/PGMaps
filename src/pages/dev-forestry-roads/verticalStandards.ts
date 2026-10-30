@@ -19,6 +19,16 @@ export interface VerticalStandards {
   minCrestK: number | null
   minCurveLengthM: number | null
   minTangentLengthM: number | null
+  curvatureRanges?: CurvatureRange[]
+}
+export interface CurvatureRange {
+  id: string
+  start: number | null
+  end: number | null
+  minSagK: number | null
+  minCrestK: number | null
+  /** A straight grade line is required within this range. */
+  linear?: boolean
 }
 export interface VerticalControl {
   id: string
@@ -69,6 +79,21 @@ const pct = (value: number) => `${value > 0 ? '' : value < 0 ? '−' : ''}${Math
 
 /** Sag when the grade increases through the PVI (concave up), crest when it decreases. */
 export const curveKind = (g1: number, g2: number) => (g2 > g1 ? 'sag' : 'crest')
+
+/** Most restrictive K over a curve's entire station extent, including range boundaries. */
+export function curvatureRuleAt(standards: VerticalStandards | undefined, start: number, end: number, length: number) {
+  let minSagK = standards?.minSagK ?? 0,
+    minCrestK = standards?.minCrestK ?? 0,
+    linear = false
+  for (const range of standards?.curvatureRanges ?? []) {
+    if ((range.start ?? 0) > end + 1e-6 || (range.end ?? length) < start - 1e-6) continue
+    minSagK = Math.max(minSagK, range.minSagK ?? 0)
+    minCrestK = Math.max(minCrestK, range.minCrestK ?? 0)
+    // Merely touching the endpoint of a linear range does not put curvature inside it.
+    if (range.linear && Math.min(end, range.end ?? length) > Math.max(start, range.start ?? 0) + 1e-6) linear = true
+  }
+  return { minSagK, minCrestK, linear }
+}
 
 /** Signed grade window at a station: the tightest of every range that covers it. */
 export function gradeWindowAt(standards: VerticalStandards | undefined, chainage: number, length: number) {
@@ -142,7 +167,16 @@ export function checkVerticalDesign({
     for (const curve of curves) {
       if (curve.g1 === null || curve.g2 === null || Math.abs(curve.g2 - curve.g1) < EPS) continue
       const kind = curveKind(curve.g1, curve.g2)
-      const minimum = kind === 'sag' ? standards.minSagK : standards.minCrestK
+      const rule = curvatureRuleAt(standards, curve.start, curve.end, length)
+      const minimum = kind === 'sag' ? rule.minSagK : rule.minCrestK
+      if (rule.linear && curve.length > 0)
+        checks.push({
+          kind: 'k',
+          chainage: curve.chainage,
+          start: curve.start,
+          end: curve.end,
+          message: `Curvature enters a linear-only range at ${stn(curve.chainage)}`,
+        })
       if (minimum !== null && curve.k !== null && curve.k < minimum - EPS)
         checks.push({
           kind: 'k',
@@ -168,7 +202,16 @@ export function checkVerticalDesign({
         after = valueAt(p.chainage + 0.01)
       if (!before || !after || Math.abs(after.grade - before.grade) < 0.05) continue
       const kind = curveKind(before.grade, after.grade)
-      const minimum = kind === 'sag' ? standards.minSagK : standards.minCrestK
+      const rule = curvatureRuleAt(standards, p.chainage - 0.00001, p.chainage + 0.00001, length)
+      const minimum = kind === 'sag' ? rule.minSagK : rule.minCrestK
+      if (rule.linear)
+        checks.push({
+          kind: 'k',
+          chainage: p.chainage,
+          start: p.chainage,
+          end: p.chainage,
+          message: `Grade break enters a linear-only range at ${stn(p.chainage)}`,
+        })
       if (minimum !== null && minimum > 0)
         checks.push({
           kind: 'k',

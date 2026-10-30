@@ -29,6 +29,16 @@ actual haul paths and named blockers for every candidate. **Preview** opens that
 connector in the plan, profile and sections. **Use** adds a separate checked road and saves its
 complete access cost, leaving the entered alternatives available for comparison.
 
+Saved-cost currentness retains canonical geometry, settings, network/source evidence and terrain
+grid/CRS/datum/provenance metadata. Main-grid cells, named analytical reference-grid cells and
+retained TIN coordinates/levels/topology use compact streaming numeric change fingerprints;
+they are recomputed from the current array contents, even when a source checksum and array
+identity are unchanged. This bounds the record independently of terrain size without treating
+altered embedded cells as their original source. These fingerprints detect changes; they are
+not authenticity or tamper-proof signatures. Independent canopy/orthophoto background pixels,
+visibility and opacity are display settings and do not stale analytical costs. The model version
+changed with this rule, so older adopted totals require recalculation.
+
 The header and saved-cost card identify an adopted **Complete access cost** separately from
 the base engineering estimate. Changing geometry, terrain, settings, source quotes, network
 restrictions or evidence marks the comparison stale and requires recalculation. Project JSON

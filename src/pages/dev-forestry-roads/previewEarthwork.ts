@@ -2,6 +2,7 @@ import { isBeyondReachFlag } from './engine'
 import { sectionSampleAt } from './sectionGeometry'
 import type { TerrainVertex } from './terrainMesh'
 import type { RoadStation } from './types'
+import { preparationExtent } from './preparationFootprint'
 
 export const PREVIEW_BATTER_STRIPS = 6
 const EPS = 1e-6
@@ -54,6 +55,29 @@ export function previewEarthwork(
   const edges: PreviewBatterEdge[] = []
   if (stations.length < 2) return { faces, edges }
   for (const sign of [-1, 1] as const) {
+    const margins = stations.map((station) => {
+      const outer = preparationExtent(station, sign),
+        inner = sign < 0 ? station.leftDaylightM : station.rightDaylightM
+      if (outer === null || inner === null) return null
+      const sample = sectionSampleAt(station, sign * outer)
+      const catchSample = sectionSampleAt(station, sign * inner)
+      const ground = sample.preparedGround ?? sample.ground
+      if (ground == null || catchSample.design == null) return null
+      return {
+        inner,
+        outer,
+        a: vertex(station, sign * inner, catchSample.design),
+        b: vertex(station, sign * outer, ground),
+      }
+    })
+    if (margins.every((m) => m !== null) && margins.some((m) => m!.outer > m!.inner + EPS)) {
+      const rows = margins.filter((m) => m !== null)
+      faces.push({
+        vertices: [...rows.map((m) => m.a), ...rows.map((m) => m.b).reverse()],
+        fill: '#a16207',
+        station: (stations[0].chainage + stations.at(-1)!.chainage) / 2,
+      })
+    }
     const supported = stations.map((station) => supportedSide(station, sign))
     // The opposite side is independent; an unsupported side does not hide it.
     if (supported.some((row) => !row)) continue
@@ -63,16 +87,26 @@ export function previewEarthwork(
       const sample = sectionSampleAt(row.station, offset)
       return finite(sample.design) && finite(sample.ground) ? vertex(row.station, offset, sample.design) : null
     }
-    for (let part = 0; part < PREVIEW_BATTER_STRIPS; part++) {
-      const inner = rows.map((row) => point(row, part / PREVIEW_BATTER_STRIPS))
-      const outer = rows.map((row) => point(row, (part + 1) / PREVIEW_BATTER_STRIPS))
+    // Component corners are mandatory mesh seams: a narrow retaining face or bench must not
+    // disappear between the ordinary six display strips.
+    const fractions = new Set(Array.from({ length: PREVIEW_BATTER_STRIPS + 1 }, (_, i) => i / PREVIEW_BATTER_STRIPS))
+    for (const row of rows)
+      for (const p of row.station.componentPoints ?? []) {
+        const distance = sign * p.offset
+        if (row.end > row.width + EPS && distance > row.width + EPS && distance < row.end - EPS)
+          fractions.add((distance - row.width) / (row.end - row.width))
+      }
+    const breaks = [...fractions].sort((a, b) => a - b)
+    for (let part = 0; part < breaks.length - 1; part++) {
+      const inner = rows.map((row) => point(row, breaks[part]))
+      const outer = rows.map((row) => point(row, breaks[part + 1]))
       const vertices = [...inner, ...outer.reverse()]
       if (!vertices.every((v): v is TerrainVertex => v !== null)) continue
       if (rows.every((row) => row.end <= row.width + EPS)) continue
       const middle = rows[Math.floor(rows.length / 2)]
       const sample = sectionSampleAt(
         middle.station,
-        sign * (middle.width + ((middle.end - middle.width) * (part + 0.5)) / PREVIEW_BATTER_STRIPS),
+        sign * (middle.width + ((middle.end - middle.width) * (breaks[part] + breaks[part + 1])) / 2),
       )
       faces.push({
         vertices,

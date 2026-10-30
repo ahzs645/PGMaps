@@ -7,7 +7,15 @@
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 type XY = [number, number]
-type Segment = { a: XY; b: XY; bounds: [number, number, number, number]; avoid: boolean; clearance: number }
+type Segment = {
+  a: XY
+  b: XY
+  bounds: [number, number, number, number]
+  avoid: boolean
+  clearance: number
+  featureId: string
+  crossingCost: number
+}
 /** A blocked exclusion, or a passable zone that adds `costPerM` CAD per metre travelled inside it. */
 type Polygon = { rings: XY[][]; bounds: [number, number, number, number]; costPerM: number | null }
 
@@ -16,6 +24,8 @@ export interface RouteSearchOptions {
   baseCostPerM: number
   /** CAD per stream crossing. With the base cost this sets how far the route detours to avoid one. */
   crossingCost: number
+  /** Named crossing classes; explicit feature prices take precedence. */
+  crossingGroups?: Record<string, number>
   /** Degrees clockwise from north; the route leaves the start / reaches the end within ±45°. */
   startHeading: number | null
   endHeading: number | null
@@ -43,6 +53,7 @@ export interface RouteSearchOptions {
 export const DEFAULT_ROUTE_OPTIONS: RouteSearchOptions = {
   baseCostPerM: 100,
   crossingCost: 8000,
+  crossingGroups: {},
   startHeading: null,
   endHeading: null,
   alternatives: 1,
@@ -221,6 +232,12 @@ export function parseRouteSearchOptions(input?: unknown): RouteSearchOptions {
   for (const heading of [options.startHeading, options.endHeading])
     if (heading !== null && !finiteRange(heading, 0, 360))
       throw Error('Use headings between 0° and 360°, or leave them off.')
+  const groups = options.crossingGroups
+  if (groups === null || typeof groups !== 'object' || Array.isArray(groups) || Object.keys(groups ?? {}).length > 100)
+    throw Error('Crossing groups must be an object of at most 100 named prices.')
+  for (const [name, price] of Object.entries(groups ?? {}))
+    if (!name.trim() || name.length > 100 || !finiteRange(price, 0, 1e9))
+      throw Error('Crossing group names need 1–100 characters and prices from 0 to 1,000,000,000.')
   return options
 }
 
@@ -288,6 +305,11 @@ export function suggestRoutes(
     geometryChecks = 0,
     samples = 0
   for (const feature of context) {
+    if (
+      feature.crossingCost !== undefined &&
+      (!Number.isFinite(feature.crossingCost) || feature.crossingCost < 0 || feature.crossingCost > 1e9)
+    )
+      throw Error('Feature crossing prices must be from 0 to 1,000,000,000.')
     const reusable =
       options.reuseExistingRoads &&
       feature.kind === 'existing-road' &&
@@ -329,6 +351,11 @@ export function suggestRoutes(
             bounds: edgeBounds,
             avoid: feature.kind === 'avoid' || !options.allowStreamCrossings,
             clearance,
+            featureId: feature.id,
+            crossingCost:
+              feature.crossingCost ??
+              (feature.crossingGroup ? options.crossingGroups?.[feature.crossingGroup] : undefined) ??
+              options.crossingCost,
           })
       }
   }
@@ -449,7 +476,8 @@ export function suggestRoutes(
       Math.max(a[0], b[0]),
       Math.max(a[1], b[1]),
     ]
-    let crossings = 0
+    let crossingCharge = 0
+    const crossed = new Set<string>()
     const candidates = new Set(bucketIds(edgeBounds).flatMap((id) => buckets[id]))
     for (const index of candidates) {
       geometryBudget()
@@ -458,7 +486,19 @@ export function suggestRoutes(
       if (segment.avoid && segmentDistance(a, b, segment.a, segment.b) <= segment.clearance + 1e-7) return Infinity
       if (intersects(a, b, segment.a, segment.b)) {
         if (segment.avoid) return Infinity
-        crossings++
+        const dx = b[0] - a[0],
+          dy = b[1] - a[1],
+          sx = segment.b[0] - segment.a[0],
+          sy = segment.b[1] - segment.a[1]
+        const denominator = dx * sy - dy * sx
+        const t =
+          Math.abs(denominator) < 1e-10 ? 1 : ((segment.a[0] - a[0]) * sy - (segment.a[1] - a[1]) * sx) / denominator
+        if (t <= 1e-7) continue // half-open edges: a crossing at a shared vertex is charged once
+        const identity = `${segment.featureId}:${t.toFixed(6)}`
+        if (!crossed.has(identity)) {
+          crossed.add(identity)
+          crossingCharge += segment.crossingCost
+        }
       }
     }
     const count = Math.max(1, Math.ceil(length / maxStep)),
@@ -480,8 +520,8 @@ export function suggestRoutes(
       }
       previous = elevation
     }
-    if (key >= 0) crossingsOf.set(key, crossings)
-    return cost + crossings * options.crossingCost
+    if (key >= 0) crossingsOf.set(key, crossed.size)
+    return cost + crossingCharge
   }
   // Headings: the first leg leaves within ±45° of the start heading, the last arrives within ±45° of the end one.
   const headingOk = (from: XY, to: XY, heading: number | null) => {

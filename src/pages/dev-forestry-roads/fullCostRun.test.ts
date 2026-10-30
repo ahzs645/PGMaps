@@ -75,6 +75,18 @@ function recordedTarget(alignment: Alignment): NonNullable<Alignment['fsrConnect
 }
 
 describe('full-cost run with actual candidate generation, gates and network pricing', () => {
+  it('prices only the exact active trial when called from joint refinement', async () => {
+    const suggestions = directSuggestions(),
+      project = createFullCostTrainingProject()
+    const result = await runFullCostComparison(project, demoTerrain, {
+      generateTerrainCandidates: false,
+      enteredCandidates: 'active',
+    })
+    expect(suggestions).not.toHaveBeenCalled()
+    expect(result.candidates).toHaveLength(1)
+    expect(result.candidates[0].alignment.id).toBe(project.activeAlignmentId)
+    expect(result.comparison.candidates[0].status).toBe('feasible')
+  })
   it('changes the horizontal winner A→B when connected haul is priced, retaining the exact checked geometry', async () => {
     const project = createFullCostTrainingProject(),
       before = structuredClone(project)

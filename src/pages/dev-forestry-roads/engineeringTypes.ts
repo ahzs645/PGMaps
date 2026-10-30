@@ -26,6 +26,50 @@ export interface GroundMaterial {
   compactionFactor: number
   /** Stripping here means excavated shallow material only, not undercut below fill. */
   purpose?: 'earthwork' | 'stripping'
+  /** Entered geotechnical batter slopes H:V; unset inherits the template. */
+  cutSlope?: number
+  fillSlope?: number
+  /** Entered suitability class: 0 (lowest)–100 (highest); omitted is unknown. */
+  quality?: number
+}
+/** Material demand on subgrade or a named surface/component layer, by station range. */
+export interface FillRequirement {
+  id: string
+  start: number
+  end: number
+  /** 'subgrade', 'surfacing', or a custom template layer/component id. */
+  layer: string
+  materialId?: string
+  minQuality?: number
+  /** False requires the exact material; true permits material meeting the quality requirement. */
+  replaceable: boolean
+}
+export interface HaulDirectionRange {
+  id: string
+  start: number
+  end: number
+  direction: 'forward' | 'backward' | 'blocked'
+}
+export interface SidecastRange {
+  id: string
+  start: number
+  end: number
+  /** Total shared disposal capacity is range length × this bank m³/m. */
+  capacityBankM3PerM: number
+  unitRate: number
+  /** Omitted accepts all materials; an empty list accepts none. */
+  materialIds?: string[]
+}
+export interface SitePreparationRange {
+  id: string
+  start: number
+  end: number
+  depthM: number
+  leftInsideM: number
+  rightInsideM: number
+  leftOutsideM: number
+  rightOutsideM: number
+  materialId: string
 }
 export interface StratumAssignment {
   id: string
@@ -65,6 +109,12 @@ export interface HaulSettings {
   enabled: boolean
   /** Omitted preserves the original nearest-source allocation. */
   siteSelection?: 'nearest' | 'delivered-cost'
+  /** Economic mode solves a bounded mixed-integer material flow, including site opening costs. */
+  allocation?: 'nearest' | 'economic'
+  directionRanges?: HaulDirectionRange[]
+  sidecastRanges?: SidecastRange[]
+  /** Internal comparison pass only: expose unresolved external parcels for network pricing. */
+  deferExternalSupply?: boolean
   freeHaulDistanceM: number
   overhaulDistanceM: number
   /** CAD/(transported m³·km) over the whole distance of a free-haul movement. Zero is free haul. */
@@ -96,6 +146,8 @@ export interface HaulSite {
   /** CAD per compacted borrow m³ or bank waste m³. Replaces the matching default rate. */
   unitRate: number
   fixedCost: number
+  /** Known supplied/accepted material. Unset is unknown borrow, unrestricted waste. */
+  materialId?: string
 }
 /** Entered single-source surfacing scenario; all rates use compacted m³. */
 export interface SurfacingSupply {
@@ -120,6 +172,8 @@ export interface AlignmentEngineering {
   haul: HaulSettings
   sites: HaulSite[]
   surfacingSupply?: SurfacingSupply
+  sitePreparation?: SitePreparationRange[]
+  fillRequirements?: FillRequirement[]
 }
 
 export interface ResolvedTemplate {
@@ -205,6 +259,12 @@ export interface HaulMovement {
   volumeBasis: 'bank' | 'compacted'
   category: 'freehaul' | 'overhaul' | 'endhaul'
   haulCost: number
+  demandLayer?: string
+  /** Stable namespace separates surface/component/material demands with copied layer IDs. */
+  demandKey?: string
+  disposalMethod?: 'sidecast'
+  /** An explicitly unresolved external parcel, never a priced material delivery. */
+  externalUnresolved?: boolean
 }
 export interface HaulSummary {
   enabled: boolean
@@ -224,6 +284,11 @@ export interface HaulSummary {
   unallocatedWasteM3: number
   /** All quantities refer only to supported earthwork intervals. */
   complete: boolean
+  allocationMethod?: 'nearest' | 'economic'
+  optimizationStatus?: 'optimal' | 'infeasible' | 'not-requested'
+  sidecastBankM3?: number
+  /** Economic supply/movement/disposal/opening cost, excluding excavation and placement. */
+  objectiveCost?: number
 }
 export interface EngineeringCosts {
   cut: number
@@ -254,6 +319,9 @@ export interface EngineeringAnalysis {
   balanceM3: number
   complete: boolean
   warnings: string[]
+  /** Material-allocated surface course volume: material/haul is separate from placement. */
+  materialLayerVolumeM3?: number
+  materialLayerPlacementCost?: number
 }
 
 export const DEFAULT_HAUL_SETTINGS: HaulSettings = {

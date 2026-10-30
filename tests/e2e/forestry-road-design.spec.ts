@@ -226,7 +226,12 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await page.getByRole('option', { name: 'Hillshade', exact: true }).click()
 
   await showDetail(page, 'Section')
-  await page.screenshot({ path: testInfo.outputPath('desktop-linked-road.png'), fullPage: true })
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-linked-road.png'),
+    fullPage: true,
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await showDetail(page, 'Mass haul')
   await expect(page.getByTestId('road-mass-chart')).toBeVisible()
   await showDetail(page, '3D')
@@ -248,7 +253,11 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await expect
     .poll(async () => (await terrain.locator('svg[role="group"]').boundingBox())?.height ?? 0)
     .toBeGreaterThan(600)
-  await page.screenshot({ path: testInfo.outputPath('terrain-follow-fullscreen.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('terrain-follow-fullscreen.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Fullscreen 3D terrain', exact: true })).toBeVisible()
   expect(errors).toEqual([])
@@ -449,7 +458,11 @@ test('phone views fit the viewport and preserve station selection through panel 
   expect(box.width).toBeLessThanOrEqual(390)
   expect(box.height).toBeLessThanOrEqual(844)
   await expect.poll(async () => (await mapState(page))?.renderedRoads ?? 0).toBeGreaterThan(0)
-  await page.screenshot({ path: testInfo.outputPath('mobile-plan-fullscreen.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('mobile-plan-fullscreen.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.keyboard.press('Escape')
   await linkedStation(page, 200)
   await page
@@ -463,7 +476,11 @@ test('phone views fit the viewport and preserve station selection through panel 
   await chart.focus()
   await chart.press('ArrowRight')
   await expect(chart).toHaveAttribute('data-station', '210')
-  await page.screenshot({ path: testInfo.outputPath('mobile-profile-fullscreen.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('mobile-profile-fullscreen.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.keyboard.press('Escape')
   await linkedStation(page, 210)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -564,7 +581,12 @@ test('named templates, live previews, material horizons and libraries reach the 
   await page.getByRole('button', { name: 'Four condition previews', exact: true }).click()
   await expect(page.getByRole('dialog').getByTestId('road-section-chart')).toHaveCount(4)
   await page.getByRole('dialog').getByText('Ground rises to the left · 25%', { exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('template-four-conditions.png'), fullPage: true })
+  await page.screenshot({
+    path: testInfo.outputPath('template-four-conditions.png'),
+    fullPage: true,
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Save template', exact: true }).click()
   await page.getByRole('button', { name: 'Assign selected template', exact: true }).click()
@@ -702,7 +724,12 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   })
   expect(active.engineering?.sites).toHaveLength(2)
   expect(active.engineering?.haul.enabled).toBe(true)
-  await page.screenshot({ path: testInfo.outputPath('culvert-linked-quantities.png'), fullPage: true })
+  await page.screenshot({
+    path: testInfo.outputPath('culvert-linked-quantities.png'),
+    fullPage: true,
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   // Separate barrels at one chainage retain their own identity in every connected view.
   await engineeringInput(page, 'Drainage').click()
   await page.getByRole('button', { name: 'Add culvert at station', exact: true }).click()
@@ -800,7 +827,12 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
         )?.properties?.distance_m,
     )
     .toBe(0)
-  await page.screenshot({ path: testInfo.outputPath('landing-radial-linked.png'), fullPage: true })
+  await page.screenshot({
+    path: testInfo.outputPath('landing-radial-linked.png'),
+    fullPage: true,
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await fillNumber(page, 'Selected station metres', 400)
   await expect(page.getByTestId('radial-spoke-table')).toHaveCount(0)
   await expect.poll(async () => (await mapState(page))?.overlay?.features.length).toBe(0)

@@ -106,6 +106,18 @@ describe('road cost review', () => {
     expect(ids(analysis, road)).not.toContain('borrow-screening')
   })
 
+  it('keeps material infeasibility visible when every terrain section is complete', () => {
+    const road = alignment()
+    road.engineering = createEngineeringDesign()
+    road.engineering.haul.enabled = true
+    road.engineering.haul.allocation = 'economic'
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    expect(analysis.coveragePercent).toBeCloseTo(100, 5)
+    expect(analysis.engineering!.haul.optimizationStatus).toBe('infeasible')
+    expect(assessCostReadiness(analysis, road, settings).quantityCoverageComplete).toBe(true)
+    expect(ids(analysis, road)).toContain('infeasible-material-plan')
+  })
+
   it('flags priced-volume endhaul at zero cost, while allowing intentionally free haul', () => {
     const road = alignment()
     road.engineering = createEngineeringDesign()

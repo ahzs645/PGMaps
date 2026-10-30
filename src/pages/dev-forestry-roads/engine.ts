@@ -29,9 +29,14 @@ import {
   templateAt,
   validateEngineering,
   validateTemplate,
+  validateComponentTransitions,
 } from './templates'
 import { calculateEngineering } from './engineering'
 import { resolvedCableLine } from './cableGeometry'
+import { assembledSection } from './assembledSection'
+import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
+import type { SectionReferenceSources } from './sectionReferences'
+import { evaluateCurveCriteria, validateCurveCriteria } from './roadCriteria'
 
 const R = 6371008.8
 const RAD = Math.PI / 180
@@ -375,7 +380,16 @@ function compiledPath(alignment: Alignment): Path {
 export function curveDesignAt(
   alignment: Alignment,
   chainage: number,
-): { inside: 'left' | 'right'; superPercent: number; extraWidth: number; ratio: number; radius: number } | null {
+): {
+  inside: 'left' | 'right'
+  superPercent: number
+  requiredSuperPercent: number
+  extraWidth: number
+  outsideExtraWidth: number
+  ratio: number
+  radius: number
+  warnings: string[]
+} | null {
   const d = alignment.curveDesign
   if (!d || !(d.designSpeedKmh > 0)) return null
   let path: Path
@@ -383,14 +397,6 @@ export function curveDesignAt(
     path = compiledPath(alignment)
   } catch {
     return null
-  }
-  const rates = (radius: number) => {
-    const velocity = d.designSpeedKmh
-    const required = 100 * ((velocity * velocity) / (127 * radius) - d.sideFrictionFactor)
-    return {
-      superPercent: clamp(required, 0, Math.max(0, d.maxSuperelevationPercent)),
-      widening: d.wideningVehicleLengthM ? (d.wideningVehicleLengthM * d.wideningVehicleLengthM) / (2 * radius) : 0,
-    }
   }
   // Each side of a curve runs in linearly toward the arc and is full from SC to CS. A spiralled
   // side runs over max(runoff, spiral) ending at the SC (CS): no longer than the spiral, it follows
@@ -446,12 +452,20 @@ export function curveDesignAt(
   if (!best || best.ratio <= 0) return null
   const { ratio } = best
   const radius = best.piece.radius!
-  const { superPercent, widening } = rates(radius)
+  const pieceIndex = path.pieces.indexOf(best.piece)
+  const entry = path.pieces[pieceIndex - 1]?.spiral?.kappa0 === 0 ? path.pieces[pieceIndex - 1] : null
+  const exit = path.pieces[pieceIndex + 1]?.spiral?.kappa1 === 0 ? path.pieces[pieceIndex + 1] : null
+  const deflectionDegrees =
+    (Math.abs(best.piece.sweep ?? 0) + ((entry?.length ?? 0) + (exit?.length ?? 0)) / (2 * radius)) / RAD
+  const criteria = evaluateCurveCriteria(d, radius, deflectionDegrees)
   return {
     // Counter-clockwise sweep in the east/north frame turns left.
     inside: (best.piece.sweep ?? 0) > 0 ? 'left' : 'right',
-    superPercent,
-    extraWidth: widening * ratio,
+    superPercent: criteria.appliedSuperelevationPercent,
+    requiredSuperPercent: criteria.requiredSuperelevationPercent,
+    extraWidth: criteria.insideWideningM * ratio,
+    outsideExtraWidth: criteria.outsideWideningM * ratio,
+    warnings: criteria.warnings,
     ratio,
     radius,
   }
@@ -545,9 +559,25 @@ export function sectionAreasAt(
   elevation: number,
   halfWidth: number,
   terrain: TerrainSource,
+  references?: SectionReferenceSources,
 ): { cutAreaM2: number | null; fillAreaM2: number | null } {
-  const section = sectionAt(place.coordinate, place.bearing, elevation, alignment, chainage, halfWidth, terrain)
-  return { cutAreaM2: section.cutAreaM2, fillAreaM2: section.fillAreaM2 }
+  const section = sectionAt(
+    place.coordinate,
+    place.bearing,
+    elevation,
+    alignment,
+    chainage,
+    halfWidth,
+    terrain,
+    references,
+  )
+  return {
+    cutAreaM2:
+      section.cutAreaM2 === null
+        ? null
+        : section.cutAreaM2 + (section.preparationAreas ?? []).reduce((sum, p) => sum + p.areaM2, 0),
+    fillAreaM2: section.fillAreaM2,
+  }
 }
 export function nearestStation(stations: RoadStation[], chainage: number): RoadStation | undefined {
   if (!stations.length) return undefined
@@ -569,8 +599,13 @@ function widthExtras(alignment: Alignment, chainage: number, surfacedOnly = fals
   for (const r of alignment.overrides) {
     if (surfacedOnly && r.kind === 'landing') continue
     if (chainage < r.start || chainage > r.end || r.end <= r.start) continue
-    const taper = Math.min(Math.max(0, r.taper), (r.end - r.start) / 2)
-    const ratio = taper ? clamp(Math.min(chainage - r.start, r.end - chainage) / taper, 0, 1) : 1
+    const legacy = Math.min(Math.max(0, r.taper), (r.end - r.start) / 2)
+    const entry = Math.min(Math.max(0, r.entryTaperM ?? legacy), r.end - r.start)
+    const exit = Math.min(Math.max(0, r.exitTaperM ?? legacy), r.end - r.start)
+    const ratio = Math.min(
+      entry ? clamp((chainage - r.start) / entry, 0, 1) : 1,
+      exit ? clamp((r.end - chainage) / exit, 0, 1) : 1,
+    )
     const extra = r.extraWidth * ratio
     if (r.side !== 'right') left = Math.max(left, extra)
     if (r.side !== 'left') right = Math.max(right, extra)
@@ -582,11 +617,22 @@ export function effectiveWidths(alignment: Alignment, chainage: number): { leftW
   const [left, right] = widthExtras(alignment, chainage)
   const t = templateAt(alignment, chainage).template
   const curve = curveDesignAt(alignment, chainage)
-  const inside = curve?.extraWidth ?? 0
+  const inside = curve?.extraWidth ?? 0,
+    outside = curve?.outsideExtraWidth ?? 0
   return {
-    leftWidth: t.leftWidth + left + (curve?.inside === 'left' ? inside : 0),
-    rightWidth: t.rightWidth + right + (curve?.inside === 'right' ? inside : 0),
+    leftWidth: t.leftWidth + left + (curve ? (curve.inside === 'left' ? inside : outside) : 0),
+    rightWidth: t.rightWidth + right + (curve ? (curve.inside === 'right' ? inside : outside) : 0),
   }
+}
+
+/** Physical surface course areas on the same resolved widths used by quantity integration. */
+export function surfaceLayersAt(alignment: Alignment, chainage: number) {
+  const t = templateAt(alignment, chainage).template,
+    [left, right] = widthExtras(alignment, chainage, true)
+  const curve = curveDesignAt(alignment, chainage)
+  const widening = (side: 'left' | 'right') =>
+    curve ? (curve.inside === side ? curve.extraWidth : curve.outsideExtraWidth) : 0
+  return surfaceLayerAreas(t, t.leftWidth + left + widening('left'), t.rightWidth + right + widening('right'))
 }
 
 function verticalProfile(points: VerticalPoint[], warnings: string[]) {
@@ -699,7 +745,10 @@ function validate(alignment: Alignment, settings: RoadSettings) {
   )
     throw new Error('Design limits, material factors and unit rates are outside their supported ranges.')
   validateTemplate(alignment.template)
+  validateSectionMaterials(alignment.template, alignment.engineering)
+  if (alignment.curveDesign) validateCurveCriteria(alignment.curveDesign)
   if (alignment.engineering) validateEngineering(alignment.engineering)
+  validateComponentTransitions(alignment)
   if (
     alignment.overrides.length > 200 ||
     alignment.overrides.some(
@@ -710,6 +759,13 @@ function validate(alignment: Alignment, settings: RoadSettings) {
         r.taper < 0 ||
         r.extraWidth < 0 ||
         r.extraWidth > 50 ||
+        [r.entryTaperM, r.exitTaperM].some(
+          (v) => v !== undefined && (!Number.isFinite(v) || v < 0 || v > r.end - r.start),
+        ) ||
+        ((r.entryTaperM !== undefined || r.exitTaperM !== undefined) &&
+          (r.entryTaperM ?? Math.min(r.taper, (r.end - r.start) / 2)) +
+            (r.exitTaperM ?? Math.min(r.taper, (r.end - r.start) / 2)) >
+            r.end - r.start) ||
         !['left', 'right', 'both'].includes(r.side),
     )
   )
@@ -718,7 +774,20 @@ function validate(alignment: Alignment, settings: RoadSettings) {
 
 type SectionResult = Pick<
   RoadStation,
-  'section' | 'cutAreaM2' | 'fillAreaM2' | 'leftDaylightM' | 'rightDaylightM' | 'complete' | 'flags'
+  | 'section'
+  | 'cutAreaM2'
+  | 'fillAreaM2'
+  | 'leftDaylightM'
+  | 'rightDaylightM'
+  | 'complete'
+  | 'flags'
+  | 'preparationAreas'
+  | 'layerAreas'
+  | 'componentAreas'
+  | 'componentPoints'
+  | 'clearingWidthM'
+  | 'leftClearingM'
+  | 'rightClearingM'
 >
 /** A dip never deepens a ditch past this, whatever the inlet invert. */
 export const MAX_DITCH_DIP_DEPTH = 4
@@ -732,6 +801,58 @@ export const beyondReachFlag = (side: 'Left' | 'Right', reachM: number) =>
 export const isBeyondReachFlag = (flag: string) => / daylight unresolved: batter runs past the /.test(flag)
 
 function sectionAt(
+  coordinate: Coordinate,
+  heading: number,
+  z: number | null,
+  alignment: Alignment,
+  s: number,
+  halfWidth: number,
+  terrain: TerrainSource,
+  references?: SectionReferenceSources,
+): SectionResult {
+  const t = templateAt(alignment, s).template,
+    widths = effectiveWidths(alignment, s)
+  const length = compiledPath(alignment).length
+  // The terminal cross-section belongs to the approaching road, like material classification.
+  const assignmentStation = s >= length - 1e-6 ? Math.max(0, s - 1e-6) : s
+  const groundCache = new Map<number, number | null>()
+  const groundAt = (offset: number) => {
+    const key = Math.round(offset * 1e8) / 1e8
+    if (groundCache.has(key)) return groundCache.get(key)!
+    const value = finite(terrain.elevationAt(...offsetCoordinate(coordinate, heading + 90, offset)))
+    groundCache.set(key, value)
+    return value
+  }
+  const enhanced = !!(
+    t.components?.length ||
+    alignment.engineering?.sitePreparation?.some((p) => assignmentStation >= p.start && assignmentStation < p.end) ||
+    alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined)
+  )
+  const section = enhanced
+    ? assembledSection({
+        alignment,
+        template: t,
+        chainage: s,
+        elevation: z,
+        ...widths,
+        halfWidth,
+        ground: groundAt,
+        curve: curveDesignAt(alignment, s),
+        ditchDipLimit: MAX_DITCH_DIP_DEPTH,
+        coordinate,
+        heading,
+        references,
+        assignmentStation,
+        surfaceAt: (id, offset) => {
+          const source = references?.referenceSurfaces?.[id]
+          return source ? finite(source.elevationAt(...offsetCoordinate(coordinate, heading + 90, offset))) : null
+        },
+      })
+    : legacySectionAt(coordinate, heading, z, alignment, s, halfWidth, terrain)
+  return { ...section, layerAreas: surfaceLayersAt(alignment, s) }
+}
+
+function legacySectionAt(
   coordinate: Coordinate,
   heading: number,
   z: number | null,
@@ -1082,6 +1203,7 @@ export function createRoadStationSampler(
   alignment: Alignment,
   terrain: TerrainSource,
   settings: RoadSettings,
+  references?: SectionReferenceSources,
 ): {
   length: number
   boundaries: number[]
@@ -1092,11 +1214,18 @@ export function createRoadStationSampler(
   const path = compile(alignment),
     warnings = [...path.warnings]
   const profile = verticalProfile(alignment.vertical, warnings)
+  const referenceInputs: SectionReferenceSources = {
+    ...references,
+    referenceBudget: references?.referenceBudget ?? { checks: 0 },
+  }
   const boundaries = [0, path.length, ...path.boundaries, ...profile.knots, ...engineeringKnots(alignment)]
   for (const range of alignment.overrides) {
-    const taper = Math.min(range.taper, (range.end - range.start) / 2)
-    boundaries.push(range.start, range.start + taper, range.end - taper, range.end)
-    if (!taper) boundaries.push(range.start - 1e-5, range.end + 1e-5)
+    const legacy = Math.min(range.taper, (range.end - range.start) / 2)
+    const entry = Math.min(range.entryTaperM ?? legacy, range.end - range.start),
+      exit = Math.min(range.exitTaperM ?? legacy, range.end - range.start)
+    boundaries.push(range.start, range.start + entry, range.end - exit, range.end)
+    if (!entry) boundaries.push(range.start - 1e-5)
+    if (!exit) boundaries.push(range.end + 1e-5)
   }
   return {
     length: path.length,
@@ -1118,6 +1247,7 @@ export function createRoadStationSampler(
         s,
         settings.crossSectionHalfWidth,
         terrain,
+        referenceInputs,
       )
       return {
         index: 0,
@@ -1145,10 +1275,17 @@ export function analyzeRoad(
   terrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
+  options?: { referenceSurfaces?: Record<string, TerrainSource>; verticalReference?: string },
 ): RoadAnalysis {
   validate(alignment, settings)
   const path = compile(alignment),
     warnings = [...path.warnings]
+  const references: SectionReferenceSources = {
+    context,
+    referenceSurfaces: options?.referenceSurfaces,
+    verticalReference: options?.verticalReference,
+    referenceBudget: { checks: 0 },
+  }
   const empty: RoadAnalysis = {
     stations: [],
     centerline: alignment.points.map((p) => p.coordinate),
@@ -1185,10 +1322,13 @@ export function analyzeRoad(
     ...engineeringKnots(alignment),
   ]
   for (const r of alignment.overrides) {
-    const taper = Math.min(r.taper, (r.end - r.start) / 2)
-    knots.push(r.start, r.start + taper, r.end - taper, r.end)
+    const legacy = Math.min(r.taper, (r.end - r.start) / 2)
+    const entry = Math.min(r.entryTaperM ?? legacy, r.end - r.start),
+      exit = Math.min(r.exitTaperM ?? legacy, r.end - r.start)
+    knots.push(r.start, r.start + entry, r.end - exit, r.end)
     // Resolve a deliberate width step without smearing it over a whole interval.
-    if (!taper) knots.push(r.start - 1e-5, r.end + 1e-5)
+    if (!entry) knots.push(r.start - 1e-5)
+    if (!exit) knots.push(r.end + 1e-5)
   }
   const mandatory = [...new Set(knots.filter((s) => s >= 0 && s <= path.length).map((s) => Math.round(s * 1e6) / 1e6))]
   if (mandatory.length > MAX_STATIONS - 2)
@@ -1216,10 +1356,13 @@ export function analyzeRoad(
       s,
       settings.crossSectionHalfWidth,
       terrain,
+      references,
     )
     const flags = [...section.flags]
     if (p.radius === 0) flags.push('Sharp horizontal PI: curve required')
     else if (p.radius !== null && p.radius < settings.minRadius) flags.push(`Radius below ${settings.minRadius} m`)
+    const curveCriteria = curveDesignAt(alignment, s)
+    if (curveCriteria) flags.push(...curveCriteria.warnings)
     for (const name of avoidAt(p.xy)) flags.push(`Avoidance area: ${name}`)
     return {
       index,
@@ -1247,15 +1390,7 @@ export function analyzeRoad(
     mass = 0,
     massKnown = stations[0]?.complete ?? false
   const surfaceArea = (s: number) => {
-    const e = widthExtras(alignment, s, true),
-      t = templateAt(alignment, s).template,
-      curve = curveDesignAt(alignment, s)
-    // Curve widening is surfaced road; landing extra width is not.
-    const widen = (side: 'left' | 'right') => (curve?.inside === side ? curve.extraWidth : 0)
-    return (
-      (t.leftWidth + e[0] + widen('left')) * sideValue(t, 'left', 'SurfaceDepth') +
-      (t.rightWidth + e[1] + widen('right')) * sideValue(t, 'right', 'SurfaceDepth')
-    )
+    return surfaceLayersAt(alignment, s).reduce((sum, layer) => sum + layer.areaM2, 0)
   }
   for (let i = 0; i < stations.length; i++) {
     const p = stations[i],
@@ -1276,7 +1411,9 @@ export function analyzeRoad(
       continue
     }
     if (a.complete && p.complete) {
-      p.cutVolumeM3 = ((a.cutAreaM2! + p.cutAreaM2!) / 2) * ds
+      const preparationArea = (station: RoadStation) =>
+        (station.preparationAreas ?? []).reduce((sum, area) => sum + area.areaM2, 0)
+      p.cutVolumeM3 = ((a.cutAreaM2! + preparationArea(a) + p.cutAreaM2! + preparationArea(p)) / 2) * ds
       p.fillVolumeM3 = ((a.fillAreaM2! + p.fillAreaM2!) / 2) * ds
       cutVolumeM3 += p.cutVolumeM3
       fillVolumeM3 += p.fillVolumeM3
@@ -1284,7 +1421,11 @@ export function analyzeRoad(
       // Width and surface depth may both transition linearly: their product is quadratic.
       surfaceVolumeM3 +=
         ((surfaceArea(a.chainage) + 4 * surfaceArea((a.chainage + p.chainage) / 2) + surfaceArea(p.chainage)) / 6) * ds
-      clearingAreaM2 += ((a.leftDaylightM! + a.rightDaylightM! + p.leftDaylightM! + p.rightDaylightM!) / 2) * ds
+      clearingAreaM2 +=
+        (((a.clearingWidthM ?? a.leftDaylightM! + a.rightDaylightM!) +
+          (p.clearingWidthM ?? p.leftDaylightM! + p.rightDaylightM!)) /
+          2) *
+        ds
       if (massKnown) {
         mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
         p.massM3 = mass
