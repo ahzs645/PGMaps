@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NumberField, OptionalNumberField } from './Controls'
+import { NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { evaluateCurveCriteria, parseWideningTableCsv } from './roadCriteria'
+import { horizontalCurveSummary } from './engine'
 import { fitHorizontalRadii, type RadiusFitMode } from './horizontalTools'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -88,12 +90,21 @@ const CURVE_DESIGN_START = {
 export const CURVE_DESIGN_HELP =
   'e = V²/(127 R) − f, between the crown and the maximum, rotated about the centreline; inside widening L²/(2R). ' +
   'Both run in over the runoff before each curve. Leave the speed empty for none. The values are entries, not a ' +
-  'road-class standard.'
+  'road-class standard. Name the criteria and record its source. Conflicting speed/radius/e-max is flagged; widening tables are radius, deflection, inside, outside.'
 
 /** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
 export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace }) {
   const { alignment, updateAlignment } = workspace
   const design = alignment.curveDesign
+  const [tableText, setTableText] = useState('')
+  const [tableError, setTableError] = useState('')
+  const curveRows = (() => {
+    try {
+      return horizontalCurveSummary(alignment)
+    } catch {
+      return []
+    }
+  })()
   const set = (patch: Partial<NonNullable<typeof design>>) =>
     updateAlignment((a) => ({ ...a, curveDesign: { ...(a.curveDesign ?? CURVE_DESIGN_START), ...patch } }))
   return (
@@ -117,6 +128,26 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
         />
         {design && (
           <>
+            <label className="col-span-2 text-xs">
+              Criteria name
+              <input
+                className={roadFieldClass}
+                aria-label="Road criteria name"
+                maxLength={200}
+                value={design.criteriaName ?? ''}
+                onChange={(e) => set({ criteriaName: e.target.value })}
+              />
+            </label>
+            <label className="col-span-2 text-xs">
+              Criteria source / edition
+              <input
+                className={roadFieldClass}
+                aria-label="Road criteria source"
+                maxLength={2000}
+                value={design.criteriaSource ?? ''}
+                onChange={(e) => set({ criteriaSource: e.target.value })}
+              />
+            </label>
             <NumberField
               label="Max superelevation (%)"
               value={design.maxSuperelevationPercent}
@@ -145,9 +176,113 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
               max={50}
               onChange={(wideningVehicleLengthM) => set({ wideningVehicleLengthM })}
             />
+            <NumberField
+              label="Extra inside widening (m)"
+              value={design.insideWideningM ?? 0}
+              max={50}
+              onChange={(insideWideningM) => set({ insideWideningM })}
+            />
+            <NumberField
+              label="Extra outside widening (m)"
+              value={design.outsideWideningM ?? 0}
+              max={50}
+              onChange={(outsideWideningM) => set({ outsideWideningM })}
+            />
           </>
         )}
       </div>
+      {design && (
+        <>
+          <details className="text-xs">
+            <summary className="cursor-pointer">Widening table · {design.wideningTable?.length ?? 0} entries</summary>
+            <p className="my-1 text-muted-foreground">
+              CSV rows: radius m, deflection degrees, inside m, outside m. Include every combination. The table replaces
+              vehicle-formula widening; extra widths are added.
+            </p>
+            <textarea
+              className={`${roadFieldClass} min-h-24 w-full`}
+              aria-label="Curve widening table CSV"
+              value={tableText}
+              placeholder="50,90,2,0"
+              onChange={(e) => setTableText(e.target.value)}
+            />
+            <div className="mt-1 flex flex-wrap gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  try {
+                    set({ wideningTable: parseWideningTableCsv(tableText) })
+                    setTableError('')
+                  } catch (e) {
+                    setTableError(e instanceof Error ? e.message : 'Invalid table')
+                  }
+                }}
+              >
+                Apply widening table
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setTableText(
+                    (design.wideningTable ?? [])
+                      .map((r) => [r.radiusM, r.deflectionDegrees, r.insideM, r.outsideM].join(','))
+                      .join('\n'),
+                  )
+                  setTableError('')
+                }}
+              >
+                Load current table
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  set({ wideningTable: undefined })
+                  setTableError('')
+                }}
+              >
+                Use vehicle formula
+              </Button>
+            </div>
+            {tableError && (
+              <p role="alert" className="text-destructive">
+                {tableError}
+              </p>
+            )}
+          </details>
+          {curveRows.length > 0 && (
+            <div className="overflow-x-auto text-[11px]" data-testid="road-speed-criteria-review">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left">Radius</th>
+                    <th>Required e</th>
+                    <th>Applied e</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {curveRows.map((r, i) => {
+                    const c = evaluateCurveCriteria(design, r.radius)
+                    return (
+                      <tr key={i} className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : ''}>
+                        <td>{r.radius.toFixed(1)} m</td>
+                        <td className="text-center">{c.requiredSuperelevationPercent.toFixed(2)}%</td>
+                        <td className="text-center">{c.appliedSuperelevationPercent.toFixed(2)}%</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-1 text-muted-foreground">
+                Speed requires radius ≥ {evaluateCurveCriteria(design, 100).minimumSpeedRadiusM.toFixed(1)} m. Criteria
+                are entered assumptions until supported by the recorded source.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

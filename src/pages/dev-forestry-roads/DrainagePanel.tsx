@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { AppSelect } from '@/components/ui/select'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { NumberField } from './Controls'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
+import { parseDrainageSettings, type DrainageEvidence } from './drainageEvidence'
+import type { PourPoint } from './drainageCatchments'
 
 export const DRAINAGE_SETTINGS_KEY = 'pgmaps-road-drainage-settings'
 /**
@@ -14,10 +18,7 @@ export const DRAINAGE_SETTINGS_KEY = 'pgmaps-road-drainage-settings'
 export function readDrainageSettings(): DrainageSettings {
   try {
     const saved = JSON.parse(localStorage.getItem(DRAINAGE_SETTINGS_KEY) ?? 'null') as Partial<DrainageSettings> | null
-    const merged = { ...DEFAULT_DRAINAGE_SETTINGS, ...saved }
-    return Object.values(merged).every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)
-      ? merged
-      : DEFAULT_DRAINAGE_SETTINGS
+    return parseDrainageSettings({ ...DEFAULT_DRAINAGE_SETTINGS, ...saved })
   } catch {
     return DEFAULT_DRAINAGE_SETTINGS
   }
@@ -37,6 +38,14 @@ export function DrainagePanel({
   onRun,
   busy,
   onStation,
+  pourPoint,
+  onPourPointChange,
+  onPickPourPoint,
+  pourPointPicking = false,
+  watershedMinAreaHa,
+  onWatershedMinAreaChange,
+  evidence,
+  onExport,
 }: {
   run: DrainageRun | null
   stale: boolean
@@ -45,7 +54,25 @@ export function DrainagePanel({
   onRun: () => void
   busy: boolean
   onStation: (chainage: number) => void
+  pourPoint?: PourPoint
+  onPourPointChange?: (point: PourPoint | undefined) => void
+  onPickPourPoint?: (options: Pick<PourPoint, 'surface' | 'snapRadiusM'>) => void
+  pourPointPicking?: boolean
+  watershedMinAreaHa?: number
+  onWatershedMinAreaChange?: (minimumAreaHa: number | undefined) => void
+  evidence?: DrainageEvidence
+  onExport?: (kind: 'geojson' | 'evidence') => void
 }) {
+  const [pointOptions, setPointOptions] = useState<Pick<PourPoint, 'surface' | 'snapRadiusM'>>({
+    surface: 'design',
+    snapRadiusM: 10,
+  })
+  const pointSurface = pourPoint?.surface ?? pointOptions.surface
+  const pointRadius = pourPoint?.snapRadiusM ?? pointOptions.snapRadiusM
+  const setPointOptionsAndApply = (patch: Partial<Pick<PourPoint, 'surface' | 'snapRadiusM'>>) => {
+    setPointOptions({ surface: pointSurface, snapRadiusM: pointRadius, ...patch })
+    if (pourPoint) onPourPointChange?.({ ...pourPoint, ...patch })
+  }
   const set = (patch: Partial<DrainageSettings>) => onSettings({ ...settings, ...patch })
   const redirected = run?.crossings.filter((c) => c.redirected && !c.throughCulvertId) ?? []
   const uncovered = run?.lowPoints.filter((p) => !p.throughCulvert) ?? []
@@ -104,6 +131,146 @@ export function DrainagePanel({
           </Button>
         </div>
       </div>
+      {onPickPourPoint && (
+        <section className="space-y-2 rounded-md border p-2" aria-label="Catchment and watershed tools">
+          <h3 className="font-medium">Drain to a point</h3>
+          <p className="text-muted-foreground">
+            Choose a point on the plan. Snapping selects the greatest contributing area within the entered distance.
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] items-end gap-2">
+            <label className="space-y-1">
+              <span className="block">Catchment surface</span>
+              <AppSelect
+                value={pointSurface}
+                onValueChange={(surface) => setPointOptionsAndApply({ surface: surface as PourPoint['surface'] })}
+                options={[
+                  { value: 'existing', label: 'Existing ground' },
+                  { value: 'design', label: 'Design surface' },
+                ]}
+                triggerAriaLabel="Catchment surface"
+                triggerClassName="h-9 w-full text-xs"
+              />
+            </label>
+            <NumberField
+              label="Pour-point snap (m)"
+              value={pointRadius}
+              min={0}
+              max={2000}
+              step={1}
+              onChange={(snapRadiusM) => setPointOptionsAndApply({ snapRadiusM })}
+            />
+            <Button
+              size="sm"
+              className="h-auto min-h-9 min-w-0 whitespace-normal py-2 touch:min-h-10"
+              variant={pourPointPicking ? 'default' : 'outline'}
+              disabled={busy}
+              onClick={() => onPickPourPoint({ surface: pointSurface, snapRadiusM: pointRadius })}
+            >
+              {pourPointPicking
+                ? 'Cancel point selection'
+                : pourPoint
+                  ? 'Move pour point on plan'
+                  : 'Select pour point on plan'}
+            </Button>
+          </div>
+          {pourPointPicking && <p role="status">Tap a terrain location on the plan to set the pour point.</p>}
+          {pourPoint && onPourPointChange && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <NumberField
+                  label="Pour-point longitude"
+                  value={pourPoint.coordinate[0]}
+                  min={-180}
+                  max={180}
+                  step={0.00001}
+                  onChange={(lon) => onPourPointChange({ ...pourPoint, coordinate: [lon, pourPoint.coordinate[1]] })}
+                />
+                <NumberField
+                  label="Pour-point latitude"
+                  value={pourPoint.coordinate[1]}
+                  min={-84.99999}
+                  max={84.99999}
+                  step={0.00001}
+                  onChange={(lat) => onPourPointChange({ ...pourPoint, coordinate: [pourPoint.coordinate[0], lat] })}
+                />
+              </div>
+              <Button size="sm" variant="ghost" className="touch:min-h-10" onClick={() => onPourPointChange(undefined)}>
+                Remove pour point
+              </Button>
+            </>
+          )}
+          {onWatershedMinAreaChange && (
+            <div className="space-y-2 border-t pt-2">
+              <label className="flex min-h-10 items-center gap-2">
+                <input
+                  type="checkbox"
+                  aria-label="Delineate watershed polygons"
+                  checked={watershedMinAreaHa !== undefined}
+                  onChange={(event) => onWatershedMinAreaChange(event.target.checked ? 0.4 : undefined)}
+                />
+                Delineate watershed polygons
+              </label>
+              {watershedMinAreaHa !== undefined && (
+                <NumberField
+                  label="Minimum watershed (ha)"
+                  value={watershedMinAreaHa}
+                  min={0.01}
+                  max={100000}
+                  step={0.1}
+                  onChange={onWatershedMinAreaChange}
+                />
+              )}
+              <p className="text-muted-foreground">
+                Partitions the pour-point surface, or design surface when no point is selected, by its sampled D8
+                outlets. Catchments touching the sample edge or missing terrain may be incomplete.
+              </p>
+            </div>
+          )}
+          {(pourPoint || watershedMinAreaHa !== undefined) && (
+            <p className="text-muted-foreground">Run drainage after changing point, surface or watershed settings.</p>
+          )}
+        </section>
+      )}
+      {evidence && !run && (
+        <section className="space-y-2 rounded-md border p-2" aria-label="Saved drainage evidence">
+          <h3 className="font-medium">Saved drainage evidence</h3>
+          <p>
+            {evidence.summary.crossings} crossings · {evidence.summary.lowPoints} cross-drain candidates ·{' '}
+            {n(evidence.summary.pondingAreaM2)} m² new ponding.
+          </p>
+          <p className="break-words text-muted-foreground">
+            Run {evidence.createdAt} on {evidence.terrain.name} at {n(evidence.grid.cellM, 2)} m cells. The compact
+            record and settings travel with this project; full flow grids are recomputed.
+          </p>
+          {stale && (
+            <p role="status" className="text-amber-800 dark:text-amber-300">
+              Saved drainage evidence is out of date. Re-run before using or exporting current results.
+            </p>
+          )}
+        </section>
+      )}
+      {onExport && (run || evidence) && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            className="touch:min-h-10"
+            variant="outline"
+            disabled={busy || stale}
+            onClick={() => onExport('geojson')}
+          >
+            Export drainage GeoJSON
+          </Button>
+          <Button
+            size="sm"
+            className="touch:min-h-10"
+            variant="outline"
+            disabled={busy || stale}
+            onClick={() => onExport('evidence')}
+          >
+            Export drainage evidence
+          </Button>
+        </div>
+      )}
       {!run && (
         <p className="text-muted-foreground">
           Burns the road prism and its culverts into the terrain, then routes flow (filled depressions, D8) on the
@@ -135,6 +302,37 @@ export function DrainagePanel({
               { label: 'Undersized', value: `${n(undersized.length)} of ${n(run.culverts.length)}` },
             ]}
           />
+          {run.catchment && (
+            <section className="space-y-2 rounded-md border p-2" aria-label="Selected catchment">
+              <h3 className="font-medium">Selected catchment · {run.catchment.feature.properties.surface}</h3>
+              <ReadoutGrid
+                minColumnWidth="8rem"
+                items={[
+                  { label: 'Area', value: `${n(run.catchment.feature.properties.areaHa, 3)} ha` },
+                  { label: 'Supported cells', value: n(run.catchment.feature.properties.cells) },
+                  { label: 'Snap distance', value: `${n(run.catchment.snappedDistanceM, 1)} m` },
+                ]}
+              />
+              <p
+                className={
+                  run.catchment.feature.properties.truncated
+                    ? 'text-amber-800 dark:text-amber-300'
+                    : 'text-muted-foreground'
+                }
+              >
+                {run.catchment.feature.properties.truncated
+                  ? 'Boundary contact: contributing area may continue beyond the sampled grid or a terrain gap.'
+                  : 'No sampled edge or no-data contact. This is a raster drainage boundary, not a surveyed watershed.'}
+              </p>
+            </section>
+          )}
+          {run.watersheds && (
+            <p>
+              {n(run.watersheds.features.length)} watershed polygons meet the minimum area.{' '}
+              {run.watersheds.features.filter((f) => f.properties.truncated).length} touch a sampled boundary or missing
+              terrain.
+            </p>
+          )}
           <section aria-label="Stream crossings">
             <h3 className="mb-1 font-medium">Stream crossings</h3>
             {run.crossings.length ? (

@@ -1,5 +1,7 @@
 # Sections, quantities and costs: limits and checks
 
+See [Material requirements and economic allocation](material-allocation.md) for exact/quality fill requirements, economic material flows, construction directions, sidecast and layer pricing.
+
 This guide covers road templates, cross-sections, earthwork and surfacing quantities, clearing,
 ground materials, haul, culverts and the covered cost estimate. The calculations are specified in
 the [workspace contract](../forestry-road-design.md#cross-sections-template-libraries-and-widening);
@@ -124,10 +126,13 @@ incomplete interval; later intervals still count in the covered totals.
 **Materials.** A new material copies the current base cut rate and reusable cut factor, with a
 reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
 changes do not reach it. Horizons are vertical depths below original ground at each section
-sample. A stripping material is cut-only: nothing is removed under fill and no replacement fill is
-added.
+sample. A legacy stripping horizon classifies excavated cut only: it does not remove ground
+under fill or create replacement fill by itself. Explicit **Stripping before construction** ranges now remove ground
+before the section is built, including beneath fill, and create the corresponding replacement
+fill. See [Physical section assemblies and preparation](section-assemblies.md) for the separate
+prepared-ground surface, material-sensitive batters, component/course quantities and limits.
 
-**Haul.** Allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
+**Nearest-source haul.** With no material policies and economic mode unset, allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
 nearest remaining usable cut in the same unbroken run of complete sections. It is a repeatable
 scenario, not an optimum. An interval's own cut is at distance zero, so it balances itself first;
 any loading rate you enter is charged on that zero-distance volume too. Distance is chainage
@@ -135,7 +140,7 @@ difference plus the site's entered access distance. A gap in coverage splits the
 separate runs, and a site outside a run is never used. Reachability registers the site's chainage
 at the calculation stations' micrometre precision, so an exact road-end site remains reachable
 when the final station rounds down. Haul distances retain the entered chainage. A new site copies
-the default borrow or waste rate when you add it and keeps that rate afterwards.
+the default borrow or waste rate when you add it and keeps that rate afterwards. Economic mode instead solves the bounded material flow described in [the allocation guide](material-allocation.md), including material quality, construction direction and sidecast constraints.
 
 **Haul in the cost breakdown** (`haulCostLines` in `engineering.ts`). Every haul, borrow, waste and
 site row is quantity × rate = amount, and each group's rows add up to its cost:

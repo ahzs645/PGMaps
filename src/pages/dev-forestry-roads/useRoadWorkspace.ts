@@ -4,6 +4,8 @@ import { safeAnalyzeRoad } from './analysisResult'
 import { createDemoProject, demoTerrain, terrainFromMetadata } from './terrain'
 import { loadRoadScenario } from './scenarios'
 import { parseProject } from './project'
+import { snapshotActiveVerticalAlternative } from './verticalAlternatives'
+import { terrainReferenceSurfaces } from './terrain'
 import {
   addProject,
   deleteProject,
@@ -52,6 +54,7 @@ export function useRoadWorkspace() {
   const abort = useRef<AbortController | null>(null)
 
   const commit = useCallback((next: RoadProject, remember = true) => {
+    next = { ...next, alignments: next.alignments.map(snapshotActiveVerticalAlternative) }
     if (remember && Date.now() - lastEdit.current > 450)
       history.current.past = [...history.current.past.slice(-29), current.current]
     if (remember) {
@@ -253,16 +256,27 @@ export function useRoadWorkspace() {
   )
 
   // Every edit recalculates every alternative; the time is reported as the cost process time.
+  const referenceSurfaces = useMemo(() => terrainReferenceSurfaces(project.terrain), [project.terrain])
   const { analyses, processMs } = useMemo(() => {
     const started = performance.now()
     const analyses = new Map(
       project.alignments.map((a): [string, RoadAnalysis] => [
         a.id,
-        safeAnalyzeRoad(a, source, project.settings, project.context),
+        safeAnalyzeRoad(a, source, project.settings, project.context, {
+          referenceSurfaces,
+          verticalReference: project.terrain.verticalReference,
+        }),
       ]),
     )
     return { analyses, processMs: performance.now() - started }
-  }, [project.alignments, project.settings, project.context, source])
+  }, [
+    project.alignments,
+    project.settings,
+    project.context,
+    source,
+    referenceSurfaces,
+    project.terrain.verticalReference,
+  ])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!
   const undo = () => {
@@ -295,6 +309,7 @@ export function useRoadWorkspace() {
   return {
     project,
     source,
+    referenceSurfaces,
     alignment,
     analysis,
     analyses,

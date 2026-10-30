@@ -385,12 +385,24 @@ test('every pane boundary drags, and each layout keeps its own sizes', async ({ 
     .poll(async () => (await page.locator('[data-testid="road-plan-view"] .maplibregl-canvas').boundingBox())!.width)
     .toBeLessThan(defaultPlanWidth - 60)
   const linkedPlanWidth = await widthOf(plan)
-  const linkedProfileHeight = await heightOf(profile)
+  const profilePane = page.locator('[data-pane="profile"]')
+  const detailPane = page.locator('[data-pane="detail"]')
+  const profileShare = () => profilePane.evaluate((element) => element.style.flexGrow)
+  const profileHeightShare = async () => {
+    const profileHeight = await heightOf(profilePane)
+    return profileHeight / (profileHeight + (await heightOf(detailPane)))
+  }
+  const linkedProfileShare = await profileShare()
+  const linkedProfileHeightShare = await profileHeightShare()
 
   await page.reload()
   await expect(page.getByTestId('road-profile-chart')).toBeVisible()
   await expect.poll(() => widthOf(plan)).toBeCloseTo(linkedPlanWidth, -1)
-  await expect.poll(() => heightOf(profile)).toBeCloseTo(linkedProfileHeight, -1)
+  // Reload clears the training autosave notice, so available height can change.
+  // The persisted split is a fraction; verify both that value and its rendered proportions.
+  // writeStoredSizes quantizes fractions to four decimal places.
+  await expect.poll(async () => Number(await profileShare())).toBeCloseTo(Number(linkedProfileShare), 4)
+  await expect.poll(profileHeightShare).toBeCloseTo(linkedProfileHeightShare, 3)
 
   // The four-view layouts start from their own defaults and remember their own boundaries.
   await chooseLayout(page, 'Plan · profile · section · data')
@@ -400,7 +412,11 @@ test('every pane boundary drags, and each layout keeps its own sizes', async ({ 
   await dragBy(page, planData, 0, -70)
   await expect.poll(() => heightOf(plan)).toBeCloseTo(planHeight - 70, -1)
   const engineeringPlanHeight = await heightOf(plan)
-  await page.screenshot({ path: testInfo.outputPath('resized-engineering.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('resized-engineering.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await chooseLayout(page, 'Linked overview')
   await expect.poll(() => widthOf(plan)).toBeCloseTo(linkedPlanWidth, -1)
   await chooseLayout(page, 'Plan · profile · section · data')

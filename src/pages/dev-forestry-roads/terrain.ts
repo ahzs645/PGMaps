@@ -16,6 +16,7 @@ import type {
   TerrainMetadata,
   TerrainSource,
 } from './types'
+import { parseTerrainPreparation, type TerrainPreparationRecord } from './terrainPreparation'
 
 export const DEFAULT_TEMPLATE: RoadTemplate = {
   leftWidth: 3,
@@ -353,7 +354,7 @@ export function validateRoadRaster(raw: unknown): LocalRaster {
   }
 }
 
-function rasterSource(r: LocalRaster): TerrainSource {
+export function rasterSource(r: LocalRaster): TerrainSource {
   const projection = roadProjection(r.epsg)
   return {
     elevationAt(lon, lat) {
@@ -387,6 +388,50 @@ function rasterSource(r: LocalRaster): TerrainSource {
       return values[0]! * (1 - u) * (1 - v) + values[1]! * u * (1 - v) + values[2]! * (1 - u) * v + values[3]! * u * v
     },
   }
+}
+
+export function parseTerrainReferenceSurfaces(
+  raw: unknown,
+  expectedVerticalReference?: string,
+): NonNullable<TerrainMetadata['referenceSurfaces']> {
+  if (!Array.isArray(raw) || raw.length > 12) throw Error('Keep at most twelve named analytical reference surfaces.')
+  const ids = new Set<string>()
+  let cells = 0
+  return raw.map((value) => {
+    const r = value as NonNullable<TerrainMetadata['referenceSurfaces']>[number]
+    if (
+      !r ||
+      typeof r.id !== 'string' ||
+      !r.id ||
+      r.id.length > 120 ||
+      ids.has(r.id) ||
+      typeof r.name !== 'string' ||
+      !r.name ||
+      r.name.length > 200
+    )
+      throw Error('Invalid analytical reference surface.')
+    const raster = validateRoadRaster(r.raster)
+    if (expectedVerticalReference !== undefined && raster.verticalReference.trim() !== expectedVerticalReference.trim())
+      throw Error(
+        `Analytical reference surface ${r.name} has a different vertical datum. Convert it explicitly before using it with this terrain.`,
+      )
+    cells += raster.values.length
+    ids.add(r.id)
+    if (cells > MAX_ROAD_RASTER_CELLS)
+      throw Error('Named reference surfaces exceed 4,194,304 total cells; remove an unneeded snapshot or crop terrain.')
+    return { id: r.id, name: r.name, raster }
+  })
+}
+export function terrainReferenceSurfaces(metadata: TerrainMetadata): Record<string, TerrainSource> {
+  return Object.fromEntries(
+    (metadata.referenceSurfaces ?? []).map((s) => {
+      if (s.raster.verticalReference.trim() !== metadata.verticalReference.trim())
+        throw Error(
+          `Analytical reference surface ${s.name} has a different vertical datum. Convert it explicitly before using it with this terrain.`,
+        )
+      return [s.id, rasterSource(s.raster)]
+    }),
+  )
 }
 
 function sourceGridTerrain(grid: SourceGrid): TerrainSource {
@@ -678,6 +723,11 @@ export async function loadRaster(
 }
 
 export interface PointCloudImport {
+  additionalFiles?: File[]
+  /** Full-density corridor around WGS84 source line; 0 or omitted disables preservation. */
+  preserveCorridorM?: number
+  preservePath?: Coordinate[]
+  retainTin?: boolean
   /** Run the ground filter: 'auto' only when the cloud has no ground-classified points. */
   classify: boolean | 'auto'
   /** Cell mean of the ground points, or a TIN of them that honours `breaklines`. */
@@ -699,21 +749,60 @@ export async function loadLas(
   verticalReference: string,
   options: PointCloudImport = { classify: 'auto', surface: 'mean' },
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource; summary: string }> {
-  if (file.size > 1_000_000_000) throw Error('Crop the point cloud first; the limit is 1 GB.')
+  const files = [file, ...(options.additionalFiles ?? [])]
+  if (files.length > 12 || files.reduce((s, f) => s + f.size, 0) > 1_000_000_000)
+    throw Error('Crop the point clouds first; combine at most 12 files / 1 GB total.')
   const bytes = await file.arrayBuffer()
+  const additionalBytes = await Promise.all(files.slice(1).map((f) => f.arrayBuffer()))
   const { readPointCloudHeader } = await import('./pointCloud')
   const header = readPointCloudHeader(new Uint8Array(bytes))
+  const extraHeaders = additionalBytes.map((b) => readPointCloudHeader(new Uint8Array(b)))
+  if (extraHeaders.some((h) => h.epsg !== header.epsg || h.verticalEpsg !== header.verticalEpsg))
+    throw Error('Point-cloud mosaics require matching horizontal and vertical CRS keys.')
   const noCrs = 'This point cloud has no projected CRS key. Assign one (for example with PDAL) before importing.'
   // A LAS header is the whole story, but whitebox may still find a LAZ's CRS where the header
   // keys have none, so that case waits for the worker's read (`breaklinesFor` below).
   if (header.epsg === null && !header.compressed) throw Error(noCrs)
   if (header.epsg !== null) roadProjection(header.epsg)
+  const preserve =
+    options.preserveCorridorM && options.preservePath?.length
+      ? {
+          corridor: {
+            points: options.preservePath.map((p) => {
+              if (header.epsg === null)
+                throw Error(
+                  'Corridor preservation needs the projected CRS in the point-cloud header. Assign it before importing this LAZ.',
+                )
+              return roadProjection(header.epsg).forward([...p]) as [number, number]
+            }),
+            halfWidthM: options.preserveCorridorM,
+          },
+        }
+      : undefined
   const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
   if (!vertical) throw Error('Enter the vertical datum of the point-cloud elevations before importing.')
   const tinSurface = options.surface === 'tin' && options.breaklines ? await import('./tinSurface') : null
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('')
+  const sourceHashes = [
+    sha256,
+    ...(await Promise.all(
+      additionalBytes.map(async (b) =>
+        Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', b)), (v) =>
+          v.toString(16).padStart(2, '0'),
+        ).join(''),
+      ),
+    )),
+  ]
+  const terrainHash = await hashPreparation({
+    sources: sourceHashes,
+    classify: options.classify,
+    surface: options.surface,
+    preserve,
+    retainTin: options.retainTin ?? false,
+    breaklines: options.breaklines ?? null,
+  })
   const { runPointCloudWorker } = await import('./pointCloudClient')
   const stages = { reading: 'Reading points', classifying: 'Classifying ground', gridding: 'Building the surface' }
   // The header and hash are read; the bytes move to the worker rather than being copied, and are
@@ -721,8 +810,17 @@ export async function loadLas(
   // LAZ whose CRS only whitebox finds gets them in that CRS, and a cloud with none is refused
   // before the ground filter runs.
   const result = await runPointCloudWorker(bytes, {
+    additionalBytes,
     classify: options.classify,
-    surface: { method: options.surface, cellM: 1, maxCells: MAX_ROAD_RASTER_CELLS, gapCells: 3 },
+    preserve,
+    surface: {
+      method: options.surface,
+      cellM: 1,
+      maxCells: MAX_ROAD_RASTER_CELLS,
+      gapCells: 3,
+      preserve,
+      retainTin: options.retainTin,
+    },
     transfer: true,
     breaklinesFor: (epsg) => {
       if (epsg === null) throw Error(noCrs)
@@ -743,8 +841,8 @@ export async function loadLas(
   const projection = roadProjection(epsg)
   const grid = result.surface!.grid
   const raster = validateRoadRaster({
-    id: `terrain-${sha256.slice(0, 16)}`,
-    name: `${file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
+    id: `terrain-${terrainHash.slice(0, 16)}`,
+    name: `${files.length > 1 ? `${files.length} point-cloud sources` : file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
     kind: 'terrain',
     epsg,
     origin: grid.origin,
@@ -754,7 +852,7 @@ export async function loadLas(
     values: grid.values,
     acquired: '',
     verticalReference: vertical.slice(0, 300),
-    sha256,
+    sha256: terrainHash,
   })
   const latitude = projection.inverse(raster.origin)[1]
   const metadata: TerrainMetadata = {
@@ -763,8 +861,28 @@ export async function loadLas(
     resolutionM: localRasterResolution(raster, latitude),
     epsg,
     verticalReference: raster.verticalReference,
-    sha256,
+    sha256: terrainHash,
     raster,
+    preparation: {
+      operation: 'point-cloud',
+      sources: files.map((f, i) => ({
+        name: f.name.slice(0, 200),
+        sha256: sourceHashes[i],
+        epsg,
+        verticalReference: raster.verticalReference,
+      })),
+      method: `${result.classifiedBy ?? 'source classes'} / ${options.surface}`,
+      parameters: {
+        classify: String(options.classify),
+        surface: options.surface,
+        preserveCorridorM: options.preserveCorridorM ?? 0,
+        preservedPoints: result.cloud.preservedPoints ?? 0,
+        cellM: grid.cellM,
+        gapCells: options.surface === 'mean' ? 3 : 0,
+        breaklinesSha256: options.breaklines ? await hashPreparation(options.breaklines) : '',
+      },
+      ...(result.surface?.retainedTin ? { tin: result.surface.retainedTin } : {}),
+    },
   }
   const known = grid.values.filter((v) => v !== null).length
   const count = (n: number) => n.toLocaleString('en-CA')
@@ -783,6 +901,35 @@ export async function loadLas(
     `, ${count(grid.width * grid.height - known)} cells left missing.`,
   ]
   return { metadata, source: rasterSource(raster), summary: parts.join('') }
+}
+
+async function hashPreparation(value: unknown): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(value))
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
+}
+
+/** Derived terrain carries the checksum of its complete cells, grid and preparation record. */
+export async function preparedTerrain(
+  raw: Omit<LocalRaster, 'id' | 'sha256'>,
+  preparation: TerrainPreparationRecord,
+): Promise<{ metadata: TerrainMetadata; source: TerrainSource }> {
+  const record = parseTerrainPreparation(preparation)
+  const sha256 = await hashPreparation({ raw, preparation: record })
+  const raster = validateRoadRaster({ ...raw, id: `terrain-${sha256.slice(0, 16)}`, sha256 })
+  const latitude = roadProjection(raster.epsg).inverse(raster.origin)[1]
+  const metadata: TerrainMetadata = {
+    kind: 'geotiff',
+    name: raster.name,
+    resolutionM: localRasterResolution(raster, latitude),
+    epsg: raster.epsg,
+    verticalReference: raster.verticalReference,
+    sha256,
+    raster,
+    preparation: record,
+  }
+  return { metadata, source: rasterSource(raster) }
 }
 
 export async function loadRegionalTerrain(

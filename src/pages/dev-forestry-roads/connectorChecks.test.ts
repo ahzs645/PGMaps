@@ -86,6 +86,100 @@ const run = (
 const codes = (result: ReturnType<typeof run>) => result.failures.map((issue) => issue.code)
 
 describe('final fitted connector gates', () => {
+  it('screens explicit stripping margins as part of the actual disturbed footprint', () => {
+    const a = road(802)
+    a.engineering = createEngineeringDesign()
+    a.engineering.materials = [
+      {
+        id: 'strip',
+        name: 'Topsoil',
+        color: '#806040',
+        cutRate: 1,
+        reusableFraction: 0,
+        compactionFactor: 1,
+        purpose: 'stripping',
+      },
+    ]
+    a.engineering.sitePreparation = [
+      {
+        id: 'prep',
+        start: 0,
+        end: 101,
+        materialId: 'strip',
+        depthM: 0.2,
+        leftInsideM: 0,
+        rightInsideM: 0,
+        leftOutsideM: 0.3,
+        rightOutsideM: 0.3,
+      },
+    ]
+    const result = run(a, [exclusion([rectangle(5.3, 50, 5.4, 51)])])
+    expect(result.metrics.maxFootprintWidthM).toBeCloseTo(11, 3)
+    expect(codes(result)).toContain('exclusion-footprint')
+    expect(result.adoptable).toBe(false)
+  })
+  it('checks excavation and actual fill height from prepared ground, including stripping outside the road prism', () => {
+    const a = road(802)
+    a.engineering = createEngineeringDesign()
+    a.engineering.materials = [
+      {
+        id: 'strip',
+        name: 'Topsoil',
+        color: '#806040',
+        cutRate: 1,
+        reusableFraction: 0,
+        compactionFactor: 1,
+        purpose: 'stripping',
+      },
+    ]
+    a.engineering.sitePreparation = [
+      {
+        id: 'prep',
+        start: 0,
+        end: 101,
+        materialId: 'strip',
+        depthM: 0.2,
+        leftInsideM: 0,
+        rightInsideM: 0,
+        leftOutsideM: 0.3,
+        rightOutsideM: 0.3,
+      },
+    ]
+    const cut = run(a, [], { maxCutDepthM: 0.1 })
+    expect(cut.metrics.maxCutDepthM).toBeCloseTo(0.2, 6)
+    expect(codes(cut)).toContain('maximum-cut')
+    const fill = run(a, [], { maxFillHeightM: 2.1 })
+    expect(fill.metrics.maxFillHeightM).toBeCloseTo(2.2, 6)
+    expect(codes(fill)).toContain('maximum-fill')
+    // With the centreline deliberately excluded, preparation margins still count as excavation.
+    a.engineering.sitePreparation[0].leftInsideM = 5.3
+    a.engineering.sitePreparation[0].rightInsideM = 5.3
+    a.engineering.sitePreparation[0].leftOutsideM = 2
+    a.engineering.sitePreparation[0].rightOutsideM = 2
+    expect(codes(run(a, [], { maxCutDepthM: 0.1 }))).toContain('maximum-cut')
+  })
+  it('blocks speed/superelevation conflicts even when the explicit minimum radius passes', () => {
+    const a = road()
+    a.points = [
+      { id: 'a', coordinate: point(0, 0), radiusM: 0 },
+      { id: 'b', coordinate: point(0, 150), radiusM: 25 },
+      { id: 'c', coordinate: point(150, 150), radiusM: 0 },
+    ]
+    a.vertical = [
+      { id: 's', chainage: 0, elevation: 800, curveLength: 0 },
+      { id: 'e', chainage: alignmentLength(a), elevation: 800, curveLength: 0 },
+    ]
+    a.curveDesign = {
+      designSpeedKmh: 40,
+      maxSuperelevationPercent: 8,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 30,
+      wideningVehicleLengthM: null,
+    }
+    const result = run(a)
+    expect(codes(result)).toContain('road-class-criteria')
+    expect(result.adoptable).toBe(false)
+  })
   it('passes an independently formed, covered straight road without changing the input', () => {
     const alignment = road(),
       before = JSON.stringify(alignment),

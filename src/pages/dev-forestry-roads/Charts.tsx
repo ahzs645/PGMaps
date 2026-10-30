@@ -1425,12 +1425,20 @@ export function CrossSectionChart({
   })
   const points =
     station?.section.map((p) => ({ x: p.offset, ground: p.ground, design: terrainOnly ? null : p.design })) ?? []
+  const preparedPoints =
+    station?.section.map((p) => ({
+      x: p.offset,
+      ground: p.preparedGround === undefined ? p.ground : p.preparedGround,
+      design: terrainOnly ? null : p.design,
+    })) ?? []
+  const hasPreparation = !terrainOnly && station?.section.some((p) => p.preparedGround !== undefined)
   const codePoints = !terrainOnly && station && template ? sectionCodePoints(station, template) : []
   const hoverSample = hoverOffset === null || !station ? null : sectionSampleAt(station, hoverOffset)
   const hovered = hoverSample
     ? { x: hoverSample.offset, ground: hoverSample.ground, design: terrainOnly ? null : hoverSample.design }
     : null
-  const hoveredDepth = finite(hovered?.ground) && finite(hovered?.design) ? hovered.ground - hovered.design : null
+  const hoverGround = hoverSample?.preparedGround === undefined ? hovered?.ground : hoverSample.preparedGround
+  const hoveredDepth = finite(hoverGround) && finite(hovered?.design) ? hoverGround - hovered.design : null
   const hoveredCode = terrainOnly
     ? 'ground transect'
     : station && template && hovered
@@ -1438,6 +1446,10 @@ export function CrossSectionChart({
       : 'unknown-design'
   const [low, high] = extent([
     ...points.flatMap((p) => [p.ground, p.design]),
+    ...preparedPoints.map((p) => p.ground),
+    ...points.flatMap((p) =>
+      finite(p.design) ? [p.design + (template?.layers ?? []).reduce((s, l) => s + l.depthM, 0)] : [],
+    ),
     ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
   ])
   const halfWidth = Math.max(
@@ -1452,6 +1464,9 @@ export function CrossSectionChart({
     finite(station?.groundElevation) && finite(station?.designElevation)
       ? station.groundElevation - station.designElevation
       : null
+  const preparedCentre = station ? sectionSampleAt(station, 0).preparedGround : undefined
+  const preparedDepth =
+    finite(preparedCentre) && finite(station?.designElevation) ? preparedCentre - station.designElevation : null
   // Section status block, in the abbreviations of a road-design section window.
   const sectionReadout: Array<ReadoutItem | null | undefined> = !station
     ? []
@@ -1470,8 +1485,18 @@ export function CrossSectionChart({
           {
             label: 'Cut Dp',
             value: `${fixed(centreDepth, 2)} m`,
-            title: 'Centreline cut depth: ground minus formation; negative is fill',
+            title: 'Original ground minus formation at the centreline; negative is fill',
           },
+          ...(hasPreparation
+            ? [
+                {
+                  label: 'Prep Dp',
+                  value: `${fixed(preparedDepth, 2)} m`,
+                  title:
+                    'Prepared ground minus formation at the centreline; negative is replacement or embankment fill',
+                },
+              ]
+            : []),
           { label: 'Grade', value: `${fixed(station.gradePercent)}%`, title: 'Design grade at this station' },
           {
             label: 'Grd Z',
@@ -1494,14 +1519,16 @@ export function CrossSectionChart({
             title: 'Crossfall left / right; positive falls away from the centreline',
           },
           template && {
-            label: 'Cut H:V L/R',
+            label: 'Tmpl cut H:V',
             value: side(template.leftCutSlope ?? template.cutSlope, template.rightCutSlope ?? template.cutSlope, 2),
-            title: 'Cut batter, horizontal per vertical, left / right',
+            title:
+              'Template cut batter H:V, left / right. Entered materials and components can change actual section slopes.',
           },
           template && {
-            label: 'Fill H:V L/R',
+            label: 'Tmpl fill H:V',
             value: side(template.leftFillSlope ?? template.fillSlope, template.rightFillSlope ?? template.fillSlope, 2),
-            title: 'Fill batter, horizontal per vertical, left / right',
+            title:
+              'Template fill batter H:V, left / right. Entered materials and components can change actual section slopes.',
           },
           {
             label: 'Dayl L/R',
@@ -1535,6 +1562,7 @@ export function CrossSectionChart({
                 : [
                     { label: 'Ground', color: ROAD_CHART_COLORS.ground },
                     { label: 'Template', color: ROAD_CHART_COLORS.design },
+                    ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
                     { label: 'Cut', color: ROAD_CHART_COLORS.cut },
                     { label: 'Fill', color: ROAD_CHART_COLORS.fill },
                   ]
@@ -1748,7 +1776,7 @@ export function CrossSectionChart({
                   opacity={0.85}
                 />
               ))}
-              {differencePolygons(points, f.x, f.y).map((p, i) => (
+              {differencePolygons(hasPreparation ? preparedPoints : points, f.x, f.y).map((p, i) => (
                 <polygon key={i} points={p.points} fill={p.color} opacity={0.3} />
               ))}
               <path
@@ -1757,6 +1785,47 @@ export function CrossSectionChart({
                 stroke={ROAD_CHART_COLORS.ground}
                 strokeWidth={1.8}
               />
+              {hasPreparation && (
+                <path
+                  d={linePath(preparedPoints, 'ground', f.x, f.y)}
+                  fill="none"
+                  stroke="#a16207"
+                  strokeDasharray="5 3"
+                  strokeWidth={1.8}
+                  data-testid="road-prepared-ground"
+                >
+                  <title>Ground after stripping and key excavation</title>
+                </path>
+              )}
+              {!terrainOnly &&
+                template?.layers?.map((layer, layerIndex) => {
+                  const widthLeft = station?.leftWidth ?? 0,
+                    widthRight = station?.rightWidth ?? 0
+                  return (['left', 'right'] as const).flatMap((side) => {
+                    if (layer.side !== 'both' && layer.side !== side) return []
+                    const lower = template
+                      .layers!.slice(0, layerIndex)
+                      .filter((l) => l.side === side || l.side === 'both')
+                      .reduce((sum, l) => sum + l.depthM, 0)
+                    const a = side === 'left' ? -widthLeft : 0,
+                      b = side === 'left' ? 0 : widthRight
+                    const za = station && sectionSampleAt(station, a).design,
+                      zb = station && sectionSampleAt(station, b).design
+                    if (!finite(za) || !finite(zb)) return []
+                    return [
+                      <polygon
+                        key={`${layer.id}-${side}`}
+                        points={`${f.x(a)},${f.y(za + lower)} ${f.x(b)},${f.y(zb + lower)} ${f.x(b)},${f.y(zb + lower + layer.depthM)} ${f.x(a)},${f.y(za + lower + layer.depthM)}`}
+                        fill={['#d6a84b', '#a3a36e', '#8296b3'][layerIndex % 3]}
+                        opacity={0.5}
+                      >
+                        <title>
+                          {layer.name}: {layer.depthM} m{layer.materialId ? `; material ${layer.materialId}` : ''}
+                        </title>
+                      </polygon>,
+                    ]
+                  })
+                })}
               {pipeSections.map(({ culvert, points: pipe }) => (
                 <g
                   key={culvert.id}

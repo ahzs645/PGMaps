@@ -379,6 +379,8 @@ export interface SurfaceDrainage {
   accumulation: Float64Array
   /** Fill depth per cell, m. */
   depth: Float64Array
+  /** Ephemeral D8 routes for pour-point and watershed analysis; never serialized as a project grid. */
+  directions: Int8Array
 }
 export interface DrainageAnalysis {
   existing: SurfaceDrainage
@@ -436,7 +438,7 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
       ponding.maxDepthM = Math.max(ponding.maxDepthM, depth[i])
     }
   ponding.areaM2 = ponding.cells * cellArea
-  return { dirs, drainage: { streams, ponding, accumulation, depth } satisfies SurfaceDrainage }
+  return { dirs, drainage: { streams, ponding, accumulation, depth, directions: dirs } satisfies SurfaceDrainage }
 }
 
 /**

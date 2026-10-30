@@ -27,14 +27,17 @@ async function download(page: Page, button: Locator) {
   const bytes = Buffer.concat(chunks)
   return { name: result.suggestedFilename(), text: bytes.toString('utf8'), bytes }
 }
-const estimate = async (page: Page) =>
-  Number(
-    (await page
-      .getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true })
-      .locator('xpath=..')
-      .locator('dd')
-      .textContent())!.replace(/[$,]/g, ''),
-  )
+async function estimate(page: Page) {
+  await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Covered estimate', exact: true })
+  const text = await dialog.getByTestId('road-cost-total').innerText()
+  expect(text).toMatch(/\d/)
+  const value = Number(text.replace(/[^0-9.-]/g, ''))
+  expect(Number.isFinite(value)).toBe(true)
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  return value
+}
 const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')
 
 test('vertical standards, control points and the profile optimizer', async ({ page }) => {
@@ -117,7 +120,9 @@ test('station table interval and columns, saved layouts and cost status', async 
   await expect(picker).toHaveText(/Wide plan/)
 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
-  await expect(page.getByTestId('road-cost-status')).toContainText(/Cost status: current.*process time \d/)
+  await expect(page.getByTestId('road-cost-status')).toContainText(
+    /Calculation updated.*section coverage complete.*process time \d+ ms/,
+  )
   await expect(page.getByTestId('road-haul-cost-graph')).toHaveCount(0)
   expect(errors).toEqual([])
 })

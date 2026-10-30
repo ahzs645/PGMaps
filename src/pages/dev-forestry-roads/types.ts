@@ -7,6 +7,8 @@ import type { RoadNetworkEvidence } from './roadNetworkTypes'
 import type { RoadConditionObservation, RoadConditionPolicy } from './roadCondition'
 import type { TotalCostPlanning } from './fullCostPlanning'
 import type { FullCostReviewRecord } from './fullCostRecord'
+import type { DrainageProjectState } from './drainageEvidence'
+import type { RoadReportSettings } from './reportSettings'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -23,6 +25,34 @@ export interface VerticalPoint {
   chainage: number
   elevation: number
   curveLength: number
+}
+export interface SectionComponent {
+  id: string
+  name: string
+  side: 'left' | 'right'
+  kind: 'bench' | 'slope' | 'wall' | 'key'
+  condition: 'always' | 'cut' | 'fill'
+  widthM: number
+  /** Metres rising away from the road; key uses depthM instead. */
+  riseM: number
+  depthM?: number
+  /** Key starts this far outside the formation edge. */
+  offsetM?: number
+  materialId?: string
+  code?: string
+  /** A named context line/polygon intersects the section to anchor the component endpoint. */
+  referenceFeatureId?: string
+  /** original-ground, prepared-ground, or a named retained analytical surface. */
+  referenceSurfaceId?: string
+  referenceOffsetM?: number
+  referenceElevationM?: number
+}
+export interface SectionLayer {
+  id: string
+  name: string
+  side: 'left' | 'right' | 'both'
+  depthM: number
+  materialId?: string
 }
 export interface RoadTemplate {
   leftWidth: number
@@ -50,6 +80,10 @@ export interface RoadTemplate {
   rightDitchBottomWidth?: number
   leftSurfaceDepth?: number
   rightSurfaceDepth?: number
+  /** Ordered additions between ditch/formation and the daylight batter. */
+  components?: SectionComponent[]
+  /** Explicit surface course stack replaces legacy surfaceDepth when present. */
+  layers?: SectionLayer[]
 }
 export interface WidthOverride {
   id: string
@@ -60,6 +94,8 @@ export interface WidthOverride {
   taper: number
   side: 'left' | 'right' | 'both'
   extraWidth: number
+  entryTaperM?: number
+  exitTaperM?: number
 }
 /**
  * Design-speed curve rules: superelevation e = V²/(127 R) − f, held between the normal crown and
@@ -67,12 +103,20 @@ export interface WidthOverride {
  * Both run in linearly over the runoff length before each curve and out after it.
  */
 export interface CurveDesign {
+  /** User-entered criteria identity and source; never implies a certified road standard. */
+  criteriaName?: string
+  criteriaSource?: string
   designSpeedKmh: number
   maxSuperelevationPercent: number
   sideFrictionFactor: number
   runoffLengthM: number
   /** Null for no curve widening. */
   wideningVehicleLengthM: number | null
+  /** Optional rectangular radius/deflection table, interpolated independently on the two sides. */
+  wideningTable?: { radiusM: number; deflectionDegrees: number; insideM: number; outsideM: number }[]
+  /** Added to the table/formula width on its named side. */
+  insideWideningM?: number
+  outsideWideningM?: number
 }
 export interface Alignment {
   id: string
@@ -80,6 +124,11 @@ export interface Alignment {
   color: string
   points: RoadPoint[]
   vertical: VerticalPoint[]
+  /** Named profiles share this road's horizontal geometry. `vertical` is the active editable profile. */
+  verticalAlternatives?: VerticalAlternative[]
+  activeVerticalAlternativeId?: string
+  /** Shared engineering inputs, or a separately saved engineering design for each profile. */
+  verticalAlternativeCostMode?: 'shared' | 'independent'
   template: RoadTemplate
   overrides: WidthOverride[]
   engineering?: AlignmentEngineering
@@ -105,13 +154,29 @@ export interface Alignment {
     searchCost: number
   }
 }
+export interface VerticalAlternative {
+  id: string
+  name: string
+  vertical: VerticalPoint[]
+  verticalStandards?: VerticalStandards
+  verticalControls?: VerticalControl[]
+  /** Used only with independent engineering inputs. Horizontal template/width ranges remain shared. */
+  engineering?: AlignmentEngineering
+  /** Historical/current comparison evidence belongs to its vertical design and is retained on switches. */
+  fullCostRecord?: FullCostReviewRecord
+}
 export interface ContextFeature {
   id: string
   name: string
   kind: 'stream' | 'avoid' | 'existing-road' | 'harvest'
   geometry: GeoJSON.LineString | GeoJSON.Polygon
+  /** Required before source Z can anchor an engineering section; must match project terrain. */
+  referenceVerticalDatum?: string
   /** On an avoid polygon: route search may cross it at this extra CAD per metre instead of being blocked. */
   routeCostPerM?: number
+  /** A feature price overrides its group's price, which overrides the route-search default. */
+  crossingCost?: number
+  crossingGroup?: string
   /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
   roadEvidence?: ExistingRoadEvidence
 }
@@ -172,6 +237,12 @@ export interface TerrainMetadata {
   sourceUrl?: string
   sha256?: string
   raster?: LocalRaster
+  /** Explicit reproducible source preparation; retained TIN is optional and bounded. */
+  preparation?: import('./terrainPreparation').TerrainPreparationRecord
+  /** Independent imagery/canopy display stack; never analytical ground. */
+  backgrounds?: import('./terrainPreparation').TerrainBackgroundLayer[]
+  /** Reviewed analytical grid snapshots, kept separate from display-only canopy/imagery. */
+  referenceSurfaces?: Array<{id:string;name:string;raster:LocalRaster}>
   /** Regional DEMs only: the extent loaded, [west, south, east, north], so reopening loads it again. */
   bounds?: [number, number, number, number]
 }
@@ -184,18 +255,25 @@ export interface RoadProject {
   alignments: Alignment[]
   terrain: TerrainMetadata
   settings: RoadSettings
+  /** Portable drawing settings; report intervals never alter analytical station spacing. */
+  reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */
   routeSearch?: RouteSearchOptions
   /** Explicit vehicle, network, evidence, supply and final-check inputs for complete route comparisons. */
   totalCostPlanning?: TotalCostPlanning
+  /** Portable inputs and compact, fingerprinted drainage evidence; full grids are recomputed. */
+  drainage?: DrainageProjectState
   context: ContextFeature[]
   cables: CableLine[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]
+  surveyBooks?: import('./surveyInterchange').SurveyBookRecord[]
 }
 export interface SectionSample {
   offset: number
   ground: number | null
   design: number | null
+  /** Ground after site preparation; ground above retains the source measurement. */
+  preparedGround?: number | null
 }
 export interface RoadStation {
   index: number
@@ -210,6 +288,14 @@ export interface RoadStation {
   leftWidth: number
   rightWidth: number
   section: SectionSample[]
+  preparationAreas?: { materialId?: string; purpose: 'stripping' | 'earthwork'; areaM2: number }[]
+  layerAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
+  componentAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
+  componentPoints?: { code: string; offset: number; design: number }[]
+  /** Includes preparation margins beyond the constructed catches. */
+  clearingWidthM?: number
+  leftClearingM?: number
+  rightClearingM?: number
   cutAreaM2: number | null
   fillAreaM2: number | null
   cutVolumeM3: number | null

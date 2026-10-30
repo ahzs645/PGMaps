@@ -142,6 +142,45 @@ export function FullCostSourcesEditor({
               <option value="waste">Waste disposal only (bank m³)</option>
             </select>
           </Field>
+          <fieldset className="space-y-2 rounded border p-2">
+            <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
+            <p className="text-[11px] text-muted-foreground">
+              A general suitability confirmation does not identify an exact material or quality class. Select the
+              materials this source can supply or accept; changing these fields requires review again.
+            </p>
+            {(w.alignment.engineering?.materials ?? []).map((material) => (
+              <label key={material.id} className="flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selected.materialIds?.includes(material.id) ?? false}
+                  onChange={(event) =>
+                    patch({
+                      materialIds: event.target.checked
+                        ? [...(selected.materialIds ?? []), material.id]
+                        : (selected.materialIds ?? []).filter((id) => id !== material.id),
+                      qualityConfirmed: false,
+                    })
+                  }
+                />
+                {material.name}
+              </label>
+            ))}
+            <OptionalNumberField
+              label="Source material quality (0–100)"
+              min={0}
+              max={100}
+              value={selected.quality ?? null}
+              placeholder="unknown"
+              onChange={(quality) => patch({ quality: quality ?? undefined, qualityConfirmed: false })}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => patch({ materialIds: undefined, quality: undefined, qualityConfirmed: false })}
+            >
+              Clear material classification
+            </Button>
+          </fieldset>
           <PlanningCoordinateField
             label="Source"
             value={selected.entrance}

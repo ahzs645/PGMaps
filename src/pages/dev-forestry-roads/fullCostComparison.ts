@@ -1,9 +1,10 @@
 /** Bounded horizontal alternatives, priced on checked new connectors and a real road graph. */
-import { alignmentLength, analyzeRoad, distance, effectiveWidths, positionAt } from './engine'
+import { alignmentLength, analyzeRoad, distance, effectiveWidths, positionAt, surfaceLayersAt } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import { hasCompleteCoverage } from './analysisResult'
 import { sideValue, templateAt } from './templates'
-import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource } from './types'
+import { haulDirectionAllowed, materialDemandKey, requiredFillAt } from './allocationPolicy'
+import type { Alignment, ContextFeature, GroundMaterial, RoadAnalysis, RoadSettings, TerrainSource } from './types'
 import type {
   RoadNetworkAttachmentInput,
   RoadNetworkCostItem,
@@ -34,6 +35,10 @@ export interface FullCostMaterialDemand {
   chainage: number
   /** Actual proposed connector chainage; no Euclidean supply shortcut. */
   connectorHaulDistanceM: number
+  layer?: string
+  materialId?: string
+  minQuality?: number
+  replaceable?: boolean
 }
 export interface FullCostCandidateInput {
   id: string
@@ -73,6 +78,9 @@ export interface FullCostSourceAllocation {
   sourcePreparationCost: number
   path: RoadNetworkPath
   returnPath: RoadNetworkPath
+  demandLayer?: string
+  materialId?: string
+  minQuality?: number
 }
 export interface FullCostLedger {
   newConstruction: number
@@ -148,8 +156,10 @@ export function analyzeFullCostConnector(
   terrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
+  options?: { referenceSurfaces?: Record<string, TerrainSource>; verticalReference?: string },
 ): RoadAnalysis {
   const engineering = alignment.engineering ?? createEngineeringDesign()
+  const advanced = hasMaterialPolicies(alignment)
   return analyzeRoad(
     {
       ...alignment,
@@ -157,13 +167,158 @@ export function analyzeFullCostConnector(
         ...engineering,
         sites: [],
         surfacingSupply: undefined,
-        haul: { ...engineering.haul, enabled: true },
+        haul: { ...engineering.haul, enabled: true, ...(advanced ? { deferExternalSupply: true } : {}) },
       },
     },
     terrain,
     settings,
     context,
+    options,
   )
+}
+
+function hasMaterialPolicies(alignment: Alignment) {
+  const e = alignment.engineering
+  return !!(
+    e?.haul.allocation === 'economic' ||
+    e?.fillRequirements?.length ||
+    e?.sitePreparation?.length ||
+    e?.haul.directionRanges?.length ||
+    e?.haul.sidecastRanges?.length ||
+    alignment.template.layers !== undefined ||
+    alignment.template.components?.length ||
+    e?.templates.some((t) => t.template.layers !== undefined || t.template.components?.length)
+  )
+}
+
+function advancedMaterialDemands(
+  alignment: Alignment,
+  analysis: RoadAnalysis,
+  entryChainage: number,
+): FullCostMaterialDemand[] {
+  const e = alignment.engineering ?? createEngineeringDesign()
+  const output: FullCostMaterialDemand[] = []
+  let allSurface = 0,
+    internalSurface = 0,
+    externalFill = 0,
+    allFill = 0,
+    internalFill = 0,
+    externalBank = 0
+  const add = (
+    use: RoadPlanMaterialUse,
+    volume: number,
+    chainage: number,
+    layer: string,
+    index: number,
+    materialId?: string,
+    distanceM?: number,
+  ) => {
+    if (volume <= EPS) return
+    const requirement = requiredFillAt(e, chainage, layer)
+    output.push({
+      id: `${use}-${index}-${layer}-${output.length}`,
+      use,
+      volumeBasis: use === 'waste' ? 'bank' : 'compacted',
+      volumeM3: volume,
+      chainage,
+      connectorHaulDistanceM: distanceM ?? Math.abs(chainage - entryChainage),
+      layer,
+      ...(requirement?.materialId || materialId ? { materialId: requirement?.materialId ?? materialId } : {}),
+      ...(requirement?.minQuality !== undefined ? { minQuality: requirement.minQuality } : {}),
+      ...(requirement ? { replaceable: requirement.replaceable } : materialId ? { replaceable: false } : {}),
+    })
+  }
+  for (let i = 1; i < analysis.stations.length; i++) {
+    const a = analysis.stations[i - 1],
+      b = analysis.stations[i],
+      ds = b.chainage - a.chainage,
+      chainage = (a.chainage + b.chainage) / 2
+    if (!a.complete || !b.complete || b.fillVolumeM3 === null || b.cutVolumeM3 === null)
+      throw Error('A material interval has incomplete quantities.')
+    const id = `interval-${i}`
+    const internal = analysis.engineering!.movements.filter((m) => m.kind === 'cut-to-fill' && m.targetId === id)
+    const supplied = (key: string) =>
+      internal.filter((m) => (m.demandKey ?? 'subgrade') === key).reduce((s, m) => s + m.transportedVolumeM3, 0)
+    const layers = [
+      surfaceLayersAt(alignment, a.chainage),
+      surfaceLayersAt(alignment, chainage),
+      surfaceLayersAt(alignment, b.chainage),
+    ]
+    const surfaceKeys = new Set(layers.flat().map((l) => materialDemandKey(l.id, l.materialId)))
+    for (const key of surfaceKeys) {
+      const rows = layers.map((ls) => ls.filter((l) => materialDemandKey(l.id, l.materialId) === key)),
+        areas = rows.map((ls) => ls.reduce((s, l) => s + l.areaM2, 0))
+      const row = [...rows[1], ...rows[0], ...rows[2]][0],
+        layer = row.id,
+        materialId = row.materialId
+      const volume = ((areas[0] + 4 * areas[1] + areas[2]) * ds) / 6
+      const suppliedVolume = supplied(key)
+      if (suppliedVolume > volume + EPS) throw Error('Internal surface material exceeds its layer demand.')
+      const work =
+        ((areas[0] * Math.abs(a.chainage - entryChainage) +
+          4 * areas[1] * Math.abs(chainage - entryChainage) +
+          areas[2] * Math.abs(b.chainage - entryChainage)) *
+          ds) /
+        6
+      add(
+        'surfacing',
+        Math.max(0, volume - suppliedVolume),
+        chainage,
+        layer,
+        i,
+        materialId,
+        volume > EPS ? work / volume : 0,
+      )
+      allSurface += volume
+      internalSurface += suppliedVolume
+    }
+    let componentTotal = 0
+    for (const key of new Set(
+      [...(a.componentAreas ?? []), ...(b.componentAreas ?? [])].map((c) =>
+        materialDemandKey(c.id, c.materialId, true),
+      ),
+    )) {
+      const rows = [a.componentAreas ?? [], b.componentAreas ?? []].map((items) =>
+        items.filter((c) => materialDemandKey(c.id, c.materialId, true) === key),
+      )
+      const component = [...rows[0], ...rows[1]][0]
+      if (!component.materialId && !requiredFillAt(e, chainage, component.id)) continue
+      const volume =
+        ((rows[0].reduce((sum, c) => sum + c.areaM2, 0) + rows[1].reduce((sum, c) => sum + c.areaM2, 0)) * ds) / 2
+      componentTotal += volume
+      const provided = supplied(key)
+      if (provided > volume + EPS) throw Error('Internal component material exceeds its fill demand.')
+      add('fill', Math.max(0, volume - provided), chainage, component.id, i, component.materialId)
+      internalFill += provided
+    }
+    const base = Math.max(0, b.fillVolumeM3 - componentTotal),
+      provided = supplied('subgrade')
+    if (provided > base + EPS) throw Error('Internal subgrade material exceeds its fill demand.')
+    add('fill', Math.max(0, base - provided), chainage, 'subgrade', i)
+    internalFill += provided
+    allFill += b.fillVolumeM3
+    for (const movement of analysis.engineering!.movements.filter(
+      (m) => m.kind === 'waste' && m.sourceId === id && m.externalUnresolved,
+    )) {
+      add('waste', movement.bankVolumeM3 ?? 0, chainage, 'waste', i, movement.materialId ?? undefined)
+      externalBank += movement.bankVolumeM3 ?? 0
+    }
+  }
+  externalFill = output.filter((d) => d.use === 'fill').reduce((s, d) => s + d.volumeM3, 0)
+  const externalSurface = output.filter((d) => d.use === 'surfacing').reduce((s, d) => s + d.volumeM3, 0)
+  const tolerance = (n: number) => Math.max(1e-5, Math.abs(n) * 1e-7)
+  if (
+    Math.abs(allSurface - analysis.surfaceVolumeM3) > tolerance(allSurface) ||
+    Math.abs(externalSurface + internalSurface - allSurface) > tolerance(allSurface) ||
+    Math.abs(externalFill + internalFill - allFill) > tolerance(allFill)
+  )
+    throw Error('Layer material parcels do not conserve engine quantities.')
+  const usedBank = analysis
+    .engineering!.movements.filter((m) => m.kind === 'cut-to-fill' || m.disposalMethod === 'sidecast')
+    .reduce((s, m) => s + (m.bankVolumeM3 ?? 0), 0)
+  if (Math.abs(externalBank + usedBank - analysis.cutVolumeM3) > tolerance(analysis.cutVolumeM3))
+    throw Error('Bank waste parcels do not conserve classified excavation.')
+  return output
 }
 
 /** Exact engine surfacing integration, with the same explicit midpoint mass-haul parcels. */
@@ -188,6 +343,7 @@ export function buildFullCostDemands(
     distance(positionAt(alignment, analysis.length).coordinate, analysis.centerline.at(-1)!) > 0.01
   )
     throw Error('The cost quantities do not match the current fitted horizontal candidate.')
+  if (hasMaterialPolicies(alignment)) return advancedMaterialDemands(alignment, analysis, entryChainage)
   const surfaced = { ...alignment, overrides: alignment.overrides.filter((override) => override.kind !== 'landing') }
   const area = (chainage: number) => {
     const widths = effectiveWidths(surfaced, chainage),
@@ -272,26 +428,74 @@ const sourceProblems = (source: RoadPlanSource): string[] => {
 const sourceUnitRate = (source: RoadPlanSource): number =>
   source.acquisitionRate! + source.processingRate! + source.loadingRate! + source.placementRate!
 
+type DemandGroup = Pick<FullCostMaterialDemand, 'use' | 'layer' | 'materialId' | 'minQuality' | 'replaceable'> & {
+  key: string
+  volume: number
+  work: number
+}
+function materialDemandGroups(demands: FullCostMaterialDemand[]): DemandGroup[] {
+  const map = new Map<string, DemandGroup>()
+  for (const d of demands) {
+    const key = JSON.stringify([d.use, d.layer ?? '', d.materialId ?? '', d.minQuality ?? null, d.replaceable ?? null])
+    const group = map.get(key)
+    if (group) {
+      group.volume += d.volumeM3
+      group.work += (d.volumeM3 * d.connectorHaulDistanceM) / 1000
+    } else
+      map.set(key, {
+        key,
+        use: d.use,
+        layer: d.layer,
+        materialId: d.materialId,
+        minQuality: d.minQuality,
+        replaceable: d.replaceable,
+        volume: d.volumeM3,
+        work: (d.volumeM3 * d.connectorHaulDistanceM) / 1000,
+      })
+  }
+  return [...map.values()]
+}
+function sourceMatchesDemand(source: RoadPlanSource, demand: DemandGroup, materials: GroundMaterial[]): boolean {
+  if (!source.uses.includes(demand.use)) return false
+  if (demand.use === 'waste')
+    return !source.materialIds || !demand.materialId || source.materialIds.includes(demand.materialId)
+  if (!demand.materialId && demand.minQuality === undefined) return true
+  const minimum = demand.minQuality ?? materials.find((m) => m.id === demand.materialId)?.quality
+  const exact = !!demand.materialId && !!source.materialIds?.includes(demand.materialId)
+  if (
+    exact &&
+    (demand.minQuality === undefined ||
+      (source.quality ?? materials.find((m) => m.id === demand.materialId)?.quality ?? -1) >= demand.minQuality)
+  )
+    return true
+  if (!demand.replaceable || minimum === undefined) return false
+  return source.quality !== undefined
+    ? source.quality >= minimum
+    : !!source.materialIds?.some((id) => (materials.find((m) => m.id === id)?.quality ?? -1) >= minimum)
+}
+
 /** Max-flow feasibility preserves scarce shared aggregate capacity for the other material uses. */
 function capacityFeasible(
-  demand: Record<RoadPlanMaterialUse, number>,
+  demand: Record<string, number>,
   sources: { source: RoadPlanSource; remaining: number }[],
   reachable: Set<string>,
+  groups: DemandGroup[],
+  materials: GroundMaterial[],
 ): boolean {
-  const total = KINDS.reduce((sum, kind) => sum + demand[kind], 0)
+  const total = groups.reduce((sum, group) => sum + demand[group.key], 0)
   if (total <= EPS) return true
-  const count = sources.length + 5,
+  const count = sources.length + groups.length + 2,
     sink = count - 1,
     matrix = Array.from({ length: count }, () => new Float64Array(count))
   sources.forEach(({ source, remaining }, index) => {
     matrix[0][index + 1] = Math.min(total, remaining)
-    KINDS.forEach((kind, k) => {
-      if (source.uses.includes(kind) && reachable.has(`${source.id}:${kind}`))
+    groups.forEach((group, k) => {
+      if (sourceMatchesDemand(source, group, materials) && reachable.has(`${source.id}:${group.use}`))
         matrix[index + 1][sources.length + 1 + k] = total
     })
   })
-  KINDS.forEach((kind, k) => {
-    matrix[sources.length + 1 + k][sink] = demand[kind]
+  groups.forEach((group, k) => {
+    matrix[sources.length + 1 + k][sink] = demand[group.key]
   })
   let flow = 0
   while (flow < total - EPS) {
@@ -483,19 +687,37 @@ export function compareFullCostCandidates(
       reject('unpriced', 'The outlet return route has unknown network costs.')
       return result
     }
-    const remaining: Record<RoadPlanMaterialUse, number> = { surfacing: 0, fill: 0, waste: 0 }
-    const connectorM3Km: Record<RoadPlanMaterialUse, number> = { surfacing: 0, fill: 0, waste: 0 }
+    const groups = materialDemandGroups(result.demands)
+    const materials = input.alignment.engineering?.materials ?? []
+    const remaining: Record<string, number> = Object.fromEntries(groups.map((group) => [group.key, group.volume]))
+    const initialDemand: Record<RoadPlanMaterialUse, number> = { surfacing: 0, fill: 0, waste: 0 }
+    for (const demand of result.demands) initialDemand[demand.use] += demand.volumeM3
     for (const demand of result.demands) {
-      remaining[demand.use] += demand.volumeM3
-      connectorM3Km[demand.use] += (demand.volumeM3 * demand.connectorHaulDistanceM) / 1000
+      const allowed =
+        demand.use === 'waste'
+          ? haulDirectionAllowed(
+              input.alignment.engineering?.haul ?? createEngineeringDesign().haul,
+              demand.chainage,
+              input.entryChainage,
+            )
+          : haulDirectionAllowed(
+              input.alignment.engineering?.haul ?? createEngineeringDesign().haul,
+              input.entryChainage,
+              demand.chainage,
+            )
+      if (!allowed)
+        reject(
+          'infeasible',
+          `External ${demand.use} movement at ${demand.chainage.toFixed(1)} m crosses a construction-direction restriction.`,
+        )
     }
-    const initialDemand = { ...remaining }
+    if (result.blockers.length) return result
     const sources = planning.sources
       .filter(
         (source) =>
           source.enabled &&
           (source.capacityM3 === null || source.capacityM3 > EPS) &&
-          source.uses.some((kind) => remaining[kind] > EPS),
+          source.uses.some((kind) => initialDemand[kind] > EPS),
       )
       .flatMap((source) => {
         const problems = sourceProblems(source)
@@ -509,13 +731,13 @@ export function compareFullCostCandidates(
     let unknownNetwork = false
     for (const state of sources)
       for (const kind of KINDS) {
-        if (!state.source.uses.includes(kind) || remaining[kind] <= EPS) continue
+        if (!state.source.uses.includes(kind) || initialDemand[kind] <= EPS) continue
         const sourceId = sourceNetworkAttachmentId(state.source.id),
           from = kind === 'waste' ? accessId : sourceId,
           to = kind === 'waste' ? sourceId : accessId
         const path = findPath(from, to, {
           objective: 'total-cost',
-          distanceRatePerM: (Math.min(remaining[kind], state.remaining) * planning.haulRatePerM3Km) / 1000,
+          distanceRatePerM: (Math.min(initialDemand[kind], state.remaining) * planning.haulRatePerM3Km) / 1000,
           paidCostItemIds: [...paid],
           allowUnpricedCosts: false,
         })
@@ -523,7 +745,8 @@ export function compareFullCostCandidates(
           path && path.totalCost !== null
             ? findPath(to, from, {
                 objective: 'total-cost',
-                distanceRatePerM: (Math.min(remaining[kind], state.remaining) * planning.returnHaulRatePerM3Km) / 1000,
+                distanceRatePerM:
+                  (Math.min(initialDemand[kind], state.remaining) * planning.returnHaulRatePerM3Km) / 1000,
                 paidCostItemIds: [...paid, ...path.costItemIds],
                 allowUnpricedCosts: false,
               })
@@ -557,12 +780,12 @@ export function compareFullCostCandidates(
           )
         }
       }
-    if (!capacityFeasible(remaining, sources, reachable)) {
+    if (!capacityFeasible(remaining, sources, reachable, groups, materials)) {
       const excludedUnknown = planning.sources.some(
         (source) =>
           source.enabled &&
           (source.capacityM3 === null || source.capacityM3 > EPS) &&
-          source.uses.some((kind) => remaining[kind] > EPS) &&
+          source.uses.some((kind) => initialDemand[kind] > EPS) &&
           sourceProblems(source).length,
       )
       reject(
@@ -572,8 +795,9 @@ export function compareFullCostCandidates(
       return result
     }
     const usedSources = new Set<string>()
-    for (const kind of KINDS)
-      while (remaining[kind] > EPS) {
+    for (const group of groups) {
+      const kind = group.use
+      while (remaining[group.key] > EPS) {
         if (result.allocations.length >= MAX_FULL_COST_ALLOCATIONS) {
           reject('unpriced', 'Source batch allocation exceeded its 300-batch comparison budget.')
           return result
@@ -589,14 +813,15 @@ export function compareFullCostCandidates(
         }[] = []
         for (const state of sources) {
           const key = `${state.source.id}:${kind}`
-          if (!reachable.has(key) || state.remaining <= EPS) continue
-          let amount = Math.min(remaining[kind], state.remaining)
+          if (!reachable.has(key) || state.remaining <= EPS || !sourceMatchesDemand(state.source, group, materials))
+            continue
+          let amount = Math.min(remaining[group.key], state.remaining)
           const fits = (trial: number) => {
             state.remaining -= trial
-            remaining[kind] -= trial
-            const feasible = capacityFeasible(remaining, sources, reachable)
+            remaining[group.key] -= trial
+            const feasible = capacityFeasible(remaining, sources, reachable, groups, materials)
             state.remaining += trial
-            remaining[kind] += trial
+            remaining[group.key] += trial
             return feasible
           }
           if (!fits(amount)) {
@@ -644,10 +869,12 @@ export function compareFullCostCandidates(
           return result
         }
         const source = chosen.state.source
-        const connectorWork =
-          initialDemand[kind] > EPS ? (connectorM3Km[kind] * chosen.amount) / initialDemand[kind] : 0
+        const connectorWork = group.volume > EPS ? (group.work * chosen.amount) / group.volume : 0
         result.allocations.push({
           sourceId: source.id,
+          ...(group.layer ? { demandLayer: group.layer } : {}),
+          ...(group.materialId ? { materialId: group.materialId } : {}),
+          ...(group.minQuality !== undefined ? { minQuality: group.minQuality } : {}),
           sourceName: source.name,
           use: kind,
           volumeBasis: kind === 'waste' ? 'bank' : 'compacted',
@@ -666,14 +893,32 @@ export function compareFullCostCandidates(
           returnPath: chosen.returnPath,
         })
         chosen.state.remaining -= chosen.amount
-        remaining[kind] -= chosen.amount
+        remaining[group.key] -= chosen.amount
         usedSources.add(source.id)
       }
+    }
     const internalHaul = engineering.movements
       .filter((movement) => movement.kind === 'cut-to-fill')
       .reduce((sum, movement) => sum + movement.haulCost, 0)
     const internalFillRatio =
       input.analysis.fillVolumeM3 > EPS ? Math.max(0, 1 - initialDemand.fill / input.analysis.fillVolumeM3) : 0
+    const surfaceIds = new Set(input.analysis.stations.flatMap((s) => (s.layerAreas ?? []).map((l) => l.id)))
+    const internalCourseVolume = engineering.movements
+      .filter((m) => m.kind === 'cut-to-fill' && m.demandLayer && surfaceIds.has(m.demandLayer))
+      .reduce((sum, m) => sum + m.transportedVolumeM3, 0)
+    const fillPlacementRate =
+      input.analysis.fillVolumeM3 > EPS
+        ? engineering.costs.fill / input.analysis.fillVolumeM3
+        : (engineering.materialLayerVolumeM3 ?? 0) > EPS
+          ? (engineering.materialLayerPlacementCost ?? 0) / engineering.materialLayerVolumeM3!
+          : 0
+    const internalCoursePlacement = internalCourseVolume * fillPlacementRate
+    const sidecastCost = engineering.movements
+      .filter((m) => m.disposalMethod === 'sidecast')
+      .reduce((sum, m) => {
+        const range = input.alignment.engineering?.haul.sidecastRanges?.find((r) => `sidecast:${r.id}` === m.targetId)
+        return sum + m.transportedVolumeM3 * (range?.unitRate ?? 0)
+      }, 0)
     // Engine clearing covers the daylight prism only. The final-check allowance is an
     // additional strip on each side, priced at the same entered unit rate, before contingency.
     const extraClearingAreaM2 = 2 * planning.connectorChecks.clearingExtraM * input.analysis.length
@@ -693,6 +938,8 @@ export function compareFullCostCandidates(
         engineering.costs.cut +
         engineering.costs.stripping +
         engineering.costs.fill * internalFillRatio +
+        internalCoursePlacement +
+        sidecastCost +
         engineering.costs.clearing +
         extraClearingCost +
         engineering.costs.structures +

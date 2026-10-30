@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { isFullCostRecordCurrent } from './fullCostRecord'
-import type { Alignment, RoadAnalysis, RoadProject } from './types'
+import { VerticalAlternativesEditor } from './VerticalAlternativesEditor'
+import { terrainReferenceSurfaces } from './terrain'
+import { alternativeCostLabel, alternativeCostStatus } from './alternativeCosts'
+import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
 
 const number = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
@@ -20,7 +23,9 @@ export function compareMetric(base: RoadAnalysis, other: RoadAnalysis, id: strin
   const metric = METRICS.find((m) => m.id === id)!
   const a = metric.value(base),
     b = metric.value(other)
-  return { value: b, change: a !== 0 ? ((b - a) / Math.abs(a)) * 100 : null }
+  const comparable =
+    id !== 'cost' || (alternativeCostStatus(base) === 'complete' && alternativeCostStatus(other) === 'complete')
+  return { value: b, change: comparable && a !== 0 ? ((b - a) / Math.abs(a)) * 100 : null }
 }
 
 export function CompareAlternatives({
@@ -30,6 +35,8 @@ export function CompareAlternatives({
   onSelect,
   project,
   onCompareCompleteCosts,
+  terrain,
+  onAlignmentChange,
 }: {
   alignments: Alignment[]
   analyses: Map<string, RoadAnalysis>
@@ -37,8 +44,12 @@ export function CompareAlternatives({
   onSelect: (id: string) => void
   project?: RoadProject
   onCompareCompleteCosts?: () => void
+  terrain?: TerrainSource
+  onAlignmentChange?: (alignment: Alignment) => void
 }) {
   const [baselineId, setBaselineId] = useState(alignments[0]?.id ?? '')
+  const metadata = project?.terrain
+  const referenceSurfaces = useMemo(() => (metadata ? terrainReferenceSurfaces(metadata) : undefined), [metadata])
   const baseline = analyses.get(alignments.some((a) => a.id === baselineId) ? baselineId : alignments[0].id)!
   const completeCosts = useMemo(
     () =>
@@ -94,6 +105,12 @@ export function CompareAlternatives({
                 </td>
                 {METRICS.map((m) => {
                   if (!available) return <td key={m.id}>—</td>
+                  if (m.id === 'cost' && alternativeCostLabel(result))
+                    return (
+                      <td key={m.id} data-metric={m.id} className="text-amber-700 dark:text-amber-400">
+                        {alternativeCostLabel(result)}
+                      </td>
+                    )
                   const { value, change } = compareMetric(baseline, result, m.id)
                   const better = change !== null && change < -0.05,
                     worse = change !== null && change > 0.05
@@ -135,6 +152,16 @@ export function CompareAlternatives({
         <Button size="sm" variant="outline" onClick={onCompareCompleteCosts}>
           Compare complete access and supply costs
         </Button>
+      )}
+      {onAlignmentChange && alignments.find((a) => a.id === activeId) && (
+        <VerticalAlternativesEditor
+          alignment={alignments.find((a) => a.id === activeId)!}
+          terrain={terrain}
+          settings={project?.settings}
+          context={project?.context}
+          referenceSurfaces={referenceSurfaces}
+          onChange={onAlignmentChange}
+        />
       )}
     </div>
   )

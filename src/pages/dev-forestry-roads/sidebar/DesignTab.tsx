@@ -12,6 +12,7 @@ import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import type { RoadOptimizationObjective } from '../corridorOptimizer'
 import { FsrConnectionControls } from '../FsrConnectionControls'
 import { FullCostRecordSummary } from '../FullCostRecordSummary'
+import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps } from '../DesignSidebarBody'
 
@@ -130,6 +131,7 @@ export function DesignTab(p: SidebarProps) {
         </Button>
       </div>
       <RouteFinding {...p} full={full} />
+      <CrossingCostControls workspace={p.workspace} />
       <HorizontalPoints {...p} />
       <VerticalAlignment {...p} />
       <VerticalDesignControls workspace={p.workspace} />

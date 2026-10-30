@@ -259,16 +259,17 @@ cells.
 - Convert between vertical datums (for example CGVD28 and CGVD2013, or ellipsoidal and orthometric
   heights), apply a geoid, or convert feet to metres.
 - Reproject an input raster or point cloud, or accept a CRS outside the list above.
-- Mosaic several LiDAR tiles or combine sources. A project has one terrain; the published LiDAR is
-  one tile, and a gap is never filled from the regional DEM.
+- Automatically substitute another source for missing ground. Explicit source mosaics are now
+  available in [Terrain preparation](terrain-preparation-and-survey.md); the published sample
+  remains one tile and no gap is silently filled from the regional DEM.
 - Downsample a GeoTIFF to fit the budget.
-- Use point classes other than ground, keep the TIN as triangles, or export the gridded surface
-  as a GeoTIFF (see [Scope boundaries](../forestry-road-design.md#scope-boundaries)).
+- Use point classes other than ground as analytical ground, or export a GeoTIFF. An optional
+  bounded retained source TIN and LandXML/ASCII surface exports are now available in Terrain preparation.
 - Let you change ground-filter parameters, or choose the segmentation filter `pointCloud.ts` also
   provides, from the UI.
-- Record the classification choice or the breakline file in the project. The checksum identifies
-  the input file, not how it was processed; two projects from the same LAS with different
-  settings carry the same checksum.
+- Embed the original cloud or breakline file. New point-cloud imports retain classification,
+  surface/preservation settings, source hashes and a breakline checksum in `terrain.preparation`;
+  processing choices contribute to the terrain identity. Reprocessing still needs the original files.
 - Assess accuracy. Resolution is cell spacing, not vertical accuracy, and a 1 m contour interval
   does not mean 1 m detail. The LiDAR accuracy caveats are in [LiDAR viewer](../lidar-viewer.md).
 - Embed or checksum regional DEM tiles in a saved project.

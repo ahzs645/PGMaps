@@ -22,8 +22,10 @@ import type {
   TerrainSource,
 } from './types'
 import { hasCompleteCoverage } from './analysisResult'
-import { curveDesignAt } from './engine'
+import { curveDesignAt, surfaceLayersAt } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
+import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
+import { materialDemandKey, requiredFillAt } from './allocationPolicy'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -68,26 +70,33 @@ function cutBelowDepth(station: RoadStation, depth: number): number {
     const a = section[i - 1],
       b = section[i]
     if (a.design === null || b.design === null || a.ground === null || b.ground === null) continue
+    const pa = a.preparedGround === undefined ? a.ground : a.preparedGround,
+      pb = b.preparedGround === undefined ? b.ground : b.preparedGround
+    if (pa === null || pb === null) continue
     const da = a.ground - a.design - depth,
       db = b.ground - b.design - depth,
+      ca = pa - a.design,
+      cb = pb - b.design,
       width = b.offset - a.offset
-    if (da >= 0 && db >= 0) area += ((da + db) * width) / 2
-    else if (da > 0) area += (da * width * da) / (da - db) / 2
-    else if (db > 0) area += (db * width * db) / (db - da) / 2
+    // Clip classified excavation by prepared ground, but keep depth horizons referenced to
+    // original ground. Include all linear breakpoints before integrating the clipped shape.
+    const knots = [0, 1]
+    for (const [v0, v1] of [
+      [da, db],
+      [ca, cb],
+      [da - ca, db - cb],
+    ])
+      if (v0 * v1 < 0) knots.push(v0 / (v0 - v1))
+    knots.sort((x, y) => x - y)
+    const value = (t: number) => Math.max(0, Math.min(da + (db - da) * t, ca + (cb - ca) * t))
+    for (let k = 1; k < knots.length; k++)
+      area += ((value(knots[k - 1]) + value(knots[k])) * (knots[k] - knots[k - 1]) * width) / 2
   }
   return area
 }
 
 type MaterialCut = { materialId: string; bank: number; usable: number; unusable: number; factor: number }
-type EarthworkInterval = {
-  id: string
-  start: number
-  end: number
-  chainage: number
-  run: number
-  cut: MaterialCut[]
-  fill: number
-}
+type EarthworkInterval = AllocationParcel
 type Source = {
   id: string
   chainage: number
@@ -187,6 +196,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
       let work = 0,
         volume = 0
       for (const m of result.movements) {
+        if (m.disposalMethod === 'sidecast' || m.externalUnresolved) continue
         if (m.volumeBasis !== basis) continue
         const charge = haulCharge(h, m.distanceM)
         if (charge.category !== category) continue
@@ -226,7 +236,13 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
     for (const site of e.sites) {
       if (site.kind !== kind) continue
       const volume = result.movements
-        .filter((m) => m.kind === kind && (kind === 'borrow' ? m.sourceId : m.targetId) === site.id)
+        .filter(
+          (m) =>
+            !m.externalUnresolved &&
+            !m.disposalMethod &&
+            m.kind === kind &&
+            (kind === 'borrow' ? m.sourceId : m.targetId) === site.id,
+        )
         .reduce((sum, m) => sum + m.transportedVolumeM3, 0)
       if (volume <= EPS) continue
       used.push(site)
@@ -244,7 +260,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
     }
     const unallocated = kind === 'borrow' ? result.haul.unallocatedBorrowM3 : result.haul.unallocatedWasteM3
     const rateKey = kind === 'borrow' ? 'borrowRate' : 'wasteRate'
-    if (unallocated > EPS)
+    if (unallocated > EPS && result.haul.allocationMethod !== 'economic')
       lines.push({
         id: `${kind}-unallocated`,
         group: kind,
@@ -269,7 +285,108 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
       rateKey: null,
       amount: site.fixedCost,
     })
+  for (const range of h.sidecastRanges ?? []) {
+    const volume = result.movements
+      .filter((m) => m.disposalMethod === 'sidecast' && m.targetId === `sidecast:${range.id}`)
+      .reduce((sum, m) => sum + m.transportedVolumeM3, 0)
+    if (volume > EPS)
+      lines.push({
+        id: `sidecast-${range.id}`,
+        group: 'waste',
+        item: `Permitted sidecast · ${range.start}–${range.end} m`,
+        quantity: volume,
+        unit: 'bank m³',
+        rate: range.unitRate,
+        rateUnit: '$/bank m³',
+        rateKey: null,
+        amount: volume * range.unitRate,
+      })
+  }
   return lines
+}
+
+function economicHaul(alignment: Alignment, intervals: EarthworkInterval[], coverageComplete: boolean) {
+  const e = alignment.engineering!,
+    h = e.haul
+  const summary = emptyHaul(h.enabled, coverageComplete)
+  summary.allocationMethod = 'economic'
+  summary.sidecastBankM3 = 0
+  const movements: HaulMovement[] = []
+  const costs = { haul: 0, borrow: 0, waste: 0, sitePreparation: 0 }
+  const warnings: string[] = []
+  if (!h.enabled) {
+    summary.complete = false
+    summary.optimizationStatus = 'not-requested'
+    warnings.push(
+      'Material requirements or construction constraints are entered, but haul allocation is disabled. Material suitability and constructible movements have not been established.',
+    )
+    return { summary, movements, costs, warnings }
+  }
+  const solved = solveMaterialAllocation(e, intervals, (d) => haulUnitCost(h, d), {
+    deferExternal: h.deferExternalSupply,
+  })
+  summary.optimizationStatus = h.deferExternalSupply ? 'not-requested' : solved.status
+  if (solved.status === 'infeasible') {
+    summary.complete = false
+    summary.unallocatedBorrowM3 = intervals.reduce(
+      (sum, p) => sum + p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
+      0,
+    )
+    summary.unallocatedWasteM3 = intervals.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
+    warnings.push(
+      `${solved.reason} No economic material prescription or movement cost was adopted; zero movement costs do not mean the work is free.`,
+    )
+    return { summary, movements, costs, warnings }
+  }
+  summary.objectiveCost = solved.objectiveCost ?? undefined
+  costs.sitePreparation = e.sites
+    .filter((s) => solved.usedSiteIds.includes(s.id))
+    .reduce((sum, s) => sum + s.fixedCost, 0)
+  for (const flow of solved.movements) {
+    const { supplyCost, disposalCost, ...input } = flow
+    const { category } = haulCharge(h, flow.distanceM)
+    const haulCost =
+      flow.disposalMethod === 'sidecast' || flow.externalUnresolved
+        ? 0
+        : flow.transportedVolumeM3 * haulUnitCost(h, flow.distanceM)
+    movements.push({ ...input, id: `haul-${movements.length + 1}`, category, haulCost })
+    costs.haul += haulCost
+    costs.borrow += flow.transportedVolumeM3 * supplyCost
+    costs.waste += flow.transportedVolumeM3 * disposalCost
+    if (flow.kind === 'borrow') summary.borrowCompactedM3 += flow.transportedVolumeM3
+    if (flow.kind === 'waste') summary.wasteBankM3 += flow.transportedVolumeM3
+    if (flow.externalUnresolved) {
+      if (flow.kind === 'borrow') summary.unallocatedBorrowM3 += flow.transportedVolumeM3
+      else summary.unallocatedWasteM3 += flow.transportedVolumeM3
+      continue
+    }
+    if (flow.disposalMethod === 'sidecast') {
+      summary.sidecastBankM3! += flow.transportedVolumeM3
+      continue
+    }
+    if (flow.volumeBasis === 'bank') {
+      summary.wasteHaulM3Km += (flow.transportedVolumeM3 * flow.distanceM) / 1000
+      if (category === 'freehaul') summary.wasteFreeHaulBankM3 += flow.transportedVolumeM3
+      else if (category === 'overhaul') summary.wasteOverhaulBankM3 += flow.transportedVolumeM3
+      else summary.wasteEndHaulBankM3 += flow.transportedVolumeM3
+    } else {
+      summary.haulM3Km += (flow.transportedVolumeM3 * flow.distanceM) / 1000
+      if (category === 'freehaul') summary.freeHaulM3 += flow.transportedVolumeM3
+      else if (category === 'overhaul') summary.overhaulM3 += flow.transportedVolumeM3
+      else summary.endHaulM3 += flow.transportedVolumeM3
+    }
+  }
+  summary.complete = coverageComplete && summary.unallocatedBorrowM3 < EPS && summary.unallocatedWasteM3 < EPS
+  if (!coverageComplete)
+    warnings.push(
+      'Economic allocation applies only inside each continuous supported run; material is not transferred across missing terrain or daylight.',
+    )
+  warnings.push(
+    h.deferExternalSupply
+      ? 'Internal-use material plan only: external supply/disposal parcels remain explicitly unresolved for connected network pricing; this is not a complete economic prescription.'
+      : `Economic material flow solved to optimality within ${solved.variables} variables and ${solved.constraints} constraints, including fixed site openings. It does not schedule equipment or validate site permissions.`,
+  )
+  return { summary, movements, costs, warnings }
 }
 
 /**
@@ -279,6 +396,15 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
 function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], coverageComplete: boolean) {
   const e = alignment.engineering!,
     h = e.haul
+  if (
+    h.allocation === 'economic' ||
+    h.deferExternalSupply ||
+    e.fillRequirements?.length ||
+    h.directionRanges?.length ||
+    h.sidecastRanges?.length ||
+    intervals.some((p) => p.demands?.length)
+  )
+    return economicHaul(alignment, intervals, coverageComplete)
   const summary = emptyHaul(h.enabled, coverageComplete)
   const movements: HaulMovement[] = [],
     warnings: string[] = []
@@ -730,8 +856,18 @@ export function calculateEngineering(
     let usable = 0,
       unusable = 0
     for (let j = 0; j < materials.length; j++) {
-      const m = materials[j],
-        bank = ((previous.materialAreas[j].cutAreaM2! + current.materialAreas[j].cutAreaM2!) * ds) / 2
+      const m = materials[j]
+      const preparation = (station: RoadStation) =>
+        (station.preparationAreas ?? [])
+          .filter((p) => (p.materialId ?? defaults.id) === m.id)
+          .reduce((sum, p) => sum + p.areaM2, 0)
+      const bank =
+        ((previous.materialAreas[j].cutAreaM2! +
+          current.materialAreas[j].cutAreaM2! +
+          preparation(a) +
+          preparation(b)) *
+          ds) /
+        2
       const reusable = bank * m.reusableFraction * m.compactionFactor,
         waste = bank * (1 - m.reusableFraction)
       const q = quantities.get(m.id)!
@@ -746,24 +882,74 @@ export function calculateEngineering(
     }
     current.usableCutVolumeM3 = usable
     current.unusableCutVolumeM3 = unusable
+    const chainage = (a.chainage + b.chainage) / 2
+    const demands: NonNullable<EarthworkInterval['demands']> = []
+    const addLayer = (id: string, materialId: string | undefined, areaA: number, areaB: number, subgrade = false) => {
+      if (!materialId && !requiredFillAt(e, chainage, id)) return
+      const volumeM3 = Math.max(0, ((areaA + areaB) * ds) / 2)
+      if (volumeM3 > EPS)
+        demands.push({
+          layer: id,
+          key: materialDemandKey(id, materialId, subgrade),
+          volumeM3,
+          ...(materialId ? { materialId } : {}),
+          ...(subgrade ? { subgrade: true } : {}),
+        })
+    }
+    const layerA = surfaceLayersAt(alignment, a.chainage),
+      layerM = surfaceLayersAt(alignment, chainage),
+      layerB = surfaceLayersAt(alignment, b.chainage)
+    for (const key of new Set(
+      [...layerA, ...layerM, ...layerB].map((layer) => materialDemandKey(layer.id, layer.materialId)),
+    )) {
+      const rows = [layerA, layerM, layerB].map((layers) =>
+        layers.filter((layer) => materialDemandKey(layer.id, layer.materialId) === key),
+      )
+      const row = [...rows[1], ...rows[0], ...rows[2]][0],
+        id = row.id,
+        materialId = row.materialId
+      if (!materialId && !requiredFillAt(e, chainage, id)) continue
+      const areas = rows.map((layers) => layers.reduce((sum, layer) => sum + layer.areaM2, 0))
+      const volumeM3 = ((areas[0] + 4 * areas[1] + areas[2]) * ds) / 6
+      if (volumeM3 > EPS) demands.push({ layer: id, key, volumeM3, ...(materialId ? { materialId } : {}) })
+    }
+    for (const key of new Set(
+      [...(a.componentAreas ?? []), ...(b.componentAreas ?? [])].map((c) =>
+        materialDemandKey(c.id, c.materialId, true),
+      ),
+    )) {
+      const rows = [a.componentAreas ?? [], b.componentAreas ?? []].map((items) =>
+        items.filter((c) => materialDemandKey(c.id, c.materialId, true) === key),
+      )
+      const component = [...rows[0], ...rows[1]][0]
+      addLayer(
+        component.id,
+        component.materialId,
+        rows[0].reduce((sum, c) => sum + c.areaM2, 0),
+        rows[1].reduce((sum, c) => sum + c.areaM2, 0),
+        true,
+      )
+    }
     if (massKnown) {
-      mass += usable - b.fillVolumeM3!
+      mass += usable - b.fillVolumeM3! - demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
       current.massM3 = mass
     }
     intervals.push({
       id: `interval-${i}`,
       start: a.chainage,
       end: b.chainage,
-      chainage: (a.chainage + b.chainage) / 2,
+      chainage,
       run,
       cut,
       fill: b.fillVolumeM3!,
+      ...(demands.length ? { demands } : {}),
     })
   }
   const coverageComplete = hasCompleteCoverage(analysis)
   const haul = allocateHaul(alignment, intervals, coverageComplete)
   const warnings = [...haul.warnings]
   if (
+    !e.sitePreparation?.length &&
     e.materials.some((m) => m.purpose === 'stripping') &&
     e.strata.some((s) => materialMap.get(s.materialId)?.purpose === 'stripping')
   )
@@ -785,11 +971,25 @@ export function calculateEngineering(
   const strippingCutM3 = materialResults
     .filter((m) => m.purpose === 'stripping')
     .reduce((sum, m) => sum + m.bankCutM3, 0)
+  const materialLayerVolumeM3 = intervals.reduce(
+    (sum, p) => sum + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
+    0,
+  )
+  const materialLayerPlacementCost = materialLayerVolumeM3 * settings.fillRate
+  if (materialLayerVolumeM3 > EPS)
+    warnings.push(
+      'Material-allocated surface courses price material and haul separately; their placement uses the entered fill-placement rate. Only remaining generic surfacing uses the delivered surfacing rate/supply scenario.',
+    )
   const costs: EngineeringCosts = {
     cut: materialResults.filter((m) => m.purpose !== 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
     stripping: materialResults.filter((m) => m.purpose === 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
     fill: analysis.fillVolumeM3 * settings.fillRate,
-    surfacing: surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, e.surfacingSupply).cost,
+    surfacing:
+      surfacingSupplyCost(
+        Math.max(0, analysis.surfaceVolumeM3 - materialLayerVolumeM3),
+        settings.surfacingRate,
+        e.surfacingSupply,
+      ).cost + materialLayerPlacementCost,
     clearing: analysis.clearingAreaM2 * settings.clearingRate,
     structures: culverts.reduce((sum, c) => sum + c.installedCost, 0),
     ...haul.costs,
@@ -822,9 +1022,10 @@ export function calculateEngineering(
     usableCutM3,
     unusableCutM3,
     strippingCutM3,
-    balanceM3: usableCutM3 - analysis.fillVolumeM3,
+    balanceM3: usableCutM3 - analysis.fillVolumeM3 - materialLayerVolumeM3,
     complete: coverageComplete && haul.summary.complete && culverts.every((c) => c.complete) && !outOfRange.length,
     warnings,
+    ...(materialLayerVolumeM3 > EPS ? { materialLayerVolumeM3, materialLayerPlacementCost } : {}),
   }
 }
 

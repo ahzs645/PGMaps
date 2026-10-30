@@ -181,6 +181,99 @@ function compare(candidates: FullCostCandidateInput[], planning: TotalCostPlanni
 }
 
 describe('checked horizontal full-cost comparison', () => {
+  it('retains named surface-layer quantities and requires a matching external material class', () => {
+    const c = candidate('short-a', a)
+    c.alignment.engineering!.materials = [
+      {
+        id: 'rock',
+        name: 'Rock',
+        color: '#888888',
+        cutRate: 2,
+        reusableFraction: 1,
+        compactionFactor: 0.8,
+        quality: 90,
+      },
+    ]
+    c.alignment.template.layers = [
+      { id: 'base', name: 'Rock base', side: 'both', depthM: 0.1, materialId: 'rock' },
+      { id: 'finish', name: 'Finish', side: 'both', depthM: 0.2 },
+    ]
+    c.analysis = analyzeFullCostConnector(c.alignment, terrain, settings)
+    const demands = buildFullCostDemands(c.alignment, c.analysis, c.entryChainage)
+    expect(demands.filter((d) => d.layer === 'base').reduce((s, d) => s + d.volumeM3, 0)).toBeCloseTo(60, 4)
+    expect(demands.filter((d) => d.layer === 'finish').reduce((s, d) => s + d.volumeM3, 0)).toBeCloseTo(120, 4)
+    expect(compare([c], plan()).candidates[0].status).toBe('infeasible')
+    const result = compare([c], plan({ sources: [source('classified', { materialIds: ['rock'], quality: 90 })] }))
+      .candidates[0]
+    expect(result.status).toBe('feasible')
+    expect(
+      result.allocations.some((allocation) => allocation.demandLayer === 'base' && allocation.materialId === 'rock'),
+    ).toBe(true)
+  })
+  it('reserves shared external capacity for high-quality subgrade and keeps a low-quality surface source eligible', () => {
+    const c = candidate('short-a', a, 802)
+    c.alignment.engineering!.fillRequirements = [
+      { id: 'quality', start: 0, end: 1000, layer: 'subgrade', minQuality: 80, replaceable: true },
+    ]
+    c.analysis = analyzeFullCostConnector(c.alignment, terrain, settings)
+    const result = compare(
+      [c],
+      plan({
+        sources: [
+          source('high', { capacityM3: 1600, quality: 90 }),
+          source('common', { uses: ['surfacing'], capacityM3: 120, quality: 20 }),
+        ],
+      }),
+    ).candidates[0]
+    expect(result.status).toBe('feasible')
+    expect(
+      result.allocations
+        .filter((allocation) => allocation.use === 'fill')
+        .every((allocation) => allocation.sourceId === 'high'),
+    ).toBe(true)
+    expect(
+      result.allocations
+        .filter((allocation) => allocation.use === 'surfacing')
+        .every((allocation) => allocation.sourceId === 'common'),
+    ).toBe(true)
+  })
+  it('blocks external deliveries that would cross an incompatible construction-direction range', () => {
+    const c = candidate('short-a', a)
+    c.alignment.engineering!.haul.directionRanges = [{ id: 'forward', start: 0, end: 1000, direction: 'forward' }]
+    c.analysis = analyzeFullCostConnector(c.alignment, terrain, settings)
+    const result = compare([c], plan()).candidates[0]
+    expect(result.status).toBe('infeasible')
+    expect(result.blockers.join(' ')).toContain('construction-direction')
+  })
+  it('uses internal rock in a surface course without subtracting it from embankment fill or buying it twice', () => {
+    const c = candidate('short-a', a, 798)
+    c.alignment.engineering!.materials = [
+      {
+        id: 'rock',
+        name: 'Rock',
+        color: '#888888',
+        cutRate: 2,
+        reusableFraction: 1,
+        compactionFactor: 0.8,
+        quality: 90,
+      },
+    ]
+    c.alignment.engineering!.strata = [
+      { id: 'all', start: 0, end: 1000, materialId: 'rock', topDepthM: 0, bottomDepthM: null },
+    ]
+    c.alignment.template.layers = [
+      { id: 'rock-course', name: 'Rock course', side: 'both', depthM: 0.2, materialId: 'rock' },
+    ]
+    c.analysis = analyzeFullCostConnector(c.alignment, terrain, settings)
+    const demands = buildFullCostDemands(c.alignment, c.analysis, c.entryChainage)
+    expect(demands.some((d) => d.use === 'surfacing' || d.use === 'fill')).toBe(false)
+    expect(demands.filter((d) => d.use === 'waste').reduce((s, d) => s + d.volumeM3, 0)).toBeCloseTo(1450, 3)
+    const result = compare([c], plan({ sources: [source('spoil', { uses: ['waste'], materialIds: ['rock'] })] }))
+      .candidates[0]
+    expect(result.status).toBe('feasible')
+    expect(result.allocations.every((allocation) => allocation.use === 'waste')).toBe(true)
+    expect(result.ledger!.newConstruction).toBeGreaterThan(3200 + 120 * settings.fillRate)
+  })
   it('changes the winning horizontal geometry when actual connected gravel haul is priced', () => {
     const candidates = [candidate('short-a', a), candidate('long-b', b)]
     expect(compare(candidates, plan()).winnerId).toBe('short-a')

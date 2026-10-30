@@ -8,6 +8,7 @@ import {
   parseFullCostRecord,
   MAX_FULL_COST_SIGNATURE_BYTES,
   FULL_COST_MODEL_VERSION,
+  numericContentFingerprint,
   type FullCostReviewRecord,
 } from './fullCostRecord'
 import type { FullCostCandidateResult } from './fullCostComparison'
@@ -218,6 +219,96 @@ describe('saved complete-access cost snapshots', () => {
         terrain: { ...rasterProject.terrain, raster: { ...rasterProject.terrain.raster, pixelSize: [0.002, -0.001] } },
       }),
     ).not.toBe(signature)
+    rasterProject.terrain.raster.values[0] = 999
+    expect(fullCostInputSignature(alignment, rasterProject)).not.toBe(signature)
+  })
+
+  it('compacts large analytical grids/TINs and ignores independent image display edits', () => {
+    const { project, alignment, result } = fixture()
+    const raster = {
+      id: 'grid',
+      name: 'Large grid',
+      kind: 'terrain' as const,
+      epsg: 32610,
+      origin: [500000, 6000000] as [number, number],
+      pixelSize: [1, -1] as [number, number],
+      width: 1024,
+      height: 1024,
+      values: new Array(1024 * 1024).fill(100.123456789),
+      acquired: '',
+      verticalReference: project.terrain.verticalReference,
+      sha256: 'a'.repeat(64),
+    }
+    project.terrain = {
+      ...project.terrain,
+      kind: 'geotiff',
+      epsg: 32610,
+      sha256: raster.sha256,
+      raster,
+      referenceSurfaces: [
+        {
+          id: 'surface:reference',
+          name: 'Earlier ground',
+          raster: { ...raster, width: 2, height: 2, values: [100, 101, 102, 103] },
+        },
+      ],
+      preparation: {
+        operation: 'point-cloud',
+        sources: [
+          { name: 'Cloud', sha256: raster.sha256, epsg: raster.epsg, verticalReference: raster.verticalReference },
+        ],
+        method: 'Retained TIN',
+        parameters: {},
+        tin: { coordinates: [0, 0, 1, 0, 0, 1], elevations: [100, 101, 102], triangles: [0, 1, 2] },
+      },
+      backgrounds: [
+        {
+          id: 'canopy',
+          name: 'Display canopy',
+          kind: 'canopy',
+          epsg: 32610,
+          origin: [500000, 6000000],
+          pixelSize: [1, -1],
+          width: 2,
+          height: 2,
+          rgba: new Array(16).fill(255),
+          visible: true,
+          opacity: 0.5,
+          sha256: 'b'.repeat(64),
+        },
+      ],
+    }
+    const record = createFullCostRecord(alignment, project, result),
+      adopted = attach(alignment, record),
+      signature = record.inputSignature
+    expect(signature.length).toBeLessThan(20_000)
+    expect(signature).not.toContain('"values"')
+    expect(JSON.stringify(JSON.parse(signature).terrain)).not.toContain('"coordinates"')
+    expect(signature).not.toContain('"backgrounds"')
+    project.terrain.backgrounds![0].opacity = 0.1
+    project.terrain.backgrounds![0].rgba[0] = 0
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(true)
+    raster.values[12345] = 200
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(false)
+    raster.values[12345] = 100.123456789
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(true)
+    project.terrain.referenceSurfaces![0].raster.values[0] = 50
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(false)
+    project.terrain.referenceSurfaces![0].raster.values[0] = 100
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(true)
+    project.terrain.preparation!.tin!.elevations[0] = 10
+    expect(isFullCostRecordCurrent(adopted, project)).toBe(false)
+  })
+
+  it('fingerprints exact numeric words, nulls, order and length without an identity cache', () => {
+    const values: [number | null, number | null] = [1, 2],
+      first = numericContentFingerprint(values)
+    expect(numericContentFingerprint([2, 1])).not.toBe(first)
+    expect(numericContentFingerprint([1, 2, 0])).not.toBe(first)
+    expect(numericContentFingerprint([null, 2])).not.toBe(numericContentFingerprint([0, 2]))
+    values[0] = 1.000000000000001
+    expect(numericContentFingerprint(values)).not.toBe(first)
+    expect(() => numericContentFingerprint([NaN])).toThrow(/finite numbers/)
   })
 
   it('rejects infeasible adoption, contradictory totals and dates, and over-budget input records', () => {

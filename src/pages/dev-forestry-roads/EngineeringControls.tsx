@@ -9,7 +9,10 @@ import { createEngineeringDesign } from './engineeringTypes'
 import { downloadText } from '@/lib/download'
 import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
+import { SectionAssemblyEditor } from './SectionAssemblyEditor'
+import { SitePreparationEditor } from './SitePreparationEditor'
 import { GravelSourcesPanel } from './GravelSourcesPanel'
+import { MaterialAllocationControls } from './MaterialAllocationControls'
 import { surfacingSupplyCost } from './gravel'
 import { ReferenceSelect } from './CostReferenceControls'
 import { nearestStation } from './engine'
@@ -147,6 +150,15 @@ export function EngineeringControls({
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  const constrainedAllocation = !!(
+    design.fillRequirements?.length ||
+    design.haul.directionRanges?.length ||
+    design.haul.sidecastRanges?.length ||
+    analysis.engineering?.materialLayerVolumeM3 ||
+    analysis.engineering?.movements.some(
+      (m) => m.kind === 'cut-to-fill' && m.demandLayer && m.demandLayer !== 'subgrade',
+    )
+  )
   const aggregate = surfacingSupplyCost(
     analysis.surfaceVolumeM3,
     project.settings.surfacingRate,
@@ -182,7 +194,9 @@ export function EngineeringControls({
   const templateDirty =
     !!selected &&
     !!candidate &&
-    [...templateFields, ...sideFields].some(({ key }) => candidate[key] !== selected.template[key])
+    ([...templateFields, ...sideFields].some(({ key }) => candidate[key] !== selected.template[key]) ||
+      JSON.stringify(candidate.components) !== JSON.stringify(selected.template.components) ||
+      JSON.stringify(candidate.layers) !== JSON.stringify(selected.template.layers))
   const at = nearestStation(analysis.stations, w.station)
   const edit = (change: (e: AlignmentEngineering) => AlignmentEngineering) =>
     w.updateAlignment((a) => ({ ...a, engineering: change(a.engineering ?? createEngineeringDesign()) }))
@@ -191,12 +205,35 @@ export function EngineeringControls({
     id: string,
     changes: Partial<AlignmentEngineering[K][number]>,
   ) => edit((e) => ({ ...e, [key]: e[key].map((x) => (x.id === id ? { ...x, ...changes } : x)) }))
-  const remove = (key: 'assignments' | 'materials' | 'strata' | 'culverts' | 'sites', id: string) =>
-    edit((e) => ({
-      ...e,
-      [key]: e[key].filter((x) => x.id !== id),
-      ...(key === 'materials' ? { strata: e.strata.filter((s) => s.materialId !== id) } : {}),
-    }))
+  const remove = (key: 'assignments' | 'materials' | 'strata' | 'culverts' | 'sites', id: string) => {
+    if (key !== 'materials') {
+      edit((e) => ({ ...e, [key]: e[key].filter((x) => x.id !== id) }))
+      return
+    }
+    const usesMaterial = (t: RoadTemplate) =>
+      !!(
+        t.layers?.some((layer) => layer.materialId === id) ||
+        t.components?.some((component) => component.materialId === id)
+      )
+    const e = design
+    const referenced =
+      e.strata.some((s) => s.materialId === id) ||
+      e.sitePreparation?.some((s) => s.materialId === id) ||
+      e.fillRequirements?.some((r) => r.materialId === id) ||
+      e.sites.some((site) => site.materialId === id) ||
+      e.haul.sidecastRanges?.some((range) => range.materialIds?.includes(id)) ||
+      project.totalCostPlanning?.sources.some((source) => source.materialIds?.includes(id)) ||
+      usesMaterial(alignment.template) ||
+      e.templates.some((definition) => usesMaterial(definition.template))
+    if (referenced) {
+      w.setError(
+        'This material is referenced by a section, horizon, preparation, fill requirement, site, quoted source or sidecast rule. Reassign or remove those references before deleting the material. No work was changed.',
+      )
+      return
+    }
+    edit((value) => ({ ...value, materials: value.materials.filter((material) => material.id !== id) }))
+    w.setError('')
+  }
   const updateTemplate = (changes: Partial<RoadTemplate>) => {
     if (!selected || !candidate) return
     const next = { ...candidate, ...changes }
@@ -333,7 +370,13 @@ export function EngineeringControls({
                     return {
                       ...current,
                       alignments: current.alignments.map((a) =>
-                        a.id === alignment.id ? importRoadLibrary(a, text, libraryMode) : a,
+                        a.id === alignment.id
+                          ? importRoadLibrary(a, text, libraryMode, {
+                              retainedMaterialIds: current.totalCostPlanning?.sources.flatMap(
+                                (source) => source.materialIds ?? [],
+                              ),
+                            })
+                          : a,
                       ),
                     }
                   })
@@ -452,10 +495,37 @@ export function EngineeringControls({
                     }))
                   }
                   onDelete={() => {
+                    const dependent = design.assignments.filter((a) => a.templateId === selected.id).length
+                    if (dependent) {
+                      w.setError(
+                        `Reassign or remove ${dependent} template assignment${dependent === 1 ? '' : 's'} first. No work was changed.`,
+                      )
+                      return
+                    }
+                    const removedIds = new Set(
+                      [...(selected.template.components ?? []), ...(selected.template.layers ?? [])].map((c) => c.id),
+                    )
+                    const availableIds = new Set(
+                      [
+                        ...(alignment.template.components ?? []),
+                        ...(alignment.template.layers ?? []),
+                        ...design.templates
+                          .filter((t) => t.id !== selected.id)
+                          .flatMap((t) => [...(t.template.components ?? []), ...(t.template.layers ?? [])]),
+                      ].map((c) => c.id),
+                    )
+                    const requirements =
+                      design.fillRequirements?.filter((r) => removedIds.has(r.layer) && !availableIds.has(r.layer))
+                        .length ?? 0
+                    if (requirements) {
+                      w.setError(
+                        `Reassign or remove ${requirements} fill requirement${requirements === 1 ? '' : 's'} first. This template supplies its demand-layer definition. No work was changed.`,
+                      )
+                      return
+                    }
                     edit((e) => ({
                       ...e,
                       templates: e.templates.filter((t) => t.id !== selected.id),
-                      assignments: e.assignments.filter((a) => a.templateId !== selected.id),
                     }))
                     onClosePreview?.()
                   }}
@@ -470,6 +540,13 @@ export function EngineeringControls({
                     : 'Saved template parameters. Edits can be previewed before saving.'}
                 </p>
                 <Fields value={candidate} fields={templateFields} onChange={updateTemplate} />
+                <SectionAssemblyEditor
+                  template={candidate}
+                  materials={design.materials}
+                  features={project.context}
+                  surfaces={project.terrain.referenceSurfaces}
+                  onChange={(value) => updateTemplate(value)}
+                />
                 <details className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
                   <div className="space-y-2">
@@ -480,13 +557,13 @@ export function EngineeringControls({
                             {...field}
                             label={field.label}
                             value={
-                              candidate[field.key] ??
-                              candidate[
-                                field.key
-                                  .replace(/^(left|right)/, '')
-                                  .replace(/^./, (c) => c.toLowerCase()) as keyof RoadTemplate
-                              ] ??
-                              0
+                              (candidate[field.key] ??
+                                candidate[
+                                  field.key
+                                    .replace(/^(left|right)/, '')
+                                    .replace(/^./, (c) => c.toLowerCase()) as keyof RoadTemplate
+                                ] ??
+                                0) as number
                             }
                             onChange={(value) => updateTemplate({ [field.key]: value })}
                           />
@@ -724,12 +801,44 @@ export function EngineeringControls({
                   ]}
                   onChange={(p) => patch('materials', m.id, p)}
                 />
+                <div className="grid grid-cols-2 gap-2">
+                  <OptionalNumberField
+                    label={`${m.name} quality (0–100)`}
+                    value={m.quality ?? null}
+                    min={0}
+                    max={100}
+                    placeholder="unknown"
+                    onChange={(quality) => patch('materials', m.id, { quality: quality ?? undefined })}
+                  />
+                  <OptionalNumberField
+                    label={`${m.name} cut batter (H:V)`}
+                    value={m.cutSlope ?? null}
+                    min={0.1}
+                    max={10}
+                    placeholder="template slope"
+                    onChange={(cutSlope) => patch('materials', m.id, { cutSlope: cutSlope ?? undefined })}
+                  />
+                  <OptionalNumberField
+                    label={`${m.name} fill batter (H:V)`}
+                    value={m.fillSlope ?? null}
+                    min={0.1}
+                    max={10}
+                    placeholder="template slope"
+                    onChange={(fillSlope) => patch('materials', m.id, { fillSlope: fillSlope ?? undefined })}
+                  />
+                </div>
               </div>
             ))}
           </RoadSection>
+          <SitePreparationEditor
+            design={design}
+            length={analysis.length}
+            station={w.station}
+            onChange={(value) => edit(() => value)}
+          />
           <RoadSection
             title="Station ranges & ground horizons"
-            help="Depths are vertical below original ground. Horizons cannot overlap. Excavated stripping is reported separately and never reused; this does not model stripping or undercut beneath fill areas."
+            help="Depths are vertical below original ground. Horizons cannot overlap. Excavated stripping is reported separately and never reused. Use pre-construction stripping to remove ground beneath fills."
           >
             <Button
               size="sm"
@@ -988,8 +1097,19 @@ export function EngineeringControls({
             />
             <RoadSection
               title="Haul & cost assumptions"
-              help="Allocations use a deterministic chainage-order plan within covered intervals. Choose nearest or lowest delivered batch cost. Haul distance follows road chainage plus site access. This is a cost scenario, not a global route or haul optimizer."
+              help="Nearest mode retains the original chainage-order scenario. Economic mode solves a bounded mixed-integer material flow including capacities and fixed site openings. Quality/direction/sidecast rules use economic mode. Haul follows chainage plus site access."
             >
+              <ReferenceSelect
+                label="Material allocation method"
+                value={constrainedAllocation ? 'economic' : (design.haul.allocation ?? 'nearest')}
+                options={[
+                  ...(constrainedAllocation ? [] : [{ value: 'nearest', label: 'Nearest-source scenario' }]),
+                  { value: 'economic', label: 'Economic material flow' },
+                ]}
+                onChange={(allocation) =>
+                  edit((e) => ({ ...e, haul: { ...e.haul, allocation: allocation as HaulSettings['allocation'] } }))
+                }
+              />
               <ReferenceSelect
                 label="Borrow / waste site selection"
                 value={design.haul.siteSelection ?? 'nearest'}
@@ -1105,6 +1225,24 @@ export function EngineeringControls({
                     ]}
                     onChange={(p) => patch('sites', s.id, p)}
                   />
+                  <Field label={`Site ${index + 1} material`}>
+                    <select
+                      className={roadFieldClass}
+                      value={s.materialId ?? ''}
+                      onChange={(event) => patch('sites', s.id, { materialId: event.target.value || undefined })}
+                    >
+                      <option value="">
+                        {s.kind === 'borrow' ? 'Unknown material (cannot meet quality rules)' : 'Accept all materials'}
+                      </option>
+                      {design.materials
+                        .filter((m) => s.kind === 'waste' || m.purpose !== 'stripping')
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
                   <label className="flex items-center gap-1 text-xs">
                     <input
                       type="checkbox"
@@ -1130,6 +1268,19 @@ export function EngineeringControls({
                 </div>
               ))}
             </RoadSection>
+            <MaterialAllocationControls
+              design={design}
+              length={analysis.length}
+              layerIds={[
+                ...new Set(
+                  analysis.stations.flatMap((s) => [
+                    ...(s.layerAreas ?? []).map((layer) => layer.id),
+                    ...(s.componentAreas ?? []).map((component) => component.id),
+                  ]),
+                ),
+              ]}
+              onChange={(value) => edit(() => value)}
+            />
           </RoadSettingsDialog>
         </>
       )}

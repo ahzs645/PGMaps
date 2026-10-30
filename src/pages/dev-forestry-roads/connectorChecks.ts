@@ -6,6 +6,7 @@ import DistanceOp from 'jsts/org/locationtech/jts/operation/distance/DistanceOp.
 import {
   analyzeRoad,
   createRoadStationSampler,
+  curveDesignAt,
   distance,
   horizontalCurveSummary,
   horizontalGeometry,
@@ -74,6 +75,8 @@ export interface ConnectorCheckInput {
   terrain: TerrainSource
   settings: RoadSettings
   context?: ContextFeature[]
+  referenceSurfaces?: Record<string, TerrainSource>
+  verticalReference?: string
   options?: Partial<ConnectorCheckOptions>
   /** Native horizontal source resolution. Coarse/unknown resolution cannot pass a site-level connector gate. */
   terrainResolutionM?: number
@@ -144,6 +147,8 @@ export function checkConnector({
   terrain,
   settings,
   context = [],
+  referenceSurfaces,
+  verticalReference,
   options: input,
   terrainResolutionM,
   expectedStart,
@@ -219,16 +224,24 @@ export function checkConnector({
       )
     if (!(settings.minRadius > 0))
       add('unknown', 'minimum-radius-unset', 'Set a positive minimum fitted radius before adopting a connector.')
-    const countedTerrain: TerrainSource = {
+    const countSource = (source: TerrainSource): TerrainSource => ({
       elevationAt: (longitude, latitude) => {
         if (++metrics.terrainSamples > MAX_CONNECTOR_TERRAIN_SAMPLES)
           throw Error('Final connector terrain-sampling budget exceeded; split the planning section.')
-        return terrain.elevationAt(longitude, latitude)
+        return source.elevationAt(longitude, latitude)
       },
-    }
+    })
+    const countedTerrain = countSource(terrain)
+    const countedReferences = Object.fromEntries(
+      Object.entries(referenceSurfaces ?? {}).map(([id, source]) => [id, countSource(source)]),
+    )
     let sampler: ReturnType<typeof createRoadStationSampler>
     try {
-      sampler = createRoadStationSampler(alignment, countedTerrain, settings)
+      sampler = createRoadStationSampler(alignment, countedTerrain, settings, {
+        context,
+        referenceSurfaces: countedReferences,
+        verticalReference,
+      })
     } catch (error) {
       add(
         'failure',
@@ -269,7 +282,7 @@ export function checkConnector({
     }
     const curves = horizontalCurveSummary(alignment)
     metrics.minFittedRadiusM = curves.length ? Math.min(...curves.map((curve) => curve.radius)) : null
-    for (const curve of curves)
+    for (const curve of curves) {
       if (curve.radius + EPS < settings.minRadius)
         add(
           'failure',
@@ -277,6 +290,9 @@ export function checkConnector({
           `Fitted radius ${curve.radius.toFixed(2)} m is below the entered ${settings.minRadius} m minimum.`,
           curve.start,
         )
+      const criteria = curveDesignAt(alignment, (curve.start + curve.end) / 2)
+      for (const warning of criteria?.warnings ?? []) add('failure', 'road-class-criteria', warning, curve.start)
+    }
     for (const warning of sampler.warnings)
       if (/sharp|overlap|does not fit|coincident|simple curve is used/i.test(warning))
         add('failure', 'invalid-final-geometry', warning)
@@ -329,7 +345,10 @@ export function checkConnector({
     const chainages = [...new Set(samples)]
       .sort((a, b) => a - b)
       .filter((s, index, all) => !index || s - all[index - 1] > 1e-7)
-    analysis = analyzeRoad(alignment, countedTerrain, { ...settings, stationInterval: 2 }, context)
+    analysis = analyzeRoad(alignment, countedTerrain, { ...settings, stationInterval: 2 }, context, {
+      referenceSurfaces: countedReferences,
+      verticalReference,
+    })
     if (
       ![
         analysis.length,
@@ -481,15 +500,31 @@ export function checkConnector({
         else
           add('unknown', 'incomplete-section', 'The whole road prism has incomplete terrain or daylight coverage.', s)
       }
-      for (const point of station.section)
+      for (const point of station.section) {
+        const prepared = point.preparedGround === undefined ? point.ground : point.preparedGround
+        if (
+          point.preparedGround !== undefined &&
+          point.ground !== null &&
+          prepared !== null &&
+          Number.isFinite(point.ground) &&
+          Number.isFinite(prepared)
+        )
+          metrics.maxCutDepthM = Math.max(metrics.maxCutDepthM, point.ground - prepared)
         if (point.design !== null) {
-          if (!Number.isFinite(point.design) || point.ground === null || !Number.isFinite(point.ground))
+          if (
+            !Number.isFinite(point.design) ||
+            point.ground === null ||
+            !Number.isFinite(point.ground) ||
+            prepared === null ||
+            !Number.isFinite(prepared)
+          )
             add('unknown', 'missing-prism-ground', 'A designed formation, ditch or batter point has missing ground.', s)
           else {
             metrics.maxCutDepthM = Math.max(metrics.maxCutDepthM, point.ground - point.design)
-            metrics.maxFillHeightM = Math.max(metrics.maxFillHeightM, point.design - point.ground)
+            metrics.maxFillHeightM = Math.max(metrics.maxFillHeightM, point.design - prepared)
           }
         }
+      }
       if (options.maxCutDepthM !== null && metrics.maxCutDepthM > options.maxCutDepthM + EPS)
         add('failure', 'maximum-cut', `Cut exceeds the entered ${options.maxCutDepthM} m depth limit.`, s)
       if (options.maxFillHeightM !== null && metrics.maxFillHeightM > options.maxFillHeightM + EPS)
@@ -536,6 +571,7 @@ export function checkConnector({
       Math.max(
         name === 'left' ? station.leftWidth : station.rightWidth,
         Math.abs((name === 'left' ? station.leftDaylightM : station.rightDaylightM) ?? 0),
+        (name === 'left' ? station.leftClearingM : station.rightClearingM) ?? 0,
       ) + options.clearingExtraM
     const maxK = Math.max(
       0,

@@ -131,7 +131,9 @@ export function CostBreakdown({
       : undefined
   const costs = result?.costs
   const supply = alignment.engineering?.surfacingSupply
-  const surfacing = surfacingSupplyCost(analysis.surfaceVolumeM3, settings.surfacingRate, supply)
+  const materialLayerVolumeM3 = result?.materialLayerVolumeM3 ?? 0
+  const genericSurfaceVolumeM3 = Math.max(0, analysis.surfaceVolumeM3 - materialLayerVolumeM3)
+  const surfacing = surfacingSupplyCost(genericSurfaceVolumeM3, settings.surfacingRate, supply)
   const surfacingRows: Row[] = supply?.enabled
     ? [
         {
@@ -157,12 +159,22 @@ export function CostBreakdown({
         {
           id: 'surfacing',
           item: 'Surfacing',
-          quantity: analysis.surfaceVolumeM3,
+          quantity: genericSurfaceVolumeM3,
           unit: 'm³',
           rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
-          amount: costs?.surfacing ?? analysis.surfaceVolumeM3 * settings.surfacingRate,
+          amount: genericSurfaceVolumeM3 * settings.surfacingRate,
         },
       ]
+  if (materialLayerVolumeM3 > 0)
+    surfacingRows.push({
+      id: 'material-course-placement',
+      item: 'Material courses · placement',
+      quantity: materialLayerVolumeM3,
+      unit: 'compacted m³',
+      rate: setting('fillRate', 'Material course placement rate', '$/m³'),
+      amount: materialLayerVolumeM3 * settings.fillRate,
+      note: 'The entered fill-placement rate places these courses; source material and haul are separate allocation lines. No delivered surfacing rate is charged on this volume.',
+    })
   const haulLines = result && alignment.engineering ? haulCostLines(alignment.engineering, result) : []
   const haulRows: Row[] = haulLines.length
     ? haulLines.map((line) => ({

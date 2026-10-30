@@ -35,10 +35,9 @@ async function saveProject(page: Page): Promise<RoadProject> {
     page,
     page.getByRole('button', { name: 'Save project JSON', exact: true }),
   )
-  await page
-    .getByRole('dialog', { name: 'Save & export', exact: true })
-    .getByRole('button', { name: 'Close', exact: true })
-    .click()
+  const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
   return project
 }
 
@@ -57,6 +56,8 @@ async function openCosts(page: Page) {
 test('rate presets preserve shrink and BC comparisons leave the itemized estimate unchanged', async ({
   page,
 }, testInfo) => {
+  // Several large software-rendered captures share this journey; control assertions retain 15 s.
+  testInfo.setTimeout(240_000)
   const errors = await prepare(page)
   const project = await saveProject(page)
   const road = project.alignments.find((item) => item.id === project.activeAlignmentId)!
@@ -92,7 +93,11 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await page.getByTestId('road-cost-review-toggle').click()
   await expect(page.getByTestId('road-cost-readiness')).toContainText('Cost scope and pricing need review')
   await expect(page.getByTestId('road-cost-readiness')).toContainText('does not measure cost confidence')
-  await page.screenshot({ path: testInfo.outputPath('desktop-estimate-review.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-estimate-review.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('road-cost-readiness')).toHaveCount(0)
   await expect(dialog).toBeVisible()
@@ -155,7 +160,11 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   expect(interior.result.subgradeTotal).toBeCloseTo(30416.4, 2)
   await expect(page.getByTestId('road-cost-total')).toHaveText(coveredTotal)
   await page.getByTestId('road-interior-benchmark-result').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('desktop-interior-comparison.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-interior-comparison.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
 
   await choose(page, 'BC natural resource region', 'West Coast')
   const coastDownload = page.getByRole('button', { name: 'Download Coast comparison JSON', exact: true })
@@ -185,7 +194,11 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   expect(coast.result.unitCostCadPerKm).toBe(155532.5)
   await expect(page.getByTestId('road-cost-total')).toHaveText(coveredTotal)
   await page.getByTestId('road-coast-benchmark-result').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('desktop-coast-comparison.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-coast-comparison.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
 
   // Quote conversions use their explicit volume basis and remain temporary comparison inputs.
   await page.getByRole('button', { name: 'Convert quotes and calculate unit rates', exact: true }).click()
@@ -201,7 +214,11 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await page.getByRole('spinbutton', { name: 'Net production (bank m³/charged hour)', exact: true }).fill('25')
   await expect(page.getByTestId('road-equipment-unit-rate')).toHaveText('12.00 CAD/bank m³')
   await page.getByTestId('road-equipment-unit-rate').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('desktop-unit-rates.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-unit-rates.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await expect(page.getByTestId('road-cost-total')).toHaveText(coveredTotal)
   await page.getByTestId('road-bc-cost-references').getByRole('button', { name: 'Close', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -219,7 +236,11 @@ test('phone cost references scroll to an eligible Coast comparison and download 
   await expect
     .poll(() => page.getByTestId('road-rate-sources').evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBeLessThanOrEqual(1)
-  await page.screenshot({ path: testInfo.outputPath('phone-estimate-review.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('phone-estimate-review.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   await page.getByTestId('road-bc-cost-toggle').click()
   await choose(page, 'BC natural resource region', 'West Coast')
   await choose(page, 'Coast construction category', 'OMLB · Other material — local ballast')
@@ -236,7 +257,11 @@ test('phone cost references scroll to an eligible Coast comparison and download 
   await expect(result).toBeInViewport()
   await download.scrollIntoViewIfNeeded()
   await expect(download).toBeInViewport()
-  await page.screenshot({ path: testInfo.outputPath('phone-coast-comparison.png') })
+  await page.screenshot({
+    path: testInfo.outputPath('phone-coast-comparison.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
   const box = (await download.boundingBox())!
   expect(box.x).toBeGreaterThanOrEqual(0)
   expect(box.x + box.width).toBeLessThanOrEqual(390)

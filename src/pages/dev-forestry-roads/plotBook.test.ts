@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
-import { plotBookHtml } from './plotBook'
+import { plotBookHtml, rangedMaterialQuantities } from './plotBook'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid } from './terrain'
+import { createReportChapter, createRoadReportSettings } from './reportSettings'
+import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -81,5 +83,124 @@ describe('plot book', () => {
     })
     expect(book.match(/>Contours 2 m \(index 10 m\) · from a 4\.3 m sample grid</g)).toHaveLength(3)
     expect(book).not.toContain('Contours unavailable')
+  })
+
+  it('authors ordered ranged chapters, table columns, label text and A4 paper without changing analysis', () => {
+    const settings = createRoadReportSettings()
+    settings.paper = 'A4'
+    settings.chapters = [
+      {
+        ...createReportChapter('schedule', 'table'),
+        title: 'Chosen station fields',
+        startM: 100,
+        endM: 200,
+        columns: ['station', 'grade', 'flags'],
+        sectionIntervalM: 50,
+      },
+      { ...createReportChapter('plan-profile', 'plan'), title: 'Short design', startM: 100, endM: 200 },
+      createReportChapter('curves', 'curves'),
+    ]
+    settings.subviews.mass = false
+    settings.subviews.legend = false
+    settings.subviews.contours = false
+    settings.stationLabel = '{road} @ {station}'
+    const before = JSON.stringify(analysis)
+    const book = plotBookHtml({
+      projectName: 'P <script>',
+      alignment,
+      analysis,
+      terrain,
+      settings,
+      ...exportGrid(terrain, origin),
+    })
+    expect(book.match(/<section class="sheet">/g)).toHaveLength(3)
+    expect(book.indexOf('Chosen station fields')).toBeLessThan(book.indexOf('Short design'))
+    expect(book).toContain('Short design 0+100.0–0+200.0')
+    expect(book).toContain('Spur &lt;1&gt; @ 0+100')
+    expect(book).toContain('@page{size:A4 landscape')
+    expect(book).toContain('Grade (%)')
+    expect(book).not.toContain('Interval cut (m³)')
+    expect(book).not.toContain('Mass haul (m³)')
+    expect(book).toContain('Contours hidden')
+    expect(book).not.toContain('<script>')
+    expect(JSON.stringify(analysis)).toBe(before)
+  })
+
+  it('uses physical print scale to shorten windows and refuses excessive sheet counts before rendering', () => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [{ ...settings.chapters[0], horizontalScale: 1000 }]
+    settings.chapters[0].sheetLengthM = 10000
+    const book = plotBookHtml({
+      projectName: 'P',
+      alignment,
+      analysis,
+      terrain,
+      settings,
+      ...exportGrid(terrain, origin),
+    })
+    expect(book.match(/<section class="sheet">/g)).toHaveLength(2)
+    expect(book).toContain('Horizontal 1:1000')
+    expect(book).toContain('H 1:1000, V×1')
+    settings.chapters[0].horizontalScale = 50
+    expect(() =>
+      plotBookHtml({
+        projectName: 'P',
+        alignment,
+        analysis: { ...analysis, length: 100000 },
+        terrain,
+        settings,
+        ...exportGrid(terrain, origin),
+      }),
+    ).toThrow('500 sheets')
+  })
+
+  it('includes prepared ground separately from source ground and design in cross-sections', () => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [createReportChapter('sections', 'prepared')]
+    const prepared = {
+      ...analysis,
+      stations: analysis.stations.map((s) => ({
+        ...s,
+        section: s.section.map((p) => ({ ...p, preparedGround: p.ground === null ? null : p.ground - 0.2 })),
+      })),
+    }
+    const book = plotBookHtml({
+      projectName: 'P',
+      alignment,
+      analysis: prepared,
+      terrain,
+      settings,
+      ...exportGrid(terrain, origin),
+    })
+    expect(book).toContain('data-role="prepared-ground"')
+    expect(book).not.toContain('NaN')
+  })
+
+  it('clips a material takeoff to range boundaries with the same volume basis as the engine', () => {
+    const engineering = createEngineeringDesign()
+    engineering.materials = [
+      { id: 'rock', name: 'Rock', color: '#888888', cutRate: 10, reusableFraction: 0.8, compactionFactor: 0.9 },
+    ]
+    engineering.strata = [{ id: 'h', start: 0, end: 100, materialId: 'rock', topDepthM: 0, bottomDepthM: null }]
+    const cut: Alignment = {
+      ...alignment,
+      points: [
+        { id: 'a', coordinate: origin, radiusM: 0 },
+        { id: 'b', coordinate: offsetCoordinate(origin, 0, 100), radiusM: 0 },
+      ],
+      vertical: [
+        { id: 's', chainage: 0, elevation: 798, curveLength: 0 },
+        { id: 'e', chainage: 100, elevation: 798, curveLength: 0 },
+      ],
+      engineering,
+    }
+    const result = analyzeRoad(cut, { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS)
+    const full = rangedMaterialQuantities(result, 0, result.length).find((m) => m.materialId === 'rock')!
+    const half = rangedMaterialQuantities(result, 25, 75).find((m) => m.materialId === 'rock')!
+    expect(full.bankCutM3).toBeCloseTo(result.engineering!.materials.find((m) => m.materialId === 'rock')!.bankCutM3, 7)
+    expect(half.bankCutM3).toBeCloseTo(full.bankCutM3 / 2, 5)
+    expect(half.excavationCost).toBeCloseTo(half.bankCutM3 * 10, 7)
+    expect(half.usableCompactedM3).toBeCloseTo(half.bankCutM3 * 0.8 * 0.9, 7)
+    expect(half.unusableBankM3).toBeCloseTo(half.bankCutM3 * 0.2, 7)
   })
 })

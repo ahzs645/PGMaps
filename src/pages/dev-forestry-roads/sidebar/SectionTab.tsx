@@ -11,7 +11,10 @@ import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
 
 const id = () => crypto.randomUUID()
-const TEMPLATE_FIELDS: [keyof RoadTemplate, string, number, number][] = [
+type NumericTemplateKey = {
+  [K in keyof RoadTemplate]-?: RoadTemplate[K] extends number | undefined ? K : never
+}[keyof RoadTemplate]
+const TEMPLATE_FIELDS: [NumericTemplateKey, string, number, number][] = [
   ['leftWidth', 'Left half-width (m)', 0.1, 50],
   ['rightWidth', 'Right half-width (m)', 0.1, 50],
   ['crossfallPercent', 'Crown crossfall (%)', 0, 20],
@@ -55,6 +58,9 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
       <RoadSection title="Template components">
         <TemplateComponents
           template={alignment.template}
+          materials={alignment.engineering?.materials}
+          features={p.workspace.project.context}
+          surfaces={p.workspace.project.terrain.referenceSurfaces}
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
         />
       </RoadSection>
@@ -217,6 +223,20 @@ function Widenings(p: SidebarProps) {
                   onChange={(value) => tweak(v.id, { [key]: value })}
                 />
               ))}
+              <NumberField
+                label="Entry taper (m)"
+                value={v.entryTaperM ?? v.taper}
+                min={0}
+                max={Math.max(0, v.end - v.start - (v.exitTaperM ?? v.taper))}
+                onChange={(entryTaperM) => tweak(v.id, { entryTaperM })}
+              />
+              <NumberField
+                label="Exit taper (m)"
+                value={v.exitTaperM ?? v.taper}
+                min={0}
+                max={Math.max(0, v.end - v.start - (v.entryTaperM ?? v.taper))}
+                onChange={(exitTaperM) => tweak(v.id, { exitTaperM })}
+              />
             </div>
             {v.end <= v.start && (
               <p role="alert" className="text-xs text-red-600">

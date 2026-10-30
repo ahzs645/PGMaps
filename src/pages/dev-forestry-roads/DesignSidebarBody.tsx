@@ -17,6 +17,8 @@ export type FileKind = 'project' | 'terrain' | 'alignment' | 'context' | 'breakl
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'
+  preserveCorridorM?: number
+  retainTin?: boolean
 }
 export interface SidebarProps {
   workspace: RoadWorkspace

@@ -18,6 +18,7 @@ import {
 } from './fullCostComparison'
 import type { Alignment, Coordinate, RoadPoint, RoadProject, TerrainSource } from './types'
 import type { RoadNetworkGraph } from './roadNetworkTypes'
+import { terrainReferenceSurfaces } from './terrain'
 
 export interface FullCostRun {
   comparison: FullCostComparison
@@ -144,15 +145,21 @@ export async function runFullCostComparison(
     signal,
     onProgress,
     yieldControl = () => Promise.resolve(),
+    generateTerrainCandidates = true,
+    enteredCandidates = 'all',
   }: {
     signal?: AbortSignal
     onProgress?: (message: string) => void
     yieldControl?: () => Promise<void>
+    /** Refinement evaluations price the exact trial only, without recursively generating routes. */
+    generateTerrainCandidates?: boolean
+    enteredCandidates?: 'all' | 'active'
   } = {},
 ): Promise<FullCostRun> {
   if (!project.totalCostPlanning)
     throw Error('Set up vehicle, network, supply and connector criteria before comparing routes.')
   const planning = parseTotalCostPlanning(project.totalCostPlanning)
+  const referenceSurfaces = terrainReferenceSurfaces(project.terrain)
   if (!planning.outlet) throw Error('Set a reviewed network outlet/gateway before comparing access routes.')
   const active = project.alignments.find((road) => road.id === project.activeAlignmentId)!
   const origin = active.points[0].coordinate
@@ -225,6 +232,8 @@ export async function runFullCostComparison(
       terrain: source,
       settings: project.settings,
       context: project.context,
+      referenceSurfaces,
+      verticalReference: project.terrain.verticalReference,
       options: planning.connectorChecks,
       terrainResolutionM: project.terrain.resolutionM,
       expectedStart: origin,
@@ -263,7 +272,10 @@ export async function runFullCostComparison(
       checks.adoptable = false
       checks.status = checks.failures.length ? 'fail' : 'unknown'
     }
-    const analysis = analyzeFullCostConnector(alignment, source, project.settings, project.context)
+    const analysis = analyzeFullCostConnector(alignment, source, project.settings, project.context, {
+      referenceSurfaces,
+      verticalReference: project.terrain.verticalReference,
+    })
     candidates.push({
       alignment,
       checks,
@@ -283,7 +295,10 @@ export async function runFullCostComparison(
     })
   }
   // Explicit alternatives are evaluated first so the user's entered profiles and structures stay reviewable.
-  for (const road of [active, ...project.alignments.filter((road) => road.id !== active.id)]) {
+  for (const road of [
+    active,
+    ...(enteredCandidates === 'active' ? [] : project.alignments.filter((road) => road.id !== active.id)),
+  ]) {
     if (distance(road.points[0].coordinate, origin) > 1) continue
     try {
       await add(road, 'Entered horizontal alignment and profile; network procurement replaces legacy external sites.')
@@ -333,7 +348,7 @@ export async function runFullCostComparison(
     if (index < 0) uniqueEnds.push(target)
     else if (!uniqueEnds[index].featureId && target.featureId) uniqueEnds[index] = target
   }
-  for (const target of uniqueEnds.slice(0, MAX_GENERATED_COST_TARGETS)) {
+  for (const target of (generateTerrainCandidates ? uniqueEnds : []).slice(0, MAX_GENERATED_COST_TARGETS)) {
     const end = target.coordinate
     if (candidates.length >= MAX_FULL_COST_CANDIDATES) break
     checkAbort()

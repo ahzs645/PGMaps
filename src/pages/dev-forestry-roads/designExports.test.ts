@@ -3,6 +3,7 @@ import { analyzeRoad, horizontalGeometry, offsetCoordinate } from './engine'
 import { landXml, sectionStations, stakeoutCsv } from './designExports'
 import { DEFAULT_ROAD_SETTINGS, exportGrid } from './terrain'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
+import { createEngineeringDesign } from './engineeringTypes'
 
 const origin: Coordinate = [-122.8, 53.9]
 const corner = offsetCoordinate(origin, 0, 200)
@@ -38,6 +39,80 @@ const analysis = analyzeRoad(road, flat, DEFAULT_ROAD_SETTINGS)
 const grid = exportGrid(terrain, origin)
 
 describe('engineering exports', () => {
+  it('keeps missing cross-section and profile intervals as separate LandXML surface runs', () => {
+    const samples = structuredClone(analysis)
+    const first = samples.stations[0]
+    first.section = [
+      { offset: -2, ground: 800, preparedGround: 799.8, design: 799 },
+      { offset: -1, ground: 800, preparedGround: 799.8, design: 799 },
+      { offset: 0, ground: null, preparedGround: null, design: null },
+      { offset: 1, ground: 800, preparedGround: 799.8, design: 799 },
+      { offset: 2, ground: 800, preparedGround: 799.8, design: 799 },
+    ]
+    samples.stations[1].groundElevation = null
+    const text = landXml({ name: 'Gapped source', alignment: road, analysis: samples, terrain, ...grid })
+    const firstSection = text.match(/<CrossSect sta="0.000">(.*?)<\/CrossSect>/s)![1]
+    for (const name of ['Ground', 'Prepared ground', 'Design']) {
+      const runs = [
+        ...firstSection.matchAll(
+          new RegExp(`<CrossSectSurf name="${name}(?: part \\d+)?"><PntList2D>(.*?)<\\/PntList2D>`, 'g'),
+        ),
+      ]
+      expect(runs).toHaveLength(2)
+      expect(runs[0][1]).toContain('-1.000')
+      expect(runs[0][1]).not.toContain(' 1.000')
+      expect(runs[1][1]).toMatch(/^1.000 /)
+    }
+    expect(text).toContain('<ProfSurf name="Ground · Flat · part 2">')
+    expect(text).not.toMatch(/NaN|undefined|null/)
+  })
+  it('exports original and prepared section ground as distinct LandXML surfaces', () => {
+    const a = structuredClone(road)
+    a.points = [
+      { id: 'a', coordinate: origin, radiusM: 0 },
+      { id: 'b', coordinate: offsetCoordinate(origin, 0, 100), radiusM: 0 },
+    ]
+    a.vertical = [
+      { id: 's', chainage: 0, elevation: 802, curveLength: 0 },
+      { id: 'e', chainage: 100, elevation: 802, curveLength: 0 },
+    ]
+    a.template = { ...a.template, ditchWidth: 0, ditchDepth: 0 }
+    a.engineering = createEngineeringDesign()
+    a.engineering.materials = [
+      {
+        id: 'strip',
+        name: 'Topsoil',
+        color: '#806040',
+        cutRate: 1,
+        reusableFraction: 0,
+        compactionFactor: 1,
+        purpose: 'stripping',
+      },
+    ]
+    a.engineering.sitePreparation = [
+      {
+        id: 'prep',
+        start: 0,
+        end: 101,
+        materialId: 'strip',
+        depthM: 0.2,
+        leftInsideM: 0,
+        rightInsideM: 0,
+        leftOutsideM: 0.3,
+        rightOutsideM: 0.3,
+      },
+    ]
+    const result = analyzeRoad(a, flat, DEFAULT_ROAD_SETTINGS)
+    const xml = landXml({ name: 'Prepared road', alignment: a, analysis: result, terrain, ...grid })
+    const original = xml.match(/<CrossSectSurf name="Ground"><PntList2D>(.*?)<\/PntList2D>/)![1]
+    const prepared = xml.match(/<CrossSectSurf name="Prepared ground"><PntList2D>(.*?)<\/PntList2D>/)![1]
+    expect(original).toContain('0.000 800.000')
+    expect(prepared).toContain('0.000 799.800')
+    expect(original).not.toContain('799.800')
+    expect(prepared).not.toMatch(/NaN|undefined|null/)
+    const legacy = landXml({ name: 'Legacy road', alignment: road, analysis, terrain, ...grid })
+    expect(legacy).not.toContain('name="Prepared ground"')
+  })
   it('projects a geographic source to its WGS84 UTM zone', () => {
     expect(grid.epsg).toBe(32610)
     const [e, n] = grid.toGrid(origin)

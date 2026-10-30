@@ -1,4 +1,6 @@
-import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate } from './types'
+import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate, SectionComponent } from './types'
+import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
+import { validateAllocationPolicy } from './allocationPolicy'
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -15,11 +17,86 @@ const attributes = [
 type Attribute = (typeof attributes)[number]
 type Side = 'left' | 'right'
 const baseKey = (attribute: Attribute) => `${attribute[0].toLowerCase()}${attribute.slice(1)}` as keyof RoadTemplate
+const componentKeys = ['widthM', 'riseM', 'depthM', 'offsetM', 'referenceOffsetM', 'referenceElevationM'] as const
+function blendedComponents(base: RoadTemplate, target: RoadTemplate, side: Side, ratio: number): SectionComponent[] {
+  const a = (base.components ?? []).filter((c) => c.side === side),
+    b = (target.components ?? []).filter((c) => c.side === side)
+  if (ratio <= EPS) return a.map((c) => ({ ...c }))
+  if (ratio >= 1 - EPS) return b.map((c) => ({ ...c }))
+  const weighted = (c: SectionComponent, weight: number) => ({
+    ...c,
+    widthM: c.widthM * weight,
+    riseM: c.riseM * weight,
+    ...(c.depthM !== undefined ? { depthM: c.depthM * weight } : {}),
+  })
+  return [
+    ...a.map((c) => {
+      const next = b.find((v) => v.id === c.id)
+      if (!next) return weighted(c, 1 - ratio)
+      const result = { ...next }
+      for (const key of componentKeys)
+        if (c[key] !== undefined || next[key] !== undefined)
+          result[key] = (c[key] ?? 0) + ((next[key] ?? 0) - (c[key] ?? 0)) * ratio
+      return result
+    }),
+    ...b.filter((c) => !a.some((v) => v.id === c.id)).map((c) => weighted(c, ratio)),
+  ]
+}
+
+/** Matching component identities interpolate once. Topology/reference changes need a deliberate step. */
+export function validateComponentTransitions(alignment: Alignment) {
+  const e = alignment.engineering
+  if (!e) return
+  for (const assignment of e.assignments) {
+    if (!assignment.transitionM) continue
+    const target = e.templates.find((t) => t.id === assignment.templateId)?.template
+    if (!target) continue
+    for (const side of ['left', 'right'] as const) {
+      if (assignment.side !== 'both' && assignment.side !== side) continue
+      const a = (alignment.template.components ?? []).filter((c) => c.side === side)
+      const b = (target.components ?? []).filter((c) => c.side === side)
+      const sharedA = a.filter((c) => b.some((d) => d.id === c.id)).map((c) => c.id)
+      const sharedB = b.filter((c) => a.some((d) => d.id === c.id)).map((c) => c.id)
+      if (JSON.stringify(sharedA) !== JSON.stringify(sharedB))
+        throw Error('Reordered components require a step assignment (transition 0).')
+      for (const c of a) {
+        const next = b.find((d) => d.id === c.id)
+        if (
+          next &&
+          (['kind', 'condition', 'materialId', 'referenceFeatureId', 'referenceSurfaceId'] as const).some(
+            (key) => c[key] !== next[key],
+          )
+        )
+          throw Error(
+            'Changing component type, condition, material or reference requires a step assignment (transition 0).',
+          )
+        if (!next && (c.referenceFeatureId || c.referenceSurfaceId))
+          throw Error('Adding or removing an anchored component requires a step assignment (transition 0).')
+        if (c.kind === 'key')
+          for (const d of b)
+            if (
+              d.kind === 'key' &&
+              d.id !== c.id &&
+              (c.condition === 'always' || d.condition === 'always' || c.condition === d.condition) &&
+              Math.min((c.offsetM ?? 0) + c.widthM, (d.offsetM ?? 0) + d.widthM) >
+                Math.max(c.offsetM ?? 0, d.offsetM ?? 0)
+            )
+              throw Error(
+                'Overlapping key transitions need matching component IDs or a step assignment (transition 0).',
+              )
+      }
+      for (const c of b)
+        if (!a.some((d) => d.id === c.id) && (c.referenceFeatureId || c.referenceSurfaceId))
+          throw Error('Adding or removing an anchored component requires a step assignment (transition 0).')
+    }
+  }
+}
 
 /** A negative side crossfall rises away from the centreline (superelevation). */
 export function sideValue(template: RoadTemplate, side: Side, attribute: Attribute): number {
   // A ditch bottom width added later is optional: omitted means a V ditch.
-  return template[`${side}${attribute}`] ?? template[baseKey(attribute)] ?? 0
+  const value = template[`${side}${attribute}`] ?? template[baseKey(attribute)]
+  return typeof value === 'number' ? value : 0
 }
 
 /**
@@ -65,6 +142,8 @@ const STARTER_DIMENSIONS: Record<Exclude<TemplateStarter, 'current'>, Partial<Ro
 export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter): RoadTemplate {
   const template: RoadTemplate = { ...base }
   if (starter !== 'current') {
+    delete template.components
+    delete template.layers
     Object.assign(template, STARTER_DIMENSIONS[starter])
     for (const side of ['left', 'right'] as const)
       for (const attribute of attributes) delete template[`${side}${attribute}`]
@@ -76,6 +155,7 @@ export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter
 }
 
 export function validateTemplate(t: RoadTemplate): void {
+  validateSectionAssembly(t)
   if (
     !bounded(t.leftWidth, 0.1, 50) ||
     !bounded(t.rightWidth, 0.1, 50) ||
@@ -106,6 +186,8 @@ export function validateTemplate(t: RoadTemplate): void {
  * either can enter is one the analysis accepts.
  */
 export function validateEngineering(e: AlignmentEngineering): void {
+  validatePreparation(e)
+  validateAllocationPolicy(e)
   if (
     e.templates.length > 50 ||
     e.assignments.length > 200 ||
@@ -271,6 +353,28 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
       const base = sideValue(alignment.template, side, attribute)
       template[`${side}${attribute}`] = base + (sideValue(named.template, side, attribute) - base) * ratio
     }
+    if (alignment.template.components || named.template.components) {
+      const others = (template.components ?? []).filter((c) => c.side !== side)
+      template.components = [...others, ...blendedComponents(alignment.template, named.template, side, ratio)]
+    }
+    if (alignment.template.layers || named.template.layers) {
+      const others = (template.layers ?? []).flatMap((l) =>
+        l.side === side
+          ? []
+          : l.side === 'both'
+            ? [{ ...l, side: side === 'left' ? ('right' as const) : ('left' as const) }]
+            : [l],
+      )
+      const blend = (source: RoadTemplate, weight: number) =>
+        (
+          source.layers ?? [
+            { id: 'surfacing', name: 'Surfacing', side, depthM: sideValue(source, side, 'SurfaceDepth') },
+          ]
+        )
+          .filter((l) => (l.side === side || l.side === 'both') && weight > 1e-7)
+          .map((l) => ({ ...l, side, depthM: l.depthM * weight }))
+      template.layers = [...others, ...blend(alignment.template, 1 - ratio), ...blend(named.template, ratio)]
+    }
     result[`${side}Name`] = ratio < 1 ? `${named.name} · transition` : named.name
     if (!result.assignmentIds.includes(assignment.id)) result.assignmentIds.push(assignment.id)
   }
@@ -287,6 +391,13 @@ export function engineeringKnots(alignment: Alignment): number[] {
     if (!a.transitionM) knots.push(a.start - 1e-5, a.end + 1e-5)
   }
   for (const a of e.strata) knots.push(a.start - 1e-5, a.start, a.end - 1e-5, a.end, a.end + 1e-5)
+  for (const a of [
+    ...(e.sitePreparation ?? []),
+    ...(e.fillRequirements ?? []),
+    ...(e.haul.directionRanges ?? []),
+    ...(e.haul.sidecastRanges ?? []),
+  ])
+    knots.push(a.start - 1e-5, a.start, a.end - 1e-5, a.end, a.end + 1e-5)
   for (const a of [...e.culverts, ...e.sites]) knots.push(a.chainage)
   return knots
 }

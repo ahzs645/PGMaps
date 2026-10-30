@@ -11,10 +11,12 @@
  */
 import type { GroundGrid } from './lasSurface'
 import type { Breakline } from './tinSurface'
+import type { PointPreservation, TerrainPreparationRecord } from './terrainPreparation'
 import {
   classifyGround,
   groundSummary,
   readPointCloud,
+  mergePointClouds,
   type ClassifyGroundOptions,
   type GroundMethod,
   type GroundSummary,
@@ -23,12 +25,14 @@ import {
 
 export interface PointCloudWorkerRequest {
   bytes: ArrayBuffer
+  additionalBytes?: ArrayBuffer[]
   /**
    * Run the ground filter (replacing any existing classes except noise); 'auto' runs it only
    * when the cloud has no ground-classified points.
    */
   classify: boolean | 'auto'
   maxPoints?: number
+  preserve?: PointPreservation
   /** Grid the ground points here too, so only the grid crosses back to the page. */
   surface?: SurfaceRequest
   /** Post `crs` once the cloud is read and wait for a `breaklines` reply (see above). */
@@ -38,6 +42,8 @@ export interface PointCloudWorkerRequest {
 }
 
 export interface SurfaceRequest {
+  preserve?: PointPreservation
+  retainTin?: boolean
   /** Cell mean of ground points with short gaps filled, or a TIN of them with breaklines. */
   method: 'mean' | 'tin'
   cellM: number
@@ -56,6 +62,7 @@ export interface SurfaceResult {
   grid: GroundGrid
   /** Breakline report for a TIN surface. */
   tin?: { constrained: number; split: number; skipped: Array<{ id?: string; reason: string }> }
+  retainedTin?: TerrainPreparationRecord['tin']
 }
 
 export type PointCloudWorkerStage = 'reading' | 'classifying' | 'gridding'
@@ -87,8 +94,10 @@ scope.onmessage = (event: MessageEvent<PointCloudWorkerRequest | PointCloudBreak
 
 async function run({
   bytes,
+  additionalBytes,
   classify,
   maxPoints,
+  preserve,
   method = 'ground_point_filter',
   params,
   surface: requested,
@@ -99,7 +108,13 @@ async function run({
   try {
     post({ type: 'progress', stage: 'reading', done: 0, total: 1 })
     let started = performance.now()
-    const cloud = await readPointCloud(new Uint8Array(bytes), { maxPoints })
+    let cloud = await readPointCloud(new Uint8Array(bytes), { maxPoints, preserve })
+    if (additionalBytes?.length) {
+      const clouds = [cloud]
+      for (const source of additionalBytes)
+        clouds.push(await readPointCloud(new Uint8Array(source), { maxPoints, preserve }))
+      cloud = mergePointClouds(clouds, maxPoints, preserve)
+    }
     const readMs = performance.now() - started
     let request = requested
     if (askBreaklines) {
@@ -190,9 +205,37 @@ export async function gridSurface(cloud: PointCloud, request: SurfaceRequest): P
     cellM: request.cellM,
     maxCells: request.maxCells,
     bounds: [minX, minY, maxX, maxY],
+    preserve: request.preserve,
+    ...(request.retainTin ? { maxPoints: 250_000 } : {}),
   })
+  if (request.retainTin && tin.z.length > 250_000)
+    throw Error('Retained TIN exceeds 250,000 vertices after breaklines; crop the cloud or reduce breaklines.')
+  const retainedTriangles: number[] = []
+  if (request.retainTin)
+    for (let i = 0; i < tin.triangles.length; i += 3) {
+      const indices = [tin.triangles[i], tin.triangles[i + 1], tin.triangles[i + 2]]
+      if (
+        indices.every((a, k) => {
+          const b = indices[(k + 1) % 3]
+          return (
+            Math.hypot(tin.coords[2 * a] - tin.coords[2 * b], tin.coords[2 * a + 1] - tin.coords[2 * b + 1]) <=
+            8 * grid.cellM
+          )
+        })
+      )
+        retainedTriangles.push(...indices)
+    }
   return {
     grid: { ...grid, epsg: cloud.epsg, totalPoints: cloud.sourceCount },
     tin: { constrained: tin.constrained, split: tin.split, skipped: tin.skipped },
+    ...(request.retainTin
+      ? {
+          retainedTin: {
+            coordinates: Array.from(tin.coords),
+            elevations: Array.from(tin.z),
+            triangles: retainedTriangles,
+          },
+        }
+      : {}),
   }
 }

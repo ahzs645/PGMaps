@@ -13,6 +13,8 @@ import { DEFAULT_VERTICAL_OPTIMIZATION, optimizeVerticalProfile } from './vertic
 import { safeAnalyzeRoad } from './analysisResult'
 import { parseProject } from './project'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { JointOptimizationControls } from './JointOptimizationControls'
+import { addVerticalAlternative, snapshotActiveVerticalAlternative } from './verticalAlternatives'
 
 const uid = () => crypto.randomUUID()
 
@@ -22,12 +24,14 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   const standards = alignment.verticalStandards ?? EMPTY_VERTICAL_STANDARDS
   const controls = alignment.verticalControls ?? []
   const [k, setK] = useState(4)
+  const [resultTarget, setResultTarget] = useState<'road' | 'vertical'>('road')
   const [search, setSearch] = useState({
     pviSpacingM: DEFAULT_VERTICAL_OPTIMIZATION.pviSpacingM,
     maxDepthM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
     levelStepM: DEFAULT_VERTICAL_OPTIMIZATION.levelStepM,
     tieEndsToGround: true,
     objective: 'earthwork' as 'earthwork' | 'total',
+    bandCenter: 'ground' as 'ground' | 'design',
   })
   const optimize = async () => {
     if (workspace.busy) return
@@ -36,21 +40,48 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
     workspace.setBusy('Optimizing the vertical profile…')
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
     try {
-      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
-      const result = optimizeVerticalProfile(alignment, analysis.length, source, project.settings, { ...search, k })
-      const candidate = structuredClone(alignment)
-      candidate.id = uid()
-      candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
-      candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
-      candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
+      if (resultTarget === 'road' && project.alignments.length >= 20)
+        throw Error('The project already has 20 road alternatives.')
+      const result = optimizeVerticalProfile(alignment, analysis.length, source, project.settings, {
+        ...search,
+        k,
+        context: project.context,
+        referenceSurfaces: workspace.referenceSurfaces,
+        verticalReference: project.terrain.verticalReference,
+      })
+      let candidate =
+        resultTarget === 'vertical'
+          ? addVerticalAlternative(
+              alignment,
+              uid(),
+              `Optimized ${search.objective === 'total' ? 'total-cost' : 'earthwork'} profile`,
+            )
+          : structuredClone(alignment)
+      if (resultTarget === 'road') {
+        candidate.id = uid()
+        candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
+        candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
+        candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
+      }
       candidate.vertical = result.vertical.map((point) => ({ ...point, id: uid() }))
-      const after = safeAnalyzeRoad(candidate, source, project.settings, project.context)
+      candidate = snapshotActiveVerticalAlternative(candidate)
+      const after = safeAnalyzeRoad(candidate, source, project.settings, project.context, {
+        referenceSurfaces: workspace.referenceSurfaces,
+        verticalReference: project.terrain.verticalReference,
+      })
       workspace.commit(
-        parseProject({ ...project, alignments: [...project.alignments, candidate], activeAlignmentId: candidate.id }),
+        parseProject({
+          ...project,
+          alignments:
+            resultTarget === 'vertical'
+              ? project.alignments.map((a) => (a.id === candidate.id ? candidate : a))
+              : [...project.alignments, candidate],
+          activeAlignmentId: candidate.id,
+        }),
       )
       const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
       workspace.setNotice(
-        `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original road is kept as an alternative.`,
+        `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original ${resultTarget === 'vertical' ? 'profile' : 'road'} is kept as an alternative.`,
       )
     } catch (cause) {
       workspace.setError(cause instanceof Error ? cause.message : 'Could not optimize the profile.')
@@ -76,6 +107,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   const designed = alignment.vertical.length > 1
   const standardCount =
     standards.gradeRanges.length +
+    (standards.curvatureRanges?.length ?? 0) +
     [standards.minSagK, standards.minCrestK, standards.minCurveLengthM, standards.minTangentLengthM].filter(
       (v) => v !== null,
     ).length
@@ -202,6 +234,99 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
               onChange={(minTangentLengthM) => setStandards({ minTangentLengthM })}
             />
           </div>
+          <div className="space-y-2" data-testid="road-curvature-ranges">
+            {(standards.curvatureRanges ?? []).map((r, index) => (
+              <div key={r.id} className="rounded border p-2">
+                <div className="grid grid-cols-2 gap-1">
+                  <OptionalNumberField
+                    label={`Curvature ${index + 1} from`}
+                    placeholder="start"
+                    value={r.start}
+                    min={0}
+                    onChange={(start) =>
+                      setStandards({
+                        curvatureRanges: standards.curvatureRanges!.map((x) => (x.id === r.id ? { ...x, start } : x)),
+                      })
+                    }
+                  />
+                  <OptionalNumberField
+                    label="to"
+                    placeholder="end"
+                    value={r.end}
+                    min={0}
+                    onChange={(end) =>
+                      setStandards({
+                        curvatureRanges: standards.curvatureRanges!.map((x) => (x.id === r.id ? { ...x, end } : x)),
+                      })
+                    }
+                  />
+                  <OptionalNumberField
+                    label="Range sag K"
+                    value={r.minSagK}
+                    min={0}
+                    max={1000}
+                    onChange={(minSagK) =>
+                      setStandards({
+                        curvatureRanges: standards.curvatureRanges!.map((x) => (x.id === r.id ? { ...x, minSagK } : x)),
+                      })
+                    }
+                  />
+                  <OptionalNumberField
+                    label="Range crest K"
+                    value={r.minCrestK}
+                    min={0}
+                    max={1000}
+                    onChange={(minCrestK) =>
+                      setStandards({
+                        curvatureRanges: standards.curvatureRanges!.map((x) =>
+                          x.id === r.id ? { ...x, minCrestK } : x,
+                        ),
+                      })
+                    }
+                  />
+                </div>
+                <label className="mt-1 flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={r.linear ?? false}
+                    onChange={(e) =>
+                      setStandards({
+                        curvatureRanges: standards.curvatureRanges!.map((x) =>
+                          x.id === r.id ? { ...x, linear: e.target.checked } : x,
+                        ),
+                      })
+                    }
+                  />
+                  Straight grade only
+                </label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Remove curvature range ${index + 1}`}
+                  onClick={() =>
+                    setStandards({ curvatureRanges: standards.curvatureRanges!.filter((x) => x.id !== r.id) })
+                  }
+                >
+                  Remove range
+                </Button>
+              </div>
+            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={(standards.curvatureRanges?.length ?? 0) >= 100}
+              onClick={() =>
+                setStandards({
+                  curvatureRanges: [
+                    ...(standards.curvatureRanges ?? []),
+                    { id: uid(), start: null, end: null, minSagK: null, minCrestK: null },
+                  ],
+                })
+              }
+            >
+              Curvature range
+            </Button>
+          </div>
         </div>
       </CollapsibleSection>
       <RoadSection
@@ -261,6 +386,20 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           />
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
+          Search band centre
+          <select
+            aria-label="Profile search band centre"
+            className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
+            value={search.bandCenter}
+            onChange={(e) => setSearch((x) => ({ ...x, bandCenter: e.target.value as 'ground' | 'design' }))}
+          >
+            <option value="ground">Ground</option>
+            <option value="design" disabled={!designed}>
+              Current fitted design
+            </option>
+          </select>
+        </label>
+        <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Objective
           <select
             aria-label="Profile optimization objective"
@@ -280,6 +419,18 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           />
           Tie both ends to ground
         </label>
+        <label className="mt-2 block text-xs">
+          Save optimized result as
+          <select
+            aria-label="Profile optimization result target"
+            className="mt-1 w-full rounded border bg-background p-1 text-base md:text-xs"
+            value={resultTarget}
+            onChange={(e) => setResultTarget(e.target.value as typeof resultTarget)}
+          >
+            <option value="road">Separate road alternative</option>
+            <option value="vertical">Named vertical profile on this road</option>
+          </select>
+        </label>
         <Button
           className="mt-2 w-full"
           size="sm"
@@ -289,6 +440,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Optimize profile (K {k})
         </Button>
       </RoadSection>
+      <JointOptimizationControls workspace={workspace} profile={{ ...search, k }} />
       <RoadSection
         title="Control points"
         help="Elevations and grades the profile must hold, each with a tolerance. Leave a target empty to check only the other."
