@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>PG Maps · Sheet and panel motion study</title>
+  <style>
+    :root { font: 15px/1.5 system-ui, sans-serif; color: #172c2b; background: #f2f5f3; --move: 350ms; --ease: cubic-bezier(.16,1,.3,1); }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    button { cursor: pointer; color: inherit; border: 1px solid #d8e0dc; background: white; border-radius: 10px; padding: 9px 14px; min-height: 44px; }
+    button:hover { background: #f1f6f2; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #007e75; outline-offset: 3px; }
+    button[aria-pressed="true"] { background: #123c36; border-color: #123c36; color: white; }
+    header.page { padding: 26px max(22px,calc((100vw - 1340px)/2)); background: white; border-bottom: 1px solid #dce3de; }
+    .eyebrow { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; font-weight: 750; color: #447267; }
+    h1 { font-size: clamp(24px,3vw,34px); letter-spacing: -.04em; margin: 6px 0; line-height: 1.2; }
+    p { margin: 6px 0 14px; }
+    .intro { max-width: 780px; color: #5a6c65; }
+    main { max-width: 1384px; margin: auto; padding: 22px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .switch { display: inline-flex; gap: 4px; padding: 4px; background: #e5ece7; border-radius: 13px; }
+    .switch button { border-color: transparent; }
+    label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    input { accent-color: #007e75; width: 18px; height: 18px; }
+    .layout { display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 24px; align-items: start; }
+    .preview { min-width: 0; }
+    .frame { width: 100%; height: 640px; position: relative; overflow: hidden; border: 1px solid #c9d5cd; border-radius: 18px; background: #dbe6ce; box-shadow: 0 15px 50px #193a2710; isolation: isolate; }
+    .frame.phone { width: min(390px,100%); height: 720px; margin: 0 auto; border: 7px solid #233c34; border-radius: 35px; }
+    .world { position: absolute; inset: 0; transform-origin: 62% 48%; transition: transform var(--move) var(--ease); touch-action: none; }
+    .world svg { width: 100%; height: 100%; position: absolute; }
+    .map-label { position: absolute; color: #385c45; font-size: 13px; font-weight: 650; pointer-events: none; text-shadow: 0 1px #fff; }
+    .river-label { top: 60%; left: 44%; transform: rotate(-24deg); color: #326781; }
+    .hill-label { top: 27%; left: 71%; }
+    .city-label { top: 72%; left: 17%; }
+    .map-site { position: absolute; left: 62%; top: 48%; transform: translate(-50%,-50%); padding: 0; width: 44px; height: 44px; min-height: 44px; border-radius: 50%; background: white; border: 3px solid #007e75; box-shadow: 0 2px 10px #123c3650; }
+    .map-site::after { content: ''; display: block; width: 14px; height: 14px; border-radius: 50%; margin: auto; background: #007e75; }
+    .map-site.selected { box-shadow: 0 0 0 8px #007e7528,0 3px 12px #123c3650; }
+    .topbar { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; z-index: 3; pointer-events: none; }
+    .topbar button, .brand { pointer-events: auto; box-shadow: 0 2px 8px #173c2212; }
+    .brand { background: #ffffffed; border: 1px solid #d5dfd7; border-radius: 11px; padding: 11px 14px; font-size: 13px; font-weight: 750; }
+    .panel { position: absolute; z-index: 5; background: white; box-shadow: 0 8px 36px #243d2820; border: 1px solid #d4ded5; overflow: hidden; transition: transform var(--move) var(--ease), opacity var(--move) var(--ease); }
+    .layers { top: 76px; bottom: 18px; left: 14px; width: 292px; border-radius: 15px; transform: translateX(-115%); opacity: 0; }
+    .layers.open { transform: translateX(0); opacity: 1; }
+    .detail { top: 76px; bottom: 18px; right: 14px; width: 278px; border-radius: 15px; transform: translateX(115%); opacity: 0; }
+    .detail.open { transform: translateX(0); opacity: 1; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e3e9e4; }
+    h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+    h3 { margin: 0 0 9px; font-size: 13px; }
+    .icon { padding: 4px; min-width: 44px; border: 0; background: transparent; font-size: 21px; }
+    .panel-body { overflow-y: auto; overscroll-behavior: contain; height: calc(100% - 69px); padding: 16px; }
+    .muted { color: #6e7c73; font-size: 12px; }
+    .layer-row { display: flex; gap: 11px; align-items: center; padding: 14px 0; border-bottom: 1px solid #e8ece8; }
+    .layer-row .text { flex: 1; font-size: 14px; }
+    .swatch { width: 17px; height: 17px; border: 2px solid #14877b; border-radius: 5px; background: #8ccbbb66; flex-shrink: 0; }
+    .swatch.gold { background: #e8c97888; border-color: #c59935; }
+    .swatch.blue { background: #9fc9df; border-color: #6ca2bd; }
+    .full { width: 100%; text-align: left; margin: 15px 0; }
+    .pages { position: relative; height: calc(100% - 69px); overflow: hidden; }
+    .pane { position: absolute; inset: 0; padding: 16px; overflow-y: auto; transition: transform var(--move) var(--ease),opacity var(--move) var(--ease); }
+    .pane.settings { transform: translateX(100%); }
+    .nested .pane.settings { transform: translateX(0); }
+    .nested .pane.root { transform: translateX(-12%); opacity: 0; }
+    .legend { margin: 18px 0; display: flex; gap: 8px; align-items: center; font-size: 12px; }
+    .badge { padding: 4px 8px; border-radius: 6px; background: #e4f1e8; color: #2f6544; font-size: 11px; font-weight: 650; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+    .stat { background: #f1f5f1; padding: 11px; border-radius: 9px; }
+    .stat strong { display: block; font-size: 20px; font-weight: 650; }
+    .detail p { font-size: 13px; color: #607166; }
+    .handle { display: none; }
+    .phone .panel { top: 0; bottom: auto; left: 0; right: 0; width: 100%; height: 100%; border-radius: 22px 22px 0 0; opacity: 1; transform: translateY(100%); }
+    .phone .panel-head { padding-top: 0; }
+    .phone .handle { display: flex; justify-content: center; align-items: center; height: 38px; width: 100%; border: 0; background: transparent; min-height: 38px; border-radius: 0; touch-action: none; cursor: grab; }
+    .phone .handle::after { content: ''; width: 40px; height: 5px; border-radius: 5px; background: #b8c8bd; }
+    .phone .panel-body, .phone .pages { height: max(0px,calc(var(--visible-height,350px) - 105px)); padding-bottom: 30px; }
+    .phone .detail { z-index: 6; }
+    .phone .brand { font-size: 11px; padding: 12px; }
+    .phone .topbar { top: 12px; left: 10px; right: 10px; }
+    .phone .topbar button { padding: 8px 10px; font-size: 12px; }
+    .phone .map-label { font-size: 11px; }
+    .status { min-height: 46px; padding: 12px 0; color: #526b5d; font-size: 12px; }
+    aside { padding: 18px 20px; background: white; border: 1px solid #dce5dd; border-radius: 15px; }
+    aside h2 { margin-bottom: 16px; }
+    aside ol { padding-left: 19px; font-size: 13px; }
+    aside li { margin-bottom: 16px; padding-left: 3px; }
+    aside li strong { display: block; }
+    aside p { font-size: 12px; color: #647469; }
+    .key { padding: 12px 0; border-top: 1px solid #e3e9e4; }
+    .key b { font-size: 12px; display: block; }
+    .key span { font-size: 12px; color: #647469; }
+    .note { font-size: 12px; color: #647469; margin: 16px 0; max-width: 850px; }
+    .reduced *, .dragging { transition: none !important; }
+    @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+    @media (max-width: 980px) { .layout { grid-template-columns: minmax(0,1fr); } aside { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; } aside h2 { grid-column: 1/-1; } }
+    @media (max-width: 540px) { main { padding: 16px; } header.page { padding: 22px 16px; } .frame { height: 650px; } .frame.phone { height: min(720px,82dvh); min-height: 440px; } aside { display: block; } .toolbar { gap: 14px; } .layers { width: min(292px,calc(100% - 28px)); } .detail { width: min(278px,calc(100% - 28px)); } }
+  </style>
+</head>
+<body>
+  <header class="page">
+    <div class="eyebrow">PG Maps / Interaction research</div>
+    <h1>A map that makes room for the next action.</h1>
+    <p class="intro">An interactive proposal inspired by the Felt capture. Try the sheets, nested panels, and selection framing. This is a synthetic map study, not a recording of Felt or a live PG Maps page.</p>
+  </header>
+  <main>
+    <div class="toolbar">
+      <div class="group switch" aria-label="Preview layout">
+        <button id="desktop" aria-pressed="true">Desktop</button>
+        <button id="phone" aria-pressed="false">Phone</button>
+      </div>
+      <div class="group">
+        <button id="select">Select map feature</button>
+        <button id="reset">Reset</button>
+        <label><input type="checkbox" id="reduce">Reduce motion</label>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="preview">
+        <div class="frame" id="frame" aria-label="Synthetic map interaction preview">
+          <div class="world" id="world">
+            <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="1000" height="700" fill="#dce6ce"/>
+              <path d="M0 0H570L470 180 230 210 0 100ZM650 700 700 480 1000 400V700" fill="#b9d0ac"/>
+              <path d="M0 330 150 270 310 310 420 180 700 150 1000 280V370L750 280 510 290 330 410 120 370 0 430Z" fill="#c9dcb9"/>
+              <g fill="none" stroke="#9db88d" stroke-width="1" opacity=".55">
+                <path d="M0 190Q210 130 320 200T650 125 1000 190M0 210Q230 155 320 225T650 150 1000 215M0 230Q230 175 340 245T660 175 1000 235M0 250Q250 195 350 270T680 195 1000 260"/>
+                <path d="M0 510Q200 420 350 530T680 490 1000 500M0 535Q200 440 350 550T680 515 1000 525M0 560Q200 465 350 575T680 540 1000 550M0 585Q200 490 350 600T680 565 1000 575"/>
+              </g>
+              <path d="M850-30C680 110 830 260 640 370S440 530 380 730" stroke="#b4d3dd" stroke-width="42" fill="none"/>
+              <path d="M850-30C680 110 830 260 640 370S440 530 380 730" stroke="#d2e7eb" stroke-width="23" fill="none"/>
+              <g fill="#eee9d8" stroke="#ded7be" stroke-width="2"><path d="M50 400h170v100H50zM120 510h190v120H120zM250 380h110v100H250z"/></g>
+              <g fill="none" stroke="#fffdf3" stroke-width="10"><path d="M-20 570 310 450 545 290 1030 190"/><path d="M180 740 280 450 230-10"/></g>
+              <g fill="none" stroke="#c8b98c" stroke-width="2"><path d="M-20 570 310 450 545 290 1030 190"/><path d="M180 740 280 450 230-10"/></g>
+              <path id="area" d="M560 240 680 260 740 340 640 405 540 350Z" fill="#34a89133" stroke="#14877b" stroke-width="3"/>
+            </svg>
+            <span class="map-label river-label">River corridor</span>
+            <span class="map-label hill-label">Upland forest</span>
+            <span class="map-label city-label">Town centre</span>
+            <button class="map-site" id="site" aria-label="Select River lookout"></button>
+          </div>
+          <div class="topbar"><span class="brand">PG Maps · Study</span><button id="layers-toggle" aria-expanded="true" aria-controls="layers">Layers</button></div>
+          <section class="panel layers open" id="layers" aria-labelledby="layers-title">
+            <button class="handle" aria-label="Change layers sheet position. Arrow keys change height."></button>
+            <div class="panel-head"><h2 id="layers-title">Map layers</h2><button class="icon" id="layers-close" aria-label="Close layers">×</button></div>
+            <div class="pages" id="pages">
+              <div class="pane root" id="root-pane">
+                <span class="muted">ILLUSTRATIVE DATA</span>
+                <div class="layer-row"><span class="swatch"></span><span class="text">Planning areas<br><span class="muted">Polygon layer · 1 example</span></span><input id="area-toggle" type="checkbox" checked aria-label="Show planning areas"></div>
+                <div class="layer-row"><span class="swatch gold"></span><span class="text">Places<br><span class="muted">Basemap illustration</span></span></div>
+                <div class="layer-row"><span class="swatch blue"></span><span class="text">Water<br><span class="muted">Basemap illustration</span></span></div>
+                <button class="full" id="settings-open">Planning area settings <span aria-hidden="true">→</span></button>
+                <div class="legend"><span class="swatch"></span>Selected planning area</div>
+                <p class="muted">Tap the outlined map point to open its detail card.</p>
+              </div>
+              <div class="pane settings" id="settings-pane" inert>
+                <button id="settings-back">← Back to layers</button>
+                <h3 style="margin-top:24px">Planning area appearance</h3>
+                <p class="muted">The next pane slides from the direction of travel. Back reverses that movement.</p>
+                <label>Fill opacity <input id="opacity" type="range" min="0" max="70" value="20" style="width:120px"></label>
+              </div>
+            </div>
+          </section>
+          <section class="panel detail" id="detail" aria-labelledby="detail-title" inert>
+            <button class="handle" aria-label="Change detail sheet position. Arrow keys change height."></button>
+            <div class="panel-head"><h2 id="detail-title">River lookout</h2><button class="icon" id="detail-close" aria-label="Close feature details">×</button></div>
+            <div class="panel-body" id="detail-body">
+              <span class="badge">Illustrative feature</span>
+              <div class="stats"><div class="stat"><span class="muted">Panel motion</span><strong>350<span style="font-size:12px"> ms</span></strong></div><div class="stat"><span class="muted">Sheet positions</span><strong>3</strong></div></div>
+              <h3>Keep the feature in view</h3>
+              <p>The map makes room for the panel. Expand the phone sheet and watch the selected point stay in the visible area.</p>
+              <div class="group" id="snaps"><button data-snap="peek">Peek</button><button data-snap="half">Half</button><button data-snap="full">Full</button></div>
+              <h3 style="margin-top:24px">Try the interruption</h3>
+              <p>Drag the exposed map. The preview stops following the selected feature until you select it again.</p>
+              <p>On the phone, drag the handle or use its arrow keys. The content below it scrolls independently.</p>
+            </div>
+          </section>
+        </div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+      <aside>
+        <h2>Try the choreography</h2>
+        <ol>
+          <li><strong>Open a nested panel</strong>Choose Planning area settings, then Back. Both directions share one easing.</li>
+          <li><strong>Select a feature</strong>The desktop card enters from the right. The phone sheet rises from below.</li>
+          <li><strong>Drag the phone handle</strong>Direct movement follows the pointer. Release settles to a snap position; scrolling stays in the content.</li>
+          <li><strong>Take over the map</strong>Drag outside the panels. Camera follow stops so the interface respects your intent.</li>
+        </ol>
+        <div>
+          <div class="key"><b>From the Felt code</b><span>350 ms sheet spring with no bounce; 350 ms eased nested panes; map movement coordinated with sheet height.</span></div>
+          <div class="key"><b>Modelled here</b><span>350 ms CSS easing approximates the settle. The SVG camera is illustrative. Felt uses a spring and MapLibre.</span></div>
+          <div class="key"><b>PG Maps starting point</b><span>The shared controls sheet already has finger tracking, velocity, scroll arbitration, and keyboard snaps. Extend that controller to the feature cards.</span></div>
+        </div>
+      </aside>
+    </div>
+    <p class="note">No external resources, Felt assets, or captured code run in this study. No geographic or performance claims are made by the illustrated map. The reduced-motion control supplements your system preference; it cannot override a system request for reduced motion.</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      const frame = $('frame'), world = $('world'), layers = $('layers'), detail = $('detail');
+      const media = matchMedia('(prefers-reduced-motion: reduce)');
+      let phone = innerWidth < 650, layersOpen = true, selected = false, follow = true, snap = 'half', nested = false;
+      let drag = null, panX = 0, panY = 0, moved = false;
+      const snapHeight = key => ({ peek: 105, half: frame.clientHeight * .49, full: frame.clientHeight * .79 })[key];
+      const active = () => selected ? detail : layers;
+      const say = text => { $('status').textContent = text; };
+      function setNested(value, focus = false) {
+        nested = value;
+        $('pages').classList.toggle('nested', nested);
+        $('root-pane').inert = nested;
+        $('settings-pane').inert = !nested;
+        if (focus) $(nested ? 'settings-back' : 'settings-open').focus({preventScroll:true});
+      }
+      function camera(height) {
+        const w = frame.clientWidth, h = frame.clientHeight;
+        let x = 0, y = 0;
+        if (selected && follow) {
+          const left = !phone && layersOpen ? Math.min(320,w*.4) : 14;
+          const right = !phone ? Math.min(306,w*.4) : 14;
+          const bottom = phone ? (height ?? snapHeight(snap)) : 14;
+          x = left + (w-left-right)/2 - w*.62;
+          y = 70 + (h-bottom-70)/2 - h*.48;
+        }
+        world.style.transform = `translate(${x+panX}px,${y+panY}px) scale(${selected?1.14:1})`;
+      }
+      function render() {
+        frame.classList.toggle('phone', phone);
+        $('phone').setAttribute('aria-pressed', String(phone));
+        $('desktop').setAttribute('aria-pressed', String(!phone));
+        layers.classList.toggle('open',layersOpen);
+        detail.classList.toggle('open',selected);
+        layers.inert = !layersOpen || (phone && selected);
+        detail.inert = !selected;
+        $('detail-body').inert = phone && snap==='peek';
+        $('pages').inert = phone && snap==='peek';
+        $('layers-toggle').setAttribute('aria-expanded',String(layersOpen));
+        $('site').classList.toggle('selected',selected);
+        $('snaps').hidden = !phone;
+        if (phone) {
+          layers.style.setProperty('--visible-height',`${snapHeight(snap)}px`);
+          detail.style.setProperty('--visible-height',`${snapHeight(snap)}px`);
+          layers.style.transform = `translateY(${layersOpen ? frame.clientHeight - (selected ? snapHeight(snap)+7 : snapHeight(snap)) : frame.clientHeight+2}px)`;
+          detail.style.transform = `translateY(${selected ? frame.clientHeight-snapHeight(snap) : frame.clientHeight+2}px)`;
+        } else {
+          layers.style.removeProperty('transform'); detail.style.removeProperty('transform');
+        }
+        document.querySelectorAll('[data-snap]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.snap===snap)));
+        document.querySelectorAll('.handle').forEach(handle => handle.title = `${snap} position. ArrowUp expands; ArrowDown collapses.`);
+        camera();
+        say(`${phone?'Phone':'Desktop'} · ${selected?'Feature details':layersOpen?'Map layers':'Map'}${phone && (selected||layersOpen)?' · '+snap+' position':''} · ${follow?'Selection framing ready':'Camera follow paused after map drag'}`);
+      }
+      function select() {
+        selected = true; follow = true; panX=panY=0; snap='half'; render();
+        $('detail-body').scrollTop=0;
+        $('detail-close').focus({preventScroll:true});
+      }
+      function closeDetail() { selected=false; render(); $('site').focus({preventScroll:true}); }
+      function setSnap(key) { snap=key; render(); }
+      $('desktop').onclick = () => { phone=false; render(); };
+      $('phone').onclick = () => { phone=true; render(); };
+      $('select').onclick = select;
+      $('site').onclick = event => { if(!moved)select(); event.stopPropagation(); };
+      $('detail-close').onclick = closeDetail;
+      $('layers-toggle').onclick = () => { layersOpen=!layersOpen; if(selected && phone)selected=false; render(); };
+      $('layers-close').onclick = () => { layersOpen=false; render(); $('layers-toggle').focus({preventScroll:true}); };
+      $('settings-open').onclick = () => setNested(true,true);
+      $('settings-back').onclick = () => setNested(false,true);
+      $('area-toggle').onchange = event => { $('area').style.visibility = event.target.checked?'visible':'hidden'; };
+      $('opacity').oninput = event => { $('area').style.fill = `rgb(52 168 145 / ${event.target.value}%)`; };
+      $('reset').onclick = () => { layersOpen=true; selected=false; follow=true; panX=panY=0; snap='half'; setNested(false); render(); };
+      $('reduce').onchange = () => { document.body.classList.toggle('reduced',$('reduce').checked); render(); };
+      media.addEventListener('change',() => render());
+      document.querySelectorAll('[data-snap]').forEach(button => button.onclick = () => setSnap(button.dataset.snap));
+      document.querySelectorAll('.handle').forEach(handle => {
+        handle.addEventListener('keydown',event => {
+          const keys=['peek','half','full'],i=keys.indexOf(snap);
+          const next = ({ArrowUp:keys[Math.min(2,i+1)],ArrowDown:keys[Math.max(0,i-1)],Home:'full',End:'peek'})[event.key];
+          if(next) { event.preventDefault(); setSnap(next); }
+        });
+        handle.addEventListener('pointerdown',event => {
+          if(!phone || event.button!==0)return;
+          event.preventDefault();
+          const panel=handle.closest('.panel');
+          const renderedY=new DOMMatrix(getComputedStyle(panel).transform).f;
+          drag={panel,start:event.clientY,height:frame.clientHeight-renderedY,last:event.clientY,time:performance.now(),velocity:0,moved:false};
+          panel.classList.add('dragging'); world.classList.add('dragging');
+          panel.style.transform=`translateY(${renderedY}px)`;
+          handle.setPointerCapture(event.pointerId);
+        });
+        handle.addEventListener('pointermove',event => {
+          if(!drag)return;
+          const now=performance.now(),dy=event.clientY-drag.start;
+          drag.velocity=(event.clientY-drag.last)/Math.max(1,now-drag.time); drag.last=event.clientY; drag.time=now;
+          drag.moved ||= Math.abs(dy)>4;
+          const height=Math.max(snapHeight('peek'),Math.min(snapHeight('full'),drag.height-dy));
+          drag.current=height;
+          drag.panel.style.setProperty('--visible-height',`${height}px`);
+          drag.panel.style.transform=`translateY(${frame.clientHeight-height}px)`;
+          camera(height);
+        });
+        const end=event => {
+          if(!drag)return;
+          const state=drag; drag=null;
+          state.panel.classList.remove('dragging'); world.classList.remove('dragging');
+          if(handle.hasPointerCapture(event.pointerId))handle.releasePointerCapture(event.pointerId);
+          if(!state.moved) { setSnap(snap==='peek'?'half':snap==='half'?'full':'peek'); return; }
+          const projected=(state.current??state.height)-state.velocity*140;
+          setSnap(['peek','half','full'].sort((a,b)=>Math.abs(snapHeight(a)-projected)-Math.abs(snapHeight(b)-projected))[0]);
+        };
+        handle.addEventListener('pointerup',end);
+        handle.addEventListener('pointercancel',event => { if(drag){drag.panel.classList.remove('dragging');world.classList.remove('dragging');drag=null;render();} });
+      });
+      let mapDrag=null;
+      world.addEventListener('pointerdown',event => {
+        if(event.button!==0)return;
+        moved=false; mapDrag={x:event.clientX,y:event.clientY,px:panX,py:panY};
+        // Capture on the original target so a tap on the marker remains a click.
+        event.target.setPointerCapture(event.pointerId);
+      });
+      world.addEventListener('pointermove',event => {
+        if(!mapDrag)return;
+        const dx=event.clientX-mapDrag.x,dy=event.clientY-mapDrag.y;
+        if(!moved && Math.hypot(dx,dy)<5)return;
+        if(!moved) {
+          const transform=new DOMMatrix(getComputedStyle(world).transform);
+          mapDrag.px=transform.e;mapDrag.py=transform.f;
+        }
+        moved=true;follow=false;world.classList.add('dragging');
+        panX=mapDrag.px+dx;panY=mapDrag.py+dy;camera();
+        say('Map gesture took over · camera follow paused · select the feature again to reframe');
+      });
+      const endMap=() => { mapDrag=null;world.classList.remove('dragging'); };
+      world.addEventListener('pointerup',endMap);world.addEventListener('pointercancel',endMap);
+      document.addEventListener('keydown',event => {
+        if(event.key==='Escape') {
+          if(nested)setNested(false,true);
+          else if(selected)closeDetail();
+          else if(layersOpen){layersOpen=false;render();$('layers-toggle').focus({preventScroll:true});}
+        }
+      });
+      new ResizeObserver(()=>render()).observe(frame);
+      render();
+    })();
+  </script>
+</body>
+</html>

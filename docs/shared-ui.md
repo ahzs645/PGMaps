@@ -10,6 +10,9 @@ implementations now live in `packages/geo-toolkit/src/ui`, `map` and `workspace`
 the application paths provide compatibility exports and PG Maps integrations.
 Add generic behavior in the package and host-specific behavior in the adapter.
 See [toolkit extraction](toolkit-extraction.md) for ownership and checks.
+See [interface motion](interface-motion.md) for interruptible sheets/cards,
+desktop panel lifecycles, selection framing, reduced motion, and dialog close
+callback timing.
 
 ## Sidebars
 

@@ -938,6 +938,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     >
       <div ref={mapContainerRef} className="relative h-full w-full">
         <PgMap
+        controls={null}
           key={basemap}
           ref={handleMapRef}
           viewport={{

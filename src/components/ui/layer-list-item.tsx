@@ -1,5 +1,6 @@
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { MOTION_DURATION, useMotionPresence } from '@pgmaps/geo-toolkit/ui/motion'
 import { cn } from '@/lib/utils'
 
 export type LayerSwatchShape = 'fill' | 'line' | 'point'
@@ -77,6 +78,12 @@ export function LayerListItem({
   children?: ReactNode
   className?: string
 }) {
+  const legendRef = useRef<HTMLDivElement>(null)
+  const visibilityButtonRef = useRef<HTMLButtonElement>(null)
+  const legendMotion = useMotionPresence(visible && Boolean(children), MOTION_DURATION.feedback)
+  useLayoutEffect(() => {
+    if (!visible && legendRef.current?.contains(document.activeElement)) visibilityButtonRef.current?.focus()
+  }, [visible])
   const facts =
     status === 'loading'
       ? (statusLabel ?? 'Loading…')
@@ -124,6 +131,7 @@ export function LayerListItem({
         {status === 'error' && <AlertCircle className="size-4 shrink-0 text-destructive" aria-hidden="true" />}
         {actions}
         <button
+          ref={visibilityButtonRef}
           type="button"
           className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:size-10"
           aria-label={visible ? `Hide ${title}` : `Show ${title}`}
@@ -134,7 +142,19 @@ export function LayerListItem({
           {visible ? <Eye className="size-4" aria-hidden="true" /> : <EyeOff className="size-4" aria-hidden="true" />}
         </button>
       </div>
-      {visible && children && <div className="pb-2 pl-9 pr-2">{children}</div>}
+      {legendMotion.present && (
+        <div
+          ref={legendRef}
+          className="geo-motion-disclosure"
+          data-motion-state={visible && legendMotion.visible ? 'open' : 'closed'}
+          aria-hidden={!visible || undefined}
+          {...(!visible ? { inert: '' } : {})}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="pb-2 pl-9 pr-2">{children}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

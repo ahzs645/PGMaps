@@ -37,6 +37,8 @@ export function FeatureTablePanel({
   selectedFeatureId = null,
   height,
   onHeightChange,
+  onResizeStart,
+  onResizeEnd,
   onClose,
   onSelect,
 }: {
@@ -48,6 +50,8 @@ export function FeatureTablePanel({
   selectedFeatureId?: string | null
   height?: number
   onHeightChange?: (height: number) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
   onClose: () => void
   onSelect: (feature: InteractFeature) => void
 }) {
@@ -74,6 +78,8 @@ export function FeatureTablePanel({
       selectedRowId={selectedFeatureId}
       height={height}
       onHeightChange={onHeightChange}
+      onResizeStart={onResizeStart}
+      onResizeEnd={onResizeEnd}
       showOnlyInView={showOnlyInView}
       onShowOnlyInViewChange={setShowOnlyInView}
       onLayerChange={onLayerChange}

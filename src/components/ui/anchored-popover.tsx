@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { MOTION_DURATION, useMotionPresence } from '@pgmaps/geo-toolkit/ui/motion'
 import { cn } from '@/lib/utils'
 
 const GAP = 6,
@@ -14,7 +15,9 @@ function placePanel(panel: HTMLElement | null, anchorElement: HTMLElement | null
   const anchor = anchorElement?.getBoundingClientRect()
   if (!anchor || anchor.width === 0 || anchor.height === 0) return false
   if (!panel) return true
-  const size = panel.getBoundingClientRect()
+  // Measure layout dimensions: the feedback animation translates/scales the
+  // surface, and its transformed bounds must not move the placement target.
+  const size = { width: panel.offsetWidth, height: panel.offsetHeight }
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
   const preferredLeft = align === 'end' ? anchor.right - size.width : anchor.left
@@ -29,7 +32,9 @@ function placePanel(panel: HTMLElement | null, anchorElement: HTMLElement | null
       : `${Math.max(MARGIN, anchor.top - GAP - Math.min(size.height, roomAbove))}px`,
     maxHeight: `${Math.max(120, below ? roomBelow : roomAbove)}px`,
     visibility: 'visible',
+    transformOrigin: `${align === 'end' ? 'right' : 'left'} ${below ? 'top' : 'bottom'}`,
   })
+  panel.dataset.side = below ? 'bottom' : 'top'
   return true
 }
 
@@ -70,9 +75,11 @@ export function AnchoredPopover({
 }) {
   const ownPanelRef = useRef<HTMLDivElement>(null)
   const panelRef = externalPanelRef ?? ownPanelRef
+  const { present, visible } = useMotionPresence(open, MOTION_DURATION.feedback)
 
   useLayoutEffect(() => {
     if (open && !placePanel(panelRef.current, anchorRef.current, align)) onClose()
+    if (!open && panelRef.current?.contains(document.activeElement)) anchorRef.current?.focus()
   })
 
   useEffect(() => {
@@ -103,17 +110,20 @@ export function AnchoredPopover({
     }
   }, [align, anchorRef, onClose, open, panelRef])
 
-  if (!open) return null
+  if (!present) return null
   return createPortal(
     <div
       ref={panelRef}
       role={role}
       aria-label={ariaLabel}
+      aria-hidden={!open || undefined}
+      {...(!open ? { inert: '' } : {})}
+      data-motion-state={open && visible ? 'open' : 'closed'}
       className={cn(
-        'fixed z-[100] overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-xl',
+        'geo-motion-popover fixed z-[100] overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-xl',
         className,
       )}
-      style={{ left: 0, top: 0, width, visibility: 'hidden' }}
+      style={{ left: 0, top: 0, width, visibility: 'hidden', pointerEvents: open ? undefined : 'none' }}
     >
       {children}
     </div>,
