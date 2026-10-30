@@ -62,17 +62,16 @@ export function JsonResults({ data }: { data: unknown }) {
   return (
     <div className="rounded-lg border p-4">
       {rows && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>{rows.length} records</span>
-          <PaginationControls
-            page={pagination.page}
-            pageCount={pagination.pageCount}
-            onPageChange={pagination.setPage}
-            label="JSON result pages"
-            className="border-0 p-0"
-            formatPage={(page, count) => `Page ${page + 1} of ${count}`}
-          />
-        </div>
+        <PaginationControls
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          onPageChange={pagination.setPage}
+          label="JSON result pages"
+          className="mb-3 border-0 p-0"
+          layout="summary-first"
+          summaryClassName="text-sm text-foreground"
+          formatPage={(page, count) => `${rows.length} records · Page ${page + 1} of ${count}`}
+        />
       )}
       <pre className="max-h-[500px] overflow-auto whitespace-pre-wrap break-words text-xs">
         {JSON.stringify(rows ? pagination.items : data, null, 2)}
