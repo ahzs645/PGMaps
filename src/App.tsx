@@ -31,6 +31,7 @@ const DevBcerBoundaries = lazy(() => import('@/pages/DevBcerBoundaries'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevLoad = lazy(() => import('@/pages/DevLoad'))
 const DevData = lazy(() => import('@/pages/DevData'))
+const DevMmgis = lazy(() => import('@/pages/DevMmgis'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
 const DevWait = lazy(() => import('@/pages/DevWait'))
@@ -140,6 +141,7 @@ function App() {
             <Route path="/dev/design" element={<DevDesign />} />
             <Route path="/dev/load" element={<DevLoad />} />
             <Route path="/dev/data" element={<DevData />} />
+            <Route path="/dev/mmgis" element={<DevMmgis />} />
             <Route path="/dev/interact" element={<DevInteract />} />
             <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
             <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />

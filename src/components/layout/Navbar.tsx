@@ -52,6 +52,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/dev/boundaries/bcer': 'BCER Compare',
   '/dev/design': 'Design',
   '/dev/load': 'Map Loader',
+  '/dev/mmgis': 'Mission workbench',
   '/dev/interact': 'Interact',
   '/dev/interact/sewage': 'Sewage',
   '/dev/health/wait': 'Wait Times',
