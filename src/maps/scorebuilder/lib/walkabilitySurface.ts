@@ -47,10 +47,30 @@ export const SCORE_METRIC_TO_REPORT_REFS: Partial<Record<ScoreMetricKey, string[
   parkWalk20Access: ['A2', 'A3', 'A4', 'A5'],
   parkTransit20Access: ['A2', 'A3', 'A4', 'A5', 'F9', 'G0'],
   walkabilityPoiDensity: [
-    'A0', 'A1', 'B0', 'B1', 'B2', 'B3',
-    'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
-    'D0', 'D1', 'D2', 'D3', 'D4',
-    'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
+    'A0',
+    'A1',
+    'B0',
+    'B1',
+    'B2',
+    'B3',
+    'C1',
+    'C2',
+    'C3',
+    'C4',
+    'C5',
+    'C6',
+    'D0',
+    'D1',
+    'D2',
+    'D3',
+    'D4',
+    'E0',
+    'E1',
+    'E2',
+    'E3',
+    'E4',
+    'E5',
+    'E6',
   ],
 }
 
@@ -97,7 +117,9 @@ function solveWeightScale(rawScores: number[], target: number): number {
  * threshold, painting the whole surface a single colour.
  */
 export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeightMap>): HeatmapFactorWeightState {
-  const factorScores = Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0])) as HeatmapFactorWeightState
+  const factorScores = Object.fromEntries(
+    WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0]),
+  ) as HeatmapFactorWeightState
   if (!weights) return factorScores
 
   for (const [metricKey, weight] of Object.entries(weights) as Array<[ScoreMetricKey, number]>) {
@@ -112,9 +134,9 @@ export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeight
 
   // Factors with no matching metric stay at 0 by design, so the target covers
   // only the ones actually carrying weight.
-  const contributingScores = WALKABILITY_REPORT_FACTOR_REFS
-    .map((ref) => factorScores[ref] ?? 0)
-    .filter((score) => score > 0)
+  const contributingScores = WALKABILITY_REPORT_FACTOR_REFS.map((ref) => factorScores[ref] ?? 0).filter(
+    (score) => score > 0,
+  )
   if (contributingScores.length === 0) return factorScores
 
   const scale = solveWeightScale(contributingScores, contributingScores.length * REPORT_FACTOR_WEIGHT)

@@ -137,9 +137,7 @@ export function buildIconSvg(options: AqmapIconRenderOptions): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" width="${markerSize}" height="${markerSize}" viewBox="0 0 260 260">`,
-    shapeElement(group)
-      .replace('{fill}', fill)
-      .replace('{stroke}', stroke),
+    shapeElement(group).replace('{fill}', fill).replace('{stroke}', stroke),
     `<text x="130" y="130" text-anchor="middle" dominant-baseline="${baseline}" alignment-baseline="${baseline}" font-size="${fontSize}" fill="${stroke}" font-family="Inter, sans-serif">${value}</text>`,
     '</svg>',
   ].join('')

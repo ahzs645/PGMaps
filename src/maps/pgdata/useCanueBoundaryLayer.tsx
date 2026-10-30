@@ -110,8 +110,7 @@ export function useCanueBoundaryLayer({
   ])
   // Guarded render-phase state adjustment: the last ready layer bridges the
   // gap while fresh data for the same boundary level loads.
-  const [lastReadyCanueBoundaryLayer, setLastReadyCanueBoundaryLayer] =
-    useState<typeof stableCanueBoundaryLayer>(null)
+  const [lastReadyCanueBoundaryLayer, setLastReadyCanueBoundaryLayer] = useState<typeof stableCanueBoundaryLayer>(null)
   if (stableCanueBoundaryLayer && stableCanueBoundaryLayer !== lastReadyCanueBoundaryLayer) {
     setLastReadyCanueBoundaryLayer(stableCanueBoundaryLayer)
   }

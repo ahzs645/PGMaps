@@ -117,7 +117,16 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       violationTimelineMode,
       sortOrder,
     }),
-    [hazardRatings, facilityTypes, searchQuery, visualizationMode, markerStyle, timelineMonths, violationTimelineMode, sortOrder],
+    [
+      hazardRatings,
+      facilityTypes,
+      searchQuery,
+      visualizationMode,
+      markerStyle,
+      timelineMonths,
+      violationTimelineMode,
+      sortOrder,
+    ],
   )
 
   const actions = useMemo<FoodMapFilterActions>(() => {

@@ -69,15 +69,9 @@ export type ParkClassification =
   | 'Public'
   | 'Special Purpose'
 
-export type TrailUserClass =
-  | 'Walking'
-  | 'Multiuse'
-  | 'Equine'
+export type TrailUserClass = 'Walking' | 'Multiuse' | 'Equine'
 
-export type TrailSurfaceClass =
-  | 'Hard Surface'
-  | 'Soft Surface'
-  | 'Granular'
+export type TrailSurfaceClass = 'Hard Surface' | 'Soft Surface' | 'Granular'
 
 export type ActiveLayer =
   | 'parks'

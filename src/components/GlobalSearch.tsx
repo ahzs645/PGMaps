@@ -86,7 +86,14 @@ function staticSearchIndex(): SearchItem[] {
     'text-orange-500',
   )
   addDatasetItem('dataset-air', 'Air monitoring stations dataset', 'airQuality', '/airquality', Wind, 'text-sky-500')
-  addDatasetItem('dataset-census', '2021 Census variables catalogue', 'census', '/misc?tab=census', BarChart3, 'text-amber-600')
+  addDatasetItem(
+    'dataset-census',
+    '2021 Census variables catalogue',
+    'census',
+    '/misc?tab=census',
+    BarChart3,
+    'text-amber-600',
+  )
   addDatasetItem(
     'dataset-parks',
     'Parks, trails, and amenities datasets',

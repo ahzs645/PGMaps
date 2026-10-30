@@ -73,15 +73,18 @@ function ensureDeckAnchorLayer(map: maplibregl.Map): string {
   }
   if (!map.getLayer(DECK_ANCHOR_LAYER_ID)) {
     const beforeId = getFirstMonitorLayerId(map)
-    map.addLayer({
-      id: DECK_ANCHOR_LAYER_ID,
-      type: 'circle',
-      source: DECK_ANCHOR_SOURCE_ID,
-      paint: {
-        'circle-opacity': 0,
-        'circle-radius': 0,
+    map.addLayer(
+      {
+        id: DECK_ANCHOR_LAYER_ID,
+        type: 'circle',
+        source: DECK_ANCHOR_SOURCE_ID,
+        paint: {
+          'circle-opacity': 0,
+          'circle-radius': 0,
+        },
       },
-    }, beforeId)
+      beforeId,
+    )
   }
   return DECK_ANCHOR_LAYER_ID
 }
@@ -109,18 +112,23 @@ type FireDangerDeckFeatureCollection = GeoJSON.FeatureCollection<
   GeoJSON.MultiPolygon | GeoJSON.Polygon,
   FireDangerDeckProperties
 >
-type Pm25DeckFeatureCollection = GeoJSON.FeatureCollection<
-  GeoJSON.MultiPolygon | GeoJSON.Polygon,
-  Pm25DeckProperties
->
+type Pm25DeckFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, Pm25DeckProperties>
 type DeckTileIndex = { x: number; y: number; z: number }
 type DeckTileConfig = {
   tileSize: number
   minZoom: number
   maxZoom: number
   opacity: number
-  getTileData: (tile: { bbox: unknown; index?: DeckTileIndex; signal?: AbortSignal | null }) => Promise<ImageBitmap | null>
-  renderSubLayers: (props: { id: string; data: ImageBitmap | null; tile: { boundingBox: unknown } }) => BitmapLayer | null
+  getTileData: (tile: {
+    bbox: unknown
+    index?: DeckTileIndex
+    signal?: AbortSignal | null
+  }) => Promise<ImageBitmap | null>
+  renderSubLayers: (props: {
+    id: string
+    data: ImageBitmap | null
+    tile: { boundingBox: unknown }
+  }) => BitmapLayer | null
 }
 
 function fireDangerClass(properties: FireDangerDeckProperties | null | undefined): number {
@@ -128,13 +136,15 @@ function fireDangerClass(properties: FireDangerDeckProperties | null | undefined
 }
 
 function buildFireDangerTileUrl({ x, y, z }: DeckTileIndex): string {
-  return FIRE_DANGER_VECTOR_TILE_URL_TEMPLATE
-    .replace('{z}', String(z))
+  return FIRE_DANGER_VECTOR_TILE_URL_TEMPLATE.replace('{z}', String(z))
     .replace('{x}', String(x))
     .replace('{y}', String(y))
 }
 
-async function fetchFireDangerTile(index: DeckTileIndex, signal?: AbortSignal | null): Promise<FireDangerDeckFeatureCollection | null> {
+async function fetchFireDangerTile(
+  index: DeckTileIndex,
+  signal?: AbortSignal | null,
+): Promise<FireDangerDeckFeatureCollection | null> {
   try {
     return await fetchJson<FireDangerDeckFeatureCollection>(buildFireDangerTileUrl(index), signal ?? undefined)
   } catch (error) {
@@ -193,8 +203,8 @@ export function AqMapDeckOverlay({
     if (!pm25NativeVector) return null
     return {
       ...pm25NativeVector,
-      features: [...pm25NativeVector.features].sort((a, b) =>
-        Number(a.properties?.c ?? 0) - Number(b.properties?.c ?? 0),
+      features: [...pm25NativeVector.features].sort(
+        (a, b) => Number(a.properties?.c ?? 0) - Number(b.properties?.c ?? 0),
       ),
     }
   }, [pm25NativeVector])
@@ -285,12 +295,15 @@ export function AqMapDeckOverlay({
         opacity,
         getTileData: async (tile) => {
           try {
-            const response = await fetch(buildRasterTileUrl(template, {
-              bbox: tile.bbox as GeoBBox,
-              index: tile.index,
-            }), {
-              signal: tile.signal ?? undefined,
-            })
+            const response = await fetch(
+              buildRasterTileUrl(template, {
+                bbox: tile.bbox as GeoBBox,
+                index: tile.index,
+              }),
+              {
+                signal: tile.signal ?? undefined,
+              },
+            )
             if (!response.ok) return null
             return await createImageBitmap(await response.blob())
           } catch (error) {
@@ -345,8 +358,7 @@ export function AqMapDeckOverlay({
             parameters: {
               depthTest: false,
             },
-            getFillColor: (feature: { properties?: Pm25DeckProperties }) =>
-              pm25FillColor(feature.properties),
+            getFillColor: (feature: { properties?: Pm25DeckProperties }) => pm25FillColor(feature.properties),
             onHover: (info: { object?: { properties?: Pm25DeckProperties } | null; coordinate?: [number, number] }) => {
               const popup = pm25TooltipRef.current
               if (!popup || !map) return
@@ -365,7 +377,10 @@ export function AqMapDeckOverlay({
       }
 
       if (fireDangerActive) {
-        const handleFireDangerHover = (info: { object?: { properties?: FireDangerDeckProperties } | null; coordinate?: [number, number] }) => {
+        const handleFireDangerHover = (info: {
+          object?: { properties?: FireDangerDeckProperties } | null
+          coordinate?: [number, number]
+        }) => {
           const popup = fireDangerTooltipRef.current
           if (!popup || !map) return
           if (suppressHoverPopupsRef.current || !info.object || !info.coordinate) {

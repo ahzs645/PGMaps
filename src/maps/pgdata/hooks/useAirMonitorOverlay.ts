@@ -47,9 +47,20 @@ function parseMonitors(json: unknown): PGMonitor[] {
 
     let params: string[] = []
     if (Array.isArray(row.parameters)) params = row.parameters.filter(Boolean)
-    else if (typeof row.parameters === 'string') params = row.parameters.split(/[|,]/).map((s) => s.trim()).filter(Boolean)
+    else if (typeof row.parameters === 'string')
+      params = row.parameters
+        .split(/[|,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
 
-    monitors.push({ id, name, network: row.network?.trim() ?? 'Unknown', latitude: lat, longitude: lon, parameters: params })
+    monitors.push({
+      id,
+      name,
+      network: row.network?.trim() ?? 'Unknown',
+      latitude: lat,
+      longitude: lon,
+      parameters: params,
+    })
   }
 
   monitors.sort((a, b) => a.name.localeCompare(b.name))
@@ -60,14 +71,17 @@ export function useAirMonitorOverlay() {
   const { data, loading, error } = useFetchData<unknown>('/data/monitors/all.json')
   const allMonitors = useMemo(() => (data ? parseMonitors(data) : []), [data])
 
-  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: allMonitors.map((m) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [m.longitude, m.latitude] },
-      properties: { id: m.id, name: m.name, network: m.network },
-    })),
-  }), [allMonitors])
+  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: allMonitors.map((m) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [m.longitude, m.latitude] },
+        properties: { id: m.id, name: m.name, network: m.network },
+      })),
+    }),
+    [allMonitors],
+  )
 
   return { monitors: allMonitors, geojson, loading, error }
 }

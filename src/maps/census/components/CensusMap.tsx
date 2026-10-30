@@ -24,7 +24,7 @@ export function CensusMap({
   bounds,
   onUnitClick,
   variableValuesByGeoUid,
-  loading = false
+  loading = false,
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
@@ -57,7 +57,7 @@ export function CensusMap({
     if (!metricValues.length) return { min: 0, max: 1 }
     return {
       min: Math.min(...metricValues),
-      max: Math.max(...metricValues)
+      max: Math.max(...metricValues),
     }
   }, [metricValues])
 
@@ -65,19 +65,17 @@ export function CensusMap({
     return {
       type: 'FeatureCollection',
       features: units.map((unit) => {
-        const value = useVariable
-          ? (variableValuesByGeoUid!.get(unit.id) ?? null)
-          : (unit[selectedMetric] ?? null)
+        const value = useVariable ? (variableValuesByGeoUid!.get(unit.id) ?? null) : (unit[selectedMetric] ?? null)
         return {
           type: 'Feature',
           geometry: unit.geometry,
           properties: {
             id: unit.id,
             metricValue: value,
-            color: getChoroplethColor(value, metricRange.min, metricRange.max)
-          }
+            color: getChoroplethColor(value, metricRange.min, metricRange.max),
+          },
         }
-      })
+      }),
     }
   }, [metricRange.max, metricRange.min, selectedMetric, units, useVariable, variableValuesByGeoUid])
 
@@ -106,12 +104,12 @@ export function CensusMap({
     mapRef.current.fitBounds(
       [
         [bounds.minLng, bounds.minLat],
-        [bounds.maxLng, bounds.maxLat]
+        [bounds.maxLng, bounds.maxLat],
       ],
       {
         padding: 32,
-        duration: 700
-      }
+        duration: 700,
+      },
     )
     lastBoundsKeyRef.current = boundsKey
   }, [bounds, boundsKey])
@@ -147,12 +145,12 @@ export function CensusMap({
       mapRef.current.fitBounds(
         [
           [minLng, minLat],
-          [maxLng, maxLat]
+          [maxLng, maxLat],
         ],
         {
           padding: 80,
-          duration: 500
-        }
+          duration: 500,
+        },
       )
     }
   }, [selectedFeatures])
@@ -163,7 +161,7 @@ export function CensusMap({
         ref={mapRef}
         center={initialView.center}
         zoom={initialView.zoom}
-               loading={loading}
+        loading={loading}
         onViewportChange={onViewportChange}
       >
         <MapFillLayer

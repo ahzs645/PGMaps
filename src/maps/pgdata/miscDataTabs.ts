@@ -1,4 +1,18 @@
-import { BarChart3, Database, Droplets, Flame, Footprints, LandPlot, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
+import {
+  BarChart3,
+  Database,
+  Droplets,
+  Flame,
+  Footprints,
+  LandPlot,
+  PawPrint,
+  RadioTower,
+  ShieldAlert,
+  Trash2,
+  Trees,
+  Waves,
+  Zap,
+} from 'lucide-react'
 import type { SectionTab } from '@/components/layout/SectionTabsBar'
 
 export type MiscDataTab =

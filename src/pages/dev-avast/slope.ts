@@ -43,7 +43,12 @@ export type SlopeGrid = {
  * Horn's 3×3 slope over a grid snapped to multiples of `cell`, so neighbouring
  * blocks share cell edges and their class polygons line up.
  */
-export function slopeGrid(bbox: BBox, cell: number, elevationAt: AlbersElevation, breaks: readonly [number, number]): SlopeGrid {
+export function slopeGrid(
+  bbox: BBox,
+  cell: number,
+  elevationAt: AlbersElevation,
+  breaks: readonly [number, number],
+): SlopeGrid {
   const minX = Math.floor(bbox[0] / cell) * cell
   const minY = Math.floor(bbox[1] / cell) * cell
   const cols = Math.max(1, Math.ceil((bbox[2] - minX) / cell))
@@ -62,16 +67,21 @@ export function slopeGrid(bbox: BBox, cell: number, elevationAt: AlbersElevation
     for (let col = 0; col < cols; col += 1) {
       const at = (dc: number, dr: number) => nodes[(row + 1 + dr) * nodeCols + col + 1 + dc]
       // a b c on the north row, g h i on the south; rows run south to north.
-      const a = at(-1, 1), b = at(0, 1), c = at(1, 1)
-      const d = at(-1, 0), f = at(1, 0)
-      const g = at(-1, -1), h = at(0, -1), i = at(1, -1)
+      const a = at(-1, 1),
+        b = at(0, 1),
+        c = at(1, 1)
+      const d = at(-1, 0),
+        f = at(1, 0)
+      const g = at(-1, -1),
+        h = at(0, -1),
+        i = at(1, -1)
       const index = row * cols + col
       if (![a, b, c, d, f, g, h, i].every(Number.isFinite)) {
         percent[index] = NaN
         continue
       }
-      const dzdx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cell)
-      const dzdy = ((a + 2 * b + c) - (g + 2 * h + i)) / (8 * cell)
+      const dzdx = (c + 2 * f + i - (a + 2 * d + g)) / (8 * cell)
+      const dzdy = (a + 2 * b + c - (g + 2 * h + i)) / (8 * cell)
       const value = 100 * Math.hypot(dzdx, dzdy)
       percent[index] = value
       classes[index] = classifySlope(value, breaks)
@@ -90,10 +100,14 @@ export function slopeClassPolygons(grid: SlopeGrid): Record<SlopeClass, MultiPol
   const rectangles: Record<SlopeClass, MultiPolygonCoords> = { 1: [], 2: [], 3: [] }
   let open = new Map<string, { slopeClass: SlopeClass; start: number; end: number; fromRow: number }>()
   const close = (run: { slopeClass: SlopeClass; start: number; end: number; fromRow: number }, toRow: number) => {
-    rectangles[run.slopeClass].push(rectangle(
-      grid.minX + run.start * grid.cell, grid.minY + run.fromRow * grid.cell,
-      grid.minX + run.end * grid.cell, grid.minY + toRow * grid.cell,
-    ))
+    rectangles[run.slopeClass].push(
+      rectangle(
+        grid.minX + run.start * grid.cell,
+        grid.minY + run.fromRow * grid.cell,
+        grid.minX + run.end * grid.cell,
+        grid.minY + toRow * grid.cell,
+      ),
+    )
   }
   for (let row = 0; row <= grid.rows; row += 1) {
     const next = new Map<string, { slopeClass: SlopeClass; start: number; end: number; fromRow: number }>()

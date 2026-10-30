@@ -14,17 +14,13 @@ export function WaterDetailSection({ title, count, children }: { title: string; 
         <div className="font-semibold text-foreground">{title}</div>
         <div className="text-xs tabular-nums text-muted-foreground">{formatNumber(count)}</div>
       </div>
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-        {children}
-      </div>
+      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">{children}</div>
     </div>
   )
 }
 
 export function EmptyWaterDetail({ label }: { label: string }) {
-  return (
-    <div className="rounded border border-dashed border-border p-2 text-muted-foreground">{label}</div>
-  )
+  return <div className="rounded border border-dashed border-border p-2 text-muted-foreground">{label}</div>
 }
 
 export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoticeRow; compact?: boolean }) {
@@ -43,7 +39,10 @@ export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoti
         </Badge>
       </div>
       <div className="mt-1 flex justify-between gap-2 text-muted-foreground">
-        <span>{notice.primarySource || notice.status}{notice.sourceCount > 1 ? ` +${notice.sourceCount - 1}` : ''}</span>
+        <span>
+          {notice.primarySource || notice.status}
+          {notice.sourceCount > 1 ? ` +${notice.sourceCount - 1}` : ''}
+        </span>
         <span>Started {formatDate(notice.date?.toISOString())}</span>
       </div>
       {(underlyingProblems || stepsTaken || correctiveActions || waterTodayDetails || detailsUrl) && (
@@ -69,7 +68,9 @@ export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoti
           {!underlyingProblems && waterTodayDetails && (
             <div>
               <div className="font-medium text-foreground">Notice details</div>
-              <div className="mt-0.5 whitespace-pre-line leading-relaxed text-muted-foreground">{waterTodayDetails}</div>
+              <div className="mt-0.5 whitespace-pre-line leading-relaxed text-muted-foreground">
+                {waterTodayDetails}
+              </div>
             </div>
           )}
           {detailsUrl && <ExternalLink href={detailsUrl} />}

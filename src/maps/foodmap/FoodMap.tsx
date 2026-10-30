@@ -16,7 +16,12 @@ import { getHazardRating } from './hazard'
 import { formatFullAddress } from './address'
 import { useFoodMapWebMCP } from './foodWebMCP'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
-import { FOOD_VIOLATION_BUCKETS, getViolationBucket, VIOLATION_BUCKET_STYLES, type FoodViolationBucket } from './violationBuckets'
+import {
+  FOOD_VIOLATION_BUCKETS,
+  getViolationBucket,
+  VIOLATION_BUCKET_STYLES,
+  type FoodViolationBucket,
+} from './violationBuckets'
 import type { RestaurantWithStats, HazardRating } from './types'
 
 type ViolationBucket = FoodViolationBucket
@@ -261,16 +266,15 @@ export default function FoodMap() {
   const sortedRestaurants = useMemo(() => {
     if (sortOrder === 'name') return filteredRestaurants
     const latestTime = (r: RestaurantWithStats) =>
-      Math.max(0, ...(r.inspections || []).map((insp) => parseInspectionDate(insp.date || insp.inspection_date)?.getTime() || 0))
+      Math.max(
+        0,
+        ...(r.inspections || []).map((insp) => parseInspectionDate(insp.date || insp.inspection_date)?.getTime() || 0),
+      )
     const keyed = filteredRestaurants.map((r) => ({
       r,
       key:
         sortOrder === 'violations'
-          ? [
-              r.violationStats?.inspectionCount ? 1 : 0,
-              r.violationStats?.total || 0,
-              r.violationStats?.critical || 0,
-            ]
+          ? [r.violationStats?.inspectionCount ? 1 : 0, r.violationStats?.total || 0, r.violationStats?.critical || 0]
           : [latestTime(r)],
     }))
     keyed.sort((a, b) => {
@@ -360,7 +364,8 @@ export default function FoodMap() {
   const handleRestaurantClick = useCallback(
     (restaurant: RestaurantWithStats) => {
       const active = document.activeElement
-      selectedRowTrigger.current = active instanceof HTMLButtonElement && active.dataset.restaurantId === restaurant.details_url ? active : null
+      selectedRowTrigger.current =
+        active instanceof HTMLButtonElement && active.dataset.restaurantId === restaurant.details_url ? active : null
       selectRestaurant(selectedRestaurant?.details_url === restaurant.details_url ? null : restaurant)
     },
     [selectRestaurant, selectedRestaurant],

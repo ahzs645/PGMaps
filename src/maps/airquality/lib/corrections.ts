@@ -22,28 +22,28 @@ export const CORRECTION_MODEL_OPTIONS: CorrectionModelOption[] = [
   {
     value: 'rawPurpleAir',
     label: 'Raw PurpleAir',
-    description: 'Uses the reported PA PM2.5 value without correction.'
+    description: 'Uses the reported PA PM2.5 value without correction.',
   },
   {
     value: 'epaBarkjohn',
     label: 'EPA / Barkjohn',
-    description: 'Screening implementation of the EPA/Barkjohn RH-adjusted PA correction.'
+    description: 'Screening implementation of the EPA/Barkjohn RH-adjusted PA correction.',
   },
   {
     value: 'nilsonLocal',
     label: 'Nilson / Local',
-    description: 'Prince George-oriented local correction placeholder pending fitted coefficients.'
+    description: 'Prince George-oriented local correction placeholder pending fitted coefficients.',
   },
   {
     value: 'wildfireSmoke',
     label: 'Wildfire Smoke',
-    description: 'Smoke-regime correction placeholder for elevated PM2.5 events.'
+    description: 'Smoke-regime correction placeholder for elevated PM2.5 events.',
   },
   {
     value: 'siteSpecific',
     label: 'Site-specific',
-    description: 'Site calibration placeholder pending co-location validation results.'
-  }
+    description: 'Site calibration placeholder pending co-location validation results.',
+  },
 ]
 
 function asFiniteNumber(value: unknown): number | null {
@@ -76,7 +76,11 @@ function roundTenths(value: number | null): number | null {
   return Math.round(value * 10) / 10
 }
 
-function estimateUncertainty(rawPm25: number | null, correctedPm25: number | null, humidity: number | null): number | null {
+function estimateUncertainty(
+  rawPm25: number | null,
+  correctedPm25: number | null,
+  humidity: number | null,
+): number | null {
   const base = correctedPm25 ?? rawPm25
   if (base === null) return null
 
@@ -85,10 +89,7 @@ function estimateUncertainty(rawPm25: number | null, correctedPm25: number | nul
   return roundTenths(relative + humidityPenalty)
 }
 
-export function calculateCorrectedPm25(
-  monitor: AirMonitor,
-  model: AirQualityCorrectionModel
-): CorrectedPm25Result {
+export function calculateCorrectedPm25(monitor: AirMonitor, model: AirQualityCorrectionModel): CorrectedPm25Result {
   const rawPm25 = getRawPm25(monitor)
   const humidity = getHumidity(monitor)
   const temperature = getTemperature(monitor)
@@ -105,7 +106,7 @@ export function calculateCorrectedPm25(
       temperature,
       pressure,
       uncertainty: null,
-      note: 'No recent PM2.5 value is available for this monitor.'
+      note: 'No recent PM2.5 value is available for this monitor.',
     }
   }
 
@@ -119,9 +120,8 @@ export function calculateCorrectedPm25(
     correctedPm25 = clampPm25(0.58 * rawPm25 - 0.07 * (humidity ?? 50) + 4.8)
     note = 'Local Nilson-style placeholder until Prince George fitted coefficients are loaded.'
   } else if (model === 'wildfireSmoke') {
-    correctedPm25 = rawPm25 >= 30
-      ? clampPm25(0.46 * rawPm25 + 3.8)
-      : clampPm25(0.524 * rawPm25 - 0.0862 * (humidity ?? 50) + 5.75)
+    correctedPm25 =
+      rawPm25 >= 30 ? clampPm25(0.46 * rawPm25 + 3.8) : clampPm25(0.524 * rawPm25 - 0.0862 * (humidity ?? 50) + 5.75)
     note = 'Smoke-regime screening correction; elevated PM2.5 uses a high-smoke adjustment.'
   } else if (model === 'siteSpecific') {
     correctedPm25 = clampPm25(0.62 * rawPm25 - 0.05 * (humidity ?? 50) + 3.5)
@@ -139,7 +139,7 @@ export function calculateCorrectedPm25(
     temperature,
     pressure,
     uncertainty: estimateUncertainty(rawPm25, roundedCorrected, humidity),
-    note
+    note,
   }
 }
 

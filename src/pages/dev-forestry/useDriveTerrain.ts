@@ -8,7 +8,7 @@ import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibili
  * Fetching the whole route also warms the browser's terrain cache ahead of travel. */
 export function useDriveTerrain(active: boolean, road: number[][], polygons: PolygonGeometry[]) {
   const [attempt, setAttempt] = useState(0)
-  const retry = useCallback(() => setAttempt(value => value + 1), [])
+  const retry = useCallback(() => setAttempt((value) => value + 1), [])
   const [progress, setProgress] = useState(0)
   const [loading, setLoading] = useState(false)
   const extent = useMemo(() => {
@@ -33,7 +33,11 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     )
     return { bounds, radius: Math.min(20000, radius) }
   }, [road, polygons])
-  const [state, setState] = useState<{ extent?: typeof extent; source: ElevationSource | null; message: string | null }>({
+  const [state, setState] = useState<{
+    extent?: typeof extent
+    source: ElevationSource | null
+    message: string | null
+  }>({
     source: null,
     message: null,
   })
@@ -59,7 +63,17 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     }
     setLoading(true)
     setState({ source: null, message: 'Loading terrain along the road and assessment hillside…' })
-    loadPreviewTerrain({ range, signal: abort.signal, concurrency: 4, onProgress: (completed, total) => { if (!abort.signal.aborted) setProgress(Math.round(100 * completed / total)) } }, attempt > 0)
+    loadPreviewTerrain(
+      {
+        range,
+        signal: abort.signal,
+        concurrency: 4,
+        onProgress: (completed, total) => {
+          if (!abort.signal.aborted) setProgress(Math.round((100 * completed) / total))
+        },
+      },
+      attempt > 0,
+    )
       .then(({ source, missingTileCount }) => {
         if (!abort.signal.aborted) {
           setLoading(false)
@@ -82,5 +96,12 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
       })
     return () => abort.abort()
   }, [active, extent, attempt])
-  return { ...state, source: state.extent === extent ? state.source : null, progress, loading, retry, radius: extent?.radius ?? 3500 }
+  return {
+    ...state,
+    source: state.extent === extent ? state.source : null,
+    progress,
+    loading,
+    retry,
+    radius: extent?.radius ?? 3500,
+  }
 }

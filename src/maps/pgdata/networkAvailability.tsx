@@ -115,7 +115,10 @@ export function useNetworkAvailabilityLayer(enabled: boolean, version?: string |
             }))
             .sort((a, b) => {
               const order = { LTE: 0, '5G': 1 } as Record<string, number>
-              return (order[String(a.properties?.technology ?? '')] ?? 2) - (order[String(b.properties?.technology ?? '')] ?? 2)
+              return (
+                (order[String(a.properties?.technology ?? '')] ?? 2) -
+                (order[String(b.properties?.technology ?? '')] ?? 2)
+              )
             }),
         })
       } catch (err) {

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CrimeIncident } from '../types'
 
-const API_BASE =
-  'https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/PGCrime/FeatureServer/0/query'
+const API_BASE = 'https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/PGCrime/FeatureServer/0/query'
 const PAGE_SIZE = 2000
 
 interface ArcGISFeature {
@@ -90,9 +89,7 @@ export function useCrimeData(enabled = true) {
         const pageCount = Math.ceil(total / PAGE_SIZE)
 
         const pages = await Promise.all(
-          Array.from({ length: pageCount }, (_, i) =>
-            fetchPage(i * PAGE_SIZE, controller.signal)
-          )
+          Array.from({ length: pageCount }, (_, i) => fetchPage(i * PAGE_SIZE, controller.signal)),
         )
 
         const allFeatures = pages.flat()

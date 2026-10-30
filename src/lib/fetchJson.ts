@@ -1,8 +1,6 @@
 import { withBase } from './dataUrl'
 
-type DecompressionStreamConstructor = new (
-  format: 'gzip',
-) => TransformStream<Uint8Array, Uint8Array>
+type DecompressionStreamConstructor = new (format: 'gzip') => TransformStream<Uint8Array, Uint8Array>
 
 function isGzip(bytes: Uint8Array): boolean {
   return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
@@ -22,9 +20,7 @@ async function inflateGzip(bytes: Uint8Array): Promise<string> {
   if (!DecompressionStreamCtor) {
     throw new Error('This browser cannot decompress gzip map data')
   }
-  const stream = new Blob([bytes as BlobPart])
-    .stream()
-    .pipeThrough(new DecompressionStreamCtor('gzip'))
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStreamCtor('gzip'))
   return new Response(stream).text()
 }
 
@@ -80,14 +76,9 @@ export async function fetchBytes(
  * that static hosts serve for missing files (which would otherwise surface as a
  * confusing parse error further downstream).
  */
-export async function fetchGzipText(
-  url: string,
-  signal?: AbortSignal,
-): Promise<string> {
+export async function fetchGzipText(url: string, signal?: AbortSignal): Promise<string> {
   const { bytes, contentType } = await fetchBytes(url, signal)
-  const text = isGzip(bytes)
-    ? await inflateGzip(bytes)
-    : new TextDecoder().decode(bytes)
+  const text = isGzip(bytes) ? await inflateGzip(bytes) : new TextDecoder().decode(bytes)
 
   if (text.trimStart().startsWith('<')) {
     throw new MissingFileError(url, contentType)
@@ -96,10 +87,7 @@ export async function fetchGzipText(
   return text
 }
 
-export async function fetchJson<T>(
-  url: string,
-  signal?: AbortSignal,
-): Promise<T> {
+export async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const text = await fetchGzipText(url, signal)
 
   try {

@@ -91,7 +91,10 @@ function parseAsciiGrid(payload: string): AsciiGrid {
     const key = rawKey.toLowerCase()
     const value = Number(rawValue)
 
-    if (!Number.isFinite(value) || !['ncols', 'nrows', 'xllcorner', 'yllcorner', 'dx', 'dy', 'cellsize', 'nodata_value'].includes(key)) {
+    if (
+      !Number.isFinite(value) ||
+      !['ncols', 'nrows', 'xllcorner', 'yllcorner', 'dx', 'dy', 'cellsize', 'nodata_value'].includes(key)
+    ) {
       dataStartIndex = index
       break
     }
@@ -176,7 +179,10 @@ function sampleDatasetAtLngLat(dataset: WindBarbDataset, lng: number, lat: numbe
   if (lng < speedGrid.xllcorner || lng > east || lat < speedGrid.yllcorner || lat > north) return null
 
   const col = Math.max(0, Math.min(speedGrid.ncols - 1, Math.floor((lng - speedGrid.xllcorner) / speedGrid.dx)))
-  const rowFromSouth = Math.max(0, Math.min(speedGrid.nrows - 1, Math.floor((lat - speedGrid.yllcorner) / speedGrid.dy)))
+  const rowFromSouth = Math.max(
+    0,
+    Math.min(speedGrid.nrows - 1, Math.floor((lat - speedGrid.yllcorner) / speedGrid.dy)),
+  )
   const row = speedGrid.nrows - rowFromSouth - 1
   const speed = speedGrid.values[row]?.[col]
   const direction = directionGrid.values[row]?.[col]
@@ -210,8 +216,16 @@ function displayDeckSamplesForMap(map: maplibregl.Map, dataset: WindBarbDataset)
   const maxY = height + WIND_BARB_VIEW_PADDING
   const samples: WindBarbDeckSample[] = []
 
-  for (let x = firstLatticeCoordinate(anchor.x, minX, WIND_BARB_PIXEL_SPACING); x <= maxX; x += WIND_BARB_PIXEL_SPACING) {
-    for (let y = firstLatticeCoordinate(anchor.y, minY, WIND_BARB_PIXEL_SPACING); y <= maxY; y += WIND_BARB_PIXEL_SPACING) {
+  for (
+    let x = firstLatticeCoordinate(anchor.x, minX, WIND_BARB_PIXEL_SPACING);
+    x <= maxX;
+    x += WIND_BARB_PIXEL_SPACING
+  ) {
+    for (
+      let y = firstLatticeCoordinate(anchor.y, minY, WIND_BARB_PIXEL_SPACING);
+      y <= maxY;
+      y += WIND_BARB_PIXEL_SPACING
+    ) {
       const lngLat = map.unproject([x, y])
       const sample = sampleDatasetAtLngLat(dataset, lngLat.lng, lngLat.lat)
       if (!sample) continue
@@ -222,13 +236,7 @@ function displayDeckSamplesForMap(map: maplibregl.Map, dataset: WindBarbDataset)
   return samples
 }
 
-export function VectorWindBarbLayer({
-  visible,
-  basemap,
-}: {
-  visible: boolean
-  basemap: 'light' | 'dark'
-}) {
+export function VectorWindBarbLayer({ visible, basemap }: { visible: boolean; basemap: 'light' | 'dark' }) {
   const { map, isLoaded } = useMap()
   const overlayRef = useDeckOverlay({ enabled: visible })
   const [dataset, setDataset] = useState<WindBarbDataset | null>(null)
@@ -251,10 +259,7 @@ export function VectorWindBarbLayer({
       if (!speedResponse.ok) throw new Error(`Wind speed WCS request failed: ${speedResponse.status}`)
       if (!directionResponse.ok) throw new Error(`Wind direction WCS request failed: ${directionResponse.status}`)
 
-      const [speedText, directionText] = await Promise.all([
-        speedResponse.text(),
-        directionResponse.text(),
-      ])
+      const [speedText, directionText] = await Promise.all([speedResponse.text(), directionResponse.text()])
 
       setDataset(gridsToDataset(parseAsciiGrid(speedText), parseAsciiGrid(directionText)))
     }

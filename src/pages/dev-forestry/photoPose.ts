@@ -240,18 +240,26 @@ export function reprojectEquirect(
   const { right, down, forward } = cameraAxes({ bearing: view.bearing, pitch: view.pitch, roll: 0 })
   const focal = view.height / 2 / Math.tan((view.verticalFovDegrees * RAD) / 2)
   const out = new Uint8ClampedArray(view.width * view.height * 4)
-  const W = source.width, H = source.height
+  const W = source.width,
+    H = source.height
   for (let v = 0; v < view.height; v += 1) {
     const y = (v + 0.5 - view.height / 2) / focal
     for (let u = 0; u < view.width; u += 1) {
       const x = (u + 0.5 - view.width / 2) / focal
-      const d: Vec3 = [forward[0] + x * right[0] + y * down[0], forward[1] + x * right[1] + y * down[1], forward[2] + x * right[2] + y * down[2]]
-      const cx = dot(d, rows[0]), cy = dot(d, rows[1]), cz = dot(d, rows[2])
+      const d: Vec3 = [
+        forward[0] + x * right[0] + y * down[0],
+        forward[1] + x * right[1] + y * down[1],
+        forward[2] + x * right[2] + y * down[2],
+      ]
+      const cx = dot(d, rows[0]),
+        cy = dot(d, rows[1]),
+        cz = dot(d, rows[2])
       const lon = Math.atan2(cx, cz)
       const lat = Math.atan2(-cy, Math.hypot(cx, cz))
       const su = Math.min(W - 1, Math.max(0, Math.floor((0.5 + lon / (2 * Math.PI)) * W)))
       const sv = Math.min(H - 1, Math.max(0, Math.floor((0.5 - lat / Math.PI) * H)))
-      const from = (sv * W + su) * 4, to = (v * view.width + u) * 4
+      const from = (sv * W + su) * 4,
+        to = (v * view.width + u) * 4
       out[to] = source.data[from]
       out[to + 1] = source.data[from + 1]
       out[to + 2] = source.data[from + 2]
@@ -277,4 +285,3 @@ export function panoViewPose(at: { lng: number; lat: number; altitudeMeters: num
     k2: 0,
   }
 }
-

@@ -20,7 +20,12 @@ describe('mapTooltipHtml', () => {
   it('keeps numeric zero while omitting absent rows and empty details', () => {
     const html = mapTooltipHtml({
       title: 'Coverage',
-      rows: [['Count', 0], ['Missing', null], ['Unknown', undefined], ['Empty', '']],
+      rows: [
+        ['Count', 0],
+        ['Missing', null],
+        ['Unknown', undefined],
+        ['Empty', ''],
+      ],
       lines: [''],
     })
     expect(html).toContain('Count:')

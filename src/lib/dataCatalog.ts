@@ -13,7 +13,8 @@ export const DATASETS = {
   },
   airQuality: {
     title: 'Air monitoring stations',
-    description: 'Regulatory, research, and community air monitoring station metadata with network, status, and measured parameters.',
+    description:
+      'Regulatory, research, and community air monitoring station metadata with network, status, and measured parameters.',
     source: 'BC ENV, EPA, SPARTAN, ASCENT, PurpleAir',
     coverage: 'BC and North America, filtered to map view',
     license: 'Source-dependent open data',
@@ -23,17 +24,34 @@ export const DATASETS = {
   },
   census: {
     title: '2021 census variables',
-    description: 'Census geography and variable extracts across census subdivision, tract, dissemination area, and block levels, including the national CSD North/South classification and a DB-to-CHSA health-boundary crosswalk for BC DB records.',
-    source: 'Statistics Canada 2021 Census and Variant of SGC 2021 for North and South, BCCDC db21 package, BC Ministry of Health DB-CHSA crosswalk',
+    description:
+      'Census geography and variable extracts across census subdivision, tract, dissemination area, and block levels, including the national CSD North/South classification and a DB-to-CHSA health-boundary crosswalk for BC DB records.',
+    source:
+      'Statistics Canada 2021 Census and Variant of SGC 2021 for North and South, BCCDC db21 package, BC Ministry of Health DB-CHSA crosswalk',
     coverage: 'Canada census subdivisions; BC census geographies; Prince George dissemination blocks',
     license: 'Statistics Canada open licence',
     formats: ['JSON', 'GeoJSON'],
     downloadUrl: '/data/census/variables/catalog.json',
-    fields: ['GeoUID', 'CSDUID', 'CDUID', 'north_south', 'name', 'population', 'areaSqKm', 'variable_id', 'value', 'chsaCode', 'lhaCode', 'hsdaCode', 'healthAuthorityCode'],
+    fields: [
+      'GeoUID',
+      'CSDUID',
+      'CDUID',
+      'north_south',
+      'name',
+      'population',
+      'areaSqKm',
+      'variable_id',
+      'value',
+      'chsaCode',
+      'lhaCode',
+      'hsdaCode',
+      'healthAuthorityCode',
+    ],
   },
   parks: {
     title: 'Parks, trails, and CityPG open layers',
-    description: 'Parks, trails, amenities, mobility, ecology, service, and planning layers from Prince George open data.',
+    description:
+      'Parks, trails, amenities, mobility, ecology, service, and planning layers from Prince George open data.',
     source: 'City of Prince George Open Data',
     coverage: 'Prince George municipal boundary',
     license: 'City open data licence',
@@ -64,7 +82,8 @@ export const DATASETS = {
   },
   icbc: {
     title: 'ICBC reported crash locations',
-    description: 'Reported crash-location counts from ICBC Tableau Public exports, filtered to Prince George and geocoded to CityPG intersection centroids where possible.',
+    description:
+      'Reported crash-location counts from ICBC Tableau Public exports, filtered to Prince George and geocoded to CityPG intersection centroids where possible.',
     source: 'ICBC Tableau Public',
     coverage: 'Prince George crash-location summaries',
     license: 'ICBC Open Data Licence',
@@ -74,13 +93,15 @@ export const DATASETS = {
   },
   wars: {
     title: 'Wildlife accident records',
-    description: 'Wildlife Accident Reporting System records from Ministry Northern Region service areas 18-28 with source coordinates.',
+    description:
+      'Wildlife Accident Reporting System records from Ministry Northern Region service areas 18-28 with source coordinates.',
     source: 'BC Ministry of Transportation and Transit Wildlife Accident Reporting System',
     coverage: 'Northern Region service areas 18-28',
     license: 'WARS Data Use Licence Agreement 2026',
     formats: ['XLSX source', 'CSV.GZ', 'GeoJSON.GZ', 'JSON manifest'],
     downloadUrl: '/data/wars/manifest.json',
-    apiUrl: 'https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system',
+    apiUrl:
+      'https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system',
     fields: ['accidentDate', 'year', 'nearestTown', 'species', 'quantity', 'longitude', 'latitude', 'serviceArea'],
   },
   openLitterMap: {
@@ -93,7 +114,16 @@ export const DATASETS = {
     formats: ['GeoJSON', 'JSON manifest'],
     downloadUrl: '/data/open-litter-map/manifest.json',
     apiUrl: 'https://openlittermap.com/api/points',
-    fields: ['sourceId', 'datetime', 'categoryNames', 'objectNames', 'materialNames', 'litterCount', 'pickedUp', 'team'],
+    fields: [
+      'sourceId',
+      'datetime',
+      'categoryNames',
+      'objectNames',
+      'materialNames',
+      'litterCount',
+      'pickedUp',
+      'team',
+    ],
   },
   heatShade: {
     title: 'Heat and shade proxy layers',
@@ -107,7 +137,8 @@ export const DATASETS = {
   },
   canue: {
     title: 'CANUE BC annual extracts and PMTiles grid',
-    description: 'Environmental exposure and neighbourhood indicators joined to boundaries, plus optimized 1 km BC PMTiles grid layers.',
+    description:
+      'Environmental exposure and neighbourhood indicators joined to boundaries, plus optimized 1 km BC PMTiles grid layers.',
     source: 'CANUE',
     coverage: 'British Columbia extracts clipped/aggregated for mapped boundaries',
     license: 'CANUE research data terms',
@@ -118,7 +149,8 @@ export const DATASETS = {
   },
   walkability: {
     title: 'Web-source walkability variants',
-    description: 'Community-level walkability variants recalculated from CityPG web layers and ICBC public crash summaries.',
+    description:
+      'Community-level walkability variants recalculated from CityPG web layers and ICBC public crash summaries.',
     source: 'City of Prince George Open Data and ICBC',
     coverage: 'Prince George community boundaries',
     license: 'Source-dependent open data',
@@ -128,23 +160,44 @@ export const DATASETS = {
   },
   water: {
     title: 'Drinking water facilities, samples, and combined notices',
-    description: 'Drinking water facilities with bacteriological sample rows, chemical result rows, and combined active water notices from HealthSpace and WaterToday.',
+    description:
+      'Drinking water facilities with bacteriological sample rows, chemical result rows, and combined active water notices from HealthSpace and WaterToday.',
     source: 'BC drinking water public data extracts, Northern Health HealthSpace, and WaterToday',
     coverage: 'British Columbia drinking water facilities and active notices, mapped where coordinates are available',
     license: 'Source-dependent open data',
     formats: ['JSON', 'JSON manifest'],
     downloadUrl: '/data/water/combined_water_notices_summary.json',
-    fields: ['facility_id', 'facility_name', 'latitude', 'longitude', 'sample_date', 'parameter', 'result', 'notice_type', 'primary_source', 'merge_bucket'],
+    fields: [
+      'facility_id',
+      'facility_name',
+      'latitude',
+      'longitude',
+      'sample_date',
+      'parameter',
+      'result',
+      'notice_type',
+      'primary_source',
+      'merge_bucket',
+    ],
   },
   flood: {
     title: 'BC River Forecast Centre flood context',
-    description: 'Live streamflow return periods, CLEVER/COFFEE forecast station points, and RFC snow-basin polygons for flood context.',
+    description:
+      'Live streamflow return periods, CLEVER/COFFEE forecast station points, and RFC snow-basin polygons for flood context.',
     source: 'BC River Forecast Centre',
     coverage: 'British Columbia hydrometric stations and RFC snow basins',
     license: 'Open Government Licence - British Columbia / source-dependent hydrometric terms',
     formats: ['ArcGIS FeatureServer', 'GeoJSON'],
     apiUrl: 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services',
-    fields: ['Station_ID', 'Station_Name', 'Basin', 'Current_Reading_', 'Return_Period', 'Forecast_maximum_in_5_days', 'Return_Period_FOR'],
+    fields: [
+      'Station_ID',
+      'Station_Name',
+      'Basin',
+      'Current_Reading_',
+      'Return_Period',
+      'Forecast_maximum_in_5_days',
+      'Return_Period_FOR',
+    ],
   },
   bcAssessment: {
     title: 'BC Assessment properties',
@@ -166,7 +219,18 @@ export const DATASETS = {
     formats: ['JSON.GZ', 'SQLite source'],
     downloadUrl: 'https://projects.ahmadjalil.com/BCER/data/wells/search.json.gz',
     apiUrl: 'https://www.bc-er.ca',
-    fields: ['waNum', 'wellName', 'operator', 'areaDesc', 'formDesc', 'orientation', 'surfLat', 'surfLon', 'gasProd3Yr', 'gasProd5Yr'],
+    fields: [
+      'waNum',
+      'wellName',
+      'operator',
+      'areaDesc',
+      'formDesc',
+      'orientation',
+      'surfLat',
+      'surfLon',
+      'gasProd3Yr',
+      'gasProd5Yr',
+    ],
   },
   drought: {
     title: 'B.C. drought levels time lapse',
@@ -181,7 +245,8 @@ export const DATASETS = {
   },
   cellCoverage: {
     title: 'Canada cell coverage tile sources',
-    description: 'Provider-reported mobile coverage tile metadata for Rogers, TELUS, Bell, Videotron, and Freedom Mobile.',
+    description:
+      'Provider-reported mobile coverage tile metadata for Rogers, TELUS, Bell, Videotron, and Freedom Mobile.',
     source: 'Carrier public coverage maps',
     coverage: 'Canada',
     license: 'Source-dependent carrier map terms',
@@ -191,35 +256,60 @@ export const DATASETS = {
   },
   networkAvailability: {
     title: 'Canada network availability',
-    description: 'Vector-first national mobile network availability sources, with CRTC coverage packages, NRCan hosted coverage, ISED cell-site points, and carrier API findings.',
+    description:
+      'Vector-first national mobile network availability sources, with CRTC coverage packages, NRCan hosted coverage, ISED cell-site points, and carrier API findings.',
     source: 'CRTC, NRCan, ISED, and carrier public coverage maps',
     coverage: 'Canada',
-    license: 'Open Government Licence - Canada for CRTC/NRCan sources; source-dependent terms for ISED and carrier map metadata',
+    license:
+      'Open Government Licence - Canada for CRTC/NRCan sources; source-dependent terms for ISED and carrier map metadata',
     formats: ['KML', 'MapInfo TAB', 'File Geodatabase', 'Esri REST', 'CSV ZIP', 'JSON manifest'],
     downloadUrl: '/data/network-availability/manifest.json',
     fields: ['dataset', 'geometry', 'format', 'contentLength', 'lastModified', 'carrierVectorStatus'],
   },
   indigenousAcknowledgementSources: {
     title: 'Indigenous acknowledgement support sources',
-    description: 'Curated acknowledgement relationship graph plus CAD/PIP app and operational-service metadata, with public BC/Canada community, treaty, reserve, and location layers for review-oriented acknowledgement context.',
-    source: 'UNBC and local/Nation source pages, BC Data Catalogue, CAD/PIP Geocortex app, BC Geographic Warehouse, BC ArcGIS REST, Government of Canada',
+    description:
+      'Curated acknowledgement relationship graph plus CAD/PIP app and operational-service metadata, with public BC/Canada community, treaty, reserve, and location layers for review-oriented acknowledgement context.',
+    source:
+      'UNBC and local/Nation source pages, BC Data Catalogue, CAD/PIP Geocortex app, BC Geographic Warehouse, BC ArcGIS REST, Government of Canada',
     coverage: 'British Columbia and Canada, source-dependent',
     license: 'Source-dependent: Access Only metadata, Open Government Licence - Canada, and public BC service terms',
     formats: ['GeoJSON', 'JSON manifest', 'JSON relationship graph'],
     downloadUrl: '/data/indigenous/manifest.json',
     apiUrl: 'https://maps.gov.bc.ca/arcserver/rest/services/mpcm/bcgw/MapServer',
-    fields: ['source', 'featureCount', 'placeId', 'nationIds', 'peopleGroupIds', 'relationshipType', 'BAND_NAME', 'FIRST_NATION_NAME', 'TREATY', 'caveat'],
+    fields: [
+      'source',
+      'featureCount',
+      'placeId',
+      'nationIds',
+      'peopleGroupIds',
+      'relationshipType',
+      'BAND_NAME',
+      'FIRST_NATION_NAME',
+      'TREATY',
+      'caveat',
+    ],
   },
   evCharging: {
     title: 'Canada EV charging stations',
-    description: 'Official station-level and charging-unit exports for Canadian public EV charging locations, with a compact point layer for map display.',
+    description:
+      'Official station-level and charging-unit exports for Canadian public EV charging locations, with a compact point layer for map display.',
     source: 'NLR / Alternative Fuel Stations API',
     coverage: 'Canada',
     license: 'NLR Alternative Fuel Stations API terms',
     formats: ['CSV', 'CSV.GZ estimate', 'GeoJSON', 'JSON manifest'],
     downloadUrl: '/data/ev-charging/manifest.json',
     apiUrl: 'https://developer.nlr.gov/docs/transportation/alt-fuel-stations-v1/',
-    fields: ['id', 'station_name', 'ev_network', 'ev_connector_types', 'latitude', 'longitude', 'rawBytes', 'gzipBytes'],
+    fields: [
+      'id',
+      'station_name',
+      'ev_network',
+      'ev_connector_types',
+      'latitude',
+      'longitude',
+      'rawBytes',
+      'gzipBytes',
+    ],
   },
   explorer: {
     title: 'Explorer catalogue',
@@ -232,7 +322,8 @@ export const DATASETS = {
   },
   scoreBuilder: {
     title: 'Index Lab input layers',
-    description: 'Normalized indicator inputs used to build transparent civic, health, climate, and accessibility scores.',
+    description:
+      'Normalized indicator inputs used to build transparent civic, health, climate, and accessibility scores.',
     source: 'PGMaps normalized local datasets',
     coverage: 'Selected Prince George boundaries',
     license: 'Source-dependent open data',

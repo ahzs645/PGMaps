@@ -1,10 +1,5 @@
 import { SCORE_METRICS } from '../constants'
-import type {
-  ScoredBoundaryRegion,
-  ScoreMetricDefinition,
-  ScoreMetricKey,
-  ScoreMetricRangeMap,
-} from '../types'
+import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricRangeMap } from '../types'
 import { formatMetricValue } from '../lib/metrics'
 
 export function NormalizationPreview({

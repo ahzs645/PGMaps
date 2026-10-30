@@ -51,18 +51,20 @@ describe('savedIndexes storage', () => {
 
   it('returns an empty list when storage is empty or corrupt', () => {
     expect(loadSavedIndexes()).toEqual([])
-    ;(globalThis as unknown as { window: { localStorage: ReturnType<typeof createFakeLocalStorage> } }).window
-      .localStorage.setItem('pgmaps.indexLab.savedIndexes', 'not-json{{{')
+    ;(
+      globalThis as unknown as { window: { localStorage: ReturnType<typeof createFakeLocalStorage> } }
+    ).window.localStorage.setItem('pgmaps.indexLab.savedIndexes', 'not-json{{{')
     expect(loadSavedIndexes()).toEqual([])
   })
 
   it('filters malformed entries on load', () => {
     const good = createEntry('Valid')
-    ;(globalThis as unknown as { window: { localStorage: ReturnType<typeof createFakeLocalStorage> } }).window
-      .localStorage.setItem(
-        'pgmaps.indexLab.savedIndexes',
-        JSON.stringify([good, { id: 42 }, 'junk', null, { label: 'no id', state: {} }]),
-      )
+    ;(
+      globalThis as unknown as { window: { localStorage: ReturnType<typeof createFakeLocalStorage> } }
+    ).window.localStorage.setItem(
+      'pgmaps.indexLab.savedIndexes',
+      JSON.stringify([good, { id: 42 }, 'junk', null, { label: 'no id', state: {} }]),
+    )
     const loaded = loadSavedIndexes()
     expect(loaded).toHaveLength(1)
     expect(loaded[0].id).toBe(good.id)

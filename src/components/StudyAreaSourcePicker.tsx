@@ -76,10 +76,7 @@ export function StudyAreaPickerRows<TSource extends string, TLevel extends strin
           if ((option.group ?? 'Other') !== group) return false
           if (!normalized) return true
           const levelLabels = levelOptionsForSource(option.value).map((level) => level.label)
-          return [option.label, option.description, group, ...levelLabels]
-            .join(' ')
-            .toLowerCase()
-            .includes(normalized)
+          return [option.label, option.description, group, ...levelLabels].join(' ').toLowerCase().includes(normalized)
         }),
       }))
       .filter(({ options }) => options.length > 0)
@@ -140,7 +137,7 @@ export function StudyAreaPickerRows<TSource extends string, TLevel extends strin
                       {active && <Check className="size-3.5 shrink-0 text-primary" />}
                     </div>
                     <div className={cn('mt-0.5 text-xs leading-4 text-muted-foreground', indentClass)}>
-                      {option.disabled ? option.disabledReason ?? option.description : option.description}
+                      {option.disabled ? (option.disabledReason ?? option.description) : option.description}
                     </div>
                     {active && hasLevels && selectedLevelLabel && (
                       <div className={cn('mt-0.5 text-xs font-medium leading-4 text-primary', indentClass)}>

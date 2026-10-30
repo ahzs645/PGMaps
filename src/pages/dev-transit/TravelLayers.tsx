@@ -141,11 +141,13 @@ export function TravelLayers({
     () => ({
       type: 'FeatureCollection',
       features: data.patterns
-        .map((p, i): GeoJSON.Feature<GeoJSON.LineString> => ({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: p.points },
-          properties: { id: String(i), color: data.routes[p.route].color },
-        }))
+        .map(
+          (p, i): GeoJSON.Feature<GeoJSON.LineString> => ({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: p.points },
+            properties: { id: String(i), color: data.routes[p.route].color },
+          }),
+        )
         .filter((f) => f.geometry.coordinates.length >= 2),
     }),
     [data],
@@ -172,17 +174,19 @@ export function TravelLayers({
       type: 'FeatureCollection',
       features: contours.flatMap((c) =>
         c.coordinates.flatMap((polygon, i) =>
-          polygon.map((ring, j): GeoJSON.Feature<GeoJSON.LineString> => ({
-            type: 'Feature',
-            properties: { id: `${c.value}:${i}:${j}`, minutes: -c.value },
-            geometry: {
-              type: 'LineString',
-              coordinates: ring.map(([x, y]) => [
-                west + (x * (east - west)) / grid.cols,
-                north - (y * (north - south)) / grid.rows,
-              ]),
-            },
-          })),
+          polygon.map(
+            (ring, j): GeoJSON.Feature<GeoJSON.LineString> => ({
+              type: 'Feature',
+              properties: { id: `${c.value}:${i}:${j}`, minutes: -c.value },
+              geometry: {
+                type: 'LineString',
+                coordinates: ring.map(([x, y]) => [
+                  west + (x * (east - west)) / grid.cols,
+                  north - (y * (north - south)) / grid.rows,
+                ]),
+              },
+            }),
+          ),
         ),
       ),
     }
@@ -269,7 +273,10 @@ export function MapHeatViewport({
 }) {
   const { map, isLoaded } = useMap()
   useObserveMapViewport(map, ({ bounds, zoom }) => onChange(viewportGrid(study, bounds, zoom)), {
-    enabled: isLoaded, events: ['moveend'], initial: 'always', refreshKey: study,
+    enabled: isLoaded,
+    events: ['moveend'],
+    initial: 'always',
+    refreshKey: study,
   })
   return null
 }

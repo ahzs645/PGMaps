@@ -9,17 +9,10 @@ import type { WaterState } from './useWaterData'
 export function WaterLayerControls({ water }: { water: WaterState }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <ToggleChip
-        active={water.showPoints}
-        onClick={() => water.setShowPoints((current) => !current)}
-      >
+      <ToggleChip active={water.showPoints} onClick={() => water.setShowPoints((current) => !current)}>
         {water.showPoints ? 'Hide points' : 'Show points'}
       </ToggleChip>
-      <ToggleChip
-        active={water.showHeatmap}
-        onClick={() => water.setShowHeatmap((current) => !current)}
-        tone="cyan"
-      >
+      <ToggleChip active={water.showHeatmap} onClick={() => water.setShowHeatmap((current) => !current)} tone="cyan">
         {water.showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
       </ToggleChip>
       <ToggleChip
@@ -34,11 +27,12 @@ export function WaterLayerControls({ water }: { water: WaterState }) {
 }
 
 export function WaterLegend({ water }: { water: WaterState }) {
-  const activePointItem: { category: WaterPointCategory; color: string; label: string } = water.layerMode === 'samples'
-    ? { category: 'samples', color: '#0891b2', label: 'Sampling activity' }
-    : water.layerMode === 'notices'
-      ? { category: 'notice', color: '#dc2626', label: 'Active notice' }
-      : { category: 'facility', color: WATER_HAZARD_DOT_COLORS.Unknown, label: 'Facilities by hazard' }
+  const activePointItem: { category: WaterPointCategory; color: string; label: string } =
+    water.layerMode === 'samples'
+      ? { category: 'samples', color: '#0891b2', label: 'Sampling activity' }
+      : water.layerMode === 'notices'
+        ? { category: 'notice', color: '#dc2626', label: 'Active notice' }
+        : { category: 'facility', color: WATER_HAZARD_DOT_COLORS.Unknown, label: 'Facilities by hazard' }
 
   const togglePointCategory = (category: WaterPointCategory) => {
     if (!water.showPoints) {
@@ -100,8 +94,11 @@ export function WaterSourceNotes({ water }: { water: WaterState }) {
     <>
       <p>Drinking water extracts updated {formatDate(water.manifest.data?.generatedAt)}.</p>
       <p>
-        Includes facilities, bacteriological samples, chemical results, and a combined active notices layer from HealthSpace and WaterToday
-        {summary?.combined_count ? ` (${summary.combined_count.toLocaleString(DEFAULT_LOCALE)} canonical notices, ${summary.with_coordinates?.toLocaleString(DEFAULT_LOCALE) ?? 'all'} mapped).` : '.'}
+        Includes facilities, bacteriological samples, chemical results, and a combined active notices layer from
+        HealthSpace and WaterToday
+        {summary?.combined_count
+          ? ` (${summary.combined_count.toLocaleString(DEFAULT_LOCALE)} canonical notices, ${summary.with_coordinates?.toLocaleString(DEFAULT_LOCALE) ?? 'all'} mapped).`
+          : '.'}
       </p>
       <div className="space-y-2 pt-1">
         <InlineAlert>
@@ -112,7 +109,10 @@ export function WaterSourceNotes({ water }: { water: WaterState }) {
           stats={[
             { label: 'facilities', value: facilityRecordCount.toLocaleString(DEFAULT_LOCALE) },
             { label: 'sample/result rows', value: water.samples.length.toLocaleString(DEFAULT_LOCALE) },
-            { label: 'active notices', value: (summary?.combined_count ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE) },
+            {
+              label: 'active notices',
+              value: (summary?.combined_count ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE),
+            },
             { label: 'notice-only points', value: noticeOnlyPointCount.toLocaleString(DEFAULT_LOCALE) },
           ]}
         />
@@ -120,13 +120,17 @@ export function WaterSourceNotes({ water }: { water: WaterState }) {
           columns={2}
           stats={[
             { label: 'combined notices', value: (summary?.combined_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
-            { label: 'mapped notices', value: (summary?.with_coordinates ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE) },
+            {
+              label: 'mapped notices',
+              value: (summary?.with_coordinates ?? water.visibleNoticeCount).toLocaleString(DEFAULT_LOCALE),
+            },
             { label: 'HealthSpace', value: (summary?.healthspace_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
             { label: 'WaterToday', value: (summary?.watertoday_count ?? 0).toLocaleString(DEFAULT_LOCALE) },
           ]}
         />
         <InlineAlert>
-          {summary?.with_multiple_sources?.toLocaleString(DEFAULT_LOCALE) ?? 'Some'} notices have multiple source matches; unmatched WaterToday notices still draw as notice-only points when coordinates are available.
+          {summary?.with_multiple_sources?.toLocaleString(DEFAULT_LOCALE) ?? 'Some'} notices have multiple source
+          matches; unmatched WaterToday notices still draw as notice-only points when coordinates are available.
         </InlineAlert>
       </div>
     </>

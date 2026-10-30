@@ -30,7 +30,9 @@ export function ExplorerItemDetails({ item, className }: { item: ExplorerItem; c
 
       <KeyValueRows
         variant="grid"
-        rows={item.details.slice(0, 8).map((detail) => ({ key: detail.label, label: detail.label, value: detail.value }))}
+        rows={item.details
+          .slice(0, 8)
+          .map((detail) => ({ key: detail.label, label: detail.label, value: detail.value }))}
       />
 
       {item.relevanceBreakdown.length > 0 && (

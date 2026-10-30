@@ -105,7 +105,15 @@ export function normalise(geometry: MultiPolygonCoords): MultiPolygonCoords {
 }
 
 export function rectangle(minX: number, minY: number, maxX: number, maxY: number): PolygonCoords {
-  return [[[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]]]
+  return [
+    [
+      [minX, minY],
+      [maxX, minY],
+      [maxX, maxY],
+      [minX, maxY],
+      [minX, minY],
+    ],
+  ]
 }
 
 /**
@@ -127,7 +135,12 @@ function settle(clusters: BBox[]): BBox[] {
       const hit = next.findIndex((other) => bboxesOverlap(other, box))
       if (hit >= 0) {
         const other = next[hit]
-        next[hit] = [Math.min(other[0], box[0]), Math.min(other[1], box[1]), Math.max(other[2], box[2]), Math.max(other[3], box[3])]
+        next[hit] = [
+          Math.min(other[0], box[0]),
+          Math.min(other[1], box[1]),
+          Math.max(other[2], box[2]),
+          Math.max(other[3], box[3]),
+        ]
         changed = true
       } else next.push(box)
     }

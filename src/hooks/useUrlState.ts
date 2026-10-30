@@ -171,9 +171,7 @@ export function stringArrayCodec<T extends string>(allowed: readonly T[], defaul
  * nothing"). Pass `allowed` to drop unrecognised values, or omit it to accept
  * any non-empty token.
  */
-export function nullableStringArrayCodec<T extends string>(
-  allowed?: readonly T[],
-): UrlCodec<T[] | null> {
+export function nullableStringArrayCodec<T extends string>(allowed?: readonly T[]): UrlCodec<T[] | null> {
   const emptyToken = emptySelectionToken(allowed)
   return {
     encode: (value) => {

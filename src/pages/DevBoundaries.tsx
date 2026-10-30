@@ -1017,10 +1017,14 @@ function TrackMapBounds({
 }) {
   const { map, isLoaded } = useMap()
 
-  useObserveMapViewport(map, (viewport) => {
-    onBoundsChange(viewport.bounds)
-    onZoomChange(viewport.zoom)
-  }, { enabled: isLoaded, events: ['moveend', 'zoomend'], initial: 'always' })
+  useObserveMapViewport(
+    map,
+    (viewport) => {
+      onBoundsChange(viewport.bounds)
+      onZoomChange(viewport.zoom)
+    },
+    { enabled: isLoaded, events: ['moveend', 'zoomend'], initial: 'always' },
+  )
 
   return null
 }
@@ -3011,7 +3015,9 @@ function DevBoundaries() {
                 </div>
                 {source === 'postal' && (
                   <PostalHierarchyControls
-                    level={selectedLevel === 'fsa' || selectedLevel === 'postalPrefix2' ? selectedLevel : 'postalRegion'}
+                    level={
+                      selectedLevel === 'fsa' || selectedLevel === 'postalPrefix2' ? selectedLevel : 'postalRegion'
+                    }
                     onChange={(level) => handleVariantChange(source, level)}
                   />
                 )}
@@ -3222,11 +3228,12 @@ function DevBoundaries() {
                               <span>{region.code}</span>
                               <span>{formatArea(region.areaKm2)}</span>
                             </div>
-                            {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}, region.level) && (
-                              <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                                {censusParentSummary(region.feature.properties ?? {}, region.level)}
-                              </div>
-                            )}
+                            {region.source === 'census' &&
+                              censusParentSummary(region.feature.properties ?? {}, region.level) && (
+                                <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
+                                  {censusParentSummary(region.feature.properties ?? {}, region.level)}
+                                </div>
+                              )}
                           </button>
                           <div className="mt-2 flex items-center justify-between gap-2">
                             <span className="min-w-0 truncate rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">

@@ -90,10 +90,19 @@ export function useFieldPhoto({
   const [match, setMatch] = useState<PhotoMatch | null>(null)
   const [follow, setFollow] = useState(false)
   const [viewAspect, setViewAspect] = useState(16 / 9)
-  const [panoPixels, setPanoPixels] = useState<{ id: string; width: number; height: number; data: Uint8ClampedArray } | null>(null)
+  const [panoPixels, setPanoPixels] = useState<{
+    id: string
+    width: number
+    height: number
+    data: Uint8ClampedArray
+  } | null>(null)
   const [skylineGround, setSkylineGround] = useState<{ id: string; source: ElevationSource } | null>(null)
   const abort = useRef<AbortController | null>(null)
-  const [alignment, setAlignment] = useState<{ status: 'idle' | 'working' | 'done' | 'failed'; fit: SkylineFit | null; message: string | null }>({ status: 'idle', fit: null, message: null })
+  const [alignment, setAlignment] = useState<{
+    status: 'idle' | 'working' | 'done' | 'failed'
+    fit: SkylineFit | null
+    message: string | null
+  }>({ status: 'idle', fit: null, message: null })
 
   const road = scene.viewpoint.coordinates
   const onRoad = useMemo(() => (image && road.length > 1 ? nearestPointOnLine(road, image) : null), [image, road])
@@ -150,10 +159,19 @@ export function useFieldPhoto({
       const alongRoad = found.images
         .flatMap((image): RoadPhoto[] => {
           const on = nearestPointOnLine(road, image)
-          return on && on.offsetMeters <= 30 ? [{ ...image, alongMeters: on.distanceAlongMeters, offRoadMeters: on.offsetMeters }] : []
+          return on && on.offsetMeters <= 30
+            ? [{ ...image, alongMeters: on.distanceAlongMeters, offRoadMeters: on.offsetMeters }]
+            : []
         })
         .sort((a, b) => a.alongMeters - b.alongMeters)
-      setSearch({ status: 'ready', photos, road: alongRoad, error: null, searched: found.images.length, truncated: found.truncated })
+      setSearch({
+        status: 'ready',
+        photos,
+        road: alongRoad,
+        error: null,
+        searched: found.images.length,
+        truncated: found.truncated,
+      })
     } catch (error) {
       setSearch({
         status: 'error',
@@ -217,20 +235,31 @@ export function useFieldPhoto({
   }, [image, match, panoPixels?.id])
 
   /** Where the road view looks while comparing: the photo's own pose, or for a panorama wherever it is turned. */
-  const look = image && match
-    ? {
-        bearing: image.bearing + match.nudge.bearing,
-        pitch: (image.isPano ? 0 : image.pitch) + match.nudge.pitch,
-      }
-    : null
+  const look =
+    image && match
+      ? {
+          bearing: image.bearing + match.nudge.bearing,
+          pitch: (image.isPano ? 0 : image.pitch) + match.nudge.pitch,
+        }
+      : null
   const panoView =
     image?.isPano && look
-      ? { bearing: look.bearing, pitch: look.pitch, verticalFovDegrees: PANO_VIEW_FOV, height: PANO_VIEW_HEIGHT, width: Math.round(PANO_VIEW_HEIGHT * viewAspect) }
+      ? {
+          bearing: look.bearing,
+          pitch: look.pitch,
+          verticalFovDegrees: PANO_VIEW_FOV,
+          height: PANO_VIEW_HEIGHT,
+          width: Math.round(PANO_VIEW_HEIGHT * viewAspect),
+        }
       : null
   const panoFrame = useMemo(
     () =>
       panoView && image && panoPixels?.id === image.id
-        ? { width: panoView.width, height: panoView.height, data: reprojectEquirect(panoPixels, { rotation: image.rotation, bearing: image.bearing }, panoView) }
+        ? {
+            width: panoView.width,
+            height: panoView.height,
+            data: reprojectEquirect(panoPixels, { rotation: image.rotation, bearing: image.bearing }, panoView),
+          }
         : null,
     // The view is rebuilt from primitives, so depend on those rather than the object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,9 +295,15 @@ export function useFieldPhoto({
     const base = groundAt(image.lng, image.lat)
     if (!Number.isFinite(base)) return null
     const at = { lng: image.lng, lat: image.lat, altitudeMeters: base + eyeHeightMeters }
-    const photo = image.isPano ? (panoView ? panoViewPose(at, panoView) : null) : photoPoseFor(image, base + eyeHeightMeters)
+    const photo = image.isPano
+      ? panoView
+        ? panoViewPose(at, panoView)
+        : null
+      : photoPoseFor(image, base + eyeHeightMeters)
     if (!photo) return null
-    const pose = image.isPano ? photo : { ...photo, bearing: photo.bearing + match.nudge.bearing, pitch: photo.pitch + match.nudge.pitch }
+    const pose = image.isPano
+      ? photo
+      : { ...photo, bearing: photo.bearing + match.nudge.bearing, pitch: photo.pitch + match.nudge.pitch }
     const skyline =
       far && match.showSkyline
         ? terrainSkyline(pose, far, { columns: 160, maxDistanceMeters: SKYLINE_RADIUS_METERS })
@@ -319,7 +354,19 @@ export function useFieldPhoto({
     return { pose, skyline, outlines, visibleDots }
     // The pano view is rebuilt from primitives, so depend on those.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [image, match, skylineGround, ground, eyeHeightMeters, scene.targets, result, station, panoView?.bearing, panoView?.pitch, panoView?.width])
+  }, [
+    image,
+    match,
+    skylineGround,
+    ground,
+    eyeHeightMeters,
+    scene.targets,
+    result,
+    station,
+    panoView?.bearing,
+    panoView?.pitch,
+    panoView?.width,
+  ])
 
   /** Reads the photo's own skyline and searches heading and pitch to lay it on the terrain's. */
   const autoAlign = useCallback(async () => {
@@ -352,11 +399,17 @@ export function useFieldPhoto({
         context.drawImage(picture, 0, 0, width, height)
         pixels = context.getImageData(0, 0, width, height)
       }
-      const sx = drawing.pose.width / pixels.width, sy = drawing.pose.height / pixels.height
+      const sx = drawing.pose.width / pixels.width,
+        sy = drawing.pose.height / pixels.height
       const skyline = photoSkyline(pixels, 220).map((point) => (point ? { x: point.x * sx, y: point.y * sy } : null))
       const base = drawing.pose
       const half = (Math.atan2(base.width / 2, base.focalPx) * 180) / Math.PI + 6
-      const profile = terrainProfile(base, far, { from: base.bearing - half, to: base.bearing + half, step: 0.1, maxDistanceMeters: SKYLINE_RADIUS_METERS })
+      const profile = terrainProfile(base, far, {
+        from: base.bearing - half,
+        to: base.bearing + half,
+        step: 0.1,
+        maxDistanceMeters: SKYLINE_RADIUS_METERS,
+      })
       const fit = fitSkyline(base, profile, skyline)
       if (!fit || !fit.trustworthy) {
         setAlignment({
@@ -370,10 +423,17 @@ export function useFieldPhoto({
         })
         return
       }
-      setMatch({ ...match, nudge: { bearing: match.nudge.bearing + fit.nudge.bearing, pitch: match.nudge.pitch + fit.nudge.pitch } })
+      setMatch({
+        ...match,
+        nudge: { bearing: match.nudge.bearing + fit.nudge.bearing, pitch: match.nudge.pitch + fit.nudge.pitch },
+      })
       setAlignment({ status: 'done', fit, message: null })
     } catch (error) {
-      setAlignment({ status: 'failed', fit: null, message: `Could not read the photo: ${error instanceof Error ? error.message : String(error)}` })
+      setAlignment({
+        status: 'failed',
+        fit: null,
+        message: `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
+      })
     }
   }, [image, match, drawing, skylineGround, panoFrame])
 

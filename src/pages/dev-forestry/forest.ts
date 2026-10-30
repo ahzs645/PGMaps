@@ -385,7 +385,10 @@ const UNRECORDED_PARTIAL_KEEP = 0.5
  * residual height the reviewer entered.
  */
 export function blockThinning(
-  block: Pick<TargetPolygon, 'geometry' | 'harvestSystem' | 'retentionPercent' | 'volumeRemovedPercent' | 'residualHeightMeters'>,
+  block: Pick<
+    TargetPolygon,
+    'geometry' | 'harvestSystem' | 'retentionPercent' | 'volumeRemovedPercent' | 'residualHeightMeters'
+  >,
 ): Thinning | null {
   if (block.harvestSystem === 'retention') {
     const keep = (block.retentionPercent ?? 0) / 100
@@ -393,7 +396,11 @@ export function blockThinning(
   }
   if (block.harvestSystem === 'partial') {
     const keep = block.volumeRemovedPercent != null ? 1 - block.volumeRemovedPercent / 100 : UNRECORDED_PARTIAL_KEEP
-    return { geometry: block.geometry, keepFraction: Math.max(0, Math.min(1, keep)), heightMeters: block.residualHeightMeters ?? null }
+    return {
+      geometry: block.geometry,
+      keepFraction: Math.max(0, Math.min(1, keep)),
+      heightMeters: block.residualHeightMeters ?? null,
+    }
   }
   return null
 }
@@ -534,7 +541,8 @@ export function placeTrees({
       const standStems = surveyed?.stemsPerHa && surveyed.stemsPerHa > 0 ? surveyed.stemsPerHa : stemsPerHa
       const keep = Math.min(0.94, (standStems * spacing * spacing) / 10_000)
       if (random() >= keep) continue
-      const recordedClosure = surveyed?.crownClosurePercent && surveyed.crownClosurePercent > 0 ? surveyed.crownClosurePercent : null
+      const recordedClosure =
+        surveyed?.crownClosurePercent && surveyed.crownClosurePercent > 0 ? surveyed.crownClosurePercent : null
 
       // Its own draw, so thinning one block leaves every other stem in place.
       const thinned = thinnings.length > 0 ? thinnedAt(lng, lat) : null
@@ -543,16 +551,20 @@ export function placeTrees({
       const species = surveyed?.species ?? speciesFromMix(random(), speciesMix)
       const fraction = surveyed?.regenerationFraction ?? 1
       const retained = fraction < 1 && random() >= fraction
-      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : surveyed?.heightMeters ?? heightMeters)
+      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : (surveyed?.heightMeters ?? heightMeters))
       if (standHeight <= 0) continue
       // A partial cut's residuals are mature trees, only shorter: they keep the stand's closure.
       const standClosure =
         recordedClosure ??
-        (thinned?.heightMeters ? crownClosurePercent : crownClosurePercent * Math.min(1, standHeight / CANOPY_CLOSES_AT_METERS))
+        (thinned?.heightMeters
+          ? crownClosurePercent
+          : crownClosurePercent * Math.min(1, standHeight / CANOPY_CLOSES_AT_METERS))
       // The crown the stand's closure calls for at the density drawn here —
       // before any thinning, which opens the canopy rather than shrinking it.
       const crownWidth =
-        crownWidthForClosure(standClosure, keep / (spacing * spacing)) * HEIGHT_SPREAD_WIDTH * Math.sqrt(GRID_CROWN_AREA)
+        crownWidthForClosure(standClosure, keep / (spacing * spacing)) *
+        HEIGHT_SPREAD_WIDTH *
+        Math.sqrt(GRID_CROWN_AREA)
       // Species shares the stand's width out: relative to the mix's own mean
       // where the mix chose it, and not at all where a surveyed stand is one
       // species throughout — its crowns are the stand's crowns.
@@ -602,11 +614,13 @@ export function viewingGapToward(
   const rings = block.type === 'Polygon' ? [block.coordinates[0]] : block.coordinates.map((polygon) => polygon[0])
   const latScale = Math.cos((eye.lat * Math.PI) / 180)
   // Each ring without its closing vertex, which would count its first point twice.
-  const toEye = rings.flatMap((ring) => ring.slice(0, -1)).map(([lng, lat]) => {
-    const east = (lng - eye.lng) * METERS_PER_DEGREE_LAT * latScale
-    const north = (lat - eye.lat) * METERS_PER_DEGREE_LAT
-    return { east, north, distance: Math.hypot(east, north) }
-  })
+  const toEye = rings
+    .flatMap((ring) => ring.slice(0, -1))
+    .map(([lng, lat]) => {
+      const east = (lng - eye.lng) * METERS_PER_DEGREE_LAT * latScale
+      const north = (lat - eye.lat) * METERS_PER_DEGREE_LAT
+      return { east, north, distance: Math.hypot(east, north) }
+    })
   if (!toEye.length) return null
   const east = toEye.reduce((sum, p) => sum + p.east, 0) / toEye.length
   const north = toEye.reduce((sum, p) => sum + p.north, 0) / toEye.length
@@ -614,7 +628,9 @@ export function viewingGapToward(
   if (nearest < edgeMeters * 2 || Math.hypot(east, north) < 1) return null
   const bearing = (Math.atan2(east, north) * 180) / Math.PI
   const spread = Math.max(
-    ...toEye.map((p) => Math.abs(((((Math.atan2(p.east, p.north) * 180) / Math.PI - bearing) % 360) + 540) % 360 - 180)),
+    ...toEye.map((p) =>
+      Math.abs((((((Math.atan2(p.east, p.north) * 180) / Math.PI - bearing) % 360) + 540) % 360) - 180),
+    ),
   )
   return {
     bearingDegrees: (bearing + 360) % 360,

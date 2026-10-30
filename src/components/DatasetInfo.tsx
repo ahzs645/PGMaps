@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from '@/components/ui/dialog'
 
 export interface DatasetInfoRecord {
@@ -50,7 +50,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
           type="button"
           className={cn(
             'pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/70 bg-white/90 text-sm font-medium text-zinc-950 shadow-lg backdrop-blur transition-colors hover:bg-white hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50 md:h-10 md:w-10 md:border-transparent md:bg-transparent md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-accent-foreground',
-            className
+            className,
           )}
           aria-label={`Open dataset information for ${dataset.title}`}
           title="Dataset information"
@@ -59,7 +59,10 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
         </button>
       </DialogTrigger>
 
-      <DialogContent elevated className="max-h-[calc(100vh-2rem)] max-w-xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+      <DialogContent
+        elevated
+        className="max-h-[calc(100vh-2rem)] max-w-xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+      >
         <DialogHeader>
           <div className="flex items-start gap-2 pr-8">
             <Database className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -129,10 +132,18 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
                 <Copy className="h-3.5 w-3.5" />
                 Copy link
               </CopyButton>
-              {manualCopy && <label className="w-full text-xs">Copy this link
-                <input aria-label="Dataset link for manual copying" readOnly value={primaryUrl}
-                  onFocus={(event) => event.currentTarget.select()} className="mt-1 w-full rounded border border-input bg-background p-2 text-base md:text-xs" />
-              </label>}
+              {manualCopy && (
+                <label className="w-full text-xs">
+                  Copy this link
+                  <input
+                    aria-label="Dataset link for manual copying"
+                    readOnly
+                    value={primaryUrl}
+                    onFocus={(event) => event.currentTarget.select()}
+                    className="mt-1 w-full rounded border border-input bg-background p-2 text-base md:text-xs"
+                  />
+                </label>
+              )}
             </div>
           )}
         </div>

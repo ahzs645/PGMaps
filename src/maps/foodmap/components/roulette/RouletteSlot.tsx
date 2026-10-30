@@ -22,19 +22,18 @@ function getHazardColors(restaurant: RouletteRestaurant) {
 function getDifficultyIndicator(restaurant: RouletteRestaurant) {
   const rating = getHazardRating(restaurant)
   switch (rating) {
-    case 'Low': return '!'
-    case 'Moderate': return '!!'
-    case 'Unknown': return '!?'
-    default: return '?'
+    case 'Low':
+      return '!'
+    case 'Moderate':
+      return '!!'
+    case 'Unknown':
+      return '!?'
+    default:
+      return '?'
   }
 }
 
-export function RouletteSlot({
-  eligibleRestaurants,
-  winnerIndex,
-  isSpinning,
-  onSpinComplete
-}: RouletteSlotProps) {
+export function RouletteSlot({ eligibleRestaurants, winnerIndex, isSpinning, onSpinComplete }: RouletteSlotProps) {
   const [visibleCards, setVisibleCards] = useState<SlotCard[]>([])
   const [showWinner, setShowWinner] = useState(false)
 
@@ -49,7 +48,7 @@ export function RouletteSlot({
       const idx = Math.floor(Math.random() * eligibleRestaurants.length)
       cards.push({
         ...eligibleRestaurants[idx],
-        id: `init-${i}-${Date.now()}`
+        id: `init-${i}-${Date.now()}`,
       })
     }
     setVisibleCards(cards)
@@ -81,17 +80,21 @@ export function RouletteSlot({
       const progress = i / totalCards
       const interval = 40 + Math.pow(progress, 2) * 310
 
-      timeoutIds.push(window.setTimeout(() => {
-        setVisibleCards(prev => [cards[i], ...prev.slice(0, 4)])
-      }, currentTime))
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setVisibleCards((prev) => [cards[i], ...prev.slice(0, 4)])
+        }, currentTime),
+      )
 
       currentTime += interval
     }
 
-    timeoutIds.push(window.setTimeout(() => {
-      setShowWinner(true)
-      onSpinComplete()
-    }, currentTime + 600))
+    timeoutIds.push(
+      window.setTimeout(() => {
+        setShowWinner(true)
+        onSpinComplete()
+      }, currentTime + 600),
+    )
 
     return () => {
       timeoutIds.forEach((id) => window.clearTimeout(id))
@@ -107,8 +110,18 @@ export function RouletteSlot({
       <div className="relative w-full max-w-md">
         <div className="h-80 flex items-center justify-center rounded-xl border border-border bg-muted">
           <div className="text-center p-4">
-            <svg className="w-12 h-12 mx-auto text-muted-foreground mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-12 h-12 mx-auto text-muted-foreground mb-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <p className="text-sm text-muted-foreground">No restaurants match your filters</p>
           </div>
@@ -130,9 +143,7 @@ export function RouletteSlot({
             let scaleClass = 'scale-[0.85] opacity-40'
 
             if (index === 2) {
-              cardClass = showWinner
-                ? 'border-sky-500 shadow-lg shadow-sky-500/25'
-                : 'border-border shadow-md'
+              cardClass = showWinner ? 'border-sky-500 shadow-lg shadow-sky-500/25' : 'border-border shadow-md'
               scaleClass = 'scale-100 opacity-100'
             } else if (index === 1 || index === 3) {
               cardClass = 'border-border'
@@ -152,12 +163,8 @@ export function RouletteSlot({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-foreground text-sm truncate">
-                      {card.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {card.address}
-                    </div>
+                    <div className="font-semibold text-foreground text-sm truncate">{card.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{card.address}</div>
                   </div>
 
                   {card.rouletteViolationCount !== undefined && (
@@ -192,9 +199,7 @@ export function RouletteSlot({
             <span className="font-bold">Winner!</span>
           </div>
           <div className="text-lg font-semibold">{eligibleRestaurants[winnerIndex].name}</div>
-          <div className="text-sky-100 text-sm">
-            {formatFullAddress(eligibleRestaurants[winnerIndex])}
-          </div>
+          <div className="text-sky-100 text-sm">{formatFullAddress(eligibleRestaurants[winnerIndex])}</div>
         </div>
       )}
     </div>

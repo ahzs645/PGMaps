@@ -133,10 +133,7 @@ export function DevInteractSidebar({
                 </button>
               )}
               {label === 'Measure areas' && measurementMenuOpen && (
-                <MeasurementShapeMenu
-                  onPolygon={choosePolygonMeasurement}
-                  onCircle={chooseCircleMeasurement}
-                />
+                <MeasurementShapeMenu onPolygon={choosePolygonMeasurement} onCircle={chooseCircleMeasurement} />
               )}
             </div>
           ))}
@@ -145,7 +142,7 @@ export function DevInteractSidebar({
 
       <SidebarSection
         title="Legend"
-        actions={(
+        actions={
           <div className="relative" ref={legendMenuRef}>
             <button
               type="button"
@@ -159,13 +156,32 @@ export function DevInteractSidebar({
             </button>
             {legendMenuOpen && <LegendOptionsMenu />}
           </div>
-        )}
+        }
       >
         <div className="space-y-2">
           <div role="list" className="space-y-0.5">
-            <LegendRow title="Neighbourhood areas" color="#8b5cf6" active={visibleLayers.neighbourhoods} onToggle={() => onToggleLayer('neighbourhoods')} onIsolate={() => onIsolateLayer('neighbourhoods')} />
-            <LegendRow title="Parks" color="#22c55e" active={visibleLayers.parks} onToggle={() => onToggleLayer('parks')} onIsolate={() => onIsolateLayer('parks')} />
-            <LegendRow title="Transit routes" color="#0ea5e9" active={visibleLayers.routes} onToggle={() => onToggleLayer('routes')} onIsolate={() => onIsolateLayer('routes')} line />
+            <LegendRow
+              title="Neighbourhood areas"
+              color="#8b5cf6"
+              active={visibleLayers.neighbourhoods}
+              onToggle={() => onToggleLayer('neighbourhoods')}
+              onIsolate={() => onIsolateLayer('neighbourhoods')}
+            />
+            <LegendRow
+              title="Parks"
+              color="#22c55e"
+              active={visibleLayers.parks}
+              onToggle={() => onToggleLayer('parks')}
+              onIsolate={() => onIsolateLayer('parks')}
+            />
+            <LegendRow
+              title="Transit routes"
+              color="#0ea5e9"
+              active={visibleLayers.routes}
+              onToggle={() => onToggleLayer('routes')}
+              onIsolate={() => onIsolateLayer('routes')}
+              line
+            />
           </div>
           <YearFilterWidget value={yearRange} onChange={onYearRangeChange} />
         </div>
@@ -173,11 +189,16 @@ export function DevInteractSidebar({
 
       <SidebarSection
         title="Measurement"
-        actions={(
-          <button type="button" onClick={onClearMeasurement} className="rounded-md p-1.5 hover:bg-muted touch:p-2.5" aria-label="Delete measurement">
+        actions={
+          <button
+            type="button"
+            onClick={onClearMeasurement}
+            className="rounded-md p-1.5 hover:bg-muted touch:p-2.5"
+            aria-label="Delete measurement"
+          >
             <Trash2 className="size-4" />
           </button>
-        )}
+        }
       >
         <div className="rounded-md border border-border bg-muted/30 p-3">
           <div className="text-xs text-muted-foreground">
@@ -193,15 +214,29 @@ export function DevInteractSidebar({
             className="mt-3"
             items={[
               { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
-              { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+              {
+                label: 'Area',
+                value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
+              },
             ]}
           />
           <div className="mt-3 flex gap-2">
-            <Button size="sm" variant={measurementMode === 'drawing' ? 'secondary' : 'default'} onClick={onStartMeasurement} className="flex-1">
+            <Button
+              size="sm"
+              variant={measurementMode === 'drawing' ? 'secondary' : 'default'}
+              onClick={onStartMeasurement}
+              className="flex-1"
+            >
               <Ruler className="mr-2 size-4" />
               Measure
             </Button>
-            <Button size="sm" variant="outline" disabled={measurementPointCount < 3 || measurementMode !== 'drawing'} onClick={onFinishMeasurement} className="flex-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={measurementPointCount < 3 || measurementMode !== 'drawing'}
+              onClick={onFinishMeasurement}
+              className="flex-1"
+            >
               Close
             </Button>
           </div>
@@ -217,7 +252,9 @@ export function DevInteractSidebar({
             onCheckedChange={onScaleVisibleChange}
           />
           <div className="rounded-md border border-border bg-background px-3 py-2 shadow-sm">
-            <label htmlFor="scale-position" className="block text-sm font-medium">Scale position</label>
+            <label htmlFor="scale-position" className="block text-sm font-medium">
+              Scale position
+            </label>
             <AppSelect
               id="scale-position"
               value={scalePosition}
@@ -272,7 +309,11 @@ function ComponentToggle({
         <span className="block text-xs text-muted-foreground">{description}</span>
       </span>
       <span className="flex items-center gap-2">
-        {checked ? <Eye className="size-4 text-muted-foreground" /> : <EyeOff className="size-4 text-muted-foreground" />}
+        {checked ? (
+          <Eye className="size-4 text-muted-foreground" />
+        ) : (
+          <EyeOff className="size-4 text-muted-foreground" />
+        )}
         <input
           type="checkbox"
           checked={checked}
@@ -297,24 +338,20 @@ function LegendOptionsMenu() {
         <span className="min-w-0">
           <span className="block text-sm font-medium">Last updated</span>
           <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-            {formatDate(mapDatasetMeta.updated, { fallback: mapDatasetMeta.updated, hour: 'numeric', minute: '2-digit' })}
+            {formatDate(mapDatasetMeta.updated, {
+              fallback: mapDatasetMeta.updated,
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {mapDatasetMeta.source}
-          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{mapDatasetMeta.source}</span>
         </span>
       </div>
     </div>
   )
 }
 
-function MeasurementShapeMenu({
-  onPolygon,
-  onCircle,
-}: {
-  onPolygon: () => void
-  onCircle: () => void
-}) {
+function MeasurementShapeMenu({ onPolygon, onCircle }: { onPolygon: () => void; onCircle: () => void }) {
   return (
     <div
       role="menu"
@@ -355,7 +392,15 @@ function MeasurementShapeMenuItem({
 
 function PolygonIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -368,7 +413,15 @@ function PolygonIcon({ className }: { className?: string }) {
 
 function CircleOutlineIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -445,12 +498,35 @@ function LegendRow({
 
 function IsolateIcon({ className }: { className?: string }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <path d="M6.70382 3.4567C7.50536 3.12469 8.4629 3.03403 10 3.00928V5.00952C9.56157 5.01682 9.18622 5.0297 8.85313 5.05243C8.11822 5.10257 7.73618 5.19387 7.46918 5.30446C6.48907 5.71044 5.71037 6.48913 5.3044 7.46924C5.1938 7.73624 5.10251 8.11828 5.05237 8.85319C5.02964 9.18625 5.01676 9.56156 5.00946 9.99994H3.00922C3.03398 8.46291 3.12464 7.5054 3.45664 6.70388C4.0656 5.23371 5.23365 4.06567 6.70382 3.4567Z" fill="currentColor" />
-      <path d="M3.45664 17.2961C3.12463 16.4945 3.03397 15.537 3.00922 13.9999H5.00946C5.01676 14.4384 5.02964 14.8137 5.05237 15.1468C5.10251 15.8817 5.1938 16.2637 5.3044 16.5307C5.71037 17.5108 6.48907 18.2895 7.46918 18.6955C7.73618 18.8061 8.11822 18.8974 8.85313 18.9475C9.18622 18.9703 9.56156 18.9831 10 18.9904V20.9907C8.4629 20.9659 7.50536 20.8753 6.70382 20.5433C5.23365 19.9343 4.0656 18.7662 3.45664 17.2961Z" fill="currentColor" />
-      <path d="M14 20.9907V18.9904C14.4384 18.9831 14.8137 18.9703 15.1467 18.9475C15.8816 18.8974 16.2637 18.8061 16.5307 18.6955C17.5108 18.2895 18.2895 17.5108 18.6954 16.5307C18.806 16.2637 18.8973 15.8817 18.9475 15.1468C18.9702 14.8137 18.9831 14.4384 18.9904 13.9999H20.9906C20.9659 15.537 20.8752 16.4945 20.5432 17.2961C19.9342 18.7662 18.7662 19.9343 17.296 20.5433C16.4945 20.8753 15.537 20.9659 14 20.9907Z" fill="currentColor" />
-      <path d="M20.5432 6.70388C20.8752 7.5054 20.9659 8.46291 20.9906 9.99994H18.9904C18.9831 9.56156 18.9702 9.18625 18.9475 8.85319C18.8973 8.11828 18.806 7.73624 18.6954 7.46924C18.2895 6.48913 17.5108 5.71044 16.5307 5.30446C16.2637 5.19387 15.8816 5.10257 15.1467 5.05243C14.8137 5.02971 14.4384 5.01682 14 5.00952V3.00928C15.537 3.03404 16.4945 3.1247 17.296 3.4567C18.7662 4.06567 19.9342 5.23371 20.5432 6.70388Z" fill="currentColor" />
-      <path d="M13.9999 12C13.9999 13.1046 13.1045 14 11.9999 14C10.8953 14 9.99992 13.1046 9.99992 12C9.99992 10.8954 10.8953 10 11.9999 10C13.1045 10 13.9999 10.8954 13.9999 12Z" fill="currentColor" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M6.70382 3.4567C7.50536 3.12469 8.4629 3.03403 10 3.00928V5.00952C9.56157 5.01682 9.18622 5.0297 8.85313 5.05243C8.11822 5.10257 7.73618 5.19387 7.46918 5.30446C6.48907 5.71044 5.71037 6.48913 5.3044 7.46924C5.1938 7.73624 5.10251 8.11828 5.05237 8.85319C5.02964 9.18625 5.01676 9.56156 5.00946 9.99994H3.00922C3.03398 8.46291 3.12464 7.5054 3.45664 6.70388C4.0656 5.23371 5.23365 4.06567 6.70382 3.4567Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.45664 17.2961C3.12463 16.4945 3.03397 15.537 3.00922 13.9999H5.00946C5.01676 14.4384 5.02964 14.8137 5.05237 15.1468C5.10251 15.8817 5.1938 16.2637 5.3044 16.5307C5.71037 17.5108 6.48907 18.2895 7.46918 18.6955C7.73618 18.8061 8.11822 18.8974 8.85313 18.9475C9.18622 18.9703 9.56156 18.9831 10 18.9904V20.9907C8.4629 20.9659 7.50536 20.8753 6.70382 20.5433C5.23365 19.9343 4.0656 18.7662 3.45664 17.2961Z"
+        fill="currentColor"
+      />
+      <path
+        d="M14 20.9907V18.9904C14.4384 18.9831 14.8137 18.9703 15.1467 18.9475C15.8816 18.8974 16.2637 18.8061 16.5307 18.6955C17.5108 18.2895 18.2895 17.5108 18.6954 16.5307C18.806 16.2637 18.8973 15.8817 18.9475 15.1468C18.9702 14.8137 18.9831 14.4384 18.9904 13.9999H20.9906C20.9659 15.537 20.8752 16.4945 20.5432 17.2961C19.9342 18.7662 18.7662 19.9343 17.296 20.5433C16.4945 20.8753 15.537 20.9659 14 20.9907Z"
+        fill="currentColor"
+      />
+      <path
+        d="M20.5432 6.70388C20.8752 7.5054 20.9659 8.46291 20.9906 9.99994H18.9904C18.9831 9.56156 18.9702 9.18625 18.9475 8.85319C18.8973 8.11828 18.806 7.73624 18.6954 7.46924C18.2895 6.48913 17.5108 5.71044 16.5307 5.30446C16.2637 5.19387 15.8816 5.10257 15.1467 5.05243C14.8137 5.02971 14.4384 5.01682 14 5.00952V3.00928C15.537 3.03404 16.4945 3.1247 17.296 3.4567C18.7662 4.06567 19.9342 5.23371 20.5432 6.70388Z"
+        fill="currentColor"
+      />
+      <path
+        d="M13.9999 12C13.9999 13.1046 13.1045 14 11.9999 14C10.8953 14 9.99992 13.1046 9.99992 12C9.99992 10.8954 10.8953 10 11.9999 10C13.1045 10 13.9999 10.8954 13.9999 12Z"
+        fill="currentColor"
+      />
     </svg>
   )
 }

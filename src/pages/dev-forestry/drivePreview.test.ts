@@ -23,15 +23,24 @@ describe('driving through a forest', () => {
   })
   it('preloads every foreground tile before it can enter view between membership updates', () => {
     expect(FOREST_PATCH_GUARD_METERS).toBeGreaterThan(75)
-    const loaded = new Set(forestPatches(eye, bands, eye.lat).filter(p => p.band === 0).map(p => p.key))
-    const lngMeters = 111320 * Math.cos(eye.lat * Math.PI / 180)
-    for (const dx of [-75, 0, 75]) for (const dy of [-75, 0, 75]) {
-      if (Math.hypot(dx, dy) > 75) continue
-      const moved = { lng: eye.lng + dx / lngMeters, lat: eye.lat + dy / 111320 }
-      const needed = forestPatches(moved, bands, eye.lat).filter(p => p.band === 0 &&
-        Math.hypot((p.centre.lng - moved.lng) * lngMeters, (p.centre.lat - moved.lat) * 111320) - p.radius <= bands[0].far)
-      for (const patch of needed) expect(loaded.has(patch.key), patch.key).toBe(true)
-    }
+    const loaded = new Set(
+      forestPatches(eye, bands, eye.lat)
+        .filter((p) => p.band === 0)
+        .map((p) => p.key),
+    )
+    const lngMeters = 111320 * Math.cos((eye.lat * Math.PI) / 180)
+    for (const dx of [-75, 0, 75])
+      for (const dy of [-75, 0, 75]) {
+        if (Math.hypot(dx, dy) > 75) continue
+        const moved = { lng: eye.lng + dx / lngMeters, lat: eye.lat + dy / 111320 }
+        const needed = forestPatches(moved, bands, eye.lat).filter(
+          (p) =>
+            p.band === 0 &&
+            Math.hypot((p.centre.lng - moved.lng) * lngMeters, (p.centre.lat - moved.lat) * 111320) - p.radius <=
+              bands[0].far,
+        )
+        for (const patch of needed) expect(loaded.has(patch.key), patch.key).toBe(true)
+      }
   })
   it('turns continuously through a bend while the eye remains on the road', () => {
     const path = roadPath([

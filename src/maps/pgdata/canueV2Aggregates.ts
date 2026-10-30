@@ -125,21 +125,23 @@ export function useCanueV2AggregatePrefetch({
       let loaded = 0
       let firstError: string | null = null
 
-      await Promise.all(urls.map(async (url) => {
-        try {
-          await loadAggregate(url)
-          loaded += 1
-          if (!cancelled) {
-            setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
+      await Promise.all(
+        urls.map(async (url) => {
+          try {
+            await loadAggregate(url)
+            loaded += 1
+            if (!cancelled) {
+              setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
+            }
+          } catch (error) {
+            loaded += 1
+            firstError ??= (error as Error).message || 'Unable to preload CANUE timeline data'
+            if (!cancelled) {
+              setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
+            }
           }
-        } catch (error) {
-          loaded += 1
-          firstError ??= (error as Error).message || 'Unable to preload CANUE timeline data'
-          if (!cancelled) {
-            setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
-          }
-        }
-      }))
+        }),
+      )
     }
 
     void prefetch()
@@ -192,38 +194,42 @@ export function useCanueV2AggregateData({
         let validBoundaryCount = 0
         let matchedFeatureCount = 0
 
-        const features = activeBoundaries.features.filter((feature) => feature.geometry).map((feature, index) => {
-          const id = String(feature.properties?.[idField] ?? feature.properties?.boundaryId ?? feature.id ?? index)
-          const row = rowByBoundaryId.get(id)
-          const value = row?.values?.[activeSelection.property] ?? null
-          if (Number.isFinite(value)) {
-            validBoundaryCount += 1
-            matchedFeatureCount += row?.counts?.[activeSelection.property] ?? 0
-            const numericValue = Number(value)
-            minValue = minValue == null ? numericValue : Math.min(minValue, numericValue)
-            maxValue = maxValue == null ? numericValue : Math.max(maxValue, numericValue)
-          }
+        const features = activeBoundaries.features
+          .filter((feature) => feature.geometry)
+          .map((feature, index) => {
+            const id = String(feature.properties?.[idField] ?? feature.properties?.boundaryId ?? feature.id ?? index)
+            const row = rowByBoundaryId.get(id)
+            const value = row?.values?.[activeSelection.property] ?? null
+            if (Number.isFinite(value)) {
+              validBoundaryCount += 1
+              matchedFeatureCount += row?.counts?.[activeSelection.property] ?? 0
+              const numericValue = Number(value)
+              minValue = minValue == null ? numericValue : Math.min(minValue, numericValue)
+              maxValue = maxValue == null ? numericValue : Math.max(maxValue, numericValue)
+            }
 
-          return {
-            ...feature,
-            id,
-            properties: {
-              ...feature.properties,
-              boundaryId: id,
-              boundaryName: row?.boundaryName ?? String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? index),
-              datasetId: activeSelection.dataset,
-              datasetLabel: activeSelection.dataset,
-              family: activeSelection.family,
-              year: activeSelection.year,
-              sourceMode: 'r2-aggregate',
-              rowCount: row?.counts?.[activeSelection.property] ?? 0,
-              [activeSelection.property]: value,
-              [`${activeSelection.property}_count`]: row?.counts?.[activeSelection.property] ?? 0,
-              [`${activeSelection.property}_min`]: row?.min?.[activeSelection.property] ?? null,
-              [`${activeSelection.property}_max`]: row?.max?.[activeSelection.property] ?? null,
-            },
-          }
-        })
+            return {
+              ...feature,
+              id,
+              properties: {
+                ...feature.properties,
+                boundaryId: id,
+                boundaryName:
+                  row?.boundaryName ??
+                  String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? index),
+                datasetId: activeSelection.dataset,
+                datasetLabel: activeSelection.dataset,
+                family: activeSelection.family,
+                year: activeSelection.year,
+                sourceMode: 'r2-aggregate',
+                rowCount: row?.counts?.[activeSelection.property] ?? 0,
+                [activeSelection.property]: value,
+                [`${activeSelection.property}_count`]: row?.counts?.[activeSelection.property] ?? 0,
+                [`${activeSelection.property}_min`]: row?.min?.[activeSelection.property] ?? null,
+                [`${activeSelection.property}_max`]: row?.max?.[activeSelection.property] ?? null,
+              },
+            }
+          })
 
         setResult({
           data: { type: 'FeatureCollection', features },

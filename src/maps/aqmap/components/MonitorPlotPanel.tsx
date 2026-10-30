@@ -151,12 +151,7 @@ export function MonitorPlotPanel({
             )}
           </div>
           {plotMode === 'ts' && (
-            <MonitorPlotChart
-              points={plotPoints}
-              locale={locale}
-              currentValue={pm25 ?? undefined}
-              height={170}
-            />
+            <MonitorPlotChart points={plotPoints} locale={locale} currentValue={pm25 ?? undefined} height={170} />
           )}
           {plotMode === 'xy' && (
             <MonitorScatterChart mode="xy" abPoints={abPoints} locale={locale} height={200} loading={plotLoading} />

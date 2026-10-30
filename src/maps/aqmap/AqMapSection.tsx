@@ -27,12 +27,7 @@ import {
   serializeSet,
 } from './lib/urlState'
 import { WMS_LAYERS, type WmsLayerKey } from './lib/wmsLayers'
-import {
-  formatLocalizedDate,
-  localizeMonitorType,
-  translate,
-  type AqmapLocale,
-} from './lib/i18n'
+import { formatLocalizedDate, localizeMonitorType, translate, type AqmapLocale } from './lib/i18n'
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
 import {
   BASEMAP_STYLES,
@@ -217,9 +212,7 @@ function parseFireDangerLegendVariant(value: string | null): FireDangerLegendVar
 
 function parseMainNetworks(value: string | null): Set<AqNetworkSlug> {
   const allowed = new Set<AqNetworkSlug>(AQ_OBSERVATION_NETWORKS)
-  const parsed = (value ?? '')
-    .split(',')
-    .filter((item): item is AqNetworkSlug => allowed.has(item as AqNetworkSlug))
+  const parsed = (value ?? '').split(',').filter((item): item is AqNetworkSlug => allowed.has(item as AqNetworkSlug))
   return new Set(parsed.length > 0 ? parsed : AQ_OBSERVATION_NETWORKS)
 }
 
@@ -349,7 +342,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     initialUrlState.basemap === 'topographic' ? 'topographic' : null,
   )
   const themeBasemap: AqBasemap = resolvedTheme === 'dark' ? 'dark' : 'light'
-  const basemap: AqBasemap = isMain ? mainBasemapOverride ?? themeBasemap : themeBasemap
+  const basemap: AqBasemap = isMain ? (mainBasemapOverride ?? themeBasemap) : themeBasemap
   const windBasemapTone = basemap === 'dark' ? 'dark' : 'light'
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
   const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
@@ -426,10 +419,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     // Fire danger and PM2.5 have dedicated vector deck.gl paths. Other deck
     // modes re-render the exact same WMS/XYZ tiles as native raster mode.
     return WMS_LAYERS.map((layer) => layer.key).filter(
-      (key) =>
-        key !== 'fireDanger' &&
-        visibleWmsLayers.has(key) &&
-        modes[key] === 'deckgl',
+      (key) => key !== 'fireDanger' && visibleWmsLayers.has(key) && modes[key] === 'deckgl',
     )
   }, [
     effActiveFiresMode,
@@ -637,7 +627,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
       const nextSearch = next.toString()
       const nextHash = serializeAqmapHash({
-        basemap: isMain ? mainBasemapOverride ?? 'light' : 'light',
+        basemap: isMain ? (mainBasemapOverride ?? 'light') : 'light',
         visibleGroups,
         visibleWmsLayers,
         visibleSmokeLayers,
@@ -737,15 +727,18 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     [isMobileViewport],
   )
 
-  const handleForecastZoneClick = useCallback((zone: ForecastZoneFeature) => {
-    setSelectedMonitor(null)
-    if (!isMobileViewport || effectiveMobileFeatureDisplay !== 'card') {
-      setSelectedForecastZone(null)
-      return false
-    }
-    setSelectedForecastZone(zone)
-    return true
-  }, [effectiveMobileFeatureDisplay, isMobileViewport])
+  const handleForecastZoneClick = useCallback(
+    (zone: ForecastZoneFeature) => {
+      setSelectedMonitor(null)
+      if (!isMobileViewport || effectiveMobileFeatureDisplay !== 'card') {
+        setSelectedForecastZone(null)
+        return false
+      }
+      setSelectedForecastZone(zone)
+      return true
+    },
+    [effectiveMobileFeatureDisplay, isMobileViewport],
+  )
 
   const handleExport = useCallback(
     async (format: ExportFormat) => {
@@ -1153,7 +1146,9 @@ function MobileForecastZoneFeatureCard({
           1hr PM2.5 (&micro;g m<sup>-3</sup>)
         </>
       ),
-      values: columns.map((column) => formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour)))),
+      values: columns.map((column) =>
+        formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour))),
+      ),
     },
     {
       label: (
@@ -1161,7 +1156,9 @@ function MobileForecastZoneFeatureCard({
           24hr PM2.5 (&micro;g m<sup>-3</sup>)
         </>
       ),
-      values: columns.map((column) => formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour)))),
+      values: columns.map((column) =>
+        formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour))),
+      ),
     },
   ]
 
@@ -1232,9 +1229,7 @@ function MobileAqMonitorFeatureCard({
         <div className="rounded-md border border-border bg-background p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <AqhiStatusChip pm25={pm25} locale={locale} />
-            <span className="text-xs text-muted-foreground">
-              {formatLocalizedDate(monitor.dateObserved, locale)}
-            </span>
+            <span className="text-xs text-muted-foreground">{formatLocalizedDate(monitor.dateObserved, locale)}</span>
           </div>
           <KeyValueRows
             className="mt-2"

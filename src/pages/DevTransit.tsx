@@ -112,7 +112,8 @@ export default function DevTransit() {
           next.theme === completed.theme)
       if (event.data.error && !next) setError(event.data.error)
       else if (event.data.result && compatible) {
-        const offNetwork = dragging.current && (!event.data.result.originOnNetwork || !!event.data.result.originIsolated)
+        const offNetwork =
+          dragging.current && (!event.data.result.originOnNetwork || !!event.data.result.originIsolated)
         setPreviewOffNetwork(offNetwork)
         // A brief gap in street access must not clear the entire heat field.
         // Label the retained preview until access resumes or the drag ends.
@@ -211,7 +212,7 @@ export default function DevTransit() {
       url.searchParams.set('z', map.current.getZoom().toFixed(2))
     }
     setShareUrl(url.href)
-    setNotice(await clipboard.copy(url.href) ? 'Map link copied.' : 'Copy the map link below.')
+    setNotice((await clipboard.copy(url.href)) ? 'Map link copied.' : 'Copy the map link below.')
   }
 
   const journey = previewOffNetwork ? null : result?.journey
@@ -489,10 +490,11 @@ export default function DevTransit() {
       <SidebarSection title="Data & method">
         <p className="text-xs leading-5 text-muted-foreground">
           Scheduled journeys from BC Transit, with estimated walking at 4.5 km/h along City of Prince George street
-          centrelines and walkways. Starting points and heat samples include up to {markerAccessMeters(data?.meta ?? {})} m
-          of estimated access to the network, counted in the travel time. Transfers allow up to 650 m of walking. The heatmap is generated live for the
-          current view and gains detail as you zoom in. Blank areas exceed the time limit or have no connected mapped access. Street access does not verify
-          sidewalks, pedestrian permissions or accessibility. No live delays are included.
+          centrelines and walkways. Starting points and heat samples include up to{' '}
+          {markerAccessMeters(data?.meta ?? {})} m of estimated access to the network, counted in the travel time.
+          Transfers allow up to 650 m of walking. The heatmap is generated live for the current view and gains detail as
+          you zoom in. Blank areas exceed the time limit or have no connected mapped access. Street access does not
+          verify sidewalks, pedestrian permissions or accessibility. No live delays are included.
         </p>
         {data && (
           <p className="mt-2 text-xs text-muted-foreground">

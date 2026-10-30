@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 
 import { loadElevationGrid } from './demLoader'
-import { landformFromTerrain, TERRAIN_LANDFORM_DEFAULTS, type LandformBoundary, type TerrainLandform } from './landformFromTerrain'
+import {
+  landformFromTerrain,
+  TERRAIN_LANDFORM_DEFAULTS,
+  type LandformBoundary,
+  type TerrainLandform,
+} from './landformFromTerrain'
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
@@ -83,12 +88,21 @@ export function TerrainLandformFinder({
       // on the road nearest the block.
       const station = result?.stations[result.assessmentStationIndex]
       const onRoad = road.length ? nearestPointOnLine(road, centre) : null
-      const viewpoint = station ? { lng: station.lng, lat: station.lat } : onRoad ? { lng: onRoad.position[0], lat: onRoad.position[1] } : null
+      const viewpoint = station
+        ? { lng: station.lng, lat: station.lat }
+        : onRoad
+          ? { lng: onRoad.position[0], lat: onRoad.position[1] }
+          : null
       if (!viewpoint) throw new Error('Draw the road or viewpoint first: a landform is the face seen from it.')
       const scale = metersPerDegree(centre.lat)
       const pad = TERRAIN_LANDFORM_DEFAULTS.radiusMeters + 500
       const range = demTileRange(
-        [centre.lng - pad / scale.lng, centre.lat - pad / scale.lat, centre.lng + pad / scale.lng, centre.lat + pad / scale.lat],
+        [
+          centre.lng - pad / scale.lng,
+          centre.lat - pad / scale.lat,
+          centre.lng + pad / scale.lng,
+          centre.lat + pad / scale.lat,
+        ],
         TERRAIN_ZOOM,
       )
       const { grid, missingTileCount } = await loadElevationGrid({ range, signal: abort.signal, concurrency: 4 })
@@ -98,7 +112,9 @@ export function TerrainLandformFinder({
       onCandidate({ ...landform, blockId: target.id, blockName: target.name, blockGeometry: target.geometry })
       setStatus({
         state: 'idle',
-        message: missingTileCount ? `${missingTileCount} terrain tiles did not load; the outline may stop short.` : undefined,
+        message: missingTileCount
+          ? `${missingTileCount} terrain tiles did not load; the outline may stop short.`
+          : undefined,
       })
     } catch (error) {
       if (abort.signal.aborted) return
@@ -116,8 +132,8 @@ export function TerrainLandformFinder({
     <div className="space-y-2 rounded-lg border p-3 text-xs" aria-label="Landform from the terrain">
       <p className="font-medium text-foreground">From the terrain</p>
       <p className="text-muted-foreground">
-        The hillside the block sits on, as seen from the road: grown out from the block until the ground turns away
-        (a ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
+        The hillside the block sits on, as seen from the road: grown out from the block until the ground turns away (a
+        ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
         {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water.
       </p>
       {blocks.length > 1 && (
@@ -150,7 +166,13 @@ export function TerrainLandformFinder({
           <span className="flex items-center justify-between gap-2">
             <span>Now assessing against the terrain landform. It replaced {replaced}.</span>
             {onUndo && (
-              <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-[11px]" onClick={onUndo}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 shrink-0 px-2 text-[11px]"
+                onClick={onUndo}
+              >
                 Undo
               </Button>
             )}
@@ -165,20 +187,23 @@ export function TerrainLandformFinder({
             rows={[
               { label: 'Around', value: candidate.blockName },
               { label: 'Area', value: `${Math.round(candidate.areaHectares).toLocaleString('en-CA')} ha` },
-              ...bounded.map(([reason, share]) => ({ label: BOUNDARY_LABELS[reason], value: `${Math.round(share * 100)}% of the edge` })),
+              ...bounded.map(([reason, share]) => ({
+                label: BOUNDARY_LABELS[reason],
+                value: `${Math.round(share * 100)}% of the edge`,
+              })),
             ]}
           />
           {candidate.blockOnly && (
             <InlineAlert tone="warning">
-              The terrain finds little hillside beyond the block itself — it sits on a valley floor or a narrow bank.
-              A share of a landform means little here; judge the opening from the road, or draw the landform by hand.
+              The terrain finds little hillside beyond the block itself — it sits on a valley floor or a narrow bank. A
+              share of a landform means little here; judge the opening from the road, or draw the landform by hand.
             </InlineAlert>
           )}
           {candidate.viewerClose && (
             <InlineAlert tone="info">
               The road is within {TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters / 1000} km of the block, so the face was
-              read as the ground turned toward the road as a whole, not toward each point of it. From a road across
-              the face much of that ground cannot be seen: trim the landform by hand to what reads as one hillside.
+              read as the ground turned toward the road as a whole, not toward each point of it. From a road across the
+              face much of that ground cannot be seen: trim the landform by hand to what reads as one hillside.
             </InlineAlert>
           )}
           {candidate.areaHectares > 1500 && (
@@ -189,14 +214,14 @@ export function TerrainLandformFinder({
           )}
           {candidate.reachedLimit && (
             <InlineAlert tone="warning">
-              The face runs past the {TERRAIN_LANDFORM_DEFAULTS.radiusMeters / 1000} km search area, so this outline
-              is cut off there. Draw the landform's far end by hand if it matters.
+              The face runs past the {TERRAIN_LANDFORM_DEFAULTS.radiusMeters / 1000} km search area, so this outline is
+              cut off there. Draw the landform's far end by hand if it matters.
             </InlineAlert>
           )}
           {status.message && <InlineAlert tone="warning">{status.message}</InlineAlert>}
           <p className="text-muted-foreground">
-            Shown dashed on the map. A reading of the terrain, not a checked delineation: compare it with the view
-            from the road before using it.
+            Shown dashed on the map. A reading of the terrain, not a checked delineation: compare it with the view from
+            the road before using it.
             {activeLandform ? ` Using it replaces ${activeLandform.name}; you can undo that.` : ''}
           </p>
           <div className="flex gap-2">

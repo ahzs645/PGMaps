@@ -68,10 +68,7 @@ export interface ParseCsvRecordsOptions extends ParseCsvOptions {
  * Parse delimited text into header-keyed records. Missing trailing cells read
  * back as empty strings rather than undefined.
  */
-export function parseCsvRecords(
-  text: string,
-  options: ParseCsvRecordsOptions = {},
-): Record<string, string>[] {
+export function parseCsvRecords(text: string, options: ParseCsvRecordsOptions = {}): Record<string, string>[] {
   const { trimHeaders = true, ...rowOptions } = options
   const [header, ...records] = parseCsvRows(text, rowOptions)
   if (!header) return []

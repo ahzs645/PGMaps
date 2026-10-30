@@ -192,25 +192,30 @@ it('the deployed Prince George snapshot connects downtown to UNBC by scheduled r
 })
 
 it.each([
-  [-122.776639, 53.901750],
+  [-122.776639, 53.90175],
   [-122.779805, 53.902121],
   [-122.776657, 53.902947],
-] as [number, number][])('the Massey/Griffiths origin %s,%s reaches the city instead of trapping the heatmap', (longitude, latitude) => {
-  const data: TransitData = JSON.parse(
-    gunzipSync(readFileSync('vendor/bcdatamapper/datascrapers/transit/output/prince_george_travel_time.json.gz')).toString(),
-  )
-  const query: TravelOptions = {
-    from: [longitude, latitude],
-    to: [-122.74733, 53.91313],
-    departure: 28800,
-    bus: true,
-    heatFrom: 'from',
-  }
-  const transit = calculateTravel(data, query)
-  const walk = calculateTravel(data, { ...query, bus: false })
-  expect(transit.originOnNetwork).toBe(true)
-  expect(walk.journey).not.toBeNull()
-  expect(transit.journey).not.toBeNull()
-  expect(transit.reachableStops).toBeGreaterThan(50)
-  expect(transit.grid.filter((minutes) => minutes >= 0 && minutes <= 45).length).toBeGreaterThan(1000)
-})
+] as [number, number][])(
+  'the Massey/Griffiths origin %s,%s reaches the city instead of trapping the heatmap',
+  (longitude, latitude) => {
+    const data: TransitData = JSON.parse(
+      gunzipSync(
+        readFileSync('vendor/bcdatamapper/datascrapers/transit/output/prince_george_travel_time.json.gz'),
+      ).toString(),
+    )
+    const query: TravelOptions = {
+      from: [longitude, latitude],
+      to: [-122.74733, 53.91313],
+      departure: 28800,
+      bus: true,
+      heatFrom: 'from',
+    }
+    const transit = calculateTravel(data, query)
+    const walk = calculateTravel(data, { ...query, bus: false })
+    expect(transit.originOnNetwork).toBe(true)
+    expect(walk.journey).not.toBeNull()
+    expect(transit.journey).not.toBeNull()
+    expect(transit.reachableStops).toBeGreaterThan(50)
+    expect(transit.grid.filter((minutes) => minutes >= 0 && minutes <= 45).length).toBeGreaterThan(1000)
+  },
+)

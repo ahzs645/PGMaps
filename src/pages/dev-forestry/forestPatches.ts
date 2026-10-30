@@ -44,7 +44,11 @@ export function forestPatches(
         const centre = { lng: (x + 0.5) * dx, lat: (y + 0.5) * dy }
         const distance = haversineMeters(eye, centre),
           diagonal = (band.size * Math.SQRT2) / 2
-        if (distance - diagonal > band.far + FOREST_PATCH_GUARD_METERS || distance + diagonal < band.near - FOREST_PATCH_GUARD_METERS) continue
+        if (
+          distance - diagonal > band.far + FOREST_PATCH_GUARD_METERS ||
+          distance + diagonal < band.near - FOREST_PATCH_GUARD_METERS
+        )
+          continue
         result.push({
           key: `${index}/${x}/${y}`,
           band: index,
@@ -85,6 +89,10 @@ export function growForestPatch(
 /** Keep the same foreground representation all the way to the eye. */
 export function canopyRange(bands: ForestBand[], index: number): [number, number, number, number] {
   const band = bands[index]
-  return [index === 0 ? -2 : band.near, index === 0 ? -1 : bands[index - 1].far,
-    index + 1 < bands.length ? bands[index + 1].near : band.far - 300, band.far]
+  return [
+    index === 0 ? -2 : band.near,
+    index === 0 ? -1 : bands[index - 1].far,
+    index + 1 < bands.length ? bands[index + 1].near : band.far - 300,
+    band.far,
+  ]
 }

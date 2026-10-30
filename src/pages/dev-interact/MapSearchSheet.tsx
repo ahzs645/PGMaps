@@ -57,22 +57,26 @@ export function MapSearchSheet({
 
   const rows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    return [...neighbourhoodFeatures.features, ...parkFeatures.features, ...routeFeatures.features].filter((feature) => {
-      if (hiddenFeatureIds.has(feature.properties.id)) return false
-      if (isolatedFeatureId && feature.properties.id !== isolatedFeatureId) return false
-      if (!featureMatchesYearRange(feature, yearRange)) return false
-      if (!normalizedQuery) return true
+    return [...neighbourhoodFeatures.features, ...parkFeatures.features, ...routeFeatures.features].filter(
+      (feature) => {
+        if (hiddenFeatureIds.has(feature.properties.id)) return false
+        if (isolatedFeatureId && feature.properties.id !== isolatedFeatureId) return false
+        if (!featureMatchesYearRange(feature, yearRange)) return false
+        if (!normalizedQuery) return true
 
-      const searchable = [
-        feature.properties.name,
-        feature.properties.description,
-        feature.properties.value,
-        layerLabel(feature.properties.layer),
-        ...feature.properties.properties.flatMap((property) => [property.label, property.value]),
-      ].join(' ').toLowerCase()
+        const searchable = [
+          feature.properties.name,
+          feature.properties.description,
+          feature.properties.value,
+          layerLabel(feature.properties.layer),
+          ...feature.properties.properties.flatMap((property) => [property.label, property.value]),
+        ]
+          .join(' ')
+          .toLowerCase()
 
-      return searchable.includes(normalizedQuery)
-    })
+        return searchable.includes(normalizedQuery)
+      },
+    )
   }, [hiddenFeatureIds, isolatedFeatureId, query, yearRange])
 
   const groupedRows = useMemo(() => {
@@ -152,7 +156,9 @@ function SearchHeader({ onClose, compact = false }: { onClose: () => void; compa
       )}
       <header className={cn('flex items-center justify-between gap-3 px-4 pb-3 pt-1', compact && 'py-3')}>
         <div className="min-w-0">
-          <p id="map-search-title" className="truncate text-base font-semibold">Search locations</p>
+          <p id="map-search-title" className="truncate text-base font-semibold">
+            Search locations
+          </p>
           <p className="mt-0.5 text-xs text-muted-foreground">Find visible map features</p>
         </div>
         <button type="button" className="rounded-md p-2 hover:bg-muted" onClick={onClose} aria-label="Close search">
@@ -193,14 +199,22 @@ function SearchBody({
           aria-label="Search map items"
           // Opened by its own button; keep the page search shortcut on the sidebar field.
           data-map-search-input="false"
-          className={cn('h-10 rounded-md border-border', mobilePrimary && 'border-rose-300 shadow-sm focus:ring-rose-300')}
+          className={cn(
+            'h-10 rounded-md border-border',
+            mobilePrimary && 'border-rose-300 shadow-sm focus:ring-rose-300',
+          )}
         />
       </div>
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto py-2', mobilePrimary && 'pt-1')}>
         {groupedRows.map((group) => (
           <div key={group.layer} className="pb-2">
-            <div className={cn('px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground', mobilePrimary && 'px-3')}>
+            <div
+              className={cn(
+                'px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+                mobilePrimary && 'px-3',
+              )}
+            >
               {layerLabel(group.layer)}
             </div>
             {group.rows.map((feature) => (
@@ -223,9 +237,7 @@ function SearchBody({
           </div>
         ))}
         {resultCount === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No map items match that search.
-          </div>
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">No map items match that search.</div>
         )}
       </div>
 
@@ -239,10 +251,24 @@ function SearchBody({
 function LayerGlyph({ layer }: { layer: LayerId }) {
   const glyph = layerGlyphs[layer]
   if (glyph.shape === 'line') {
-    return <span className="h-0.5 w-5 shrink-0 rounded-full" style={{ backgroundColor: glyph.color }} aria-hidden="true" />
+    return (
+      <span className="h-0.5 w-5 shrink-0 rounded-full" style={{ backgroundColor: glyph.color }} aria-hidden="true" />
+    )
   }
   if (glyph.shape === 'circle') {
-    return <span className="size-4 shrink-0 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: glyph.color }} aria-hidden="true" />
+    return (
+      <span
+        className="size-4 shrink-0 rounded-full border-2 border-white shadow-sm"
+        style={{ backgroundColor: glyph.color }}
+        aria-hidden="true"
+      />
+    )
   }
-  return <span className="size-4 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: glyph.color, opacity: 0.8 }} aria-hidden="true" />
+  return (
+    <span
+      className="size-4 shrink-0 rounded-sm border border-black/10"
+      style={{ backgroundColor: glyph.color, opacity: 0.8 }}
+      aria-hidden="true"
+    />
+  )
 }

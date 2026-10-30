@@ -41,11 +41,7 @@ export function createLingerState<T>(source: T[]): LingerState<T> {
  * holding; anything that came back stops. Entries already holding keep the phase
  * they had, so a pending fade is not restarted by an unrelated update.
  */
-export function foldLingerState<T>(
-  prev: LingerState<T>,
-  next: T[],
-  keyOf: (item: T) => string,
-): LingerState<T> {
+export function foldLingerState<T>(prev: LingerState<T>, next: T[], keyOf: (item: T) => string): LingerState<T> {
   const present = new Set<string>()
   next.forEach((item) => present.add(keyOf(item)))
 
@@ -66,11 +62,7 @@ export function foldLingerState<T>(
 }
 
 /** Returns `prev` unchanged when the entry is missing or already in `phase`. */
-export function setLingerPhase<T>(
-  prev: LingerState<T>,
-  key: string,
-  phase: LingerPhase,
-): LingerState<T> {
+export function setLingerPhase<T>(prev: LingerState<T>, key: string, phase: LingerPhase): LingerState<T> {
   const entry = prev.held.get(key)
   if (!entry || entry.phase === phase) return prev
   const held = new Map(prev.held)

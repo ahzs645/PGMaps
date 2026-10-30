@@ -444,7 +444,10 @@ export function buildCensusAreaItems(units: CensusUnit[], level: CensusAreaLevel
         { label: 'Density', value: density.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 }) },
         { label: 'Households', value: (unit.households || 0).toLocaleString(DEFAULT_LOCALE) },
         { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString(DEFAULT_LOCALE) },
-        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 }) },
+        {
+          label: 'Area (km²)',
+          value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 }),
+        },
       ],
     })
   })
@@ -482,7 +485,10 @@ export function buildCensusBlockItems(units: CensusUnit[]): ExplorerItem[] {
       details: [
         { label: 'Population', value: population.toLocaleString(DEFAULT_LOCALE) },
         { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString(DEFAULT_LOCALE) },
-        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 4 }) },
+        {
+          label: 'Area (km²)',
+          value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 4 }),
+        },
       ],
     })
   })

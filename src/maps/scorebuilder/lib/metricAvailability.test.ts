@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SCORE_METRICS } from '../constants'
 import type { ScoreMetricDefinition, ScoreMetricWeightMap } from '../types'
-import {
-  getMetricUnavailability,
-  getUnavailableWeightedMetrics,
-  isMetricAvailableOnBoundary,
-} from './metrics'
+import { getMetricUnavailability, getUnavailableWeightedMetrics, isMetricAvailableOnBoundary } from './metrics'
 
 function metric(key: string): ScoreMetricDefinition {
   const found = SCORE_METRICS.find((entry) => entry.key === key)
@@ -64,12 +60,7 @@ describe('getUnavailableWeightedMetrics', () => {
   })
 
   it('flags negative weights too — they are just as dead', () => {
-    const result = getUnavailableWeightedMetrics(
-      SCORE_METRICS,
-      weights({ crimeDensity: -30 }),
-      [],
-      'cityCommunity',
-    )
+    const result = getUnavailableWeightedMetrics(SCORE_METRICS, weights({ crimeDensity: -30 }), [], 'cityCommunity')
     expect(result.get('crimeDensity')?.source).toBe('crime')
   })
 

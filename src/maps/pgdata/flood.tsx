@@ -111,7 +111,8 @@ function cleanText(value: unknown, fallback = 'Not reported'): string {
 
 export function getReturnPeriodScore(value: string): number {
   const normalized = value.replace(/^=/, '').trim().toLowerCase()
-  if (!normalized || normalized.includes('n/a') || normalized.includes('no data') || normalized.includes('no rtp')) return -1
+  if (!normalized || normalized.includes('n/a') || normalized.includes('no data') || normalized.includes('no rtp'))
+    return -1
   if (normalized.includes('<1')) return 0
   const rangeMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*y?/)
   if (rangeMatch) return Number(rangeMatch[1])
@@ -133,12 +134,14 @@ function formatArcGisDate(value: number | undefined): string {
 async function fetchArcGis<T>(url: string, signal: AbortSignal): Promise<ArcGisResponse<T>> {
   const response = await fetch(url, { signal })
   if (!response.ok) throw new Error(`BC RFC request failed: ${response.status}`)
-  const json = await response.json() as ArcGisResponse<T>
+  const json = (await response.json()) as ArcGisResponse<T>
   if (json.error?.message) throw new Error(json.error.message)
   return json
 }
 
-function stationGeometry<T extends { LATITUDE?: number; LONGITUDE?: number }>(feature: ArcGisFeature<T>): [number, number] | null {
+function stationGeometry<T extends { LATITUDE?: number; LONGITUDE?: number }>(
+  feature: ArcGisFeature<T>,
+): [number, number] | null {
   const attrLon = feature.attributes?.LONGITUDE
   const attrLat = feature.attributes?.LATITUDE
   if (
@@ -185,7 +188,10 @@ function normalizeCurrentStation(feature: ArcGisFeature<CurrentStationAttributes
   }
 }
 
-function normalizeForecastStation(mode: 'clever' | 'coffee', feature: ArcGisFeature<ForecastStationAttributes>): FloodStationFeature | null {
+function normalizeForecastStation(
+  mode: 'clever' | 'coffee',
+  feature: ArcGisFeature<ForecastStationAttributes>,
+): FloodStationFeature | null {
   const coordinates = stationGeometry(feature)
   const attributes = feature.attributes
   if (!coordinates || !attributes?.Station_ID) return null
@@ -250,9 +256,11 @@ export function useFloodData(active: boolean) {
           loadStudyAreaRegions('bcRfc', 'rfcSnowBasin', controller.signal),
         ])
         const nextStations = (stationResponse.features ?? [])
-          .map((feature) => mode === 'current'
-            ? normalizeCurrentStation(feature as ArcGisFeature<CurrentStationAttributes>)
-            : normalizeForecastStation(mode, feature as ArcGisFeature<ForecastStationAttributes>))
+          .map((feature) =>
+            mode === 'current'
+              ? normalizeCurrentStation(feature as ArcGisFeature<CurrentStationAttributes>)
+              : normalizeForecastStation(mode, feature as ArcGisFeature<ForecastStationAttributes>),
+          )
           .filter((feature): feature is FloodStationFeature => Boolean(feature))
 
         const nextBasins = studyAreaRegionsToFeatureCollection(basinResponse) as FloodBasinCollection
@@ -269,23 +277,42 @@ export function useFloodData(active: boolean) {
     return () => controller.abort()
   }, [active, mode])
 
-  const filteredStations = useMemo(() => stations.filter((feature) => filterByRisk(feature, riskFilter)), [stations, riskFilter])
+  const filteredStations = useMemo(
+    () => stations.filter((feature) => filterByRisk(feature, riskFilter)),
+    [stations, riskFilter],
+  )
 
-  const stationCollection = useMemo<FloodStationCollection>(() => ({
-    type: 'FeatureCollection',
-    features: filteredStations,
-  }), [filteredStations])
+  const stationCollection = useMemo<FloodStationCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: filteredStations,
+    }),
+    [filteredStations],
+  )
 
-  const selectedStation = useMemo(() => (
-    stations.find((feature) => feature.properties.id === selectedStationId) ?? null
-  ), [stations, selectedStationId])
+  const selectedStation = useMemo(
+    () => stations.find((feature) => feature.properties.id === selectedStationId) ?? null,
+    [stations, selectedStationId],
+  )
 
-  const highRiskCount = useMemo(() => stations.filter((feature) => feature.properties.riskScore >= 2).length, [stations])
-  const severeRiskCount = useMemo(() => stations.filter((feature) => feature.properties.riskScore >= 5).length, [stations])
-  const basinNames = useMemo(() => basins.features
-    .map((feature) => String(feature.properties?.basinName ?? feature.properties?.BASIN ?? feature.properties?.basin ?? ''))
-    .filter(Boolean)
-    .sort(), [basins])
+  const highRiskCount = useMemo(
+    () => stations.filter((feature) => feature.properties.riskScore >= 2).length,
+    [stations],
+  )
+  const severeRiskCount = useMemo(
+    () => stations.filter((feature) => feature.properties.riskScore >= 5).length,
+    [stations],
+  )
+  const basinNames = useMemo(
+    () =>
+      basins.features
+        .map((feature) =>
+          String(feature.properties?.basinName ?? feature.properties?.BASIN ?? feature.properties?.basin ?? ''),
+        )
+        .filter(Boolean)
+        .sort(),
+    [basins],
+  )
 
   return {
     mode,
@@ -378,7 +405,8 @@ export function FloodSidebar({ flood }: { flood: FloodState }) {
           />
         )}
         <InlineAlert>
-          Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought basin boundaries. This first layer uses live RFC stations, forecasts, and RFC snow-basin polygons.
+          Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought
+          basin boundaries. This first layer uses live RFC stations, forecasts, and RFC snow-basin polygons.
         </InlineAlert>
       </div>
     </SidebarSection>
@@ -441,33 +469,39 @@ function MobileFloodFeatureCard({ station, onClose }: { station: FloodStationFea
 }
 
 export function FloodLayer({ flood }: { flood: FloodState }) {
-  const basinFillColor = useMemo(() => ([
-    'interpolate',
-    ['linear'],
-    ['coalesce', ['get', 'basinID'], 0],
-    1,
-    '#38bdf8',
-    8,
-    '#22c55e',
-    15,
-    '#f59e0b',
-    22,
-    '#a78bfa',
-    26,
-    '#64748b',
-  ]), [])
+  const basinFillColor = useMemo(
+    () => [
+      'interpolate',
+      ['linear'],
+      ['coalesce', ['get', 'basinID'], 0],
+      1,
+      '#38bdf8',
+      8,
+      '#22c55e',
+      15,
+      '#f59e0b',
+      22,
+      '#a78bfa',
+      26,
+      '#64748b',
+    ],
+    [],
+  )
 
-  const pointCollections = useMemo(() => (
-    FLOOD_POINT_BUCKETS
-      .map((bucket) => [
-        bucket,
-        {
-          type: 'FeatureCollection' as const,
-          features: flood.stationCollection.features.filter((feature) => bucket.test(feature.properties.riskScore)),
-        },
-      ] as const)
-      .filter(([, collection]) => collection.features.length > 0)
-  ), [flood.stationCollection])
+  const pointCollections = useMemo(
+    () =>
+      FLOOD_POINT_BUCKETS.map(
+        (bucket) =>
+          [
+            bucket,
+            {
+              type: 'FeatureCollection' as const,
+              features: flood.stationCollection.features.filter((feature) => bucket.test(feature.properties.riskScore)),
+            },
+          ] as const,
+      ).filter(([, collection]) => collection.features.length > 0),
+    [flood.stationCollection],
+  )
 
   return (
     <>
@@ -483,22 +517,27 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
           visible
         />
       )}
-      {flood.showStations && pointCollections.map(([bucket, collection]) => (
-        <MapClusterLayer<FloodStationProperties>
-          key={bucket.id}
-          data={collection}
-          pointColor={bucket.color}
-          clusterColors={[`${bucket.color}99`, `${bucket.color}cc`, bucket.color]}
-          clusterThresholds={[20, 80]}
-          onPointClick={(feature) => flood.setSelectedStationId(
-            flood.selectedStationId === feature.properties.id ? null : feature.properties.id,
-          )}
-        />
-      ))}
+      {flood.showStations &&
+        pointCollections.map(([bucket, collection]) => (
+          <MapClusterLayer<FloodStationProperties>
+            key={bucket.id}
+            data={collection}
+            pointColor={bucket.color}
+            clusterColors={[`${bucket.color}99`, `${bucket.color}cc`, bucket.color]}
+            clusterThresholds={[20, 80]}
+            onPointClick={(feature) =>
+              flood.setSelectedStationId(
+                flood.selectedStationId === feature.properties.id ? null : feature.properties.id,
+              )
+            }
+          />
+        ))}
       {flood.selectedStation && (
         <ResponsiveFeatureDetail
           popup={<FloodPopup station={flood.selectedStation} onClose={() => flood.setSelectedStationId(null)} />}
-          card={<MobileFloodFeatureCard station={flood.selectedStation} onClose={() => flood.setSelectedStationId(null)} />}
+          card={
+            <MobileFloodFeatureCard station={flood.selectedStation} onClose={() => flood.setSelectedStationId(null)} />
+          }
         />
       )}
     </>
@@ -526,10 +565,20 @@ export function FloodLegend({ flood }: { flood: FloodState }) {
           }}
         />
       ))}
-      <LegendItem color="#60a5fa" label="RFC snow-basin polygons" active={flood.showBasins} swatchShape="square" onClick={() => flood.setShowBasins((current) => !current)} />
+      <LegendItem
+        color="#60a5fa"
+        label="RFC snow-basin polygons"
+        active={flood.showBasins}
+        swatchShape="square"
+        onClick={() => flood.setShowBasins((current) => !current)}
+      />
       {flood.showBasins && (
         <div className="px-1">
-          <MapGradientLegendItem colors={['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa']} minLabel="RFC" maxLabel="basins" />
+          <MapGradientLegendItem
+            colors={['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa']}
+            minLabel="RFC"
+            maxLabel="basins"
+          />
         </div>
       )}
     </div>
@@ -543,8 +592,14 @@ export function FloodSourceNotes({ flood }: { flood: FloodState }) {
   return (
     <>
       <p>BC River Forecast Centre live ArcGIS layers{latest ? ` updated ${latest}` : ''}.</p>
-      <p>Advisory history is available from BC RFC bulletins, but polygons are inferred from watershed or basin names rather than supplied as historical shapes.</p>
-      <p>Loaded {formatNumber(flood.stations.length)} station records and {formatNumber(flood.basins.features.length)} RFC snow-basin polygons.</p>
+      <p>
+        Advisory history is available from BC RFC bulletins, but polygons are inferred from watershed or basin names
+        rather than supplied as historical shapes.
+      </p>
+      <p>
+        Loaded {formatNumber(flood.stations.length)} station records and {formatNumber(flood.basins.features.length)}{' '}
+        RFC snow-basin polygons.
+      </p>
     </>
   )
 }

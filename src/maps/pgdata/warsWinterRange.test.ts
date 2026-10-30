@@ -152,13 +152,15 @@ describe('winter range footprint index', () => {
         },
         geometry: {
           type: 'Polygon',
-          coordinates: [[
-            [-121, 55],
-            [-120, 55],
-            [-120, 56],
-            [-121, 56],
-            [-121, 55],
-          ]],
+          coordinates: [
+            [
+              [-121, 55],
+              [-120, 55],
+              [-120, 56],
+              [-121, 56],
+              [-121, 55],
+            ],
+          ],
         },
       },
     ]
@@ -170,13 +172,18 @@ describe('winter range footprint index', () => {
     expect(isInsideFootprint(-122.5, 53.5, footprint)).toBe(false)
     expect(isInsideFootprint(-120.5, 55.5, footprint)).toBe(true)
     expect(isInsideFootprint(-121.5, 54.5, footprint)).toBe(false)
-    expect(computeWinterRangeOverlap([
-      [-122.75, 53.25],
-      [-122.5, 53.5],
-      [-120.5, 55.5],
-      [-121.5, 54.5],
-      [-130, 60],
-    ], footprint)).toEqual({ withinExtent: 4, insideRange: 2 })
+    expect(
+      computeWinterRangeOverlap(
+        [
+          [-122.75, 53.25],
+          [-122.5, 53.5],
+          [-120.5, 55.5],
+          [-121.5, 54.5],
+          [-130, 60],
+        ],
+        footprint,
+      ),
+    ).toEqual({ withinExtent: 4, insideRange: 2 })
   })
 })
 

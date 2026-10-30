@@ -46,15 +46,21 @@ const GROUP_IDS: Record<AqMonitorGroup, string> = {
   other: 'L3',
 }
 
-const WMS_IDS: Record<WmsLayerKey, string> = WMS_LAYERS.reduce((acc, layer, index) => {
-  acc[layer.key] = `L${index + 4 + SMOKE_LAYERS.length}`
-  return acc
-}, {} as Record<WmsLayerKey, string>)
+const WMS_IDS: Record<WmsLayerKey, string> = WMS_LAYERS.reduce(
+  (acc, layer, index) => {
+    acc[layer.key] = `L${index + 4 + SMOKE_LAYERS.length}`
+    return acc
+  },
+  {} as Record<WmsLayerKey, string>,
+)
 
-const SMOKE_IDS: Record<SmokeLayerKey, string> = SMOKE_LAYERS.reduce((acc, layer, index) => {
-  acc[layer.key] = `L${index + 4}`
-  return acc
-}, {} as Record<SmokeLayerKey, string>)
+const SMOKE_IDS: Record<SmokeLayerKey, string> = SMOKE_LAYERS.reduce(
+  (acc, layer, index) => {
+    acc[layer.key] = `L${index + 4}`
+    return acc
+  },
+  {} as Record<SmokeLayerKey, string>,
+)
 
 const BASEMAP_IDS: Record<AqBasemap, string> = {
   light: 'B1',
@@ -84,17 +90,13 @@ function parseGroups(value: string | null): Set<AqMonitorGroup> {
 
 function parseWmsLayers(value: string | null): Set<WmsLayerKey> {
   const allowed = new Set<WmsLayerKey>(WMS_LAYERS.map((layer) => layer.key))
-  const parsed = (value ?? '')
-    .split(',')
-    .filter((item): item is WmsLayerKey => allowed.has(item as WmsLayerKey))
+  const parsed = (value ?? '').split(',').filter((item): item is WmsLayerKey => allowed.has(item as WmsLayerKey))
   return new Set(parsed)
 }
 
 function parseSmokeLayers(value: string | null): Set<SmokeLayerKey> {
   const allowed = new Set<SmokeLayerKey>(SMOKE_LAYERS.map((layer) => layer.key))
-  const parsed = (value ?? '')
-    .split(',')
-    .filter((item): item is SmokeLayerKey => allowed.has(item as SmokeLayerKey))
+  const parsed = (value ?? '').split(',').filter((item): item is SmokeLayerKey => allowed.has(item as SmokeLayerKey))
   return new Set(parsed)
 }
 
@@ -131,29 +133,12 @@ export function parseAqmapHash(hash: string, searchParams: URLSearchParams): AqU
   const wmsIdEntries = Object.entries(WMS_IDS) as Array<[WmsLayerKey, string]>
   const smokeIdEntries = Object.entries(SMOKE_IDS) as Array<[SmokeLayerKey, string]>
 
-  const visibleGroups = new Set(
-    groupIdEntries
-      .filter(([, id]) => layerParts.includes(id))
-      .map(([group]) => group),
-  )
-  const visibleWmsLayers = new Set(
-    wmsIdEntries
-      .filter(([, id]) => layerParts.includes(id))
-      .map(([key]) => key),
-  )
-  const visibleSmokeLayers = new Set(
-    smokeIdEntries
-      .filter(([, id]) => layerParts.includes(id))
-      .map(([key]) => key),
-  )
+  const visibleGroups = new Set(groupIdEntries.filter(([, id]) => layerParts.includes(id)).map(([group]) => group))
+  const visibleWmsLayers = new Set(wmsIdEntries.filter(([, id]) => layerParts.includes(id)).map(([key]) => key))
+  const visibleSmokeLayers = new Set(smokeIdEntries.filter(([, id]) => layerParts.includes(id)).map(([key]) => key))
 
   return {
-    basemap:
-      basePart === BASEMAP_IDS.dark
-        ? 'dark'
-        : basePart === BASEMAP_IDS.topographic
-          ? 'topographic'
-          : 'light',
+    basemap: basePart === BASEMAP_IDS.dark ? 'dark' : basePart === BASEMAP_IDS.topographic ? 'topographic' : 'light',
     visibleGroups: visibleGroups.size > 0 ? visibleGroups : fallback.visibleGroups,
     visibleWmsLayers,
     visibleSmokeLayers,

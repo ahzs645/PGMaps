@@ -1,12 +1,6 @@
 import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect, useMemo } from 'react'
-import {
-  MapClusterLayer,
-  MapMarker,
-  MapPopup,
-  MarkerContent,
-  useMap
-} from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
@@ -18,12 +12,7 @@ import { calculateCorrectedPm25 } from '../lib/corrections'
 import { isSameLocation, monitorEntryKey, uniqueParameters } from '../lib/monitorPopup'
 import { CorrectionSummary } from './CorrectionSummary'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
-import type {
-  AirMonitor,
-  AirQualityBasemap,
-  AirQualityBoundaryColorMetric,
-  AirQualityCorrectionModel
-} from '../types'
+import type { AirMonitor, AirQualityBasemap, AirQualityBoundaryColorMetric, AirQualityCorrectionModel } from '../types'
 import { hexToRgba } from '@/lib/color'
 
 /** Stable empty collection so MapFillLayer does not resubmit a new object each render. */
@@ -74,12 +63,12 @@ const AIR_QUALITY_MAP_STYLES: Record<AirQualityBasemap, { light: string; dark: s
   light: MAP_STYLES,
   topographic: {
     light: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-    dark: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+    dark: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   },
   dark: {
     light: MAP_STYLES.dark,
-    dark: MAP_STYLES.dark
-  }
+    dark: MAP_STYLES.dark,
+  },
 }
 
 function SelectedMonitorDetails({
@@ -105,10 +94,7 @@ function SelectedMonitorDetails({
         </>
       )}
       <div className="mt-2 flex items-center gap-2 text-xs">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: getNetworkColor(monitor.network) }}
-        />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: getNetworkColor(monitor.network) }} />
         <span className="font-medium text-foreground">{monitor.network}</span>
         {monitor.status && (
           <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase text-secondary-foreground">
@@ -139,12 +125,15 @@ function BoundaryBrowseLayer({
   selectedCode,
   colorMetric,
   maxColorValue,
-  onBoundaryClick
+  onBoundaryClick,
 }: {
-  features: GeoJSON.FeatureCollection<
-    GeoJSON.Polygon | GeoJSON.MultiPolygon,
-    { code: string; name: string; colorValue?: number | null; hasColorValue?: boolean }
-  > | null | undefined
+  features:
+    | GeoJSON.FeatureCollection<
+        GeoJSON.Polygon | GeoJSON.MultiPolygon,
+        { code: string; name: string; colorValue?: number | null; hasColorValue?: boolean }
+      >
+    | null
+    | undefined
   visible: boolean
   selectedCode: string | null | undefined
   colorMetric: AirQualityBoundaryColorMetric
@@ -166,10 +155,14 @@ function BoundaryBrowseLayer({
         'interpolate',
         ['linear'],
         ['to-number', ['get', 'colorValue'], 0],
-        0, colorStops[0],
-        maxStop * 0.25, colorStops[1],
-        maxStop * 0.6, colorStops[2],
-        maxStop, colorStops[3],
+        0,
+        colorStops[0],
+        maxStop * 0.25,
+        colorStops[1],
+        maxStop * 0.6,
+        colorStops[2],
+        maxStop,
+        colorStops[3],
       ]}
       fillOpacity={['case', ['==', ['get', 'hasColorValue'], true], 0.26, 0.1]}
       lineColor="#0284c7"
@@ -202,7 +195,7 @@ export function AirQualityMap({
   onBoundsChange,
   onMonitorClick,
   onBrowseBoundaryClick,
-  onMonitorClear
+  onMonitorClear,
 }: AirQualityMapProps) {
   const { map } = useMap()
 
@@ -220,7 +213,7 @@ export function AirQualityMap({
       if (!grouped.has(network)) {
         grouped.set(network, {
           type: 'FeatureCollection',
-          features: []
+          features: [],
         })
       }
 
@@ -228,15 +221,15 @@ export function AirQualityMap({
         type: 'Feature',
         geometry: {
           type: 'Point',
-          coordinates: [monitor.longitude, monitor.latitude]
+          coordinates: [monitor.longitude, monitor.latitude],
         },
         properties: {
           id: monitor.id,
           network,
           name: monitor.name,
           city: monitor.city || '',
-          province: monitor.province || ''
-        }
+          province: monitor.province || '',
+        },
       })
     })
 
@@ -258,10 +251,7 @@ export function AirQualityMap({
     const selectedMatch = uniqueMatches.find((monitor) => monitorEntryKey(monitor) === selectedKey)
     if (!selectedMatch) return uniqueMatches
 
-    return [
-      selectedMatch,
-      ...uniqueMatches.filter((monitor) => monitorEntryKey(monitor) !== selectedKey)
-    ]
+    return [selectedMatch, ...uniqueMatches.filter((monitor) => monitorEntryKey(monitor) !== selectedKey)]
   }, [monitors, selectedMonitor])
 
   const mapStyles = useMemo(() => AIR_QUALITY_MAP_STYLES[basemap], [basemap])
@@ -274,33 +264,35 @@ export function AirQualityMap({
     map.flyTo({
       center: [(minLon + maxLon) / 2, (minLat + maxLat) / 2],
       zoom: map.getZoom(),
-      duration: 800
+      duration: 800,
     })
   }, [selectedRegionFeature, map])
 
-  useObserveMapViewport(map, onBoundsChange ? ({ bounds: [west, south, east, north] }) => {
-    onBoundsChange({ west, south, east, north })
-  } : undefined)
+  useObserveMapViewport(
+    map,
+    onBoundsChange
+      ? ({ bounds: [west, south, east, north] }) => {
+          onBoundsChange({ west, south, east, north })
+        }
+      : undefined,
+  )
 
   return (
     <SharedMap styles={mapStyles} loading={loading} loadingLabel="Loading air quality data">
       <BoundaryBrowseLayer
-          features={browseBoundaryFeatures}
-          visible={browseBoundariesVisible}
-          selectedCode={selectedBrowseBoundaryCode}
-          colorMetric={browseBoundaryColorMetric}
-          maxColorValue={maxBrowseBoundaryColorValue}
-          onBoundaryClick={onBrowseBoundaryClick}
-        />
-        <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
+        features={browseBoundaryFeatures}
+        visible={browseBoundariesVisible}
+        selectedCode={selectedBrowseBoundaryCode}
+        colorMetric={browseBoundaryColorMetric}
+        maxColorValue={maxBrowseBoundaryColorValue}
+        onBoundaryClick={onBrowseBoundaryClick}
+      />
+      <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
 
-        {showPoints && collectionsByNetwork.map(([network, collection]) => {
+      {showPoints &&
+        collectionsByNetwork.map(([network, collection]) => {
           const color = getNetworkColor(network)
-          const clusterColors: [string, string, string] = [
-            hexToRgba(color, 0.65),
-            hexToRgba(color, 0.8),
-            color
-          ]
+          const clusterColors: [string, string, string] = [hexToRgba(color, 0.65), hexToRgba(color, 0.8), color]
 
           return (
             <MapClusterLayer<MonitorFeatureProperties>
@@ -319,51 +311,46 @@ export function AirQualityMap({
           )
         })}
 
-        {selectedMonitor && (
-          <>
-            <MapMarker
+      {selectedMonitor && (
+        <>
+          <MapMarker longitude={selectedMonitor.longitude} latitude={selectedMonitor.latitude} onClick={onMonitorClear}>
+            <MarkerContent>
+              <div
+                className="h-5 w-5 rounded-full border-2 border-white shadow-lg ring-2 ring-sky-500 ring-offset-2"
+                style={{ backgroundColor: getNetworkColor(selectedMonitor.network) }}
+              />
+            </MarkerContent>
+          </MapMarker>
+        </>
+      )}
+      {selectedMonitor && (
+        <ResponsiveFeatureDetail
+          popup={
+            <MapPopup
+              key={monitorEntryKey(selectedMonitor)}
               longitude={selectedMonitor.longitude}
               latitude={selectedMonitor.latitude}
-              onClick={onMonitorClear}
+              closeButton
+              onClose={onMonitorClear}
+              className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
             >
-              <MarkerContent>
-                <div
-                  className="h-5 w-5 rounded-full border-2 border-white shadow-lg ring-2 ring-sky-500 ring-offset-2"
-                  style={{ backgroundColor: getNetworkColor(selectedMonitor.network) }}
-                />
-              </MarkerContent>
-            </MapMarker>
-
-          </>
-        )}
-        {selectedMonitor && (
-          <ResponsiveFeatureDetail
-            popup={(
-              <MapPopup
-                key={monitorEntryKey(selectedMonitor)}
-                longitude={selectedMonitor.longitude}
-                latitude={selectedMonitor.latitude}
-                closeButton
-                onClose={onMonitorClear}
-                className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
-              >
-                <SelectedMonitorStack
-                  monitors={selectedMonitorsAtLocation}
-                  correctionModel={correctionModel}
-                  showLocationCount
-                />
-              </MapPopup>
-            )}
-            card={(
-              <MobileAirQualityFeatureCard
-                monitor={selectedMonitor}
-                monitorsAtLocation={selectedMonitorsAtLocation}
+              <SelectedMonitorStack
+                monitors={selectedMonitorsAtLocation}
                 correctionModel={correctionModel}
-                onClose={() => onMonitorClear?.()}
+                showLocationCount
               />
-            )}
-          />
-        )}
+            </MapPopup>
+          }
+          card={
+            <MobileAirQualityFeatureCard
+              monitor={selectedMonitor}
+              monitorsAtLocation={selectedMonitorsAtLocation}
+              correctionModel={correctionModel}
+              onClose={() => onMonitorClear?.()}
+            />
+          }
+        />
+      )}
     </SharedMap>
   )
 }
@@ -389,10 +376,7 @@ function SelectedMonitorStack({
 
       <div className="space-y-2">
         {monitors.map((monitor, index) => (
-          <div
-            key={monitorEntryKey(monitor)}
-            className={index === 0 ? '' : 'border-t border-border pt-2'}
-          >
+          <div key={monitorEntryKey(monitor)} className={index === 0 ? '' : 'border-t border-border pt-2'}>
             <SelectedMonitorDetails
               monitor={monitor}
               correctionModel={correctionModel}
@@ -419,11 +403,7 @@ function MobileAirQualityFeatureCard({
   const subtitle = [monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'
 
   return (
-    <MobileFeatureCard
-      title={monitor.name}
-      subtitle={subtitle}
-      onClose={onClose}
-    >
+    <MobileFeatureCard title={monitor.name} subtitle={subtitle} onClose={onClose}>
       {monitorsAtLocation.length > 1 && (
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {monitorsAtLocation.length} sensors at this location

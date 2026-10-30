@@ -122,29 +122,34 @@ export function ResultsPanel({
         basis,
         title,
         breakdown,
-        verdict: assessObjective(breakdown.cumulativePercent, landformTarget.objectiveId, basis, resolvedThresholds(landformTarget.objectiveId, basis, thresholds, landformTarget.vac)),
+        verdict: assessObjective(
+          breakdown.cumulativePercent,
+          landformTarget.objectiveId,
+          basis,
+          resolvedThresholds(landformTarget.objectiveId, basis, thresholds, landformTarget.vac),
+        ),
         note,
       })
     }
 
-    if (result.quality?.numericalReady) add(
-      'perspective',
-      'Alteration in perspective view',
-      result.perspectiveAlteration,
-      'Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement.',
-    )
-    if (result.quality?.numericalReady) add(
-      'planimetric',
-      'Planimetric denudation',
-      result.planimetricAlteration,
-      `Flat map area, visible or not — the scale timber supply analyses model against.${
-        landscape?.forestedAreaMeters !== null && landscape?.forestedAreaMeters !== undefined
-          ? ' Divided by the landform\u2019s treed area, which is what the procedure asks for.'
-          : ' Divided by the whole landform: no vegetation inventory, so the figure reads low by however much of it was never forest.'
-      }${
-        ' ' + resolveThreshold(landformTarget.objectiveId, 'planimetric', thresholds, landformTarget.vac).note
-      }`,
-    )
+    if (result.quality?.numericalReady)
+      add(
+        'perspective',
+        'Alteration in perspective view',
+        result.perspectiveAlteration,
+        'Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement.',
+      )
+    if (result.quality?.numericalReady)
+      add(
+        'planimetric',
+        'Planimetric denudation',
+        result.planimetricAlteration,
+        `Flat map area, visible or not — the scale timber supply analyses model against.${
+          landscape?.forestedAreaMeters !== null && landscape?.forestedAreaMeters !== undefined
+            ? ' Divided by the landform\u2019s treed area, which is what the procedure asks for.'
+            : ' Divided by the whole landform: no vegetation inventory, so the figure reads low by however much of it was never forest.'
+        }${' ' + resolveThreshold(landformTarget.objectiveId, 'planimetric', thresholds, landformTarget.vac).note}`,
+      )
   }
 
   return (
@@ -181,8 +186,12 @@ export function ResultsPanel({
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 Against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
                 {scale.verdict.objective.label.toLowerCase()} range is{' '}
-                {rangeFloorFor(landformTarget!.objectiveId, scale.basis, resolvedThresholds(landformTarget!.objectiveId, scale.basis, thresholds, landformTarget!.vac))}–{scale.verdict.thresholdPercent}%.
-                This reads as{' '}
+                {rangeFloorFor(
+                  landformTarget!.objectiveId,
+                  scale.basis,
+                  resolvedThresholds(landformTarget!.objectiveId, scale.basis, thresholds, landformTarget!.vac),
+                )}
+                –{scale.verdict.thresholdPercent}%. This reads as{' '}
                 <span
                   className="font-medium"
                   style={{ color: scale.verdict.achieved?.color ?? scale.verdict.objective.color }}
@@ -200,7 +209,9 @@ export function ResultsPanel({
         </div>
       ) : (
         <InlineAlert>
-          {landformTarget ? 'An active landform is present, but the numerical assessment is provisional. Review the evidence and resolution warnings in Assessment & report before exporting numerical fields.' : 'Per-block percentages describe visibility, not landform alteration. Select an active, delineated landform to compute an alteration ratio.'}
+          {landformTarget
+            ? 'An active landform is present, but the numerical assessment is provisional. Review the evidence and resolution warnings in Assessment & report before exporting numerical fields.'
+            : 'Per-block percentages describe visibility, not landform alteration. Select an active, delineated landform to compute an alteration ratio.'}
         </InlineAlert>
       )}
 

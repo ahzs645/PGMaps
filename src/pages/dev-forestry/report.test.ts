@@ -60,12 +60,22 @@ function analysis(patch: Partial<AnalysisResult> = {}): AnalysisResult {
     largestVisibleAreaStationIndex: 0,
     activeLandformId: 'land',
     targets: [],
-    perspectiveAlteration: { disturbancePercent: 0.5, existingPercent: 1.1, proposedPercent: 6.0, cumulativePercent: 7.6 },
+    perspectiveAlteration: {
+      disturbancePercent: 0.5,
+      existingPercent: 1.1,
+      proposedPercent: 6.0,
+      cumulativePercent: 7.6,
+    },
     perspectiveByStation: [
       { disturbancePercent: 0, existingPercent: 0, proposedPercent: 2.4, cumulativePercent: 2.4 },
       { disturbancePercent: 0.5, existingPercent: 1.1, proposedPercent: 6.0, cumulativePercent: 7.6 },
     ],
-    planimetricAlteration: { disturbancePercent: 0.2, existingPercent: 0.6, proposedPercent: 3.0, cumulativePercent: 3.8 },
+    planimetricAlteration: {
+      disturbancePercent: 0.2,
+      existingPercent: 0.6,
+      proposedPercent: 3.0,
+      cumulativePercent: 3.8,
+    },
     demResolutionMeters: 11.2,
     inputSnapshot: { assessmentYear: 2026 },
     quality: quality(),
@@ -117,9 +127,13 @@ describe('buildReport', () => {
   })
 
   it('withholds every numerical field when the evidence is incomplete, rather than printing zero', () => {
-    const text = report({ result: analysis({ quality: quality({ numericalReady: false, greenBasis: 'unverified-whole-landform' }) }) })
+    const text = report({
+      result: analysis({ quality: quality({ numericalReady: false, greenBasis: 'unverified-whole-landform' }) }),
+    })
     expect(text).toContain('Numerical form fields: WITHHELD pending missing evidence / resolution checks.')
-    expect(text).toContain('| 1 | -122.600000 | 53.900000 | 712.0 | Withheld | Withheld | Withheld | Withheld | Undetermined |')
+    expect(text).toContain(
+      '| 1 | -122.600000 | 53.900000 | 712.0 | Withheld | Withheld | Withheld | Withheld | Undetermined |',
+    )
     expect(text).not.toContain('| 7.60 |')
     expect(text).toContain('The map-area figure is provisional; no within-range verdict is assigned.')
     expect(text).not.toContain('**Within**')
@@ -155,20 +169,28 @@ describe('buildReport', () => {
     })
     expect(filled).toContain('VLI polygon: VLI 1668; VSC: 2.')
     expect(filled).toContain('Inventory source: BC visual landscape inventory (DataBC).')
-    expect(filled).toContain('Scenario objective: partial-retention; VAC: medium. A selected objective is not proof of legal establishment.')
+    expect(filled).toContain(
+      'Scenario objective: partial-retention; VAC: medium. A selected objective is not proof of legal establishment.',
+    )
 
     const blank = report()
     expect(blank).toContain('VLI polygon: ______; VSC: ______.')
     expect(blank).toContain('Inventory source: Not supplied.')
-    expect(blank).toContain('Forest district / licensee / licence / CP / sample code / field date: ______ (not inferred).')
+    expect(blank).toContain(
+      'Forest district / licensee / licence / CP / sample code / field date: ______ (not inferred).',
+    )
   })
 
   it('resolves the planimetric allowance the same way the panel does', () => {
     // Medium VAC on partial retention: 1998 Table 4 gives 10%.
-    expect(report()).toContain('Scenario map-area alteration: 3.80%. Planning allowance: 10%. 1998 Table 4, medium VAC; timber-supply planning only.')
+    expect(report()).toContain(
+      'Scenario map-area alteration: 3.80%. Planning allowance: 10%. 1998 Table 4, medium VAC; timber-supply planning only.',
+    )
 
     // No VAC: the mid-range planning assumption, labelled as one.
-    const unrated = report({ targets: [polygon('a'), polygon('land', { role: 'landscape', name: 'Tabor Mountain', vac: null })] })
+    const unrated = report({
+      targets: [polygon('a'), polygon('land', { role: 'landscape', name: 'Tabor Mountain', vac: null })],
+    })
     expect(unrated).toContain('Planning allowance: 10%. No VAC supplied: Table 4 medium/mid-range planning assumption.')
 
     // An explicit custom threshold wins, and is labelled as a custom figure.
@@ -188,10 +210,18 @@ describe('buildReport', () => {
   it('leaves the field half and the partial-cut quantities blank instead of substituting proxies', () => {
     const text = report()
     expect(text).toContain('2.2.3 Basic VQC (ocular): ______. Not inferred from the numerical class.')
-    expect(text).toContain('2.2.4 Five design observations: force lines ______; natural character ______; edge treatments ______; distance ______; position ______.')
-    expect(text).toContain('actual volume removed ______; actual mean residual-tree height ______; clearcut equivalent ______.')
-    expect(text).toContain('PERCENT_CLEARCUT is not volume removed, and green-up height is not residual-tree height. Neither is substituted.')
-    expect(text).toContain('2.3.6 Final EE rating: ______. 2.3.7 Override and rationale: ______. Evaluator: ______. Signature: ______.')
+    expect(text).toContain(
+      '2.2.4 Five design observations: force lines ______; natural character ______; edge treatments ______; distance ______; position ______.',
+    )
+    expect(text).toContain(
+      'actual volume removed ______; actual mean residual-tree height ______; clearcut equivalent ______.',
+    )
+    expect(text).toContain(
+      'PERCENT_CLEARCUT is not volume removed, and green-up height is not residual-tree height. Neither is substituted.',
+    )
+    expect(text).toContain(
+      '2.3.6 Final EE rating: ______. 2.3.7 Override and rationale: ______. Evaluator: ______. Signature: ______.',
+    )
   })
 
   it('keeps the reference sources apart', () => {

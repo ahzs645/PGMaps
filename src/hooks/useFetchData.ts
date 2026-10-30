@@ -121,10 +121,7 @@ export function useFetchData<T>(url: string | null, options: UseFetchDataOptions
   const { enabled = true, cache = true, transform, fallbackUrls, optional = false } = options
 
   const fallbackKey = (fallbackUrls ?? []).join('|')
-  const urls = useMemo(
-    () => (url ? [url, ...(fallbackKey ? fallbackKey.split('|') : [])] : []),
-    [url, fallbackKey],
-  )
+  const urls = useMemo(() => (url ? [url, ...(fallbackKey ? fallbackKey.split('|') : [])] : []), [url, fallbackKey])
 
   const [attempt, setAttempt] = useState(0)
   const useCacheThisRun = cache && attempt === 0

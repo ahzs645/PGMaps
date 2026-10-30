@@ -82,8 +82,15 @@ const STATUS_META: Record<WaitStatus, { label: string; color: string; marker: st
 }
 
 function DevWait() {
-  const { data, loading, error: loadError } = useFetchData<WaitHospital[]>(WAIT_DATA_URL, {
-    transform: (json) => (json as ErstatHospital[]).filter((item) => item.has_er && Number.isFinite(item.lat) && Number.isFinite(item.lng)).map(normalizeHospital),
+  const {
+    data,
+    loading,
+    error: loadError,
+  } = useFetchData<WaitHospital[]>(WAIT_DATA_URL, {
+    transform: (json) =>
+      (json as ErstatHospital[])
+        .filter((item) => item.has_er && Number.isFinite(item.lat) && Number.isFinite(item.lng))
+        .map(normalizeHospital),
   })
   const hospitals = data ?? EMPTY_HOSPITALS
   const error = loadError ? 'Failed to load ERStat hospital data.' : null
@@ -93,7 +100,9 @@ function DevWait() {
   const [selected, setSelected] = useState<WaitHospital | null>(null)
 
   const provinces = useMemo(() => {
-    const codes = new Set(hospitals.map((hospitalItem) => hospitalItem.province).filter((value): value is string => Boolean(value)))
+    const codes = new Set(
+      hospitals.map((hospitalItem) => hospitalItem.province).filter((value): value is string => Boolean(value)),
+    )
     return Array.from(codes).sort()
   }, [hospitals])
 
@@ -128,14 +137,17 @@ function DevWait() {
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="ER wait times"
-      subtitle={(
+      subtitle={
         <>
           ERStat-style wait labels using local captured hospital data.
-          <Link to="/dev/health/wait/specialist" className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400">
+          <Link
+            to="/dev/health/wait/specialist"
+            className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
+          >
             Surgery specialist map
           </Link>
         </>
-      )}
+      }
       icon={Clock3}
     >
       <SidebarSection title="Search">
@@ -189,9 +201,7 @@ function DevWait() {
             { label: 'Closed', value: String(stats.closed) },
           ]}
         />
-        {stats.newest && (
-          <InlineAlert className="mt-3">Latest timestamp: {stats.newest}</InlineAlert>
-        )}
+        {stats.newest && <InlineAlert className="mt-3">Latest timestamp: {stats.newest}</InlineAlert>}
       </SidebarSection>
     </MapSidebarShell>
   )
@@ -211,12 +221,7 @@ function DevWait() {
           loading={loading}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
-
-          <WaitMarkers
-            hospitals={filteredHospitals}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelected}
-          />
+          <WaitMarkers hospitals={filteredHospitals} selectedId={selected?.id ?? null} onSelect={setSelected} />
 
           {selected && (
             <MapPopup
@@ -232,11 +237,17 @@ function DevWait() {
           <MapLegendPanel title="Legend" collapsible defaultCollapsed="mobile" width="sm">
             <div className="space-y-1 text-xs">
               {LEGEND_STATUSES.map((status) => (
-                <LegendItem key={status} color={STATUS_META[status].color} label={STATUS_META[status].label} swatchShape="square" />
+                <LegendItem
+                  key={status}
+                  color={STATUS_META[status].color}
+                  label={STATUS_META[status].label}
+                  swatchShape="square"
+                />
               ))}
             </div>
             <MapLegendNote className="mt-2 px-0">
-              Green, orange, and red are live wait thresholds. Gray pills are predicted or no-data markers. Dense areas collapse to dark count bubbles; click one to zoom in and split it into sub-clusters.
+              Green, orange, and red are live wait thresholds. Gray pills are predicted or no-data markers. Dense areas
+              collapse to dark count bubbles; click one to zoom in and split it into sub-clusters.
             </MapLegendNote>
           </MapLegendPanel>
         </Map>
@@ -294,7 +305,10 @@ function WaitMarkers({
     }
 
     map.fitBounds(
-      [[minLng, minLat], [maxLng, maxLat]],
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
       {
         padding: 96,
         maxZoom: Math.min(13, currentZoom + 3),
@@ -353,18 +367,14 @@ function WaitMarker({
   onSelect: (hospitalItem: WaitHospital) => void
 }) {
   return (
-    <MapMarker
-      longitude={hospitalItem.lng}
-      latitude={hospitalItem.lat}
-      anchor="center"
-    >
+    <MapMarker longitude={hospitalItem.lng} latitude={hospitalItem.lat} anchor="center">
       <MarkerContent>
         <button
           type="button"
           onClick={(event) => {
-              event.stopPropagation()
-              onSelect(hospitalItem)
-            }}
+            event.stopPropagation()
+            onSelect(hospitalItem)
+          }}
           aria-label={`${hospitalItem.name}: ${hospitalItem.waitLabel}`}
           className={cn(
             'relative rounded-full border-2 px-3 py-1.5 text-[13px] font-semibold leading-none shadow-md transition-transform hover:scale-105',
@@ -394,7 +404,8 @@ function clusterStyle(count: number): string {
 
 function markerClass(hospitalItem: WaitHospital): string {
   if (hospitalItem.status === 'closed') return STATUS_META.closed.marker
-  if (hospitalItem.source === 'predicted') return 'border-white/80 bg-[#94a3b8] text-white opacity-90 dark:bg-slate-600 dark:text-slate-100'
+  if (hospitalItem.source === 'predicted')
+    return 'border-white/80 bg-[#94a3b8] text-white opacity-90 dark:bg-slate-600 dark:text-slate-100'
   return STATUS_META[hospitalItem.status].marker
 }
 
@@ -427,7 +438,11 @@ function HospitalPopup({ hospitalItem, onClose }: { hospitalItem: WaitHospital; 
           { label: 'Official wait', value: formatWait(hospitalItem.er_wait_minutes ?? hospitalItem.er_elos_minutes) },
           { label: 'Predicted wait', value: formatWait(hospitalItem.predicted_wait_minutes) },
           { label: 'Data source', value: hospitalItem.data_source ?? 'None' },
-          { label: 'Updated', value: hospitalItem.data_updated_at ?? hospitalItem.official_updated_at ?? hospitalItem.predicted_at ?? '--' },
+          {
+            label: 'Updated',
+            value:
+              hospitalItem.data_updated_at ?? hospitalItem.official_updated_at ?? hospitalItem.predicted_at ?? '--',
+          },
           { label: 'Status', value: hospitalItem.official_status ?? 'unknown' },
         ]}
       />

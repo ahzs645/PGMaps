@@ -88,10 +88,7 @@ function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef })
         Browse every record in the existing nwsviz research dataset, including records without location tags. This
         collection is separate from Stewardship Portal submissions.
       </p>
-      <Link
-        to="/projects/nechako-watershed-research-portal"
-        className="inline-block text-sm text-primary underline"
-      >
+      <Link to="/projects/nechako-watershed-research-portal" className="inline-block text-sm text-primary underline">
         Open the existing map and timeline
       </Link>
       {data.loading && <InlineAlert loading>Loading the public research dataset…</InlineAlert>}

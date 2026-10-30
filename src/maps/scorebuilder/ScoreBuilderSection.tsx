@@ -274,12 +274,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
             bcEnviroScreenColorBins,
           )
         : null,
-    [
-      bcEnviroScreenColorBins,
-      bcEnviroScreenMapActive,
-      bcEnviroScreenMapVariable,
-      results.unfilteredScoredRegions,
-    ],
+    [bcEnviroScreenColorBins, bcEnviroScreenMapActive, bcEnviroScreenMapVariable, results.unfilteredScoredRegions],
   )
   const resolvedMapRegionFillColors = bcEnviroScreenMapView?.regionFillColors ?? mapRegionFillColors
 

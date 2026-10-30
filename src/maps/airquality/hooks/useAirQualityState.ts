@@ -88,13 +88,7 @@ export interface UseAirQualityStateResult {
 }
 
 const BASEMAPS = ['light', 'topographic', 'dark'] as const
-const CORRECTION_MODELS = [
-  'rawPurpleAir',
-  'epaBarkjohn',
-  'nilsonLocal',
-  'wildfireSmoke',
-  'siteSpecific',
-] as const
+const CORRECTION_MODELS = ['rawPurpleAir', 'epaBarkjohn', 'nilsonLocal', 'wildfireSmoke', 'siteSpecific'] as const
 const BOUNDARY_COLOR_METRICS = [
   'sensorCount',
   'overallDensity',
@@ -140,14 +134,8 @@ const heatmapCodec = booleanCodec(false)
 const pointsCodec = booleanCodec(true)
 const basemapCodec = stringUnionCodec<AirQualityBasemap>(BASEMAPS, 'light')
 const correctionModelCodec = stringUnionCodec<AirQualityCorrectionModel>(CORRECTION_MODELS, 'epaBarkjohn')
-const boundaryColorMetricCodec = stringUnionCodec<AirQualityBoundaryColorMetric>(
-  BOUNDARY_COLOR_METRICS,
-  'sensorCount',
-)
-const observationLayersCodec = stringArrayCodec<AirQualityObservationLayer>(
-  OBSERVATION_LAYERS,
-  OBSERVATION_LAYERS,
-)
+const boundaryColorMetricCodec = stringUnionCodec<AirQualityBoundaryColorMetric>(BOUNDARY_COLOR_METRICS, 'sensorCount')
+const observationLayersCodec = stringArrayCodec<AirQualityObservationLayer>(OBSERVATION_LAYERS, OBSERVATION_LAYERS)
 
 const monitorIdCodec: UrlCodec<string | null> = {
   encode: (value) => value,
@@ -175,9 +163,10 @@ const studyAreaCodec: UrlCodec<StudyAreaSelection | null> = {
     const [rawSource, rawLevel, ...rawCodeParts] = raw.split(':')
     const source = BOUNDARY_SOURCES.find((candidate) => candidate === rawSource)
     if (!source) return null
-    const level = rawLevel && isValidLevelForSource(source, rawLevel as RegionLevel)
-      ? (rawLevel as RegionLevel)
-      : getUrlFallbackLevel(source)
+    const level =
+      rawLevel && isValidLevelForSource(source, rawLevel as RegionLevel)
+        ? (rawLevel as RegionLevel)
+        : getUrlFallbackLevel(source)
     let regionCode: string | null = rawCodeParts.length > 0 ? rawCodeParts.join(':') : null
     if (regionCode) {
       try {
@@ -218,11 +207,15 @@ export function useAirQualityState(monitors: AirMonitor[]): UseAirQualityStateRe
 
   const selectedNetworks = useMemo(() => networksParam ?? allNetworks, [allNetworks, networksParam])
 
-  const setNetworks = useCallback((networks: string[]) => {
-    const next = Array.from(new Set(networks))
-    const isEveryNetwork = next.length === allNetworks.length && allNetworks.every((network) => next.includes(network))
-    setNetworksParam(isEveryNetwork ? null : next)
-  }, [allNetworks, setNetworksParam])
+  const setNetworks = useCallback(
+    (networks: string[]) => {
+      const next = Array.from(new Set(networks))
+      const isEveryNetwork =
+        next.length === allNetworks.length && allNetworks.every((network) => next.includes(network))
+      setNetworksParam(isEveryNetwork ? null : next)
+    },
+    [allNetworks, setNetworksParam],
+  )
 
   const toggleNetwork = useToggleArray(selectedNetworks, setNetworks)
   const toggleObservationLayer = useToggleArray(observationLayers, setObservationLayers)
@@ -237,27 +230,39 @@ export function useAirQualityState(monitors: AirMonitor[]): UseAirQualityStateRe
 
   const clearMonitor = useCallback(() => setSelectedMonitorId(null), [setSelectedMonitorId])
 
-  const selectMonitor = useCallback((monitor: AirMonitor) => {
-    setSelectedMonitorId(monitor.id === selectedMonitorId ? null : monitor.id)
-  }, [selectedMonitorId, setSelectedMonitorId])
+  const selectMonitor = useCallback(
+    (monitor: AirMonitor) => {
+      setSelectedMonitorId(monitor.id === selectedMonitorId ? null : monitor.id)
+    },
+    [selectedMonitorId, setSelectedMonitorId],
+  )
 
-  const setBoundarySource = useCallback((source: BoundarySource) => {
-    const level = isValidLevelForSource(source, selectedRegionLevel)
-      ? selectedRegionLevel
-      : getDefaultLevelForSource(source)
-    setStudyAreaSelection({ source, level, regionCode: null })
-  }, [selectedRegionLevel, setStudyAreaSelection])
+  const setBoundarySource = useCallback(
+    (source: BoundarySource) => {
+      const level = isValidLevelForSource(source, selectedRegionLevel)
+        ? selectedRegionLevel
+        : getDefaultLevelForSource(source)
+      setStudyAreaSelection({ source, level, regionCode: null })
+    },
+    [selectedRegionLevel, setStudyAreaSelection],
+  )
 
-  const setRegionLevel = useCallback((level: RegionLevel) => {
-    setStudyAreaSelection({ source: boundarySource, level, regionCode: null })
-  }, [boundarySource, setStudyAreaSelection])
+  const setRegionLevel = useCallback(
+    (level: RegionLevel) => {
+      setStudyAreaSelection({ source: boundarySource, level, regionCode: null })
+    },
+    [boundarySource, setStudyAreaSelection],
+  )
 
   const clearBoundaries = useCallback(() => setStudyAreaSelection(null), [setStudyAreaSelection])
 
-  const selectRegion = useCallback((code: string) => {
-    if (!studyAreaSelection) return
-    setStudyAreaSelection({ ...studyAreaSelection, regionCode: code })
-  }, [setStudyAreaSelection, studyAreaSelection])
+  const selectRegion = useCallback(
+    (code: string) => {
+      if (!studyAreaSelection) return
+      setStudyAreaSelection({ ...studyAreaSelection, regionCode: code })
+    },
+    [setStudyAreaSelection, studyAreaSelection],
+  )
 
   const {
     regions: studyAreaRegions,
@@ -293,86 +298,95 @@ export function useAirQualityState(monitors: AirMonitor[]): UseAirQualityStateRe
     }))
   }, [boundarySource])
 
-  const state = useMemo<AirQualityViewState>(() => ({
-    searchQuery,
-    selectedNetworks,
-    observationLayers,
-    showHeatmap,
-    showPoints,
-    basemap,
-    correctionModel,
-    boundaryColorMetric,
-    boundariesVisible,
-    boundarySource,
-    selectedRegionLevel,
-    selectedRegionCode,
-    selectedMonitor,
-  }), [
-    basemap,
-    boundariesVisible,
-    boundaryColorMetric,
-    boundarySource,
-    correctionModel,
-    observationLayers,
-    searchQuery,
-    selectedMonitor,
-    selectedNetworks,
-    selectedRegionCode,
-    selectedRegionLevel,
-    showHeatmap,
-    showPoints,
-  ])
+  const state = useMemo<AirQualityViewState>(
+    () => ({
+      searchQuery,
+      selectedNetworks,
+      observationLayers,
+      showHeatmap,
+      showPoints,
+      basemap,
+      correctionModel,
+      boundaryColorMetric,
+      boundariesVisible,
+      boundarySource,
+      selectedRegionLevel,
+      selectedRegionCode,
+      selectedMonitor,
+    }),
+    [
+      basemap,
+      boundariesVisible,
+      boundaryColorMetric,
+      boundarySource,
+      correctionModel,
+      observationLayers,
+      searchQuery,
+      selectedMonitor,
+      selectedNetworks,
+      selectedRegionCode,
+      selectedRegionLevel,
+      showHeatmap,
+      showPoints,
+    ],
+  )
 
-  const actions = useMemo<AirQualityActions>(() => ({
-    setSearchQuery,
-    toggleNetwork,
-    setNetworks,
-    toggleObservationLayer,
-    toggleHeatmap,
-    togglePoints,
-    setBasemap,
-    setCorrectionModel,
-    setBoundaryColorMetric,
-    setBoundarySource,
-    setRegionLevel,
-    clearBoundaries,
-    selectRegion,
-    selectMonitor,
-    clearMonitor,
-  }), [
-    clearBoundaries,
-    clearMonitor,
-    selectMonitor,
-    selectRegion,
-    setBasemap,
-    setBoundaryColorMetric,
-    setBoundarySource,
-    setCorrectionModel,
-    setNetworks,
-    setRegionLevel,
-    setSearchQuery,
-    toggleHeatmap,
-    toggleNetwork,
-    toggleObservationLayer,
-    togglePoints,
-  ])
+  const actions = useMemo<AirQualityActions>(
+    () => ({
+      setSearchQuery,
+      toggleNetwork,
+      setNetworks,
+      toggleObservationLayer,
+      toggleHeatmap,
+      togglePoints,
+      setBasemap,
+      setCorrectionModel,
+      setBoundaryColorMetric,
+      setBoundarySource,
+      setRegionLevel,
+      clearBoundaries,
+      selectRegion,
+      selectMonitor,
+      clearMonitor,
+    }),
+    [
+      clearBoundaries,
+      clearMonitor,
+      selectMonitor,
+      selectRegion,
+      setBasemap,
+      setBoundaryColorMetric,
+      setBoundarySource,
+      setCorrectionModel,
+      setNetworks,
+      setRegionLevel,
+      setSearchQuery,
+      toggleHeatmap,
+      toggleNetwork,
+      toggleObservationLayer,
+      togglePoints,
+    ],
+  )
 
-  const studyArea = useMemo<AirQualityStudyAreaState>(() => ({
-    regions: activeRegions,
-    loading: boundariesVisible && regionsLoading,
-    error: boundariesVisible ? regionsError : null,
-    levelOptions,
-    selectedRegion,
-    selectedRegionFeature: selectedStudyAreaRegion?.feature ?? null,
-  }), [
-    activeRegions,
-    boundariesVisible,
-    levelOptions,
-    regionsError,
-    regionsLoading,
-    selectedRegion,
-    selectedStudyAreaRegion,
-  ])
+  const studyArea = useMemo<AirQualityStudyAreaState>(
+    () => ({
+      regions: activeRegions,
+      loading: boundariesVisible && regionsLoading,
+      error: boundariesVisible ? regionsError : null,
+      levelOptions,
+      selectedRegion,
+      selectedRegionFeature: selectedStudyAreaRegion?.feature ?? null,
+    }),
+    [
+      activeRegions,
+      boundariesVisible,
+      levelOptions,
+      regionsError,
+      regionsLoading,
+      selectedRegion,
+      selectedStudyAreaRegion,
+    ],
+  )
 
   return { state, actions, studyArea }
 }

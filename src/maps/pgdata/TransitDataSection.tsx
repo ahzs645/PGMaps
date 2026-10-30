@@ -264,8 +264,9 @@ export default function TransitDataSection() {
 
   const allRoutesHidden = routeLegendItems.length > 0 && routeLegendItems.every((item) => hiddenRoutes.has(item.id))
   const allStopCategoriesHidden = hiddenStopCategories.size >= 3
-  const showLegend = (activeLayers.includes('routes') && !allRoutesHidden)
-    || (activeLayers.includes('stops') && !allStopCategoriesHidden)
+  const showLegend =
+    (activeLayers.includes('routes') && !allRoutesHidden) ||
+    (activeLayers.includes('stops') && !allStopCategoriesHidden)
   const toggleSelectedStop = (stopId: string) => setSelectedStopId((current) => (current === stopId ? null : stopId))
 
   return (
@@ -389,10 +390,7 @@ export default function TransitDataSection() {
       }
     >
       <div className="relative h-full">
-        <SharedMap
-          loading={stopsLoading || routesLoading}
-          loadingLabel="Loading transit data"
-        >
+        <SharedMap loading={stopsLoading || routesLoading} loadingLabel="Loading transit data">
           {visibleRouteInputs && (
             <TransitRouteLayers routes={visibleRouteInputs} visible={activeLayers.includes('routes')} />
           )}
@@ -446,15 +444,16 @@ export default function TransitDataSection() {
             }
           >
             <MapLegendSection scroll>
-              {activeLayers.includes('routes') && routeLegendItems.map((item) => (
-                <LegendItem
-                  key={item.id}
-                  color={item.color}
-                  label={item.label}
-                  active={!hiddenRoutes.has(item.id)}
-                  onClick={() => toggleRoute(item.id)}
-                />
-              ))}
+              {activeLayers.includes('routes') &&
+                routeLegendItems.map((item) => (
+                  <LegendItem
+                    key={item.id}
+                    color={item.color}
+                    label={item.label}
+                    active={!hiddenRoutes.has(item.id)}
+                    onClick={() => toggleRoute(item.id)}
+                  />
+                ))}
               {activeLayers.includes('stops') && (
                 <>
                   <LegendItem

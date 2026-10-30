@@ -4,14 +4,17 @@ import { migrateEconomicRegionShareState } from './economicRegionShareState'
 describe('economic region boundary share migration', () => {
   it('keeps old census economic region links, opacity and focus on the economic region source', () => {
     const state = migrateEconomicRegionShareState({
-      activeSources: ['census' as const], sourceLevels: { census: 'economicRegion' as const },
+      activeSources: ['census' as const],
+      sourceLevels: { census: 'economicRegion' as const },
       sourceOpacities: { census: 0.3 },
       selectedId: 'census:economicRegion:5950',
       selectedPolygonFocuses: [{ id: 'census:economicRegion:5950', scope: 'census:economicRegion' }],
       searchLayers: [{ source: 'census' as const, level: 'economicRegion' as const }],
     })
     expect(state).toMatchObject({
-      activeSources: ['economicRegion'], sourceLevels: { economicRegion: 'economicRegion' }, sourceOpacities: { economicRegion: 0.3 },
+      activeSources: ['economicRegion'],
+      sourceLevels: { economicRegion: 'economicRegion' },
+      sourceOpacities: { economicRegion: 0.3 },
       selectedId: 'economicRegion:economicRegion:5950',
       selectedPolygonFocuses: [{ id: 'economicRegion:economicRegion:5950', scope: 'economicRegion:economicRegion' }],
       searchLayers: [{ source: 'economicRegion', level: 'economicRegion' }],

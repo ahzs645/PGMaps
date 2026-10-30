@@ -23,12 +23,7 @@ export function SewageLegend({
   const trackHeight = maxRadius * 2
 
   return (
-    <div
-      role="listitem"
-      data-legend="item"
-      data-legend-row="true"
-      className={cnRow(visible)}
-    >
+    <div role="listitem" data-legend="item" data-legend-row="true" className={cnRow(visible)}>
       <div data-legend-row-frame="true" className="flex items-start justify-between gap-2">
         <div data-legend-content="true" className="flex items-end gap-4 pl-1 pt-1">
           {stops.map((value, index) => {

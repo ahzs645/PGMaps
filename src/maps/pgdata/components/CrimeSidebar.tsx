@@ -173,10 +173,7 @@ export function CrimeSidebar({
           </SidebarSection>
 
           {/* Year Filter */}
-          <SidebarSection
-            title="Year"
-            actions={<TextButton onClick={onSelectAllYears}>All</TextButton>}
-          >
+          <SidebarSection title="Year" actions={<TextButton onClick={onSelectAllYears}>All</TextButton>}>
             <FilterChipGroup
               items={allYears.map((year) => ({
                 value: String(year),
@@ -256,7 +253,11 @@ export function CrimeSidebar({
                 <ResultRow
                   title={incident.crimeType}
                   subtitle={incident.address}
-                  meta={<>{formatDate(incident.date)} &middot; {incident.community}</>}
+                  meta={
+                    <>
+                      {formatDate(incident.date)} &middot; {incident.community}
+                    </>
+                  }
                   dotColor={getCrimeCategoryColor(incident.crimeType)}
                   selected={selectedIncident?.id === incident.id}
                   onClick={() => onIncidentClick(incident)}

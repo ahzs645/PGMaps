@@ -42,13 +42,28 @@ export function FeatureActionsMenu({
       </button>
       {openInIsAvailable && openInExpanded ? (
         <div className="border-t border-border py-1" role="menu" aria-label="Open in destinations">
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onOpenIn('pgdata')}>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+            onClick={() => onOpenIn('pgdata')}
+          >
             PG Data map
           </button>
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onOpenIn('explorer')}>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+            onClick={() => onOpenIn('explorer')}
+          >
             Explorer map
           </button>
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onOpenIn('osm')}>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+            onClick={() => onOpenIn('osm')}
+          >
             OpenStreetMap
           </button>
         </div>
@@ -58,25 +73,37 @@ export function FeatureActionsMenu({
         </div>
       ) : null}
       <div className="max-h-72 overflow-y-auto border-t border-border py-1">
-        <FeatureActionMenuItem icon={<EyeOff className="size-4" />} label="Hide" onClick={() => onFeatureAction('hide')} />
-        <FeatureActionMenuItem icon={<Search className="size-4" />} label="Zoom to fit" onClick={() => onFeatureAction('zoom')} />
-        <FeatureActionMenuItem icon={<MapPin className="size-4" />} label="Show only this" onClick={() => onFeatureAction('show-only')} />
-        <FeatureActionMenuItem icon={<Eye className="size-4" />} label="Show others" onClick={() => onFeatureAction('show-others')} />
-        <FeatureActionMenuItem icon={<Layers className="size-4" />} label="Open table" onClick={() => onFeatureAction('open-table')} />
+        <FeatureActionMenuItem
+          icon={<EyeOff className="size-4" />}
+          label="Hide"
+          onClick={() => onFeatureAction('hide')}
+        />
+        <FeatureActionMenuItem
+          icon={<Search className="size-4" />}
+          label="Zoom to fit"
+          onClick={() => onFeatureAction('zoom')}
+        />
+        <FeatureActionMenuItem
+          icon={<MapPin className="size-4" />}
+          label="Show only this"
+          onClick={() => onFeatureAction('show-only')}
+        />
+        <FeatureActionMenuItem
+          icon={<Eye className="size-4" />}
+          label="Show others"
+          onClick={() => onFeatureAction('show-others')}
+        />
+        <FeatureActionMenuItem
+          icon={<Layers className="size-4" />}
+          label="Open table"
+          onClick={() => onFeatureAction('open-table')}
+        />
       </div>
     </div>
   )
 }
 
-function FeatureActionMenuItem({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: ReactNode
-  label: string
-  onClick: () => void
-}) {
+function FeatureActionMenuItem({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button
       type="button"

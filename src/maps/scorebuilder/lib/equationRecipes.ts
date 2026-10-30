@@ -120,9 +120,10 @@ export function evaluatePairwiseEquityRule(rows: PairwiseMetricRow[]): PairwiseE
       vulnerableRank,
       environmentBenefitRank,
       equityPriority,
-      priorityScore: equityPriority && vulnerableRank !== null && environmentBenefitRank !== null
-        ? vulnerableRank - environmentBenefitRank
-        : null,
+      priorityScore:
+        equityPriority && vulnerableRank !== null && environmentBenefitRank !== null
+          ? vulnerableRank - environmentBenefitRank
+          : null,
     }
   })
 }

@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, Footprints, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  describeHeatmapLogic,
-  type HeatmapOptionKey,
-} from '@/maps/pgdata/walkabilityFactors'
+import { describeHeatmapLogic, type HeatmapOptionKey } from '@/maps/pgdata/walkabilityFactors'
 import { WalkabilityFactorControls, WalkabilityOptionControls } from '@/features/walkability/WalkabilityFactorControls'
 import type { ScoreMetricWeightMap } from '../types'
 import {
@@ -67,9 +64,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
         'absolute z-20 flex max-h-[calc(100dvh-9rem)] w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur',
         // On mobile, sit below the density/correlate/undo action buttons; on
         // desktop, dock to the top-left corner the legend leaves free.
-        isDesktop
-          ? 'left-6 top-4 rounded-xl'
-          : 'left-2 top-[calc(env(safe-area-inset-top)+7rem)]',
+        isDesktop ? 'left-6 top-4 rounded-xl' : 'left-2 top-[calc(env(safe-area-inset-top)+7rem)]',
       )}
       data-score-builder-walkability-surface-panel="true"
     >
@@ -92,7 +87,9 @@ export function ScoreBuilderWalkabilitySurfacePanel({
             </span>
           </span>
         </span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')} />
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')}
+        />
       </button>
 
       {!collapsed && (
@@ -114,15 +111,17 @@ export function ScoreBuilderWalkabilitySurfacePanel({
 
           {!tuning.enabled ? (
             <p className="leading-4 text-muted-foreground">
-              The source surface currently follows your score equation. The eight coarse metrics only reach a subset
-              of report factors, so enable direct control to reproduce or tune the full Mobility Index.
+              The source surface currently follows your score equation. The eight coarse metrics only reach a subset of
+              report factors, so enable direct control to reproduce or tune the full Mobility Index.
             </p>
           ) : (
             <>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-medium text-foreground">Report variant options</div>
-                  <div className="text-xs leading-4 text-muted-foreground">Toggle the factors dropped/narrowed for report fidelity.</div>
+                  <div className="text-xs leading-4 text-muted-foreground">
+                    Toggle the factors dropped/narrowed for report fidelity.
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -139,7 +138,9 @@ export function ScoreBuilderWalkabilitySurfacePanel({
 
               <div>
                 <div className="font-medium text-foreground">Factor weights</div>
-                <div className="text-xs leading-4 text-muted-foreground">0 disables a factor; 1 is report weight; 2 doubles it.</div>
+                <div className="text-xs leading-4 text-muted-foreground">
+                  0 disables a factor; 1 is report weight; 2 doubles it.
+                </div>
               </div>
               <WalkabilityFactorControls
                 options={tuning.options}

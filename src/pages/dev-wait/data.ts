@@ -82,11 +82,17 @@ export function waitStatus(minutes: number | null): WaitStatus {
 export function normalizeHospital(hospital: ErstatHospital): WaitHospital {
   const officialWait = hospital.er_elos_minutes ?? hospital.er_wait_minutes ?? hospital.er_wait_avg_minutes
   const isClosed = hospital.official_status === 'closed'
-  const hasPredicted = officialWait == null && hospital.predicted_wait_minutes != null && hospital.predicted_confidence !== 'low'
+  const hasPredicted =
+    officialWait == null && hospital.predicted_wait_minutes != null && hospital.predicted_confidence !== 'low'
   const waitMinutes = officialWait ?? (hasPredicted ? hospital.predicted_wait_minutes : null)
-  const source: WaitSource = officialWait != null
-    ? hospital.er_wait_minutes != null || hospital.er_elos_minutes != null ? 'official' : 'crowd'
-    : hasPredicted ? 'predicted' : 'none'
+  const source: WaitSource =
+    officialWait != null
+      ? hospital.er_wait_minutes != null || hospital.er_elos_minutes != null
+        ? 'official'
+        : 'crowd'
+      : hasPredicted
+        ? 'predicted'
+        : 'none'
 
   return {
     ...hospital,

@@ -257,13 +257,7 @@ export class DriveController {
       const targetElevation = eye + Math.tan(((pitch - 90) * Math.PI) / 180) * metres
       const camera = this.map.calculateCameraOptionsFromTo
         ? { ...this.map.calculateCameraOptionsFromTo(placement, eye, target, targetElevation), roll: 0 }
-        : this.map.calculateCameraOptionsFromCameraLngLatAltRotation(
-            placement,
-            eye,
-            rotation.bearing,
-            pitch,
-            0,
-          )
+        : this.map.calculateCameraOptionsFromCameraLngLatAltRotation(placement, eye, rotation.bearing, pitch, 0)
       if (!finiteCamera(camera)) {
         this.setStatus('invalid-camera', options)
         return

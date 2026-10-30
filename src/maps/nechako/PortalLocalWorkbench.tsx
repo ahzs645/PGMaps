@@ -908,8 +908,8 @@ function ProjectHistory({
           } catch {
             return (
               <InlineAlert key={index} tone="warning">
-                Save {data.history!.length - index} cannot be opened because it does not contain a valid map
-                workspace. Its original entry is retained in Saved items and backups.
+                Save {data.history!.length - index} cannot be opened because it does not contain a valid map workspace.
+                Its original entry is retained in Saved items and backups.
               </InlineAlert>
             )
           }
@@ -918,13 +918,7 @@ function ProjectHistory({
               ? formatDate(item.savedAt, { hour: '2-digit', minute: '2-digit' })
               : 'Save date unavailable'
           return (
-            <Button
-              key={index}
-              size="sm"
-              variant="outline"
-              className="mr-2"
-              onClick={() => onWorkspace(workspace)}
-            >
+            <Button key={index} size="sm" variant="outline" className="mr-2" onClick={() => onWorkspace(workspace)}>
               Open save {data.history!.length - index} · {date}
             </Button>
           )

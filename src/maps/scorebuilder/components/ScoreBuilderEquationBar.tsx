@@ -52,7 +52,9 @@ export function ScoreBuilderEquationBar({
   // A removed term has no popover to keep open.
   const editingMetric = editingMetricState && weights[editingMetricState] !== 0 ? editingMetricState : null
 
-  const handleCopyEquation = () => { void copy(equationPreview) }
+  const handleCopyEquation = () => {
+    void copy(equationPreview)
+  }
 
   const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
   // Terms that are in the equation but contributing nothing — either their data source
@@ -80,7 +82,10 @@ export function ScoreBuilderEquationBar({
 
   return (
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-2 shadow-sm backdrop-blur">
-      <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-sm" data-score-builder-results-preview="true">
+      <div
+        className="rounded-xl border border-border bg-card px-3 py-2 shadow-sm"
+        data-score-builder-results-preview="true"
+      >
         <div className="flex items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <span className="font-mono text-base font-semibold italic text-foreground">Score</span>

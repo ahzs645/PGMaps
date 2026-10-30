@@ -110,24 +110,30 @@ function MobileMapCardDragArea({
 }) {
   const dragStartY = useRef<number | null>(null)
 
-  const handleDragStart = useCallback((clientY: number) => {
-    if (!onExpand && !onCollapse) return
-    dragStartY.current = clientY
-  }, [onCollapse, onExpand])
+  const handleDragStart = useCallback(
+    (clientY: number) => {
+      if (!onExpand && !onCollapse) return
+      dragStartY.current = clientY
+    },
+    [onCollapse, onExpand],
+  )
 
-  const handleDragMove = useCallback((clientY: number) => {
-    if (dragStartY.current === null) return
-    const deltaY = clientY - dragStartY.current
-    if (collapsed && deltaY < -24 && onExpand) {
-      dragStartY.current = null
-      onExpand()
-      return
-    }
-    if (!collapsed && deltaY > 24 && onCollapse) {
-      dragStartY.current = null
-      onCollapse()
-    }
-  }, [collapsed, onCollapse, onExpand])
+  const handleDragMove = useCallback(
+    (clientY: number) => {
+      if (dragStartY.current === null) return
+      const deltaY = clientY - dragStartY.current
+      if (collapsed && deltaY < -24 && onExpand) {
+        dragStartY.current = null
+        onExpand()
+        return
+      }
+      if (!collapsed && deltaY > 24 && onCollapse) {
+        dragStartY.current = null
+        onCollapse()
+      }
+    },
+    [collapsed, onCollapse, onExpand],
+  )
 
   const handleDragEnd = useCallback(() => {
     dragStartY.current = null
@@ -205,8 +211,12 @@ function MobileMapCardShell({
   children: ReactNode
 }) {
   const cardState: MobileMapCardState = controlsInFront
-    ? (collapsed ? 'behindCollapsed' : 'behindExpanded')
-    : (collapsed ? 'frontCollapsed' : 'frontExpanded')
+    ? collapsed
+      ? 'behindCollapsed'
+      : 'behindExpanded'
+    : collapsed
+      ? 'frontCollapsed'
+      : 'frontExpanded'
   const cardStateClasses: Record<MobileMapCardState, string> = {
     frontExpanded: cn('pointer-events-auto h-full self-end', coversStack ? 'translate-y-0' : 'translate-y-2'),
     frontCollapsed: 'pointer-events-auto h-[92px] self-end translate-y-0',
@@ -234,13 +244,33 @@ function MobileMapCardShell({
       <header className="border-b border-border px-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           {stackedBehind ? (
-            <button type="button" className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60" onClick={onBringToFront} aria-label="Bring card to front">
-              <span id={titleId} className="block truncate text-base font-semibold text-foreground">{title}</span>
+            <button
+              type="button"
+              className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
+              onClick={onBringToFront}
+              aria-label="Bring card to front"
+            >
+              <span id={titleId} className="block truncate text-base font-semibold text-foreground">
+                {title}
+              </span>
             </button>
           ) : (
-            <button type="button" className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60" onClick={onDock} disabled={!onDock} aria-label="Dock card above map controls">
-              <span id={titleId} className="block truncate text-base font-semibold text-foreground">{title}</span>
-              {onDock && <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />}
+            <button
+              type="button"
+              className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
+              onClick={onDock}
+              disabled={!onDock}
+              aria-label="Dock card above map controls"
+            >
+              <span id={titleId} className="block truncate text-base font-semibold text-foreground">
+                {title}
+              </span>
+              {onDock && (
+                <ChevronDown
+                  className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              )}
             </button>
           )}
           <div className="flex shrink-0 items-center gap-1">
@@ -252,7 +282,13 @@ function MobileMapCardShell({
         </div>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </header>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-opacity duration-300', contentHidden ? 'pointer-events-none opacity-0' : 'opacity-100')} aria-hidden={contentHidden}>
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-opacity duration-300',
+          contentHidden ? 'pointer-events-none opacity-0' : 'opacity-100',
+        )}
+        aria-hidden={contentHidden}
+      >
         {children}
       </div>
     </div>

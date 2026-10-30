@@ -23,7 +23,9 @@ const RAD = Math.PI / 180
 export type Pixels = { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
 
 function isSky(data: Pixels['data'], index: number): boolean {
-  const r = data[index], g = data[index + 1], b = data[index + 2]
+  const r = data[index],
+    g = data[index + 1],
+    b = data[index + 2]
   const light = (r + g + b) / 3
   const spread = Math.max(r, g, b) - Math.min(r, g, b)
   // Blue sky, from pale at the horizon to deep overhead.
@@ -33,7 +35,9 @@ function isSky(data: Pixels['data'], index: number): boolean {
 }
 
 function isCloud(data: Pixels['data'], index: number): boolean {
-  const r = data[index], g = data[index + 1], b = data[index + 2]
+  const r = data[index],
+    g = data[index + 1],
+    b = data[index + 2]
   return (r + g + b) / 3 > 185 && Math.max(r, g, b) - Math.min(r, g, b) < 45
 }
 
@@ -46,7 +50,11 @@ function isCloud(data: Pixels['data'], index: number): boolean {
  * (sky shades smoothly; a mountain's edge does not) unless the step is into
  * cloud, which is still sky.
  */
-export function photoSkyline(pixels: Pixels, columns = 200, stepThreshold = 30): Array<{ x: number; y: number } | null> {
+export function photoSkyline(
+  pixels: Pixels,
+  columns = 200,
+  stepThreshold = 30,
+): Array<{ x: number; y: number } | null> {
   const { width, height, data } = pixels
   const out: Array<{ x: number; y: number } | null> = []
   for (let c = 0; c < columns; c += 1) {
@@ -66,7 +74,9 @@ export function photoSkyline(pixels: Pixels, columns = 200, stepThreshold = 30):
     }
     // Running colour of the blue sky just above, to see a step against; unset
     // while the column is still in cloud.
-    let sr = Number.NaN, sg = Number.NaN, sb = Number.NaN
+    let sr = Number.NaN,
+      sg = Number.NaN,
+      sb = Number.NaN
     const differs = (y: number) => {
       const i = at(y)
       if (!isSky(data, i)) return true
@@ -79,17 +89,25 @@ export function photoSkyline(pixels: Pixels, columns = 200, stepThreshold = 30):
     // too, but always darker and greyer than the sky over it.
     const skyBelow = (y: number) => {
       const depth = Math.max(8, Math.round(height * 0.08))
-      let sky = 0, seen = 0, r = 0, g = 0, b = 0
+      let sky = 0,
+        seen = 0,
+        r = 0,
+        g = 0,
+        b = 0
       for (let k = 3; k < depth && y + k < height; k += 1) {
         const i = at(y + k)
         seen += 1
         if (!isSky(data, i)) continue
         sky += 1
-        r += data[i]; g += data[i + 1]; b += data[i + 2]
+        r += data[i]
+        g += data[i + 1]
+        b += data[i + 2]
       }
       if (!seen || sky / seen <= 0.5) return false
       if (Number.isNaN(sr)) return true
-      r /= sky; g /= sky; b /= sky
+      r /= sky
+      g /= sky
+      b /= sky
       return b - r >= sb - sr - 10 && (r + g + b) / 3 >= (sr + sg + sb) / 3 - 25
     }
     let edge: number | null = null
@@ -104,7 +122,12 @@ export function photoSkyline(pixels: Pixels, columns = 200, stepThreshold = 30):
       }
       const i = at(y)
       if (isCloud(data, i)) continue
-      if (Number.isNaN(sr)) { sr = data[i]; sg = data[i + 1]; sb = data[i + 2]; continue }
+      if (Number.isNaN(sr)) {
+        sr = data[i]
+        sg = data[i + 1]
+        sb = data[i + 2]
+        continue
+      }
       sr = sr * 0.7 + data[i] * 0.3
       sg = sg * 0.7 + data[i + 1] * 0.3
       sb = sb * 0.7 + data[i + 2] * 0.3
@@ -123,18 +146,29 @@ export type ProfilePoint = { azimuth: number; elevation: number; distanceMeters:
 export function terrainProfile(
   eye: { lng: number; lat: number; altitudeMeters: number },
   source: ElevationSource,
-  { from, to, step = 0.1, maxDistanceMeters = 25000, nearMeters = 60 }: { from: number; to: number; step?: number; maxDistanceMeters?: number; nearMeters?: number },
+  {
+    from,
+    to,
+    step = 0.1,
+    maxDistanceMeters = 25000,
+    nearMeters = 60,
+  }: { from: number; to: number; step?: number; maxDistanceMeters?: number; nearMeters?: number },
 ): ProfilePoint[] {
   const out: ProfilePoint[] = []
   const metresLng = 111320 * Math.cos(eye.lat * RAD)
   for (let azimuth = from; azimuth <= to + 1e-9; azimuth += step) {
-    const east = Math.sin(azimuth * RAD), north = Math.cos(azimuth * RAD)
-    let best = -Infinity, bestDistance = 0
+    const east = Math.sin(azimuth * RAD),
+      north = Math.cos(azimuth * RAD)
+    let best = -Infinity,
+      bestDistance = 0
     for (let distance = nearMeters; distance <= maxDistanceMeters; distance *= 1.015) {
       const z = source.elevationAt(eye.lng + (east * distance) / metresLng, eye.lat + (north * distance) / 110574)
       if (!Number.isFinite(z)) break
       const angle = Math.atan2(z - eye.altitudeMeters - earthCurvatureDropMeters(distance), distance)
-      if (angle > best) { best = angle; bestDistance = distance }
+      if (angle > best) {
+        best = angle
+        bestDistance = distance
+      }
     }
     if (Number.isFinite(best)) out.push({ azimuth, elevation: best / RAD, distanceMeters: bestDistance })
   }
@@ -162,7 +196,12 @@ export function projectDirection(pose: PhotoPose, azimuth: number, elevation: nu
  * The skyline under each photo column for one pose: the bare-ground line, and
  * the same ridges raised by a canopy `canopyMeters` tall at their own distance.
  */
-function terrainLinesAt(pose: PhotoPose, profile: readonly ProfilePoint[], xs: readonly number[], canopyMeters: number) {
+function terrainLinesAt(
+  pose: PhotoPose,
+  profile: readonly ProfilePoint[],
+  xs: readonly number[],
+  canopyMeters: number,
+) {
   const project = (lift: (point: ProfilePoint) => number) =>
     profile
       .map((point) => {
@@ -175,13 +214,18 @@ function terrainLinesAt(pose: PhotoPose, profile: readonly ProfilePoint[], xs: r
     const hi = projected.findIndex((point) => point.x >= x)
     if (hi < 0) return null
     if (hi === 0) return projected[0].x - x < 1 ? { y: projected[0].y, distance: projected[0].distance } : null
-    const a = projected[hi - 1], b = projected[hi]
-    return { y: a.y + ((b.y - a.y) * (x - a.x)) / Math.max(1e-9, b.x - a.x), distance: Math.min(a.distance, b.distance) }
+    const a = projected[hi - 1],
+      b = projected[hi]
+    return {
+      y: a.y + ((b.y - a.y) * (x - a.x)) / Math.max(1e-9, b.x - a.x),
+      distance: Math.min(a.distance, b.distance),
+    }
   }
   const bare = project(() => 0)
   const canopy = project((point) => (Math.atan2(canopyMeters, Math.max(1, point.distanceMeters)) * 180) / Math.PI)
   return xs.map((x) => {
-    const b = interpolate(bare, x), c = interpolate(canopy, x)
+    const b = interpolate(bare, x),
+      c = interpolate(canopy, x)
     return { bare: b?.y ?? null, canopy: c?.y ?? null, distance: b?.distance ?? 0 }
   })
 }
@@ -214,9 +258,23 @@ const MIN_SKYLINE_DISTANCE_METERS = 1000
  * nothing; below the bare ridge it is sky where the terrain says ground, which
  * counts against the pose.
  */
-function score(pose: PhotoPose, profile: readonly ProfilePoint[], skyline: ReadonlyArray<{ x: number; y: number }>, tolerance: number, canopyMeters: number) {
-  const lines = terrainLinesAt(pose, profile, skyline.map((point) => point.x), canopyMeters)
-  let on = 0, below = 0, minX = Infinity, maxX = -Infinity
+function score(
+  pose: PhotoPose,
+  profile: readonly ProfilePoint[],
+  skyline: ReadonlyArray<{ x: number; y: number }>,
+  tolerance: number,
+  canopyMeters: number,
+) {
+  const lines = terrainLinesAt(
+    pose,
+    profile,
+    skyline.map((point) => point.x),
+    canopyMeters,
+  )
+  let on = 0,
+    below = 0,
+    minX = Infinity,
+    maxX = -Infinity
   const errors: number[] = []
   skyline.forEach((point, i) => {
     const { bare, canopy, distance } = lines[i]
@@ -263,12 +321,26 @@ export function fitSkyline(
   const usable = skyline.filter((point): point is { x: number; y: number } => point !== null)
   if (usable.length < 12 || profile.length < 2) return null
   let best = { bearing: 0, pitch: 0, ...score(pose, profile, usable, tolerance, canopyMeters) }
-  const search = (bearingStep: number, pitchStep: number, around: { bearing: number; pitch: number }, bearingSpan: number, pitchSpan: number) => {
+  const search = (
+    bearingStep: number,
+    pitchStep: number,
+    around: { bearing: number; pitch: number },
+    bearingSpan: number,
+    pitchSpan: number,
+  ) => {
     for (let db = -bearingSpan; db <= bearingSpan + 1e-9; db += bearingStep) {
       for (let dp = -pitchSpan; dp <= pitchSpan + 1e-9; dp += pitchStep) {
-        const bearing = around.bearing + db, pitch = around.pitch + dp
-        const result = score({ ...pose, bearing: pose.bearing + bearing, pitch: pose.pitch + pitch }, profile, usable, tolerance, canopyMeters)
-        if (result.value > best.value || (result.value === best.value && result.mean < best.mean)) best = { bearing, pitch, ...result }
+        const bearing = around.bearing + db,
+          pitch = around.pitch + dp
+        const result = score(
+          { ...pose, bearing: pose.bearing + bearing, pitch: pose.pitch + pitch },
+          profile,
+          usable,
+          tolerance,
+          canopyMeters,
+        )
+        if (result.value > best.value || (result.value === best.value && result.mean < best.mean))
+          best = { bearing, pitch, ...result }
       }
     }
   }

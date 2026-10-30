@@ -1,12 +1,7 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
-import type {
-  ScoredBoundaryRegion,
-  ScoreMetricDefinition,
-  ScoreMetricKey,
-  ScoreMetricWeightMap,
-} from '../types'
+import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 
 interface RadarChartProps {
   regions: ScoredBoundaryRegion[]
@@ -33,10 +28,7 @@ function polarToXY(angle: number, r: number): [number, number] {
 }
 
 export function RadarChart({ regions, weights, metrics = SCORE_METRICS, className }: RadarChartProps) {
-  const activeMetrics = useMemo(
-    () => metrics.filter((m) => weights[m.key] !== 0),
-    [metrics, weights],
-  )
+  const activeMetrics = useMemo(() => metrics.filter((m) => weights[m.key] !== 0), [metrics, weights])
 
   const axes = useMemo(() => {
     const count = activeMetrics.length
@@ -165,10 +157,7 @@ export function RadarChart({ regions, weights, metrics = SCORE_METRICS, classNam
       <div className="mt-2 flex flex-wrap justify-center gap-3 text-xs">
         {polygons.map((p, i) => (
           <div key={p.region.region.id} className="flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: COLORS[i % COLORS.length].stroke }}
-            />
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length].stroke }} />
             <span className="text-foreground font-medium">
               #{p.region.rank} {p.region.region.name.slice(0, 20)}
             </span>

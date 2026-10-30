@@ -11,5 +11,7 @@ it('decodes PNG bytes without losing transparent RGB or rounding colours with pa
 })
 
 it('rejects unsupported images rather than silently reducing source precision', () => {
-  expect(() => decodePngPixels(encode({ width: 1, height: 1, channels: 3, data: new Uint8Array([1, 2, 3]) }))).toThrow('8-bit RGBA')
+  expect(() => decodePngPixels(encode({ width: 1, height: 1, channels: 3, data: new Uint8Array([1, 2, 3]) }))).toThrow(
+    '8-bit RGBA',
+  )
 })

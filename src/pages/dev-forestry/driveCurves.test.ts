@@ -119,4 +119,3 @@ describe('the camera near the horizon', () => {
     expect(horizonSafePitch(102.3)).toBe(102.3)
   })
 })
-

@@ -69,4 +69,3 @@ export const YEAR_STOPS: [number, string][] = [
 export function getCategoryColor(category: PropertyCategory): string {
   return CATEGORY_COLORS[category] ?? '#a3a3a3'
 }
-

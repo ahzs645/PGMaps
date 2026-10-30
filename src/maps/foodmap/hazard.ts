@@ -10,13 +10,14 @@ interface HazardRatingSource {
  * Resolve a restaurant's NHA hazard rating: current -> last-known -> 'Unknown'.
  * Pass `atDate: true` to prefer the timeline-scrubbed rating when present.
  */
-export function getHazardRating(restaurant: HazardRatingSource, { atDate = false }: { atDate?: boolean } = {}): HazardRating {
-  return (
-    ((atDate ? restaurant.hazardRatingAtDate : undefined) ||
-      restaurant.current_hazard_rating ||
-      restaurant.hazard_rating ||
-      'Unknown') as HazardRating
-  )
+export function getHazardRating(
+  restaurant: HazardRatingSource,
+  { atDate = false }: { atDate?: boolean } = {},
+): HazardRating {
+  return ((atDate ? restaurant.hazardRatingAtDate : undefined) ||
+    restaurant.current_hazard_rating ||
+    restaurant.hazard_rating ||
+    'Unknown') as HazardRating
 }
 
 /** Hazard rating hex colors for map paint, per theme. */

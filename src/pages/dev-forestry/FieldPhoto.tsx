@@ -127,7 +127,8 @@ export function FieldPhotoPanel({
         />
         <span>
           <span className="font-medium text-foreground">Show street photos while driving.</span> The nearest photo taken
-          from the road, looking the way the camera looks{search.status === 'ready' ? ` (${search.road.length} along this road)` : ''}.
+          from the road, looking the way the camera looks
+          {search.status === 'ready' ? ` (${search.road.length} along this road)` : ''}.
         </span>
       </label>
       {image && (
@@ -369,18 +370,29 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
             Reset
           </Button>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-7 w-full text-[11px] touch:h-10" disabled={!photo.skylineReady || photo.alignment.status === 'working'} onClick={() => void photo.autoAlign()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 w-full text-[11px] touch:h-10"
+          disabled={!photo.skylineReady || photo.alignment.status === 'working'}
+          onClick={() => void photo.autoAlign()}
+        >
           {photo.alignment.status === 'working' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           Auto-align to the skyline
         </Button>
         {photo.alignment.status === 'done' && photo.alignment.fit && (
           <p className="text-[10px] leading-4 text-foreground" role="status">
-            Aligned on {photo.alignment.fit.agreeing} sky columns across {Math.round(photo.alignment.fit.span * 100)}% of
-            the frame; {Math.round(photo.alignment.fit.agreement * 100)}% of the columns that can be judged agree, median{' '}
-            {photo.alignment.fit.medianErrorPx.toFixed(1)} px.
+            Aligned on {photo.alignment.fit.agreeing} sky columns across {Math.round(photo.alignment.fit.span * 100)}%
+            of the frame; {Math.round(photo.alignment.fit.agreement * 100)}% of the columns that can be judged agree,
+            median {photo.alignment.fit.medianErrorPx.toFixed(1)} px.
           </p>
         )}
-        {photo.alignment.status === 'failed' && <p className="text-[10px] leading-4 text-foreground" role="status">{photo.alignment.message}</p>}
+        {photo.alignment.status === 'failed' && (
+          <p className="text-[10px] leading-4 text-foreground" role="status">
+            {photo.alignment.message}
+          </p>
+        )}
         <p className="text-[10px] leading-4 text-muted-foreground">
           {match.nudge.bearing || match.nudge.pitch
             ? `Nudged ${match.nudge.bearing >= 0 ? '+' : ''}${match.nudge.bearing.toFixed(1)}° heading, ${match.nudge.pitch >= 0 ? '+' : ''}${match.nudge.pitch.toFixed(2)}° pitch. `
@@ -421,22 +433,40 @@ export function StreetPhotoInset({
       role="region"
       aria-label="Street photo here"
     >
-      {src ? <img src={src} alt="Street-level photo taken near this point on the road" className="aspect-[4/3] w-full object-cover" /> : null}
+      {src ? (
+        <img
+          src={src}
+          alt="Street-level photo taken near this point on the road"
+          className="aspect-[4/3] w-full object-cover"
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-2 p-1.5">
         <span className="min-w-0 truncate text-muted-foreground">
-          {near.capturedAt ? formatDate(near.capturedAt) : 'Undated'} · {Math.round(Math.abs(near.alongMeters - positionMeters))} m {near.alongMeters >= positionMeters ? 'ahead' : 'back'}
+          {near.capturedAt ? formatDate(near.capturedAt) : 'Undated'} ·{' '}
+          {Math.round(Math.abs(near.alongMeters - positionMeters))} m{' '}
+          {near.alongMeters >= positionMeters ? 'ahead' : 'back'}
           {near.isPano ? ' · 360°' : ''}
         </span>
-        <Button type="button" variant="outline" size="sm" className="h-6 shrink-0 px-2 text-[11px]" onClick={() => onLineUp(near.id)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 shrink-0 px-2 text-[11px]"
+          onClick={() => onLineUp(near.id)}
+        >
           Line up
         </Button>
       </div>
       <p className="px-1.5 pb-1.5 text-[10px] text-muted-foreground">
-        <a className="underline" href={`https://www.mapillary.com/app/?pKey=${near.id}&focus=photo`} target="_blank" rel="noreferrer">
+        <a
+          className="underline"
+          href={`https://www.mapillary.com/app/?pKey=${near.id}&focus=photo`}
+          target="_blank"
+          rel="noreferrer"
+        >
           Mapillary · CC BY-SA 4.0
         </a>
       </p>
     </div>
   )
 }
-

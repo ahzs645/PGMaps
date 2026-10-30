@@ -136,10 +136,7 @@ export function WalkabilityDeckHeatmapLayer({
               return
             }
 
-            popup
-              .setLngLat(info.coordinate)
-              .setHTML(walkabilityTooltipHtml(label))
-              .addTo(map)
+            popup.setLngLat(info.coordinate).setHTML(walkabilityTooltipHtml(label)).addTo(map)
           },
           textureParameters: {
             minFilter: 'nearest',

@@ -141,7 +141,10 @@ export function ExplorerSidebar({
       </SidebarSection>
 
       {/* Datasets */}
-      <SidebarSection title="Datasets" actions={<SelectAllActions onAll={onSelectAllDatasets} onNone={onClearDatasets} />}>
+      <SidebarSection
+        title="Datasets"
+        actions={<SelectAllActions onAll={onSelectAllDatasets} onNone={onClearDatasets} />}
+      >
         <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
           {datasetStats.map((stat) => {
             const active = datasetSet.has(stat.dataset.id)
@@ -312,7 +315,10 @@ export function ExplorerSidebar({
               title={item.name}
               subtitle={item.subtitle}
               trailing={
-                <span className="cursor-help text-xs text-cyan-700 dark:text-cyan-300" title={formatRelevanceBreakdown(item)}>
+                <span
+                  className="cursor-help text-xs text-cyan-700 dark:text-cyan-300"
+                  title={formatRelevanceBreakdown(item)}
+                >
                   {formatRelevance(item.relevance)}
                 </span>
               }

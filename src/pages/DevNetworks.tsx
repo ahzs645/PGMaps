@@ -57,10 +57,7 @@ type BellFeatureProperties = {
   pixelCount?: number
 }
 
-type BellFeatureCollection = GeoJSON.FeatureCollection<
-  GeoJSON.Polygon | GeoJSON.MultiPolygon,
-  BellFeatureProperties
->
+type BellFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, BellFeatureProperties>
 
 type BellManifest = {
   generatedAt?: string
@@ -158,11 +155,14 @@ const BELL_RASTER_MAX_ZOOM = 10
 const ROGERS_RASTER_MIN_ZOOM = 3
 const ROGERS_RASTER_MAX_ZOOM = 10
 
-type BellLayerDataState = Record<string, {
-  data: BellFeatureCollection | null
-  loading: boolean
-  error: string | null
-}>
+type BellLayerDataState = Record<
+  string,
+  {
+    data: BellFeatureCollection | null
+    loading: boolean
+    error: string | null
+  }
+>
 type BellRenderMode = 'raster' | 'polygon'
 type RasterView = 'image' | 'grid'
 type TileBoundingBox = [[number, number], [number, number]]
@@ -238,31 +238,73 @@ function DevNetworkDeckOverlay({
       const showPick = (pick: RasterGridPick | null) => {
         const popup = tooltipRef.current
         if (!popup || !map) return
-        if (!pick) { popup.remove(); return }
-        const label = pick.value === GRID_NO_DATA ? 'Uncoloured in saved image'
-          : pick.value === GRID_UNCERTAIN ? cellPixels === 1 ? 'Unclassified source pixel' : 'Uncertain / mixed box'
-          : provider === 'rogers' && ['4g5g', '4g5g-only'].includes(definition.id) ? pick.value === 2 ? '5G+ display class' : pick.value === 3 ? 'LTE display class' : '5G display class'
-          : definition.label
-        popup.setLngLat([pick.longitude, pick.latitude]).setHTML(mapTooltipHtml({
-          title: label,
-          subtitle: cellPixels === 1 ? 'Original source pixel · colour and transparency preserved' : 'Simplified box grid · inferred from saved imagery',
-          rows: [['Box', `${pick.tile.x * 256 / cellPixels + pick.column}, ${pick.tile.y * 256 / cellPixels + pick.row}`],
-            ['Source level', `z${pick.tile.z}`], ['Box size', `${cellPixels} × ${cellPixels} source pixels`], ['Agreement', `${Math.round(pick.agreement * 100)}%`]],
-        })).addTo(map)
+        if (!pick) {
+          popup.remove()
+          return
+        }
+        const label =
+          pick.value === GRID_NO_DATA
+            ? 'Uncoloured in saved image'
+            : pick.value === GRID_UNCERTAIN
+              ? cellPixels === 1
+                ? 'Unclassified source pixel'
+                : 'Uncertain / mixed box'
+              : provider === 'rogers' && ['4g5g', '4g5g-only'].includes(definition.id)
+                ? pick.value === 2
+                  ? '5G+ display class'
+                  : pick.value === 3
+                    ? 'LTE display class'
+                    : '5G display class'
+                : definition.label
+        popup
+          .setLngLat([pick.longitude, pick.latitude])
+          .setHTML(
+            mapTooltipHtml({
+              title: label,
+              subtitle:
+                cellPixels === 1
+                  ? 'Original source pixel · colour and transparency preserved'
+                  : 'Simplified box grid · inferred from saved imagery',
+              rows: [
+                [
+                  'Box',
+                  `${(pick.tile.x * 256) / cellPixels + pick.column}, ${(pick.tile.y * 256) / cellPixels + pick.row}`,
+                ],
+                ['Source level', `z${pick.tile.z}`],
+                ['Box size', `${cellPixels} × ${cellPixels} source pixels`],
+                ['Agreement', `${Math.round(pick.agreement * 100)}%`],
+              ],
+            }),
+          )
+          .addTo(map)
       }
-      layers.push(createRasterGridLayer({
-        id: `dev-network-${provider}-grid-${definition.id}-${sourceLevel}-${cellPixels}`,
-        tileUrl: tile => provider === 'bell' ? bellRasterTileUrl(definition.id, tile) : rogersRasterTileUrl(definition.id, tile),
-        sourceZoom, palette, cellPixels, showGridLines,
-        preserveSourcePixels: cellPixels === 1,
-        opacity: provider === 'rogers' ? 0.82 : definition.color[3] / 255,
-        colorForValue: value => value === GRID_NO_DATA ? [0, 0, 0, 0]
-          : value === GRID_UNCERTAIN ? [148, 163, 184, 160]
-          : [...(palette.find(entry => entry.value === value)?.rgb ?? definition.color.slice(0, 3)), 150] as [number, number, number, number],
-        onHover: showPick,
-        onPick: showPick,
-        onTileError: error => onGridError(error.message),
-      }))
+      layers.push(
+        createRasterGridLayer({
+          id: `dev-network-${provider}-grid-${definition.id}-${sourceLevel}-${cellPixels}`,
+          tileUrl: (tile) =>
+            provider === 'bell' ? bellRasterTileUrl(definition.id, tile) : rogersRasterTileUrl(definition.id, tile),
+          sourceZoom,
+          palette,
+          cellPixels,
+          showGridLines,
+          preserveSourcePixels: cellPixels === 1,
+          opacity: provider === 'rogers' ? 0.82 : definition.color[3] / 255,
+          colorForValue: (value) =>
+            value === GRID_NO_DATA
+              ? [0, 0, 0, 0]
+              : value === GRID_UNCERTAIN
+                ? [148, 163, 184, 160]
+                : ([...(palette.find((entry) => entry.value === value)?.rgb ?? definition.color.slice(0, 3)), 150] as [
+                    number,
+                    number,
+                    number,
+                    number,
+                  ]),
+          onHover: showPick,
+          onPick: showPick,
+          onTileError: (error) => onGridError(error.message),
+        }),
+      )
     }
     for (const layerDefinition of TELUS_LAYERS) {
       if (!visibleTelusLayerIds.includes(layerDefinition.id)) continue
@@ -292,10 +334,15 @@ function DevNetworkDeckOverlay({
             }
             popup
               .setLngLat(info.coordinate)
-              .setHTML(mapTooltipHtml({ title: 'TELUS coverage', rows: [
-                ['Layer', layerDefinition.label],
-                ['Source', 'Saved MVT tile snapshot'],
-              ]}))
+              .setHTML(
+                mapTooltipHtml({
+                  title: 'TELUS coverage',
+                  rows: [
+                    ['Layer', layerDefinition.label],
+                    ['Source', 'Saved MVT tile snapshot'],
+                  ],
+                }),
+              )
               .addTo(map)
           },
         } as unknown as ConstructorParameters<typeof MVTLayer>[0]),
@@ -306,7 +353,10 @@ function DevNetworkDeckOverlay({
       if (!visibleRogersLayerIds.includes(layerDefinition.id)) continue
       const levels = networkSourceLevels('rogers', layerDefinition.id, sourceLevel)
       if (!levels) continue
-      if (rasterView === 'grid') { addGrid('rogers', layerDefinition); continue }
+      if (rasterView === 'grid') {
+        addGrid('rogers', layerDefinition)
+        continue
+      }
       layers.push(
         new TileLayer({
           id: `dev-network-rogers-raster-${layerDefinition.id}-${sourceLevel}`,
@@ -322,7 +372,10 @@ function DevNetworkDeckOverlay({
                 signal: tile.signal ?? undefined,
               })
               if (!response.ok) return null
-              return await createImageBitmap(await response.blob(), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })
+              return await createImageBitmap(await response.blob(), {
+                premultiplyAlpha: 'none',
+                colorSpaceConversion: 'none',
+              })
             } catch (error) {
               if ((error as Error).name !== 'AbortError') return null
               throw error
@@ -349,11 +402,16 @@ function DevNetworkDeckOverlay({
                 }
                 popup
                   .setLngLat([info.coordinate[0], info.coordinate[1]])
-                  .setHTML(mapTooltipHtml({ title: 'Rogers coverage', rows: [
-                    ['Layer', layerDefinition.label],
-                    ['Source', 'Saved SpatialBuzz PNG tile snapshot'],
-                    ['Zooms', `z${ROGERS_RASTER_MIN_ZOOM}-z${ROGERS_RASTER_MAX_ZOOM}`],
-                  ]}))
+                  .setHTML(
+                    mapTooltipHtml({
+                      title: 'Rogers coverage',
+                      rows: [
+                        ['Layer', layerDefinition.label],
+                        ['Source', 'Saved SpatialBuzz PNG tile snapshot'],
+                        ['Zooms', `z${ROGERS_RASTER_MIN_ZOOM}-z${ROGERS_RASTER_MAX_ZOOM}`],
+                      ],
+                    }),
+                  )
                   .addTo(map)
               },
             })
@@ -367,7 +425,10 @@ function DevNetworkDeckOverlay({
       if (!visibleBellLayerIds.includes(layerDefinition.id)) continue
       const levels = networkSourceLevels('bell', layerDefinition.id, sourceLevel)
       if (!levels) continue
-      if (rasterView === 'grid') { addGrid('bell', layerDefinition); continue }
+      if (rasterView === 'grid') {
+        addGrid('bell', layerDefinition)
+        continue
+      }
       if (bellRenderMode === 'raster') {
         layers.push(
           new TileLayer({
@@ -383,7 +444,10 @@ function DevNetworkDeckOverlay({
                   signal: tile.signal ?? undefined,
                 })
                 if (!response.ok) return null
-                return await createImageBitmap(await response.blob(), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })
+                return await createImageBitmap(await response.blob(), {
+                  premultiplyAlpha: 'none',
+                  colorSpaceConversion: 'none',
+                })
               } catch (error) {
                 if ((error as Error).name !== 'AbortError') return null
                 throw error
@@ -425,7 +489,10 @@ function DevNetworkDeckOverlay({
             }
             return layerDefinition.color
           },
-          onHover: (info: { object?: { properties?: BellFeatureProperties } | null; coordinate?: [number, number] }) => {
+          onHover: (info: {
+            object?: { properties?: BellFeatureProperties } | null
+            coordinate?: [number, number]
+          }) => {
             const popup = tooltipRef.current
             if (!popup || !map) return
             if (!info.object || !info.coordinate) {
@@ -435,13 +502,23 @@ function DevNetworkDeckOverlay({
             const properties = info.object.properties
             popup
               .setLngLat(info.coordinate)
-              .setHTML(mapTooltipHtml({ title: 'Bell coverage', rows: [
-                ['Layer', properties?.label ?? layerDefinition.label],
-                ['Source', 'Polygonized PNG tile snapshot'],
-                ['Map zoom', properties?.mapZoom],
-                ['Tile', properties?.tileX != null && properties.tileY != null ? `${properties.tileX}/${properties.tileY}` : null],
-                ['Pixels', properties?.pixelCount],
-              ]}))
+              .setHTML(
+                mapTooltipHtml({
+                  title: 'Bell coverage',
+                  rows: [
+                    ['Layer', properties?.label ?? layerDefinition.label],
+                    ['Source', 'Polygonized PNG tile snapshot'],
+                    ['Map zoom', properties?.mapZoom],
+                    [
+                      'Tile',
+                      properties?.tileX != null && properties.tileY != null
+                        ? `${properties.tileX}/${properties.tileY}`
+                        : null,
+                    ],
+                    ['Pixels', properties?.pixelCount],
+                  ],
+                }),
+              )
               .addTo(map)
           },
         } as unknown as ConstructorParameters<typeof GeoJsonLayer>[0]),
@@ -452,32 +529,58 @@ function DevNetworkDeckOverlay({
       // Country-wide roads use MapLibre's worker tiling; keep the full source
       // geometry and disable simplification instead of expanding every line on the main thread.
       if (resource.id.includes('major-roads')) continue
-      layers.push(new GeoJsonLayer({
-        id: `dev-network-${resource.id}`,
-        data,
-        pickable: true,
-        filled: true,
-        stroked: true,
-        getFillColor: [73, 120, 180, 90],
-        getLineColor: [35, 87, 145, 180],
-        getLineWidth: 1,
-        lineWidthUnits: 'pixels',
-        getPointRadius: 4,
-        pointRadiusUnits: 'pixels',
-        onHover: info => {
-          const popup = tooltipRef.current
-          if (!popup || !map) return
-          if (!info.object || !info.coordinate) { popup.remove(); return }
-          popup.setLngLat([info.coordinate[0], info.coordinate[1]]).setHTML(mapTooltipHtml({
-            title: resource.title, subtitle: 'Original saved CRTC vector geometry',
-            rows: [['Layer', resource.id]],
-          })).addTo(map)
-        },
-      }))
+      layers.push(
+        new GeoJsonLayer({
+          id: `dev-network-${resource.id}`,
+          data,
+          pickable: true,
+          filled: true,
+          stroked: true,
+          getFillColor: [73, 120, 180, 90],
+          getLineColor: [35, 87, 145, 180],
+          getLineWidth: 1,
+          lineWidthUnits: 'pixels',
+          getPointRadius: 4,
+          pointRadiusUnits: 'pixels',
+          onHover: (info) => {
+            const popup = tooltipRef.current
+            if (!popup || !map) return
+            if (!info.object || !info.coordinate) {
+              popup.remove()
+              return
+            }
+            popup
+              .setLngLat([info.coordinate[0], info.coordinate[1]])
+              .setHTML(
+                mapTooltipHtml({
+                  title: resource.title,
+                  subtitle: 'Original saved CRTC vector geometry',
+                  rows: [['Layer', resource.id]],
+                }),
+              )
+              .addTo(map)
+          },
+        }),
+      )
     }
 
     overlay.setProps({ layers })
-  }, [overlayRef, bellDataById, bellRenderMode, map, isLoaded, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds, rasterView, cellPixels, showGridLines, onGridError, sourceLevel, crtcLayers])
+  }, [
+    overlayRef,
+    bellDataById,
+    bellRenderMode,
+    map,
+    isLoaded,
+    visibleBellLayerIds,
+    visibleRogersLayerIds,
+    visibleTelusLayerIds,
+    rasterView,
+    cellPixels,
+    showGridLines,
+    onGridError,
+    sourceLevel,
+    crtcLayers,
+  ])
 
   return null
 }
@@ -492,38 +595,58 @@ function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; 
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const data = useMemo(() => cellSitePieData(sites, visibleGroups), [sites, visibleGroups])
 
-  useEffect(() => () => { popupRef.current?.remove() }, [])
-  useEffect(() => { popupRef.current?.remove() }, [sites])
-
-  return <MapPieClusterLayer
-    data={data}
-    bandColors={CELL_SITE_BAND_COLORS}
-    preAggregated
-    expandOverlappingPoints
-    clusterRadius={52}
-    onPointClick={properties => {
-      const site = sites[Number(properties.siteIndex)]
-      if (!site || !map) return
+  useEffect(
+    () => () => {
       popupRef.current?.remove()
-      const { properties: details } = site
-      popupRef.current = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
-        .setLngLat(site.geometry.coordinates as [number, number])
-        .setHTML(mapTooltipHtml({
-          title: details.operators.length > 1 ? `Shared site · ${details.operators.length} operators` : `${details.operators[0]} site`,
-          subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
-          rows: cellSiteTooltipRows(details),
-        }))
-        .addTo(map)
-    }}
-  />
+    },
+    [],
+  )
+  useEffect(() => {
+    popupRef.current?.remove()
+  }, [sites])
+
+  return (
+    <MapPieClusterLayer
+      data={data}
+      bandColors={CELL_SITE_BAND_COLORS}
+      preAggregated
+      expandOverlappingPoints
+      clusterRadius={52}
+      onPointClick={(properties) => {
+        const site = sites[Number(properties.siteIndex)]
+        if (!site || !map) return
+        popupRef.current?.remove()
+        const { properties: details } = site
+        popupRef.current = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
+          .setLngLat(site.geometry.coordinates as [number, number])
+          .setHTML(
+            mapTooltipHtml({
+              title:
+                details.operators.length > 1
+                  ? `Shared site · ${details.operators.length} operators`
+                  : `${details.operators[0]} site`,
+              subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
+              rows: cellSiteTooltipRows(details),
+            }),
+          )
+          .addTo(map)
+      }}
+    />
+  )
 }
 
 function NetworkGridNavigation({ sourceLevel }: { sourceLevel: string }) {
   const { map } = useMap()
-  return <MapOverlay position="top-left" className="p-2 text-xs">
-    <p className="mb-2">{sourceLevel === 'auto' ? 'Grid follows each saved source level.' : `Comparing saved level z${sourceLevel}.`}</p>
-    <Button variant="outline" size="sm" onClick={() => map?.flyTo({ center: [-122.75, 53.915], zoom: 13 })}>Inspect Prince George</Button>
-  </MapOverlay>
+  return (
+    <MapOverlay position="top-left" className="p-2 text-xs">
+      <p className="mb-2">
+        {sourceLevel === 'auto' ? 'Grid follows each saved source level.' : `Comparing saved level z${sourceLevel}.`}
+      </p>
+      <Button variant="outline" size="sm" onClick={() => map?.flyTo({ center: [-122.75, 53.915], zoom: 13 })}>
+        Inspect Prince George
+      </Button>
+    </MapOverlay>
+  )
 }
 
 function layerButtonClass(active: boolean) {
@@ -546,7 +669,9 @@ export default function DevNetworks() {
   const [sourceLevel, setSourceLevel] = useState('auto')
   const [crtcResources, setCrtcResources] = useState<CrtcSnapshot[]>([])
   const [visibleCrtcIds, setVisibleCrtcIds] = useState<string[]>([])
-  const [crtcDataById, setCrtcDataById] = useState<Record<string, { data?: GeoJSON.FeatureCollection; error?: string; loading?: boolean }>>({})
+  const [crtcDataById, setCrtcDataById] = useState<
+    Record<string, { data?: GeoJSON.FeatureCollection; error?: string; loading?: boolean }>
+  >({})
   const [gridError, setGridError] = useState<string | null>(null)
   const [bellDataById, setBellDataById] = useState<BellLayerDataState>({})
   const [bellManifest, setBellManifest] = useState<BellManifest | null>(null)
@@ -555,22 +680,37 @@ export default function DevNetworks() {
   const [cellSiteData, setCellSiteData] = useState<CellSiteCollection | null>(null)
   const [cellSitesManifest, setCellSitesManifest] = useState<CellSitesManifest | null>(null)
   const [cellSitesError, setCellSitesError] = useState<string | null>(null)
-  const [visibleSiteGroupIds, setVisibleSiteGroupIds] = useState<string[]>(() => CELL_SITE_OPERATOR_GROUPS.map(group => group.id))
+  const [visibleSiteGroupIds, setVisibleSiteGroupIds] = useState<string[]>(() =>
+    CELL_SITE_OPERATOR_GROUPS.map((group) => group.id),
+  )
   const visibleSiteGroups = useMemo(() => new Set(visibleSiteGroupIds), [visibleSiteGroupIds])
   const cellSites = useMemo(() => filterCellSites(cellSiteData, visibleSiteGroups), [cellSiteData, visibleSiteGroups])
   const siteCountsByGroup = useMemo(() => countSitesByGroup(cellSitesManifest), [cellSitesManifest])
   const visibleBellKey = visibleBellLayerIds.join('|')
   const visibleCrtcKey = visibleCrtcIds.join('|')
-  const crtcLayers = useMemo(() => crtcResources.flatMap(resource => {
-    const data = crtcDataById[resource.id]?.data
-    return visibleCrtcIds.includes(resource.id) && data ? [{ resource, data }] : []
-  }), [crtcResources, crtcDataById, visibleCrtcIds])
-  useEffect(() => { setGridError(null) }, [rasterView, cellPixels, sourceLevel, visibleBellKey, visibleRogersLayerIds])
+  const crtcLayers = useMemo(
+    () =>
+      crtcResources.flatMap((resource) => {
+        const data = crtcDataById[resource.id]?.data
+        return visibleCrtcIds.includes(resource.id) && data ? [{ resource, data }] : []
+      }),
+    [crtcResources, crtcDataById, visibleCrtcIds],
+  )
+  useEffect(() => {
+    setGridError(null)
+  }, [rasterView, cellPixels, sourceLevel, visibleBellKey, visibleRogersLayerIds])
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchJson<{ cartovistaResources?: CrtcSnapshot[] }>(`${DEV_NETWORK_DATA_BASE}/crtc-network-availability/output/manifest.json`, controller.signal)
-      .then(manifest => setCrtcResources((manifest.cartovistaResources ?? []).filter(resource => resource.path?.endsWith('.geojson.gz'))))
+    void fetchJson<{ cartovistaResources?: CrtcSnapshot[] }>(
+      `${DEV_NETWORK_DATA_BASE}/crtc-network-availability/output/manifest.json`,
+      controller.signal,
+    )
+      .then((manifest) =>
+        setCrtcResources(
+          (manifest.cartovistaResources ?? []).filter((resource) => resource.path?.endsWith('.geojson.gz')),
+        ),
+      )
       .catch(() => {})
     return () => controller.abort()
   }, [])
@@ -579,10 +719,16 @@ export default function DevNetworks() {
     const controller = new AbortController()
     for (const resource of crtcResources) {
       if (!visibleCrtcIds.includes(resource.id) || crtcDataById[resource.id]?.data) continue
-      setCrtcDataById(current => ({ ...current, [resource.id]: { loading: true } }))
-      void fetchJson<GeoJSON.FeatureCollection>(`${DEV_NETWORK_DATA_BASE}/crtc-network-availability/output/${resource.path}`, controller.signal)
-        .then(data => setCrtcDataById(current => ({ ...current, [resource.id]: { data, loading: false } })))
-        .catch(error => { if (!controller.signal.aborted) setCrtcDataById(current => ({ ...current, [resource.id]: { error: String(error), loading: false } })) })
+      setCrtcDataById((current) => ({ ...current, [resource.id]: { loading: true } }))
+      void fetchJson<GeoJSON.FeatureCollection>(
+        `${DEV_NETWORK_DATA_BASE}/crtc-network-availability/output/${resource.path}`,
+        controller.signal,
+      )
+        .then((data) => setCrtcDataById((current) => ({ ...current, [resource.id]: { data, loading: false } })))
+        .catch((error) => {
+          if (!controller.signal.aborted)
+            setCrtcDataById((current) => ({ ...current, [resource.id]: { error: String(error), loading: false } }))
+        })
     }
     return () => controller.abort()
     // Cached payloads stay unchanged; only visibility or inventory starts a fetch.
@@ -591,24 +737,28 @@ export default function DevNetworks() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchJson<CellSitesManifest>(CELL_SITES_MANIFEST_URL, controller.signal).then(setCellSitesManifest).catch(() => {})
+    void fetchJson<CellSitesManifest>(CELL_SITES_MANIFEST_URL, controller.signal)
+      .then(setCellSitesManifest)
+      .catch(() => {})
     void fetchJson<CellSiteCollection>(CELL_SITES_URL, controller.signal)
       .then(setCellSiteData)
-      .catch(error => { if (!controller.signal.aborted) setCellSitesError((error as Error).message) })
+      .catch((error) => {
+        if (!controller.signal.aborted) setCellSitesError((error as Error).message)
+      })
     return () => controller.abort()
   }, [])
 
   useEffect(() => {
     fetch(`${DEV_NETWORK_DATA_BASE}/bell/output/manifest.json`)
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then(setBellManifest)
       .catch(() => setBellManifest(null))
     fetch(`${DEV_NETWORK_DATA_BASE}/telus/output/manifest.json`)
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then(setTelusManifest)
       .catch(() => setTelusManifest(null))
     fetch(`${DEV_NETWORK_DATA_BASE}/rogers/output/tiles/sync-manifest.json`)
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then(setRogersManifest)
       .catch(() => setRogersManifest(null))
   }, [])
@@ -709,19 +859,37 @@ export default function DevNetworks() {
       <SidebarSection
         title="Cell sites (ISED)"
         icon={RadioTower}
-        actions={<span className="text-xs text-muted-foreground">{cellSiteData ? `${formatNumber(cellSites.length)} shown` : cellSitesError ? 'unavailable' : 'loading'}</span>}
+        actions={
+          <span className="text-xs text-muted-foreground">
+            {cellSiteData ? `${formatNumber(cellSites.length)} shown` : cellSitesError ? 'unavailable' : 'loading'}
+          </span>
+        }
       >
         <div className="space-y-1.5">
-          {CELL_SITE_OPERATOR_GROUPS.map(group => {
+          {CELL_SITE_OPERATOR_GROUPS.map((group) => {
             const active = visibleSiteGroups.has(group.id)
             return (
-              <button key={group.id} type="button" className={layerButtonClass(active)} aria-pressed={active}
-                onClick={() => setVisibleSiteGroupIds(current => active ? current.filter(id => id !== group.id) : [...current, group.id])}>
+              <button
+                key={group.id}
+                type="button"
+                className={layerButtonClass(active)}
+                aria-pressed={active}
+                onClick={() =>
+                  setVisibleSiteGroupIds((current) =>
+                    active ? current.filter((id) => id !== group.id) : [...current, group.id],
+                  )
+                }
+              >
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: `rgb(${group.color.join(', ')})` }} />
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: `rgb(${group.color.join(', ')})` }}
+                  />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{group.label}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{formatNumber(siteCountsByGroup.get(group.id), { fallback: 'unknown' })} sites</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {formatNumber(siteCountsByGroup.get(group.id), { fallback: 'unknown' })} sites
+                    </span>
                   </span>
                 </span>
                 {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
@@ -729,36 +897,94 @@ export default function DevNetworks() {
             )
           })}
         </div>
-        {cellSitesError && <p role="status" className="mt-2 text-xs text-destructive">{cellSitesError}</p>}
+        {cellSitesError && (
+          <p role="status" className="mt-2 text-xs text-destructive">
+            {cellSitesError}
+          </p>
+        )}
         <p className="mt-2 text-xs text-muted-foreground">
-          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED{cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}. Clusters split by operator as you zoom; the centre counts sites, and a shared mast adds a wedge for each operator on it. Click a site for details. Reported sites, not measured coverage; Other includes ~5.9k railway radio sites.
+          {formatNumber(cellSitesManifest?.sites, { fallback: 'All' })} sites licensees report to ISED
+          {cellSitesManifest?.source?.extractDate ? `, extract of ${cellSitesManifest.source.extractDate}` : ''}.
+          Clusters split by operator as you zoom; the centre counts sites, and a shared mast adds a wedge for each
+          operator on it. Click a site for details. Reported sites, not measured coverage; Other includes ~5.9k railway
+          radio sites.
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{cellSitesManifest?.attribution ?? 'Contains information licensed under the Open Government Licence – Canada (ISED).'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {cellSitesManifest?.attribution ??
+            'Contains information licensed under the Open Government Licence – Canada (ISED).'}
+        </p>
       </SidebarSection>
 
       <SidebarSection title="Raster view" icon={Grid2X2}>
-        <SegmentedControl label="Raster representation" value={rasterView} onChange={setRasterView}
-          options={[{ value: 'image', label: 'Source image', icon: Image }, { value: 'grid', label: 'Box grid', icon: Grid2X2 }]} />
+        <SegmentedControl
+          label="Raster representation"
+          value={rasterView}
+          onChange={setRasterView}
+          options={[
+            { value: 'image', label: 'Source image', icon: Image },
+            { value: 'grid', label: 'Box grid', icon: Grid2X2 },
+          ]}
+        />
         <div className="mt-3">
-          <label className="mb-1 block text-xs font-medium" htmlFor="network-source-level">Saved tile level</label>
+          <label className="mb-1 block text-xs font-medium" htmlFor="network-source-level">
+            Saved tile level
+          </label>
           <Select value={sourceLevel} onValueChange={setSourceLevel}>
-            <SelectTrigger id="network-source-level" aria-label="Saved tile level"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="network-source-level" aria-label="Saved tile level">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="auto">Automatic · all saved levels</SelectItem>
-              {Array.from({ length: 11 }, (_, zoom) => <SelectItem key={zoom} value={String(zoom)}>Level {zoom}</SelectItem>)}
+              {Array.from({ length: 11 }, (_, zoom) => (
+                <SelectItem key={zoom} value={String(zoom)}>
+                  Level {zoom}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <p className="mt-2 text-xs text-muted-foreground">Bell: levels 4–10. Rogers: 3–10. TELUS: 0–5, with partial LTE at 6. Bands without the selected level stay blank.</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Bell: levels 4–10. Rogers: 3–10. TELUS: 0–5, with partial LTE at 6. Bands without the selected level stay
+            blank.
+          </p>
         </div>
-        {rasterView === 'grid' && <div className="mt-3 space-y-3">
-          <SegmentedControl label="Grid detail" value={cellPixels} onChange={setCellPixels} size="sm"
-            options={[{ value: '1', label: 'Original pixels' }, { value: '4', label: 'Simplified 4 × 4' }, { value: '8', label: 'Simplified 8 × 8' }]} />
-          <ToggleRow label="Show box outlines" active={showGridLines} onClick={() => setShowGridLines(value => !value)} />
-          <p className="text-xs text-muted-foreground">{cellPixels === '1' ? 'One box per original pixel. Source colours, transparency and small gaps stay intact. No averaging or palette replacement. Turn outlines off for the closest visual match.' : 'Simplified view: larger boxes use an 80% vote over their interior and can change small gaps or boundaries. Grey boxes have mixed or uncertain evidence.'}</p>
-          <p className="text-xs text-muted-foreground">Each saved level keeps its own original pixels. Missing saved imagery stays blank. TELUS retains its native vectors.</p>
-          {gridError && <p role="status" className="text-xs text-muted-foreground">Some saved imagery is unavailable; blank areas have no verified class.</p>}
-        </div>}
-        <p className="mt-3 text-xs text-muted-foreground">Switch views to compare the same location. Source imagery uses its saved pixels without smoothing. Both views use the same layer opacity.</p>
+        {rasterView === 'grid' && (
+          <div className="mt-3 space-y-3">
+            <SegmentedControl
+              label="Grid detail"
+              value={cellPixels}
+              onChange={setCellPixels}
+              size="sm"
+              options={[
+                { value: '1', label: 'Original pixels' },
+                { value: '4', label: 'Simplified 4 × 4' },
+                { value: '8', label: 'Simplified 8 × 8' },
+              ]}
+            />
+            <ToggleRow
+              label="Show box outlines"
+              active={showGridLines}
+              onClick={() => setShowGridLines((value) => !value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {cellPixels === '1'
+                ? 'One box per original pixel. Source colours, transparency and small gaps stay intact. No averaging or palette replacement. Turn outlines off for the closest visual match.'
+                : 'Simplified view: larger boxes use an 80% vote over their interior and can change small gaps or boundaries. Grey boxes have mixed or uncertain evidence.'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Each saved level keeps its own original pixels. Missing saved imagery stays blank. TELUS retains its
+              native vectors.
+            </p>
+            {gridError && (
+              <p role="status" className="text-xs text-muted-foreground">
+                Some saved imagery is unavailable; blank areas have no verified class.
+              </p>
+            )}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Switch views to compare the same location. Source imagery uses its saved pixels without smoothing. Both views
+          use the same layer opacity.
+        </p>
       </SidebarSection>
       <SidebarSection
         title="TELUS MVT"
@@ -771,13 +997,20 @@ export default function DevNetworks() {
             const stats = telusStatsById.get(layer.id)
             const archiveBytes = stats?.archives?.find((archive) => archive.type === 'tar.gz')?.bytes
             return (
-              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleTelusLayer(layer.id)}>
+              <button
+                key={layer.id}
+                type="button"
+                className={layerButtonClass(active)}
+                aria-pressed={active}
+                onClick={() => toggleTelusLayer(layer.id)}
+              >
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{layer.label}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {stats?.stats?.saved ?? 'unknown'} saved tiles · {formatBytes(archiveBytes ?? stats?.stats?.bytes, BYTES_FORMAT)}
+                      {stats?.stats?.saved ?? 'unknown'} saved tiles ·{' '}
+                      {formatBytes(archiveBytes ?? stats?.stats?.bytes, BYTES_FORMAT)}
                     </span>
                   </span>
                 </span>
@@ -797,20 +1030,29 @@ export default function DevNetworks() {
           {ROGERS_LAYERS.map((layer) => {
             const active = visibleRogersLayerIds.includes(layer.id)
             const stats = rogersStatsById.get(layer.id)
-            const sourceZooms = stats?.configuredZoomRange?.from != null && stats?.configuredZoomRange?.to != null
-              ? `source z${stats.configuredZoomRange.from}-z${stats.configuredZoomRange.to}`
-              : 'source zoom unknown'
+            const sourceZooms =
+              stats?.configuredZoomRange?.from != null && stats?.configuredZoomRange?.to != null
+                ? `source z${stats.configuredZoomRange.from}-z${stats.configuredZoomRange.to}`
+                : 'source zoom unknown'
             return (
-              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleRogersLayer(layer.id)}>
+              <button
+                key={layer.id}
+                type="button"
+                className={layerButtonClass(active)}
+                aria-pressed={active}
+                onClick={() => toggleRogersLayer(layer.id)}
+              >
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{layer.label}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {formatNumber(stats?.stats?.downloaded, { fallback: 'unknown' })} saved tiles · {formatBytes(stats?.stats?.bytesSaved, BYTES_FORMAT)}
+                      {formatNumber(stats?.stats?.downloaded, { fallback: 'unknown' })} saved tiles ·{' '}
+                      {formatBytes(stats?.stats?.bytesSaved, BYTES_FORMAT)}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      pulled z{rogersManifest?.requested?.minZoom ?? ROGERS_RASTER_MIN_ZOOM}-z{rogersManifest?.requested?.maxZoom ?? ROGERS_RASTER_MAX_ZOOM} · {sourceZooms}
+                      pulled z{rogersManifest?.requested?.minZoom ?? ROGERS_RASTER_MIN_ZOOM}-z
+                      {rogersManifest?.requested?.maxZoom ?? ROGERS_RASTER_MAX_ZOOM} · {sourceZooms}
                     </span>
                   </span>
                 </span>
@@ -824,55 +1066,71 @@ export default function DevNetworks() {
       <SidebarSection
         title="Bell PNG"
         icon={Layers}
-        actions={(
+        actions={
           <span className="text-xs text-muted-foreground">
-            {bellRenderMode === 'polygon' && visibleBellLoadingCount ? `${visibleBellLoadingCount} loading` : `${visibleBellLayerIds.length} visible`}
+            {bellRenderMode === 'polygon' && visibleBellLoadingCount
+              ? `${visibleBellLoadingCount} loading`
+              : `${visibleBellLayerIds.length} visible`}
           </span>
-        )}
+        }
       >
-        {rasterView === 'image' && <div className="mb-2 grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            className={layerButtonClass(bellRenderMode === 'raster')}
-            aria-pressed={bellRenderMode === 'raster'}
-            onClick={() => setBellRenderMode('raster')}
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <Image className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate font-medium">Raster tiles</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={layerButtonClass(bellRenderMode === 'polygon')}
-            aria-pressed={bellRenderMode === 'polygon'}
-            onClick={() => setBellRenderMode('polygon')}
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <Shapes className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate font-medium">Polygon debug</span>
-            </span>
-          </button>
-        </div>}
+        {rasterView === 'image' && (
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              className={layerButtonClass(bellRenderMode === 'raster')}
+              aria-pressed={bellRenderMode === 'raster'}
+              onClick={() => setBellRenderMode('raster')}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <Image className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate font-medium">Raster tiles</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={layerButtonClass(bellRenderMode === 'polygon')}
+              aria-pressed={bellRenderMode === 'polygon'}
+              onClick={() => setBellRenderMode('polygon')}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <Shapes className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate font-medium">Polygon debug</span>
+              </span>
+            </button>
+          </div>
+        )}
         <div className="space-y-1.5">
           {BELL_LAYERS.map((layer) => {
             const active = visibleBellLayerIds.includes(layer.id)
             const stats = bellManifest?.layers?.find((manifestLayer) => manifestLayer.id === layer.id)?.polygonize
             const state = bellDataById[layer.id]
             return (
-              <button key={layer.id} type="button" className={layerButtonClass(active)} aria-pressed={active} onClick={() => toggleBellLayer(layer.id)}>
+              <button
+                key={layer.id}
+                type="button"
+                className={layerButtonClass(active)}
+                aria-pressed={active}
+                onClick={() => toggleBellLayer(layer.id)}
+              >
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{layer.label}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {rasterView === 'grid' ? sourceLevel === 'auto' ? 'Original box grid · source z4–10' : `Original box grid · source z${sourceLevel}` : bellRenderMode === 'raster'
-                        ? `PNG tiles · z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
-                        : state?.loading
-                        ? 'loading'
-                        : `${formatNumber(stats?.stats?.featureCount, { fallback: 'unknown' })} features · ${formatBytes(stats?.outputBytes, BYTES_FORMAT)}`}
+                      {rasterView === 'grid'
+                        ? sourceLevel === 'auto'
+                          ? 'Original box grid · source z4–10'
+                          : `Original box grid · source z${sourceLevel}`
+                        : bellRenderMode === 'raster'
+                          ? `PNG tiles · z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
+                          : state?.loading
+                            ? 'loading'
+                            : `${formatNumber(stats?.stats?.featureCount, { fallback: 'unknown' })} features · ${formatBytes(stats?.outputBytes, BYTES_FORMAT)}`}
                     </span>
-                    {bellRenderMode === 'polygon' && state?.error && <span className="block truncate text-xs text-destructive">{state.error}</span>}
+                    {bellRenderMode === 'polygon' && state?.error && (
+                      <span className="block truncate text-xs text-destructive">{state.error}</span>
+                    )}
                   </span>
                 </span>
                 {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
@@ -882,24 +1140,55 @@ export default function DevNetworks() {
         </div>
       </SidebarSection>
 
-      <SidebarSection title="CRTC native vectors" icon={Layers} actions={<span className="text-xs text-muted-foreground">{visibleCrtcIds.length} visible</span>}>
-        <p className="mb-2 text-xs text-muted-foreground">Coverage, road lines, broadcast contours and stations retain their original vector geometry at every map zoom.</p>
+      <SidebarSection
+        title="CRTC native vectors"
+        icon={Layers}
+        actions={<span className="text-xs text-muted-foreground">{visibleCrtcIds.length} visible</span>}
+      >
+        <p className="mb-2 text-xs text-muted-foreground">
+          Coverage, road lines, broadcast contours and stations retain their original vector geometry at every map zoom.
+        </p>
         <div className="space-y-1.5">
-          {crtcResources.map(resource => {
-            const active = visibleCrtcIds.includes(resource.id), state = crtcDataById[resource.id]
-            return <button key={resource.id} type="button" className={layerButtonClass(active)} aria-pressed={active}
-              onClick={() => setVisibleCrtcIds(current => active ? current.filter(id => id !== resource.id) : [...current, resource.id])}>
-              <span className="min-w-0"><span className="block truncate font-medium">{resource.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{state?.loading ? 'Loading saved vectors' : state?.error ? state.error : `${formatNumber(resource.featureCount)} original features`}</span></span>
-              {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
-            </button>
+          {crtcResources.map((resource) => {
+            const active = visibleCrtcIds.includes(resource.id),
+              state = crtcDataById[resource.id]
+            return (
+              <button
+                key={resource.id}
+                type="button"
+                className={layerButtonClass(active)}
+                aria-pressed={active}
+                onClick={() =>
+                  setVisibleCrtcIds((current) =>
+                    active ? current.filter((id) => id !== resource.id) : [...current, resource.id],
+                  )
+                }
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{resource.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {state?.loading
+                      ? 'Loading saved vectors'
+                      : state?.error
+                        ? state.error
+                        : `${formatNumber(resource.featureCount)} original features`}
+                  </span>
+                </span>
+                {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            )
           })}
-          {!crtcResources.length && <p className="text-xs text-muted-foreground">Restore the CRTC archive to view its 15 saved layers here.</p>}
+          {!crtcResources.length && (
+            <p className="text-xs text-muted-foreground">Restore the CRTC archive to view its 15 saved layers here.</p>
+          )}
         </div>
       </SidebarSection>
 
       <SidebarSection title="Source references" icon={RadioTower}>
-        <p className="text-xs text-muted-foreground">The cell-coverage archive contains source links. Videotron LTE and Freedom nationwide / extended LTE have no saved imagery in this folder, so there is no original tile data to convert or compare.</p>
+        <p className="text-xs text-muted-foreground">
+          The cell-coverage archive contains source links. Videotron LTE and Freedom nationwide / extended LTE have no
+          saved imagery in this folder, so there is no original tile data to convert or compare.
+        </p>
       </SidebarSection>
 
       <SidebarSection>
@@ -908,14 +1197,20 @@ export default function DevNetworks() {
           <div className="mt-1">
             {visibleBellLayerIds.length} Bell layer{visibleBellLayerIds.length === 1 ? '' : 's'} ·{' '}
             {visibleRogersLayerIds.length} Rogers layer{visibleRogersLayerIds.length === 1 ? '' : 's'} ·{' '}
-            {rasterView === 'grid' ? `${cellPixels} × ${cellPixels} source-pixel boxes` : bellRenderMode === 'raster'
-              ? `deck.gl raster tiles, z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
-              : `${formatNumber(visibleBellFeatureCount)} loaded polygon rectangles`}
+            {rasterView === 'grid'
+              ? `${cellPixels} × ${cellPixels} source-pixel boxes`
+              : bellRenderMode === 'raster'
+                ? `deck.gl raster tiles, z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
+                : `${formatNumber(visibleBellFeatureCount)} loaded polygon rectangles`}
           </div>
           <div className="mt-1">
-            {rasterView === 'grid' ? cellPixels === '1' ? 'Original source pixels stay intact at every saved level; labels are inferred only for picking.' : 'Simplified boxes can alter boundaries; grey boxes retain uncertain evidence.' : bellRenderMode === 'raster'
-              ? 'This is the recommended web path: only visible PNG tiles are fetched.'
-              : 'Debug mode loads flat GeoJSON rectangles and should stay low-zoom only.'}
+            {rasterView === 'grid'
+              ? cellPixels === '1'
+                ? 'Original source pixels stay intact at every saved level; labels are inferred only for picking.'
+                : 'Simplified boxes can alter boundaries; grey boxes retain uncertain evidence.'
+              : bellRenderMode === 'raster'
+                ? 'This is the recommended web path: only visible PNG tiles are fetched.'
+                : 'Debug mode loads flat GeoJSON rectangles and should stay low-zoom only.'}
           </div>
         </div>
       </SidebarSection>
@@ -980,11 +1275,20 @@ export default function DevNetworks() {
           crtcLayers={crtcLayers}
         />
         {cellSites.length > 0 && <CellSitePieLayer sites={cellSites} visibleGroups={visibleSiteGroups} />}
-        {crtcLayers.filter(({ resource }) => resource.id.includes('major-roads')).map(({ resource, data }) => <MapLineLayer
-          key={resource.id} sourceKey={resource.id} data={data} sourceTolerance={0}
-          color="#235791" width={1} opacity={0.72}
-          hoverHtml={() => mapTooltipHtml({ title: resource.title, subtitle: 'Original saved CRTC road geometry' })}
-        />)}
+        {crtcLayers
+          .filter(({ resource }) => resource.id.includes('major-roads'))
+          .map(({ resource, data }) => (
+            <MapLineLayer
+              key={resource.id}
+              sourceKey={resource.id}
+              data={data}
+              sourceTolerance={0}
+              color="#235791"
+              width={1}
+              opacity={0.72}
+              hoverHtml={() => mapTooltipHtml({ title: resource.title, subtitle: 'Original saved CRTC road geometry' })}
+            />
+          ))}
         {rasterView === 'grid' && <NetworkGridNavigation sourceLevel={sourceLevel} />}
       </AppMap>
     </MapSectionLayout>

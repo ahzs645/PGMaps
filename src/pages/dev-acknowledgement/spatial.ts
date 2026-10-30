@@ -185,12 +185,14 @@ export async function localVerifiedMatches(result: GeocodeResult): Promise<Sourc
 
   if (!nearest || nearest.distanceKm > LOCAL_COMMUNITY_MAX_KM) return []
 
-  return [{
-    source: 'local',
-    name: nearest.name,
-    label: 'Nearest First Nation community',
-    detail: `~${Math.round(nearest.distanceKm)} km away${nearest.office ? ` · ${nearest.office} office` : ''}`,
-  }]
+  return [
+    {
+      source: 'local',
+      name: nearest.name,
+      label: 'Nearest First Nation community',
+      detail: `~${Math.round(nearest.distanceKm)} km away${nearest.office ? ` · ${nearest.office} office` : ''}`,
+    },
+  ]
 }
 
 /**
@@ -205,7 +207,9 @@ export async function resolveNationsAtPoint(
   signal?: AbortSignal,
 ): Promise<string[]> {
   const matches = await queryNativeLandSource(lat, lng, signal)
-  const territoryNames = matches.filter((match) => match.label === 'Native Land territory overlap').map((match) => match.name)
+  const territoryNames = matches
+    .filter((match) => match.label === 'Native Land territory overlap')
+    .map((match) => match.name)
   const names = territoryNames
 
   const aliasIndex = graph ? buildNationAliasIndex(graph) : null

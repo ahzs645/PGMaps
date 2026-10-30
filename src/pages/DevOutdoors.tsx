@@ -615,9 +615,13 @@ function DevOutdoors() {
       generatedUrl = url.toString()
       return generatedUrl
     })
-    setStatusMessage(copied ? null : generatedUrl
-      ? 'Clipboard access was unavailable. Copy the plan link below.'
-      : 'This plan is too large for a link (drawn geometry adds up) — use Export plan instead.')
+    setStatusMessage(
+      copied
+        ? null
+        : generatedUrl
+          ? 'Clipboard access was unavailable. Copy the plan link below.'
+          : 'This plan is too large for a link (drawn geometry adds up) — use Export plan instead.',
+    )
     if (!copied && generatedUrl) setShareFallback(generatedUrl)
   }, [plan, copy])
 
@@ -931,9 +935,7 @@ function DevOutdoors() {
           </SidebarSection>
 
           <SidebarSection title="Management units">
-            {wmuLayerError && (
-              <InlineAlert tone="warning">{wmuLayerError}</InlineAlert>
-            )}
+            {wmuLayerError && <InlineAlert tone="warning">{wmuLayerError}</InlineAlert>}
             {plan.wmus.length === 0 ? (
               <p className="text-xs leading-5 text-muted-foreground">
                 Click a Wildlife Management Unit on the map to add it to the plan.
@@ -1129,8 +1131,15 @@ function DevOutdoors() {
       </SidebarSection>
 
       <SidebarSection title="Save & share">
-        {shareFallback && <input aria-label="Plan link for manual copying" readOnly value={shareFallback}
-          onFocus={(event) => event.currentTarget.select()} className="mb-2 w-full rounded border border-input bg-background p-2 text-base md:text-xs" />}
+        {shareFallback && (
+          <input
+            aria-label="Plan link for manual copying"
+            readOnly
+            value={shareFallback}
+            onFocus={(event) => event.currentTarget.select()}
+            className="mb-2 w-full rounded border border-input bg-background p-2 text-base md:text-xs"
+          />
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" size="sm" disabled={copyState === 'pending'} onClick={handleCopyLink}>
             {copyState === 'copied' ? (

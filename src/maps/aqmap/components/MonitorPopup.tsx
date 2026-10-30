@@ -110,7 +110,10 @@ export function MonitorHealthAdvice({
   const isNoData = pm25 === null
   return (
     <div className={cn('rounded-md border border-border bg-muted/40', className)}>
-      <div className="text-xs font-semibold leading-snug text-foreground" title={translate('popup.healthMessage', locale)}>
+      <div
+        className="text-xs font-semibold leading-snug text-foreground"
+        title={translate('popup.healthMessage', locale)}
+      >
         {health.heading}
       </div>
       <div className="mt-1.5 space-y-1">

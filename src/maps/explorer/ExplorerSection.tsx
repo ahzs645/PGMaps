@@ -106,7 +106,7 @@ export default function ExplorerSection() {
           lineCollections={lineCollections}
           polygonCollections={polygonCollections}
           selectedItem={selectedItem}
-          onItemSelect={(itemId) => setSelectedItemId((current) => current === itemId ? null : itemId)}
+          onItemSelect={(itemId) => setSelectedItemId((current) => (current === itemId ? null : itemId))}
           spatialFilter={spatialFilter}
           onSpatialFilterChange={setSpatialFilter}
           onMapRightClick={(lng, lat) => setNeighborhoodPoint({ lat, lng })}
@@ -133,10 +133,7 @@ export default function ExplorerSection() {
         )}
 
         {isMobileViewport && selectedItem && (
-          <MobileExplorerFeatureCard
-            item={selectedItem}
-            onClose={() => setSelectedItemId(null)}
-          />
+          <MobileExplorerFeatureCard item={selectedItem} onClose={() => setSelectedItemId(null)} />
         )}
       </div>
     </MapSectionLayout>

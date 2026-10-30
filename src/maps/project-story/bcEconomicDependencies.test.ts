@@ -8,10 +8,7 @@ const project = normalizeProjectPackage(
   JSON.parse(readFileSync(path.join(root, 'public/data/projects/bc-economic-dependencies.json'), 'utf8')),
 )!
 const data = JSON.parse(
-  readFileSync(
-    path.join(root, 'vendor/bcdatamapper/datascrapers/bc/laep/output/regional-districts.json'),
-    'utf8',
-  ),
+  readFileSync(path.join(root, 'vendor/bcdatamapper/datascrapers/bc/laep/output/regional-districts.json'), 'utf8'),
 ) as { records: Record<string, string | number | null>[] }
 
 describe('BC economic dependencies project', () => {

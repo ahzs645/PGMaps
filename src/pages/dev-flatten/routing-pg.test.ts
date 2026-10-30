@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { defaultTrip, findFamily, isCityCoordinate, readTrip, routeGpx, snapPoint, tripHash, type Model } from './routing'
+import {
+  defaultTrip,
+  findFamily,
+  isCityCoordinate,
+  readTrip,
+  routeGpx,
+  snapPoint,
+  tripHash,
+  type Model,
+} from './routing'
 import { loadTestModel } from './testModel'
 
 let model: Model
@@ -15,14 +24,16 @@ describe('Prince George imported graph', () => {
     expect(family.members.length).toBeGreaterThan(1)
     for (let i = 1; i < family.members.length; i++) {
       expect(family.members[i].stats.distance_m).toBeGreaterThanOrEqual(family.members[i - 1].stats.distance_m)
-      expect(family.members[i].stats.elev_gain_m).toBeLessThanOrEqual(family.members[i - 1].stats.elev_gain_m + .001)
+      expect(family.members[i].stats.elev_gain_m).toBeLessThanOrEqual(family.members[i - 1].stats.elev_gain_m + 0.001)
     }
     const flat = family.members.at(-1)!
     expect(flat.stats.distance_m).toBeGreaterThan(5000)
     expect(flat.stats.distance_m).toBeLessThan(25000)
     expect(flat.stats.elev_gain_m).toBeGreaterThan(50)
     expect(flat.stats.elev_gain_m).toBeLessThan(700)
-    expect(Math.abs(flat.stats.elev_gain_m - flat.stats.elev_loss_m - (flat.stats.end_elev_m - flat.stats.start_elev_m))).toBeLessThan(2)
+    expect(
+      Math.abs(flat.stats.elev_gain_m - flat.stats.elev_loss_m - (flat.stats.end_elev_m - flat.stats.start_elev_m)),
+    ).toBeLessThan(2)
     expect(flat.coordinates.every(([lon, lat]) => isCityCoordinate(lon, lat, 'pg'))).toBe(true)
     expect(model.index.search('Prince George City Hall')[0].name).toBe('Prince George City Hall')
     expect(model.index.search('Trick Dog')).toHaveLength(0)
@@ -33,7 +44,8 @@ describe('Prince George imported graph', () => {
   it('uses bike permissions and closes a loop at the chosen start', async () => {
     const trip = { ...defaultTrip('pg'), mode: 'bike' as const }
     const family = await findFamily(model, trip, new AbortController().signal)
-    const from = snapPoint(model, trip.from!, 'bike'), to = snapPoint(model, trip.to!, 'bike')
+    const from = snapPoint(model, trip.from!, 'bike'),
+      to = snapPoint(model, trip.to!, 'bike')
     for (const member of family.members) {
       expect(model.graph.arcTail(member.arcs[0])).toBe(from.node)
       expect(model.graph.head[member.arcs.at(-1)!]).toBe(to.node)
@@ -44,7 +56,8 @@ describe('Prince George imported graph', () => {
   }, 30000)
 
   it('round-trips PG links and rejects a link for the other city', () => {
-    const trip = defaultTrip('pg'), hash = tripHash(trip)!
+    const trip = defaultTrip('pg'),
+      hash = tripHash(trip)!
     const restored = readTrip(hash, 'pg')
     expect(restored.from!.label).toBe(trip.from!.label)
     expect(restored.from!.lon).toBeCloseTo(trip.from!.lon, 5)

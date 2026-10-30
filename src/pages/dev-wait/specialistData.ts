@@ -109,9 +109,9 @@ export function procedureMatchesFilter(procedure: SpecialistProcedure, filter: S
 
 export function facilityMatchesFilter(facility: SpecialistFacility, filter: SpecialistFilter): boolean {
   if (!filter.procedureName && (!filter.patientType || filter.patientType === 'all')) return true
-  return facility.specialists.some((specialist) => (
-    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter))
-  ))
+  return facility.specialists.some((specialist) =>
+    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter)),
+  )
 }
 
 export function facilityWaitMetrics(facility: SpecialistFacility, filter: SpecialistFilter = {}): FacilityWaitMetrics {

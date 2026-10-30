@@ -32,11 +32,14 @@ export function MobileFeatureInspector({
 }) {
   const [actionsOpen, setActionsOpen] = useState(false)
 
-  const openIn = useCallback((target: OpenInTarget) => {
-    if (!openInPoint) return
-    window.open(getOpenInUrl(target, openInPoint, feature), '_blank', 'noopener,noreferrer')
-    setActionsOpen(false)
-  }, [feature, openInPoint])
+  const openIn = useCallback(
+    (target: OpenInTarget) => {
+      if (!openInPoint) return
+      window.open(getOpenInUrl(target, openInPoint, feature), '_blank', 'noopener,noreferrer')
+      setActionsOpen(false)
+    },
+    [feature, openInPoint],
+  )
 
   return (
     <MobileMapCard
@@ -50,7 +53,7 @@ export function MobileFeatureInspector({
       onCollapse={onCollapse}
       onDock={onDock}
       onClose={onClose}
-      actions={(
+      actions={
         <div className="relative">
           <button
             type="button"
@@ -74,11 +77,14 @@ export function MobileFeatureInspector({
             />
           )}
         </div>
-      )}
+      }
     >
       <div aria-label="Vector feature popup contents" className="px-4 py-2">
         {feature.properties.properties.map((row) => (
-          <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0">
+          <div
+            key={row.label}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0"
+          >
             <span className="text-muted-foreground">{row.label}</span>
             <span className="min-w-0 truncate font-medium text-foreground">{row.value || '-'}</span>
           </div>
