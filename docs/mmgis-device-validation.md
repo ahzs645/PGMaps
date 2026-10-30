@@ -5,6 +5,14 @@ the [MMGIS source comparison](mmgis-interaction-comparison.md). Missing MMGIS
 features remain missing; testing the workbench on a phone does not establish
 MMGIS runtime parity.
 
+Verification on 2026-10-30: 32 production-browser cases and 73 focused unit
+checks passed, together with application TypeScript, lint and production build.
+The five viewport cases were also repeated with explicit renderer-readiness and
+rendered-feature checks before screenshots. A separate live-basemap smoke check
+loaded CARTO tiles and created a new point on desktop and touch-phone emulation
+without script errors or basemap fallback. These live checks are observations at
+the time of testing, not an uptime guarantee.
+
 ## Device and input matrix
 
 The same workflow tests run at 1440×960 with mouse input and at 390×844 with
