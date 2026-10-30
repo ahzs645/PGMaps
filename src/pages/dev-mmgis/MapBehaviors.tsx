@@ -40,6 +40,8 @@ export function WorkbenchMapEvents({
     }
     const pointer = (e: MapLibreGL.MapMouseEvent) => latest.current.onPointer?.([e.lngLat.wrap().lng, e.lngLat.lat])
     const click = (e: MapLibreGL.MapMouseEvent) => {
+      // Touch devices have no hover. A tap must also establish the inspection coordinate.
+      pointer(e)
       if (latest.current.tool === 'inspect') return
       const p: Coordinate = [e.lngLat.wrap().lng, e.lngLat.lat]
       latest.current.onClick?.(p)

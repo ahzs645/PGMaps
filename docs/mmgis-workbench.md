@@ -8,6 +8,8 @@ See the [source and interaction comparison](mmgis-interaction-comparison.md) for
 the complete core-plugin inventory, gesture checks and remaining differences,
 and the [initial toolkit gap analysis](mmgis-geotoolkit-gap-analysis.md) for the
 package-level assessment. This example does not establish full MMGIS parity.
+The [device validation matrix](mmgis-device-validation.md) records desktop,
+touch-phone, landscape and narrow-screen workflows and their verification limits.
 
 ## Working capabilities
 
@@ -40,6 +42,8 @@ package-level assessment. This example does not establish full MMGIS parity.
   HTML markers and application panels, following the toolkit capture contract.
 - Responsive sidebar/sheet, resizable split scenes, attribute table and a read-only
   `read_mission_workbench` WebMCP tool reporting actual map/layer state.
+  Phone map tools collapse the sheet and offer Finish/Undo/Done directly above
+  the map. Feature selection opens the inspector; raster inspection accepts taps.
 
 ## Boundaries and limits
 
@@ -93,7 +97,7 @@ npx vitest run src/pages/dev-mmgis/mission.test.ts src/lib/geoFileImport.test.ts
 npx eslint src/pages/DevMmgis.tsx src/pages/dev-mmgis
 npx tsc -b
 # With an existing Vite server:
-PGMAPS_E2E_BASE_URL=http://127.0.0.1:5173 npx playwright test tests/e2e/mmgis.spec.ts --workers=1
+PGMAPS_E2E_BASE_URL=http://127.0.0.1:5173 npx playwright test tests/e2e/mmgis.spec.ts tests/e2e/mmgis-responsive.spec.ts --workers=1
 ```
 
 Browser tests stub basemaps, terrain and raster services to verify interactions

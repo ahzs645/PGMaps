@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
-import type { Geometry } from 'geojson'
+import { openMission as open, readMission as read } from './mmgis-helpers'
+
+const nav = (page: Page, name: string) =>
+  page.getByRole('navigation', { name: 'Workbench tools' }).getByRole('button', { name, exact: true }).click()
 
 test.use({
   serviceWorkers: 'block',
@@ -9,73 +12,6 @@ test.use({
     args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
   },
 })
-declare global {
-  interface Window {
-    missionRead: () => Promise<{
-      visibleFeatures: number
-      name: string
-      view: string
-      tool: string
-      draftVertices: number
-      selectedFeature: { geometry: Geometry; properties: Record<string, unknown> } | null
-      bookmarks: Array<{ name: string; camera: { center: [number, number]; zoom: number } }>
-      selected: { layer: string; id: string } | null
-      layers: Array<{
-        id: string
-        name: string
-        features: number
-        shown: number
-        visible: boolean
-        opacity: number
-        geometryTypes: string[]
-        style: { type: string }
-      }>
-      map: {
-        loaded: boolean
-        layerCount: number
-        sources: string[]
-        terrain: unknown
-        camera: { center: [number, number]; zoom: number }
-        paintedLayers: Array<{ id: string; type: string; paint: Record<string, unknown>; visible: boolean }>
-        dataSources: Array<{ id: string; features: number; geometryTypes: string[] }>
-      }
-    }>
-  }
-}
-async function open(page: Page) {
-  const errors: string[] = []
-  page.on('pageerror', (e) => errors.push(e.message))
-  await page.addInitScript(() => {
-    Object.defineProperty(document, 'modelContext', {
-      value: {
-        registerTool: async (tool: { name: string; execute: (args: object, options: object) => Promise<unknown> }) => {
-          if (tool.name === 'read_mission_workbench')
-            window.missionRead = () => tool.execute({}, {}) as ReturnType<typeof window.missionRead>
-        },
-      },
-    })
-  })
-  await page.route('https://basemaps.cartocdn.com/**', (r) =>
-    r.fulfill({
-      json: {
-        version: 8,
-        sources: {},
-        layers: [{ id: 'base', type: 'background', paint: { 'background-color': '#e2e9e5' } }],
-        glyphs: 'https://mission-test.invalid/{fontstack}/{range}.pbf',
-      },
-    }),
-  )
-  await page.goto('/dev/mmgis')
-  await expect.poll(() => page.evaluate(() => window.missionRead?.().then((r) => r.map.loaded))).toBe(true)
-  return errors
-}
-const read = async (page: Page) => {
-  await page.waitForFunction(() => typeof window.missionRead === 'function')
-  return page.evaluate(() => window.missionRead())
-}
-const nav = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Workbench tools' }).getByRole('button', { name, exact: true }).click()
-
 test.describe('mission workbench desktop', () => {
   test.use({ viewport: { width: 1440, height: 960 } })
   test('renders real layers and coordinates search, time, table and undo', async ({ page }) => {

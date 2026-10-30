@@ -71,6 +71,7 @@ import {
 } from './dev-mmgis/model'
 import { httpUrl, validateCollection } from './dev-mmgis/missionCodec'
 import { useWebMCPTools } from '@/lib/webmcp'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import './dev-mmgis/workbench.css'
 
 const PANELS = [
@@ -88,6 +89,8 @@ const FALLBACK: MapLibreGL.StyleSpecification = {
 }
 
 export default function DevMmgis() {
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  const wideScene = useMediaQuery('(min-width: 900px), (orientation: landscape)')
   const { mission, change, undo, redo, canUndo, canRedo, error, setError, status } = useMission()
   const [panel, setPanel] = useState<Panel>('layers'),
     [tool, setTool] = useState<Tool>('inspect')
@@ -116,6 +119,11 @@ export default function DevMmgis() {
     [pointer, setPointer] = useState<Coordinate | null>(null)
   const [raster, setRaster] = useState<LocalRaster | null>(null),
     [showSidebar, setShowSidebar] = useState(true)
+  const [sheet, setSheet] = useState({ state: 'collapsed' as 'collapsed' | 'half' | 'full', key: 0 })
+  const showPanel = useCallback((state: 'collapsed' | 'full') => {
+    setSheet((previous) => ({ state, key: previous.key + 1 }))
+    if (state === 'full') setShowSidebar(true)
+  }, [])
   const [observer, setObserver] = useState<Coordinate>(mission.camera.center),
     [radius, setRadius] = useState(1500),
     [height, setHeight] = useState(1.6)
@@ -202,6 +210,8 @@ export default function DevMmgis() {
             ? { geometry: selectedFeature.geometry, properties: selectedFeature.properties }
             : null,
           draftVertices: points.length,
+          pointer,
+          editing,
           bookmarks: mission.bookmarks.map((b) => ({ name: b.name, camera: b.camera })),
           layers: mission.layers.map((l) => ({
             id: l.id,
@@ -304,8 +314,9 @@ export default function DevMmgis() {
       setEditing(false)
       if (next === 'inspect') return
       setPanel(next === 'viewshed' ? 'terrain' : 'draw')
+      if (isMobile) showPanel('collapsed')
     },
-    [tool, setPoints],
+    [tool, setPoints, isMobile, showPanel],
   )
   const saveDrawing = useCallback(
     (asPath = false) => {
@@ -332,8 +343,9 @@ export default function DevMmgis() {
       setTool('inspect')
       setName('')
       setPoints([])
+      showPanel('full')
     },
-    [tool, name, mission.layers.length, change, setPoints],
+    [tool, name, mission.layers.length, change, setPoints, showPanel],
   )
   const finish = useCallback(() => {
     if (tool === 'measure') {
@@ -369,6 +381,7 @@ export default function DevMmgis() {
         setSelected({ layer: layer.id, id: `${layer.id}:0` })
         setTool('inspect')
         setName('')
+        showPanel('full')
         return
       }
       setPoints((previous) => {
@@ -378,7 +391,7 @@ export default function DevMmgis() {
           : [...previous, p]
       })
     },
-    [tool, name, change, setPoints],
+    [tool, name, change, setPoints, showPanel],
   )
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -402,11 +415,12 @@ export default function DevMmgis() {
       if (tool !== 'inspect') return
       setSelected({ layer, id })
       setEditing(false)
+      showPanel('full')
       const feature = getLayer(layer).collection.features.find((f) => f.properties[FEATURE_ID_KEY] === id)
       const center = feature ? featureCenter(feature) : null
       if (center) map?.easeTo({ center, duration: 400 })
     },
-    [tool, getLayer, map],
+    [tool, getLayer, map, showPanel],
   )
   const editFeature = useCallback(
     (patch: { geometry?: Geometry; properties?: Record<string, unknown> }, remove = false) => {
@@ -600,7 +614,10 @@ export default function DevMmgis() {
         onProperties={(properties) => editFeature({ properties })}
         onDelete={() => editFeature({}, true)}
         editing={editing}
-        onEditing={setEditing}
+        onEditing={(value) => {
+          setEditing(value)
+          if (value && isMobile) showPanel('collapsed')
+        }}
       />
     ) : null
   const sidebar = (
@@ -610,7 +627,13 @@ export default function DevMmgis() {
       subtitle="Earth exploration · local workspace"
       icon={Globe2}
       actions={
-        <button aria-label="Hide sidebar" onClick={() => setShowSidebar(false)}>
+        <button
+          aria-label="Hide sidebar"
+          onClick={() => {
+            setShowSidebar(false)
+            showPanel('collapsed')
+          }}
+        >
           <PanelLeftClose size={16} />
         </button>
       }
@@ -669,7 +692,10 @@ export default function DevMmgis() {
           mission={mission}
           change={change}
           tool={tool}
-          setTool={activate}
+          setTool={(next) => {
+            activate(next)
+            setPanel('terrain')
+          }}
           points={points}
           raster={raster}
           observer={observer}
@@ -851,7 +877,7 @@ export default function DevMmgis() {
             aria-label="Configure mission"
             onClick={() => {
               setPanel('workspace')
-              setShowSidebar(true)
+              showPanel('full')
             }}
           >
             <Settings2 size={14} />
@@ -866,6 +892,9 @@ export default function DevMmgis() {
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((v) => !v)}
         mobileInitialSheetState="collapsed"
+        mobileSnapTo={sheet.state}
+        mobileSnapKey={sheet.key}
+        mobileCollapsedVisibleHeight={72}
         mobilePeekTitle="Mission workbench"
         mobilePeekSubtitle={`${visibleCount} features · ${tool === 'inspect' ? 'Inspect map' : `${tool} tool active`}`}
         mobileScrimEnabled={false}
@@ -884,7 +913,14 @@ export default function DevMmgis() {
                   <MousePointer2 size={16} />
                   <span>Inspect</span>
                 </button>
-                <button aria-label="Draw and measure" aria-pressed={panel === 'draw'} onClick={() => setPanel('draw')}>
+                <button
+                  aria-label="Draw and measure"
+                  aria-pressed={panel === 'draw'}
+                  onClick={() => {
+                    setPanel('draw')
+                    showPanel('full')
+                  }}
+                >
                   <Pencil size={16} />
                 </button>
                 <button aria-label="Undo mission edit" disabled={!canUndo} onClick={undo}>
@@ -902,7 +938,12 @@ export default function DevMmgis() {
                     ['globe', 'Globe', Globe2],
                   ] as const
                 ).map(([v, label, Icon]) => (
-                  <button key={v} aria-pressed={mission.view === v} onClick={() => change((m) => ({ ...m, view: v }))}>
+                  <button
+                    key={v}
+                    aria-label={label}
+                    aria-pressed={mission.view === v}
+                    onClick={() => change((m) => ({ ...m, view: v }))}
+                  >
                     <Icon size={15} />
                     <span>{label}</span>
                   </button>
@@ -936,10 +977,33 @@ export default function DevMmgis() {
                 </button>
               </div>
             </div>
+            {(tool !== 'inspect' || editing) && (
+              <div className="mm-map-tool-actions" role="group" aria-label="Active map tool">
+                <span>{editing ? 'Move a vertex' : `${tool} · ${points.length} vertices`}</span>
+                {['line', 'polygon', 'measure'].includes(tool) && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!points.length}
+                      onClick={() => setPoints((p) => p.slice(0, -1))}
+                    >
+                      Undo vertex
+                    </Button>
+                    <Button size="sm" disabled={points.length < (tool === 'polygon' ? 3 : 2)} onClick={finish}>
+                      Finish
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant="outline" onClick={() => activate('inspect')}>
+                  Done
+                </Button>
+              </div>
+            )}
             <ResizableSplit
               className="mm-scenes"
-              direction="row"
-              splitQuery={mission.view === 'split' ? '(min-width: 900px)' : '(min-width: 0px)'}
+              direction={wideScene ? 'row' : 'column'}
+              splitQuery="(min-width: 0px)"
               storageKey="mmgis:scenes"
               panes={[
                 {
@@ -979,7 +1043,9 @@ export default function DevMmgis() {
                 {visibleCount.toLocaleString()} visible features
               </span>
               <span>
-                {pointer ? `${pointer[1].toFixed(5)}°, ${pointer[0].toFixed(5)}°` : 'Move over map for coordinates'}
+                {pointer
+                  ? `${pointer[1].toFixed(5)}°, ${pointer[0].toFixed(5)}°`
+                  : 'Tap or move over map for coordinates'}
               </span>
               <button onClick={() => exportData()} disabled={!mission.layers.length}>
                 Export layer CSV

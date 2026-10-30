@@ -254,7 +254,11 @@ export function RasterPanel({
             <div className="mm-readout">
               <span>Original cell</span>
               <strong>
-                {sample ? (sample.value === null ? 'No data' : `${sample.value.toFixed(2)} m`) : 'Move over raster'}
+                {sample
+                  ? sample.value === null
+                    ? 'No data'
+                    : `${sample.value.toFixed(2)} m`
+                  : 'Tap or move over raster'}
               </strong>
             </div>
             {sample && (

@@ -10,7 +10,7 @@ on:
       - 'src/features/terrain-viewshed/**'
       - 'src/pages/dev-forestry/**'
       - 'packages/geo-toolkit'
-      - 'tests/e2e/mmgis.spec.ts'
+      - 'tests/e2e/mmgis*.ts'
       - 'docs/mmgis-*.md'
       - '.github/workflows/mmgis.yml'
   workflow_dispatch:
@@ -46,8 +46,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Check workbench interactions
         run: |
-          npx vite --host 127.0.0.1 --port 42173 --strictPort > mmgis-vite.log 2>&1 &
-          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/mmgis.spec.ts --workers=1
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > mmgis-vite.log 2>&1 &
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/mmgis.spec.ts tests/e2e/mmgis-responsive.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
