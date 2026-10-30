@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { ErstatHospital } from '../../src/pages/dev-wait/data'
 import type { SpecialistFacility, SpecialistMapData } from '../../src/pages/dev-wait/specialistData'
 
-test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 860 } })
+test.use({ serviceWorkers: 'block' })
 // Real MapLibre rendering and camera transitions use SwiftShader in CI.
 test.setTimeout(60_000)
 
@@ -123,55 +123,66 @@ async function stubSources(page: Page) {
   return errors
 }
 
-test('ER count bubbles zoom into separate hospitals and refresh after zooming out', async ({ page }) => {
-  const errors = await stubSources(page)
-  await page.goto('/dev/health/wait')
-  const cluster = page.getByRole('button', { name: 'Zoom to 2 hospitals', exact: true })
-  await expect(cluster).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Alpha emergency: 1h', exact: true })).toHaveCount(0)
+for (const mobile of [false, true]) {
+  test.describe(mobile ? 'wait maps on a phone' : 'wait maps on desktop', () => {
+    test.use({
+      viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 860 },
+      hasTouch: mobile,
+      isMobile: mobile,
+    })
+    test('ER count bubbles zoom into separate hospitals and refresh after zooming out', async ({ page }) => {
+      const errors = await stubSources(page)
+      await page.goto('/dev/health/wait')
+      const cluster = page.getByRole('button', { name: 'Zoom to 2 hospitals', exact: true })
+      await expect(cluster).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Alpha emergency: 1h', exact: true })).toHaveCount(0)
 
-  await cluster.click()
-  const alpha = page.getByRole('button', { name: 'Alpha emergency: 1h', exact: true })
-  await expect(alpha).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Beta emergency: 1h', exact: true })).toBeVisible()
-  await expect(cluster).toHaveCount(0)
-  await alpha.click()
-  await expect(page.locator('.mapcn-popup')).toContainText('Alpha emergency')
-  await page.getByRole('button', { name: 'Close popup', exact: true }).click()
+      await cluster.click()
+      const alpha = page.getByRole('button', { name: 'Alpha emergency: 1h', exact: true })
+      await expect(alpha).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Beta emergency: 1h', exact: true })).toBeVisible()
+      await expect(cluster).toHaveCount(0)
+      await alpha.click()
+      await expect(page.locator('.mapcn-popup')).toContainText('Alpha emergency')
+      await page.getByRole('button', { name: 'Close popup', exact: true }).click()
 
-  // A real camera change must recalculate membership, rather than leave stale singletons.
-  await page.getByRole('button', { name: 'Zoom out', exact: true }).click()
-  await expect(cluster).toBeVisible()
-  await expect(alpha).toHaveCount(0)
-  expect(errors).toEqual([])
-})
+      // A real camera change must recalculate membership, rather than leave stale singletons.
+      await page.getByRole('button', { name: 'Zoom out', exact: true }).click()
+      await expect(cluster).toBeVisible()
+      await expect(alpha).toHaveCount(0)
+      expect(errors).toEqual([])
+    })
 
-test('specialist bubbles reveal selectable facilities and refresh on resize and filtering', async ({ page }) => {
-  const errors = await stubSources(page)
-  await page.goto('/dev/health/wait/specialist')
-  const reveal = page.getByRole('button', { name: 'Reveal 2 facilities', exact: true })
-  await expect(reveal).toBeVisible()
-  const alpha = page.getByRole('button', { name: 'Alpha surgery: median P90 30.0w, 1 specialists', exact: true })
-  const beta = page.getByRole('button', { name: 'Beta surgery: median P90 8.0w, 1 specialists', exact: true })
-  await expect(alpha).toHaveCount(0)
-  await reveal.click()
-  await expect(page.getByRole('button', { name: 'Hide 2 facilities', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  await expect(alpha).toBeVisible()
-  await expect(beta).toBeVisible()
-  await beta.click()
-  await expect(page.locator('.mapcn-popup')).toContainText('Beta surgery')
-  await page.getByRole('button', { name: 'Close popup', exact: true }).click()
+    test('specialist bubbles reveal selectable facilities and refresh on resize and filtering', async ({ page }) => {
+      const errors = await stubSources(page)
+      await page.goto('/dev/health/wait/specialist')
+      const reveal = page.getByRole('button', { name: 'Reveal 2 facilities', exact: true })
+      await expect(reveal).toBeVisible()
+      const alpha = page.getByRole('button', { name: 'Alpha surgery: median P90 30.0w, 1 specialists', exact: true })
+      const beta = page.getByRole('button', { name: 'Beta surgery: median P90 8.0w, 1 specialists', exact: true })
+      await expect(alpha).toHaveCount(0)
+      await reveal.click()
+      await expect(page.getByRole('button', { name: 'Hide 2 facilities', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      await expect(alpha).toBeVisible()
+      await expect(beta).toBeVisible()
+      await beta.click()
+      await expect(page.locator('.mapcn-popup')).toContainText('Beta surgery')
+      await page.getByRole('button', { name: 'Close popup', exact: true }).click()
 
-  // Cluster identity follows screen position. A changed canvas invalidates the old reveal.
-  await page.setViewportSize({ width: 1440, height: 860 })
-  await expect(reveal).toBeVisible()
-  await expect(alpha).toHaveCount(0)
-  await page.getByRole('textbox', { name: 'Search facilities, specialists, or procedures' }).fill('Alpha surgery')
-  await expect(alpha).toBeVisible()
-  await expect(reveal).toHaveCount(0)
-  await expect(beta).toHaveCount(0)
-  expect(errors).toEqual([])
-})
+      // Cluster identity follows screen position. A changed canvas invalidates the old reveal.
+      await page.setViewportSize({ width: mobile ? 414 : 1440, height: mobile ? 844 : 860 })
+      await expect(reveal).toBeVisible()
+      await expect(alpha).toHaveCount(0)
+      if (mobile) await page.locator('[data-map-mobile-sheet-handle]').press('End')
+      await page.getByRole('textbox', { name: 'Search facilities, specialists, or procedures' }).fill('Alpha surgery')
+      if (mobile) await page.locator('[data-map-mobile-sheet-handle]').press('Home')
+      await expect(alpha).toBeVisible()
+      await expect(reveal).toHaveCount(0)
+      await expect(beta).toHaveCount(0)
+      expect(errors).toEqual([])
+    })
+  })
+}

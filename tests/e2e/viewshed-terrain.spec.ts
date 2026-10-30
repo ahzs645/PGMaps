@@ -5,48 +5,78 @@ test.use({ serviceWorkers: 'block' })
 // Several terrain/camera changes render through SwiftShader in CI.
 test.setTimeout(90000)
 const bytes = new Uint8Array(256 * 256 * 3)
-for (let i = 0; i < bytes.length; i += 3) { bytes[i] = 129; bytes[i + 1] = 244 }
+for (let i = 0; i < bytes.length; i += 3) {
+  bytes[i] = 129
+  bytes[i + 1] = 244
+}
 // Terrarium: 129*256 + 244 - 32768 = 500 metres.
 const flatTile = Buffer.from(encode({ width: 256, height: 256, data: bytes, channels: 3, depth: 8 }))
 
 type Snapshot = {
-  loading: boolean; error: string | null
-  observer: { lng: number; lat: number }; observerHeightMeters: number
+  loading: boolean
+  error: string | null
+  observer: { lng: number; lat: number }
+  observerHeightMeters: number
   result: { visible: number; occluded: number; unknown: number } | null
   map: { loaded: boolean; coverageLayer: boolean; terrain: boolean }
 }
 async function read(page: Page): Promise<Snapshot | null> {
   return page.evaluate(async () => {
-    const tools = (window as unknown as { viewshedTools: Record<string, { execute: (input: object, options: { signal: AbortSignal }) => Promise<unknown> }> }).viewshedTools
+    const tools = (
+      window as unknown as {
+        viewshedTools: Record<
+          string,
+          { execute: (input: object, options: { signal: AbortSignal }) => Promise<unknown> }
+        >
+      }
+    ).viewshedTools
     const tool = tools.read_viewshed
-    return tool ? await tool.execute({}, { signal: new AbortController().signal }) as Snapshot : null
+    return tool ? ((await tool.execute({}, { signal: new AbortController().signal })) as Snapshot) : null
   })
 }
 async function setup(page: Page, fail = false) {
   await page.addInitScript(() => {
     const tools: Record<string, unknown> = {}
     ;(window as unknown as { viewshedTools: Record<string, unknown> }).viewshedTools = tools
-    Object.defineProperty(document, 'modelContext', { configurable: true, value: {
-      async registerTool(tool: { name: string }, options?: { signal?: AbortSignal }) {
-        tools[tool.name] = tool
-        options?.signal?.addEventListener('abort', () => { delete tools[tool.name] })
+    Object.defineProperty(document, 'modelContext', {
+      configurable: true,
+      value: {
+        async registerTool(tool: { name: string }, options?: { signal?: AbortSignal }) {
+          tools[tool.name] = tool
+          options?.signal?.addEventListener('abort', () => {
+            delete tools[tool.name]
+          })
+        },
       },
-    } })
+    })
   })
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
-    route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#f1f5f9' } }] } }))
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#f1f5f9' } }],
+      },
+    }),
+  )
   await page.route('**/elevation-tiles-prod/terrarium/**', (route) =>
-    fail ? route.fulfill({ status: 503, body: '' }) : route.fulfill({ contentType: 'image/png', body: flatTile }))
+    fail ? route.fulfill({ status: 503, body: '' }) : route.fulfill({ contentType: 'image/png', body: flatTile }),
+  )
 }
 test('dev entry opens a real coverage layer and observer changes update it', async ({ page }) => {
   await setup(page)
   await page.goto('/dev')
   await page.getByRole('link', { name: 'Open Viewshed', exact: true }).click()
   await page.getByRole('link', { name: 'Local DEM tools', exact: true }).click()
-  await expect.poll(async () => {
-    const state = await read(page)
-    return !!state?.result && state.map.coverageLayer
-  }, { timeout: 30000 }).toBe(true)
+  await expect
+    .poll(
+      async () => {
+        const state = await read(page)
+        return !!state?.result && state.map.coverageLayer
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true)
   const initial = (await read(page))!
   expect(initial.result!.visible).toBeGreaterThan(0)
   expect(initial.result!.unknown).toBe(0)
@@ -66,12 +96,19 @@ test('dev entry opens a real coverage layer and observer changes update it', asy
   await page.getByRole('button', { name: 'Move viewshed observer' }).focus()
   await page.keyboard.press('ArrowRight')
   await expect.poll(async () => (await read(page))?.observer.lng).toBeGreaterThan(initial.observer.lng)
-  await expect.poll(async () => {
-    const state = await read(page)
-    return !state?.loading && !!state?.result && state.map.coverageLayer
-  }, { timeout: 30000 }).toBe(true)
+  await expect
+    .poll(
+      async () => {
+        const state = await read(page)
+        return !state?.loading && !!state?.result && state.map.coverageLayer
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true)
   let requests = 0
-  page.on('request', (request) => { if (request.url().includes('/terrarium/')) requests++ })
+  page.on('request', (request) => {
+    if (request.url().includes('/terrarium/')) requests++
+  })
   const height = page.getByRole('slider', { name: 'Observer height above ground' })
   await height.focus()
   await page.keyboard.press('ArrowRight')
@@ -79,10 +116,15 @@ test('dev entry opens a real coverage layer and observer changes update it', asy
   await expect.poll(async () => (await read(page))?.loading, { timeout: 30000 }).toBe(false)
   expect(requests).toBe(0)
   await page.getByRole('button', { name: 'Vancouver', exact: true }).click()
-  await expect.poll(async () => {
-    const state = await read(page)
-    return state?.observer.lat === 49.28 && !state.loading && state.map.coverageLayer
-  }, { timeout: 30000 }).toBe(true)
+  await expect
+    .poll(
+      async () => {
+        const state = await read(page)
+        return state?.observer.lat === 49.28 && !state.loading && state.map.coverageLayer
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true)
   await page.screenshot({ path: 'test-results/viewshed.png' })
 })
 test('failed terrain produces an error and no coverage layer', async ({ page }) => {
@@ -92,3 +134,54 @@ test('failed terrain produces an error and no coverage layer', async ({ page }) 
   expect((await read(page))?.map.coverageLayer).toBe(false)
   await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible()
 })
+
+for (const mobile of [false, true]) {
+  test.describe(mobile ? 'local DEM controls on a phone' : 'local DEM controls on desktop', () => {
+    test.use({
+      viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 860 },
+      hasTouch: mobile,
+      isMobile: mobile,
+    })
+    test('updates numeric height, terrain layer, and observer without losing coverage', async ({ page }) => {
+      await setup(page)
+      await page.goto('/dev/viewshed/terrain')
+      const handle = page.locator('[data-map-mobile-sheet-handle]')
+      if (mobile) await handle.press('End')
+      await expect
+        .poll(
+          async () => {
+            const state = await read(page)
+            return !!state?.result && state.map.coverageLayer
+          },
+          { timeout: 30000 },
+        )
+        .toBe(true)
+      const before = (await read(page))!
+      const height = page.getByRole('slider', { name: 'Observer height above ground', exact: true })
+      await height.press('ArrowRight')
+      await expect
+        .poll(async () => (await read(page))?.observerHeightMeters)
+        .toBeGreaterThan(before.observerHeightMeters)
+      await page.getByRole('button', { name: /^3D terrain/ }).click()
+      await expect.poll(async () => (await read(page))?.map.terrain).toBe(true)
+      if (mobile) await handle.press('Home')
+      const observer = page.getByRole('button', { name: 'Move viewshed observer', exact: true })
+      await observer.press('ArrowRight')
+      await expect.poll(async () => (await read(page))?.observer.lng).toBeGreaterThan(before.observer.lng)
+      await expect
+        .poll(
+          async () => {
+            const state = await read(page)
+            return !state?.loading && !!state?.result && state.map.coverageLayer && state.map.terrain
+          },
+          { timeout: 30000 },
+        )
+        .toBe(true)
+      if (mobile) {
+        await handle.press('End')
+        await expect(height).toBeInViewport()
+        expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+      }
+    })
+  })
+}

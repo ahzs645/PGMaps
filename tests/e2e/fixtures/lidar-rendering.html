@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LiDAR production renderer verification</title>
+    <style>
+      body {
+        margin: 16px;
+        font: 14px system-ui;
+        background: #eef2f6;
+        color: #17212b;
+      }
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      canvas,
+      #map {
+        width: 256px;
+        height: 256px;
+        display: block;
+        background: white;
+      }
+      section {
+        padding: 12px;
+        border: 1px solid #bcc7d3;
+        background: white;
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Production LiDAR rendering</h1>
+    <main>
+      <section>
+        <h2>WebGL2 pixel readback</h2>
+        <div id="direct"></div>
+      </section>
+      <section>
+        <h2>MapLibre integration</h2>
+        <div id="map"></div>
+      </section>
+    </main>
+    <script type="module" src="/tests/e2e/fixtures/lidar-rendering.ts"></script>
+  </body>
+</html>

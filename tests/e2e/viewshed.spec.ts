@@ -205,3 +205,30 @@ test('mountain example enables true-scale terrain and tilt changes only the came
   await expect.poll(async () => (await mapState(page))?.pitch).toBe(75)
   expect((await mapState(page))?.terrain).toBe(true)
 })
+
+test.describe('viewshed controls on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  test('changes comparison and sun controls in the sheet while the coverage remains rendered', async ({ page }) => {
+    await stubMap(page)
+    await page.goto('/dev/viewshed')
+    const handle = page.locator('[data-map-mobile-sheet-handle]')
+    await handle.press('End')
+    await page.getByLabel('Analysis radius', { exact: true }).press('Home')
+    await expect(page.locator('[data-viewshed-status]')).toContainText('Viewshed ready', { timeout: 45000 })
+    await page.getByRole('button', { name: 'Compare', exact: true }).click()
+    await expect
+      .poll(async () =>
+        (await mapState(page))?.areas?.features.some((feature) => feature.properties?.color === '#059669'),
+      )
+      .toBe(true)
+    await page.getByLabel('Sun time zone').selectOption('UTC')
+    await page.getByLabel('Sun time', { exact: true }).press('Home')
+    await expect(page.getByText('00:00', { exact: true })).toBeVisible()
+    await handle.press('Home')
+    await expect.poll(async () => (await mapState(page))?.overlay).toBe(true)
+    await expect
+      .poll(async () => (await page.locator('[data-viewshed-legend]').boundingBox())?.y ?? 0)
+      .toBeGreaterThanOrEqual(64)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  })
+})

@@ -206,9 +206,18 @@ async function openAllSteps(page: Page) {
   for (const id of ['identify', 'visit', 'design', 'assess', 'rate'] as const) {
     await showStep(page, id)
     const panel = page.locator(`[data-via-panel="${id}"]`)
-    const folded = panel.locator('[data-forestry-disclosure][aria-expanded="false"]')
-    while ((await folded.count()) > 0) await folded.first().click()
-    for (const details of await panel.locator('details[data-forestry-disclosure]:not([open]) > summary').all()) await details.click()
+    // Open visible parents first; controls inside a closed detail or another
+    // tab are mounted but cannot be interacted with yet.
+    while (true) {
+      await showStep(page, id)
+      const next = panel.locator([
+        '[data-forestry-disclosure][aria-expanded="false"]:visible',
+        'details[data-forestry-disclosure]:not([open]) > summary:visible',
+        'details:not([open]):has([data-forestry-disclosure]) > summary:visible',
+      ].join(', ')).first()
+      if ((await next.count()) === 0) break
+      await next.click()
+    }
   }
   await showStep(page, 'design')
 }
@@ -1062,7 +1071,8 @@ test.describe('forestry visual quality', () => {
       await expect(controls.getByText('New forest records are ready. Pause to apply them.')).toBeVisible()
       await controls.getByRole('button', { name: 'Pause', exact: true }).click()
       await expect(controls.getByText(/1 planting estimates/)).toBeVisible()
-      await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 30000 })
+      // SwiftShader still prepares the full ~150k-stem stand after nearby playback is ready.
+      await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
       const requestCount = requests.length
       const treesBefore = (await readMapState(page))?.treeCount
       expect(treesBefore).toBeGreaterThan(0)
