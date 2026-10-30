@@ -14,6 +14,7 @@ import { startNativeTransect, refreshNativeTransect } from './NativeTransect'
 import { applyTreeInspectionMap, inspectionPitch } from './treeInspectionMap'
 import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
+import { hideNativeLoadSection } from './imports/las'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import 'maplibre-gl-lidar/style.css'
@@ -219,6 +220,8 @@ export function NativeLidarMap(props: Props) {
       installWorkflowLayers(instance)
       const control = new LidarControl({
         title: 'GeoLibre · 3D LiDAR',
+        restoreFromUrl: false,
+        shareUrl: false,
         collapsed: !latest.current.toolsOpen,
         panelWidth: 290,
         closeOnOutsideClick: false,
@@ -231,6 +234,7 @@ export function NativeLidarMap(props: Props) {
         colorScheme: latest.current.color,
       })
       instance.addControl(control, 'top-left')
+      hideNativeLoadSection(control.getContainer())
       lidar.current = control
       control.on('expand', () => {
         if (active) latest.current.onToolsOpenChange(true)

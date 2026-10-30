@@ -1,4 +1,5 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
 import { inventoryCsv, inventoryExport, standCsv, type EstimatedTree, type summarizeInventory } from './summary'
@@ -75,7 +76,7 @@ export function InventoryActions({
         </>
       )}
       <label className="cursor-pointer underline">
-        Import GeoJSON
+        Import boundary
         <input
           aria-label="Import inventory polygon"
           className="sr-only"
@@ -84,6 +85,9 @@ export function InventoryActions({
           onChange={(e) => void file(e, 'polygon')}
         />
       </label>
+      <Link to="/dev/lidar/data/" className="underline">
+        Import data layers
+      </Link>
       {custom && (
         <Button
           size="sm"
