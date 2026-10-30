@@ -135,14 +135,18 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
 const MUNICIPALITY_LEVEL_SET = new Set<MunicipalityBoundaryLevel>(['municipality'])
-const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db', 'bcDaSimplified'])
+const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>([
+  'cd',
+  'csd',
+  'northSouthCsd',
+  'ct',
+  'da',
+  'db',
+  'bcDaSimplified',
+])
 const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
-const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
-  'majorWatershed',
-  'watershedGroup',
-  'assessmentWatershed',
-])
+const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>(['majorWatershed', 'watershedGroup', 'assessmentWatershed'])
 const NAMED_WATERSHED_LEVEL_SET = new Set<NamedWatershedBoundaryLevel>([
   'namedWatershedOrder1',
   'namedWatershedOrder2',
@@ -414,35 +418,40 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
     }>(CENSUS_FILE_BY_LEVEL[level], signal)
     const chunks = manifest.levels?.find((entry) => entry.id === 'overview')?.chunks ?? manifest.chunks
     const collections = await Promise.all(
-      chunks.map((chunk) => fetchJson<BoundaryFeatureCollection>(`/data/census/bc-da-simplified/${chunk.path}`, signal)),
+      chunks.map((chunk) =>
+        fetchJson<BoundaryFeatureCollection>(`/data/census/bc-da-simplified/${chunk.path}`, signal),
+      ),
     )
-    const sortedRegions = sortRegions(collections.flatMap((collection) => (
-      collection.features
-        .map<StudyAreaRegion | null>((rawFeature) => {
-          const feature = toPolygonFeature(rawFeature)
-          if (!feature) return null
+    const sortedRegions = sortRegions(
+      collections.flatMap((collection) =>
+        collection.features
+          .map<StudyAreaRegion | null>((rawFeature) => {
+            const feature = toPolygonFeature(rawFeature)
+            if (!feature) return null
 
-          const properties = (feature.properties ?? {}) as Record<string, unknown>
-          const code = String(properties.boundaryCode ?? properties.DAUID ?? properties.id ?? '').trim()
-          if (!code) return null
+            const properties = (feature.properties ?? {}) as Record<string, unknown>
+            const code = String(properties.boundaryCode ?? properties.DAUID ?? properties.id ?? '').trim()
+            if (!code) return null
 
-          const displayName = String(properties.boundaryName ?? properties.name ?? `DA ${code}`).trim() || `DA ${code}`
-          const areaKm2 = area(feature) / 1_000_000
-          const bounds = bbox(feature) as [number, number, number, number]
+            const displayName =
+              String(properties.boundaryName ?? properties.name ?? `DA ${code}`).trim() || `DA ${code}`
+            const areaKm2 = area(feature) / 1_000_000
+            const bounds = bbox(feature) as [number, number, number, number]
 
-          return {
-            id: `census:${level}:${code}`,
-            code,
-            name: displayName,
-            source: 'census',
-            level,
-            feature,
-            bounds,
-            areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
-          } satisfies StudyAreaRegion
-        })
-        .filter((region): region is StudyAreaRegion => region !== null)
-    )))
+            return {
+              id: `census:${level}:${code}`,
+              code,
+              name: displayName,
+              source: 'census',
+              level,
+              feature,
+              bounds,
+              areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+            } satisfies StudyAreaRegion
+          })
+          .filter((region): region is StudyAreaRegion => region !== null),
+      ),
+    )
     boundaryRegionCache.set(cacheKey, sortedRegions)
     return sortedRegions
   }
@@ -450,7 +459,12 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
   return loadFileRegions('census', level, CENSUS_FILE_BY_LEVEL[level], signal)
 }
 
-async function loadFileRegions(source: BoundarySource, level: RegionLevel, path: string, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+async function loadFileRegions(
+  source: BoundarySource,
+  level: RegionLevel,
+  path: string,
+  signal?: AbortSignal,
+): Promise<StudyAreaRegion[]> {
   const cacheKey = `${source}:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
@@ -572,7 +586,10 @@ async function loadCommunityRegions(level: CommunityBoundaryLevel, signal?: Abor
   return sortedRegions
 }
 
-async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+async function loadRegionalDistrictRegions(
+  level: RegionalDistrictBoundaryLevel,
+  signal?: AbortSignal,
+): Promise<StudyAreaRegion[]> {
   const cacheKey = `regionalDistrict:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
@@ -633,9 +650,7 @@ async function loadFwaWatershedRegions(
 
       const displayName = String(properties.boundaryName ?? code).trim() || code
       const sourceAreaKm2 = Number(properties.areaKm2)
-      const areaKm2 = Number.isFinite(sourceAreaKm2) && sourceAreaKm2 > 0
-        ? sourceAreaKm2
-        : area(feature) / 1_000_000
+      const areaKm2 = Number.isFinite(sourceAreaKm2) && sourceAreaKm2 > 0 ? sourceAreaKm2 : area(feature) / 1_000_000
       const bounds = bbox(feature) as [number, number, number, number]
 
       return {
@@ -785,9 +800,7 @@ async function loadBcDrainageRegions(level: DrainageBoundaryLevel, signal?: Abor
     .map<StudyAreaRegion | null>((rawFeature) => mapDrainageRegionFeatureToRegion(rawFeature))
     .filter((region): region is StudyAreaRegion => region !== null)
 
-  const regions = level === 'oceanDrainageArea'
-    ? mergeOceanDrainageAreaFeatures(drainageRegions)
-    : drainageRegions
+  const regions = level === 'oceanDrainageArea' ? mergeOceanDrainageAreaFeatures(drainageRegions) : drainageRegions
 
   const sortedRegions = sortRegions(regions)
   boundaryRegionCache.set(cacheKey, sortedRegions)
@@ -877,9 +890,7 @@ async function loadBcWildfireRegions(level: FireZoneBoundaryLevel, signal?: Abor
     .map<StudyAreaRegion | null>((rawFeature) => mapBcWildfireZoneFeatureToRegion(rawFeature))
     .filter((region): region is StudyAreaRegion => region !== null)
 
-  const regions = level === 'fireCentre'
-    ? mergeFireCentreFeatures(zoneRegions)
-    : zoneRegions
+  const regions = level === 'fireCentre' ? mergeFireCentreFeatures(zoneRegions) : zoneRegions
 
   const sortedRegions = sortRegions(regions)
   boundaryRegionCache.set(cacheKey, sortedRegions)
@@ -899,7 +910,9 @@ async function loadBcRfcRegions(level: BcRfcBoundaryLevel, signal?: AbortSignal)
       if (!feature) return null
 
       const properties = (feature.properties ?? {}) as Record<string, unknown>
-      const code = String(properties.basinID ?? properties.OBJECTID_12 ?? properties.OBJECTID ?? rawFeature.id ?? '').trim()
+      const code = String(
+        properties.basinID ?? properties.OBJECTID_12 ?? properties.OBJECTID ?? rawFeature.id ?? '',
+      ).trim()
       if (!code) return null
 
       const displayName = String(properties.basinName ?? properties.BASIN ?? properties.basin ?? code).trim() || code
@@ -957,8 +970,10 @@ export async function loadStudyAreaRegions(
   signal?: AbortSignal,
 ): Promise<StudyAreaRegion[]> {
   if (source === 'postal') {
-    if (level !== 'fsa' && level !== 'postalRegion' && level !== 'postalPrefix2') throw new Error(`Invalid postal boundary level: ${level}`)
-    const file = level === 'fsa' ? 'bc_fsa_2021' : level === 'postalPrefix2' ? 'bc_postal_prefix2_2021' : 'bc_postal_region_2021'
+    if (level !== 'fsa' && level !== 'postalRegion' && level !== 'postalPrefix2')
+      throw new Error(`Invalid postal boundary level: ${level}`)
+    const file =
+      level === 'fsa' ? 'bc_fsa_2021' : level === 'postalPrefix2' ? 'bc_postal_prefix2_2021' : 'bc_postal_region_2021'
     return loadFileRegions(source, level, `/data/boundaries/StatCan/${file}.geojson.gz`, signal)
   }
 
@@ -1083,23 +1098,13 @@ export async function loadStudyAreaRegions(
     if (!isNamedWatershedBoundaryLevel(level)) {
       throw new Error(`Invalid named watershed stream order: ${level}`)
     }
-    return loadFwaWatershedRegions(
-      source,
-      level,
-      NAMED_WATERSHED_FILE_BY_LEVEL[level],
-      signal,
-    )
+    return loadFwaWatershedRegions(source, level, NAMED_WATERSHED_FILE_BY_LEVEL[level], signal)
   }
 
   if (!isWatershedBoundaryLevel(level)) {
     throw new Error(`Invalid Freshwater Atlas watershed level: ${level}`)
   }
-  return loadFwaWatershedRegions(
-    source,
-    level,
-    WATERSHED_FILE_BY_LEVEL[level],
-    signal,
-  )
+  return loadFwaWatershedRegions(source, level, WATERSHED_FILE_BY_LEVEL[level], signal)
 }
 
 export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): string {
@@ -1147,7 +1152,11 @@ export function useStudyAreaRegions(source: BoundarySource, level: RegionLevel) 
         }
       } catch (err) {
         if (controller.signal.aborted && !timedOut) return
-        setError(timedOut ? 'Timed out loading boundary geometry' : (err as Error).message || 'Unable to load boundary geometry')
+        setError(
+          timedOut
+            ? 'Timed out loading boundary geometry'
+            : (err as Error).message || 'Unable to load boundary geometry',
+        )
       } finally {
         window.clearTimeout(timeoutId)
         if (!controller.signal.aborted || timedOut) {

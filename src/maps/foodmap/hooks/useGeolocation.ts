@@ -55,7 +55,7 @@ export function useGeolocation() {
         (pos) => {
           const newPosition = {
             lat: pos.coords.latitude,
-            lng: pos.coords.longitude
+            lng: pos.coords.longitude,
           }
           setPosition(newPosition)
           setLoading(false)
@@ -72,8 +72,8 @@ export function useGeolocation() {
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000
-        }
+          maximumAge: 300000,
+        },
       )
     })
   }, [])
@@ -90,6 +90,6 @@ export function useGeolocation() {
     loading,
     status,
     getCurrentPosition,
-    clearPosition
+    clearPosition,
   }
 }

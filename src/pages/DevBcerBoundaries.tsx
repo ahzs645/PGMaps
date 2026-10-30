@@ -10,10 +10,7 @@ import { DevPageHeader } from '@/components/DevPageHeader'
 import { DEFAULT_LOCALE, formatBytes } from '@/lib/format'
 import { escapeHtml } from '@/lib/escapeHtml'
 
-type BoundaryCollection = GeoJSON.FeatureCollection<
-  GeoJSON.Polygon | GeoJSON.MultiPolygon,
-  Record<string, unknown>
-> & {
+type BoundaryCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>> & {
   metadata?: {
     mapshaperVersion?: string
     simplificationToleranceMetres?: number
@@ -47,7 +44,8 @@ type ComparisonData = {
 }
 
 const OPTIMIZED_DATA_URL = '/data/boundaries/BCER/admin_zones.geojson'
-const RAW_DATA_URL = 'https://geoweb-ags.bc-er.ca/arcgis/rest/services/ADMIN/ADMINISTRATIVE_ZONES_PY/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson'
+const RAW_DATA_URL =
+  'https://geoweb-ags.bc-er.ca/arcgis/rest/services/ADMIN/ADMINISTRATIVE_ZONES_PY/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson'
 const SOURCE_PAGE_URL = 'https://data-bc-er.opendata.arcgis.com/datasets/032cac78a0264d23b7461ba2f8e1a8d7_1/explore'
 
 const INITIAL_VIEWPORT: Viewport = {
@@ -114,10 +112,7 @@ function countVertices(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon) {
   if (geometry.type === 'Polygon') {
     return geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0)
   }
-  return geometry.coordinates.reduce(
-    (sum, polygon) => sum + polygon.reduce((inner, ring) => inner + ring.length, 0),
-    0,
-  )
+  return geometry.coordinates.reduce((sum, polygon) => sum + polygon.reduce((inner, ring) => inner + ring.length, 0), 0)
 }
 
 function collectionVertexCount(collection: BoundaryCollection) {
@@ -164,16 +159,15 @@ function maxZoneAreaDeltaPercent(optimized: BoundaryCollection, raw: BoundaryCol
   return optimized.features.reduce((maxDelta, feature) => {
     const rawArea = rawAreaByName.get(String(feature.properties?.NAME ?? ''))
     if (!rawArea || rawArea <= 0) return maxDelta
-    const delta = Math.abs(area(feature) - rawArea) / rawArea * 100
+    const delta = (Math.abs(area(feature) - rawArea) / rawArea) * 100
     return Math.max(maxDelta, delta)
   }, 0)
 }
 
 function topologyStats(collection: BoundaryCollection) {
   const edges = new globalThis.Map<string, string[]>()
-  const rings = (geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon) => (
+  const rings = (geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon) =>
     geometry.type === 'Polygon' ? geometry.coordinates : geometry.coordinates.flat()
-  )
 
   collection.features.forEach((feature) => {
     rings(feature.geometry).forEach((ring) => {
@@ -241,7 +235,9 @@ function BoundaryMap({
         </div>
         <div className="flex gap-2 text-[11px] text-muted-foreground">
           <span className="rounded-full bg-muted px-2 py-1">{formatPayloadBytes(stats.bytes)}</span>
-          <span className="rounded-full bg-muted px-2 py-1">{stats.vertices.toLocaleString(DEFAULT_LOCALE)} vertices</span>
+          <span className="rounded-full bg-muted px-2 py-1">
+            {stats.vertices.toLocaleString(DEFAULT_LOCALE)} vertices
+          </span>
         </div>
       </div>
       <div className="relative h-[430px] min-h-80">
@@ -249,7 +245,8 @@ function BoundaryMap({
           viewport={viewport}
           onViewportChange={onViewportChange}
           attributionControl={false}
-         controls={<MapControls position="top-right" />}>
+          controls={<MapControls position="top-right" />}
+        >
           <MapFillLayer
             data={collection}
             fillColor={ZONE_FILL_EXPRESSION}
@@ -262,12 +259,12 @@ function BoundaryMap({
             selectionColor="#f8fafc"
             selectionWidth={3}
             onFeatureClick={(name) => onSelectZone(name)}
-            hoverHtml={(properties) => (
+            hoverHtml={(properties) =>
               `<div class="rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
                 <div class="font-semibold">${escapeHtml(properties.NAME)}</div>
                 <div class="mt-1 text-muted-foreground">${escapeHtml(title)}</div>
               </div>`
-            )}
+            }
           />
         </Map>
         <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
@@ -315,9 +312,10 @@ function DevBcerBoundaries() {
 
   const summary = useMemo(() => {
     if (!comparison) return null
-    const gzipReduction = comparison.optimizedStats.gzipBytes != null && comparison.rawStats.gzipBytes != null
-      ? reductionPercent(comparison.optimizedStats.gzipBytes, comparison.rawStats.gzipBytes)
-      : null
+    const gzipReduction =
+      comparison.optimizedStats.gzipBytes != null && comparison.rawStats.gzipBytes != null
+        ? reductionPercent(comparison.optimizedStats.gzipBytes, comparison.rawStats.gzipBytes)
+        : null
     return {
       payloadReduction: reductionPercent(comparison.optimizedStats.bytes, comparison.rawStats.bytes),
       gzipReduction,
@@ -332,13 +330,13 @@ function DevBcerBoundaries() {
           eyebrow="Boundary geometry comparison"
           icon={GitCompareArrows}
           title="BCER admin zones: optimized vs raw"
-          description={(
+          description={
             <>
-              The left map uses the deployable PGMaps snapshot. The right map renders the untouched live BCER
-              GeoJSON. Their viewports and selected zones stay synchronized so you can inspect boundary detail.
+              The left map uses the deployable PGMaps snapshot. The right map renders the untouched live BCER GeoJSON.
+              Their viewports and selected zones stay synchronized so you can inspect boundary detail.
             </>
-          )}
-          actions={(
+          }
+          actions={
             <>
               <Link
                 to="/dev/boundaries"
@@ -357,7 +355,7 @@ function DevBcerBoundaries() {
                 <ExternalLink className="size-4" />
               </a>
             </>
-          )}
+          }
         />
 
         {!comparison && !error && (
@@ -394,7 +392,10 @@ function DevBcerBoundaries() {
                 {
                   label: 'Payload reduction',
                   value: `${summary.payloadReduction.toFixed(1)}%`,
-                  note: summary.gzipReduction == null ? 'Gzip unavailable' : `${summary.gzipReduction.toFixed(1)}% smaller gzip`,
+                  note:
+                    summary.gzipReduction == null
+                      ? 'Gzip unavailable'
+                      : `${summary.gzipReduction.toFixed(1)}% smaller gzip`,
                 },
                 {
                   label: 'Vertex reduction',
@@ -457,19 +458,20 @@ function DevBcerBoundaries() {
                 <button
                   key={zone}
                   type="button"
-                  onClick={() => setSelectedZone((current) => current === zone ? null : zone)}
+                  onClick={() => setSelectedZone((current) => (current === zone ? null : zone))}
                   className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-10 touch:px-2"
                 >
                   <span
                     className="size-2.5 rounded-sm"
                     style={{
-                      backgroundColor: zone === 'North'
-                        ? '#2563eb'
-                        : zone === 'Central'
-                          ? '#8b5cf6'
-                          : zone === 'South East'
-                            ? '#f59e0b'
-                            : '#14b8a6',
+                      backgroundColor:
+                        zone === 'North'
+                          ? '#2563eb'
+                          : zone === 'Central'
+                            ? '#8b5cf6'
+                            : zone === 'South East'
+                              ? '#f59e0b'
+                              : '#14b8a6',
                     }}
                   />
                   <span className={selectedZone === zone ? 'font-semibold text-foreground' : undefined}>{zone}</span>

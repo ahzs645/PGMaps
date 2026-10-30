@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
+import { useScreenPointClusters } from '@/components/ui/screen-point-clusters'
 import type { CSSProperties } from 'react'
 import { Activity, MapPin, Stethoscope } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -6,6 +8,8 @@ import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { FilterChipGroup, InlineAlert, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader, ListState } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -65,20 +69,32 @@ const SORT_OPTIONS: Array<{ value: SpecialistSort; label: string }> = [
   { value: 'name', label: 'Facility name (A-Z)' },
 ]
 
-interface SpecialistMarkerCluster {
-  id: string
-  longitude: number
-  latitude: number
-  facilities: SpecialistFacility[]
-}
+const EMPTY_FACILITIES: SpecialistFacility[] = []
+const facilityId = (facility: SpecialistFacility) => facility.id
+const facilityCoordinates = (facility: SpecialistFacility): [number, number] => [facility.longitude, facility.latitude]
 
 const CLUSTER_RADIUS_PX = 54
 const REVEAL_LIMIT = 14
 
 function DevWaitSpecialist() {
-  const [facilities, setFacilities] = useState<SpecialistFacility[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data,
+    loading,
+    error: loadError,
+  } = useFetchData<SpecialistMapData>(SPECIALIST_WAIT_DATA_URL, {
+    transform: (json) => {
+      const value = json as SpecialistMapData
+      return {
+        ...value,
+        facilities: value.facilities.filter(
+          (facility) => Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude),
+        ),
+      }
+    },
+  })
+  const facilities = data?.facilities ?? EMPTY_FACILITIES
+  const metadata = data?.metadata ?? null
+  const error = loadError ? 'Failed to load BC specialist wait-time data.' : null
   const [query, setQuery] = useState('')
   const [authority, setAuthority] = useState<AuthorityFilter>('all')
   const [procedureName, setProcedureName] = useState<string>('all')
@@ -86,43 +102,20 @@ function DevWaitSpecialist() {
   const [band, setBand] = useState<BandFilter>('all')
   const [sort, setSort] = useState<SpecialistSort>('wait')
   const [selected, setSelected] = useState<SpecialistFacility | null>(null)
-  const [metadata, setMetadata] = useState<SpecialistMapData['metadata'] | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadData() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(SPECIALIST_WAIT_DATA_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json() as SpecialistMapData
-        setFacilities(data.facilities.filter((facility) => Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude)))
-        setMetadata(data.metadata)
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          setError('Failed to load BC specialist wait-time data.')
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    loadData()
-    return () => controller.abort()
-  }, [])
-
-  const authorities = useMemo(() => (
-    Array.from(new Set(facilities.map((facility) => facility.health_authority))).sort()
-  ), [facilities])
+  const authorities = useMemo(
+    () => Array.from(new Set(facilities.map((facility) => facility.health_authority))).sort(),
+    [facilities],
+  )
 
   const procedureOptions = useMemo(() => buildProcedureOptions(facilities), [facilities])
 
-  const filter = useMemo<SpecialistFilter>(() => ({
-    procedureName: procedureName === 'all' ? null : procedureName,
-    patientType,
-  }), [procedureName, patientType])
+  const filter = useMemo<SpecialistFilter>(
+    () => ({
+      procedureName: procedureName === 'all' ? null : procedureName,
+      patientType,
+    }),
+    [procedureName, patientType],
+  )
 
   const filterActive = procedureName !== 'all' || patientType !== 'all' || band !== 'all'
 
@@ -164,14 +157,17 @@ function DevWaitSpecialist() {
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="Surgery specialists"
-      subtitle={(
+      subtitle={
         <>
           BC Surgery Wait Times by facility, specialist, and procedure.
-          <Link to="/dev/health/wait" className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400">
+          <Link
+            to="/dev/health/wait"
+            className="mt-1 block text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
+          >
             ER wait map
           </Link>
         </>
-      )}
+      }
       icon={Stethoscope}
     >
       <SidebarSection title="Search">
@@ -188,17 +184,19 @@ function DevWaitSpecialist() {
 
       <SidebarSection
         title="Filters"
-        actions={filterActive && (
-          <TextButton
-            onClick={() => {
-              setProcedureName('all')
-              setPatientType('all')
-              setBand('all')
-            }}
-          >
-            Clear
-          </TextButton>
-        )}
+        actions={
+          filterActive && (
+            <TextButton
+              onClick={() => {
+                setProcedureName('all')
+                setPatientType('all')
+                setBand('all')
+              }}
+            >
+              Clear
+            </TextButton>
+          )
+        }
       >
         <div className="space-y-2">
           <AppSelect
@@ -217,7 +215,10 @@ function DevWaitSpecialist() {
             onValueChange={setProcedureName}
             options={[
               { value: 'all', label: 'All procedures' },
-              ...procedureOptions.map((option) => ({ value: option.name, label: `${option.name} (${option.facilityCount})` })),
+              ...procedureOptions.map((option) => ({
+                value: option.name,
+                label: `${option.name} (${option.facilityCount})`,
+              })),
             ]}
             triggerAriaLabel="Procedure"
             className="w-full"
@@ -245,7 +246,8 @@ function DevWaitSpecialist() {
           chipClassName="justify-center rounded-md py-1.5"
         />
         <p className="mt-2 text-xs leading-4 text-muted-foreground">
-          Marker color and value reflect the median 90th-percentile wait{procedureName !== 'all' ? ` for ${procedureName}` : ''}.
+          Marker color and value reflect the median 90th-percentile wait
+          {procedureName !== 'all' ? ` for ${procedureName}` : ''}.
         </p>
       </SidebarSection>
 
@@ -273,24 +275,33 @@ function DevWaitSpecialist() {
           ]}
         />
         <InlineAlert className="mt-3">
-          Latest scrape run: {metadata?.latest_run_id ?? '--'}. {metadata?.procedure_count ?? '--'} procedures. {stats.rollups} Greater Victoria roll-up points.
+          Latest scrape run: {metadata?.latest_run_id ?? '--'}. {metadata?.procedure_count ?? '--'} procedures.{' '}
+          {stats.rollups} Greater Victoria roll-up points.
         </InlineAlert>
       </SidebarSection>
 
       <SidebarSection title="Facilities">
-        {filteredFacilities.length === 0 ? (
-          <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-            No facilities match the current filters.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {filteredFacilities.slice(0, 80).map((facility) => (
+        <ListHeader count={filteredFacilities.length} noun={['facility', 'facilities']} sticky={false} />
+        <ListState
+          loading={loading}
+          loadingLabel="Loading specialist facilities…"
+          error={error}
+          empty={filteredFacilities.length === 0}
+          emptyLabel="No facilities match the current filters."
+        >
+          <VirtualResultList
+            items={filteredFacilities}
+            getKey={facilityId}
+            estimateSize={105}
+            label="Specialist facilities"
+          >
+            {(facility) => (
               <button
-                key={facility.id}
                 type="button"
                 onClick={() => setSelected(facility)}
+                aria-pressed={selected?.id === facility.id}
                 className={cn(
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
+                  'mb-2 w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
                   selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
                 )}
               >
@@ -305,9 +316,9 @@ function DevWaitSpecialist() {
                 </div>
                 <FacilityListMetrics facility={facility} filter={filter} />
               </button>
-            ))}
-          </div>
-        )}
+            )}
+          </VirtualResultList>
+        </ListState>
       </SidebarSection>
     </MapSidebarShell>
   )
@@ -327,7 +338,6 @@ function DevWaitSpecialist() {
           loading={loading}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
-
           <SpecialistFacilityMarkers
             facilities={filteredFacilities}
             filter={filter}
@@ -369,85 +379,29 @@ function SpecialistFacilityMarkers({
   onSelect: (facility: SpecialistFacility) => void
 }) {
   const { map } = useMap()
-  const [version, setVersion] = useState(0)
   const [revealedClusterId, setRevealedClusterId] = useState<{
     clusterId: string
     facilitiesKey: string
   } | null>(null)
 
-  useEffect(() => {
-    if (!map) return
-    const update = () => setVersion((current) => current + 1)
-    update()
-    map.on('moveend', update)
-    map.on('zoomend', update)
-    map.on('resize', update)
-    return () => {
-      map.off('moveend', update)
-      map.off('zoomend', update)
-      map.off('resize', update)
-    }
-  }, [map])
-
   const facilitiesKey = useMemo(() => facilities.map((facility) => facility.id).join('|'), [facilities])
-
-  const clusters = useMemo(() => {
-    void version
-
-    if (!map) {
-      return facilities.map((facility) => ({
-        id: facility.id,
-        longitude: facility.longitude,
-        latitude: facility.latitude,
-        facilities: [facility],
-      }))
-    }
-
-    const canvas = map.getCanvas()
-    const width = canvas.clientWidth
-    const height = canvas.clientHeight
-    const nextClusters: Array<SpecialistMarkerCluster & { x: number; y: number }> = []
-    const orderedFacilities = [...facilities].sort((a, b) => markerPriority(a, filter) - markerPriority(b, filter))
-
-    for (const facility of orderedFacilities) {
-      const point = map.project([facility.longitude, facility.latitude])
-      if (point.x < -140 || point.y < -140 || point.x > width + 140 || point.y > height + 140) continue
-
-      let cluster = nextClusters.find((candidate) => (
-        Math.hypot(candidate.x - point.x, candidate.y - point.y) <= CLUSTER_RADIUS_PX
-      ))
-
-      if (!cluster) {
-        cluster = {
-          id: `specialist-cluster-${Math.round(point.x)}-${Math.round(point.y)}-${facility.id}`,
-          x: point.x,
-          y: point.y,
-          longitude: facility.longitude,
-          latitude: facility.latitude,
-          facilities: [],
-        }
-        nextClusters.push(cluster)
-      }
-
-      cluster.facilities.push(facility)
-      const count = cluster.facilities.length
-      cluster.x = cluster.x + (point.x - cluster.x) / count
-      cluster.y = cluster.y + (point.y - cluster.y) / count
-      cluster.longitude = cluster.longitude + (facility.longitude - cluster.longitude) / count
-      cluster.latitude = cluster.latitude + (facility.latitude - cluster.latitude) / count
-    }
-
-    return nextClusters.map(({ x: _x, y: _y, ...cluster }) => cluster)
-  }, [facilities, filter, map, version])
-  const activeRevealedClusterId = revealedClusterId?.facilitiesKey === facilitiesKey
-    ? revealedClusterId.clusterId
-    : null
+  const priority = useMemo(() => (facility: SpecialistFacility) => markerPriority(facility, filter), [filter])
+  const clusters = useScreenPointClusters(map, facilities, {
+    getId: facilityId,
+    getCoordinates: facilityCoordinates,
+    priority,
+    radius: CLUSTER_RADIUS_PX,
+    padding: 140,
+    idPrefix: 'specialist-cluster',
+  })
+  const activeRevealedClusterId =
+    revealedClusterId?.facilitiesKey === facilitiesKey ? revealedClusterId.clusterId : null
 
   return (
     <>
       {clusters.map((cluster) => {
-        if (cluster.facilities.length === 1) {
-          const facility = cluster.facilities[0]
+        if (cluster.items.length === 1) {
+          const facility = cluster.items[0]
           return (
             <SpecialistFacilityMarker
               key={facility.id}
@@ -460,47 +414,50 @@ function SpecialistFacilityMarkers({
         }
 
         const isRevealed = activeRevealedClusterId === cluster.id
-        const visibleFacilities = cluster.facilities.slice(0, REVEAL_LIMIT)
+        const visibleFacilities = cluster.items.slice(0, REVEAL_LIMIT)
         return (
           <div key={cluster.id}>
             <MapMarker longitude={cluster.longitude} latitude={cluster.latitude} anchor="center">
               <MarkerContent>
                 <button
                   type="button"
-                  onClick={() => setRevealedClusterId((current) => (
-                    current?.clusterId === cluster.id && current.facilitiesKey === facilitiesKey
-                      ? null
-                      : { clusterId: cluster.id, facilitiesKey }
-                  ))}
-                  aria-label={`${isRevealed ? 'Hide' : 'Reveal'} ${cluster.facilities.length} facilities`}
+                  onClick={() =>
+                    setRevealedClusterId((current) =>
+                      current?.clusterId === cluster.id && current.facilitiesKey === facilitiesKey
+                        ? null
+                        : { clusterId: cluster.id, facilitiesKey },
+                    )
+                  }
+                  aria-label={`${isRevealed ? 'Hide' : 'Reveal'} ${cluster.items.length} facilities`}
                   aria-pressed={isRevealed}
                   className={cn(
                     'flex items-center justify-center rounded-full border-2 border-white text-sm font-bold text-white shadow-md transition-transform hover:scale-105',
-                    clusterStyle(cluster.facilities.length),
+                    clusterStyle(cluster.items.length),
                     !isRevealed && 'wait-cluster-pulse',
                     isRevealed && 'ring-2 ring-sky-400 ring-offset-2 ring-offset-background',
                   )}
                 >
-                  {cluster.facilities.length}
+                  {cluster.items.length}
                 </button>
               </MarkerContent>
             </MapMarker>
 
-            {isRevealed && visibleFacilities.map((facility, index) => (
-              <SpecialistFacilityMarker
-                key={`${cluster.id}-${facility.id}`}
-                facility={facility}
-                filter={filter}
-                longitude={cluster.longitude}
-                latitude={cluster.latitude}
-                selected={selectedId === facility.id}
-                onSelect={onSelect}
-                visualOffset={revealOffset(index, visibleFacilities.length)}
-                revealIndex={index}
-              />
-            ))}
+            {isRevealed &&
+              visibleFacilities.map((facility, index) => (
+                <SpecialistFacilityMarker
+                  key={`${cluster.id}-${facility.id}`}
+                  facility={facility}
+                  filter={filter}
+                  longitude={cluster.longitude}
+                  latitude={cluster.latitude}
+                  selected={selectedId === facility.id}
+                  onSelect={onSelect}
+                  visualOffset={revealOffset(index, visibleFacilities.length)}
+                  revealIndex={index}
+                />
+              ))}
 
-            {isRevealed && cluster.facilities.length > visibleFacilities.length && (
+            {isRevealed && cluster.items.length > visibleFacilities.length && (
               <MapMarker longitude={cluster.longitude} latitude={cluster.latitude} anchor="center">
                 <MarkerContent>
                   <span
@@ -510,7 +467,7 @@ function SpecialistFacilityMarkers({
                       animationDelay: `${Math.min(180, visibleFacilities.length * 16)}ms`,
                     }}
                   >
-                    +{cluster.facilities.length - visibleFacilities.length}
+                    +{cluster.items.length - visibleFacilities.length}
                   </span>
                 </MarkerContent>
               </MapMarker>
@@ -542,30 +499,40 @@ function SpecialistFacilityMarker({
   revealIndex?: number
 }) {
   const metrics = facilityWaitMetrics(facility, filter)
-  const markerText = metrics.p90MedianWeeks == null
-    ? String(metrics.procedureRows || facility.specialist_count)
-    : formatWeeks(metrics.p90MedianWeeks)
+  const markerText =
+    metrics.p90MedianWeeks == null
+      ? String(metrics.procedureRows || facility.specialist_count)
+      : formatWeeks(metrics.p90MedianWeeks)
 
   return (
     <MapMarker longitude={longitude} latitude={latitude} anchor="center">
       <MarkerContent>
         <div
           className={cn(visualOffset && 'wait-cluster-reveal')}
-          style={visualOffset ? {
-            ...visualOffsetStyle(visualOffset),
-            animationDelay: `${Math.min(160, (revealIndex ?? 0) * 18)}ms`,
-          } : undefined}
+          style={
+            visualOffset
+              ? {
+                  ...visualOffsetStyle(visualOffset),
+                  animationDelay: `${Math.min(160, (revealIndex ?? 0) * 18)}ms`,
+                }
+              : undefined
+          }
         >
           <button
             type="button"
-            onClick={() => onSelect(facility)}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect(facility)
+            }}
             aria-label={`${facility.facility_name}: median P90 ${formatWeeks(metrics.p90MedianWeeks)}, ${facility.specialist_count} specialists`}
             className={cn(
               'relative rounded-full border-2 px-3 py-1.5 text-[13px] font-semibold leading-none text-white shadow-md transition-transform hover:scale-105',
               facility.is_rollup_child ? 'border-amber-100 bg-[#9a5b13]' : 'border-white',
               selected && 'ring-2 ring-sky-400 ring-offset-2 ring-offset-background',
             )}
-            style={facility.is_rollup_child ? undefined : { backgroundColor: BAND_COLORS[waitBand(metrics.p90MedianWeeks)] }}
+            style={
+              facility.is_rollup_child ? undefined : { backgroundColor: BAND_COLORS[waitBand(metrics.p90MedianWeeks)] }
+            }
           >
             {markerText}
             {facility.is_rollup_child && (
@@ -580,11 +547,20 @@ function SpecialistFacilityMarker({
   )
 }
 
-function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: SpecialistFacility; filter: SpecialistFilter; onClose: () => void }) {
+function SpecialistFacilityPopup({
+  facility,
+  filter,
+  onClose,
+}: {
+  facility: SpecialistFacility
+  filter: SpecialistFilter
+  onClose: () => void
+}) {
   const filterActive = Boolean(filter.procedureName) || (filter.patientType != null && filter.patientType !== 'all')
   const metrics = facilityWaitMetrics(facility, filter)
-  const matchingSpecialists = facility.specialists
-    .filter((specialist) => specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter)))
+  const matchingSpecialists = facility.specialists.filter((specialist) =>
+    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter)),
+  )
   const matchingProcedures = facility.procedures.filter((procedure) => {
     if (filter.procedureName && procedure.name !== filter.procedureName) return false
     if (filter.patientType === 'adult' && procedure.adult_flag !== 'Y') return false
@@ -615,20 +591,31 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
             { label: 'Specialists', value: specialistCount, icon: <Stethoscope className="size-3.5" /> },
             { label: 'Procedures', value: procedureCount, icon: <Activity className="size-3.5" /> },
             { label: 'Known cases', value: formatCases(metrics.knownCases), icon: <MapPin className="size-3.5" /> },
-            { label: 'Median P50', value: formatWeeks(metrics.p50MedianWeeks), icon: <Activity className="size-3.5" /> },
-            { label: 'Median P90', value: formatWeeks(metrics.p90MedianWeeks), icon: <Activity className="size-3.5" /> },
+            {
+              label: 'Median P50',
+              value: formatWeeks(metrics.p50MedianWeeks),
+              icon: <Activity className="size-3.5" />,
+            },
+            {
+              label: 'Median P90',
+              value: formatWeeks(metrics.p90MedianWeeks),
+              icon: <Activity className="size-3.5" />,
+            },
             { label: 'Rows', value: metrics.procedureRows, icon: <MapPin className="size-3.5" /> },
           ]}
         />
 
         {facility.is_rollup_child && (
           <InlineAlert tone="warning">
-            Source rows are reported as Greater Victoria Hospitals and are not separated between Royal Jubilee and Victoria General.
+            Source rows are reported as Greater Victoria Hospitals and are not separated between Royal Jubilee and
+            Victoria General.
           </InlineAlert>
         )}
 
         <section>
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top specialists</h3>
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Top specialists
+          </h3>
           <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
             {topSpecialists.map((specialist) => (
               <SpecialistRow key={specialist.specialist_id} specialist={specialist} filter={filter} />
@@ -637,7 +624,9 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
         </section>
 
         <section>
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Common procedures</h3>
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Common procedures
+          </h3>
           <div className="space-y-1">
             {topProcedures.map((procedure) => (
               <div key={procedure.procedure_key} className="flex items-center justify-between gap-3 text-xs">
@@ -653,15 +642,17 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
 }
 
 function SpecialistRow({ specialist, filter }: { specialist: FacilitySpecialist; filter: SpecialistFilter }) {
-  const firstProcedure = specialist.procedures.find((procedure) => procedureMatchesFilter(procedure, filter))
-    ?? specialist.procedures[0]
+  const firstProcedure =
+    specialist.procedures.find((procedure) => procedureMatchesFilter(procedure, filter)) ?? specialist.procedures[0]
 
   return (
     <div className="rounded-md border border-border bg-muted/25 px-2.5 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{specialist.specialist_name}</div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">{firstProcedure?.procedure_name ?? 'Procedure unavailable'}</div>
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            {firstProcedure?.procedure_name ?? 'Procedure unavailable'}
+          </div>
         </div>
         <div className="shrink-0 text-right text-xs">
           <div className="font-semibold">{specialist.procedure_count}</div>
@@ -714,7 +705,7 @@ function revealOffset(index: number, count: number): [number, number] {
   const ringIndex = index % 8
   const ringCount = Math.min(8, count - ring * 8)
   const radius = 54 + ring * 32
-  const angle = (-Math.PI / 2) + (ringIndex / ringCount) * Math.PI * 2
+  const angle = -Math.PI / 2 + (ringIndex / ringCount) * Math.PI * 2
   return [Math.round(Math.cos(angle) * radius), Math.round(Math.sin(angle) * radius)]
 }
 

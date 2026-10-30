@@ -18,10 +18,19 @@ export const VRI_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATIO
 const TYPE_NAME = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'
 /** The layer has 189 attributes; GeoServer will not generalise geometry, so ask for these only. */
 const FIELDS = [
-  'FEATURE_ID', 'BCLCS_LEVEL_2', 'PROJ_AGE_1', 'SPECIES_CD_1', 'PROJECTED_DATE',
-  'LIVE_STAND_VOLUME_125', 'LIVE_STAND_VOLUME_175', 'LIVE_STAND_VOLUME_225',
-  'DEAD_STAND_VOLUME_125', 'DEAD_STAND_VOLUME_175', 'DEAD_STAND_VOLUME_225',
-  'EARLIEST_NONLOGGING_DIST_TYPE', 'EARLIEST_NONLOGGING_DIST_DATE',
+  'FEATURE_ID',
+  'BCLCS_LEVEL_2',
+  'PROJ_AGE_1',
+  'SPECIES_CD_1',
+  'PROJECTED_DATE',
+  'LIVE_STAND_VOLUME_125',
+  'LIVE_STAND_VOLUME_175',
+  'LIVE_STAND_VOLUME_225',
+  'DEAD_STAND_VOLUME_125',
+  'DEAD_STAND_VOLUME_175',
+  'DEAD_STAND_VOLUME_225',
+  'EARLIEST_NONLOGGING_DIST_TYPE',
+  'EARLIEST_NONLOGGING_DIST_DATE',
   'GEOMETRY',
 ]
 export const VRI_PAGE_SIZE = 5000
@@ -123,8 +132,15 @@ export type VriRules = {
  * dead `full` to reproduce how AVAST derives CMM_m3ha.
  */
 export const DEFAULT_VRI_RULES: VriRules = {
-  utilization: 'species', dead: 'shelf', unknownDeathYears: 10, asOfYear: new Date().getFullYear(),
-  minAge: 60, treedOnly: true, fillZeroAvast: true, applyFactor: true, minimumM3ha: 182,
+  utilization: 'species',
+  dead: 'shelf',
+  unknownDeathYears: 10,
+  asOfYear: new Date().getFullYear(),
+  minAge: 60,
+  treedOnly: true,
+  fillZeroAvast: true,
+  applyFactor: true,
+  minimumM3ha: 182,
 }
 
 export const isPine = (species: string) => species.toUpperCase().startsWith('P')
@@ -183,8 +199,17 @@ type Item = { minX: number; minY: number; maxX: number; maxY: number; feature: V
 
 export function buildVriIndex(features: VriFeature[]) {
   const tree = new RBush<Item>()
-  tree.load(features.map((feature) => ({ minX: feature.bbox[0], minY: feature.bbox[1], maxX: feature.bbox[2], maxY: feature.bbox[3], feature })))
-  return (box: BBox) => tree.search({ minX: box[0], minY: box[1], maxX: box[2], maxY: box[3] }).map((item) => item.feature)
+  tree.load(
+    features.map((feature) => ({
+      minX: feature.bbox[0],
+      minY: feature.bbox[1],
+      maxX: feature.bbox[2],
+      maxY: feature.bbox[3],
+      feature,
+    })),
+  )
+  return (box: BBox) =>
+    tree.search({ minX: box[0], minY: box[1], maxX: box[2], maxY: box[3] }).map((item) => item.feature)
 }
 
 /** VRI pieces over the parts of one candidate AVAST does not supply volume for. */
@@ -238,7 +263,14 @@ export function vriFillTotals(
     if (piece.source === 'zero' && !rules.fillZeroAvast) continue
     const feature = byFid.get(piece.fid)
     const density = feature ? vriDensity(feature, rules) : 0
-    const entry = totals.get(piece.candidateKey) ?? { uncoveredFillHa: 0, uncoveredFillVolume: 0, zeroFillHa: 0, zeroFillVolume: 0, auditFillVolume: 0, zeroDensityHa: 0 }
+    const entry = totals.get(piece.candidateKey) ?? {
+      uncoveredFillHa: 0,
+      uncoveredFillVolume: 0,
+      zeroFillHa: 0,
+      zeroFillVolume: 0,
+      auditFillVolume: 0,
+      zeroDensityHa: 0,
+    }
     const volume = density * piece.areaHa * scale
     if (feature) entry.auditFillVolume += volume * auditRatio(feature.species)
     if (density <= 0) entry.zeroDensityHa += piece.areaHa
@@ -256,14 +288,22 @@ export function vriFillTotals(
 
 /** One line for the workbook's Method & QA sheet saying which VRI rules produced the columns. */
 export function describeVriRules(rules: VriRules, factor: number | null, projectedDate: string | null): string {
-  const utilization = rules.utilization === 'species' ? 'pine-leading stands at 12.5 cm, others at 17.5 cm' : `${rules.utilization / 10} cm for every stand`
-  const dead = rules.dead === 'none' ? 'dead volume excluded'
-    : rules.dead === 'full' ? 'all VRI dead volume included'
-      : `dead volume on the TSR shelf-life curve to ${rules.asOfYear} (${rules.unknownDeathYears} years assumed where VRI records no disturbance date)`
-  return [
-    `VRI rank-1 (VEG_COMP_LYR_R1_POLY${projectedDate ? `, projected to ${projectedDate}` : ''}) fills block area AVAST leaves empty${rules.fillZeroAvast ? ' and AVAST pieces at 0 m³/ha' : ''}`,
-    `${utilization}; ${dead}; stands ${rules.minAge} years and older${rules.treedOnly ? ', treed polygons only' : ''}`,
-    rules.applyFactor && factor !== null ? `scaled by the LiDAR factor ${factor.toFixed(4)}` : 'no factor applied',
-    `blocks below ${rules.minimumM3ha} m³/ha with VRI flagged; audit-adjusted uses the 2018 Prince George TSA VRI audit ratios by leading species`,
-  ].join('; ') + '.'
+  const utilization =
+    rules.utilization === 'species'
+      ? 'pine-leading stands at 12.5 cm, others at 17.5 cm'
+      : `${rules.utilization / 10} cm for every stand`
+  const dead =
+    rules.dead === 'none'
+      ? 'dead volume excluded'
+      : rules.dead === 'full'
+        ? 'all VRI dead volume included'
+        : `dead volume on the TSR shelf-life curve to ${rules.asOfYear} (${rules.unknownDeathYears} years assumed where VRI records no disturbance date)`
+  return (
+    [
+      `VRI rank-1 (VEG_COMP_LYR_R1_POLY${projectedDate ? `, projected to ${projectedDate}` : ''}) fills block area AVAST leaves empty${rules.fillZeroAvast ? ' and AVAST pieces at 0 m³/ha' : ''}`,
+      `${utilization}; ${dead}; stands ${rules.minAge} years and older${rules.treedOnly ? ', treed polygons only' : ''}`,
+      rules.applyFactor && factor !== null ? `scaled by the LiDAR factor ${factor.toFixed(4)}` : 'no factor applied',
+      `blocks below ${rules.minimumM3ha} m³/ha with VRI flagged; audit-adjusted uses the 2018 Prince George TSA VRI audit ratios by leading species`,
+    ].join('; ') + '.'
+  )
 }

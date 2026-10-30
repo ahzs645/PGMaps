@@ -67,12 +67,17 @@ export function ForestOverlay(props: ForestOverlayProps) {
   // Placement and readiness share an identity. A source/geometry change must
   // invalidate readiness during render, before the replacement effect runs.
   const patches = useMemo(() => ({ configuration, tiles: new Map<string, TreeInstance[]>() }), [configuration]).tiles
-  const atlas = useMemo(() => style !== 'solid' ? buildImpostorAtlas() : undefined, [style])
-  const clumpAtlas = useMemo(() => style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined, [style])
+  const atlas = useMemo(() => (style !== 'solid' ? buildImpostorAtlas() : undefined), [style])
+  const clumpAtlas = useMemo(() => (style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined), [style])
   useEffect(() => {
     if (!active || !isLoaded || !map) return
     if (!elevation) {
-      statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: terrainMessage ?? 'Loading preview terrain…' })
+      statusRef.current?.({
+        configuration,
+        treeCount: 0,
+        trianglesPerTree: 0,
+        error: terrainMessage ?? 'Loading preview terrain…',
+      })
       return
     }
     statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: null, ready: false })
@@ -133,7 +138,9 @@ export function ForestOverlay(props: ForestOverlayProps) {
       get nearTreeCount() {
         return nearCount
       },
-      get reusedPatches() { return reusedPatches },
+      get reusedPatches() {
+        return reusedPatches
+      },
       get patchCount() {
         return patchCount
       },
@@ -153,7 +160,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
       dirty = true,
       lastUpload = -Infinity
     let wanted = forestPatches(initialEye, bands, anchorLatitude)
-    const wantedKeys = new Set(wanted.map(patch => patch.key))
+    const wantedKeys = new Set(wanted.map((patch) => patch.key))
     for (const key of cache.keys()) if (!wantedKeys.has(key)) cache.delete(key)
     const reusedPatches = cache.size
     const upload = () => {
@@ -179,7 +186,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
         configuration,
         treeCount: count,
         ready: cache.size === wanted.length,
-        nearbyReady: wanted.filter(patch => patch.band <= 1).every(patch => cache.has(patch.key)),
+        nearbyReady: wanted.filter((patch) => patch.band <= 1).every((patch) => cache.has(patch.key)),
         totalPatches: wanted.length,
         reusedPatches,
         nearTreeCount: nearCount,

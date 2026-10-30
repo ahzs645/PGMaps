@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { PortalLiveMonitoring, type PortalMonitoringProps } from './PortalLiveMonitoring'
 import { PortalCachedMonitoring } from './PortalCachedMonitoring'
 import { useMemo, useState } from 'react'
@@ -147,7 +148,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">
           CSV delimiter
-          <select
+          <NativeSelect
             aria-label="Monitoring delimiter"
             value={delimiter}
             onChange={(event) => setDelimiter(event.target.value)}
@@ -156,7 +157,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
             <option value=",">Comma</option>
             <option value=";">Semicolon</option>
             <option value="\t">Tab</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-sm font-medium">
           Monitoring CSV
@@ -208,7 +209,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                     secondary: 'Secondary measurement',
                   }[key]
                 }
-                <select
+                <NativeSelect
                   aria-label={
                     key === 'primary'
                       ? 'Primary measurement'
@@ -229,7 +230,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                   {table.headers.map((column) => (
                     <option key={column}>{column}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             ))}
             {(['primaryUnit', 'secondaryUnit'] as const).map((key) => (
@@ -264,7 +265,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
             </label>
             <label className="text-sm font-medium">
               Time zone / UTC offset column
-              <select
+              <NativeSelect
                 aria-label="Time zone column"
                 className={inputClass}
                 value={mapping.timezoneColumn || ''}
@@ -274,12 +275,12 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                 {table.headers.map((key) => (
                   <option key={key}>{key}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           </div>
           <label className="block text-sm font-medium">
             Date format
-            <select
+            <NativeSelect
               aria-label="Monitoring date format"
               className={inputClass}
               value={mapping.dateFormat ?? 'iso'}
@@ -292,7 +293,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
               <option value="dmy">DD/MM/YYYY · daily date</option>
               <option value="mdy">MM/DD/YYYY · daily date</option>
               <option value="ymd">YYYY-MM-DD · daily date</option>
-            </select>
+            </NativeSelect>
           </label>
           <p className="text-xs text-muted-foreground">
             Choose the actual source format; dates are never guessed. Daily dates are placed at midnight in the selected
@@ -387,7 +388,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-sm">
                   Station
-                  <select
+                  <NativeSelect
                     aria-label="Monitoring station"
                     value={station}
                     onChange={(event) => {
@@ -400,7 +401,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                     {stations.map((item) => (
                       <option key={item}>{item}</option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label className="text-sm">
                   From date (UTC)
@@ -430,7 +431,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                 </label>
                 <label className="text-sm">
                   Chart type
-                  <select
+                  <NativeSelect
                     aria-label="Monitoring chart type"
                     value={chart}
                     onChange={(event) => setChart(event.target.value as 'line' | 'bar')}
@@ -438,7 +439,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                   >
                     <option value="line">Line</option>
                     <option value="bar">Bar</option>
-                  </select>
+                  </NativeSelect>
                 </label>
               </div>
               <div className="overflow-x-auto rounded-lg border">

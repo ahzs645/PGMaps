@@ -33,9 +33,7 @@ export default function PGDataSection() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <SectionTabsBar tabs={PG_DATA_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="min-h-0 flex-1">
-        {activeContent}
-      </div>
+      <div className="min-h-0 flex-1">{activeContent}</div>
     </div>
   )
 }

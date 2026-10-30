@@ -1,11 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import MapLibreGL from 'maplibre-gl'
-import {
-  MapClusterLayer,
-  MapMarker,
-  MarkerContent,
-  useMap,
-} from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { geometryBounds, type BBox } from '@/lib/geo'
@@ -220,13 +215,7 @@ export function ParksMap({
 
         {showServices && (
           <>
-            <MapLineLayer
-              data={cityOverlays.serviceLines}
-              color="#38bdf8"
-              width={2}
-              opacity={0.55}
-              visible
-            />
+            <MapLineLayer data={cityOverlays.serviceLines} color="#38bdf8" width={2} opacity={0.55} visible />
             <MapFillLayer
               data={cityOverlays.serviceAreas}
               fillColor={['get', 'color']}
@@ -278,13 +267,7 @@ export function ParksMap({
               lineOpacity={0.55}
               visible
             />
-            <MapLineLayer
-              data={cityOverlays.parkLines}
-              color={['get', 'color']}
-              width={2.4}
-              opacity={0.75}
-              visible
-            />
+            <MapLineLayer data={cityOverlays.parkLines} color={['get', 'color']} width={2.4} opacity={0.75} visible />
             <MapClusterLayer
               data={cityOverlays.parkAssets}
               pointColor="#16a34a"
@@ -313,11 +296,7 @@ export function ParksMap({
         )}
 
         {visibleAmenities.map((amenity) => (
-          <MapMarker
-            key={amenity.id}
-            longitude={amenity.longitude}
-            latitude={amenity.latitude}
-          >
+          <MapMarker key={amenity.id} longitude={amenity.longitude} latitude={amenity.latitude}>
             <MarkerContent>
               <div className="h-2.5 w-2.5 rounded-full border border-white bg-amber-500 shadow-sm" />
             </MarkerContent>

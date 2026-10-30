@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -184,14 +185,14 @@ function CableLines(p: SidebarProps) {
             </Button>
           </div>
           <Field label="Yarder position">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={c.yarderAt ?? 'start'}
               onChange={(e) => edit(c.id, (a) => ({ ...a, yarderAt: e.target.value as 'start' | 'end' }))}
             >
               <option value="start">Start endpoint</option>
               <option value="end">End endpoint</option>
-            </select>
+            </NativeSelect>
           </Field>
           <div className="grid grid-cols-3 gap-1">
             {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (

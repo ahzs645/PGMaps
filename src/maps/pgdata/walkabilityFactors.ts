@@ -43,15 +43,31 @@ export const HEATMAP_REPORT_FIDELITY_OPTIONS: HeatmapOptionState = {
 }
 
 export const HEATMAP_OPTIONS: Array<{ key: HeatmapOptionKey; label: string; description: string }> = [
-  { key: 'dropGtfsHf', label: 'Remove GTFS high-frequency bonus', description: 'Drops the extra band 4-5 transit stop bonus.' },
-  { key: 'narrowCivic', label: 'Narrow civic factors', description: 'Keeps Cultural, Aquatic, and Administration only.' },
+  {
+    key: 'dropGtfsHf',
+    label: 'Remove GTFS high-frequency bonus',
+    description: 'Drops the extra band 4-5 transit stop bonus.',
+  },
+  {
+    key: 'narrowCivic',
+    label: 'Narrow civic factors',
+    description: 'Keeps Cultural, Aquatic, and Administration only.',
+  },
   { key: 'narrowGrowth', label: 'Narrow growth factors', description: 'Keeps Growth Priority and Future growth only.' },
-  { key: 'dropPopAge', label: 'Drop population and age factors', description: 'Removes F2/F3/F4/F6/F7 for report fidelity.' },
+  {
+    key: 'dropPopAge',
+    label: 'Drop population and age factors',
+    description: 'Removes F2/F3/F4/F6/F7 for report fidelity.',
+  },
   { key: 'dropF0', label: 'Drop crosswalks', description: 'Removes F0 crosswalk scoring.' },
   { key: 'dropC0', label: 'Drop daycares', description: 'Removes C0 daycare scoring.' },
   { key: 'dropF8', label: 'Drop intercity bus', description: 'Removes F8 intercity bus scoring.' },
   { key: 'dropSuppPoi', label: 'Drop supplemental POIs', description: 'Removes A1/E0/E1/E2/E3 supplemental POIs.' },
-  { key: 'tightBuffer', label: 'Use 10m area buffer', description: 'Uses 10m instead of the default 20m area/line buffer.' },
+  {
+    key: 'tightBuffer',
+    label: 'Use 10m area buffer',
+    description: 'Uses 10m instead of the default 20m area/line buffer.',
+  },
 ]
 
 export interface WalkabilityFactorGroup {
@@ -124,9 +140,12 @@ export const WALKABILITY_HEATMAP_BASE_LOGIC = [
 export function describeHeatmapLogic(options: HeatmapOptionState): string[] {
   const logic = [...WALKABILITY_HEATMAP_BASE_LOGIC]
   if (options.dropGtfsHf) logic.push('F9 high-frequency GTFS bonus is removed.')
-  if (options.narrowCivic) logic.push('A0/A5/C1 civic groups are narrowed to the closest report-matching facility classes.')
-  if (options.narrowGrowth) logic.push('E4/E5 growth-area groups are narrowed to Growth Priority and Future growth classes.')
-  if (options.dropPopAge) logic.push('F2/F3/F4 population-density and F6/F7 age-density factors are dropped for report fidelity.')
+  if (options.narrowCivic)
+    logic.push('A0/A5/C1 civic groups are narrowed to the closest report-matching facility classes.')
+  if (options.narrowGrowth)
+    logic.push('E4/E5 growth-area groups are narrowed to Growth Priority and Future growth classes.')
+  if (options.dropPopAge)
+    logic.push('F2/F3/F4 population-density and F6/F7 age-density factors are dropped for report fidelity.')
   if (options.dropF0) logic.push('F0 crosswalk proximity is excluded.')
   if (options.dropC0) logic.push('C0 daycare proximity is excluded.')
   if (options.dropF8) logic.push('F8 intercity bus proximity is excluded.')
@@ -145,9 +164,9 @@ export function isFactorDroppedByOptions(ref: string, options: HeatmapOptionStat
 }
 
 export function factorWeightKey(weights: HeatmapFactorWeightState): string {
-  return WALKABILITY_FACTOR_GROUPS
-    .map((factor) => `${factor.ref}:${Number(weights[factor.ref] ?? 1).toFixed(2)}`)
-    .join('|')
+  return WALKABILITY_FACTOR_GROUPS.map((factor) => `${factor.ref}:${Number(weights[factor.ref] ?? 1).toFixed(2)}`).join(
+    '|',
+  )
 }
 
 /** Minimal shape of a prebuilt grid variant needed to recover its option state. */
@@ -177,7 +196,15 @@ export function normalizeHeatmapOptions(options: HeatmapOptionState): HeatmapOpt
 
 export function variantKeyForHeatmapOptions(options: HeatmapOptionState): string {
   const extraDrops = [options.dropF0, options.dropC0, options.dropF8, options.dropSuppPoi].filter(Boolean).length
-  if (options.dropPopAge && options.tightBuffer && options.dropF0 && options.dropC0 && options.dropF8 && options.dropSuppPoi) return 'most_conservative'
+  if (
+    options.dropPopAge &&
+    options.tightBuffer &&
+    options.dropF0 &&
+    options.dropC0 &&
+    options.dropF8 &&
+    options.dropSuppPoi
+  )
+    return 'most_conservative'
   if (options.dropPopAge && options.tightBuffer && extraDrops === 0) return 'rf_tight_buffer_10m'
   if (options.dropPopAge && !options.tightBuffer && extraDrops === 1) {
     if (options.dropF0) return 'rf_drop_f0'

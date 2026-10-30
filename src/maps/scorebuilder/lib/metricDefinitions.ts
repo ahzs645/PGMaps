@@ -16,7 +16,11 @@ export function metricRecipeToDefinition(recipe: MetricRecipe): ScoreMetricDefin
     dataSourceLabel: SCORE_BUILDER_DATASETS.find((dataset) => dataset.id === recipe.source)?.label || 'Custom recipe',
     spatialMethod: recipe.operation === 'derivedExpression' ? ('derivedRatio' as const) : ('pointInPolygon' as const),
     uncertainty:
-      recipe.proxyLevel === 'official' ? ('low' as const) : recipe.proxyLevel === 'proxy' ? ('medium' as const) : ('high' as const),
+      recipe.proxyLevel === 'official'
+        ? ('low' as const)
+        : recipe.proxyLevel === 'proxy'
+          ? ('medium' as const)
+          : ('high' as const),
     caveat: recipe.caveats?.join(' '),
     directionLabel: recipe.direction === 'higherIsWorse' ? 'lower helps' : 'higher helps',
     sourceUrl: recipe.sourcePath,

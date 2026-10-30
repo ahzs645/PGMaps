@@ -74,9 +74,10 @@ export function formatWinterRangeHectares(hectares: number): string {
 }
 
 export function winterRangeTooltipHtml(properties: Record<string, unknown>): string {
-  const normalized = 'speciesLabel' in properties
-    ? properties
-    : winterRangePropertiesFromSource(properties, String(properties.UNGULATE_WINTER_RANGE_ID ?? ''))
+  const normalized =
+    'speciesLabel' in properties
+      ? properties
+      : winterRangePropertiesFromSource(properties, String(properties.UNGULATE_WINTER_RANGE_ID ?? ''))
   const species = String(normalized.speciesLabel ?? 'Ungulate')
   const label = String(normalized.label ?? 'Ungulate winter range')
   const harvestCode = String(normalized.harvestCode ?? '').trim()
@@ -89,11 +90,7 @@ export function winterRangeTooltipHtml(properties: Record<string, unknown>): str
   })
 }
 
-export function useWarsWinterRange(
-  enabled: boolean,
-  points: WinterRangePoint[],
-  mode: WarsWinterRangeMode,
-) {
+export function useWarsWinterRange(enabled: boolean, points: WinterRangePoint[], mode: WarsWinterRangeMode) {
   const workerRef = useRef<Worker | null>(null)
   const objectUrlRef = useRef<string | null>(null)
   const latestOverlapRequestRef = useRef(0)
@@ -102,11 +99,9 @@ export function useWarsWinterRange(
   if (stateInputs.enabled !== enabled || stateInputs.mode !== mode || stateInputs.points !== points) {
     const sourceChanged = stateInputs.enabled !== enabled || stateInputs.mode !== mode
     setStateInputs({ enabled, mode, points })
-    setState((current) => (
-      sourceChanged
-        ? emptyState(enabled)
-        : { ...current, overlap: null, overlapLoading: enabled, overlapError: null }
-    ))
+    setState((current) =>
+      sourceChanged ? emptyState(enabled) : { ...current, overlap: null, overlapLoading: enabled, overlapError: null },
+    )
   }
 
   useEffect(() => {

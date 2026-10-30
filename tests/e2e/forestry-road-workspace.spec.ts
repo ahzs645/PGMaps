@@ -44,7 +44,9 @@ function pdfContents(bytes: Buffer) {
 test('Save contains project actions and downloads real map and report PDFs', async ({ page }, testInfo) => {
   const errors = await prepare(page)
   await expect(page.getByRole('tab', { name: 'Files', exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('road-workspace-header')).not.toContainText('synthetic training project')
+  const header = page.getByTestId('road-workspace-header')
+  await expect(header.getByRole('button', { name: 'Projects', exact: true })).toBeVisible()
+  await expect(header.getByText(/synthetic training project/)).not.toBeVisible()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
   await expect(dialog).toBeVisible()

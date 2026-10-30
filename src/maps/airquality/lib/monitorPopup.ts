@@ -46,7 +46,7 @@ export function formatObservedDate(value: string | null | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZoneName: 'short'
+    timeZoneName: 'short',
   }).formatToParts(date)
 
   const byType = new Map(parts.map((part) => [part.type, part.value]))
@@ -87,7 +87,7 @@ export function buildSparklinePoints(value: number | null): string {
     [258, y],
     [332, Math.max(16, y - 6)],
     [406, Math.min(92, y + 5)],
-    [480, y]
+    [480, y],
   ]
   return points.map(([x, pointY]) => `${x},${pointY}`).join(' ')
 }
@@ -108,9 +108,7 @@ export function buildWindowSparklinePoints(values: Array<number | null>): string
 
 function parseObservedDate(value: string | null | undefined): Date | null {
   if (!value) return null
-  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(value)
-    ? value
-    : `${value.replace(' ', 'T')}Z`
+  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value.replace(' ', 'T')}Z`
   const date = new Date(normalized)
   return Number.isNaN(date.getTime()) ? null : date
 }

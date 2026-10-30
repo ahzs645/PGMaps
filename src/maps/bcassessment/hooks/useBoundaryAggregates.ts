@@ -60,10 +60,7 @@ export function useBoundaryAggregates(
         }
       }
 
-      const avgHistory =
-        histCount > 0
-          ? histSums.map((s) => Math.round(s / histCount))
-          : null
+      const avgHistory = histCount > 0 ? histSums.map((s) => Math.round(s / histCount)) : null
 
       result.set(bid, {
         boundaryId: bid,

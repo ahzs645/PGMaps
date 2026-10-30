@@ -200,7 +200,10 @@ async function handleGeometPm25Tile(res: ServerResponse, requestUrl: string) {
     const buffer = Buffer.from(await response.arrayBuffer())
     const contentType = response.headers.get('content-type') ?? ''
 
-    if (contentType.includes('image/png') || buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    if (
+      contentType.includes('image/png') ||
+      buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    ) {
       sendResponse(res, 200, buffer, 'image/png')
       return
     }
@@ -216,9 +219,7 @@ function parseDataRouteParts(parts: string[]) {
 
   const maybeType = parts[parts.length - 1]
   const explicitType = isSupportedDataType(maybeType) ? maybeType : null
-  const network = explicitType
-    ? parts.length > 1 ? parts[parts.length - 2] : undefined
-    : parts[0]
+  const network = explicitType ? (parts.length > 1 ? parts[parts.length - 2] : undefined) : parts[0]
 
   return {
     network,
@@ -245,13 +246,14 @@ async function handleRecentRoute(res: ServerResponse, requestPath: string) {
   }
 
   const body = serializeAqmapData(payload.rows, payload.type)
-  const contentType = payload.type === 'json'
-    ? 'application/json; charset=utf-8'
-    : payload.type === 'geojson'
-      ? 'application/geo+json; charset=utf-8'
-      : payload.type === 'tsv'
-        ? 'text/tab-separated-values; charset=utf-8'
-        : 'text/csv; charset=utf-8'
+  const contentType =
+    payload.type === 'json'
+      ? 'application/json; charset=utf-8'
+      : payload.type === 'geojson'
+        ? 'application/geo+json; charset=utf-8'
+        : payload.type === 'tsv'
+          ? 'text/tab-separated-values; charset=utf-8'
+          : 'text/csv; charset=utf-8'
   sendResponse(res, 200, body, contentType)
 }
 
@@ -265,13 +267,14 @@ async function handleMetaRoute(res: ServerResponse, requestPath: string) {
   }
 
   const body = serializeAqmapData(payload.rows, payload.type)
-  const contentType = payload.type === 'json'
-    ? 'application/json; charset=utf-8'
-    : payload.type === 'geojson'
-      ? 'application/geo+json; charset=utf-8'
-      : payload.type === 'tsv'
-        ? 'text/tab-separated-values; charset=utf-8'
-        : 'text/csv; charset=utf-8'
+  const contentType =
+    payload.type === 'json'
+      ? 'application/json; charset=utf-8'
+      : payload.type === 'geojson'
+        ? 'application/geo+json; charset=utf-8'
+        : payload.type === 'tsv'
+          ? 'text/tab-separated-values; charset=utf-8'
+          : 'text/csv; charset=utf-8'
   sendResponse(res, 200, body, contentType)
 }
 
@@ -292,11 +295,12 @@ async function handlePlotRoute(res: ServerResponse, requestPath: string) {
   }
 
   const body = serializePlotData(points, normalizeAssetType(type))
-  const contentType = type === 'json'
-    ? 'application/json; charset=utf-8'
-    : type === 'tsv'
-      ? 'text/tab-separated-values; charset=utf-8'
-      : 'text/csv; charset=utf-8'
+  const contentType =
+    type === 'json'
+      ? 'application/json; charset=utf-8'
+      : type === 'tsv'
+        ? 'text/tab-separated-values; charset=utf-8'
+        : 'text/csv; charset=utf-8'
 
   sendResponse(res, 200, body, contentType)
 }

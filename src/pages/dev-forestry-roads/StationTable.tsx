@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { formatRoadStation } from './Charts'
@@ -208,7 +209,7 @@ export function StationTable({
         </label>
         <label className="flex items-center gap-1">
           Every
-          <select
+          <NativeSelect
             aria-label="Station table reporting interval"
             className="rounded border bg-background px-1 text-base md:text-xs"
             value={every}
@@ -219,7 +220,7 @@ export function StationTable({
                 {v ? `${v} m` : 'station'}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           From{' '}

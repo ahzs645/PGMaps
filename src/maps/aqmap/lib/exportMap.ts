@@ -53,7 +53,8 @@ async function captureWithOverlays(container: HTMLElement, map: maplibregl.Map):
     useCORS: true,
     backgroundColor: null,
     logging: false,
-    ignoreElements: (element) => element.tagName === 'CANVAS' && !(element as HTMLCanvasElement).classList.contains('maplibregl-canvas'),
+    ignoreElements: (element) =>
+      element.tagName === 'CANVAS' && !(element as HTMLCanvasElement).classList.contains('maplibregl-canvas'),
   })
   return canvas.toDataURL('image/png')
 }
@@ -93,9 +94,7 @@ export async function exportAqmap(format: ExportFormat, options: ExportOptions):
   }
 
   if (format === 'pdf') {
-    const dataUrl = container
-      ? await captureWithOverlays(container, map)
-      : await captureMapCanvas(map, 'image/png')
+    const dataUrl = container ? await captureWithOverlays(container, map) : await captureMapCanvas(map, 'image/png')
 
     const jsPdfModule = await import('jspdf')
     const JsPdfCtor = jsPdfModule.jsPDF ?? jsPdfModule.default

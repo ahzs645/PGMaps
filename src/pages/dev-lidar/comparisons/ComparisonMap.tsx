@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import maplibregl, { type GeoJSONSource, type ImageSource, type LayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import {
@@ -63,7 +63,9 @@ export function ComparisonMap(props: Props) {
   const context = useRef<LayerSpecification[]>([]),
     [ready, setReady] = useState(false),
     [error, setError] = useState('')
-  latest.current = props
+  useLayoutEffect(() => {
+    latest.current = props
+  }, [props])
   useEffect(() => {
     if (!container.current) return
     let active = true,
@@ -88,6 +90,8 @@ export function ComparisonMap(props: Props) {
         attributionControl: { compact: true },
       })
     } catch (e) {
+      // MapLibre can fail synchronously before load events exist; expose that external failure.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(`Map unavailable: ${String(e)}`)
       return () => {
         abort.abort()
@@ -277,15 +281,16 @@ export function ComparisonMap(props: Props) {
     const m = map.current
     if (!ready || !m) return
     applying.current = true
+    const { centre, zoom } = latest.current
     if (props.bounds)
       m.fitBounds(props.bounds, {
         padding: 20,
-        maxZoom: props.zoom ?? 19,
+        maxZoom: zoom ?? 19,
         pitch: props.view === '3d' ? 50 : 0,
         bearing: 0,
         duration: 0,
       })
-    else m.jumpTo({ center: props.centre, zoom: props.zoom ?? 19, pitch: props.view === '3d' ? 50 : 0, bearing: 0 })
+    else m.jumpTo({ center: centre, zoom: zoom ?? 19, pitch: props.view === '3d' ? 50 : 0, bearing: 0 })
     applying.current = false
     // focusKey deliberately owns re-fitting; model/point styling updates retain the user's camera.
   }, [ready, props.focusKey, props.view, props.bounds])

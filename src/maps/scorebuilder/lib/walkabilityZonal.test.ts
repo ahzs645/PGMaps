@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  cellCenterLngLat,
-  decodeRleBands,
-  zonalMeanMiByRegion,
-  type WalkabilityMiGrid,
-} from './walkabilityZonal'
+import { cellCenterLngLat, decodeRleBands, zonalMeanMiByRegion, type WalkabilityMiGrid } from './walkabilityZonal'
 import type { ScoreBuilderRegion } from '../types'
 
 // Axis-aligned 2x2 grid spanning lng[0,1] lat[0,1]; row 0 is the north edge.
@@ -45,7 +40,18 @@ function rectRegion(id: string, west: number, south: number, east: number, north
 
 describe('decodeRleBands', () => {
   it('expands run-length pairs into a per-cell band array', () => {
-    expect(Array.from(decodeRleBands([[0, 2], [3, 1], [5, 1]], 4))).toEqual([0, 0, 3, 5])
+    expect(
+      Array.from(
+        decodeRleBands(
+          [
+            [0, 2],
+            [3, 1],
+            [5, 1],
+          ],
+          4,
+        ),
+      ),
+    ).toEqual([0, 0, 3, 5])
   })
 
   it('stops at the declared cell count', () => {
@@ -69,7 +75,14 @@ describe('zonalMeanMiByRegion', () => {
     imageCoordinates: IMAGE,
     defaultVariant: 'v',
     // Bands row-major: (0,0)=2 (0,1)=4 (1,0)=2 (1,1)=4
-    grids: { v: [[2, 1], [4, 1], [2, 1], [4, 1]] },
+    grids: {
+      v: [
+        [2, 1],
+        [4, 1],
+        [2, 1],
+        [4, 1],
+      ],
+    },
   }
 
   it('averages the bands of the cells whose centre falls inside each region', () => {

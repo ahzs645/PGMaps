@@ -35,8 +35,10 @@ function getRiskDotClass(band: ViolationRiskBand, hasViolations: boolean): strin
 function getRiskCategoryClass(category: string): string {
   if (category === 'Pest Control') return 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300'
   if (category === 'Contamination') return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-  if (category === 'Temperature Control') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
-  if (category === 'Sanitization & Hygiene') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+  if (category === 'Temperature Control')
+    return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
+  if (category === 'Sanitization & Hygiene')
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
   if (category === 'Chemical Safety') return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300'
   if (category === 'Facility & Equipment') return 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300'
   if (category === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
@@ -63,7 +65,7 @@ function getInspectionViolationDetailMismatch(inspection: Inspection): Violation
 
   return {
     missingDetails: Math.max(0, healthSpaceCount - detailedCount),
-    extraDetails: Math.max(0, detailedCount - healthSpaceCount)
+    extraDetails: Math.max(0, detailedCount - healthSpaceCount),
   }
 }
 
@@ -80,13 +82,18 @@ function getInspectionKey(inspection: Inspection, index: number): string {
   ].join('|')
 }
 
-export function InspectionPanel({ restaurant, periodLabel, useFilteredInspections = false, onClose }: InspectionPanelProps) {
+export function InspectionPanel({
+  restaurant,
+  periodLabel,
+  useFilteredInspections = false,
+  onClose,
+}: InspectionPanelProps) {
   // When the active period is empty, open the available history immediately.
   // Keep the period view one click away so its zero counts remain inspectable.
   const [historyView, setHistoryView] = useState<boolean | null>(null)
-  const showHistory = useFilteredInspections && (
-    historyView ?? (restaurant.filteredInspections.length === 0 && (restaurant.inspections?.length || 0) > 0)
-  )
+  const showHistory =
+    useFilteredInspections &&
+    (historyView ?? (restaurant.filteredInspections.length === 0 && (restaurant.inspections?.length || 0) > 0))
   const inspections = useMemo(() => {
     const source = useFilteredInspections && !showHistory ? restaurant.filteredInspections : restaurant.inspections
     return source || []
@@ -105,11 +112,17 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
   }, [inspections])
 
   const missingViolationDetails = useMemo(() => {
-    return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).missingDetails, 0)
+    return inspections.reduce(
+      (sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).missingDetails,
+      0,
+    )
   }, [inspections])
 
   const extraViolationDetails = useMemo(() => {
-    return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).extraDetails, 0)
+    return inspections.reduce(
+      (sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).extraDetails,
+      0,
+    )
   }, [inspections])
 
   // Counts follow the itemized rows; say briefly when HealthSpace's own tally differs.
@@ -120,7 +133,9 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     extraViolationDetails > 0
       ? `${extraViolationDetails} itemized ${extraViolationDetails === 1 ? 'finding is' : 'findings are'} not in HealthSpace's tally.`
       : '',
-  ].filter(Boolean).join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const currentRating = getHazardRating(restaurant)
 
@@ -133,12 +148,13 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     inspections.length === 1
       ? inspections[0]
       : selectedInspectionKey
-        ? inspections[inspectionKeys.indexOf(selectedInspectionKey)] ?? null
+        ? (inspections[inspectionKeys.indexOf(selectedInspectionKey)] ?? null)
         : null
 
   const hasAnyRecords = (restaurant.inspections?.length || 0) > 0
   // The switch only earns its place when the period hides some of the history.
-  const periodDiffers = useFilteredInspections && restaurant.filteredInspections.length !== (restaurant.inspections?.length || 0)
+  const periodDiffers =
+    useFilteredInspections && restaurant.filteredInspections.length !== (restaurant.inspections?.length || 0)
   const periodCount = restaurant.filteredInspections.length
   const historyCount = restaurant.inspections?.length || 0
 
@@ -198,11 +214,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
                 },
               ]}
             />
-            {detailMismatchNote && (
-              <p className="text-center text-xs text-muted-foreground">
-                {detailMismatchNote}
-              </p>
-            )}
+            {detailMismatchNote && <p className="text-center text-xs text-muted-foreground">{detailMismatchNote}</p>}
           </div>
         ) : undefined
       }
@@ -299,7 +311,13 @@ function InspectionSummaryCard({ inspection, onOpen }: { inspection: Inspection;
         aria-hidden="true"
       />
       <InspectionHeading inspection={inspection} />
-      <svg className="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <svg
+        className="h-4 w-4 shrink-0 text-muted-foreground"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>
     </button>
@@ -307,7 +325,15 @@ function InspectionSummaryCard({ inspection, onOpen }: { inspection: Inspection;
 }
 
 // Detail view for a single inspection: its heading, then each violation.
-function InspectionDetailView({ inspection, showBack, onBack }: { inspection: Inspection; showBack: boolean; onBack: () => void }) {
+function InspectionDetailView({
+  inspection,
+  showBack,
+  onBack,
+}: {
+  inspection: Inspection
+  showBack: boolean
+  onBack: () => void
+}) {
   return (
     <div className="space-y-3">
       {showBack && (

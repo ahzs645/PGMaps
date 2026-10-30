@@ -3,7 +3,14 @@ import type { Candidate, DensityFeature, GeometrySettings, Piece } from './types
 import type { VriFeature, VriPiece } from './vriFill'
 
 export type AvastWorkerRequest =
-  | { type: 'run'; runId: number; candidates: Candidate[]; avast: DensityFeature[]; lidar: DensityFeature[]; settings: GeometrySettings }
+  | {
+      type: 'run'
+      runId: number
+      candidates: Candidate[]
+      avast: DensityFeature[]
+      lidar: DensityFeature[]
+      settings: GeometrySettings
+    }
   | { type: 'vri'; runId: number; candidates: Candidate[]; avastPieces: Piece[]; vri: VriFeature[]; minPieceHa: number }
   | { type: 'cancel' }
 

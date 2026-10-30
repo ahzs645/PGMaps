@@ -26,12 +26,7 @@ describe('parseCsvRows', () => {
       ['a', 'b'],
       ['1', '2'],
     ])
-    expect(parseCsvRows('a,b\n\n1,2\n', { skipEmptyRows: false })).toEqual([
-      ['a', 'b'],
-      [''],
-      ['1', '2'],
-      [''],
-    ])
+    expect(parseCsvRows('a,b\n\n1,2\n', { skipEmptyRows: false })).toEqual([['a', 'b'], [''], ['1', '2'], ['']])
   })
 
   it('supports a tab delimiter', () => {

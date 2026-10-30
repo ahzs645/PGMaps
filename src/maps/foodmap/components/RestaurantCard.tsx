@@ -47,7 +47,8 @@ export function RestaurantCard({
       data-restaurant-id={onClick ? restaurant.details_url : undefined}
       className={cn(
         'block w-full p-3 text-left transition-colors',
-        onClick && 'cursor-pointer hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-slate-800/60',
+        onClick &&
+          'cursor-pointer hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-slate-800/60',
         isSelected && 'bg-sky-50 shadow-[inset_3px_0_0_theme(colors.sky.500)] dark:bg-sky-950/30',
         className,
       )}
@@ -59,14 +60,22 @@ export function RestaurantCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-              {restaurant.name}
-            </h3>
+            <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{restaurant.name}</h3>
             {!hasLocation && (
               <span className="text-xs text-gray-400 dark:text-gray-500" title="No map location">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
                 <span className="sr-only">No map location</span>
               </span>
@@ -97,7 +106,6 @@ export function RestaurantCard({
               visualizationMode === 'violations' ? `${rating} hazard` : violationLabel,
             ].join(' · ')}
           </div>
-
         </div>
       </div>
     </Root>

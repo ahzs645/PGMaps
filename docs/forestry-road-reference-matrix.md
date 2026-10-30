@@ -1,5 +1,10 @@
 # Forestry road reference matrix
 
+For the current comparison against the supplied Drive software folder, read the
+[30 October 2026 gap audit](forestry-road-design/reference-gap-audit-2026-10-30.md).
+The baseline and second-pass tables below are dated history; later work added
+features that some of those rows still describe as missing.
+
 ## Audit scope and evidence
 
 This is a functional audit of the road workspace at commit `455a5b3`, before the

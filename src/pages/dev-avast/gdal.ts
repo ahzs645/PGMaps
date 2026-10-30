@@ -82,18 +82,45 @@ export function detectDatasets(files: SourceFile[], idPrefix: string): DetectedD
     } else loose.push(entry)
   }
   for (const [root, members] of gdbFiles) {
-    datasets.push({ id: `${idPrefix}-${datasets.length}`, label: basename(root), kind: 'gdb', relativePath: root, files: members })
+    datasets.push({
+      id: `${idPrefix}-${datasets.length}`,
+      label: basename(root),
+      kind: 'gdb',
+      relativePath: root,
+      files: members,
+    })
   }
   for (const entry of loose) {
     const ext = extension(entry.path)
     if (ext === 'shp') {
       const stem = entry.path.slice(0, -4)
-      const parts = loose.filter((other) => other.path.slice(0, other.path.lastIndexOf('.')) === stem && SHAPEFILE_PARTS.has(extension(other.path)))
-      datasets.push({ id: `${idPrefix}-${datasets.length}`, label: basename(entry.path), kind: 'shapefile', relativePath: entry.path, files: parts })
+      const parts = loose.filter(
+        (other) =>
+          other.path.slice(0, other.path.lastIndexOf('.')) === stem && SHAPEFILE_PARTS.has(extension(other.path)),
+      )
+      datasets.push({
+        id: `${idPrefix}-${datasets.length}`,
+        label: basename(entry.path),
+        kind: 'shapefile',
+        relativePath: entry.path,
+        files: parts,
+      })
     } else if (SINGLE_FILE.has(ext)) {
-      datasets.push({ id: `${idPrefix}-${datasets.length}`, label: basename(entry.path), kind: 'file', relativePath: entry.path, files: [entry] })
+      datasets.push({
+        id: `${idPrefix}-${datasets.length}`,
+        label: basename(entry.path),
+        kind: 'file',
+        relativePath: entry.path,
+        files: [entry],
+      })
     } else if (ext === 'zip') {
-      datasets.push({ id: `${idPrefix}-${datasets.length}`, label: basename(entry.path), kind: 'zip', relativePath: entry.path, files: [entry] })
+      datasets.push({
+        id: `${idPrefix}-${datasets.length}`,
+        label: basename(entry.path),
+        kind: 'zip',
+        relativePath: entry.path,
+        files: [entry],
+      })
     }
   }
   return datasets
@@ -126,10 +153,15 @@ export async function expandZips(datasets: DetectedDataset[]): Promise<DetectedD
         out.push(dataset)
         continue
       }
-      ;[...inner].forEach((innerPath, index) => out.push({
-        ...dataset, id: `${dataset.id}z${index}`, label: basename(innerPath), innerPath,
-        kind: innerPath.toLowerCase().endsWith('.gdb') ? 'gdb' : 'zip',
-      }))
+      ;[...inner].forEach((innerPath, index) =>
+        out.push({
+          ...dataset,
+          id: `${dataset.id}z${index}`,
+          label: basename(innerPath),
+          innerPath,
+          kind: innerPath.toLowerCase().endsWith('.gdb') ? 'gdb' : 'zip',
+        }),
+      )
     } catch {
       out.push(dataset)
     }
@@ -144,7 +176,9 @@ export function filesFromInput(list: FileList | null): SourceFile[] {
 
 /** Files from a drop, walking dropped folders (a .gdb is a folder). */
 export async function filesFromDrop(transfer: DataTransfer): Promise<SourceFile[]> {
-  const entries = [...transfer.items].map((item) => item.webkitGetAsEntry?.()).filter((entry): entry is FileSystemEntry => !!entry)
+  const entries = [...transfer.items]
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter((entry): entry is FileSystemEntry => !!entry)
   if (!entries.length) return filesFromInput(transfer.files)
   const out: SourceFile[] = []
   const walk = async (entry: FileSystemEntry, prefix: string): Promise<void> => {
@@ -213,8 +247,11 @@ async function ensureMounted(gdal: Gdal, datasets: DetectedDataset[]) {
   const key = datasets.map((dataset) => `${dataset.id}:${dataset.files.length}`).join('|')
   if (key === mountedKey && datasets.every((dataset) => mountedSets.includes(dataset))) return
   await closeAll(gdal)
-  const files = datasets.flatMap((dataset) => dataset.files.map((entry) =>
-    new File([entry.file], mountName(dataset, entry.path), { lastModified: entry.file.lastModified })))
+  const files = datasets.flatMap((dataset) =>
+    dataset.files.map(
+      (entry) => new File([entry.file], mountName(dataset, entry.path), { lastModified: entry.file.lastModified }),
+    ),
+  )
   // gdal3.js opens the first file of each name group while mounting; the
   // datasets are opened properly by path below, so those handles are dropped.
   const result = await gdal.open(files as unknown as FileList).catch(() => ({ datasets: [] as GdalDataset[] }))
@@ -231,7 +268,10 @@ async function datasetHandle(gdal: Gdal, all: DetectedDataset[], dataset: Detect
   const path = `/input/${mountName(dataset, dataset.relativePath)}${dataset.innerPath ? `/${dataset.innerPath}` : ''}`
   const opened = await gdal.open(path, [], zipped ? ['vsizip'] : [])
   const handle = opened.datasets[0]
-  if (!handle) throw new Error(`GDAL could not open ${dataset.label}${opened.errors.length ? `: ${JSON.stringify(opened.errors[0])}` : ''}`)
+  if (!handle)
+    throw new Error(
+      `GDAL could not open ${dataset.label}${opened.errors.length ? `: ${JSON.stringify(opened.errors[0])}` : ''}`,
+    )
   openDatasets.set(dataset.id, handle)
   return handle
 }
@@ -241,7 +281,10 @@ type OgrInfo = {
     name: string
     featureCount: number
     fields: Array<{ name: string; type: string }>
-    geometryFields: Array<{ type: string; coordinateSystem?: { wkt?: string; projjson?: { id?: { code?: number }; name?: string } } }>
+    geometryFields: Array<{
+      type: string
+      coordinateSystem?: { wkt?: string; projjson?: { id?: { code?: number }; name?: string } }
+    }>
   }>
 }
 
@@ -271,7 +314,11 @@ let outputCounter = 0
 
 async function readGeoJson(gdal: Gdal, options: string[], handle: GdalDataset): Promise<GeoJSON.FeatureCollection> {
   outputCounter += 1
-  const output = await gdal.ogr2ogr(handle, ['-f', 'GeoJSON', '-lco', 'RFC7946=NO', '-lco', 'COORDINATE_PRECISION=3', ...options], `read${outputCounter}`)
+  const output = await gdal.ogr2ogr(
+    handle,
+    ['-f', 'GeoJSON', '-lco', 'RFC7946=NO', '-lco', 'COORDINATE_PRECISION=3', ...options],
+    `read${outputCounter}`,
+  )
   const bytes = await gdal.getFileBytes(output)
   return JSON.parse(new TextDecoder().decode(bytes)) as GeoJSON.FeatureCollection
 }
@@ -299,7 +346,13 @@ async function readLayerNow(
   const gdal = await loadGdal()
   const handle = await datasetHandle(gdal, all, dataset)
   const base = [
-    '-preserve_fid', '-dim', 'XY', '-t_srs', 'EPSG:3005', '-nlt', 'PROMOTE_TO_MULTI',
+    '-preserve_fid',
+    '-dim',
+    'XY',
+    '-t_srs',
+    'EPSG:3005',
+    '-nlt',
+    'PROMOTE_TO_MULTI',
     ...(options.assumeEpsg ? ['-s_srs', `EPSG:${options.assumeEpsg}`] : []),
     ...(options.fields.length ? ['-select', options.fields.join(',')] : []),
   ]
@@ -307,7 +360,11 @@ async function readLayerNow(
   const seen = new Set<string | number>()
   const features: GeoJSON.Feature[] = []
   for (const box of options.boxes) {
-    const part = await readGeoJson(gdal, [...base, '-spat', ...box.map(String), '-spat_srs', 'EPSG:3005', layer], handle)
+    const part = await readGeoJson(
+      gdal,
+      [...base, '-spat', ...box.map(String), '-spat_srs', 'EPSG:3005', layer],
+      handle,
+    )
     for (const feature of part.features) {
       const id = feature.id ?? JSON.stringify(feature.properties)
       if (seen.has(id)) continue
@@ -335,18 +392,31 @@ export type OutputLayer = {
  */
 export function layerGeoJson(layer: OutputLayer): string {
   const keys = [...new Set(layer.features.flatMap((feature) => Object.keys(feature.properties ?? {})))]
-  const filled = keys.filter((key) => layer.features.some((feature) => feature.properties?.[key] !== null && feature.properties?.[key] !== undefined))
-  const doubles = new Set(filled.filter((key) => !layer.integers?.includes(key) && layer.features.every((feature) => {
-    const value = feature.properties?.[key]
-    return value === null || value === undefined || typeof value === 'number'
-  })))
+  const filled = keys.filter((key) =>
+    layer.features.some((feature) => feature.properties?.[key] !== null && feature.properties?.[key] !== undefined),
+  )
+  const doubles = new Set(
+    filled.filter(
+      (key) =>
+        !layer.integers?.includes(key) &&
+        layer.features.every((feature) => {
+          const value = feature.properties?.[key]
+          return value === null || value === undefined || typeof value === 'number'
+        }),
+    ),
+  )
   const MARK = '__real__'
   const features = layer.features.map((feature) => ({
     ...feature,
-    properties: Object.fromEntries(filled.map((key) => {
-      const value = feature.properties?.[key] ?? null
-      return [key, doubles.has(key) && typeof value === 'number' && Number.isInteger(value) ? `${MARK}${value}` : value]
-    })),
+    properties: Object.fromEntries(
+      filled.map((key) => {
+        const value = feature.properties?.[key] ?? null
+        return [
+          key,
+          doubles.has(key) && typeof value === 'number' && Number.isInteger(value) ? `${MARK}${value}` : value,
+        ]
+      }),
+    ),
   }))
   return JSON.stringify({
     type: 'FeatureCollection',
@@ -359,16 +429,27 @@ export function layerGeoJson(layer: OutputLayer): string {
  * Writes the layers into one File Geodatabase and returns it zipped as
  * `<gdbName>.gdb/…`, ready to unzip and add to ArcGIS Pro or QGIS.
  */
-export function writeGeodatabase(gdbName: string, layers: OutputLayer[], onProgress?: (message: string) => void): Promise<Blob> {
+export function writeGeodatabase(
+  gdbName: string,
+  layers: OutputLayer[],
+  onProgress?: (message: string) => void,
+): Promise<Blob> {
   return exclusive(() => writeGeodatabaseNow(gdbName, layers, onProgress))
 }
 
-async function writeGeodatabaseNow(gdbName: string, layers: OutputLayer[], onProgress?: (message: string) => void): Promise<Blob> {
+async function writeGeodatabaseNow(
+  gdbName: string,
+  layers: OutputLayer[],
+  onProgress?: (message: string) => void,
+): Promise<Blob> {
   const gdal = await loadGdal()
   await closeAll(gdal)
   // The export borrows the mount; inputs are re-mounted on the next read.
   mountedKey = ''
-  const files = layers.map((layer, index) => new File([layerGeoJson(layer)], `out${index}_${layer.name}.geojson`, { type: 'application/geo+json' }))
+  const files = layers.map(
+    (layer, index) =>
+      new File([layerGeoJson(layer)], `out${index}_${layer.name}.geojson`, { type: 'application/geo+json' }),
+  )
   const opened = await gdal.open(files as unknown as FileList)
   outputCounter += 1
   const target = `gdb${outputCounter}`
@@ -377,14 +458,22 @@ async function writeGeodatabaseNow(gdbName: string, layers: OutputLayer[], onPro
       onProgress?.(`Writing ${layer.name}`)
       const source = opened.datasets.find((dataset) => dataset.path.startsWith(`out${index}_`))
       if (!source) throw new Error(`GDAL could not read the ${layer.name} layer back`)
-      await gdal.ogr2ogr(source, [
-        '-f', 'OpenFileGDB',
-        ...(index > 0 ? ['-update'] : []),
-        '-nln', layer.name,
-        '-a_srs', 'EPSG:3005',
-        '-nlt', layer.table ? 'NONE' : 'MULTIPOLYGON',
-        ...(layer.table ? [] : ['-lco', 'GEOMETRY_NAME=SHAPE']),
-      ], target)
+      await gdal.ogr2ogr(
+        source,
+        [
+          '-f',
+          'OpenFileGDB',
+          ...(index > 0 ? ['-update'] : []),
+          '-nln',
+          layer.name,
+          '-a_srs',
+          'EPSG:3005',
+          '-nlt',
+          layer.table ? 'NONE' : 'MULTIPOLYGON',
+          ...(layer.table ? [] : ['-lco', 'GEOMETRY_NAME=SHAPE']),
+        ],
+        target,
+      )
     }
   } finally {
     for (const dataset of opened.datasets) await gdal.close(dataset).catch(() => undefined)

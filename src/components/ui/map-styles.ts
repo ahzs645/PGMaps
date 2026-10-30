@@ -1,4 +1,4 @@
-export * from "@pgmaps/geo-toolkit/map/map-styles";
+export * from '@pgmaps/geo-toolkit/map/map-styles'
 
 /** Prince George center coordinates */
 export const PG_CENTER: [number, number] = [-122.764593, 53.909784]

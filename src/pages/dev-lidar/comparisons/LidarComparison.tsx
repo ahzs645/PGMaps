@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, useEffect } from 'react'
+import { NativeSelect } from '@/components/ui/form-field'
+import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { downloadText } from '@/lib/download'
@@ -21,20 +22,22 @@ export function LidarComparison({
   selectedModel?: string
 }) {
   const [plotId, setPlotId] = useState(data.benchmark.plots[0].id),
-    [aId, setAId] = useState('watershed'),
-    [bId, setBId] = useState('dalponte2016')
+    [aId, setAId] = useState(selectedModel || 'watershed'),
+    [bId, setBId] = useState(selectedModel === 'dalponte2016' ? 'watershed' : 'dalponte2016')
   const [view, setView] = useState('3d'),
     [linked, setLinked] = useState(true),
     [angle, setAngle] = useState(0),
     [camera, setCamera] = useState<ComparisonCamera | null>(null),
     [reset, setReset] = useState(0),
     [picked, setPicked] = useState<IsolatedPoint | null>(null)
-  useEffect(() => {
+  const [previousSelectedModel, setPreviousSelectedModel] = useState(selectedModel)
+  if (previousSelectedModel !== selectedModel) {
+    setPreviousSelectedModel(selectedModel)
     if (selectedModel) {
       setAId(selectedModel)
       setBId(selectedModel === 'dalponte2016' ? 'watershed' : 'dalponte2016')
     }
-  }, [selectedModel])
+  }
   const plot = data.benchmark.plots.find((p) => p.id === plotId) ?? data.benchmark.plots[0]
   const a = plot.methods.find((m) => m.id === aId) ?? plot.methods[0],
     b = plot.methods.find((m) => m.id === bId) ?? plot.methods[1]
@@ -58,7 +61,7 @@ export function LidarComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           Source plot
-          <select
+          <NativeSelect
             aria-label="Comparison LiDAR plot"
             className="ml-1 max-w-[170px] rounded border bg-background p-1.5"
             value={plot.id}
@@ -67,7 +70,7 @@ export function LidarComparison({
             {data.benchmark.plots.map((p) => (
               <option key={p.id}>{p.id}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {[
           [a, setAId, 'A'],
@@ -75,7 +78,7 @@ export function LidarComparison({
         ].map(([method, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               aria-label={`LiDAR model ${label}`}
               className="ml-1 max-w-[190px] rounded border bg-background p-1.5"
               value={(method as typeof a).id}
@@ -86,7 +89,7 @@ export function LidarComparison({
                   {m.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
         <SegmentedControl

@@ -791,7 +791,6 @@ class Graph {
    * and from the console. */
   arcOf(edgeId, reversed) {
     if (!this._arcLookup) {
-      const lut = new Int32Array(this.arcEdge.length ? 0 : 0);
       this._arcLookup = new Map();
       for (let a = 0; a < this.m; a++) {
         this._arcLookup.set(this.arcEdge[a] * 2 + ((this.arcFlags[a] & 4) ? 1 : 0), a);

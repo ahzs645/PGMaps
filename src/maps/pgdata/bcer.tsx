@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Flame } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, KeyValueRows, LegendItem, SelectedItemCard, SidebarSection, ToggleChip } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  KeyValueRows,
+  LegendItem,
+  SelectedItemCard,
+  SidebarSection,
+  ToggleChip,
+} from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { AppSelect } from '@/components/ui/select'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -108,7 +115,10 @@ function toFeature(well: BcerWellRecord): BcerWellFeature {
       waNum: well.waNum,
       name: well.wellName?.replace(/\s+/g, ' ').trim() || `WA #${well.waNum}`,
       operator: well.operator?.trim() || 'Unknown operator',
-      uwi: (well.uwiList ?? []).map((uwi) => uwi.trim()).filter(Boolean).join(', '),
+      uwi: (well.uwiList ?? [])
+        .map((uwi) => uwi.trim())
+        .filter(Boolean)
+        .join(', '),
       orientation,
       area: well.areaDesc?.trim() || 'Unassigned area',
       formation: well.formDesc?.trim() || 'Unassigned formation',
@@ -362,15 +372,18 @@ function BcerWellDetailRows({ well, className }: { well: BcerWellFeature; classN
 export function BcerLayer({ bcer, isMobile = false }: { bcer: BcerState; isMobile?: boolean }) {
   const pointCollections = useMemo(
     () =>
-      BCER_ORIENTATION_BUCKETS.map((bucket) => [
-        bucket,
-        {
-          type: 'FeatureCollection' as const,
-          features: bcer.filteredCollection.features.filter(
-            (feature) => feature.properties.orientation === bucket.id,
-          ),
-        },
-      ] as const).filter(([, collection]) => collection.features.length > 0),
+      BCER_ORIENTATION_BUCKETS.map(
+        (bucket) =>
+          [
+            bucket,
+            {
+              type: 'FeatureCollection' as const,
+              features: bcer.filteredCollection.features.filter(
+                (feature) => feature.properties.orientation === bucket.id,
+              ),
+            },
+          ] as const,
+      ).filter(([, collection]) => collection.features.length > 0),
     [bcer.filteredCollection],
   )
 
@@ -408,9 +421,7 @@ export function BcerLayer({ bcer, isMobile = false }: { bcer: BcerState; isMobil
             clusterColors={[`${bucket.color}99`, `${bucket.color}cc`, bucket.color]}
             clusterThresholds={[100, 750]}
             onPointClick={(feature) =>
-              bcer.setSelectedWaNum(
-                bcer.selectedWaNum === feature.properties.waNum ? null : feature.properties.waNum,
-              )
+              bcer.setSelectedWaNum(bcer.selectedWaNum === feature.properties.waNum ? null : feature.properties.waNum)
             }
           />
         ))}

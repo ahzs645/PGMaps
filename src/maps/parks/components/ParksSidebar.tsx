@@ -103,7 +103,9 @@ function ParkRow({ park, selected, onClick }: { park: Park; selected: boolean; o
       onClick={onClick}
       dotColor={getClassificationColor(park.classification)}
       title={park.name}
-      subtitle={[park.classification || 'Unknown', park.area ? formatArea(park.area) : null].filter(Boolean).join(' · ')}
+      subtitle={[park.classification || 'Unknown', park.area ? formatArea(park.area) : null]
+        .filter(Boolean)
+        .join(' · ')}
     />
   )
 }
@@ -196,9 +198,13 @@ export function ParksSidebar({
 
   // A filter group counts as active when it hides a type that has features.
   const parkTypesNarrowed =
-    showParks && ALL_CLASSIFICATIONS.some((type) => (classificationCounts.get(type) || 0) > 0 && !selectedClassifications.includes(type))
+    showParks &&
+    ALL_CLASSIFICATIONS.some(
+      (type) => (classificationCounts.get(type) || 0) > 0 && !selectedClassifications.includes(type),
+    )
   const trailTypesNarrowed =
-    showTrails && ALL_TRAIL_TYPES.some((type) => (trailTypeCounts.get(type) || 0) > 0 && !selectedTrailTypes.includes(type))
+    showTrails &&
+    ALL_TRAIL_TYPES.some((type) => (trailTypeCounts.get(type) || 0) > 0 && !selectedTrailTypes.includes(type))
   const activeFilterCount = Number(parkTypesNarrowed) + Number(trailTypesNarrowed)
   const hasActiveFilters = activeFilterCount > 0 || searchQuery !== ''
 
@@ -279,7 +285,9 @@ export function ParksSidebar({
                 label={overlay.label}
                 tone={overlay.tone}
                 active={active}
-                trailing={<span className="tabular-nums opacity-70">{formatNumber(overlay.count(overlaySummary))}</span>}
+                trailing={
+                  <span className="tabular-nums opacity-70">{formatNumber(overlay.count(overlaySummary))}</span>
+                }
                 onClick={() => onToggleLayer(overlay.layer)}
               />
             )
@@ -387,7 +395,9 @@ export function ParksSidebar({
               onClear={onClearSelection}
             >
               {selectedTrail?.parkName && (
-                <div className="mt-2 text-xs text-green-600 dark:text-green-400">Located in {selectedTrail.parkName}</div>
+                <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                  Located in {selectedTrail.parkName}
+                </div>
               )}
             </SelectedItemCard>
           </SidebarSection>
@@ -429,16 +439,29 @@ export function ParksSidebar({
               shown={trailsVirtual ? undefined : visibleTrails.length}
             />
             {trailsVirtual ? (
-              <VirtualResultList items={uniqueTrails} getKey={(trail) => String(trail.id)} estimateSize={80} label="Trails">
+              <VirtualResultList
+                items={uniqueTrails}
+                getKey={(trail) => String(trail.id)}
+                estimateSize={80}
+                label="Trails"
+              >
                 {(trail) => (
-                  <TrailRow trail={trail} selected={selectedTrail?.id === trail.id} onClick={() => onTrailClick(trail)} />
+                  <TrailRow
+                    trail={trail}
+                    selected={selectedTrail?.id === trail.id}
+                    onClick={() => onTrailClick(trail)}
+                  />
                 )}
               </VirtualResultList>
             ) : (
               <div role="list" aria-label="Trails" className="divide-y divide-border">
                 {visibleTrails.map((trail) => (
                   <div key={trail.id} role="listitem">
-                    <TrailRow trail={trail} selected={selectedTrail?.id === trail.id} onClick={() => onTrailClick(trail)} />
+                    <TrailRow
+                      trail={trail}
+                      selected={selectedTrail?.id === trail.id}
+                      onClick={() => onTrailClick(trail)}
+                    />
                   </div>
                 ))}
               </div>

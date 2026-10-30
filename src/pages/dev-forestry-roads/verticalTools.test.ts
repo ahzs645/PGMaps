@@ -129,7 +129,10 @@ describe('vertical profile optimizer', () => {
         gradeTolerancePercent: 0,
       },
     ]
-    expect(() => optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })).toThrow(/fitted profile.*control/i)
+    const result = optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })
+    const checked = analyzeRoad({ ...alignment, vertical: result.vertical }, hump, settings)
+    expect(checked.verticalChecks ?? []).toHaveLength(0)
+    expect(checked.stations.find((s) => Math.abs(s.chainage - 200) < 1e-6)?.designElevation).toBeCloseTo(805, 6)
   })
 
   it('bounds level transitions before a fine-level search can freeze the workspace', () => {
@@ -147,7 +150,9 @@ describe('vertical profile optimizer', () => {
       minCurveLengthM: null,
       minTangentLengthM: null,
     }
-    expect(() => optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })).toThrow(/fitted profile.*standard/i)
+    const result = optimizeVerticalProfile(alignment, 400, hump, settings, { k: 4 })
+    const checked = analyzeRoad({ ...alignment, vertical: result.vertical }, hump, settings)
+    expect(checked.verticalChecks ?? []).toHaveLength(0)
   })
 
   it('rejects non-finite search inputs before allocating levels', () => {
@@ -193,6 +198,30 @@ describe('total-cost profile optimization', () => {
       borrowRate: 40,
       wasteRate: 25,
     }
+    // Total-cost optimization requires a complete procurement prescription, including
+    // reachable supply/disposal distances; fallback prices alone are an incomplete subtotal.
+    alignment.engineering.sites = [
+      {
+        id: 'borrow',
+        name: 'Reviewed borrow',
+        kind: 'borrow',
+        chainage: 200,
+        accessDistanceM: 0,
+        capacityM3: null,
+        unitRate: 40,
+        fixedCost: 0,
+      },
+      {
+        id: 'waste',
+        name: 'Reviewed waste',
+        kind: 'waste',
+        chainage: 200,
+        accessDistanceM: 0,
+        capacityM3: null,
+        unitRate: 25,
+        fixedCost: 0,
+      },
+    ]
     const earthwork = optimizeVerticalProfile(alignment, 400, hump, settings, { pviSpacingM: 50, k: 4 })
     const total = optimizeVerticalProfile(alignment, 400, hump, settings, { pviSpacingM: 50, k: 4, objective: 'total' })
     const cost = (vertical: typeof total.vertical) =>

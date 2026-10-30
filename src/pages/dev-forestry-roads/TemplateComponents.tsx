@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { NumberField } from './Controls'
 import { sideValue } from './templates'
-import type { RoadTemplate } from './types'
+import { SectionAssemblyEditor } from './SectionAssemblyEditor'
+import type { ContextFeature, GroundMaterial, RoadTemplate } from './types'
 
 type Side = 'left' | 'right'
 type Kind = 'lane' | 'ditch' | 'slope'
@@ -60,9 +61,15 @@ const ATTRIBUTE = {
 export function TemplateComponents({
   template,
   onChange,
+  materials,
+  features,
+  surfaces,
 }: {
   template: RoadTemplate
   onChange: (template: RoadTemplate) => void
+  materials?: GroundMaterial[]
+  features?: ContextFeature[]
+  surfaces?: { id: string; name: string }[]
 }) {
   const [selected, setSelected] = useState<{ side: Side; kind: Kind }>({ side: 'left', kind: 'ditch' })
   const value = (field: Field, side: Side) =>
@@ -130,6 +137,13 @@ export function TemplateComponents({
           ))}
         </div>
       </div>
+      <SectionAssemblyEditor
+        template={template}
+        onChange={onChange}
+        materials={materials}
+        features={features}
+        surfaces={surfaces}
+      />
     </div>
   )
 }

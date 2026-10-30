@@ -125,9 +125,12 @@ describe('views cut from a 360° photo', () => {
   // An equirectangular image whose red channel is its longitude (0–255 left to
   // right) and green channel its latitude (0 at the top): each pixel says where
   // on the sphere it came from.
-  const W = 720, H = 360
+  const W = 720,
+    H = 360
   const data = new Uint8ClampedArray(W * H * 4)
-  for (let v = 0; v < H; v += 1) for (let u = 0; u < W; u += 1) data.set([Math.floor((u / W) * 256), Math.floor((v / H) * 256), 0, 255], (v * W + u) * 4)
+  for (let v = 0; v < H; v += 1)
+    for (let u = 0; u < W; u += 1)
+      data.set([Math.floor((u / W) * 256), Math.floor((v / H) * 256), 0, 255], (v * W + u) * 4)
   const pano = { width: W, height: H, data }
   const centre = (pixels: Uint8ClampedArray, w: number, h: number) => {
     const i = (Math.floor(h / 2) * w + Math.floor(w / 2)) * 4
@@ -135,14 +138,22 @@ describe('views cut from a 360° photo', () => {
   }
 
   it("looks along the panorama's own centre when the view faces the camera's bearing", () => {
-    const out = reprojectEquirect(pano, { rotation: null, bearing: 40 }, { bearing: 40, pitch: 0, verticalFovDegrees: 60, width: 64, height: 48 })
+    const out = reprojectEquirect(
+      pano,
+      { rotation: null, bearing: 40 },
+      { bearing: 40, pitch: 0, verticalFovDegrees: 60, width: 64, height: 48 },
+    )
     const at = centre(out, 64, 48)
     expect(Math.abs(at.lon)).toBeLessThan(1.5)
     expect(Math.abs(at.lat)).toBeLessThan(1.5)
   })
 
   it('turns the view by the difference in bearing, and tilts it by the pitch', () => {
-    const out = reprojectEquirect(pano, { rotation: null, bearing: 40 }, { bearing: 130, pitch: 20, verticalFovDegrees: 60, width: 64, height: 48 })
+    const out = reprojectEquirect(
+      pano,
+      { rotation: null, bearing: 40 },
+      { bearing: 130, pitch: 20, verticalFovDegrees: 60, width: 64, height: 48 },
+    )
     const at = centre(out, 64, 48)
     expect(at.lon).toBeCloseTo(90, -0.5)
     expect(at.lat).toBeCloseTo(20, -0.5)
@@ -150,16 +161,26 @@ describe('views cut from a 360° photo', () => {
 
   it('agrees with a rotation that says the same thing as the compass', () => {
     // A level camera facing 95°, as an OpenSfM angle-axis.
-    const byRotation = reprojectEquirect(pano, { rotation: [1.104727, -1.205598, 1.31568], bearing: 0 }, { bearing: 185, pitch: 0, verticalFovDegrees: 60, width: 32, height: 24 })
-    const byCompass = reprojectEquirect(pano, { rotation: null, bearing: 95 }, { bearing: 185, pitch: 0, verticalFovDegrees: 60, width: 32, height: 24 })
+    const byRotation = reprojectEquirect(
+      pano,
+      { rotation: [1.104727, -1.205598, 1.31568], bearing: 0 },
+      { bearing: 185, pitch: 0, verticalFovDegrees: 60, width: 32, height: 24 },
+    )
+    const byCompass = reprojectEquirect(
+      pano,
+      { rotation: null, bearing: 95 },
+      { bearing: 185, pitch: 0, verticalFovDegrees: 60, width: 32, height: 24 },
+    )
     // The rotation also pitches the camera 5°; compare longitudes only.
     const lon = (pixels: Uint8ClampedArray) => centre(pixels, 32, 24).lon
     expect(Math.abs(lon(byRotation) - lon(byCompass))).toBeLessThan(2)
   })
 
   it('gives the cut view a pinhole camera to draw on', () => {
-    const pose = panoViewPose({ lng: -119.5, lat: 49.9, altitudeMeters: 400 }, { bearing: 10, pitch: 0, verticalFovDegrees: 60, width: 800, height: 600 })
+    const pose = panoViewPose(
+      { lng: -119.5, lat: 49.9, altitudeMeters: 400 },
+      { bearing: 10, pitch: 0, verticalFovDegrees: 60, width: 800, height: 600 },
+    )
     expect(pose.focalPx).toBeCloseTo(300 / Math.tan(Math.PI / 6), 6)
   })
 })
-

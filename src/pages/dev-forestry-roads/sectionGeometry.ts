@@ -20,6 +20,9 @@ export function sectionSampleAt(station: RoadStation, offset: number): SectionSa
       offset,
       ground: finite(exact.ground) ? exact.ground : null,
       design: finite(exact.design) ? exact.design : null,
+      ...(exact.preparedGround !== undefined
+        ? { preparedGround: finite(exact.preparedGround) ? exact.preparedGround : null }
+        : {}),
     }
   for (let i = 1; i < station.section.length; i++) {
     const a = station.section[i - 1],
@@ -30,6 +33,14 @@ export function sectionSampleAt(station: RoadStation, offset: number): SectionSa
       offset,
       ground: finite(a.ground) && finite(b.ground) ? a.ground + (b.ground - a.ground) * fraction : null,
       design: finite(a.design) && finite(b.design) ? a.design + (b.design - a.design) * fraction : null,
+      ...(a.preparedGround !== undefined || b.preparedGround !== undefined
+        ? {
+            preparedGround:
+              finite(a.preparedGround) && finite(b.preparedGround)
+                ? a.preparedGround + (b.preparedGround - a.preparedGround) * fraction
+                : null,
+          }
+        : {}),
     }
   }
   return { offset, ground: null, design: null }
@@ -42,6 +53,9 @@ export function sectionCodePoints(
 ): SectionCodePoint[] {
   const template = templateValue(resolvedTemplate)
   const points: SectionCodePoint[] = [{ code: 'centreline', side: 'centre', ...sectionSampleAt(station, 0) }]
+  for (const p of station.componentPoints ?? [])
+    if (!/formation-edge|ditch-bottom|daylight/.test(p.code))
+      points.push({ code: p.code, side: p.offset < 0 ? 'left' : 'right', ...sectionSampleAt(station, p.offset) })
   for (const side of ['left', 'right'] as const) {
     const sign = side === 'left' ? -1 : 1
     const width = side === 'left' ? station.leftWidth : station.rightWidth
@@ -60,7 +74,7 @@ export function sectionCodePoints(
       ditchDepth > 0 &&
       finite(edge.ground) &&
       finite(edge.design) &&
-      edge.ground > edge.design + EPS &&
+      (edge.preparedGround ?? edge.ground) > edge.design + EPS &&
       depth > ditchDepth - 1e-5 &&
       depth < Math.max(ditchDepth, MAX_DITCH_DIP_DEPTH) + 1e-5
     )

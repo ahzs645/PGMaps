@@ -28,9 +28,7 @@ const markerKey = (restaurant: RestaurantWithStats) => restaurant.details_url
  * back inside the hold window never changes appearance, so scrubbing the timeline
  * reads as markers changing rather than blinking out and back.
  */
-export function useLingeringMarkers(
-  restaurants: RestaurantWithStats[],
-): LingerEntry<RestaurantWithStats>[] {
+export function useLingeringMarkers(restaurants: RestaurantWithStats[]): LingerEntry<RestaurantWithStats>[] {
   const [state, setState] = useState(() => createLingerState(restaurants))
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>[]>())
 

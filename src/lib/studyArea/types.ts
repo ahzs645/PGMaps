@@ -26,10 +26,7 @@ export type {
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
 
-import type {
-  BoundarySource,
-  RegionLevel,
-} from '@/maps/airquality/types'
+import type { BoundarySource, RegionLevel } from '@/maps/airquality/types'
 
 export interface StudyAreaSourceOption<TSource extends string = string> {
   value: TSource

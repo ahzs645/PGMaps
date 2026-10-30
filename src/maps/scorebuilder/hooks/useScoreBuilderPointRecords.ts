@@ -226,7 +226,10 @@ function useRestaurantRecords(enabledSourceSet: SourceSet, restaurants: ScoreBui
   }, [enabledSourceSet, restaurants])
 }
 
-function useCensusRecords(enabledSourceSet: SourceSet, censusUnitsDa: ScoreBuilderDatasets['censusUnitsByLevel']['da']) {
+function useCensusRecords(
+  enabledSourceSet: SourceSet,
+  censusUnitsDa: ScoreBuilderDatasets['censusUnitsByLevel']['da'],
+) {
   // Census DA centroid points
   return useMemo<Array<PointRecord & { population: number }>>(() => {
     if (!enabledSourceSet.has('census')) return []

@@ -32,7 +32,8 @@ trusted and what the check assumes. The method is specified in the
   stream threshold and 250 m buffer are placeholders that make the check run. The intensity in
   particular must come from an IDF curve for your site, return period and catchment (see
   [the Rational method](#rational-method-and-pipe-capacity)).
-- **Re-run after every change.** A run is not saved and is not updated by edits. It goes stale
+- **Re-run after every change.** Full raster runs are not saved or updated by edits; the project
+  retains settings and compact review evidence. A run goes stale
   when that road's alignment (culverts and other engineering inputs included), the road settings,
   the terrain or any drainage input changes; edits to other alternatives leave it current
   (`DevForestryRoads.tsx`, `drainageStale`). A stale run stays in the panel with an amber notice,
@@ -67,13 +68,50 @@ trusted and what the check assumes. The method is specified in the
 | Standard diameters           | 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.4, 3.0 m | `hydrology.ts`, `STANDARD_CULVERT_DIAMETERS_M`                    | No size carries Q: minimum shown as "> 3.0"                             |
 | Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°             | `engineeringProject.ts`, `parseEngineering`                       | Project refused                                                         |
 | Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                    | `designSurface.ts`, `burnRoad`; `hydrology.ts`                    | Warning: "outside the road or the surface grid; not checked"            |
+| Pour-point snap radius | 0–2,000 m | `drainageCatchments.ts`, `snapPourPoint` | Invalid requests reject; no supported cell reports an error |
+| Catchment/watershed grid | 4,194,304 cells | `drainageCatchments.ts`, `MAX_CATCHMENT_CELLS` | Rejects rather than truncates cells |
+| Polygon boundaries | 200,000 raw edges per basin and 200,000 combined watershed vertices | `MAX_CATCHMENT_BOUNDARY_EDGES` | Rejects; increase minimum basin area or coarsen the analysis |
+| Watersheds | 1,000 qualifying outlet basins | `MAX_WATERSHEDS` | Rejects; increase the minimum area |
+| Portable evidence | 20 road records, 5,000 features per record, 200,000 vertices | `drainageEvidence.ts`, `MAX_DRAINAGE_RECORDS`, `MAX_DRAINAGE_EVIDENCE_VERTICES` | Invalid or oversized evidence is rejected |
 
 **Runtime.** The check runs on the page's main thread and cannot be cancelled. On the published
 LiDAR road (1.29 million 1 m cells) it takes about 2–4 s, during which the page does not
 respond. Time grows roughly with the cell count, so a run near the 4,194,304-cell budget takes
 several times longer. A finished run keeps contributing area and fill depth for both surfaces,
-32 bytes a cell: about 41 MB on the LiDAR road and 134 MB at the budget. Peak memory during the
+34 bytes a cell including both D8 direction grids: about 44 MB on the LiDAR road and 143 MB at the budget. Peak memory during the
 run is higher.
+
+## Pour points, watersheds and portable review
+
+**Drain to a point** selects an arbitrary location on the plan (tap on phones). Choose existing
+ground or the design surface and a snap radius. Snapping chooses the supported cell with the
+greatest contributing area inside that metric radius, then the nearest cell if areas tie.
+Zero radius selects the cell containing the point. No location outside supported terrain is
+silently substituted. The result reports both the requested and snapped location, snap distance,
+cell count and area.
+
+The catchment is the exact union of cells whose D8 paths reach the selected cell. Polygonization
+retains holes and disconnected components touching at a diagonal; it removes only collinear
+vertices. **Delineate watershed polygons** partitions supported cells by their terminal D8 outlet,
+then keeps basins meeting the entered minimum area. These are disjoint raster basins, not a
+hierarchy of nested stream catchments. A catchment or basin touching the sample edge or missing
+terrain is labelled as potentially truncated. Absence of boundary contact does not establish
+surveyed watershed accuracy.
+
+Project `drainage` stores rainfall, C, n, threshold, buffer, point/snap/surface and optional basin
+threshold, plus one compact review record per road. The record includes run date, dependency
+fingerprint, terrain/datum/resolution, sampled grid metadata, crossing/diversion/culvert metrics,
+catchment and watershed polygons, review locations and warnings. Full accumulation, fill-depth,
+direction grids and stream linework remain in memory and are recomputed. Editing geometry,
+terrain, criteria or drainage inputs invalidates current use. Imported embedded terrain and
+checksummed published terrain retain reproducible source evidence; unchecksummed regional
+terrain must be rerun after reopening even if its metadata matches.
+
+**Export drainage GeoJSON** carries review geometry and provenance. **Export drainage evidence**
+retains the full compact record and inputs. Stale records cannot be exported as current. The
+standard road report includes an escaped drainage chapter with status and the retained inputs,
+crossing metrics and per-culvert peak/capacity checks. The generic road shapefile/plot book do not
+pretend to contain a full drainage raster.
 
 ## Built-in assumptions
 
@@ -211,22 +249,16 @@ false ponds or false breaks.
 | Minimum diameter "> 3.0"                                          | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
 | Results did not change after an edit                              | The run is stale; runs are not recalculated                                          | Re-run. The plan hides a stale run until you do                                      |
 | Plan header reads "Drainage out of date · re-run it to show flow" | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
-| Drainage panel empty after reload                                 | Runs are not saved; inputs are remembered in this browser only                       | Re-run after opening a project                                                       |
+| Full streams absent after reload                                 | Only inputs and compact evidence are saved; full grids are recomputed | Review saved evidence and re-run; regional live terrain always needs a fresh run |
 | Streams in odd parallel lines on a planar slope                   | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
 
 ## What it does not do
 
-- **It does not save or export results.** The page keeps one run per road for the three most
-  recently run roads that still exist (`DevForestryRoads.tsx`, `checkDrainage`), so switching
-  roads keeps each road's last run, and re-running a road replaces its run. Runs are lost on reload and
-  are not in the project JSON, autosave, GeoJSON, shapefile, report or plot book: they take
-  seconds to recompute and hold tens of megabytes of grids. Record the numbers you rely on, with
-  the cell size, buffer and settings used.
-- **It does not put the inputs in the project.** Rainfall, C, n, threshold and buffer are
-  remembered in this browser only (`localStorage` key `pgmaps-road-drainage-settings`,
-  `DrainagePanel.tsx`), and a saved value that is not a positive number brings back all the
-  defaults. Another browser or device starts from the defaults.
-- **No watershed polygons, wetness index, time of concentration, hydrographs, hydraulic grade
+- **It does not save full raster grids.** Only settings and compact review evidence travel in
+  projects; the latest three full in-memory road runs can be inspected until reload. The
+  browser setting `pgmaps-road-drainage-settings` is a fallback for older projects without
+  project inputs, not the sole record.
+- **No wetness index, time of concentration, hydrographs, hydraulic grade
   lines, inlet control, headwater, scour or outlet protection.**
 - **No ditch capacity or erosion check.** Ditches carry whatever reaches them.
 - **No fish passage, channel stability or debris-flow assessment.**

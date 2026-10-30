@@ -96,7 +96,7 @@ interface UseAirQualityDataOptions {
 function hashString(value: string): number {
   let hash = 0
   for (let index = 0; index < value.length; index += 1) {
-    hash = ((hash << 5) - hash) + value.charCodeAt(index)
+    hash = (hash << 5) - hash + value.charCodeAt(index)
     hash |= 0
   }
   return Math.abs(hash)
@@ -108,17 +108,15 @@ function roundOneDecimal(value: number): number {
 
 function buildFakePm25Value(monitor: AirMonitor): number {
   const seed = hashString(`${monitor.network}:${monitor.id}:${monitor.latitude}:${monitor.longitude}`)
-  const regionalSignal = (
-    Math.sin((monitor.latitude + 90) * 0.31)
-    + Math.cos((monitor.longitude + 180) * 0.27)
-  ) * 6
-  const networkOffset = monitor.network === 'PA'
-    ? 4
-    : monitor.network === 'EGG'
-      ? 2
-      : monitor.network === 'FEM' || monitor.network === 'BC ENV'
-        ? -1
-        : 1
+  const regionalSignal = (Math.sin((monitor.latitude + 90) * 0.31) + Math.cos((monitor.longitude + 180) * 0.27)) * 6
+  const networkOffset =
+    monitor.network === 'PA'
+      ? 4
+      : monitor.network === 'EGG'
+        ? 2
+        : monitor.network === 'FEM' || monitor.network === 'BC ENV'
+          ? -1
+          : 1
   const seededSignal = seed % 37
   return roundOneDecimal(Math.max(1.8, Math.min(125, 8 + seededSignal + regionalSignal + networkOffset)))
 }
@@ -128,10 +126,10 @@ function withFakeAqmapObservations(monitors: AirMonitor[]): AirMonitor[] {
 
   return monitors.map((monitor) => {
     if (
-      monitor.pm25Recent !== null
-      || monitor.pm25OneHour !== null
-      || monitor.pm25ThreeHour !== null
-      || monitor.pm25TwentyFourHour !== null
+      monitor.pm25Recent !== null ||
+      monitor.pm25OneHour !== null ||
+      monitor.pm25ThreeHour !== null ||
+      monitor.pm25TwentyFourHour !== null
     ) {
       return monitor
     }
@@ -174,9 +172,7 @@ function normalizeParameters(value: RawMonitor['parameters']): string[] {
     try {
       const parsed = JSON.parse(trimmed)
       if (Array.isArray(parsed)) {
-        const parsedParams = parsed
-          .map((item) => String(item).trim())
-          .filter(Boolean)
+        const parsedParams = parsed.map((item) => String(item).trim()).filter(Boolean)
         if (parsedParams.length > 0) return parsedParams
       }
     } catch {
@@ -195,15 +191,14 @@ function normalizeParameters(value: RawMonitor['parameters']): string[] {
 function normalizeMonitor(row: RawMonitor): AirMonitor | null {
   const id = String(row.id ?? row.site_id ?? row.siteId ?? row.sensor_index ?? '')
   const name = row.name?.trim() || row.site_name?.trim() || row.monitor?.trim() || id
-  const network = normalizeNetworkSlug(row.network?.trim() || row.network_id?.trim() || row.monitor_type?.trim() || 'Unknown')
+  const network = normalizeNetworkSlug(
+    row.network?.trim() || row.network_id?.trim() || row.monitor_type?.trim() || 'Unknown',
+  )
 
-  const latitude = typeof row.latitude === 'number'
-    ? row.latitude
-    : parseFloat(String(row.latitude ?? row.lat ?? ''))
+  const latitude = typeof row.latitude === 'number' ? row.latitude : parseFloat(String(row.latitude ?? row.lat ?? ''))
 
-  const longitude = typeof row.longitude === 'number'
-    ? row.longitude
-    : parseFloat(String(row.longitude ?? row.lng ?? row.lon ?? ''))
+  const longitude =
+    typeof row.longitude === 'number' ? row.longitude : parseFloat(String(row.longitude ?? row.lng ?? row.lon ?? ''))
 
   if (!id || !name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null
@@ -237,13 +232,13 @@ function normalizeMonitor(row: RawMonitor): AirMonitor | null {
           ...row.metadata,
           temperature: normalizeNumericValue(row.metadata.temperature),
           humidity: normalizeNumericValue(row.metadata.humidity),
-          pressure: normalizeNumericValue(row.metadata.pressure)
+          pressure: normalizeNumericValue(row.metadata.pressure),
         }
       : {
           temperature: normalizeNumericValue(row.temperature),
           humidity: normalizeNumericValue(row.rh),
-          pressure: normalizeNumericValue(row.pressure)
-        }
+          pressure: normalizeNumericValue(row.pressure),
+        },
   }
 }
 
@@ -269,30 +264,30 @@ function rowsFromJsonPayload(payload: unknown, fallbackNetwork?: string): RawMon
   if (Array.isArray(payload)) return payload as RawMonitor[]
 
   if (
-    payload
-    && typeof payload === 'object'
-    && 'type' in payload
-    && (payload as { type?: unknown }).type === 'FeatureCollection'
-    && Array.isArray((payload as { features?: unknown }).features)
+    payload &&
+    typeof payload === 'object' &&
+    'type' in payload &&
+    (payload as { type?: unknown }).type === 'FeatureCollection' &&
+    Array.isArray((payload as { features?: unknown }).features)
   ) {
     const featureCollection = payload as unknown as { features: GeoJsonMonitorFeature[] }
-    return (featureCollection.features ?? [])
-      .map((feature) => {
-        const coordinates = feature.geometry?.coordinates ?? []
-        const [longitude, latitude] = coordinates
-        return {
-          ...(feature.properties ?? {}),
-          longitude,
-          latitude,
-          network: feature.properties?.network ?? (fallbackNetwork ? normalizeNetworkSlug(fallbackNetwork) : undefined),
-        }
-      })
+    return (featureCollection.features ?? []).map((feature) => {
+      const coordinates = feature.geometry?.coordinates ?? []
+      const [longitude, latitude] = coordinates
+      return {
+        ...(feature.properties ?? {}),
+        longitude,
+        latitude,
+        network: feature.properties?.network ?? (fallbackNetwork ? normalizeNetworkSlug(fallbackNetwork) : undefined),
+      }
+    })
   }
 
   if (payload && typeof payload === 'object') {
-    const maybeData = (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).data
-      ?? (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).monitors
-      ?? (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).rows
+    const maybeData =
+      (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).data ??
+      (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).monitors ??
+      (payload as { data?: unknown; monitors?: unknown; rows?: unknown }).rows
     return rowsFromJsonPayload(maybeData, fallbackNetwork)
   }
 
@@ -303,7 +298,11 @@ async function fetchJsonRows(url: string, signal: AbortSignal, fallbackNetwork?:
   return rowsFromJsonPayload(await fetchJson(url, signal), fallbackNetwork)
 }
 
-async function fetchOptionalJsonRows(url: string, signal: AbortSignal, fallbackNetwork?: string): Promise<RawMonitor[]> {
+async function fetchOptionalJsonRows(
+  url: string,
+  signal: AbortSignal,
+  fallbackNetwork?: string,
+): Promise<RawMonitor[]> {
   try {
     return await fetchJsonRows(url, signal, fallbackNetwork)
   } catch {
@@ -358,25 +357,17 @@ async function fetchBcEnvRows(signal: AbortSignal): Promise<RawMonitor[]> {
 }
 
 async function fetchSupplementalMonitorRows(signal: AbortSignal): Promise<RawMonitor[]> {
-  const [
-    spartanRows,
-    ascentRows,
-    bcEnvRows,
-    improveRows,
-    nattsRows,
-    ncoreRows,
-    nearRoadRows,
-    pm25SpeciationRows,
-  ] = await Promise.all([
-    fetchSpartanRows(signal),
-    fetchOptionalJsonRows('/data/ascent-sites.json', signal, 'ASCENT'),
-    fetchBcEnvRows(signal),
-    fetchOptionalJsonRows('/data/epa/improve.json', signal, 'EPA IMPROVE'),
-    fetchOptionalJsonRows('/data/epa/natts.json', signal, 'EPA NATTS'),
-    fetchOptionalJsonRows('/data/epa/ncore.json', signal, 'EPA NCORE'),
-    fetchOptionalJsonRows('/data/epa/near_road.json', signal, 'EPA NEAR ROAD'),
-    fetchOptionalJsonRows('/data/epa/pm25_speciation.json', signal, 'EPA CSN STN'),
-  ])
+  const [spartanRows, ascentRows, bcEnvRows, improveRows, nattsRows, ncoreRows, nearRoadRows, pm25SpeciationRows] =
+    await Promise.all([
+      fetchSpartanRows(signal),
+      fetchOptionalJsonRows('/data/ascent-sites.json', signal, 'ASCENT'),
+      fetchBcEnvRows(signal),
+      fetchOptionalJsonRows('/data/epa/improve.json', signal, 'EPA IMPROVE'),
+      fetchOptionalJsonRows('/data/epa/natts.json', signal, 'EPA NATTS'),
+      fetchOptionalJsonRows('/data/epa/ncore.json', signal, 'EPA NCORE'),
+      fetchOptionalJsonRows('/data/epa/near_road.json', signal, 'EPA NEAR ROAD'),
+      fetchOptionalJsonRows('/data/epa/pm25_speciation.json', signal, 'EPA CSN STN'),
+    ])
 
   return [
     ...spartanRows,
@@ -406,19 +397,13 @@ function dedupeRows(rows: RawMonitor[]): RawMonitor[] {
 
 async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor[]> {
   const directEndpoints = import.meta.env.DEV
-    ? [
-        '/data/recent/all/json',
-        '/data/recent/pm25/json',
-        '/data/monitors/all.json',
-      ]
-    : [
-        '/data/monitors/all.json',
-      ]
+    ? ['/data/recent/all/json', '/data/recent/pm25/json', '/data/monitors/all.json']
+    : ['/data/monitors/all.json']
 
   for (const endpoint of directEndpoints) {
     try {
       const rows = await fetchJsonRows(endpoint, signal)
-      if (rows.length > 0) return dedupeRows([...rows, ...await fetchSupplementalMonitorRows(signal)])
+      if (rows.length > 0) return dedupeRows([...rows, ...(await fetchSupplementalMonitorRows(signal))])
     } catch {
       // Try the next aqmap-compatible shape before falling back to static CSV.
     }
@@ -432,12 +417,12 @@ async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor
   const networkRows = await Promise.allSettled(
     networkEndpoints.map(([endpoint, network]) => fetchJsonRows(endpoint, signal, network)),
   )
-  const combined = networkRows.flatMap((result) => result.status === 'fulfilled' ? result.value : [])
-  if (combined.length > 0) return dedupeRows([...combined, ...await fetchSupplementalMonitorRows(signal)])
+  const combined = networkRows.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+  if (combined.length > 0) return dedupeRows([...combined, ...(await fetchSupplementalMonitorRows(signal))])
 
   const csvResponse = await fetch('/data/monitors.csv', { signal })
   if (!csvResponse.ok) throw new Error(`Failed to load monitors: ${csvResponse.status}`)
-  return dedupeRows([...parseCsv(await csvResponse.text()), ...await fetchSupplementalMonitorRows(signal)])
+  return dedupeRows([...parseCsv(await csvResponse.text()), ...(await fetchSupplementalMonitorRows(signal))])
 }
 
 async function fetchStaticMonitorRows(signal: AbortSignal): Promise<RawMonitor[]> {
@@ -446,20 +431,20 @@ async function fetchStaticMonitorRows(signal: AbortSignal): Promise<RawMonitor[]
     if (!response.ok) {
       throw new Error(`Failed to load monitors: ${response.status}`)
     }
-    return dedupeRows([...parseCsv(await response.text()), ...await fetchSupplementalMonitorRows(signal)])
+    return dedupeRows([...parseCsv(await response.text()), ...(await fetchSupplementalMonitorRows(signal))])
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
     const response = await fetch('/data/monitors/all.json', { signal })
     if (!response.ok) throw err
     const json = await response.json()
     if (!Array.isArray(json)) throw err
-    return dedupeRows([...json as RawMonitor[], ...await fetchSupplementalMonitorRows(signal)])
+    return dedupeRows([...(json as RawMonitor[]), ...(await fetchSupplementalMonitorRows(signal))])
   }
 }
 
 export function useAirQualityData(options: boolean | UseAirQualityDataOptions = true) {
-  const enabled = typeof options === 'boolean' ? options : options.enabled ?? true
-  const aqmapCompatible = typeof options === 'object' ? options.aqmapCompatible ?? false : false
+  const enabled = typeof options === 'boolean' ? options : (options.enabled ?? true)
+  const aqmapCompatible = typeof options === 'object' ? (options.aqmapCompatible ?? false) : false
   const [monitors, setMonitors] = useState<AirMonitor[]>([])
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
@@ -483,9 +468,7 @@ export function useAirQualityData(options: boolean | UseAirQualityDataOptions = 
         const normalized = rows
           .map((row) => normalizeMonitor(row as RawMonitor))
           .filter((row): row is AirMonitor => row !== null)
-        const monitorsForView = aqmapCompatible
-          ? withFakeAqmapObservations(normalized)
-          : normalized
+        const monitorsForView = aqmapCompatible ? withFakeAqmapObservations(normalized) : normalized
 
         monitorsForView.sort((a, b) => a.name.localeCompare(b.name))
         setMonitors(monitorsForView)

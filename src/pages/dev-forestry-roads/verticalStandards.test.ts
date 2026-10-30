@@ -30,7 +30,12 @@ function road(vertical: VerticalPoint[]): Alignment {
     overrides: [],
   }
 }
-const pvi = (id: string, chainage: number, elevation: number, curveLength = 0) => ({ id, chainage, elevation, curveLength })
+const pvi = (id: string, chainage: number, elevation: number, curveLength = 0) => ({
+  id,
+  chainage,
+  elevation,
+  curveLength,
+})
 const settings = { ...DEFAULT_ROAD_SETTINGS, maxGradePercent: 50 }
 
 describe('vertical standards', () => {
@@ -65,7 +70,9 @@ describe('vertical standards', () => {
     expect(messages).toContain('Vertical curve 40 m shorter than 60 m at 0+200.0')
     expect(result.warnings.some((w) => w.includes('vertical standard or control check'))).toBe(true)
     // Each check is also a station flag, so the tables and plan show it.
-    expect(result.stations.some((s) => s.flags.includes('K 2.0 below crest minimum 4.0 at 0+200.0 (needs 80 m)'))).toBe(true)
+    expect(result.stations.some((s) => s.flags.includes('K 2.0 below crest minimum 4.0 at 0+200.0 (needs 80 m)'))).toBe(
+      true,
+    )
 
     a.vertical[1].curveLength = 0
     const unrounded = analyzeRoad(a, flat, settings).verticalChecks!.map((c) => c.message)
@@ -83,9 +90,33 @@ describe('vertical standards', () => {
   it('checks control elevations and grades inside their tolerances', () => {
     const a = road([pvi('v0', 0, 800), pvi('v1', 400, 820)])
     a.verticalControls = [
-      { id: 'ok', chainage: 200, elevation: 810.1, toleranceAboveM: 0, toleranceBelowM: 0.2, gradePercent: 5, gradeTolerancePercent: 0.5 },
-      { id: 'high', chainage: 100, elevation: 804.5, toleranceAboveM: 0.2, toleranceBelowM: 0.2, gradePercent: null, gradeTolerancePercent: 0 },
-      { id: 'grade', chainage: 300, elevation: null, toleranceAboveM: 0, toleranceBelowM: 0, gradePercent: 2, gradeTolerancePercent: 1 },
+      {
+        id: 'ok',
+        chainage: 200,
+        elevation: 810.1,
+        toleranceAboveM: 0,
+        toleranceBelowM: 0.2,
+        gradePercent: 5,
+        gradeTolerancePercent: 0.5,
+      },
+      {
+        id: 'high',
+        chainage: 100,
+        elevation: 804.5,
+        toleranceAboveM: 0.2,
+        toleranceBelowM: 0.2,
+        gradePercent: null,
+        gradeTolerancePercent: 0,
+      },
+      {
+        id: 'grade',
+        chainage: 300,
+        elevation: null,
+        toleranceAboveM: 0,
+        toleranceBelowM: 0,
+        gradePercent: 2,
+        gradeTolerancePercent: 1,
+      },
     ]
     const messages = analyzeRoad(a, flat, settings).verticalChecks!.map((c) => c.message)
     expect(messages).toHaveLength(2)
@@ -110,7 +141,15 @@ describe('vertical standards', () => {
       minTangentLengthM: 20,
     }
     project.alignments[0].verticalControls = [
-      { id: 'c', chainage: 0, elevation: 700, toleranceAboveM: 0, toleranceBelowM: 0.5, gradePercent: null, gradeTolerancePercent: 0 },
+      {
+        id: 'c',
+        chainage: 0,
+        elevation: 700,
+        toleranceAboveM: 0,
+        toleranceBelowM: 0.5,
+        gradePercent: null,
+        gradeTolerancePercent: 0,
+      },
     ]
     const restored = parseProject(JSON.parse(serializeProject(project)))
     expect(restored.alignments[0].verticalStandards).toEqual(project.alignments[0].verticalStandards)

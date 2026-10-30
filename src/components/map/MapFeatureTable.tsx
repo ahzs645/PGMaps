@@ -1,4 +1,20 @@
-import { ArrowDown, ArrowUp, BarChart3, CalendarDays, CaseSensitive, Check, ChevronDown, Hash, Maximize2, Minimize2, Search, Square, SquareCheck, Table2, X } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  CalendarDays,
+  CaseSensitive,
+  Check,
+  ChevronDown,
+  Hash,
+  Maximize2,
+  Minimize2,
+  Search,
+  Square,
+  SquareCheck,
+  Table2,
+  X,
+} from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
@@ -129,7 +145,10 @@ export function MapTableButton({
         type="button"
         aria-label={label}
         title={label}
-        className={cn('flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted', className)}
+        className={cn(
+          'flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted',
+          className,
+        )}
         onClick={onClick}
       >
         <Table2 className="size-5" aria-hidden="true" />
@@ -141,7 +160,10 @@ export function MapTableButton({
     <div className="relative">
       <button
         type="button"
-        className={cn('flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted', className)}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted',
+          className,
+        )}
         onClick={onClick}
       >
         <Table2 className="size-4" aria-hidden="true" />
@@ -210,7 +232,8 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   const sortedRows = useMemo(() => {
     const column = sort ? columns.find((candidate) => candidate.id === sort.columnId) : undefined
     if (!sort || !column) return filteredRows
-    const valueOf = column.getSortValue ?? ((row: TRow) => column.getSearchValue?.(row) ?? String(column.getValue(row) ?? ''))
+    const valueOf =
+      column.getSortValue ?? ((row: TRow) => column.getSearchValue?.(row) ?? String(column.getValue(row) ?? ''))
     const keyed = filteredRows.map((row, index) => ({ row, index, value: valueOf(row) }))
     keyed.sort((a, b) => {
       // Empty cells stay at the bottom in both directions.
@@ -263,19 +286,25 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
            stack as a focused feature, instead of colliding with it. Mounted on
            phones only: an open card makes MapSectionLayout swallow the next
            sidebar click to bring the sheet forward, at any width. */
-        isMobile && <MobileFeatureCard
-          stackId="map-feature-table"
-          title={title}
-          /* No subtitle: the layer picker in the toolbar below already names the layer. */
-          contentClassName="px-0 py-0"
-          collapseOnMapInteraction={false}
-          closeOnBlankMapClick={false}
-          onClose={onClose}
-        >
-          {renderBody()}
-        </MobileFeatureCard>
+        isMobile && (
+          <MobileFeatureCard
+            stackId="map-feature-table"
+            title={title}
+            /* No subtitle: the layer picker in the toolbar below already names the layer. */
+            contentClassName="px-0 py-0"
+            collapseOnMapInteraction={false}
+            closeOnBlankMapClick={false}
+            onClose={onClose}
+          >
+            {renderBody()}
+          </MobileFeatureCard>
+        )
       ) : (
-        <div role="dialog" aria-label={title} className="absolute inset-x-0 bottom-0 z-50 flex h-[calc(100%-74px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)] md:hidden">
+        <div
+          role="dialog"
+          aria-label={title}
+          className="absolute inset-x-0 bottom-0 z-50 flex h-[calc(100%-74px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)] md:hidden"
+        >
           <TableHeader title={title} onClose={onClose} />
           {renderBody()}
         </div>
@@ -343,50 +372,52 @@ function DesktopTablePanel({
   }, [])
 
   /** Tallest the pane may grow, leaving a strip of map visible above it. */
-  const maxHeight = containerHeight > 0
-    ? Math.max(MIN_PANEL_HEIGHT, containerHeight - MIN_MAP_HEIGHT)
-    : Number.POSITIVE_INFINITY
+  const maxHeight =
+    containerHeight > 0 ? Math.max(MIN_PANEL_HEIGHT, containerHeight - MIN_MAP_HEIGHT) : Number.POSITIVE_INFINITY
 
-  const clamp = useCallback(
-    (next: number) => Math.min(maxHeight, Math.max(MIN_PANEL_HEIGHT, next)),
-    [maxHeight],
-  )
+  const clamp = useCallback((next: number) => Math.min(maxHeight, Math.max(MIN_PANEL_HEIGHT, next)), [maxHeight])
 
   const expanded = containerHeight > 0 && height >= maxHeight - 1
 
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizable) return
-    const parent = panelRef.current?.closest<HTMLElement>('[data-map-layout-root]') ?? panelRef.current?.parentElement
-    if (!parent) return
-    event.preventDefault()
-    const parentBottom = parent.getBoundingClientRect().bottom
-    setDragging(true)
-    onResizeStart?.()
-
-    const move = (moveEvent: PointerEvent) => onHeightChange(clamp(parentBottom - moveEvent.clientY))
-    const finish = () => {
-      setDragging(false)
-      onResizeEnd?.()
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', finish)
-      window.removeEventListener('pointercancel', finish)
-      window.removeEventListener('blur', finish)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', finish)
-    window.addEventListener('pointercancel', finish)
-    window.addEventListener('blur', finish)
-  }, [clamp, onHeightChange, onResizeEnd, onResizeStart, resizable])
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowUp') {
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!resizable) return
+      const parent = panelRef.current?.closest<HTMLElement>('[data-map-layout-root]') ?? panelRef.current?.parentElement
+      if (!parent) return
       event.preventDefault()
-      onHeightChange(clamp(height + 32))
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      onHeightChange(clamp(height - 32))
-    }
-  }, [clamp, height, onHeightChange])
+      const parentBottom = parent.getBoundingClientRect().bottom
+      setDragging(true)
+      onResizeStart?.()
+
+      const move = (moveEvent: PointerEvent) => onHeightChange(clamp(parentBottom - moveEvent.clientY))
+      const finish = () => {
+        setDragging(false)
+        onResizeEnd?.()
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', finish)
+        window.removeEventListener('pointercancel', finish)
+        window.removeEventListener('blur', finish)
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', finish)
+      window.addEventListener('pointercancel', finish)
+      window.addEventListener('blur', finish)
+    },
+    [clamp, onHeightChange, onResizeEnd, onResizeStart, resizable],
+  )
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        onHeightChange(clamp(height + 32))
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        onHeightChange(clamp(height - 32))
+      }
+    },
+    [clamp, height, onHeightChange],
+  )
 
   return (
     <div
@@ -537,7 +568,10 @@ function TableBody<TRow, TLayerId extends string>({
                   showOnlyInView={showOnlyInView}
                   showOnlyInViewEnabled={showOnlyInViewEnabled && !showViewModeToggle}
                   onClose={() => onLayerPickerOpenChange(false)}
-                  onLayerChange={(layer) => { onLayerChange(layer); onLayerPickerOpenChange(false) }}
+                  onLayerChange={(layer) => {
+                    onLayerChange(layer)
+                    onLayerPickerOpenChange(false)
+                  }}
                   onShowOnlyInViewChange={onShowOnlyInViewChange}
                 />
               )}
@@ -554,11 +588,18 @@ function TableBody<TRow, TLayerId extends string>({
           <div className="min-w-0 flex-1" />
 
           <span className="hidden shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground sm:inline">
-            {rows.length === totalRowCount ? `${totalRowCount.toLocaleString()} rows` : `${rows.length.toLocaleString()} of ${totalRowCount.toLocaleString()}`}
+            {rows.length === totalRowCount
+              ? `${totalRowCount.toLocaleString()} rows`
+              : `${rows.length.toLocaleString()} of ${totalRowCount.toLocaleString()}`}
           </span>
 
           {showOnlyInViewEnabled && !showViewModeToggle && (
-            <button type="button" className={cn('rounded-md p-2 hover:bg-muted', showOnlyInView && 'bg-muted')} aria-label="Show only features in view" onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}>
+            <button
+              type="button"
+              className={cn('rounded-md p-2 hover:bg-muted', showOnlyInView && 'bg-muted')}
+              aria-label="Show only features in view"
+              onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}
+            >
               <SquareCheck className="size-4" />
             </button>
           )}
@@ -578,7 +619,12 @@ function TableBody<TRow, TLayerId extends string>({
                   {paneActions.expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                 </button>
               )}
-              <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" onClick={paneActions.onClose} aria-label="Close">
+              <button
+                type="button"
+                className="shrink-0 rounded-md p-2 hover:bg-muted"
+                onClick={paneActions.onClose}
+                aria-label="Close"
+              >
                 <X className="size-4" />
               </button>
             </>
@@ -656,7 +702,12 @@ function TableSearch({
 
   if (!expanded) {
     return (
-      <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Search table" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="shrink-0 rounded-md p-2 hover:bg-muted"
+        aria-label="Search table"
+        onClick={() => setOpen(true)}
+      >
         <Search className="size-4" />
       </button>
     )
@@ -672,7 +723,9 @@ function TableSearch({
         }}
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
-        onBlur={() => { if (collapsible && !query) setOpen(false) }}
+        onBlur={() => {
+          if (collapsible && !query) setOpen(false)
+        }}
         onKeyDown={(event) => {
           if (event.key !== 'Escape') return
           onQueryChange('')
@@ -714,19 +767,20 @@ function TableGrid<TRow>({
   onSortChange: (sort: TableSort | null) => void
   onSelect: (row: TRow) => void
 }) {
+  'use no memo' // TanStack Virtual exposes mutable instance methods; keep this owner outside React Compiler.
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualize = rows.length > VIRTUALIZE_THRESHOLD
 
   const gridStyle = useMemo<CSSProperties>(() => {
-    const template = columns
-      .map((column) => `minmax(${column.width ?? DEFAULT_COLUMN_WIDTH}px, 1fr)`)
-      .join(' ')
+    const template = columns.map((column) => `minmax(${column.width ?? DEFAULT_COLUMN_WIDTH}px, 1fr)`).join(' ')
     return {
       display: 'grid',
       gridTemplateColumns: `${INDEX_COLUMN_WIDTH}px ${template}`,
     }
   }, [columns])
 
+  // TanStack's virtualizer is mutable and deliberately excluded from compiler memoization above.
+  // eslint-disable-next-line react-hooks/incompatible-library -- Preserve live virtualizer reads; memoizing its methods can freeze scrolling.
   const virtualizer = useVirtualizer({
     count: virtualize ? rows.length : 0,
     getScrollElement: () => scrollRef.current,
@@ -741,8 +795,14 @@ function TableGrid<TRow>({
       <div className="min-w-max">
         <div role="table" aria-rowcount={rows.length} className="text-sm">
           <div role="rowgroup" className="sticky top-0 z-10 bg-background">
-            <div role="row" style={gridStyle} className="border-b border-border text-left text-xs text-muted-foreground">
-              <div role="columnheader" className="flex items-center px-3 py-2 font-medium">#</div>
+            <div
+              role="row"
+              style={gridStyle}
+              className="border-b border-border text-left text-xs text-muted-foreground"
+            >
+              <div role="columnheader" className="flex items-center px-3 py-2 font-medium">
+                #
+              </div>
               {columns.map((column) => {
                 const direction = sort?.columnId === column.id ? sort.direction : null
                 return (
@@ -750,7 +810,11 @@ function TableGrid<TRow>({
                     key={column.id}
                     role="columnheader"
                     aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
-                    className={cn('flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium', (sortable || renderColumnStats) && 'px-1.5 py-1', column.widthClassName)}
+                    className={cn(
+                      'flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium',
+                      (sortable || renderColumnStats) && 'px-1.5 py-1',
+                      column.widthClassName,
+                    )}
                   >
                     {sortable || renderColumnStats ? (
                       <ColumnHeaderMenu
@@ -764,7 +828,9 @@ function TableGrid<TRow>({
                     ) : (
                       <>
                         <ColumnTypeGlyph type={column.type ?? 'text'} />
-                        <span className="block truncate" title={column.header}>{column.header}</span>
+                        <span className="block truncate" title={column.header}>
+                          {column.header}
+                        </span>
                       </>
                     )}
                   </div>
@@ -787,7 +853,14 @@ function TableGrid<TRow>({
                     columns={columns}
                     gridStyle={gridStyle}
                     selected={getRowId(row) === selectedRowId}
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                     onSelect={onSelect}
                   />
                 )
@@ -845,19 +918,56 @@ function ColumnHeaderMenu<TRow>({
         trigger={
           <>
             <ColumnTypeGlyph type={column.type ?? 'text'} />
-            <span className="block truncate" title={column.header}>{column.header}</span>
-            {SortIcon && <SortIcon className="size-3.5 shrink-0 text-foreground" aria-label={direction === 'asc' ? 'Sorted ascending' : 'Sorted descending'} />}
+            <span className="block truncate" title={column.header}>
+              {column.header}
+            </span>
+            {SortIcon && (
+              <SortIcon
+                className="size-3.5 shrink-0 text-foreground"
+                aria-label={direction === 'asc' ? 'Sorted ascending' : 'Sorted descending'}
+              />
+            )}
           </>
         }
         items={[
-          sortable && direction !== 'asc' && { id: 'asc', label: 'Sort ascending', icon: <ArrowUp className="size-4" />, onSelect: () => onSortChange({ columnId: column.id, direction: 'asc' }) },
-          sortable && direction !== 'desc' && { id: 'desc', label: 'Sort descending', icon: <ArrowDown className="size-4" />, onSelect: () => onSortChange({ columnId: column.id, direction: 'desc' }) },
-          sortable && direction && { id: 'reset', label: 'Reset sort', icon: <X className="size-4" />, onSelect: () => onSortChange(null) },
-          renderColumnStats && { id: 'stats', label: 'Column stats', icon: <BarChart3 className="size-4" />, onSelect: () => setStatsOpen(true) },
+          sortable &&
+            direction !== 'asc' && {
+              id: 'asc',
+              label: 'Sort ascending',
+              icon: <ArrowUp className="size-4" />,
+              onSelect: () => onSortChange({ columnId: column.id, direction: 'asc' }),
+            },
+          sortable &&
+            direction !== 'desc' && {
+              id: 'desc',
+              label: 'Sort descending',
+              icon: <ArrowDown className="size-4" />,
+              onSelect: () => onSortChange({ columnId: column.id, direction: 'desc' }),
+            },
+          sortable &&
+            direction && {
+              id: 'reset',
+              label: 'Reset sort',
+              icon: <X className="size-4" />,
+              onSelect: () => onSortChange(null),
+            },
+          renderColumnStats && {
+            id: 'stats',
+            label: 'Column stats',
+            icon: <BarChart3 className="size-4" />,
+            onSelect: () => setStatsOpen(true),
+          },
         ]}
       />
       {renderColumnStats && (
-        <AnchoredPopover anchorRef={anchorRef} open={statsOpen} onClose={closeStats} width={272} role="dialog" ariaLabel={`${column.header} statistics`}>
+        <AnchoredPopover
+          anchorRef={anchorRef}
+          open={statsOpen}
+          onClose={closeStats}
+          width={272}
+          role="dialog"
+          ariaLabel={`${column.header} statistics`}
+        >
           {renderColumnStats(column.id, rows)}
         </AnchoredPopover>
       )}
@@ -917,19 +1027,18 @@ function LayerPicker<TLayerId extends string>({
       const viewportMargin = 12
       const gap = 6
       const width = Math.max(0, Math.min(288, viewportWidth - viewportMargin * 2))
-      const left = Math.min(
-        Math.max(viewportMargin, rect.left),
-        viewportWidth - width - viewportMargin,
-      )
+      const left = Math.min(Math.max(viewportMargin, rect.left), viewportWidth - width - viewportMargin)
       const availableBelow = viewportHeight - rect.bottom - gap - viewportMargin
       const availableAbove = rect.top - gap - viewportMargin
       const desiredHeight = showOnlyInViewEnabled ? 350 : 310
       const opensBelow = availableBelow >= desiredHeight || availableBelow >= availableAbove
       const maxHeight = Math.max(0, opensBelow ? availableBelow : availableAbove)
 
-      setPosition(opensBelow
-        ? { left, width, maxHeight, top: rect.bottom + gap, placement: 'bottom' }
-        : { left, width, maxHeight, bottom: viewportHeight - rect.top + gap, placement: 'top' })
+      setPosition(
+        opensBelow
+          ? { left, width, maxHeight, top: rect.bottom + gap, placement: 'bottom' }
+          : { left, width, maxHeight, bottom: viewportHeight - rect.top + gap, placement: 'top' },
+      )
     }
 
     updatePosition()
@@ -997,16 +1106,34 @@ function LayerPicker<TLayerId extends string>({
       </div>
       <div role="listbox" aria-label="Table layer" className="min-h-0 flex-1 overflow-auto py-1">
         {visibleLayers.map((item) => (
-          <button key={item.id} type="button" role="option" aria-selected={selectedLayer === item.id} className={cn('flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted', selectedLayer === item.id && 'bg-muted')} onClick={() => onLayerChange(item.id)}>
+          <button
+            key={item.id}
+            type="button"
+            role="option"
+            aria-selected={selectedLayer === item.id}
+            className={cn(
+              'flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted',
+              selectedLayer === item.id && 'bg-muted',
+            )}
+            onClick={() => onLayerChange(item.id)}
+          >
             <LayerSwatch color={item.color} shape={item.shape ?? 'fill'} />
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
             {selectedLayer === item.id ? <Check className="size-4" /> : <span className="size-4" />}
           </button>
         ))}
-        {visibleLayers.length === 0 && <p className="px-3 py-4 text-center text-sm text-muted-foreground">No layers match</p>}
+        {visibleLayers.length === 0 && (
+          <p className="px-3 py-4 text-center text-sm text-muted-foreground">No layers match</p>
+        )}
       </div>
       {showOnlyInViewEnabled && (
-        <button type="button" role="menuitemcheckbox" aria-checked={showOnlyInView} className="flex w-full shrink-0 items-center gap-3 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}>
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          aria-checked={showOnlyInView}
+          className="flex w-full shrink-0 items-center gap-3 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted"
+          onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}
+        >
           {showOnlyInView ? <SquareCheck className="size-4" /> : <Square className="size-4" />}
           <span>Show only features in view</span>
         </button>
@@ -1040,7 +1167,10 @@ function TableRow<TRow>({
       aria-selected={selected}
       tabIndex={0}
       style={{ ...gridStyle, ...style }}
-      className={cn('cursor-pointer border-b border-border/70 outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring', selected && 'bg-primary/10 hover:bg-primary/15')}
+      className={cn(
+        'cursor-pointer border-b border-border/70 outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring',
+        selected && 'bg-primary/10 hover:bg-primary/15',
+      )}
       onClick={() => onSelect(row)}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return
@@ -1048,7 +1178,9 @@ function TableRow<TRow>({
         onSelect(row)
       }}
     >
-      <div role="cell" className="flex items-center bg-muted/30 px-3 py-2 text-muted-foreground tabular-nums">{index + 1}</div>
+      <div role="cell" className="flex items-center bg-muted/30 px-3 py-2 text-muted-foreground tabular-nums">
+        {index + 1}
+      </div>
       {columns.map((column) => {
         const value = column.getValue(row)
         const isEmpty = value == null || value === ''
@@ -1057,9 +1189,16 @@ function TableRow<TRow>({
           <div
             key={column.id}
             role="cell"
-            className={cn('flex min-w-0 items-center px-3 py-2', type === 'numeric' && 'justify-end tabular-nums', column.widthClassName)}
+            className={cn(
+              'flex min-w-0 items-center px-3 py-2',
+              type === 'numeric' && 'justify-end tabular-nums',
+              column.widthClassName,
+            )}
           >
-            <span className={cn('block truncate', isEmpty && 'text-muted-foreground')} title={isEmpty ? undefined : String(value)}>
+            <span
+              className={cn('block truncate', isEmpty && 'text-muted-foreground')}
+              title={isEmpty ? undefined : String(value)}
+            >
               {isEmpty ? '—' : value}
             </span>
           </div>

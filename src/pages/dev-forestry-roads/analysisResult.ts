@@ -17,9 +17,10 @@ export function safeAnalyzeRoad(
   source: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
+  options: Parameters<typeof analyzeRoad>[4] = {},
 ): RoadAnalysis {
   try {
-    return analyzeRoad(alignment, source, settings, context)
+    return analyzeRoad(alignment, source, settings, context, options)
   } catch (cause) {
     return {
       stations: [],

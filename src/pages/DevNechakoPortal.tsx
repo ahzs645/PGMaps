@@ -13,10 +13,9 @@ import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
 import { PortalSourceLayers } from '@/maps/nechako/PortalSourceLayers'
 import { PortalLocalWorkbench } from '@/maps/nechako/PortalLocalWorkbench'
-import { applyLocalDefaultStyle } from '@/maps/nechako/data/styleLibrary'
 import { SHOWCASE_BASE } from '@/maps/nechako/data/showcase'
 import { loadNechakoBoundary } from '@/maps/nechako/data/boundary'
-import { EMPTY_WORKSPACE, importWorkspace, type VectorData, type Workspace } from '@/maps/nechako/data/workspace'
+import { importWorkspace, type VectorData, type Workspace } from '@/maps/nechako/data/workspace'
 import { PortalInventory } from '@/maps/nechako/PortalInventory'
 import { PortalCollections, EMPTY_COLLECTION_SESSION, type CollectionSession } from '@/maps/nechako/PortalCollections'
 import { PortalOptions } from '@/maps/nechako/PortalOptions'
@@ -34,7 +33,7 @@ import {
 import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
 import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
 import { portalWrite } from '@/lib/nechakoPortal'
-import { usePortalSession } from '@/maps/nechako/data/usePortalSession'
+import { usePortalWorkspace } from '@/maps/nechako/data/usePortalWorkspace'
 import { TabBar } from '@/components/ui/tab-bar'
 
 const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
@@ -98,23 +97,7 @@ export default function DevNechakoPortal() {
   const requested = params.get('panel')
   const panel = PANELS.includes(requested as Panel) ? (requested as Panel) : undefined
   const adminView = parsePortalAdministrationView(params.get('admin'))
-  const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
-  const clearSessionWorkspace = useCallback(
-    () =>
-      setWorkspace((current) =>
-        current.sessionBound
-          ? {
-              ...EMPTY_WORKSPACE,
-              camera: current.camera,
-              warnings: [
-                'The portal connection changed; unsaved source-session map data was cleared. Explicit browser saves remain available.',
-              ],
-            }
-          : current,
-      ),
-    [],
-  )
-  const session = usePortalSession(clearSessionWorkspace)
+  const { workspace, setWorkspace, session, addLocalVectors: appendLocalVectors } = usePortalWorkspace()
   const [bounds, setBounds] = useState<[number, number, number, number]>()
   const [initialBounds, setInitialBounds] = useState<[number, number, number, number]>()
   const [loading, setLoading] = useState(true)
@@ -168,7 +151,7 @@ export default function DevNechakoPortal() {
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [retry])
+  }, [retry, setWorkspace])
 
   const showAdministration = (view: PortalAdministrationView) =>
     setParams((current) => {
@@ -188,22 +171,7 @@ export default function DevNechakoPortal() {
     close()
   }
   const addLocalVectors = async (vectors: VectorData[]) => {
-    const warnings: string[] = []
-    const styled = await Promise.all(
-      vectors.map(async (vector) => {
-        try {
-          return await applyLocalDefaultStyle(vector)
-        } catch (reason) {
-          warnings.push(`Default style unavailable for ${vector.name}: ${errorText(reason)}`)
-          return vector
-        }
-      }),
-    )
-    setWorkspace((current) => ({
-      ...current,
-      vectors: [...current.vectors, ...styled],
-      warnings: [...(current.warnings ?? []), ...warnings],
-    }))
+    await appendLocalVectors(vectors)
     close()
   }
   const toolbarClass =

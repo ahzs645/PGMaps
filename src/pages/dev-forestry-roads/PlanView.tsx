@@ -24,6 +24,8 @@ import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
+import { TerrainRasterLayers } from './TerrainRasterLayers'
+import { preparationMarginFeatures } from './preparationFootprint'
 import type {
   Alignment,
   ContextFeature,
@@ -71,6 +73,9 @@ interface PlanProps {
   overlay?: GeoJSON.FeatureCollection
   /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
+  /** Consume a plan click as a drain-to-point selection rather than changing road chainage. */
+  pourPointPicking?: boolean
+  onPourPoint?: (coordinate: Coordinate) => void
   onOverlaySelect?: (properties: GeoJSON.GeoJsonProperties) => void
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
@@ -140,6 +145,8 @@ function Layers(
     onCableDistance,
     onOverlaySelect,
     onSelectCulvert,
+    pourPointPicking,
+    onPourPoint,
   } = props
   const projectCables = props.project.cables
   const resolvedCables = useMemo(
@@ -354,6 +361,7 @@ function Layers(
           offsetCoordinate(a.coordinate, a.bearing + 90, ar.offset),
         ]
         return [
+          ...preparationMarginFeatures(a, b),
           {
             type: 'Feature' as const,
             geometry: { type: 'Polygon' as const, coordinates: [[...points, points[0]]] },
@@ -711,6 +719,38 @@ function Layers(
     // Existing-ground streams dashed and pale, design-surface streams solid and widening with
     // contributing area, so a stream the road turns shows as the two lines parting.
     add({
+      id: 'road-drainage-catchment-fill',
+      type: 'fill',
+      source: 'road-drainage',
+      filter: ['in', ['get', 'role'], ['literal', ['catchment', 'watershed']]],
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'role'],
+          'catchment',
+          PLAN_DRAINAGE_STYLES.catchment.color,
+          PLAN_DRAINAGE_STYLES.watershed.color,
+        ],
+        'fill-opacity': ['match', ['get', 'role'], 'catchment', 0.2, 0.08],
+      },
+    })
+    add({
+      id: 'road-drainage-catchment-outline',
+      type: 'line',
+      source: 'road-drainage',
+      filter: ['in', ['get', 'role'], ['literal', ['catchment', 'watershed']]],
+      paint: {
+        'line-color': [
+          'match',
+          ['get', 'role'],
+          'catchment',
+          PLAN_DRAINAGE_STYLES.catchment.color,
+          PLAN_DRAINAGE_STYLES.watershed.color,
+        ],
+        'line-width': ['match', ['get', 'role'], 'catchment', 2, 1],
+      },
+    })
+    add({
       id: 'road-drainage-existing',
       type: 'line',
       source: 'road-drainage',
@@ -755,6 +795,8 @@ function Layers(
           PLAN_DRAINAGE_STYLES.pond.color,
           'low-point',
           PLAN_DRAINAGE_STYLES['low-point'].color,
+          'pour-point',
+          PLAN_DRAINAGE_STYLES['pour-point'].color,
           '#dc2626',
         ],
         'circle-radius': ['match', ['get', 'role'], 'pond', 3, 6],
@@ -809,6 +851,8 @@ function Layers(
       'road-section',
       'road-draft',
       'road-drainage-existing',
+      'road-drainage-catchment-fill',
+      'road-drainage-catchment-outline',
       'road-drainage-line',
       'road-drainage-point',
       'road-exploration-line',
@@ -842,6 +886,10 @@ function Layers(
   useEffect(() => {
     if (!map || !isLoaded) return
     const click = (e: MapMouseEvent) => {
+      if (pourPointPicking && onPourPoint) {
+        onPourPoint([e.lngLat.lng, e.lngLat.lat])
+        return
+      }
       if (!['inspect', 'edit'].includes(mode)) {
         onDraw([e.lngLat.lng, e.lngLat.lat])
         return
@@ -881,6 +929,7 @@ function Layers(
       }
     }
     const move = (e: MapMouseEvent) => {
+      if (pourPointPicking) return
       if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
@@ -894,7 +943,7 @@ function Layers(
         if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
       }
     }
-    map.getCanvas().style.cursor = ['inspect', 'edit'].includes(mode) ? '' : 'crosshair'
+    map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
     map.doubleClickZoom.disable()
     map.on('click', click)
     map.on('mousemove', move)
@@ -918,10 +967,13 @@ function Layers(
     resolvedCables,
     onOverlaySelect,
     onSelectCulvert,
+    pourPointPicking,
+    onPourPoint,
   ])
 
   return (
     <>
+      <TerrainRasterLayers layers={props.project.terrain.backgrounds ?? []} />
       {props.overlay?.features
         .filter((feature): feature is GeoJSON.Feature<GeoJSON.Point> => feature.geometry.type === 'Point')
         .map((feature, index) => (
@@ -1284,7 +1336,7 @@ export function PlanView(props: PlanProps) {
       document.removeEventListener('keydown', escape)
     }
   }, [settingsOpen])
-  const drawing = !['inspect', 'edit'].includes(props.mode)
+  const drawing = props.pourPointPicking || !['inspect', 'edit'].includes(props.mode)
   const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
   return (
     <div

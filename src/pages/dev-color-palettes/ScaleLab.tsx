@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useMemo, useState } from 'react'
 import { AppSelect } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -8,35 +9,6 @@ import { PalettePreview } from './PalettePreview'
 import type { CatalogPalette } from './types'
 
 const fieldClass = 'grid min-w-0 gap-2 text-sm'
-function RangeField({
-  label,
-  value,
-  onChange,
-  min = 0,
-  max = 100,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-  min?: number
-  max?: number
-}) {
-  return (
-    <label className={fieldClass}>
-      {label}: {value}
-      <input
-        aria-label={label}
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-8 w-full accent-primary"
-      />
-    </label>
-  )
-}
-
 export function ScaleLab({ palette, counterpart }: { palette: CatalogPalette; counterpart?: CatalogPalette }) {
   const lightPalette = palette.theme.variant === 'dark' && counterpart ? counterpart : palette
   const darkPalette = palette.theme.variant === 'light' && counterpart ? counterpart : palette
@@ -163,9 +135,34 @@ export function ScaleLab({ palette, counterpart }: { palette: CatalogPalette; co
       {canSample && (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
-            <RangeField label="Steps" min={1} max={12} value={classes} onChange={setClasses} />
-            <RangeField label="Palette start (%)" max={end} value={start} onChange={setStart} />
-            <RangeField label="Palette end (%)" min={start} value={end} onChange={setEnd} />
+            <NumericRangeField
+              layout="inline"
+              className={fieldClass}
+              inputClassName="h-8 accent-primary"
+              label="Steps"
+              min={1}
+              max={12}
+              value={classes}
+              onChange={setClasses}
+            />
+            <NumericRangeField
+              layout="inline"
+              className={fieldClass}
+              inputClassName="h-8 accent-primary"
+              label="Palette start (%)"
+              max={end}
+              value={start}
+              onChange={setStart}
+            />
+            <NumericRangeField
+              layout="inline"
+              className={fieldClass}
+              inputClassName="h-8 accent-primary"
+              label="Palette end (%)"
+              min={start}
+              value={end}
+              onChange={setEnd}
+            />
           </div>
           <div className="flex flex-wrap gap-5 text-sm">
             <label className="flex min-h-10 items-center gap-2">
@@ -179,8 +176,24 @@ export function ScaleLab({ palette, counterpart }: { palette: CatalogPalette; co
           </div>
           {separateDark && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <RangeField label="Dark palette start (%)" max={darkEnd} value={darkStart} onChange={setDarkStart} />
-              <RangeField label="Dark palette end (%)" min={darkStart} value={darkEnd} onChange={setDarkEnd} />
+              <NumericRangeField
+                layout="inline"
+                className={fieldClass}
+                inputClassName="h-8 accent-primary"
+                label="Dark palette start (%)"
+                max={darkEnd}
+                value={darkStart}
+                onChange={setDarkStart}
+              />
+              <NumericRangeField
+                layout="inline"
+                className={fieldClass}
+                inputClassName="h-8 accent-primary"
+                label="Dark palette end (%)"
+                min={darkStart}
+                value={darkEnd}
+                onChange={setDarkEnd}
+              />
             </div>
           )}
           <label className={fieldClass}>
@@ -197,7 +210,14 @@ export function ScaleLab({ palette, counterpart }: { palette: CatalogPalette; co
           </label>
         </>
       )}
-      <RangeField label="Fill opacity (%)" value={opacity} onChange={setOpacity} />
+      <NumericRangeField
+        layout="inline"
+        className={fieldClass}
+        inputClassName="h-8 accent-primary"
+        label="Fill opacity (%)"
+        value={opacity}
+        onChange={setOpacity}
+      />
       {canSample && parsed.error && <InlineAlert tone="error">{parsed.error}</InlineAlert>}
       <div className="grid gap-4 lg:grid-cols-2">
         <PalettePreview

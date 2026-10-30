@@ -86,7 +86,12 @@ let stored: Map<string, string>
 function Harness({ visible = true }: { visible?: boolean }) {
   const [id, setId] = useState('crown-1'),
     [picked, setPicked] = useState<IsolatedPoint | null>(null)
-  const inspection = useTreeInspection(source, crops[id], 'https://example.test/analysis/', 'https://example.test/ept.json')
+  const inspection = useTreeInspection(
+    source,
+    crops[id],
+    'https://example.test/analysis/',
+    'https://example.test/ept.json',
+  )
   // Published after render, where React allows writing outside the component.
   useEffect(() => {
     controller = inspection
@@ -210,14 +215,12 @@ describe('tree inspector interactions without a browser renderer', () => {
     expect(controller.state.assignments['0-0-0-0:10']).toBe('edit-crown-1-seed-1')
     expect(controller.state.assignments['0-0-0-0:11']).toBe('edit-crown-1-seed-2')
     await act(async () => {
-      await renderer.root
-        .findByProps({ 'aria-label': 'Import tree review manifest' })
-        .props.onChange({
-          target: {
-            files: [{ size: 100, text: async () => JSON.stringify({ ...controller.state, source_sha256: 'other' }) }],
-            value: 'file',
-          },
-        })
+      await renderer.root.findByProps({ 'aria-label': 'Import tree review manifest' }).props.onChange({
+        target: {
+          files: [{ size: 100, text: async () => JSON.stringify({ ...controller.state, source_sha256: 'other' }) }],
+          value: 'file',
+        },
+      })
     })
     expect(renderer.root.findAllByProps({ role: 'status' }).some((n) => text(n).includes('mismatch'))).toBe(true)
     expect(controller.state.source_sha256).toBe('source')

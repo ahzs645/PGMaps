@@ -8,7 +8,11 @@ export interface ScoreDriver {
   scoreDelta: number
 }
 
-export function getScoreDrivers(region: ScoredBoundaryRegion, weights: ScoreMetricWeightMap, limit?: number): ScoreDriver[] {
+export function getScoreDrivers(
+  region: ScoredBoundaryRegion,
+  weights: ScoreMetricWeightMap,
+  limit?: number,
+): ScoreDriver[] {
   const drivers = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     .map((metric) => ({
       key: metric.key,

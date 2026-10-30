@@ -29,14 +29,22 @@ export type DensityIndex = {
 
 export function buildDensityIndex(features: DensityFeature[]): DensityIndex {
   const tree = new RBush<IndexItem>()
-  tree.load(features.map((feature) => ({
-    minX: feature.bbox[0], minY: feature.bbox[1], maxX: feature.bbox[2], maxY: feature.bbox[3], feature,
-  })))
+  tree.load(
+    features.map((feature) => ({
+      minX: feature.bbox[0],
+      minY: feature.bbox[1],
+      maxX: feature.bbox[2],
+      maxY: feature.bbox[3],
+      feature,
+    })),
+  )
   return {
     size: features.length,
-    search: ([minX, minY, maxX, maxY]) => tree.search({ minX, minY, maxX, maxY })
-      .map((item) => item.feature)
-      .sort((a, b) => a.layerIndex - b.layerIndex || a.fid - b.fid),
+    search: ([minX, minY, maxX, maxY]) =>
+      tree
+        .search({ minX, minY, maxX, maxY })
+        .map((item) => item.feature)
+        .sort((a, b) => a.layerIndex - b.layerIndex || a.fid - b.fid),
   }
 }
 
@@ -103,7 +111,9 @@ function intersectLayers(candidate: Candidate, index: DensityIndex, kind: Piece[
     for (const feature of hits) {
       if (feature.layerIndex !== layerIndex) continue
       if (position > 0 && claimed.length) {
-        overlapHa += squareMetresToHa(multiPolygonArea(intersect(intersect(candidate.geometry, feature.geometry), claimed)))
+        overlapHa += squareMetresToHa(
+          multiPolygonArea(intersect(intersect(candidate.geometry, feature.geometry), claimed)),
+        )
       }
       const geometry = intersect(region, feature.geometry)
       if (!geometry.length) continue
@@ -187,24 +197,38 @@ export function overlayCandidate(
   settings: GeometrySettings,
 ): CandidateOverlay {
   const warnings: string[] = []
-  const candidateClass = slope.source === 'dem'
-    ? {
-        1: intersect(candidate.geometry, slope.classPolygons[1]),
-        2: intersect(candidate.geometry, slope.classPolygons[2]),
-        3: intersect(candidate.geometry, slope.classPolygons[3]),
-      }
-    : null
+  const candidateClass =
+    slope.source === 'dem'
+      ? {
+          1: intersect(candidate.geometry, slope.classPolygons[1]),
+          2: intersect(candidate.geometry, slope.classPolygons[2]),
+          3: intersect(candidate.geometry, slope.classPolygons[3]),
+        }
+      : null
 
   const avastResult = intersectLayers(candidate, avast, 'avast', settings.minPieceHa)
   const avastFeatures = featureLookup(avastResult.pieces, avast, candidate.bbox)
-  const avastSplit = splitBySlope(candidate, avastResult.pieces, slope, candidateClass, settings.slopeBreaks, settings.minPieceHa, avastFeatures)
+  const avastSplit = splitBySlope(
+    candidate,
+    avastResult.pieces,
+    slope,
+    candidateClass,
+    settings.slopeBreaks,
+    settings.minPieceHa,
+    avastFeatures,
+  )
   const avastCovered = avastResult.pieces.reduce((sum, piece) => sum + piece.areaHa, 0)
   const avastVolume = avastResult.pieces.reduce((sum, piece) => sum + piece.volume, 0)
-  const nullDensityHa = avastResult.pieces.filter((piece) => piece.densityMissing).reduce((sum, piece) => sum + piece.areaHa, 0)
+  const nullDensityHa = avastResult.pieces
+    .filter((piece) => piece.densityMissing)
+    .reduce((sum, piece) => sum + piece.areaHa, 0)
   if (avastCovered > candidate.geometryHa * 1.001 + 0.01) {
-    warnings.push(`AVAST polygons overlap inside this block: ${avastCovered.toFixed(2)} ha covered of a ${candidate.geometryHa.toFixed(2)} ha polygon.`)
+    warnings.push(
+      `AVAST polygons overlap inside this block: ${avastCovered.toFixed(2)} ha covered of a ${candidate.geometryHa.toFixed(2)} ha polygon.`,
+    )
   }
-  if (nullDensityHa > 0) warnings.push(`${nullDensityHa.toFixed(2)} ha of AVAST has no numeric density and counts as 0 m³/ha.`)
+  if (nullDensityHa > 0)
+    warnings.push(`${nullDensityHa.toFixed(2)} ha of AVAST has no numeric density and counts as 0 m³/ha.`)
 
   const operatingAreaHa = new Map<string, number>()
   for (const piece of avastResult.pieces) {
@@ -221,8 +245,15 @@ export function overlayCandidate(
   if (lidar) {
     const lidarResult = intersectLayers(candidate, lidar, 'lidar', settings.minPieceHa)
     lidarPieces = lidarResult.pieces
-    const lidarSplit = splitBySlope(candidate, lidarPieces, slope, candidateClass, settings.slopeBreaks, settings.minPieceHa,
-      featureLookup(lidarPieces, lidar, candidate.bbox))
+    const lidarSplit = splitBySlope(
+      candidate,
+      lidarPieces,
+      slope,
+      candidateClass,
+      settings.slopeBreaks,
+      settings.minPieceHa,
+      featureLookup(lidarPieces, lidar, candidate.bbox),
+    )
     lidarSlopePieces = lidarSplit.slopePieces
     lidarRaw = {
       coveredHa: lidarPieces.reduce((sum, piece) => sum + piece.areaHa, 0),

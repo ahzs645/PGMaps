@@ -13,7 +13,10 @@ describe('WARS relative heatmap density', () => {
   })
 
   it('responds to overlap when zooming out, rather than just counting visible records', () => {
-    const spread = peak([{ ...point, x: 60 }, { ...point, x: 180 }])
+    const spread = peak([
+      { ...point, x: 60 },
+      { ...point, x: 180 },
+    ])
     const together = peak([point, point])
     expect(together).toBeCloseTo(2 * spread, 6)
   })
@@ -27,7 +30,13 @@ describe('WARS relative heatmap density', () => {
 
   it('handles empty views and invalid points without poisoning the density scale', () => {
     expect(peak([])).toBe(0)
-    expect(peak([{ ...point, x: NaN }, { ...point, weight: Infinity }, { ...point, weight: -1 }])).toBe(0)
+    expect(
+      peak([
+        { ...point, x: NaN },
+        { ...point, weight: Infinity },
+        { ...point, weight: -1 },
+      ]),
+    ).toBe(0)
     expect(estimateHeatmapPeak([point], 0, 0, 24)).toBe(0)
   })
 

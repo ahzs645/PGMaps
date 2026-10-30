@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -46,7 +47,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
       {check.error && <InlineAlert tone="error">{check.error}</InlineAlert>}
       <label className="grid gap-1 text-sm">
         Source content
-        <select
+        <NativeSelect
           aria-label="Source help content"
           disabled={busy}
           className="rounded border bg-background p-2 text-base"
@@ -67,7 +68,7 @@ function HelpEditor({ write, canWrite }: { write?: Write; canWrite: boolean }) {
               {String(row.content_name)} · {String(row.content_id)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       {selected && (
         <>

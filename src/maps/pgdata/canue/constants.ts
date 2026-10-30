@@ -531,12 +531,8 @@ export const CANUE_MONTHS: readonly CanueMonth[] = MONTH_NAMES.map((label, index
   label,
 }))
 
-export const CANUE_MONTH_BY_VALUE: Map<number, CanueMonth> = new Map(
-  CANUE_MONTHS.map((month) => [month.value, month]),
-)
-export const CANUE_MONTH_BY_KEY: Map<string, CanueMonth> = new Map(
-  CANUE_MONTHS.map((month) => [month.key, month]),
-)
+export const CANUE_MONTH_BY_VALUE: Map<number, CanueMonth> = new Map(CANUE_MONTHS.map((month) => [month.value, month]))
+export const CANUE_MONTH_BY_KEY: Map<string, CanueMonth> = new Map(CANUE_MONTHS.map((month) => [month.key, month]))
 export const CANUE_MONTH_PATTERN = /_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_\d{2}$/i
 export const CANUE_ANNUAL_YEAR_PATTERN = /^(.*?)(\d{2})(_\d+)$/
 

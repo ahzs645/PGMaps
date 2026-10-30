@@ -8,9 +8,7 @@ import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibili
  * Fetching the whole route also warms the browser's terrain cache ahead of travel. */
 export function useDriveTerrain(active: boolean, road: number[][], polygons: PolygonGeometry[]) {
   const [attempt, setAttempt] = useState(0)
-  const retry = useCallback(() => setAttempt(value => value + 1), [])
-  const [progress, setProgress] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const retry = useCallback(() => setAttempt((value) => value + 1), [])
   const extent = useMemo(() => {
     const points = [...road]
     for (const polygon of polygons) {
@@ -33,54 +31,92 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     )
     return { bounds, radius: Math.min(20000, radius) }
   }, [road, polygons])
-  const [state, setState] = useState<{ extent?: typeof extent; source: ElevationSource | null; message: string | null }>({
-    source: null,
-    message: null,
-  })
-  useEffect(() => {
-    setProgress(0)
-    setLoading(false)
-    if (!active || !extent) {
-      setState({ source: null, message: null })
-      return
-    }
-    const abort = new AbortController()
+  const request = useMemo(() => {
+    if (!active || !extent) return null
     // Include roadside foreground and the full assessment hillside. At most
     // 128 decoded tiles (~32 MB); finer near-road data is not fabricated.
     let zoom = 14
     let range = demTileRange(extent.bounds, zoom, 1000)
     while (range.tileCount > 128 && zoom > 10) range = demTileRange(extent.bounds, --zoom, 1000)
-    if (range.tileCount > 128) {
-      setState({
-        source: null,
-        message: 'Preview extent is too large. Use a shorter road or a smaller assessment area.',
-      })
-      return
-    }
-    setLoading(true)
-    setState({ source: null, message: 'Loading terrain along the road and assessment hillside…' })
-    loadPreviewTerrain({ range, signal: abort.signal, concurrency: 4, onProgress: (completed, total) => { if (!abort.signal.aborted) setProgress(Math.round(100 * completed / total)) } }, attempt > 0)
+    return { extent, range, attempt, tooLarge: range.tileCount > 128 }
+  }, [active, extent, attempt])
+  const [state, setState] = useState<{
+    request: typeof request
+    extent?: typeof extent
+    source: ElevationSource | null
+    message: string | null
+    progress: number
+    loading: boolean
+  } | null>(null)
+  const pendingMessage = 'Loading terrain along the road and assessment hillside…'
+  useEffect(() => {
+    if (!request || request.tooLarge) return
+    const abort = new AbortController()
+    loadPreviewTerrain(
+      {
+        range: request.range,
+        signal: abort.signal,
+        concurrency: 4,
+        onProgress: (completed, total) => {
+          if (!abort.signal.aborted)
+            setState({
+              request,
+              source: null,
+              message: pendingMessage,
+              progress: Math.round((100 * completed) / total),
+              loading: true,
+            })
+        },
+      },
+      request.attempt > 0,
+    )
       .then(({ source, missingTileCount }) => {
         if (!abort.signal.aborted) {
-          setLoading(false)
-          setState({
-            extent,
+          setState((current) => ({
+            request,
+            extent: request.extent,
             // The camera and tree bases stand on the ground MapLibre draws,
             // which registers DEM samples half a pixel from the analysis grid.
             source,
             message: missingTileCount
               ? `${missingTileCount} terrain tiles unavailable; trees are omitted where ground is unknown.`
               : null,
-          })
+            progress: current?.request === request ? current.progress : 0,
+            loading: false,
+          }))
         }
       })
       .catch((error: unknown) => {
-        if (!abort.signal.aborted) {
-          setLoading(false)
-          setState({ source: null, message: `Preview terrain could not load: ${String(error)}` })
-        }
+        if (!abort.signal.aborted)
+          setState((current) => ({
+            request,
+            source: null,
+            message: `Preview terrain could not load: ${String(error)}`,
+            progress: current?.request === request ? current.progress : 0,
+            loading: false,
+          }))
       })
     return () => abort.abort()
-  }, [active, extent, attempt])
-  return { ...state, source: state.extent === extent ? state.source : null, progress, loading, retry, radius: extent?.radius ?? 3500 }
+  }, [request])
+  const visible = !request
+    ? { source: null, message: null, progress: 0, loading: false }
+    : request.tooLarge
+      ? {
+          source: null,
+          message: 'Preview extent is too large. Use a shorter road or a smaller assessment area.',
+          progress: 0,
+          loading: false,
+        }
+      : state && state.request === request
+        ? state
+        : { source: null, message: pendingMessage, progress: 0, loading: true }
+  return {
+    source: visible.source,
+    message: visible.message,
+    progress: visible.progress,
+    loading: visible.loading,
+    extent: 'extent' in visible ? visible.extent : undefined,
+    retry,
+    radius: extent?.radius ?? 3500,
+  }
 }

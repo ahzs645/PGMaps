@@ -17,29 +17,29 @@ const ZOOM = 11
 export function RouletteLocationPicker({
   sourceLocation,
   maxDistance,
-  onLocationSelected
+  onLocationSelected,
 }: RouletteLocationPickerProps) {
-  const handleMapClick = useCallback((e: maplibregl.MapMouseEvent) => {
-    onLocationSelected({
-      lat: e.lngLat.lat,
-      lng: e.lngLat.lng
-    })
-  }, [onLocationSelected])
+  const handleMapClick = useCallback(
+    (e: maplibregl.MapMouseEvent) => {
+      onLocationSelected({
+        lat: e.lngLat.lat,
+        lng: e.lngLat.lng,
+      })
+    },
+    [onLocationSelected],
+  )
 
   return (
     <div className="h-40 w-full cursor-crosshair overflow-hidden rounded-lg border border-input">
       <Map
         center={sourceLocation ? [sourceLocation.lng, sourceLocation.lat] : PG_CENTER}
         zoom={sourceLocation ? 12 : ZOOM}
-             >
+      >
         <MapClickHandler onMapClick={handleMapClick} />
         <RadiusCircle sourceLocation={sourceLocation} maxDistance={maxDistance} />
 
         {sourceLocation && (
-          <MapMarker
-            longitude={sourceLocation.lng}
-            latitude={sourceLocation.lat}
-          >
+          <MapMarker longitude={sourceLocation.lng} latitude={sourceLocation.lat}>
             <MarkerContent>
               <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg" />
             </MarkerContent>
@@ -65,13 +65,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (e: maplibregl.MapMouseEv
   return null
 }
 
-function RadiusCircle({
-  sourceLocation,
-  maxDistance
-}: {
-  sourceLocation: SourceLocation | null
-  maxDistance: number
-}) {
+function RadiusCircle({ sourceLocation, maxDistance }: { sourceLocation: SourceLocation | null; maxDistance: number }) {
   const { map, isLoaded } = useMap()
   const sourceId = 'radius-circle'
   const fillLayerId = 'radius-circle-fill'
@@ -85,8 +79,8 @@ function RadiusCircle({
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: []
-        }
+          features: [],
+        },
       })
 
       map.addLayer({
@@ -95,8 +89,8 @@ function RadiusCircle({
         source: sourceId,
         paint: {
           'fill-color': '#3b82f6',
-          'fill-opacity': 0.15
-        }
+          'fill-opacity': 0.15,
+        },
       })
 
       map.addLayer({
@@ -106,19 +100,18 @@ function RadiusCircle({
         paint: {
           'line-color': '#3b82f6',
           'line-width': 2,
-          'line-opacity': 0.6
-        }
+          'line-opacity': 0.6,
+        },
       })
     }
 
     const source = map.getSource(sourceId) as maplibregl.GeoJSONSource
     if (source) {
       if (sourceLocation) {
-        const circleGeoJSON = turf.circle(
-          [sourceLocation.lng, sourceLocation.lat],
-          maxDistance,
-          { units: 'kilometers', steps: 64 }
-        )
+        const circleGeoJSON = turf.circle([sourceLocation.lng, sourceLocation.lat], maxDistance, {
+          units: 'kilometers',
+          steps: 64,
+        })
         source.setData(circleGeoJSON)
 
         const bounds = turf.bbox(circleGeoJSON) as [number, number, number, number]
@@ -126,7 +119,7 @@ function RadiusCircle({
       } else {
         source.setData({
           type: 'FeatureCollection',
-          features: []
+          features: [],
         })
       }
     }

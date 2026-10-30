@@ -4,7 +4,10 @@ import { MapPin } from 'lucide-react'
 
 import type { GeocodeResult } from '../types'
 
-export class LocalMapBoundary extends Component<{ children: ReactNode; result: GeocodeResult | null }, { hasError: boolean }> {
+export class LocalMapBoundary extends Component<
+  { children: ReactNode; result: GeocodeResult | null },
+  { hasError: boolean }
+> {
   state = { hasError: false }
 
   static getDerivedStateFromError() {

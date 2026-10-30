@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { TREE_SPECIES_IDS, VARIANTS_PER_SPECIES, type TreeSpeciesId } from './forest'
-import { BILLBOARD_ASPECT, CLUMP_TREES, TREE_SPECIES_DRAWING, atlasCell, impostorClumpShapes, impostorShapes } from './impostor'
+import {
+  BILLBOARD_ASPECT,
+  CLUMP_TREES,
+  TREE_SPECIES_DRAWING,
+  atlasCell,
+  impostorClumpShapes,
+  impostorShapes,
+} from './impostor'
 
 /** Every point of every shape, flattened. */
 function allPoints(species: TreeSpeciesId, variant = 0) {
@@ -126,8 +133,9 @@ describe('impostorClumpShapes', () => {
       expect(Math.min(...points.map(([x]) => x))).toBeLessThan(0.1)
       expect(Math.max(...points.map(([x]) => x))).toBeGreaterThan(0.9)
       // Every tree's bole is there: one per tree.
-      expect(impostorClumpShapes(species, 1).filter((shape) => shape.color === TREE_SPECIES_DRAWING[species].bark)).toHaveLength(CLUMP_TREES)
+      expect(
+        impostorClumpShapes(species, 1).filter((shape) => shape.color === TREE_SPECIES_DRAWING[species].bark),
+      ).toHaveLength(CLUMP_TREES)
     }
   })
 })
-

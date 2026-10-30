@@ -36,11 +36,7 @@ export const RESIDUAL_POSITIVE_COLOR = '#b91c1c'
 function lerpColor(a: string, b: string, t: number): string {
   const ra = hexToRgb(a)
   const rb = hexToRgb(b)
-  return rgbToHex([
-    ra[0] + (rb[0] - ra[0]) * t,
-    ra[1] + (rb[1] - ra[1]) * t,
-    ra[2] + (rb[2] - ra[2]) * t,
-  ])
+  return rgbToHex([ra[0] + (rb[0] - ra[0]) * t, ra[1] + (rb[1] - ra[1]) * t, ra[2] + (rb[2] - ra[2]) * t])
 }
 
 export function getResidualColor(residual: number, maxAbsResidual: number): string {

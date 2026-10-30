@@ -34,10 +34,10 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   const navigation = useLidarNavigation()
   const tool = navigation.tool
   const isLibrary = !tool
-  const remembered = useRef(new Map<string, WorkflowOptions>())
-  const lastModes = useRef(new Map<LidarToolId, AnalysisMode>())
-  const owner = useRef<string | undefined>()
-  const firstTreeFocus = useRef(navigation.tool?.id === 'trees')
+  const [remembered, setRemembered] = useState(() => new Map<string, WorkflowOptions>())
+  const [lastModes, setLastModes] = useState(() => new Map<LidarToolId, AnalysisMode>())
+  const [owner, setOwner] = useState<string | undefined>()
+  const [firstTreeFocus, setFirstTreeFocus] = useState(navigation.tool?.id === 'trees')
   const [treesRequested, setTreesRequested] = useState(false)
   const { summary, error, retrySummary } = useLidarSummary(analysisBase)
   const [raster, setRaster] = useState<RasterKey>('height')
@@ -124,32 +124,49 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
         : null,
     [activeTreeCrop, inspection.state.settings, inspection.state.assignments],
   )
+  const {
+    mode: profileMode,
+    angle: profileAngle,
+    width: profileWidth,
+    offset: profileOffset,
+  } = inspection.state.settings
   const cutOverlay = useMemo(
-    () => sliceOverlay(activeTreeCrop, inspection.state.settings),
-    [
-      activeTreeCrop,
-      inspection.state.settings.mode,
-      inspection.state.settings.angle,
-      inspection.state.settings.width,
-      inspection.state.settings.offset,
-    ],
+    () =>
+      sliceOverlay(activeTreeCrop, {
+        mode: profileMode,
+        angle: profileAngle,
+        width: profileWidth,
+        offset: profileOffset,
+      }),
+    [activeTreeCrop, profileMode, profileAngle, profileWidth, profileOffset],
   )
-  useEffect(() => {
-    if (analysisOptions.mode !== 'trees' || !selectedCrown || transectControl.active || !analysisOptions.treeShowPoints)
-      return
-    setSceneGround(selectedCrown.properties.ground_m)
-    setCloud(false)
-    setSurfaceVisible(false)
-    if (firstTreeFocus.current) {
-      firstTreeFocus.current = false
-      setFocus((previous) => ({
-        index: -1,
-        revision: previous.revision + 1,
-        center: selectedCrown.properties.centre,
-        zoom: treeView === '3d' ? 19 : 20,
-      }))
+  const treeContext = useMemo(
+    () => [analysisOptions.mode, selectedCrown, transectControl.active, analysisOptions.treeShowPoints],
+    [analysisOptions.mode, selectedCrown, transectControl.active, analysisOptions.treeShowPoints],
+  )
+  const [previousTreeContext, setPreviousTreeContext] = useState<unknown>(null)
+  if (previousTreeContext !== treeContext) {
+    setPreviousTreeContext(treeContext)
+    if (
+      analysisOptions.mode === 'trees' &&
+      selectedCrown &&
+      !transectControl.active &&
+      analysisOptions.treeShowPoints
+    ) {
+      setSceneGround(selectedCrown.properties.ground_m)
+      setCloud(false)
+      setSurfaceVisible(false)
+      if (firstTreeFocus) {
+        setFirstTreeFocus(false)
+        setFocus((previous) => ({
+          index: -1,
+          revision: previous.revision + 1,
+          center: selectedCrown.properties.centre,
+          zoom: treeView === '3d' ? 19 : 20,
+        }))
+      }
     }
-  }, [analysisOptions.mode, selectedCrown, transectControl.active, analysisOptions.treeShowPoints])
+  }
   const model = useMemo(() => {
     const records = workflowProducts.data?.models.records
     if (!records?.length) return null
@@ -214,9 +231,9 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   const applyAnalysis = (mode: AnalysisMode) => {
     setWorkflowsRequested(true)
     setAnalysisOptions((previous) => ({
-      ...(remembered.current.get(mode) ?? previous),
+      ...(remembered.get(mode) ?? previous),
       mode,
-      selectedId: remembered.current.get(mode)?.selectedId ?? null,
+      selectedId: remembered.get(mode)?.selectedId ?? null,
       treeShowPoints: mode === 'trees',
       treeOnlySelected: false,
     }))
@@ -270,16 +287,30 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     }
     if (isMobile) setPanelOpen(false)
   }
-  useEffect(() => {
-    if (owner.current === tool?.id && analysisOptions.mode) {
-      remembered.current.set(analysisOptions.mode, analysisOptions)
-      const ownerTool = toolForMode(analysisOptions.mode)
-      if (ownerTool) lastModes.current.set(ownerTool.id, analysisOptions.mode)
+  // These are React input transitions, so adjust owned state before commit instead
+  // of first rendering a previous tool's controls and resetting them in an effect.
+  const [recordedOptions, setRecordedOptions] = useState({ options: analysisOptions, toolId: tool?.id, owner })
+  if (
+    recordedOptions.options !== analysisOptions ||
+    recordedOptions.toolId !== tool?.id ||
+    recordedOptions.owner !== owner
+  ) {
+    setRecordedOptions({ options: analysisOptions, toolId: tool?.id, owner })
+    if (owner === tool?.id && analysisOptions.mode) {
+      const mode = analysisOptions.mode
+      setRemembered((current) => new Map(current).set(mode, analysisOptions))
+      const ownerTool = toolForMode(mode)
+      if (ownerTool) setLastModes((current) => new Map(current).set(ownerTool.id, mode))
     }
-  }, [analysisOptions, tool?.id])
-  useEffect(() => {
-    if (!summary) return
-    owner.current = tool?.id
+  }
+  const routeContext = useMemo(
+    () => [summary, tool?.id, navigation.mode, navigation.panel],
+    [summary, tool?.id, navigation.mode, navigation.panel],
+  )
+  const [enteredRouteContext, setEnteredRouteContext] = useState<unknown>(null)
+  if (summary && enteredRouteContext !== routeContext) {
+    setEnteredRouteContext(routeContext)
+    setOwner(tool?.id)
     setPickedReturn(null)
     setBenchmarkPreview(null)
     setSceneGround(null)
@@ -297,10 +328,12 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
       setTab(tool?.id === 'transects' ? 'layers' : 'analysis')
     }
     if (navigation.panel === 'buildings' && tool?.id === 'buildings') setTab('buildings')
-    document.title = `${tool?.title ?? 'Tools'} · LiDAR · PGMaps`
-  }, [summary, tool?.id, navigation.mode, navigation.panel])
+  }
+  useEffect(() => {
+    if (summary) document.title = `${tool?.title ?? 'Tools'} · LiDAR · PGMaps`
+  }, [summary, tool?.title])
   const openTool = (id?: LidarToolId) => {
-    const mode = id ? lastModes.current.get(id) : undefined
+    const mode = id ? lastModes.get(id) : undefined
     if (mode) navigation.openMode(mode)
     else navigation.openTool(id)
   }

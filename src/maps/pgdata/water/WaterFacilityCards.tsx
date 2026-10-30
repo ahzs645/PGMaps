@@ -32,12 +32,20 @@ function OpenReportButton({ facility, onOpenReport }: { facility: WaterFacility;
   )
 }
 
-export function WaterFacilityPopupCard({ facility, onOpenReport }: { facility: WaterFacility; onOpenReport: () => void }) {
+export function WaterFacilityPopupCard({
+  facility,
+  onOpenReport,
+}: {
+  facility: WaterFacility
+  onOpenReport: () => void
+}) {
   return (
     <div className="w-72 text-xs">
       <div className="pr-6">
         <div className="font-semibold leading-snug text-foreground">{facility.name}</div>
-        <div className="mt-1 text-muted-foreground">{facility.community || facility.address || 'No locality provided'}</div>
+        <div className="mt-1 text-muted-foreground">
+          {facility.community || facility.address || 'No locality provided'}
+        </div>
       </div>
       <WaterFacilityStats facility={facility} className="mt-3" />
       <OpenReportButton facility={facility} onOpenReport={onOpenReport} />

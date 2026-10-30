@@ -58,10 +58,13 @@ const EMPTY_RESULT: CanuePmtilesBoundaryResult = {
 function lonLatToTile(lon: number, lat: number, zoom: number): { x: number; y: number } {
   const n = 2 ** zoom
   const clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat))
-  const latRad = clampedLat * Math.PI / 180
+  const latRad = (clampedLat * Math.PI) / 180
   return {
-    x: Math.max(0, Math.min(n - 1, Math.floor((lon + 180) / 360 * n))),
-    y: Math.max(0, Math.min(n - 1, Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n))),
+    x: Math.max(0, Math.min(n - 1, Math.floor(((lon + 180) / 360) * n))),
+    y: Math.max(
+      0,
+      Math.min(n - 1, Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n)),
+    ),
   }
 }
 
@@ -81,13 +84,15 @@ function tileCoverForBbox(bounds: [number, number, number, number], zoom: number
 }
 
 function buildBoundaryIndex(boundaries: BoundaryCollection, idField: string, nameField: string): BoundaryIndexEntry[] {
-  return boundaries.features.filter((feature): feature is BoundaryFeature => Boolean(feature.geometry)).map((feature, index) => ({
-    index,
-    feature,
-    bbox: geometryBbox(feature.geometry),
-    id: String(feature.properties?.[idField] ?? feature.id ?? index),
-    name: String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? index),
-  }))
+  return boundaries.features
+    .filter((feature): feature is BoundaryFeature => Boolean(feature.geometry))
+    .map((feature, index) => ({
+      index,
+      feature,
+      bbox: geometryBbox(feature.geometry),
+      id: String(feature.properties?.[idField] ?? feature.id ?? index),
+      name: String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? index),
+    }))
 }
 
 function forEachPosition(geometry: GeoJSON.Geometry, visit: (position: GeoJSON.Position) => void) {
@@ -121,15 +126,18 @@ function geometryBbox(geometry: GeoJSON.Geometry): [number, number, number, numb
 }
 
 function collectionBbox(collection: BoundaryCollection): [number, number, number, number] {
-  return collection.features.reduce<[number, number, number, number]>((bounds, feature) => {
-    const featureBounds = geometryBbox(feature.geometry)
-    return [
-      Math.min(bounds[0], featureBounds[0]),
-      Math.min(bounds[1], featureBounds[1]),
-      Math.max(bounds[2], featureBounds[2]),
-      Math.max(bounds[3], featureBounds[3]),
-    ]
-  }, [Infinity, Infinity, -Infinity, -Infinity])
+  return collection.features.reduce<[number, number, number, number]>(
+    (bounds, feature) => {
+      const featureBounds = geometryBbox(feature.geometry)
+      return [
+        Math.min(bounds[0], featureBounds[0]),
+        Math.min(bounds[1], featureBounds[1]),
+        Math.max(bounds[2], featureBounds[2]),
+        Math.max(bounds[3], featureBounds[3]),
+      ]
+    },
+    [Infinity, Infinity, -Infinity, -Infinity],
+  )
 }
 
 function featureBboxCenter(feature: GeoJSON.Feature): [number, number] {
@@ -145,7 +153,7 @@ function pointInRing(point: [number, number], ring: GeoJSON.Position[]): boolean
   for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
     const [xi, yi] = ring[index]
     const [xj, yj] = ring[previous]
-    const intersects = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || Number.EPSILON) + xi)
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi
     if (intersects) inside = !inside
   }
 
@@ -162,18 +170,28 @@ function pointInBoundary(point: [number, number], geometry: BoundaryGeometry): b
   return geometry.coordinates.some((polygon) => pointInPolygonCoordinates(point, polygon))
 }
 
-function findBoundaryForFeature(feature: GeoJSON.Feature, boundaryIndex: BoundaryIndexEntry[]): BoundaryIndexEntry | null {
+function findBoundaryForFeature(
+  feature: GeoJSON.Feature,
+  boundaryIndex: BoundaryIndexEntry[],
+): BoundaryIndexEntry | null {
   const [lon, lat] = featureBboxCenter(feature)
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null
 
-  return boundaryIndex.find((boundary) => {
-    const [minLon, minLat, maxLon, maxLat] = boundary.bbox
-    if (lon < minLon || lon > maxLon || lat < minLat || lat > maxLat) return false
-    return pointInBoundary([lon, lat], boundary.feature.geometry)
-  }) ?? null
+  return (
+    boundaryIndex.find((boundary) => {
+      const [minLon, minLat, maxLon, maxLat] = boundary.bbox
+      if (lon < minLon || lon > maxLon || lat < minLat || lat > maxLat) return false
+      return pointInBoundary([lon, lat], boundary.feature.geometry)
+    }) ?? null
+  )
 }
 
-function chooseZoom(headerMaxZoom: number, requestedMaxZoom: number, boundaryBounds: [number, number, number, number], maxTiles: number) {
+function chooseZoom(
+  headerMaxZoom: number,
+  requestedMaxZoom: number,
+  boundaryBounds: [number, number, number, number],
+  maxTiles: number,
+) {
   const initialZoom = Math.min(headerMaxZoom, requestedMaxZoom)
   for (let zoom = initialZoom; zoom >= 5; zoom -= 1) {
     const tiles = tileCoverForBbox(boundaryBounds, zoom)
@@ -222,10 +240,12 @@ export function useCanuePmtilesBoundaryData({
         const archive = new PMTiles(activeSelection.pmtilesUrl)
         const header = await archive.getHeader()
         const { zoom, tiles, capped } = chooseZoom(header.maxZoom, maxZoom, boundaryBounds, maxTiles)
-        const buckets = new Map(boundaryIndex.map((boundary) => [
-          boundary.id,
-          { boundary, sum: 0, count: 0, min: null as number | null, max: null as number | null },
-        ]))
+        const buckets = new Map(
+          boundaryIndex.map((boundary) => [
+            boundary.id,
+            { boundary, sum: 0, count: 0, min: null as number | null, max: null as number | null },
+          ]),
+        )
         let decodedFeatureCount = 0
         let matchedFeatureCount = 0
 

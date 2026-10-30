@@ -3,13 +3,36 @@ import type { AnalysisInput, TargetPolygon } from './types'
 import { activeLandform, canonicalInput } from './integrity'
 /** The same builder is used for the worker request and stale-result checks. */
 export function buildSceneInput(scene: ForestryScene): AnalysisInput {
-  const forms=scene.targets.filter(t=>t.role==='landscape')
+  const forms = scene.targets.filter((t) => t.role === 'landscape')
   return {
-    viewpoint:{mode:scene.viewpoint.mode,coordinates:scene.viewpoint.coordinates},
-    targets:scene.targets.map(({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent,harvestSystem})=>({id,name,role,geometry,harvestYear,clearcutPercent,siteDisturbance,recoveryPercent,...(harvestSystem==='partial'?{harvestSystem}:{})})),
-    settings:scene.settings,assessmentYear:scene.assessmentYear ?? new Date().getFullYear(),
-    activeLandformId:scene.activeLandformId ?? (forms.length===1?forms[0].id:null),
-    harvestInventory:scene.harvestInventory,
+    viewpoint: { mode: scene.viewpoint.mode, coordinates: scene.viewpoint.coordinates },
+    targets: scene.targets.map(
+      ({
+        id,
+        name,
+        role,
+        geometry,
+        harvestYear,
+        clearcutPercent,
+        siteDisturbance,
+        recoveryPercent,
+        harvestSystem,
+      }) => ({
+        id,
+        name,
+        role,
+        geometry,
+        harvestYear,
+        clearcutPercent,
+        siteDisturbance,
+        recoveryPercent,
+        ...(harvestSystem === 'partial' ? { harvestSystem } : {}),
+      }),
+    ),
+    settings: scene.settings,
+    assessmentYear: scene.assessmentYear ?? new Date().getFullYear(),
+    activeLandformId: scene.activeLandformId ?? (forms.length === 1 ? forms[0].id : null),
+    harvestInventory: scene.harvestInventory,
     ...(scene.masks?.length ? { masks: scene.masks } : {}),
     ...(scene.localRasters?.length ? { localRasters: scene.localRasters } : {}),
   }
@@ -33,10 +56,16 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
       if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
       return kept
     })
-    return canonicalInput({...assessed,assessmentYear:buildSceneInput(scene).assessmentYear})
-  } catch { return null }
+    return canonicalInput({ ...assessed, assessmentYear: buildSceneInput(scene).assessmentYear })
+  } catch {
+    return null
+  }
 }
 /** Safe for render-time use. The worker gives the detailed ambiguity error on Run. */
 export function findSceneLandform(scene: ForestryScene): TargetPolygon | null {
-  try { return activeLandform(scene.targets,scene.activeLandformId) } catch { return null }
+  try {
+    return activeLandform(scene.targets, scene.activeLandformId)
+  } catch {
+    return null
+  }
 }

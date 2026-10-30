@@ -38,7 +38,7 @@ export const VIOLATION_CODE_DESCRIPTIONS: Record<string, string> = {
   '315': 'Refrigeration units and hot holding equipment lack accurate thermometers [s. 19(2)]',
   '403': 'Employee lacks good personal hygiene, clean clothing and hair control [s. 21(1)]',
   '501': 'Operator does not have FOODSAFE Level 1 or Equivalent [s. 10(1)]',
-  '502': 'In operator’s absence, no staff on duty has FOODSAFE Level 1 or equivalent [s. 10(2)]'
+  '502': 'In operator’s absence, no staff on duty has FOODSAFE Level 1 or equivalent [s. 10(2)]',
 }
 
 // Status badges HealthSpace stuffs into the description column instead of the
@@ -79,9 +79,8 @@ export function normalizeViolation(violation: Violation): Violation {
   let description = canonical
   if (!description) {
     const category = assessViolationRisk(violation).category
-    description = category === 'Other'
-      ? VIOLATION_DETAILS_UNAVAILABLE
-      : `${category} concern (details not provided by HealthSpace)`
+    description =
+      category === 'Other' ? VIOLATION_DETAILS_UNAVAILABLE : `${category} concern (details not provided by HealthSpace)`
   }
 
   return { ...violation, description, is_repeat, details_unavailable: !canonical }

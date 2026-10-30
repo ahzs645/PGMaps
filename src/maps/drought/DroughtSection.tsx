@@ -40,12 +40,10 @@ function startOfWeekKey(date: Date) {
 }
 
 function getTimelineWindow(dateRange: { start: Date; end: Date }, currentDate: Date, windowSize: number) {
-  const start = windowSize === -1
-    ? new Date(dateRange.start)
-    : new Date(currentDate)
+  const start = windowSize === -1 ? new Date(dateRange.start) : new Date(currentDate)
   const end = new Date(currentDate)
   if (windowSize !== -1) {
-    end.setDate(end.getDate() + (windowSize * 7) - 1)
+    end.setDate(end.getDate() + windowSize * 7 - 1)
   }
   end.setHours(23, 59, 59, 999)
   return {
@@ -83,9 +81,12 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const initialYear = Number(searchParams.get(yearParam)) || DEFAULT_YEAR
   const [selectedYear, setSelectedYear] = useState(initialYear)
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
   } = useTimelineState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { manifest, collection, records, yearInfo, loading, error } = useDroughtData(selectedYear)
@@ -127,12 +128,14 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const activeCollection = useMemo<DroughtFeatureCollection>(() => {
     if (!collection) return EMPTY_COLLECTION
     const recordsByBasin = new Map<string, DroughtTimeSeriesRecord[]>()
-    const window = timelineEnabled && effectiveTimelineDate
-      ? getTimelineWindow(dateRange, effectiveTimelineDate, timelineWindowSize)
-      : null
-    const candidateRecords = !timelineEnabled || !effectiveTimelineDate
-      ? records
-      : records.filter((record) => window && recordOverlapsWindow(record, window.startMs, window.endMs))
+    const window =
+      timelineEnabled && effectiveTimelineDate
+        ? getTimelineWindow(dateRange, effectiveTimelineDate, timelineWindowSize)
+        : null
+    const candidateRecords =
+      !timelineEnabled || !effectiveTimelineDate
+        ? records
+        : records.filter((record) => window && recordOverlapsWindow(record, window.startMs, window.endMs))
 
     for (const record of candidateRecords) {
       const basinRecords = recordsByBasin.get(record.basinId) ?? []
@@ -164,26 +167,30 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     }
   }, [collection, dateRange, records, effectiveTimelineDate, timelineEnabled, timelineWindowSize])
 
-  const filledBasinCount = useMemo(() => (
-    activeCollection.features.filter((feature) => feature.properties.activeRecordId).length
-  ), [activeCollection.features])
+  const filledBasinCount = useMemo(
+    () => activeCollection.features.filter((feature) => feature.properties.activeRecordId).length,
+    [activeCollection.features],
+  )
 
   const selectedFeature = useMemo(() => {
     if (!selectedId) return null
     return activeCollection.features.find((feature) => String(feature.id) === selectedId) ?? null
   }, [activeCollection.features, selectedId])
 
-  const handleYearChange = useCallback((year: number) => {
-    setSelectedYear(year)
-    setTimelineDate(null)
-    setSelectedId(null)
-  }, [setTimelineDate])
+  const handleYearChange = useCallback(
+    (year: number) => {
+      setSelectedYear(year)
+      setTimelineDate(null)
+      setSelectedId(null)
+    },
+    [setTimelineDate],
+  )
 
   return (
     <MapSectionLayout
       mobilePeekTitle={`Drought Levels · ${selectedYear}`}
       mobilePeekSubtitle={`${formatNumber(filledBasinCount)} filled basins`}
-      sidebar={(
+      sidebar={
         <DroughtSidebar
           className={MAP_SIDEBAR_CLASS}
           manifest={manifest}
@@ -200,13 +207,13 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           onClearSelection={() => setSelectedId(null)}
           onToggleTimeline={() => setTimelineEnabled((current) => !current)}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <DroughtMap
           data={activeCollection}
           selectedId={selectedId}
-          onFeatureClick={(id) => setSelectedId((current) => current === id ? null : id)}
+          onFeatureClick={(id) => setSelectedId((current) => (current === id ? null : id))}
           loading={loading}
         />
 
@@ -218,10 +225,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         </div>
 
         {isMobileViewport && selectedFeature && (
-          <MobileDroughtFeatureCard
-            feature={selectedFeature}
-            onClose={() => setSelectedId(null)}
-          />
+          <MobileDroughtFeatureCard feature={selectedFeature} onClose={() => setSelectedId(null)} />
         )}
 
         {timelineEnabled && effectiveTimelineDate && (
@@ -246,13 +250,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   )
 }
 
-function MobileDroughtFeatureCard({
-  feature,
-  onClose,
-}: {
-  feature: DroughtFeature
-  onClose: () => void
-}) {
+function MobileDroughtFeatureCard({ feature, onClose }: { feature: DroughtFeature; onClose: () => void }) {
   return (
     <MobileFeatureCard
       title={feature.properties.basinName || 'Drought basin'}

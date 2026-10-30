@@ -8,6 +8,7 @@
 import Constrainautor from '@kninnug/constrainautor'
 import Delaunator from 'delaunator'
 import type { GroundGrid } from './lasSurface'
+import { strategicPointIndices, type PointPreservation } from './terrainPreparation'
 
 /** Projected metres. A null z takes its height from the TIN of the points under that vertex. */
 export interface Breakline {
@@ -34,6 +35,7 @@ export interface Tin {
   thinCellM: number | null
 }
 export interface TinOptions {
+  preserve?: PointPreservation
   /** Thinning cell, 0.5 m; grown if one point per cell would still exceed `maxPoints`. */
   thinCellM?: number
   /** Thin only above this many points: 1.5 M. */
@@ -87,7 +89,7 @@ interface Line {
 export function buildTin(
   points: { x: Float64Array; y: Float64Array; z: Float64Array },
   breaklines: Breakline[] = [],
-  { thinCellM = THIN_CELL_M, maxPoints = MAX_POINTS, densifyM }: TinOptions = {},
+  { thinCellM = THIN_CELL_M, maxPoints = MAX_POINTS, densifyM, preserve }: TinOptions = {},
 ): Tin {
   const { x, y, z } = points
   const total = Math.min(x.length, y.length, z.length)
@@ -96,7 +98,23 @@ export function buildTin(
   const valid = new Uint32Array(finite)
   for (let i = 0, k = 0; i < total; i++)
     if (Number.isFinite(x[i]) && Number.isFinite(y[i]) && Number.isFinite(z[i])) valid[k++] = i
-  const thinned = finite > maxPoints ? thinLowest(x, y, z, valid, Math.max(SAME_M, thinCellM), maxPoints) : null
+  const protectedThin =
+    finite > maxPoints && preserve
+      ? strategicPointIndices(
+          {
+            x: Float64Array.from(valid, (i) => x[i]),
+            y: Float64Array.from(valid, (i) => y[i]),
+            z: Float64Array.from(valid, (i) => z[i]),
+          },
+          maxPoints,
+          preserve,
+        )
+      : null
+  const thinned = protectedThin
+    ? { kept: Uint32Array.from(protectedThin.indices, (i) => valid[i]), cellM: protectedThin.cellM ?? thinCellM }
+    : finite > maxPoints
+      ? thinLowest(x, y, z, valid, Math.max(SAME_M, thinCellM), maxPoints)
+      : null
   const kept = thinned ? thinned.kept : dedupeLowest(x, y, z, valid)
   let cx = new Float64Array(kept.length),
     cy = new Float64Array(kept.length),

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Silvics } from './Silvics'
 import { useEffect, useRef, useState } from 'react'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -214,17 +215,17 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <label>
                 Site and site series
-                <select className={selectClass} value={place} onChange={(e) => setPlace(e.target.value)}>
+                <NativeSelect className={selectClass} value={place} onChange={(e) => setPlace(e.target.value)}>
                   {places.map((p) => (
                     <option key={p} value={p}>
                       {(JSON.parse(p) as string[]).join(' · ')}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               <label>
                 Species detail
-                <select
+                <NativeSelect
                   className={selectClass}
                   value={selected?.species ?? ''}
                   onChange={(e) => setSpecies(e.target.value)}
@@ -232,7 +233,7 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
                   {rows.map((r) => (
                     <option key={r.species}>{r.species}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             </div>
             {tab === 'silvics' && selected && <Silvics species={selected.species} />}

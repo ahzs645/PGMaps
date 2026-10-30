@@ -220,11 +220,7 @@ export const CITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CityBoundaryLevel>
 ]
 
 export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions([
-    'majorWatershed',
-    'watershedGroup',
-    'assessmentWatershed',
-  ] as const),
+  ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 ]
 
 export const NAMED_WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NamedWatershedBoundaryLevel>[] = [

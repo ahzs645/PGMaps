@@ -75,7 +75,12 @@ export type CommonPiece = {
   geometry: MultiPolygonCoords
 }
 
-export type ClassTotals = { areaHa: [number, number, number]; volume: [number, number, number]; unclassifiedHa: number; unclassifiedVolume: number }
+export type ClassTotals = {
+  areaHa: [number, number, number]
+  volume: [number, number, number]
+  unclassifiedHa: number
+  unclassifiedVolume: number
+}
 
 /** Geometry results for one candidate, before any factor or reporting choice is applied. */
 export type CandidateRaw = {

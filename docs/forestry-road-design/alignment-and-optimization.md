@@ -19,7 +19,7 @@ The final-connector adoption gate is documented in [Final connector checks](fina
   workspace warns. Route and corridor results start as new roads, so check them again.
 - **Radii checked against the speed, not only the minimum.** The minimum-radius flag compares
   each arc with the road-wide **Minimum radius** (default 25 m, `DEFAULT_ROAD_SETTINGS` in
-  `terrain.ts`). Nothing compares a radius with the design speed. See
+  `terrain.ts`). With curve design enabled, required versus capped superelevation is checked too; conflicting curves are flagged and fail the final connector gate. See
   [Built-in assumptions](#built-in-assumptions).
 - **A vertical alignment exists.** Without PVIs the formation follows the ground at the
   centreline. Grades are then ground grades, and cut and fill come only from the template's
@@ -75,8 +75,11 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)             | `verticalOptimizer.ts` `prices`                      | —                                                            |
 
 The dynamic programme runs on the page's main thread and stops at its level-transition
-budget. Its work grows with the cube of the levels per PVI (2 × search ÷ step + 1), up to
-five times over for **Total cost**. At the defaults (±5 m, 0.5 m) that is 21 levels; a fine
+budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up to five times
+over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
+selects the cheapest predecessor that leaves enough tangent; it does not repeat the same
+transition for every nondominated history. Those histories are retained where their curve
+occupancy affects future feasibility. At the defaults (±5 m, 0.5 m) that is 21 levels; a fine
 ±30 m search in 0.1 m steps has 601 levels and will usually need a coarser step to finish.
 The search refuses non-finite inputs and more than 500 proposed PVIs before allocating levels.
 
@@ -124,13 +127,20 @@ The API accepts a lower geometry-operation budget; it cannot raise the 15,000,00
 maximum (`curveDesignAt` in `engine.ts`). f is one entered value, not a speed-dependent table.
 The workspace starts curve design at 40 km/h, 8 %, f 0.15 and 30 m runoff
 (`CURVE_DESIGN_START` in `CurveTools.tsx`). When the formula asks for more than the maximum,
-the maximum is used and nothing is flagged. At those defaults the radius that needs exactly
-8 % is about 55 m, but the default minimum-radius flag is 25 m. A 25 m curve would need 35 %
-and gets 8 % without a warning. Set **Minimum radius** to the speed's radius yourself.
+the displayed geometry remains capped, but the curve is flagged and cannot pass the final connector gate.
+At those defaults a 25 m curve needs 35.39 % and gets 8 % with an explicit conflict. The independent
+minimum-radius flag still applies. Name the entered criteria and record the document/edition in
+**Criteria source**; those text fields do not certify compliance with a published standard.
+
+The optional rectangular widening table has `radius,deflection,inside,outside` CSV entries. It replaces
+the vehicle formula, bilinearly interpolates side widths, and uses edge values with a warning outside
+its extent. Extra inside/outside widths are added afterwards. The table supports at most 400 entries
+(`roadCriteria.ts`, `MAX_WIDENING_TABLE_ENTRIES`); missing combinations, duplicate pairs and invalid
+values are rejected. The fitted deflection includes spiral heading change.
 
 **Runoff on simple curves** runs on the tangent before the PC and after the PT. Full
 superelevation is reached at the curve itself, not shared between tangent and curve.
-Widening L²/(2R) goes on the inside edge only.
+Without a table, widening L²/(2R) goes on the inside edge; independent added inside/outside widths are also available.
 
 **Spirals.** On a spiralled curve, superelevation and widening run in linearly over the longer
 of **Runoff** and the spiral, ending at the SC, and run out from the CS over the same length
@@ -168,19 +178,21 @@ and last tangents are exempt from the minimum tangent length.
 
 **Profile optimizer** (`verticalOptimizer.ts`):
 
-- Levels are measured from the centreline ground at each PVI. "Tie both ends to ground" means
+- **Search band centre** chooses ground or the current fitted design. The area tables use the same
+  reference, so a design high above ground is not silently searched around ground instead.
+  Levels remain on the entered discrete ladder. "Tie both ends to ground" means
   centreline ground at 0+000 and at the road end, not an existing road's formation. To tie to
   a structure, add a control point at that end instead; a control there overrides the tie.
-- The grade window of an interval is read at its midpoint only. A grade range that starts or
-  ends inside an interval is checked properly only by the re-analysis.
-- The search uses the one **Curve K** for both sags and crests. It ignores **Min sag K**,
-  **Min crest K** and **Min tangent** while searching. Curves are sized afterwards, at least
-  **Min curve**, and shrunk to fit their tangents. The fitted result must pass all entered
-  standards before it is returned; a failure asks for adjusted inputs and creates no road.
-- Controls are held on the straight grade line. A curve fitted afterwards moves the formation
-  at a grade break by its middle ordinate, A × L ÷ 800 metres (A in %, L in m). A tight
-  control at a grade break can fail the re-check; that candidate is rejected instead of adopted.
-- Between PVIs, a station more than about the search ± plus four level steps from ground is
+- Grade and curvature range boundaries are mandatory search stations. Global and range-specific
+  sag/crest K values combine with **Curve K** by taking the strictest value. Linear-only ranges
+  exclude curves and grade breaks. The DP retains the preceding occupied half-curve and a Pareto
+  frontier of cost/tangent occupancy, enforcing curve fit and interior tangent lengths during search.
+- Curves keep their required lengths rather than being silently shortened below K. The complete
+  fitted result is rechecked against every standard and control before returning.
+- Elevation controls are corrected against the actual parabolic profile in at most 24 bounded
+  iterations, then rechecked. This handles the middle-ordinate shift at a control on a grade break.
+  An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
+- Between PVIs, a station more than about the search ± plus four level steps from the selected band reference is
   priced as incomplete at $5,000 per m. Deep fills over a gully between PVIs are discouraged,
   not costed.
 - **Cut and fill** minimizes cut × cut rate + fill × fill rate only. Surfacing and clearing are
@@ -191,8 +203,10 @@ and last tangents are exempt from the minimum tangent length.
 moves in eight directions on the grid, so every bend is a multiple of 45° and every grid turn
 is a sharp PI. The grade limit applies to ground slope in both directions. Edge cost is road
 $/m × (1 + 3(g/gmax)²), plus crossings and zone costs. The defaults, $100/m and $8,000 per
-crossing (`DEFAULT_ROUTE_OPTIONS`), are placeholders. Each stream-segment intersection counts as
-one crossing.
+crossing (`DEFAULT_ROUTE_OPTIONS`), are placeholders. A stream's explicit **crossing cost** overrides
+its named class, then the default. Class prices are saved in `routeSearch.crossingGroups` (at most
+100 classes; `parseRouteSearchOptions`), while feature prices/classes are saved with context and GeoJSON.
+Shared vertices within a feature are counted once. Existing no-go line/polygon constraints remain separate.
 
 **Corridor optimizer** (`corridorOptimizer.ts`) checks ground grade between 1 m samples
 against the road grade limit, uphill and downhill alike in the UI. Its turns are arcs with
@@ -260,9 +274,9 @@ inputs and similar coverage.
 | "Curve at point _n_ overlaps an adjacent curve"                           | Two trims share a short leg                                                                                  | Reduce one radius or lengthen the leg                                  |
 | "Spirals at point _n_ are longer than its deflection allows"              | Ls / R at least Δ                                                                                            | Shorten the spirals or raise the radius                                |
 | Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent                                                     | Inspect the crossfall rotation rate and lengthen the tangent if needed |
-| Tight curves at full e max with no flag                                   | Radius below the design-speed radius                                                                         | Raise **Minimum radius** to V²/(127(e + f))                            |
+| Design speed requires more e than the maximum                           | Radius below V²/(127(e + f)); geometry is capped and flagged                                                  | Increase radius, reduce speed or review the sourced criteria          |
 | "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Shorten the curve or use **Set every curve from K**                    |
-| Optimized profile fails K or tangent checks                               | Search uses one K and no tangent length                                                                      | Rerun with **Curve K** at least the larger minimum K                   |
+| Optimized profile fails a standard                                      | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints |
 | Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
@@ -277,14 +291,16 @@ inputs and similar coverage.
 
 ## What it does not do
 
-- Check a radius against the design speed, stopping sight distance, or a road-class standard.
-  Speed, e max and f are entries, not a standard.
-- Optimize the horizontal alignment and the profile together. The profile optimizer keeps the
-  horizontal fixed; the route and corridor searches design no profile and no earthworks.
+- Infer a published road standard or check stopping sight distance. Speed/e/radius consistency is
+  checked, but the named criteria still need an appropriate source and professional review.
+- Prove a global plan/profile optimum. Joint refinement below is a bounded local search; the
+  standalone profile optimizer keeps the horizontal fixed and terrain-route searches still have
+  their own preliminary objectives.
 - Carry a running mass balance in the profile search, or optimize haul, borrow and waste
   directly. **Total cost** only picks among five priced lines.
-- Enforce minimum sag or crest K, minimum curve or tangent length, or a minimum drainage grade
-  inside the search. A signed grade range cannot express "at least 0.5 % either way".
+- Enforce a minimum drainage grade of "at least 0.5 % either way". Signed grade ranges cannot
+  express that disjoint condition. Sag/crest/range K, required curve length and occupied tangent
+  are enforced by the updated profile search.
 - Keep culvert cover, ditch drainage or crossing grades in mind while optimizing the profile.
 - Fit curves or spirals to a route result, or keep route and corridor results inside the
   original road's engineering, curve design and vertical inputs.
@@ -292,3 +308,31 @@ inputs and similar coverage.
   against exclusions. The terrain-cost search applies the entered centreline clearance only.
 - Prove that no road exists where a search fails. Failure means none was found inside these
   bounds.
+
+## Joint plan/profile refinement
+
+**Design → Refine plan and profile** moves interior horizontal controls and redesigns/reprices
+the vertical profile after each trial. Endpoints remain fixed. The engine retains the entered
+templates, station-based assumptions, controls and rates; review their physical location after
+any plan shift. Invalid geometry, speed/e conflicts, grade failures, avoidance areas and incomplete
+sections cannot produce a winner. The original road remains an alternative.
+
+The engineering objective uses the recalculated complete engineering estimate. **Complete access**
+calls the actual connected-network comparison for each exact trial, with automatic terrain-candidate
+generation disabled. Missing prices, permissions, capacity or connectivity remain blockers; no
+base estimate replaces an unpriced network ledger. Adoption recomputes the final trial and saves
+the normal `FullCostReviewRecord`.
+
+| Limit | Enforcing constant or validation | Behavior |
+| --- | --- | --- |
+| 12 interior horizontal controls | `jointOptimizer.ts`, `MAX_JOINT_MOVABLE_POINTS` | Reject; simplify/split first |
+| 32 evaluations, UI 20 | `MAX_JOINT_EVALUATIONS`, `JointOptimizationControls.tsx` | Return best checked trial with budget-limited notice |
+| Plan step 0.1–100 m; 1–5 rounds | `refinePlanAndProfile` | Reject invalid input |
+| 100 curvature ranges; 500 combined PVI/control/range events | `project.ts` parser; `verticalOptimizer.ts` marks | Reject rather than discard constraints |
+
+The coordinate-descent search halves its plan step each round and never claims a global optimum.
+Profile section/transition budgets still apply to each trial. Cancellation abandons the run without
+adopting a partial result. Editing or reopening the project, changing terrain, or leaving the
+refinement controls invalidates a running result. Adoption checks the immediate current project
+before writing, so a completed search cannot overwrite intervening edits. Its cleanup releases
+only its own busy state.

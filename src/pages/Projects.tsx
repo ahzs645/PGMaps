@@ -656,7 +656,9 @@ function ProjectCatalogPage({
                 <tbody className="divide-y">
                   {pagination.items.map((entry) => {
                     if (entry.type === 'folder') {
-                      return <ProjectFolderRow key={`folder:${entry.summary.collection.slug}`} summary={entry.summary} />
+                      return (
+                        <ProjectFolderRow key={`folder:${entry.summary.collection.slug}`} summary={entry.summary} />
+                      )
                     }
                     const { project } = entry
                     const active = selectedProject?.slug === project.slug
@@ -783,9 +785,7 @@ function ProjectCatalogPage({
                     onClick={onToggleMoreProjects}
                   >
                     {showingMoreProjects ? 'Show featured' : `Browse all projects`}
-                    {!showingMoreProjects && (
-                      <span className="text-muted-foreground">+{additionalProjectCount}</span>
-                    )}
+                    {!showingMoreProjects && <span className="text-muted-foreground">+{additionalProjectCount}</span>}
                   </Button>
                 )}
                 {pagination.pageCount > 1 && (

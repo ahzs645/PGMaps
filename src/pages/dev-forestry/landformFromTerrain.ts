@@ -22,7 +22,15 @@
 import type { ElevationSource } from './terrain'
 import { metersPerDegree, pointInPolygon, polygonAreaMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
-export type LandformBoundary = 'faces-away' | 'flat' | 'slope-break' | 'drainage' | 'water' | 'narrow' | 'no-data' | 'search-limit'
+export type LandformBoundary =
+  | 'faces-away'
+  | 'flat'
+  | 'slope-break'
+  | 'drainage'
+  | 'water'
+  | 'narrow'
+  | 'no-data'
+  | 'search-limit'
 
 export type TerrainLandformOptions = {
   /** Grid cell, metres. 50 m resolves a hillside face without resolving every gully. */
@@ -84,15 +92,23 @@ export const TERRAIN_LANDFORM_DEFAULTS = {
 } as const
 
 const NEIGHBOURS_8: ReadonlyArray<readonly [number, number, number]> = [
-  [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
-  [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2],
+  [1, 0, 1],
+  [-1, 0, 1],
+  [0, 1, 1],
+  [0, -1, 1],
+  [1, 1, Math.SQRT2],
+  [1, -1, Math.SQRT2],
+  [-1, 1, Math.SQRT2],
+  [-1, -1, Math.SQRT2],
 ]
 
 /** A binary min-heap on elevation, for the priority-flood fill. */
 class MinHeap {
   private items: number[] = []
   constructor(private readonly key: Float64Array) {}
-  get size() { return this.items.length }
+  get size() {
+    return this.items.length
+  }
   push(index: number) {
     const items = this.items
     items.push(index)
@@ -112,7 +128,8 @@ class MinHeap {
       items[0] = last
       let i = 0
       for (;;) {
-        const left = 2 * i + 1, right = left + 1
+        const left = 2 * i + 1,
+          right = left + 1
         let smallest = i
         if (left < items.length && this.key[items[left]] < this.key[items[smallest]]) smallest = left
         if (right < items.length && this.key[items[right]] < this.key[items[smallest]]) smallest = right
@@ -136,15 +153,31 @@ export function flowAccumulation(elevation: Float64Array, width: number, height:
   for (let i = 0; i < n; i += 1) if (!Number.isFinite(filled[i])) filled[i] = -Infinity
   const done = new Uint8Array(n)
   const heap = new MinHeap(filled)
-  for (let x = 0; x < width; x += 1) for (const y of [0, height - 1]) { const i = y * width + x; if (!done[i]) { done[i] = 1; heap.push(i) } }
-  for (let y = 0; y < height; y += 1) for (const x of [0, width - 1]) { const i = y * width + x; if (!done[i]) { done[i] = 1; heap.push(i) } }
+  for (let x = 0; x < width; x += 1)
+    for (const y of [0, height - 1]) {
+      const i = y * width + x
+      if (!done[i]) {
+        done[i] = 1
+        heap.push(i)
+      }
+    }
+  for (let y = 0; y < height; y += 1)
+    for (const x of [0, width - 1]) {
+      const i = y * width + x
+      if (!done[i]) {
+        done[i] = 1
+        heap.push(i)
+      }
+    }
   const order: number[] = []
   while (heap.size) {
     const i = heap.pop()
     order.push(i)
-    const x = i % width, y = (i - x) / width
+    const x = i % width,
+      y = (i - x) / width
     for (const [dx, dy] of NEIGHBOURS_8) {
-      const nx = x + dx, ny = y + dy
+      const nx = x + dx,
+        ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
       const j = ny * width + nx
       if (done[j]) continue
@@ -157,14 +190,20 @@ export function flowAccumulation(elevation: Float64Array, width: number, height:
   const accumulation = new Float64Array(n).fill(1)
   for (let k = order.length - 1; k >= 0; k -= 1) {
     const i = order[k]
-    const x = i % width, y = (i - x) / width
-    let best = -1, drop = 0
+    const x = i % width,
+      y = (i - x) / width
+    let best = -1,
+      drop = 0
     for (const [dx, dy, distance] of NEIGHBOURS_8) {
-      const nx = x + dx, ny = y + dy
+      const nx = x + dx,
+        ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
       const j = ny * width + nx
       const slope = (filled[i] - filled[j]) / distance
-      if (slope > drop) { drop = slope; best = j }
+      if (slope > drop) {
+        drop = slope
+        best = j
+      }
     }
     if (best >= 0) accumulation[best] += accumulation[i]
   }
@@ -224,7 +263,8 @@ export function traceRings(mask: Uint8Array, width: number, height: number): Arr
 function signedArea(ring: ReadonlyArray<[number, number]>): number {
   let area = 0
   for (let i = 0; i < ring.length; i += 1) {
-    const [x0, y0] = ring[i], [x1, y1] = ring[(i + 1) % ring.length]
+    const [x0, y0] = ring[i],
+      [x1, y1] = ring[(i + 1) % ring.length]
     area += x0 * y1 - x1 * y0
   }
   return area / 2
@@ -236,12 +276,16 @@ function boxBlur(values: Float64Array, width: number, height: number, r: number)
     const output = new Float64Array(input.length)
     for (let a = 0; a < (horizontal ? height : width); a += 1) {
       for (let b = 0; b < (horizontal ? width : height); b += 1) {
-        let sum = 0, count = 0
+        let sum = 0,
+          count = 0
         for (let k = -r; k <= r; k += 1) {
           const c = b + k
           if (c < 0 || c >= (horizontal ? width : height)) continue
           const value = input[horizontal ? a * width + c : c * width + a]
-          if (Number.isFinite(value)) { sum += value; count += 1 }
+          if (Number.isFinite(value)) {
+            sum += value
+            count += 1
+          }
         }
         const i = horizontal ? a * width + b : b * width + a
         output[i] = Number.isFinite(input[i]) && count ? sum / count : Number.NaN
@@ -255,15 +299,21 @@ function boxBlur(values: Float64Array, width: number, height: number, r: number)
 /** Square structuring element of radius `r`: a cell is set when any (dilate) or every (erode) cell within it is. */
 function morph(mask: Uint8Array, width: number, height: number, r: number, any: boolean): Uint8Array {
   const out = new Uint8Array(mask.length)
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    let hit = !any
-    for (let dy = -r; dy <= r && hit !== any; dy += 1) for (let dx = -r; dx <= r; dx += 1) {
-      const nx = x + dx, ny = y + dy
-      const set = nx >= 0 && ny >= 0 && nx < width && ny < height ? mask[ny * width + nx] === 1 : !any
-      if (set === any) { hit = any; break }
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      let hit = !any
+      for (let dy = -r; dy <= r && hit !== any; dy += 1)
+        for (let dx = -r; dx <= r; dx += 1) {
+          const nx = x + dx,
+            ny = y + dy
+          const set = nx >= 0 && ny >= 0 && nx < width && ny < height ? mask[ny * width + nx] === 1 : !any
+          if (set === any) {
+            hit = any
+            break
+          }
+        }
+      out[y * width + x] = hit ? 1 : 0
     }
-    out[y * width + x] = hit ? 1 : 0
-  }
   return out
 }
 const dilate = (mask: Uint8Array, width: number, height: number, r: number) => morph(mask, width, height, r, true)
@@ -274,32 +324,55 @@ function simplifyRing(ring: Array<[number, number]>, tolerance: number): Array<[
   if (ring.length < 5) return ring
   const keep = new Uint8Array(ring.length)
   const distance = (p: [number, number], a: [number, number], b: [number, number]) => {
-    const dx = b[0] - a[0], dy = b[1] - a[1]
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1]
     const length = Math.hypot(dx, dy)
     if (!length) return Math.hypot(p[0] - a[0], p[1] - a[1])
     return Math.abs(dy * p[0] - dx * p[1] + b[0] * a[1] - b[1] * a[0]) / length
   }
   const run = (from: number, to: number) => {
-    let worst = -1, index = -1
+    let worst = -1,
+      index = -1
     for (let i = from + 1; i < to; i += 1) {
       const d = distance(ring[i], ring[from], ring[to])
-      if (d > worst) { worst = d; index = i }
+      if (d > worst) {
+        worst = d
+        index = i
+      }
     }
-    if (worst > tolerance && index > 0) { keep[index] = 1; run(from, index); run(index, to) }
+    if (worst > tolerance && index > 0) {
+      keep[index] = 1
+      run(from, index)
+      run(index, to)
+    }
   }
   // Split at the vertex farthest from the first, so the closed ring has two ends to anchor.
   let far = 0
-  for (let i = 1; i < ring.length; i += 1) if (Math.hypot(ring[i][0] - ring[0][0], ring[i][1] - ring[0][1]) > Math.hypot(ring[far][0] - ring[0][0], ring[far][1] - ring[0][1])) far = i
-  keep[0] = 1; keep[far] = 1
+  for (let i = 1; i < ring.length; i += 1)
+    if (
+      Math.hypot(ring[i][0] - ring[0][0], ring[i][1] - ring[0][1]) >
+      Math.hypot(ring[far][0] - ring[0][0], ring[far][1] - ring[0][1])
+    )
+      far = i
+  keep[0] = 1
+  keep[far] = 1
   run(0, far)
   const closed = [...ring, ring[0]]
   const tail = (from: number, to: number) => {
-    let worst = -1, index = -1
+    let worst = -1,
+      index = -1
     for (let i = from + 1; i < to; i += 1) {
       const d = distance(closed[i], closed[from], closed[to])
-      if (d > worst) { worst = d; index = i }
+      if (d > worst) {
+        worst = d
+        index = i
+      }
     }
-    if (worst > tolerance && index > 0) { if (index < ring.length) keep[index] = 1; tail(from, index); tail(index, to) }
+    if (worst > tolerance && index > 0) {
+      if (index < ring.length) keep[index] = 1
+      tail(from, index)
+      tail(index, to)
+    }
   }
   tail(far, ring.length)
   return ring.filter((_, i) => keep[i])
@@ -318,7 +391,9 @@ export function landformFromTerrain(
   const cell = options.cellMeters ?? TERRAIN_LANDFORM_DEFAULTS.cellMeters
   const radius = options.radiusMeters ?? TERRAIN_LANDFORM_DEFAULTS.radiusMeters
   const minSlope = (options.minSlopePercent ?? TERRAIN_LANDFORM_DEFAULTS.minSlopePercent) / 100
-  const facing = Math.cos(((options.facingToleranceDegrees ?? TERRAIN_LANDFORM_DEFAULTS.facingToleranceDegrees) * Math.PI) / 180)
+  const facing = Math.cos(
+    ((options.facingToleranceDegrees ?? TERRAIN_LANDFORM_DEFAULTS.facingToleranceDegrees) * Math.PI) / 180,
+  )
   const drainageCells = ((options.drainageAreaKm2 ?? TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2) * 1e6) / (cell * cell)
   const water = options.water ?? []
 
@@ -326,44 +401,69 @@ export function landformFromTerrain(
   const centre = { lng: (west + east) / 2, lat: (south + north) / 2 }
   const scale = metersPerDegree(centre.lat)
   const half = Math.ceil(radius / cell)
-  const width = 2 * half + 1, height = width
+  const width = 2 * half + 1,
+    height = width
   // Cell (x, y) centre, metres east and north of the block's centre.
-  const toLngLat = (mx: number, my: number): [number, number] => [centre.lng + mx / scale.lng, centre.lat + my / scale.lat]
+  const toLngLat = (mx: number, my: number): [number, number] => [
+    centre.lng + mx / scale.lng,
+    centre.lat + my / scale.lat,
+  ]
   const cellCentre = (x: number, y: number) => toLngLat((x - half) * cell, (y - half) * cell)
 
   const raw = new Float64Array(width * height)
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    const [lng, lat] = cellCentre(x, y)
-    raw[y * width + x] = source.elevationAt(lng, lat)
-  }
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      const [lng, lat] = cellCentre(x, y)
+      raw[y * width + x] = source.elevationAt(lng, lat)
+    }
   // 3 × 3 mean: aspect off a raw DEM flickers from cell to cell on a smooth face.
   const smooth = new Float64Array(width * height)
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    let sum = 0, count = 0
-    for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
-      const nx = x + dx, ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const value = raw[ny * width + nx]
-      if (Number.isFinite(value)) { sum += value; count += 1 }
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0,
+        count = 0
+      for (let dy = -1; dy <= 1; dy += 1)
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx,
+            ny = y + dy
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+          const value = raw[ny * width + nx]
+          if (Number.isFinite(value)) {
+            sum += value
+            count += 1
+          }
+        }
+      smooth[y * width + x] = Number.isFinite(raw[y * width + x]) && count ? sum / count : Number.NaN
     }
-    smooth[y * width + x] = Number.isFinite(raw[y * width + x]) && count ? sum / count : Number.NaN
-  }
   // Flow is routed on the raw surface: smoothing flattens a gully's bottom and
   // D8 then splits its water between parallel lines, neither big enough to count.
   const accumulation = flowAccumulation(raw, width, height)
   // A drainage has a valley bottom, not a one-cell line: widen it a cell each
   // side so it still parts the face once the outline is simplified.
   const drainage = new Uint8Array(width * height)
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    if (accumulation[y * width + x] < drainageCells) continue
-    for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
-      const nx = x + dx, ny = y + dy
-      if (nx >= 0 && ny >= 0 && nx < width && ny < height) drainage[ny * width + nx] = 1
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      if (accumulation[y * width + x] < drainageCells) continue
+      for (let dy = -1; dy <= 1; dy += 1)
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx,
+            ny = y + dy
+          if (nx >= 0 && ny >= 0 && nx < width && ny < height) drainage[ny * width + nx] = 1
+        }
     }
-  }
 
   // The hillside's own shape: box blur, twice, over the generalising distance.
-  const broad = boxBlur(boxBlur(smooth, width, height, Math.max(1, Math.round((options.generaliseMeters ?? TERRAIN_LANDFORM_DEFAULTS.generaliseMeters) / cell))), width, height, Math.max(1, Math.round((options.generaliseMeters ?? TERRAIN_LANDFORM_DEFAULTS.generaliseMeters) / cell)))
+  const broad = boxBlur(
+    boxBlur(
+      smooth,
+      width,
+      height,
+      Math.max(1, Math.round((options.generaliseMeters ?? TERRAIN_LANDFORM_DEFAULTS.generaliseMeters) / cell)),
+    ),
+    width,
+    height,
+    Math.max(1, Math.round((options.generaliseMeters ?? TERRAIN_LANDFORM_DEFAULTS.generaliseMeters) / cell)),
+  )
   // Water rasterised polygon by polygon over its own bounding box: testing
   // every cell against every polygon froze the page for 20 s on a lake-rich view.
   const wet = new Uint8Array(width * height)
@@ -373,11 +473,12 @@ export function landformFromTerrain(
     const wx1 = Math.min(width - 1, Math.ceil(((pe - centre.lng) * scale.lng) / cell) + half)
     const wy0 = Math.max(0, Math.floor(((ps - centre.lat) * scale.lat) / cell) + half)
     const wy1 = Math.min(height - 1, Math.ceil(((pn - centre.lat) * scale.lat) / cell) + half)
-    for (let y = wy0; y <= wy1; y += 1) for (let x = wx0; x <= wx1; x += 1) {
-      if (wet[y * width + x]) continue
-      const [lng, lat] = cellCentre(x, y)
-      if (pointInPolygon(polygon, lng, lat)) wet[y * width + x] = 1
-    }
+    for (let y = wy0; y <= wy1; y += 1)
+      for (let x = wx0; x <= wx1; x += 1) {
+        if (wet[y * width + x]) continue
+        const [lng, lat] = cellCentre(x, y)
+        if (pointInPolygon(polygon, lng, lat)) wet[y * width + x] = 1
+      }
   }
   // Seed from the block itself: it is on the landform whatever its own cells say.
   const inBlock = new Uint8Array(width * height)
@@ -386,10 +487,14 @@ export function landformFromTerrain(
   const x1 = Math.min(width - 1, Math.ceil(((east - centre.lng) * scale.lng) / cell) + half + 1)
   const y0 = Math.max(0, Math.floor(((south - centre.lat) * scale.lat) / cell) + half - 1)
   const y1 = Math.min(height - 1, Math.ceil(((north - centre.lat) * scale.lat) / cell) + half + 1)
-  for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) {
-    const [lng, lat] = cellCentre(x, y)
-    if (pointInPolygon(block, lng, lat) && Number.isFinite(smooth[y * width + x])) { inBlock[y * width + x] = 1; seeds.push(y * width + x) }
-  }
+  for (let y = y0; y <= y1; y += 1)
+    for (let x = x0; x <= x1; x += 1) {
+      const [lng, lat] = cellCentre(x, y)
+      if (pointInPolygon(block, lng, lat) && Number.isFinite(smooth[y * width + x])) {
+        inBlock[y * width + x] = 1
+        seeds.push(y * width + x)
+      }
+    }
   if (!seeds.length) {
     const i = half * width + half
     if (!Number.isFinite(smooth[i])) return null
@@ -401,24 +506,45 @@ export function landformFromTerrain(
   let blockElevation = 0
   for (const i of seeds) blockElevation += smooth[i] / seeds.length
 
-  const at = (x: number, y: number) => broad[Math.max(0, Math.min(height - 1, y)) * width + Math.max(0, Math.min(width - 1, x))]
-  const viewX = (viewpoint.lng - centre.lng) * scale.lng, viewY = (viewpoint.lat - centre.lat) * scale.lat
-  const viewerClose = Math.hypot(viewX, viewY) < (options.closeViewerMeters ?? TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters)
+  const at = (x: number, y: number) =>
+    broad[Math.max(0, Math.min(height - 1, y)) * width + Math.max(0, Math.min(width - 1, x))]
+  const viewX = (viewpoint.lng - centre.lng) * scale.lng,
+    viewY = (viewpoint.lat - centre.lat) * scale.lat
+  const viewerClose =
+    Math.hypot(viewX, viewY) < (options.closeViewerMeters ?? TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters)
   const reason = new Array<LandformBoundary | null>(width * height).fill(null)
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    const i = y * width + x
-    if (!Number.isFinite(smooth[i])) { reason[i] = 'no-data'; continue }
-    const gx = (at(x + 1, y) - at(x - 1, y)) / (2 * cell), gy = (at(x, y + 1) - at(x, y - 1)) / (2 * cell)
-    const slope = Math.hypot(gx, gy)
-    if (!Number.isFinite(slope)) { reason[i] = 'no-data'; continue }
-    if (wet[i]) { reason[i] = 'water'; continue }
-    if (drainage[i]) { reason[i] = 'drainage'; continue }
-    if (slope < minSlope) { reason[i] = smooth[i] > blockElevation ? 'slope-break' : 'flat'; continue }
-    // Downslope points at the viewer on a face turned toward them.
-    const tx = viewerClose ? viewX : viewX - (x - half) * cell, ty = viewerClose ? viewY : viewY - (y - half) * cell
-    const toward = Math.hypot(tx, ty)
-    if (toward > 0 && (-gx * tx - gy * ty) / (slope * toward) < facing) reason[i] = 'faces-away'
-  }
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x
+      if (!Number.isFinite(smooth[i])) {
+        reason[i] = 'no-data'
+        continue
+      }
+      const gx = (at(x + 1, y) - at(x - 1, y)) / (2 * cell),
+        gy = (at(x, y + 1) - at(x, y - 1)) / (2 * cell)
+      const slope = Math.hypot(gx, gy)
+      if (!Number.isFinite(slope)) {
+        reason[i] = 'no-data'
+        continue
+      }
+      if (wet[i]) {
+        reason[i] = 'water'
+        continue
+      }
+      if (drainage[i]) {
+        reason[i] = 'drainage'
+        continue
+      }
+      if (slope < minSlope) {
+        reason[i] = smooth[i] > blockElevation ? 'slope-break' : 'flat'
+        continue
+      }
+      // Downslope points at the viewer on a face turned toward them.
+      const tx = viewerClose ? viewX : viewX - (x - half) * cell,
+        ty = viewerClose ? viewY : viewY - (y - half) * cell
+      const toward = Math.hypot(tx, ty)
+      if (toward > 0 && (-gx * tx - gy * ty) / (slope * toward) < facing) reason[i] = 'faces-away'
+    }
 
   // Close notches two cells deep, then trim fingers a cell wide: a landform's
   // edge is a ridge or a valley, not the fringe of a threshold. Trimming wider
@@ -438,13 +564,17 @@ export function landformFromTerrain(
   const faceOrBlock = (j: number) => eligible[j] === 1 || inBlock[j] === 1
   for (let i = 0; i < eligible.length; i += 1) {
     if (reason[i] !== 'slope-break') continue
-    const x = i % width, y = (i - x) / width
-    const up: boolean[] = [], down: boolean[] = []
+    const x = i % width,
+      y = (i - x) / width
+    const up: boolean[] = [],
+      down: boolean[] = []
     for (let d = 0; d < DIRECTIONS; d += 1) {
       const angle = (d / DIRECTIONS) * 2 * Math.PI
-      up.push(false); down.push(false)
+      up.push(false)
+      down.push(false)
       for (let step = 1; step <= benchCells; step += 1) {
-        const nx = Math.round(x + Math.cos(angle) * step), ny = Math.round(y + Math.sin(angle) * step)
+        const nx = Math.round(x + Math.cos(angle) * step),
+          ny = Math.round(y + Math.sin(angle) * step)
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) break
         const j = ny * width + nx
         if (hard(j)) break
@@ -477,9 +607,16 @@ export function landformFromTerrain(
   // them only eligible ground joins.
   for (let head = 0; head < queue.length; head += 1) {
     const i = queue[head]
-    const x = i % width, y = (i - x) / width
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const nx = x + dx, ny = y + dy
+    const x = i % width,
+      y = (i - x) / width
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = x + dx,
+        ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
       const j = ny * width + nx
       if (region[j] || (reason[j] !== null && !inBlock[j])) continue
@@ -491,13 +628,34 @@ export function landformFromTerrain(
   // A landform has no holes: a knoll or a gully inside the face is part of it.
   const outside = new Uint8Array(width * height)
   const flood: number[] = []
-  for (let x = 0; x < width; x += 1) for (const y of [0, height - 1]) { const i = y * width + x; if (!region[i] && !outside[i]) { outside[i] = 1; flood.push(i) } }
-  for (let y = 0; y < height; y += 1) for (const x of [0, width - 1]) { const i = y * width + x; if (!region[i] && !outside[i]) { outside[i] = 1; flood.push(i) } }
+  for (let x = 0; x < width; x += 1)
+    for (const y of [0, height - 1]) {
+      const i = y * width + x
+      if (!region[i] && !outside[i]) {
+        outside[i] = 1
+        flood.push(i)
+      }
+    }
+  for (let y = 0; y < height; y += 1)
+    for (const x of [0, width - 1]) {
+      const i = y * width + x
+      if (!region[i] && !outside[i]) {
+        outside[i] = 1
+        flood.push(i)
+      }
+    }
   for (let head = 0; head < flood.length; head += 1) {
     const i = flood[head]
-    const x = i % width, y = (i - x) / width
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const nx = x + dx, ny = y + dy
+    const x = i % width,
+      y = (i - x) / width
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = x + dx,
+        ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
       const j = ny * width + nx
       if (region[j] || outside[j]) continue
@@ -506,19 +664,32 @@ export function landformFromTerrain(
     }
   }
   let cells = 0
-  for (let i = 0; i < region.length; i += 1) if (!outside[i]) { region[i] = 1; cells += 1 }
+  for (let i = 0; i < region.length; i += 1)
+    if (!outside[i]) {
+      region[i] = 1
+      cells += 1
+    }
   // Why the face stops, tallied along the edge that is drawn: after holes are filled.
   const tally = new Map<LandformBoundary, number>()
   let edgeCount = 0
   let reachedLimit = false
   for (let i = 0; i < region.length; i += 1) {
     if (!region[i]) continue
-    const x = i % width, y = (i - x) / width
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const nx = x + dx, ny = y + dy
+    const x = i % width,
+      y = (i - x) / width
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = x + dx,
+        ny = y + dy
       let why: LandformBoundary | null
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) { why = 'search-limit'; reachedLimit = true }
-      else if (region[ny * width + nx]) continue
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+        why = 'search-limit'
+        reachedLimit = true
+      } else if (region[ny * width + nx]) continue
       else why = reason[ny * width + nx] ?? 'faces-away'
       edgeCount += 1
       tally.set(why, (tally.get(why) ?? 0) + 1)

@@ -86,9 +86,7 @@ export function serializePlotData(points: AqmapPlotPoint[], format: AqmapDataFor
   const header = `date${delimiter}pm25`
   if (!points.length) return header
 
-  const body = points
-    .map((point) => `${point.date}${delimiter}${point.pm25}`)
-    .join('\n')
+  const body = points.map((point) => `${point.date}${delimiter}${point.pm25}`).join('\n')
 
   return `${header}\n${body}`
 }

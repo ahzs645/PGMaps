@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { SidebarSection } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { isHeatmapMode, heatmapKey, heatmapLegend, type CanopyHeatmaps } from './canopyHeatmaps'
@@ -54,7 +55,7 @@ export function CanopyHeatmapPanel({
         {!height && (
           <label className="mt-3 block text-xs">
             Canopy height threshold
-            <select
+            <NativeSelect
               aria-label="Canopy density threshold"
               className="mt-1 w-full rounded border bg-background p-2"
               value={options.threshold}
@@ -62,7 +63,7 @@ export function CanopyHeatmapPanel({
             >
               <option value={2}>Above 2 m · lower vegetation included</option>
               <option value={5}>Above 5 m · taller canopy</option>
-            </select>
+            </NativeSelect>
           </label>
         )}
         <label className="mt-3 block text-xs">

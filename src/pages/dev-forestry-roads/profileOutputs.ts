@@ -247,6 +247,8 @@ export function crossSectionCsv(
       'section_complete',
       'section_flags',
       ...sourceHeaders,
+      'prepared_ground_elevation_m',
+      'prepared_cut_fill_depth_m',
       'conventions',
     ],
     station.section.map((sample) => {
@@ -267,7 +269,9 @@ export function crossSectionCsv(
         station.complete ? 'yes' : 'no',
         station.flags.join('; '),
         ...sourceValues(metadata),
-        'WGS84 longitude/latitude; negative offset left along increasing chainage; cut_fill_depth = ground minus design (positive cut, negative fill); blank means unknown or outside designed section; location codes describe PGMaps geometry, not proprietary survey codes.',
+        sample.preparedGround,
+        sample.preparedGround == null || design === null ? null : sample.preparedGround - design,
+        'WGS84 longitude/latitude; negative offset left along increasing chainage; cut_fill_depth = original ground minus design (positive cut, negative fill); blank means unknown or outside designed section; location codes describe PGMaps geometry, not proprietary survey codes.',
       ]
     }),
   )

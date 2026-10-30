@@ -97,7 +97,9 @@ export function cellSitePieData(
           bandCounts: CELL_SITE_OPERATOR_GROUPS.map((group) => (present.has(group.id) ? 1 : 0)),
           color: CELL_SITE_BAND_COLORS[CELL_SITE_OPERATOR_GROUPS.indexOf(groups[0])],
           spiderTitle: site.properties.operators.join(' · '),
-          spiderSubtitle: [site.properties.location, site.properties.technologies.join(', ')].filter(Boolean).join(' · '),
+          spiderSubtitle: [site.properties.location, site.properties.technologies.join(', ')]
+            .filter(Boolean)
+            .join(' · '),
         },
       }
     }),

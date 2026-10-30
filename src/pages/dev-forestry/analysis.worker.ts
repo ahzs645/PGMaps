@@ -25,7 +25,7 @@ const post = (message: AnalysisWorkerResponse, transfer?: Transferable[]) => {
   workerScope.postMessage(message, transfer)
 }
 
-const vegetationCache=new Map<string, Awaited<ReturnType<typeof fetchVegetationStands>>>()
+const vegetationCache = new Map<string, Awaited<ReturnType<typeof fetchVegetationStands>>>()
 
 async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'analyze' }>) {
   const { requestId, input } = request
@@ -39,7 +39,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // Pad by a tile so terrain normals and grazing sightlines at the edge of the
   // area still have ground under them.
   const range = demTileRange(bounds, input.settings.demZoom, 600)
-  const localTerrain = input.localRasters?.find(r => r.kind === 'terrain')
+  const localTerrain = input.localRasters?.find((r) => r.kind === 'terrain')
   if (!localTerrain && range.tileCount > MAX_DEM_TILES) {
     throw new Error(
       `This area needs ${range.tileCount} terrain tiles at zoom ${input.settings.demZoom}. ` +
@@ -53,12 +53,14 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     progress: { phase: 'terrain', completed: 0, total: range.tileCount },
   })
 
-  const { grid, missingTileCount } = localTerrain ? { grid: rasterSampler(localTerrain), missingTileCount: 0 } : await loadElevationGrid({
-    range,
-    onProgress: (completed, total) => {
-      post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
-    },
-  })
+  const { grid, missingTileCount } = localTerrain
+    ? { grid: rasterSampler(localTerrain), missingTileCount: 0 }
+    : await loadElevationGrid({
+        range,
+        onProgress: (completed, total) => {
+          post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
+        },
+      })
 
   // Terrain the mosaic is missing never blocks a sightline, so a run built on
   // mostly-absent tiles would report everything as visible. A stray hole is
@@ -83,19 +85,49 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     const abort = new AbortController()
     const timeout = setTimeout(() => abort.abort(), 30000)
     try {
-      const cacheKey=JSON.stringify(bounds)
-      let response=vegetationCache.get(cacheKey)
-      if(!response){response=await fetchVegetationStands(bounds, { signal: abort.signal });if(vegetationCache.size>=3)vegetationCache.delete(vegetationCache.keys().next().value!);vegetationCache.set(cacheKey,response)}
+      const cacheKey = JSON.stringify(bounds)
+      let response = vegetationCache.get(cacheKey)
+      if (!response) {
+        response = await fetchVegetationStands(bounds, { signal: abort.signal })
+        if (vegetationCache.size >= 3) vegetationCache.delete(vegetationCache.keys().next().value!)
+        vegetationCache.set(cacheKey, response)
+      }
       const { stands } = response
       const limited = response.truncated || queryBounds.some((coordinate, i) => Math.abs(coordinate - bounds[i]) > 1e-8)
-      const missingHeights = input.settings.screeningEnabled && stands.some((stand) => stand.treed && (stand.heightMeters === null || stand.heightMeters <= 0))
-      vegetation = { status: !stands.length ? 'unavailable' : limited || missingHeights ? 'partial' : 'complete', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
+      const missingHeights =
+        input.settings.screeningEnabled &&
+        stands.some((stand) => stand.treed && (stand.heightMeters === null || stand.heightMeters <= 0))
+      vegetation = {
+        status: !stands.length ? 'unavailable' : limited || missingHeights ? 'partial' : 'complete',
+        bounds: queryBounds,
+        retrievedAt: new Date().toISOString(),
+        source: 'BC VRI rank-1 WFS',
+      }
       if (wantsGreenArea) forestedGround = forestedGeometries(stands)
       // Keep the same stand records for rendering even when numerical screening is off.
-      canopyStands = stands.flatMap((stand) => stand.treed && stand.heightMeters !== null && stand.heightMeters > 0 ? [{ heightMeters: stand.heightMeters, crownClosurePercent: stand.crownClosurePercent, speciesCode: stand.speciesCode, stemsPerHa: stand.stemsPerHa ?? null, geometry: stand.geometry }] : [])
+      canopyStands = stands.flatMap((stand) =>
+        stand.treed && stand.heightMeters !== null && stand.heightMeters > 0
+          ? [
+              {
+                heightMeters: stand.heightMeters,
+                crownClosurePercent: stand.crownClosurePercent,
+                speciesCode: stand.speciesCode,
+                stemsPerHa: stand.stemsPerHa ?? null,
+                geometry: stand.geometry,
+              },
+            ]
+          : [],
+      )
     } catch {
-      vegetation = { status: 'unavailable', bounds: queryBounds, retrievedAt: new Date().toISOString(), source: 'BC VRI rank-1 WFS' }
-    } finally { clearTimeout(timeout) }
+      vegetation = {
+        status: 'unavailable',
+        bounds: queryBounds,
+        retrievedAt: new Date().toISOString(),
+        source: 'BC VRI rank-1 WFS',
+      }
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   const result = computeAnalysis(
@@ -104,15 +136,24 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     {
       tileCount: localTerrain ? 0 : range.tileCount,
       missingTileCount,
-      resolutionMeters: localTerrain ? localRasterResolution(localTerrain, stations[0].lat) : demResolutionMeters(stations[0].lat, input.settings.demZoom),
+      resolutionMeters: localTerrain
+        ? localRasterResolution(localTerrain, stations[0].lat)
+        : demResolutionMeters(stations[0].lat, input.settings.demZoom),
     },
     (progress) => post({ type: 'progress', requestId, progress }),
     canopyStands,
     forestedGround,
     { vegetation, inspection: request.inspection },
   )
-  result.sourceNotes = input.localRasters?.map(r => `${r.kind}: ${r.name}; EPSG:${r.epsg}; acquired ${r.acquired || 'not recorded'}; vertical reference ${r.verticalReference}; SHA-256 ${r.sha256}`) ?? []
-  if (localTerrain) result.quality?.warnings.push('Numerical terrain uses the imported raster. The map and road preview still show AWS terrain; compare against field photographs.')
+  result.sourceNotes =
+    input.localRasters?.map(
+      (r) =>
+        `${r.kind}: ${r.name}; EPSG:${r.epsg}; acquired ${r.acquired || 'not recorded'}; vertical reference ${r.verticalReference}; SHA-256 ${r.sha256}`,
+    ) ?? []
+  if (localTerrain)
+    result.quality?.warnings.push(
+      'Numerical terrain uses the imported raster. The map and road preview still show AWS terrain; compare against field photographs.',
+    )
 
   // Sample buffers are the bulk of the payload; handing over their memory
   // avoids a structured clone of every grid point.
@@ -167,7 +208,8 @@ async function runReverse(request: Extract<AnalysisWorkerRequest, { type: 'rever
     },
   })
 
-  if (missingTileCount > 0) throw new Error('Reverse road search has missing terrain. Retry before treating any road as visible or screened.')
+  if (missingTileCount > 0)
+    throw new Error('Reverse road search has missing terrain. Retry before treating any road as visible or screened.')
 
   post({ type: 'progress', requestId, progress: { phase: 'sightlines', completed: 0, total: 1 } })
   const result = computeReverseViewshed(

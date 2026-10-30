@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,6 +7,8 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, OptionalNumberField, roadFieldClass } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
+import { NumberField } from '../Controls'
+import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 
 const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
 const CLASSIFY: Record<string, string> = {
@@ -118,7 +121,7 @@ export function TerrainTab(p: SidebarProps) {
             </summary>
             <div className="space-y-2 border-t p-2">
               <Field label="Point-cloud surface">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={p.pointCloud.surface}
                   onChange={(e) =>
@@ -130,13 +133,13 @@ export function TerrainTab(p: SidebarProps) {
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field
                 label="Ground classification"
                 hint="Unclassified clouds are classified in the browser with WhiteboxTools' ground point filter."
               >
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={String(p.pointCloud.classify)}
                   onChange={(e) =>
@@ -151,7 +154,7 @@ export function TerrainTab(p: SidebarProps) {
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               {p.pointCloud.surface === 'tin' && (
                 <div className="flex items-center gap-2">
@@ -175,10 +178,36 @@ export function TerrainTab(p: SidebarProps) {
                   )}
                 </div>
               )}
+              <NumberField
+                label="Preserve road corridor each side (m; 0 disables)"
+                value={p.pointCloud.preserveCorridorM ?? 0}
+                min={0}
+                max={1000}
+                onChange={(v) => p.onPointCloud({ ...p.pointCloud, preserveCorridorM: v })}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Points inside the active road corridor retain full density. Outside it, thinning respects the worker's
+                point budget; a corridor larger than the budget fails explicitly.
+              </p>
+              {p.pointCloud.surface === 'tin' && (
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={p.pointCloud.retainTin ?? false}
+                    onChange={(e) => p.onPointCloud({ ...p.pointCloud, retainTin: e.target.checked })}
+                  />
+                  Retain source TIN for LandXML (250,000 vertices)
+                </label>
+              )}
             </div>
           </details>
         </div>
       </RoadSection>
+      <TerrainPreparationPanel
+        workspace={p.workspace}
+        verticalReference={p.verticalReference}
+        pointCloud={p.pointCloud}
+      />
       <RoadSection
         title="Context & terrain profiles"
         help="Import GeoJSON or a zipped shapefile; a GeoJSON kind of stream, avoid, existing-road or harvest sets how each feature is used. Click a line to sample it as a terrain profile. An avoidance area with a zone cost lets the route search cross it at that extra cost per metre; empty blocks it."

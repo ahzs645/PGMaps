@@ -10,17 +10,22 @@ export interface AqMarkerIcon {
   size: number
 }
 
-function makeMarkerIconSvg(group: ReturnType<typeof getAqmapMarkerGroup>, value: number | null | undefined, size: number): string {
+function makeMarkerIconSvg(
+  group: ReturnType<typeof getAqmapMarkerGroup>,
+  value: number | null | undefined,
+  size: number,
+): string {
   const markerValue = getMarkerText(value)
   const fill = getAqhiPlusColor(value)
   const textColor = readableTextColor(fill, { threshold: 0.58, dark: '#111827' })
   const stroke = group === 'agency' ? '#111827' : '#ffffff'
   const fontSize = markerValue.length > 2 ? 9.5 : markerValue.length > 1 ? 11.5 : 13.5
-  const shape = group === 'agency'
-    ? `<path d="M${size / 2} 2.5 L${size - 2.5} ${size / 2} L${size / 2} ${size - 2.5} L2.5 ${size / 2} Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
-    : group === 'aqegg'
-      ? `<rect x="2.5" y="2.5" width="${size - 5}" height="${size - 5}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
-      : `<circle cx="${size / 2}" cy="${size / 2}" r="${(size - 5) / 2}" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
+  const shape =
+    group === 'agency'
+      ? `<path d="M${size / 2} 2.5 L${size - 2.5} ${size / 2} L${size / 2} ${size - 2.5} L2.5 ${size / 2} Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
+      : group === 'aqegg'
+        ? `<rect x="2.5" y="2.5" width="${size - 5}" height="${size - 5}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
+        : `<circle cx="${size / 2}" cy="${size / 2}" r="${(size - 5) / 2}" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`
 
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,

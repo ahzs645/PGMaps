@@ -190,10 +190,23 @@ export function AirQualitySidebar({
                   size="sm"
                   columns={2}
                   items={[
-                    { key: 'corrected', label: 'Corrected PM2.5', value: formatPm25(areaStats.correctedPm25Average), compact: true },
+                    {
+                      key: 'corrected',
+                      label: 'Corrected PM2.5',
+                      value: formatPm25(areaStats.correctedPm25Average),
+                      compact: true,
+                    },
                     { key: 'raw', label: 'Raw PM2.5', value: formatPm25(areaStats.rawPm25Average), compact: true },
-                    { key: 'sensors', label: 'PM2.5 sensors', value: areaStats.pm25MonitorCount.toLocaleString(DEFAULT_LOCALE) },
-                    { key: 'networks', label: 'Networks', value: areaStats.networkCount.toLocaleString(DEFAULT_LOCALE) },
+                    {
+                      key: 'sensors',
+                      label: 'PM2.5 sensors',
+                      value: areaStats.pm25MonitorCount.toLocaleString(DEFAULT_LOCALE),
+                    },
+                    {
+                      key: 'networks',
+                      label: 'Networks',
+                      value: areaStats.networkCount.toLocaleString(DEFAULT_LOCALE),
+                    },
                   ]}
                 />
                 {(areaStats.correctedPm25Min !== null || areaStats.correctedPm25Max !== null) && (
@@ -214,8 +227,16 @@ export function AirQualitySidebar({
               size="sm"
               valueMaxWidth={null}
               rows={[
-                { key: 'lowCost', label: 'Low-cost:', value: formatDensityValue(densityStats.lowCost, densityStats.lowCostCount) },
-                { key: 'other', label: 'Other:', value: formatDensityValue(densityStats.other, densityStats.otherCount) },
+                {
+                  key: 'lowCost',
+                  label: 'Low-cost:',
+                  value: formatDensityValue(densityStats.lowCost, densityStats.lowCostCount),
+                },
+                {
+                  key: 'other',
+                  label: 'Other:',
+                  value: formatDensityValue(densityStats.other, densityStats.otherCount),
+                },
               ]}
             />
             <KeyValueRows
@@ -225,7 +246,11 @@ export function AirQualitySidebar({
               labelClassName="font-medium text-foreground"
               valueClassName="font-semibold"
               rows={[
-                { key: 'overall', label: 'Overall:', value: formatDensityValue(densityStats.overall, densityStats.totalCount) },
+                {
+                  key: 'overall',
+                  label: 'Overall:',
+                  value: formatDensityValue(densityStats.overall, densityStats.totalCount),
+                },
               ]}
             />
             <div className="pt-1 text-xs text-muted-foreground">{densityScopeLabel}</div>
@@ -370,7 +395,13 @@ export function AirQualitySidebar({
       >
         <div className="pb-6">
           <VirtualResultList items={filteredMonitors} getKey={monitorEntryKey} estimateSize={92} label="Monitors">
-            {(monitor) => <MonitorRow monitor={monitor} selected={selectedMonitor?.id === monitor.id} onSelect={actions.selectMonitor} />}
+            {(monitor) => (
+              <MonitorRow
+                monitor={monitor}
+                selected={selectedMonitor?.id === monitor.id}
+                onSelect={actions.selectMonitor}
+              />
+            )}
           </VirtualResultList>
         </div>
       </ListState>
@@ -401,15 +432,22 @@ function MonitorRow({
       onClick={() => onSelect(monitor)}
       meta={
         <>
-          <span className="block">{[monitor.city, monitor.province].filter(Boolean).join(', ') || 'No city/province'}</span>
+          <span className="block">
+            {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'No city/province'}
+          </span>
           {visibleParameters.length > 0 && (
             <span className="mt-1 flex flex-wrap items-center gap-1">
               {visibleParameters.map((parameter) => (
-                <span key={parameter} className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+                <span
+                  key={parameter}
+                  className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
+                >
                   {parameter}
                 </span>
               ))}
-              {hiddenParameterCount > 0 && <span className="text-xs text-muted-foreground">+{hiddenParameterCount} more</span>}
+              {hiddenParameterCount > 0 && (
+                <span className="text-xs text-muted-foreground">+{hiddenParameterCount} more</span>
+              )}
             </span>
           )}
         </>

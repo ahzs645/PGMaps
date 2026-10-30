@@ -604,7 +604,9 @@ export function CanueSidebar({
                 rows={[
                   {
                     label: renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
-                    value: formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty])),
+                    value: formatNullableNumber(
+                      Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty]),
+                    ),
                   },
                 ]}
               >
@@ -615,9 +617,21 @@ export function CanueSidebar({
             )}
           </div>
         )}
-        {canueManifest.error && <InlineAlert tone="error" className="mt-2">{canueManifest.error}</InlineAlert>}
-        {canueMembership.error && <InlineAlert tone="error" className="mt-2">{canueMembership.error}</InlineAlert>}
-        {canueBoundaries.error && <InlineAlert tone="error" className="mt-2">{canueBoundaries.error}</InlineAlert>}
+        {canueManifest.error && (
+          <InlineAlert tone="error" className="mt-2">
+            {canueManifest.error}
+          </InlineAlert>
+        )}
+        {canueMembership.error && (
+          <InlineAlert tone="error" className="mt-2">
+            {canueMembership.error}
+          </InlineAlert>
+        )}
+        {canueBoundaries.error && (
+          <InlineAlert tone="error" className="mt-2">
+            {canueBoundaries.error}
+          </InlineAlert>
+        )}
       </SidebarSection>
     </>
   )

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -57,7 +58,7 @@ export function FsrConnectionControls({
         </InfoTip>
       </div>
       <Field label="Connect from">
-        <select
+        <NativeSelect
           className={roadFieldClass}
           value={endpoint}
           onChange={(event) => {
@@ -69,7 +70,7 @@ export function FsrConnectionControls({
         >
           <option value="end">Road end</option>
           <option value="start">Road start</option>
-        </select>
+        </NativeSelect>
       </Field>
       {p.onDiscoverFsrs && (
         <Button size="sm" variant="outline" className="w-full" onClick={() => p.onDiscoverFsrs?.(endpoint)}>
@@ -81,7 +82,7 @@ export function FsrConnectionControls({
         {discovery?.scope ?? 'Choices use the FSR network currently loaded in this project.'}
       </p>
       <Field label="FSR to connect to">
-        <select
+        <NativeSelect
           className={roadFieldClass}
           value={targetId}
           onChange={(event) => {
@@ -100,7 +101,7 @@ export function FsrConnectionControls({
               {index + 1}. {target.name} · {length(target.distanceM)} away
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </Field>
       {!automatic && !selected && (
         <InlineAlert tone="warning">
@@ -123,14 +124,14 @@ export function FsrConnectionControls({
       )}
       {automatic && (
         <Field label="FSR connection preference">
-          <select
+          <NativeSelect
             className={roadFieldClass}
             value={preference}
             onChange={(event) => setPreference(event.target.value as FsrConnectionPreference)}
           >
             <option value="nearest">Nearest terrain-screened route</option>
             <option value="lowest-cost">Lowest terrain search score</option>
-          </select>
+          </NativeSelect>
         </Field>
       )}
       <div className="flex items-center gap-2 text-xs">

@@ -39,9 +39,7 @@ function isMonitorInBounds(monitor: AirMonitor, bounds: AirQualityMapBounds | nu
   const east = normalizeLongitude(bounds.east)
 
   const withinLatitude = lat >= bounds.south && lat <= bounds.north
-  const withinLongitude = west <= east
-    ? lon >= west && lon <= east
-    : lon >= west || lon <= east
+  const withinLongitude = west <= east ? lon >= west && lon <= east : lon >= west || lon <= east
 
   return withinLatitude && withinLongitude
 }
@@ -87,13 +85,7 @@ interface BoundaryRegionStats {
 }
 
 function getMonitorSearchText(monitor: AirMonitor): string {
-  return [
-    monitor.name,
-    monitor.network,
-    monitor.city,
-    monitor.province,
-    monitor.parameters.join(' ')
-  ]
+  return [monitor.name, monitor.network, monitor.city, monitor.province, monitor.parameters.join(' ')]
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
@@ -101,7 +93,7 @@ function getMonitorSearchText(monitor: AirMonitor): string {
 
 function monitorMatchesObservationLayers(
   monitor: AirMonitor,
-  observationLayers: AirQualityObservationLayer[]
+  observationLayers: AirQualityObservationLayer[],
 ): boolean {
   if (monitor.network === 'PA') {
     return observationLayers.includes('rawPA') || observationLayers.includes('correctedPA')
@@ -121,21 +113,15 @@ function monitorMatchesObservationLayers(
 function isMonitorInFeatureBounds(monitor: AirMonitor, bounds: [number, number, number, number]): boolean {
   const [west, south, east, north] = bounds
   return (
-    monitor.latitude >= south &&
-    monitor.latitude <= north &&
-    monitor.longitude >= west &&
-    monitor.longitude <= east
+    monitor.latitude >= south && monitor.latitude <= north && monitor.longitude >= west && monitor.longitude <= east
   )
 }
 
 function isMonitorInRegionFeature(
   monitor: AirMonitor,
-  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>,
 ): boolean {
-  return booleanPointInPolygon(
-    point([monitor.longitude, monitor.latitude]),
-    feature
-  )
+  return booleanPointInPolygon(point([monitor.longitude, monitor.latitude]), feature)
 }
 
 function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorDensityStats | null {
@@ -148,9 +134,7 @@ function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorD
   let actualCoverageKm2 = 0
   if (totalCount >= 3) {
     try {
-      const points = featureCollection(
-        monitors.map((monitor) => point([monitor.longitude, monitor.latitude]))
-      )
+      const points = featureCollection(monitors.map((monitor) => point([monitor.longitude, monitor.latitude])))
       const hull = convex(points)
       if (hull) {
         actualCoverageKm2 = area(hull) / 1_000_000
@@ -171,7 +155,7 @@ function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorD
     coveragePercent: (boundedCoverageKm2 / areaKm2) * 100,
     totalCount,
     lowCostCount,
-    otherCount
+    otherCount,
   }
 }
 
@@ -180,10 +164,7 @@ function average(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function calculateAreaStats(
-  monitors: AirMonitor[],
-  correctionModel: AirQualityCorrectionModel
-): AirQualityAreaStats {
+function calculateAreaStats(monitors: AirMonitor[], correctionModel: AirQualityCorrectionModel): AirQualityAreaStats {
   const rawValues: number[] = []
   const correctedValues: number[] = []
 
@@ -219,10 +200,7 @@ function createEmptyBoundaryStats(areaKm2: number): BoundaryRegionStats {
   }
 }
 
-function getBoundaryColorValue(
-  stats: BoundaryRegionStats,
-  metric: AirQualityBoundaryColorMetric
-): number | null {
+function getBoundaryColorValue(stats: BoundaryRegionStats, metric: AirQualityBoundaryColorMetric): number | null {
   switch (metric) {
     case 'sensorCount':
       return stats.monitorCount
@@ -316,7 +294,7 @@ export default function AirQualitySection() {
         Math.max(bounds[2], region.bounds[2]),
         Math.max(bounds[3], region.bounds[3]),
       ],
-      [Infinity, Infinity, -Infinity, -Infinity]
+      [Infinity, Infinity, -Infinity, -Infinity],
     )
   }, [activeStudyAreaRegions])
 
@@ -330,10 +308,12 @@ export default function AirQualitySection() {
     if (activeStudyAreaRegions.length > 0 && boundaryScopeBounds) {
       return monitors
         .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
-        .filter((monitor) => activeStudyAreaRegions.some((region) => (
-          isMonitorInFeatureBounds(monitor, region.bounds) &&
-          isMonitorInRegionFeature(monitor, region.feature)
-        )))
+        .filter((monitor) =>
+          activeStudyAreaRegions.some(
+            (region) =>
+              isMonitorInFeatureBounds(monitor, region.bounds) && isMonitorInRegionFeature(monitor, region.feature),
+          ),
+        )
     }
 
     return monitors
@@ -366,10 +346,10 @@ export default function AirQualitySection() {
     boundaryFilteredMonitors
       .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
       .forEach((monitor) => {
-        const region = activeStudyAreaRegions.find((candidate) => (
-          isMonitorInFeatureBounds(monitor, candidate.bounds) &&
-          isMonitorInRegionFeature(monitor, candidate.feature)
-        ))
+        const region = activeStudyAreaRegions.find(
+          (candidate) =>
+            isMonitorInFeatureBounds(monitor, candidate.bounds) && isMonitorInRegionFeature(monitor, candidate.feature),
+        )
         if (region) {
           const stats = statsByCode.get(region.code)
           if (!stats) return
@@ -398,7 +378,9 @@ export default function AirQualitySection() {
 
   const boundaryLegendStats = useMemo<BoundaryLegendStats | null>(() => {
     if (activeStudyAreaRegions.length === 0) return null
-    const stats = activeStudyAreaRegions.map((region) => boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2))
+    const stats = activeStudyAreaRegions.map(
+      (region) => boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2),
+    )
     const colorValues = stats
       .map((item) => getBoundaryColorValue(item, boundaryColorMetric))
       .filter((value): value is number => value !== null && Number.isFinite(value))
@@ -438,7 +420,7 @@ export default function AirQualitySection() {
   const mapBoundaryFeatureCollection = useMemo(() => {
     return {
       type: 'FeatureCollection',
-      features: mapBoundaryFeatures
+      features: mapBoundaryFeatures,
     } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, BoundaryPickerFeature['properties']>
   }, [mapBoundaryFeatures])
 
@@ -495,7 +477,8 @@ export default function AirQualitySection() {
       : 'Current map view'
 
   const sidebarMonitors = selectedRegion || boundaryScopeFeature ? filteredMonitors : visibleMonitorsInView
-  const sidebarMonitorCountLabel = selectedRegion || boundaryScopeFeature ? 'monitors in study area' : 'monitors in view'
+  const sidebarMonitorCountLabel =
+    selectedRegion || boundaryScopeFeature ? 'monitors in study area' : 'monitors in view'
 
   useEffect(() => {
     if (!selectedMonitor) return
@@ -537,15 +520,22 @@ export default function AirQualitySection() {
     setMapBounds(bounds)
   }, [])
 
-  const handleBrowseBoundaryClick = useCallback((feature: { code: string }) => {
-    actions.selectRegion(feature.code)
-  }, [actions])
+  const handleBrowseBoundaryClick = useCallback(
+    (feature: { code: string }) => {
+      actions.selectRegion(feature.code)
+    },
+    [actions],
+  )
 
   return (
     <MapSectionLayout
-      mobilePeekTitle={<>Air Quality | {sidebarMonitors.length.toLocaleString(DEFAULT_LOCALE)} {sidebarMonitorCountLabel}</>}
+      mobilePeekTitle={
+        <>
+          Air Quality | {sidebarMonitors.length.toLocaleString(DEFAULT_LOCALE)} {sidebarMonitorCountLabel}
+        </>
+      }
       mobilePeekSubtitle={<>{selectedMonitor?.name || `${selectedNetworks.length} networks selected`}</>}
-      sidebar={(
+      sidebar={
         <AirQualitySidebar
           className={MAP_SIDEBAR_CLASS}
           state={state}
@@ -563,7 +553,7 @@ export default function AirQualitySection() {
           loading={loading}
           error={error}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <AirQualityMap
@@ -587,7 +577,13 @@ export default function AirQualitySection() {
         />
 
         {showLegend && (
-          <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible defaultCollapsed="mobile" contentClassName="space-y-3">
+          <MapLegendPanel
+            className="max-w-[240px]"
+            title="Legend"
+            collapsible
+            defaultCollapsed="mobile"
+            contentClassName="space-y-3"
+          >
             <div className="space-y-3">
               {boundaryLegendStats && (
                 <MapLegendSection
@@ -600,7 +596,8 @@ export default function AirQualitySection() {
                     maxLabel={`${formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max`}
                   />
                   <div className="pt-1 text-xs text-muted-foreground">
-                    {boundaryLegendStats.monitoredAreaCount.toLocaleString(DEFAULT_LOCALE)} of {boundaryLegendStats.areaCount.toLocaleString(DEFAULT_LOCALE)} areas have monitors
+                    {boundaryLegendStats.monitoredAreaCount.toLocaleString(DEFAULT_LOCALE)} of{' '}
+                    {boundaryLegendStats.areaCount.toLocaleString(DEFAULT_LOCALE)} areas have monitors
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {boundaryLegendStats.totalMonitors.toLocaleString(DEFAULT_LOCALE)} monitors in study area
@@ -618,14 +615,16 @@ export default function AirQualitySection() {
                 <MapLegendSection
                   title="Networks in view"
                   value={legendNetworkRows.length.toLocaleString(DEFAULT_LOCALE)}
-                  actions={legendNetworkRows.length > 0 ? (
-                    <SelectAllActions
-                      onAll={selectLegendNetworks}
-                      onNone={clearLegendNetworks}
-                      allSelected={legendNetworkRows.every((row) => row.active)}
-                      noneSelected={legendNetworkRows.every((row) => !row.active)}
-                    />
-                  ) : null}
+                  actions={
+                    legendNetworkRows.length > 0 ? (
+                      <SelectAllActions
+                        onAll={selectLegendNetworks}
+                        onNone={clearLegendNetworks}
+                        allSelected={legendNetworkRows.every((row) => row.active)}
+                        noneSelected={legendNetworkRows.every((row) => !row.active)}
+                      />
+                    ) : null
+                  }
                   className="border-t border-border pt-3 first:border-t-0 first:pt-0"
                 >
                   {legendNetworkRows.length > 0 ? (

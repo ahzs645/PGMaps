@@ -4,7 +4,7 @@ import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tick
 describe('plan annotation density', () => {
   it('converts zoom to ground resolution', () => {
     expect(metresPerPixel(0, 0)).toBeCloseTo(78271.5, 0)
-    expect(metresPerPixel(15, 54)).toBeCloseTo(78271.5 / 2 ** 15 * Math.cos((54 * Math.PI) / 180), 6)
+    expect(metresPerPixel(15, 54)).toBeCloseTo((78271.5 / 2 ** 15) * Math.cos((54 * Math.PI) / 180), 6)
   })
 
   it('adds station labels as the map zooms in', () => {
@@ -22,7 +22,11 @@ describe('plan annotation density', () => {
   })
 
   it('draws minor ticks only once they are far enough apart', () => {
-    expect(tickChainages(300, 100, 1).filter((t) => t.major).map((t) => t.chainage)).toEqual([0, 100, 200, 300])
+    expect(
+      tickChainages(300, 100, 1)
+        .filter((t) => t.major)
+        .map((t) => t.chainage),
+    ).toEqual([0, 100, 200, 300])
     expect(tickChainages(300, 100, 1)).toHaveLength(16)
     expect(tickChainages(300, 100, 5)).toHaveLength(4)
   })

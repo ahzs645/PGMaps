@@ -24,9 +24,7 @@ interface AqmapFeature {
   properties?: Record<string, unknown>
 }
 
-const DATA_JSON_PATHS = [
-  path.resolve(process.cwd(), 'public', 'data', 'monitors', 'all.json'),
-]
+const DATA_JSON_PATHS = [path.resolve(process.cwd(), 'public', 'data', 'monitors', 'all.json')]
 
 const DATA_CSV_PATH = path.resolve(process.cwd(), 'public', 'data', 'monitors.csv')
 const MONITOR_NETWORK_ALIASES: Record<string, string[]> = {
@@ -121,14 +119,19 @@ function normalizeMonitorIdentifier(row: RawMonitorRow): AqmapMonitorRow {
   const network = toAqmapNetwork(rawNetwork)
   const siteId = valueToString(normalizedRow.site_id ?? normalizedRow.sensor_index ?? normalizedRow.id)
   const dateValue = valueToString(
-    normalizedRow.date_last_obs ?? normalizedRow.date ?? normalizedRow.date_observed ?? normalizedRow.dateObserved ?? normalizedRow.date_last_observed,
+    normalizedRow.date_last_obs ??
+      normalizedRow.date ??
+      normalizedRow.date_observed ??
+      normalizedRow.dateObserved ??
+      normalizedRow.date_last_observed,
   )
   const province = valueToString(normalizedRow.prov_terr ?? normalizedRow.province ?? normalizedRow.state)
   const latitude = parseNumeric(row.latitude ?? row.lat)
   const longitude = parseNumeric(row.longitude ?? row.lng)
-  const pm25Recent = network === 'agency'
-    ? null
-    : parseNumeric(normalizedRow.pm25_10min ?? normalizedRow.pm25_recent ?? normalizedRow.pm25Recent)
+  const pm25Recent =
+    network === 'agency'
+      ? null
+      : parseNumeric(normalizedRow.pm25_10min ?? normalizedRow.pm25_recent ?? normalizedRow.pm25Recent)
 
   const normalized: AqmapMonitorRow = {
     id: id || normalizedRow.id || siteId,
@@ -249,7 +252,9 @@ function parseCsvText(text: string): RawMonitorRow[] {
 type AqmapIconMetaGroup = 'agency' | 'purpleair' | 'aqegg' | 'lcm'
 
 function toIconMetaGroup(network: unknown): AqmapIconMetaGroup {
-  const normalized = String(network ?? '').trim().toLowerCase()
+  const normalized = String(network ?? '')
+    .trim()
+    .toLowerCase()
   if (normalized === 'agency' || normalized === 'fem' || normalized === 'bc env') return 'agency'
   if (normalized === 'pa' || normalized === 'purpleair') return 'purpleair'
   if (normalized === 'egg' || normalized === 'aqegg') return 'aqegg'
@@ -318,20 +323,21 @@ export function resolveNetworkFilter(value?: string): string[] | null {
 }
 
 export function getMonitorNetworkValue(row: AqmapMonitorRow): string {
-  return String(row.network ?? '').trim().toUpperCase()
+  return String(row.network ?? '')
+    .trim()
+    .toUpperCase()
 }
 
 function toCsvValue(value: unknown): string {
   const text = value == null ? '' : String(value)
   const escaped = text.replace(/"/g, '""')
-  const requiresQuote = escaped.includes(',') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('"')
+  const requiresQuote =
+    escaped.includes(',') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('"')
   return requiresQuote ? `"${escaped}"` : escaped
 }
 
 function serializeRows(rows: AqmapMonitorRow[], delimiter: string): string {
-  const keys = rows.length
-    ? Array.from(new Set<string>(rows.flatMap((row) => Object.keys(row))))
-    : PREFERRED_KEY_ORDER
+  const keys = rows.length ? Array.from(new Set<string>(rows.flatMap((row) => Object.keys(row)))) : PREFERRED_KEY_ORDER
   const orderedKeys = [
     ...PREFERRED_KEY_ORDER.filter((key) => keys.includes(key)),
     ...keys.filter((key) => !PREFERRED_KEY_ORDER.includes(key)),
@@ -340,11 +346,7 @@ function serializeRows(rows: AqmapMonitorRow[], delimiter: string): string {
   const header = orderedKeys.join(delimiter)
   if (!rows.length) return header
 
-  const body = rows
-    .map((row) => orderedKeys
-      .map((key) => toCsvValue(row[key]))
-      .join(delimiter))
-    .join('\n')
+  const body = rows.map((row) => orderedKeys.map((key) => toCsvValue(row[key])).join(delimiter)).join('\n')
 
   return `${header}\n${body}`
 }
@@ -385,9 +387,7 @@ export async function loadRecentMonitorRows(): Promise<AqmapMonitorRow[]> {
 }
 
 export function sanitizeRecentRows(rows: AqmapMonitorRow[], datasetName?: string): AqmapMonitorRow[] {
-  const completeRows = rows
-    .map(toCanonicalRecentRow)
-    .filter(isCompleteRecentRow)
+  const completeRows = rows.map(toCanonicalRecentRow).filter(isCompleteRecentRow)
 
   if (datasetName !== 'meta') return completeRows
 
@@ -422,11 +422,13 @@ function toCanonicalRecentRow(row: AqmapMonitorRow): AqmapMonitorRow {
 }
 
 function isCompleteRecentRow(row: AqmapMonitorRow): boolean {
-  return Boolean(row.site_id)
-    && Boolean(row.network)
-    && Number.isFinite(row.lat)
-    && Number.isFinite(row.lng)
-    && Boolean(row.date_last_obs)
+  return (
+    Boolean(row.site_id) &&
+    Boolean(row.network) &&
+    Number.isFinite(row.lat) &&
+    Number.isFinite(row.lng) &&
+    Boolean(row.date_last_obs)
+  )
 }
 
 export function toGeoJson(rows: AqmapMonitorRow[]) {
@@ -481,7 +483,9 @@ export function applyNetworkFilter(rows: AqmapMonitorRow[], network?: string | n
 
   const allowedSet = new Set(allowed.map((value) => value.toLowerCase()))
   return rows.filter((row) => {
-    const monitorNetwork = String(row.network ?? '').trim().toLowerCase()
+    const monitorNetwork = String(row.network ?? '')
+      .trim()
+      .toLowerCase()
     return allowedSet.has(monitorNetwork)
   })
 }

@@ -1,10 +1,5 @@
 import { formatDate } from '../shared'
-import {
-  WATER_BOUNDARY_METRIC_OPTIONS,
-  WATER_DATE_MAX_YEAR,
-  WATER_DATE_MIN_YEAR,
-  WATER_MONTH_INDEX,
-} from './constants'
+import { WATER_BOUNDARY_METRIC_OPTIONS, WATER_DATE_MAX_YEAR, WATER_DATE_MIN_YEAR, WATER_MONTH_INDEX } from './constants'
 import type {
   BoundaryFeatureCollection,
   BoundaryLevelConfig,
@@ -103,7 +98,17 @@ export function findArray(data: unknown, keys: string[]): Record<string, unknown
 export function collectRows(data: unknown, keys: string[]): Record<string, unknown>[] {
   const rows: Record<string, unknown>[] = []
   const seen = new Set<Record<string, unknown>>()
-  const rowKeys = ['sampledate', 'sample_date', 'collectiondate', 'collection_date', 'resultdate', 'result_date', 'parameter', 'analyte', 'result']
+  const rowKeys = [
+    'sampledate',
+    'sample_date',
+    'collectiondate',
+    'collection_date',
+    'resultdate',
+    'result_date',
+    'parameter',
+    'analyte',
+    'result',
+  ]
 
   function looksLikeRow(record: Record<string, unknown>): boolean {
     const recordKeys = Object.keys(record).map((key) => key.toLowerCase())
@@ -143,19 +148,46 @@ export function collectRows(data: unknown, keys: string[]): Record<string, unkno
 
 export function normalizeFacility(record: Record<string, unknown>, index: number): WaterFacility | null {
   const latitude = firstNumber(record, ['latitude', 'lat', 'facilityLatitude', 'facility_latitude', 'gpsLatitude', 'y'])
-  const longitude = firstNumber(record, ['longitude', 'lon', 'lng', 'facilityLongitude', 'facility_longitude', 'gpsLongitude', 'x'])
+  const longitude = firstNumber(record, [
+    'longitude',
+    'lon',
+    'lng',
+    'facilityLongitude',
+    'facility_longitude',
+    'gpsLongitude',
+    'x',
+  ])
   const validLatitude = latitude != null && Math.abs(latitude) <= 90 ? latitude : null
   const validLongitude = longitude != null && Math.abs(longitude) <= 180 ? longitude : null
-  const hazardRating = firstString(record, ['current_hazard_rating', 'hazard_rating', 'hazardRating', 'hazard'], 'Unknown')
+  const hazardRating = firstString(
+    record,
+    ['current_hazard_rating', 'hazard_rating', 'hazardRating', 'hazard'],
+    'Unknown',
+  )
   return {
-    id: firstString(record, ['facilityId', 'facility_id', 'pwsid', 'waterSystemNumber', 'water_system_number', 'details_url', 'id'], `facility-${index}`),
-    name: firstString(record, ['facilityName', 'facility_name', 'waterSystemName', 'water_system_name', 'name'], `Facility ${index + 1}`),
+    id: firstString(
+      record,
+      ['facilityId', 'facility_id', 'pwsid', 'waterSystemNumber', 'water_system_number', 'details_url', 'id'],
+      `facility-${index}`,
+    ),
+    name: firstString(
+      record,
+      ['facilityName', 'facility_name', 'waterSystemName', 'water_system_name', 'name'],
+      `Facility ${index + 1}`,
+    ),
     operator: firstString(record, ['operator', 'owner', 'supplierName', 'supplier_name']),
     type: firstString(record, ['facilityType', 'facility_type', 'waterSystemType', 'water_system_type', 'type']),
     status: firstString(record, ['status', 'facilityStatus', 'facility_status']),
     hazardRating,
     address: firstString(record, ['address', 'physicalAddress', 'physical_address', 'facility_location', 'location']),
-    community: firstString(record, ['community', 'city', 'locality', 'location_summary', 'servingArea', 'serving_area']),
+    community: firstString(record, [
+      'community',
+      'city',
+      'locality',
+      'location_summary',
+      'servingArea',
+      'serving_area',
+    ]),
     latitude: validLatitude,
     longitude: validLongitude,
     bacteriologicalSamples: 0,
@@ -166,14 +198,43 @@ export function normalizeFacility(record: Record<string, unknown>, index: number
   }
 }
 
-export function normalizeSample(record: Record<string, unknown>, index: number, kind: WaterSampleRow['kind']): WaterSampleRow {
+export function normalizeSample(
+  record: Record<string, unknown>,
+  index: number,
+  kind: WaterSampleRow['kind'],
+): WaterSampleRow {
   const parameter = firstString(record, ['parameter', 'analyte', 'type', 'test', 'testName', 'test_name'])
   return {
     id: firstString(record, ['sampleId', 'sample_id', 'resultId', 'result_id', 'id'], `${kind}-${index}`),
-    facilityId: firstString(record, ['facilityId', 'facility_id', 'pwsid', 'waterSystemNumber', 'water_system_number', 'systemId', 'system_id', 'details_url']),
-    facilityName: firstString(record, ['facilityName', 'facility_name', 'waterSystemName', 'water_system_name', 'name']),
+    facilityId: firstString(record, [
+      'facilityId',
+      'facility_id',
+      'pwsid',
+      'waterSystemNumber',
+      'water_system_number',
+      'systemId',
+      'system_id',
+      'details_url',
+    ]),
+    facilityName: firstString(record, [
+      'facilityName',
+      'facility_name',
+      'waterSystemName',
+      'water_system_name',
+      'name',
+    ]),
     kind,
-    date: firstDate(record, ['sampleDate', 'sample_date', 'collectionDate', 'collection_date', 'dateSampled', 'date_sampled', 'resultDate', 'result_date', 'date']),
+    date: firstDate(record, [
+      'sampleDate',
+      'sample_date',
+      'collectionDate',
+      'collection_date',
+      'dateSampled',
+      'date_sampled',
+      'resultDate',
+      'result_date',
+      'date',
+    ]),
     parameter: parameter || (kind === 'bacteriological' ? 'Bacteriological' : ''),
     result: firstString(record, ['result', 'value', 'resultValue', 'result_value', 'interpretation']),
     source: record,
@@ -182,17 +243,49 @@ export function normalizeSample(record: Record<string, unknown>, index: number, 
 
 export function normalizeNotice(record: Record<string, unknown>, index: number): WaterNoticeRow {
   const latitude = firstNumber(record, ['latitude', 'lat', 'facilityLatitude', 'facility_latitude', 'gpsLatitude', 'y'])
-  const longitude = firstNumber(record, ['longitude', 'lon', 'lng', 'facilityLongitude', 'facility_longitude', 'gpsLongitude', 'x'])
+  const longitude = firstNumber(record, [
+    'longitude',
+    'lon',
+    'lng',
+    'facilityLongitude',
+    'facility_longitude',
+    'gpsLongitude',
+    'x',
+  ])
   const validLatitude = latitude != null && Math.abs(latitude) <= 90 ? latitude : null
   const validLongitude = longitude != null && Math.abs(longitude) <= 180 ? longitude : null
 
   return {
     id: firstString(record, ['noticeId', 'notice_id', 'id'], `notice-${index}`),
-    facilityId: firstString(record, ['facilityId', 'facility_id', 'pwsid', 'waterSystemNumber', 'water_system_number', 'systemId', 'system_id', 'details_url']),
-    facilityName: firstString(record, ['facilityName', 'facility_name', 'waterSystemName', 'water_system_name', 'name']),
+    facilityId: firstString(record, [
+      'facilityId',
+      'facility_id',
+      'pwsid',
+      'waterSystemNumber',
+      'water_system_number',
+      'systemId',
+      'system_id',
+      'details_url',
+    ]),
+    facilityName: firstString(record, [
+      'facilityName',
+      'facility_name',
+      'waterSystemName',
+      'water_system_name',
+      'name',
+    ]),
     type: firstString(record, ['noticeType', 'notice_type', 'type', 'advisoryType', 'advisory_type'], 'Active notice'),
     status: firstString(record, ['status', 'noticeStatus', 'notice_status'], 'Active'),
-    date: firstDate(record, ['issuedDate', 'issued_date', 'effectiveDate', 'effective_date', 'startDate', 'start_date', 'start_date_iso', 'date']),
+    date: firstDate(record, [
+      'issuedDate',
+      'issued_date',
+      'effectiveDate',
+      'effective_date',
+      'startDate',
+      'start_date',
+      'start_date_iso',
+      'date',
+    ]),
     latitude: validLatitude,
     longitude: validLongitude,
     locationSummary: firstString(record, ['location_summary', 'community', 'city', 'locality']),
@@ -262,7 +355,10 @@ export function getFacilitySampleTotal(facility: WaterFacility): number {
   return facility.bacteriologicalSamples + facility.chemicalResults
 }
 
-export function getBoundaryMetricValue(properties: WaterBoundaryAggregateProperties, metric: WaterBoundaryMetric): number {
+export function getBoundaryMetricValue(
+  properties: WaterBoundaryAggregateProperties,
+  metric: WaterBoundaryMetric,
+): number {
   if (metric === 'facilities') return properties.facilityCount
   if (metric === 'sampleRows') return properties.sampleRows
   if (metric === 'activeNotices') return properties.activeNotices
@@ -292,9 +388,10 @@ export function getInspectionRows(facility: WaterFacility): Record<string, unkno
 function getNoticeSourceRecord(record: Record<string, unknown>, sourceName: string): Record<string, unknown> | null {
   const sources = record.sources
   if (!Array.isArray(sources)) return null
-  return sources
-    .filter(isRecord)
-    .find((source) => String(source.source ?? '').toLowerCase() === sourceName.toLowerCase()) ?? null
+  return (
+    sources.filter(isRecord).find((source) => String(source.source ?? '').toLowerCase() === sourceName.toLowerCase()) ??
+    null
+  )
 }
 
 export function getNoticeDetail(notice: WaterNoticeRow, key: string): string {
@@ -303,12 +400,13 @@ export function getNoticeDetail(notice: WaterNoticeRow, key: string): string {
   const rawHealthSpace = isRecord(healthSpaceSource?.raw) ? healthSpaceSource.raw : null
   const rawWaterToday = isRecord(waterTodaySource?.raw) ? waterTodaySource.raw : null
   const noticeDetails = isRecord(notice.source.notice_details) ? notice.source.notice_details : null
-  const value = notice.source[key]
-    ?? healthSpaceSource?.[key]
-    ?? rawHealthSpace?.[key]
-    ?? waterTodaySource?.[key]
-    ?? rawWaterToday?.[key]
-    ?? noticeDetails?.[key]
+  const value =
+    notice.source[key] ??
+    healthSpaceSource?.[key] ??
+    rawHealthSpace?.[key] ??
+    waterTodaySource?.[key] ??
+    rawWaterToday?.[key] ??
+    noticeDetails?.[key]
   return typeof value === 'string' ? value.trim() : ''
 }
 
@@ -325,17 +423,22 @@ function getBoundaryName(properties: GeoJSON.GeoJsonProperties | undefined, conf
   return String(properties?.[config.nameField] ?? properties?.name ?? properties?.NAME ?? 'Boundary')
 }
 
-export function prepareBoundaries(data: BoundaryFeatureCollection | null, config: BoundaryLevelConfig): BoundaryFeatureCollection {
+export function prepareBoundaries(
+  data: BoundaryFeatureCollection | null,
+  config: BoundaryLevelConfig,
+): BoundaryFeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: (data?.features ?? []).filter((feature) => feature.geometry).map((feature, index) => ({
-      ...feature,
-      id: String(feature.properties?.[config.idField] ?? feature.id ?? index),
-      properties: {
-        ...feature.properties,
-        boundaryId: String(feature.properties?.[config.idField] ?? feature.id ?? index),
-        boundaryName: getBoundaryName(feature.properties, config),
-      },
-    })),
+    features: (data?.features ?? [])
+      .filter((feature) => feature.geometry)
+      .map((feature, index) => ({
+        ...feature,
+        id: String(feature.properties?.[config.idField] ?? feature.id ?? index),
+        properties: {
+          ...feature.properties,
+          boundaryId: String(feature.properties?.[config.idField] ?? feature.id ?? index),
+          boundaryName: getBoundaryName(feature.properties, config),
+        },
+      })),
   }
 }

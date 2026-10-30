@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useKeyedState } from './useKeyedState'
 import treeUrl from './treeIsolation.generated.json?url'
 import { readSourceGrid, sourceCell, sourceValue, toMetric } from './sourceGrids'
 import { crownCells, type TreeIsolation, type CrownFeature, type TreeCrop } from './treeIsolation'
 export { treeUrl }
 export function useTreeIsolation(enabled: boolean, base: string, hash: string) {
   const [data, setData] = useState<TreeIsolation | null>(null),
-    [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0)
+  const requestKey = JSON.stringify([base, hash, attempt])
+  const [error, setError] = useKeyedState(requestKey, () => '', enabled && !!hash)
   useEffect(() => {
     if (!enabled || !hash) return
     let active = true
     const abort = new AbortController(),
       timeout = setTimeout(() => abort.abort(), 30000)
-    setError('')
     Promise.all([
       fetch(treeUrl, { signal: abort.signal }),
       fetch(new URL('checksums.json', base), { signal: abort.signal }),
@@ -36,7 +37,7 @@ export function useTreeIsolation(enabled: boolean, base: string, hash: string) {
       abort.abort()
       clearTimeout(timeout)
     }
-  }, [enabled, base, hash, attempt])
+  }, [enabled, base, hash, attempt, setError])
   return { data, error, retry: () => setAttempt((n) => n + 1) }
 }
 export async function isolateTreeReturns(
@@ -142,14 +143,15 @@ export function useTreeCrop(
   base: string,
   cloudUrl: string,
 ) {
-  const [crop, setCrop] = useState<TreeCrop | null>(null),
-    [status, setStatus] = useState(''),
-    [error, setError] = useState(''),
-    [attempt, setAttempt] = useState(0)
+  const [attempt, setAttempt] = useState(0)
+  const requestKey = useMemo(
+    () => [data, crown, enabled, base, cloudUrl, attempt],
+    [data, crown, enabled, base, cloudUrl, attempt],
+  )
+  const [crop, setCrop] = useKeyedState<TreeCrop | null>(requestKey, () => null)
+  const [status, setStatus] = useKeyedState(requestKey, () => '')
+  const [error, setError] = useKeyedState(requestKey, () => '')
   useEffect(() => {
-    setCrop(null)
-    setError('')
-    setStatus('')
     if (!enabled || !data || !crown) return
     let active = true
     const abort = new AbortController(),
@@ -172,6 +174,6 @@ export function useTreeCrop(
       abort.abort()
       clearTimeout(timer)
     }
-  }, [data, crown, enabled, base, cloudUrl, attempt])
+  }, [data, crown, enabled, base, cloudUrl, attempt, setCrop, setStatus, setError])
   return { crop, status, error, retry: () => setAttempt((n) => n + 1) }
 }

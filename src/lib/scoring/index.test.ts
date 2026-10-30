@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  calculateCoverage,
-  extractDrivers,
-  normalizeValues,
-  runSensitivityTrials,
-  scoreRecords,
-} from './index'
+import { calculateCoverage, extractDrivers, normalizeValues, runSensitivityTrials, scoreRecords } from './index'
 import type {
   MetricScore,
   NormalizationOptions,

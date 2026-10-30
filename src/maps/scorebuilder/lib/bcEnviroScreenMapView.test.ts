@@ -9,12 +9,7 @@ import {
   getBcEnviroScreenMapValue,
 } from './bcEnviroScreenMapView'
 
-function region(
-  id: string,
-  score: number,
-  indicator: number,
-  missingIndicators: string[] = [],
-): ScoredBoundaryRegion {
+function region(id: string, score: number, indicator: number, missingIndicators: string[] = []): ScoredBoundaryRegion {
   return {
     region: { id },
     score,

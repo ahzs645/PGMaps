@@ -8,7 +8,10 @@ const graph = JSON.parse(
   readFileSync(new URL('../../../../public/data/acknowledgement/relationship-graph.json', import.meta.url), 'utf8'),
 ) as RelationshipGraph
 const communities = JSON.parse(
-  readFileSync(new URL('../../../../public/data/indigenous/first_nation_community_locations.geojson', import.meta.url), 'utf8'),
+  readFileSync(
+    new URL('../../../../public/data/indigenous/first_nation_community_locations.geojson', import.meta.url),
+    'utf8',
+  ),
 ) as GeoJSON.FeatureCollection
 const canonicalize = createNationResolver(graph)
 const canonicalizeWithGis = createNationResolver(graph, communities.features)
@@ -42,38 +45,56 @@ describe('createNationResolver', () => {
     expect(canonicalize('Wei Wai Kum')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('We Wai Kai')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('shíshálh Nation')).toMatchObject({ status: 'nation', inGraph: false })
-    expect(canonicalize('ƛaʔuukʷiʔatḥ (Tla-o-qui-aht First Nation)')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize('ƛaʔuukʷiʔatḥ (Tla-o-qui-aht First Nation)')).toMatchObject({
+      status: 'nation',
+      inGraph: false,
+    })
     expect(canonicalize('q̓ic̓əy̓ (Katzie) First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('W̱JOȽEȽP (Tsartlip)')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('SȾÁUTW̱ (Tsawout)')).toMatchObject({ status: 'nation', inGraph: false })
-    expect(canonicalize('xʷsepsəm (Kosapsum) Nation')).toMatchObject({ status: 'nation', inGraph: true, id: 'esquimalt' })
+    expect(canonicalize('xʷsepsəm (Kosapsum) Nation')).toMatchObject({
+      status: 'nation',
+      inGraph: true,
+      id: 'esquimalt',
+    })
     expect(canonicalize('Yuułuʔiłʔatḥ')).toMatchObject({ status: 'nation', inGraph: false })
-    expect(canonicalize('Quw\'utsun First Nation')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize("Quw'utsun First Nation")).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Cowichan Tribes')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Halalt First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Lyackson First Nation')).toMatchObject({ status: 'nation', inGraph: false })
-    expect(canonicalize('Ts\'uubaa-asatx Nation')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize("Ts'uubaa-asatx Nation")).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Ditidaht First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Ehattesaht/Chinehkint First Nation')).toMatchObject({ status: 'nation', inGraph: false })
-    expect(canonicalize('Ka:\'yu:\'k\'t\'h\'/Che:k\'tles7et\'h\' First Nations')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize("Ka:'yu:'k't'h'/Che:k'tles7et'h' First Nations")).toMatchObject({
+      status: 'nation',
+      inGraph: false,
+    })
     expect(canonicalize('Kwiakah First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Mowachaht/Muchalaht First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Nuchatlaht First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Tlowitsis Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Southern Dakelh')).toMatchObject({ status: 'people-group', inGraph: false })
-    expect(canonicalize('Tsilhqot\'in')).toMatchObject({ status: 'people-group' })
+    expect(canonicalize("Tsilhqot'in")).toMatchObject({ status: 'people-group' })
     expect(canonicalize('Secwepemc')).toMatchObject({ status: 'people-group' })
-    expect(canonicalize('Lheidli T\'enneh First Nation')).toMatchObject({ status: 'nation', inGraph: true, id: 'lheidli-tenneh' })
+    expect(canonicalize("Lheidli T'enneh First Nation")).toMatchObject({
+      status: 'nation',
+      inGraph: true,
+      id: 'lheidli-tenneh',
+    })
     expect(canonicalize('kʷikʷəƛ̓əm (Kwikwetlem) First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('q̓ʷɑ:n̓ƛ̓ən̓ (Kwantlen) First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Máthxwi (Matsqui) First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('se’mya’me (Semiahmoo) First Nation')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Sḵwx̱wú7mesh Úxwumixw')).toMatchObject({ status: 'nation', inGraph: true, id: 'squamish' })
-    expect(canonicalize('səlilwətaɬ (Tsleil-Waututh)')).toMatchObject({ status: 'nation', inGraph: true, id: 'tsleil-waututh' })
+    expect(canonicalize('səlilwətaɬ (Tsleil-Waututh)')).toMatchObject({
+      status: 'nation',
+      inGraph: true,
+      id: 'tsleil-waututh',
+    })
     expect(canonicalize('Tk̓emlúps te Secwépemc')).toMatchObject({ status: 'nation', inGraph: false })
     expect(canonicalize('Lhtako Dene Nation')).toMatchObject({ status: 'nation', inGraph: true })
     expect(canonicalize('Nazko First Nation')).toMatchObject({ status: 'nation', inGraph: true })
-    expect(canonicalize('Lhoosk\'uz Dené Nation')).toMatchObject({ status: 'nation', inGraph: true })
+    expect(canonicalize("Lhoosk'uz Dené Nation")).toMatchObject({ status: 'nation', inGraph: true })
     expect(canonicalize('ʔEsdilagh First Nation')).toMatchObject({ status: 'nation', inGraph: true })
     expect(canonicalize('Nanoose First Nation')).toMatchObject({ status: 'nation', inGraph: false })
   })

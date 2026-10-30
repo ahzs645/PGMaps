@@ -5,7 +5,16 @@ import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { InlineAlert, LegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  LegendItem,
+  MapLegendNote,
+  MapSizeLegend,
+  SelectedItemCard,
+  SidebarSection,
+  StatGrid,
+  ToggleChip,
+} from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -83,7 +92,20 @@ const RECENT_YEARS = 'recent'
 // Temporarily hide recurrent sites, including when requested by an older URL.
 const WARS_HOTSPOTS_ENABLED = false
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 
 // ~1 km bins at Prince George's latitude, used to find recurrent-strike sites.
@@ -137,12 +159,18 @@ const SPECIES_FALLBACK_COLORS = ['#0891b2', '#65a30d', '#db2777', '#0369a1', '#c
 const WINTER_RANGE_SOURCE_COLOR = [
   'match',
   ['slice', ['upcase', ['to-string', ['get', 'SPECIES_1']]], 0, 6],
-  'M-ALAM', '#92400e',
-  'M-ODHE', '#d97706',
-  'M-RATA', '#0d9488',
-  'M-ORAM', '#0369a1',
-  'M-OVCA', '#7c3aed',
-  'M-CEEL', '#dc2626',
+  'M-ALAM',
+  '#92400e',
+  'M-ODHE',
+  '#d97706',
+  'M-RATA',
+  '#0d9488',
+  'M-ORAM',
+  '#0369a1',
+  'M-OVCA',
+  '#7c3aed',
+  'M-CEEL',
+  '#dc2626',
   '#64748b',
 ]
 
@@ -252,10 +280,13 @@ export function useWarsData(
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
-  disableTimeline,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    disableTimeline,
   } = useTimelineState(1)
   const winterRangeMode = parseWinterRangeMode(initialWinterRangeMode)
   const [winterRangeSelection, setWinterRangeSelection] = useState<{
@@ -264,12 +295,14 @@ export function useWarsData(
     properties: WinterRangeProperties | null
   }>({ mode: winterRangeMode, id: null, properties: null })
   const selectedWinterRangeId = winterRangeSelection.mode === winterRangeMode ? winterRangeSelection.id : null
-  const clickedWinterRangeProperties = winterRangeSelection.mode === winterRangeMode
-    ? winterRangeSelection.properties
-    : null
-  const setSelectedWinterRangeId = useCallback((id: string | null) => {
-    setWinterRangeSelection({ mode: winterRangeMode, id, properties: null })
-  }, [winterRangeMode])
+  const clickedWinterRangeProperties =
+    winterRangeSelection.mode === winterRangeMode ? winterRangeSelection.properties : null
+  const setSelectedWinterRangeId = useCallback(
+    (id: string | null) => {
+      setWinterRangeSelection({ mode: winterRangeMode, id, properties: null })
+    },
+    [winterRangeMode],
+  )
   const manifest = useJsonManifest<WarsManifest>(active ? '/data/wars/manifest.json' : null)
   const crashes = useJsonManifest<WarsFeatureCollection>(active && manifest.data ? manifest.data.geojson : null)
   const features = useMemo(() => crashes.data?.features ?? [], [crashes.data])
@@ -285,16 +318,19 @@ export function useWarsData(
   }, [])
   // Hiding the layer has to drop its selection too, or re-enabling it would
   // restore a highlight for a polygon the user can no longer see.
-  const setShowWinterRange = useCallback((next: boolean) => {
-    setShowWinterRangeState(next)
-    if (!next) {
-      setWinterRangeSelection({ mode: winterRangeMode, id: null, properties: null })
-    }
-  }, [winterRangeMode])
+  const setShowWinterRange = useCallback(
+    (next: boolean) => {
+      setShowWinterRangeState(next)
+      if (!next) {
+        setWinterRangeSelection({ mode: winterRangeMode, id: null, properties: null })
+      }
+    },
+    [winterRangeMode],
+  )
   const toggleMonth = useCallback((month: number) => {
-    setSelectedMonths((current) => (
-      current.includes(month) ? current.filter((item) => item !== month) : [...current, month]
-    ))
+    setSelectedMonths((current) =>
+      current.includes(month) ? current.filter((item) => item !== month) : [...current, month],
+    )
     setSelectedId(null)
   }, [])
   const clearMonths = useCallback(() => {
@@ -304,13 +340,15 @@ export function useWarsData(
   const yearEnd = manifest.data?.yearEnd ?? null
   const recentYearStart = yearEnd == null ? null : yearEnd - 9
 
-  const speciesFilteredFeatures = useMemo(() => (
-    features.filter((feature) => {
-      const species = feature.properties.species || 'Unknown'
-      if (hiddenSpecies.includes(species)) return false
-      return selectedSpecies === ALL_SPECIES || species === selectedSpecies
-    })
-  ), [features, hiddenSpecies, selectedSpecies])
+  const speciesFilteredFeatures = useMemo(
+    () =>
+      features.filter((feature) => {
+        const species = feature.properties.species || 'Unknown'
+        if (hiddenSpecies.includes(species)) return false
+        return selectedSpecies === ALL_SPECIES || species === selectedSpecies
+      }),
+    [features, hiddenSpecies, selectedSpecies],
+  )
 
   const baseFilteredFeatures = useMemo(() => {
     if (yearMode !== RECENT_YEARS || recentYearStart == null) return speciesFilteredFeatures
@@ -427,10 +465,13 @@ export function useWarsData(
       if (yearMode === RECENT_YEARS && recentYearStart != null) return feature.properties.year >= recentYearStart
       return true
     })
-    const monthFiltered = selectedMonths.length === 0 ? yearFiltered : yearFiltered.filter((feature) => {
-      const month = getAccidentMonth(feature.properties)
-      return month != null && selectedMonths.includes(month)
-    })
+    const monthFiltered =
+      selectedMonths.length === 0
+        ? yearFiltered
+        : yearFiltered.filter((feature) => {
+            const month = getAccidentMonth(feature.properties)
+            return month != null && selectedMonths.includes(month)
+          })
     if (!timelineFilterRange) return monthFiltered
     const { start, end } = timelineFilterRange
     return monthFiltered.filter((feature) => {
@@ -441,13 +482,10 @@ export function useWarsData(
     })
   }, [features, recentYearStart, selectedMonths, timelineFilterRange, yearMode])
 
-
   const toggleSpeciesVisibility = useCallback((species: string) => {
-    setHiddenSpecies((current) => (
-      current.includes(species)
-        ? current.filter((item) => item !== species)
-        : [...current, species]
-    ))
+    setHiddenSpecies((current) =>
+      current.includes(species) ? current.filter((item) => item !== species) : [...current, species],
+    )
   }, [])
 
   const selectedCrash = useMemo(() => {
@@ -455,9 +493,10 @@ export function useWarsData(
     return filteredFeatures.find((feature, index) => getWarsFeatureKey(feature, index) === selectedId) ?? null
   }, [filteredFeatures, selectedId])
 
-  const totalQuantity = useMemo(() => (
-    filteredFeatures.reduce((sum, feature) => sum + (Number(feature.properties.quantity) || 0), 0)
-  ), [filteredFeatures])
+  const totalQuantity = useMemo(
+    () => filteredFeatures.reduce((sum, feature) => sum + (Number(feature.properties.quantity) || 0), 0),
+    [filteredFeatures],
+  )
 
   const speciesBreakdown = useMemo(() => {
     const counts = new Map<string, number>()
@@ -544,29 +583,36 @@ export function useWarsData(
 
   // Descending copy for the sidebar ranking; `hotspotCells` stays ascending so
   // the most recurrent rings draw on top of the quieter ones.
-  const rankedHotspots = useMemo(() => (
-    [...hotspotCells]
-      .sort((a, b) => (b.yearCount - a.yearCount) || (b.recordCount - a.recordCount))
-      .slice(0, HOTSPOT_LIST_LIMIT)
-  ), [hotspotCells])
+  const rankedHotspots = useMemo(
+    () =>
+      [...hotspotCells]
+        .sort((a, b) => b.yearCount - a.yearCount || b.recordCount - a.recordCount)
+        .slice(0, HOTSPOT_LIST_LIMIT),
+    [hotspotCells],
+  )
 
-  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: filteredFeatures.map((feature) => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        weight: Math.max(1, Number(feature.properties.quantity) || 1),
-      },
-    })),
-  }), [filteredFeatures])
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: filteredFeatures.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          weight: Math.max(1, Number(feature.properties.quantity) || 1),
+        },
+      })),
+    }),
+    [filteredFeatures],
+  )
 
-  const winterRangePoints = useMemo<WinterRangePoint[]>(() => (
-    filteredFeatures.map((feature) => {
-      const [longitude, latitude] = feature.geometry.coordinates
-      return [longitude, latitude]
-    })
-  ), [filteredFeatures])
+  const winterRangePoints = useMemo<WinterRangePoint[]>(
+    () =>
+      filteredFeatures.map((feature) => {
+        const [longitude, latitude] = feature.geometry.coordinates
+        return [longitude, latitude]
+      }),
+    [filteredFeatures],
+  )
   const winterRange = useWarsWinterRange(active && showWinterRange, winterRangePoints, winterRangeMode)
 
   const selectedWinterRange = useMemo(() => {
@@ -578,16 +624,20 @@ export function useWarsData(
     return winterRange.data.features.find((feature) => feature.properties.key === selectedWinterRangeId) ?? null
   }, [clickedWinterRangeProperties, selectedWinterRangeId, winterRange.data, winterRangeMode])
 
-  const toggleWinterRangeSelection = useCallback((key: string, properties?: Record<string, unknown>) => {
-    const isSelecting = selectedWinterRangeId !== key
-    setWinterRangeSelection({
-      mode: winterRangeMode,
-      id: isSelecting ? key : null,
-      properties: isSelecting && winterRangeMode === 'blob' && properties
-        ? winterRangePropertiesFromSource(properties, key)
-        : null,
-    })
-  }, [selectedWinterRangeId, winterRangeMode])
+  const toggleWinterRangeSelection = useCallback(
+    (key: string, properties?: Record<string, unknown>) => {
+      const isSelecting = selectedWinterRangeId !== key
+      setWinterRangeSelection({
+        mode: winterRangeMode,
+        id: isSelecting ? key : null,
+        properties:
+          isSelecting && winterRangeMode === 'blob' && properties
+            ? winterRangePropertiesFromSource(properties, key)
+            : null,
+      })
+    },
+    [selectedWinterRangeId, winterRangeMode],
+  )
 
   /**
    * Designated winter range is a legal forestry boundary, not a habitat model,
@@ -665,25 +715,14 @@ export type WarsState = ReturnType<typeof useWarsData>
 export function WarsLayerControls({ wars }: { wars: WarsState }) {
   return (
     <div className="flex items-center gap-1.5">
-      <ToggleChip
-        active={wars.showPoints}
-        onClick={() => wars.setShowPoints(!wars.showPoints)}
-      >
+      <ToggleChip active={wars.showPoints} onClick={() => wars.setShowPoints(!wars.showPoints)}>
         Points
       </ToggleChip>
-      <ToggleChip
-        active={wars.showHeatmap}
-        onClick={() => wars.setShowHeatmap(!wars.showHeatmap)}
-        tone="orange"
-      >
+      <ToggleChip active={wars.showHeatmap} onClick={() => wars.setShowHeatmap(!wars.showHeatmap)} tone="orange">
         Heatmap
       </ToggleChip>
       {WARS_HOTSPOTS_ENABLED && (
-        <ToggleChip
-          active={wars.showHotspots}
-          onClick={() => wars.setShowHotspots(!wars.showHotspots)}
-          tone="rose"
-        >
+        <ToggleChip active={wars.showHotspots} onClick={() => wars.setShowHotspots(!wars.showHotspots)} tone="rose">
           Hotspots
         </ToggleChip>
       )}
@@ -742,7 +781,9 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
       </div>
       <div className="mt-1 flex gap-[3px] text-center text-[10px] text-muted-foreground">
         {MONTH_INITIALS.map((initial, month) => (
-          <span key={month} className="flex-1">{initial}</span>
+          <span key={month} className="flex-1">
+            {initial}
+          </span>
         ))}
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">Click months to filter the map.</p>
@@ -764,15 +805,22 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
   }
   const firstYear = series[0].year
   const lastYear = series[series.length - 1].year
-  const monthNote = wars.selectedMonths.length > 0
-    ? ` (${wars.selectedMonths.slice().sort((a, b) => a - b).map((month) => MONTH_INITIALS[month]).join('')} only)`
-    : ''
+  const monthNote =
+    wars.selectedMonths.length > 0
+      ? ` (${wars.selectedMonths
+          .slice()
+          .sort((a, b) => a - b)
+          .map((month) => MONTH_INITIALS[month])
+          .join('')} only)`
+      : ''
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-foreground">Records by year{monthNote}</span>
-        <span className="text-[11px] text-muted-foreground">{firstYear}-{lastYear}</span>
+        <span className="text-[11px] text-muted-foreground">
+          {firstYear}-{lastYear}
+        </span>
       </div>
       <div className="mt-1.5 flex h-16 items-end gap-px">
         {series.map((entry) => {
@@ -785,10 +833,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
               className="flex h-full flex-1 items-end"
             >
               <span
-                className={cn(
-                  'block w-full rounded-sm bg-sky-600 dark:bg-sky-500',
-                  dimmed && 'opacity-25',
-                )}
+                className={cn('block w-full rounded-sm bg-sky-600 dark:bg-sky-500', dimmed && 'opacity-25')}
                 style={{ height: `${height}%` }}
               />
             </span>
@@ -796,7 +841,8 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
         })}
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        Counts follow reporting effort as well as collision rates, so read year-to-year changes as trends in what was recorded.
+        Counts follow reporting effort as well as collision rates, so read year-to-year changes as trends in what was
+        recorded.
       </p>
     </div>
   )
@@ -889,19 +935,14 @@ function WarsWinterRangeNotes({ wars }: { wars: WarsState }) {
   )
 }
 
-export function WarsSidebar({
-  wars,
-  showSelectedRecord = true,
-}: {
-  wars: WarsState
-  showSelectedRecord?: boolean
-}) {
+export function WarsSidebar({ wars, showSelectedRecord = true }: { wars: WarsState; showSelectedRecord?: boolean }) {
   const manifest = wars.manifest.data
-  const yearLabel = wars.yearMode === RECENT_YEARS && wars.recentYearStart && manifest?.yearEnd
-    ? `${wars.recentYearStart}-${manifest.yearEnd}`
-    : manifest?.yearStart && manifest.yearEnd
-      ? `${manifest.yearStart}-${manifest.yearEnd}`
-      : 'All years'
+  const yearLabel =
+    wars.yearMode === RECENT_YEARS && wars.recentYearStart && manifest?.yearEnd
+      ? `${wars.recentYearStart}-${manifest.yearEnd}`
+      : manifest?.yearStart && manifest.yearEnd
+        ? `${manifest.yearStart}-${manifest.yearEnd}`
+        : 'All years'
 
   return (
     <>
@@ -909,17 +950,16 @@ export function WarsSidebar({
         title="Wildlife Accident Records"
         icon={PawPrint}
         iconClassName="text-amber-700"
-        actions={(
-          <ToggleChip
-            active={wars.timelineEnabled}
-            onClick={() => wars.setTimelineEnabled(!wars.timelineEnabled)}
-          >
+        actions={
+          <ToggleChip active={wars.timelineEnabled} onClick={() => wars.setTimelineEnabled(!wars.timelineEnabled)}>
             Timeline
           </ToggleChip>
-        )}
+        }
       >
         <div className="space-y-3">
-          {wars.showHeatmap && <WarsHeatmapControls settings={wars.heatmapSettings} onChange={wars.setHeatmapSettings} />}
+          {wars.showHeatmap && (
+            <WarsHeatmapControls settings={wars.heatmapSettings} onChange={wars.setHeatmapSettings} />
+          )}
           <label className="block text-xs font-medium text-foreground">
             Species
             <AppSelect
@@ -991,7 +1031,10 @@ export function WarsSidebar({
             subtitle={wars.selectedWinterRange.properties.label}
             onClear={() => wars.setSelectedWinterRangeId(null)}
             rows={[
-              { label: 'Area', value: formatWinterRangeHectares(wars.selectedWinterRange.properties.hectares) || 'Unknown' },
+              {
+                label: 'Area',
+                value: formatWinterRangeHectares(wars.selectedWinterRange.properties.hectares) || 'Unknown',
+              },
               { label: 'Harvest zone', value: wars.selectedWinterRange.properties.harvestCode || 'Not recorded' },
               { label: 'Species code', value: wars.selectedWinterRange.properties.speciesCode },
             ]}
@@ -1079,7 +1122,10 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
   return (
     <>
       <p>WARS extracts updated {formatDate(wars.manifest.data?.generatedAt)}.</p>
-      <p>{wars.manifest.data?.sourceCitation ?? 'BC Ministry of Transportation and Transit Wildlife Accident Reporting System.'}</p>
+      <p>
+        {wars.manifest.data?.sourceCitation ??
+          'BC Ministry of Transportation and Transit Wildlife Accident Reporting System.'}
+      </p>
       <p>
         Records cover the Ministry's whole Northern Region (service areas 18-28), not just the Prince George area: Haida
         Gwaii, Prince Rupert and Stewart in the west, east to the Alberta border past Dawson Creek, north to Atlin and
@@ -1139,7 +1185,9 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
             bandIndex: bandIndexBySpecies.get(species) ?? 0,
             featureKey: getWarsFeatureKey(feature, index),
             spiderTitle: `${species} · ${feature.properties.quantity.toLocaleString()} animal${feature.properties.quantity === 1 ? '' : 's'}`,
-            spiderSubtitle: [feature.properties.accidentDate, feature.properties.nearestTown].filter(Boolean).join(' · '),
+            spiderSubtitle: [feature.properties.accidentDate, feature.properties.nearestTown]
+              .filter(Boolean)
+              .join(' · '),
           },
         }
       }),
@@ -1151,31 +1199,28 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
       <WarsMapFocus wars={wars} />
 
       {/* Rendered before the heatmap and points so the polygons stay underneath. */}
-      {wars.showWinterRange && (
-        typeof wars.winterRange.data === 'string' || wars.winterRange.data.features.length > 0
-      ) && (
-        <MapFillLayer
-          data={wars.winterRange.data}
-          idProperty={wars.winterRangeMode === 'blob' ? 'UNGULATE_WINTER_RANGE_ID' : 'key'}
-          fillColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
-          fillOpacity={0.28}
-          lineColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
-          lineWidth={1}
-          lineOpacity={0.85}
-          selectedId={
-            wars.winterRangeMode === 'blob' && wars.selectedWinterRangeId
-              ? Number(wars.selectedWinterRangeId)
-              : wars.selectedWinterRangeId
-          }
-          selectionWidth={3}
-          onFeatureClick={(key, _event, properties) => wars.toggleWinterRangeSelection(key, properties)}
-          hoverHtml={winterRangeTooltipHtml}
-        />
-      )}
+      {wars.showWinterRange &&
+        (typeof wars.winterRange.data === 'string' || wars.winterRange.data.features.length > 0) && (
+          <MapFillLayer
+            data={wars.winterRange.data}
+            idProperty={wars.winterRangeMode === 'blob' ? 'UNGULATE_WINTER_RANGE_ID' : 'key'}
+            fillColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
+            fillOpacity={0.28}
+            lineColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
+            lineWidth={1}
+            lineOpacity={0.85}
+            selectedId={
+              wars.winterRangeMode === 'blob' && wars.selectedWinterRangeId
+                ? Number(wars.selectedWinterRangeId)
+                : wars.selectedWinterRangeId
+            }
+            selectionWidth={3}
+            onFeatureClick={(key, _event, properties) => wars.toggleWinterRangeSelection(key, properties)}
+            hoverHtml={winterRangeTooltipHtml}
+          />
+        )}
 
-      {wars.showHeatmap && (
-        <WarsHeatmapLayer data={wars.heatmapData} settings={wars.heatmapSettings} />
-      )}
+      {wars.showHeatmap && <WarsHeatmapLayer data={wars.heatmapData} settings={wars.heatmapSettings} />}
 
       {wars.showPoints && (
         <MapPieClusterLayer
@@ -1189,52 +1234,51 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         />
       )}
 
-      {wars.showHotspots && wars.hotspotCells.map((cell) => {
-        const color = getHotspotColor(cell.yearCount)
-        const size = getHotspotSize(cell.yearCount)
-        return (
-          <MapMarker key={cell.key} longitude={cell.longitude} latitude={cell.latitude}>
-            <MarkerContent>
-              {/* pointer-events-none keeps cluster and point clicks working underneath */}
-              <div
-                className="pointer-events-none flex items-center justify-center rounded-full border-2 text-[10px] font-bold"
-                style={{
-                  width: size,
-                  height: size,
-                  borderColor: color,
-                  backgroundColor: `${color}2a`,
-                  color,
-                  textShadow: '0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)',
-                }}
-              >
-                {cell.yearCount}
-              </div>
-            </MarkerContent>
-          </MapMarker>
-        )
-      })}
+      {wars.showHotspots &&
+        wars.hotspotCells.map((cell) => {
+          const color = getHotspotColor(cell.yearCount)
+          const size = getHotspotSize(cell.yearCount)
+          return (
+            <MapMarker key={cell.key} longitude={cell.longitude} latitude={cell.latitude}>
+              <MarkerContent>
+                {/* pointer-events-none keeps cluster and point clicks working underneath */}
+                <div
+                  className="pointer-events-none flex items-center justify-center rounded-full border-2 text-[10px] font-bold"
+                  style={{
+                    width: size,
+                    height: size,
+                    borderColor: color,
+                    backgroundColor: `${color}2a`,
+                    color,
+                    textShadow: '0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)',
+                  }}
+                >
+                  {cell.yearCount}
+                </div>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
 
-      {wars.showPoints && wars.selectedCrash && (() => {
-        const [longitude, latitude] = wars.selectedCrash.geometry.coordinates
-        const size = getWarsMarkerSize(wars.selectedCrash.properties.quantity)
-        const color = getSpeciesColor(wars.selectedCrash.properties.species || 'Unknown')
+      {wars.showPoints &&
+        wars.selectedCrash &&
+        (() => {
+          const [longitude, latitude] = wars.selectedCrash.geometry.coordinates
+          const size = getWarsMarkerSize(wars.selectedCrash.properties.quantity)
+          const color = getSpeciesColor(wars.selectedCrash.properties.species || 'Unknown')
 
-        return (
-          <MapMarker
-            longitude={longitude}
-            latitude={latitude}
-            onClick={() => wars.setSelectedId(null)}
-          >
-            <MarkerContent>
-              <div
-                className="rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
-                style={{ width: size, height: size, backgroundColor: color }}
-                title={`${wars.selectedCrash.properties.species}: ${wars.selectedCrash.properties.accidentDate || wars.selectedCrash.properties.year}`}
-              />
-            </MarkerContent>
-          </MapMarker>
-        )
-      })()}
+          return (
+            <MapMarker longitude={longitude} latitude={latitude} onClick={() => wars.setSelectedId(null)}>
+              <MarkerContent>
+                <div
+                  className="rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
+                  style={{ width: size, height: size, backgroundColor: color }}
+                  title={`${wars.selectedCrash.properties.species}: ${wars.selectedCrash.properties.accidentDate || wars.selectedCrash.properties.year}`}
+                />
+              </MarkerContent>
+            </MapMarker>
+          )
+        })()}
     </>
   )
 }
@@ -1269,8 +1313,8 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
             color="rgb(100 116 139 / 0.6)"
           />
           <MapLegendNote>
-            Numbers count records. Click a ring to zoom or browse overlapping records.
-            Shared coordinates are source locations, not necessarily precise collision sites.
+            Numbers count records. Click a ring to zoom or browse overlapping records. Shared coordinates are source
+            locations, not necessarily precise collision sites.
           </MapLegendNote>
         </>
       )}
@@ -1281,9 +1325,12 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
             {wars.heatmapSettings.scale === 'relative' ? 'Density relative to this view' : 'Fixed density scale'}
           </div>
           <div className="mt-2 text-xs">
-            {wars.heatmapSettings.weighting === 'animals' ? 'Animals involved' : 'Accident records'} across selected species.
-            {wars.heatmapSettings.scale === 'relative' ? ' Colors rescale after moving or filtering.' : ' Compare colors at the same zoom and settings.'}
-            {' '}Density does not measure collision risk.
+            {wars.heatmapSettings.weighting === 'animals' ? 'Animals involved' : 'Accident records'} across selected
+            species.
+            {wars.heatmapSettings.scale === 'relative'
+              ? ' Colors rescale after moving or filtering.'
+              : ' Compare colors at the same zoom and settings.'}{' '}
+            Density does not measure collision risk.
           </div>
         </div>
       )}
@@ -1291,7 +1338,13 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
         <div className={cn((wars.showPoints || wars.showHeatmap) && 'border-t border-border pt-2')}>
           <div className="text-xs font-medium text-foreground">Recurrent sites</div>
           <ul className="mt-1 space-y-1">
-            {([['3-4 years', 3], ['5-9 years', 5], ['10+ years', 10]] as const).map(([label, tier]) => (
+            {(
+              [
+                ['3-4 years', 3],
+                ['5-9 years', 5],
+                ['10+ years', 10],
+              ] as const
+            ).map(([label, tier]) => (
               <li key={label} className="flex items-center gap-2">
                 <span
                   className="h-3.5 w-3.5 shrink-0 rounded-full border-2"
@@ -1307,7 +1360,9 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
         </div>
       )}
       {wars.showWinterRange && (
-        <div className={cn((wars.showPoints || wars.showHeatmap || wars.showHotspots) && 'border-t border-border pt-2')}>
+        <div
+          className={cn((wars.showPoints || wars.showHeatmap || wars.showHotspots) && 'border-t border-border pt-2')}
+        >
           <div className="text-xs font-medium text-foreground">Ungulate winter range</div>
           {wars.winterRange.source.loading ? (
             <MapLegendNote className="mt-1 italic">Loading winter range boundaries...</MapLegendNote>

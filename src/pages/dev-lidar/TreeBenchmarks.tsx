@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import proj4 from 'proj4'
 import type { FeatureCollection, Polygon, Point } from 'geojson'
@@ -9,6 +10,7 @@ import type { TreeCrop, TreeIsolation, IsolatedPoint } from './treeIsolation'
 import { DEFAULT_PROFILE, pointKey } from './treeInspection'
 import { ProfileCanvas } from './ProfileCanvas'
 import snapshotUrl from './treeBenchmarks.generated.json?url'
+import { useKeyedState } from './useKeyedState'
 
 export interface BenchmarkMethod {
   id: string
@@ -143,15 +145,15 @@ export function TreeBenchmarks({
   picked?: IsolatedPoint | null
 }) {
   const [data, setData] = useState<BenchmarkData | null>(null),
-    [error, setError] = useState(''),
     [plotId, setPlotId] = useState(''),
     [methodA, setMethodA] = useState('watershed'),
     [methodB, setMethodB] = useState('dalponte2016'),
     [angle, setAngle] = useState(0),
     [attempt, setAttempt] = useState(0)
+  const requestKey = useMemo(() => [source, attempt], [source, attempt])
+  const [error, setError] = useKeyedState(requestKey, () => '', !!source)
   useEffect(() => {
     if (!source) return
-    setError('')
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 30000)
@@ -173,7 +175,7 @@ export function TreeBenchmarks({
       abort.abort()
       clearTimeout(timer)
     }
-  }, [source, attempt])
+  }, [source, attempt, setError])
   const plot = data?.plots.find((p) => p.id === plotId) ?? data?.plots[0]
   const a = plot?.methods.find((m) => m.id === methodA) ?? plot?.methods[0],
     b = plot?.methods.find((m) => m.id === methodB) ?? plot?.methods[1]
@@ -183,9 +185,11 @@ export function TreeBenchmarks({
     onPreview(previewA)
     return () => onPreview(null)
   }, [previewA, onPreview])
+  const previewCentre = previewA?.crop.centre
+  const previewGround = previewA?.crop.ground_m
   useEffect(() => {
-    if (previewA) onFocus(previewA.crop.centre, previewA.crop.ground_m)
-  }, [plot, onFocus])
+    if (previewCentre && previewGround !== undefined) onFocus(previewCentre, previewGround)
+  }, [previewCentre, previewGround, onFocus])
   useEffect(() => {
     onPick(null)
   }, [plot?.id, onPick])
@@ -214,7 +218,7 @@ export function TreeBenchmarks({
       </p>
       <label className="block">
         Benchmark plot
-        <select
+        <NativeSelect
           className="mt-1 w-full rounded border bg-background p-1"
           aria-label="Segmentation benchmark plot"
           value={plot.id}
@@ -223,7 +227,7 @@ export function TreeBenchmarks({
           {data.plots.map((p) => (
             <option key={p.id}>{p.id}</option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -232,7 +236,7 @@ export function TreeBenchmarks({
         ].map(([value, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               className="mt-1 w-full rounded border bg-background p-1"
               aria-label={`Segmentation method ${String(label)}`}
               value={String(value)}
@@ -243,7 +247,7 @@ export function TreeBenchmarks({
                   {m.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
       </div>

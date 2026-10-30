@@ -64,7 +64,10 @@ export function makeFallbackPlotSeries(monitor: AirMonitor): AqPlotPoint[] {
   })
 }
 
-export async function fetchAqmapPlotSeries(monitor: AirMonitor, signal?: AbortSignal): Promise<{
+export async function fetchAqmapPlotSeries(
+  monitor: AirMonitor,
+  signal?: AbortSignal,
+): Promise<{
   points: AqPlotPoint[]
   source: 'endpoint' | 'fallback'
 }> {
@@ -113,4 +116,3 @@ export async function fetchAqmapPlotSeries(monitor: AirMonitor, signal?: AbortSi
 
   return { points: makeFallbackPlotSeries(monitor), source: 'fallback' }
 }
-

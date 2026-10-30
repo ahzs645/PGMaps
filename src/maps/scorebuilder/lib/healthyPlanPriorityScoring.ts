@@ -65,13 +65,15 @@ function getComparisonUniverseLabel(
       ? 'BC health regions'
       : source === 'cityCommunity'
         ? 'CityPG community polygons'
-      : source === 'cityPG'
-        ? 'CityPG school catchments'
-        : source === 'watershed'
-          ? 'BC Freshwater Atlas watershed boundaries'
-          : source === 'census'
-            ? level === 'db' ? 'Prince George dissemination blocks' : 'BC census regions'
-            : 'selected boundary regions'
+        : source === 'cityPG'
+          ? 'CityPG school catchments'
+          : source === 'watershed'
+            ? 'BC Freshwater Atlas watershed boundaries'
+            : source === 'census'
+              ? level === 'db'
+                ? 'Prince George dissemination blocks'
+                : 'BC census regions'
+              : 'selected boundary regions'
   return `HealthyPlan-style priority ranks one vulnerability metric against one built-environment metric within ${sourceLabel} at the currently loaded ${level} boundary level.`
 }
 

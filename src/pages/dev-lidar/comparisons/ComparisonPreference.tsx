@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useKeyedState } from '../useKeyedState'
 import { Button } from '@/components/ui/button'
 
 export function ComparisonPreference({
@@ -12,24 +12,23 @@ export function ComparisonPreference({
   right: { id: string; name: string }
   onExport: (review: unknown) => void
 }) {
-  const [note, setNote] = useState(''),
-    [preferred, setPreferred] = useState(''),
-    [message, setMessage] = useState('')
   const key = `pgmaps-model-choice-v1-${scope}`
-  useEffect(() => {
-    setPreferred('')
-    setNote('')
-    setMessage('')
+  const [preference, setPreference] = useKeyedState(key, () => {
     try {
       const saved = JSON.parse(localStorage.getItem(key) ?? 'null')
-      if (saved) {
-        setPreferred(String(saved.preferred ?? ''))
-        setNote(String(saved.note ?? ''))
-      }
+      return { preferred: String(saved?.preferred ?? ''), note: String(saved?.note ?? ''), message: '' }
     } catch {
-      setMessage('Local review storage unavailable; export a comparison to retain your choice.')
+      return {
+        preferred: '',
+        note: '',
+        message: 'Local review storage unavailable; export a comparison to retain your choice.',
+      }
     }
-  }, [key])
+  })
+  const { note, preferred, message } = preference
+  const setNote = (note: string) => setPreference((current) => ({ ...current, note }))
+  const setPreferred = (preferred: string) => setPreference((current) => ({ ...current, preferred }))
+  const setMessage = (message: string) => setPreference((current) => ({ ...current, message }))
   const review = (id: string) => ({
     schema_version: 1,
     scope,

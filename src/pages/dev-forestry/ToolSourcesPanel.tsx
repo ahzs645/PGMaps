@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -83,13 +84,17 @@ export function ToolSourcesPanel({
             removed from the proposal geometrically.
           </p>
           <ToolField label="Assessment mask classification">
-            <select className={TOOL_INPUT} value={kind} onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}>
+            <NativeSelect
+              className={TOOL_INPUT}
+              value={kind}
+              onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}
+            >
               {Object.entries(MASK_LABELS).map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </ToolField>
           <input
             className="hidden"
@@ -139,7 +144,7 @@ export function ToolSourcesPanel({
           {(scene.masks ?? []).map((m) => (
             <div key={m.id} className="space-y-1 border-b py-2">
               <p className="font-medium">{m.name}</p>
-              <select
+              <NativeSelect
                 aria-label={`Classification of ${m.name}`}
                 className={TOOL_INPUT}
                 value={m.kind}
@@ -157,7 +162,7 @@ export function ToolSourcesPanel({
                     {label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <input
                 aria-label={`Source for ${m.name}`}
                 className={TOOL_INPUT}
@@ -187,14 +192,14 @@ export function ToolSourcesPanel({
             coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11.
           </p>
           <ToolField label="Local surface type">
-            <select
+            <NativeSelect
               className={TOOL_INPUT}
               value={rasterKind}
               onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}
             >
               <option value="terrain">Bare-earth terrain elevation</option>
               <option value="canopy">Canopy height above ground</option>
-            </select>
+            </NativeSelect>
           </ToolField>
           <ToolField label="Surface acquisition date">
             <input type="date" className={TOOL_INPUT} value={date} onChange={(e) => setDate(e.target.value)} />

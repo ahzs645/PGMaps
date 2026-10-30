@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -52,6 +53,12 @@ import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
 import { DRAINAGE_SETTINGS_KEY, DrainagePanel, readDrainageSettings } from './dev-forestry-roads/DrainagePanel'
 import { runDrainage, type DrainageRun, type DrainageSettings } from './dev-forestry-roads/drainageRun'
+import {
+  createDrainageEvidence,
+  drainageInputFingerprint,
+  drainageEvidenceGeoJson,
+} from './dev-forestry-roads/drainageEvidence'
+import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
@@ -173,14 +180,35 @@ export default function DevForestryRoads() {
   const [detail, setDetail] = useState<
     'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing' | 'drainage'
   >('section')
-  const [drainageSettings, setDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
+  const [fallbackDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
+  const drainageSettings = project.drainage?.settings ?? fallbackDrainageSettings
+  const [drainagePicking, setDrainagePicking] = useState<Pick<PourPoint, 'surface' | 'snapRadiusM'> | null>(null)
+  const drainageInput = useMemo(
+    () => ({
+      alignment,
+      roadSettings: project.settings,
+      terrain: project.terrain,
+      settings: drainageSettings,
+      pourPoint: project.drainage?.pourPoint,
+      watershedMinAreaHa: project.drainage?.watershedMinAreaHa,
+    }),
+    [
+      alignment,
+      project.settings,
+      project.terrain,
+      drainageSettings,
+      project.drainage?.pourPoint,
+      project.drainage?.watershedMinAreaHa,
+    ],
+  )
+  const drainageFingerprint = useMemo(() => drainageInputFingerprint(drainageInput), [drainageInput])
   // One run per road, with the inputs it was computed from: a run is stale when any of them changes.
   const [drainage, setDrainage] = useState<
     Map<
       string,
       {
         run: DrainageRun
-        inputs: { alignment: Alignment; settings: RoadProject['settings']; source: TerrainSource; drainage: string }
+        inputs: { fingerprint: string; source: TerrainSource }
       }
     >
   >(() => new Map())
@@ -481,7 +509,10 @@ export default function DevForestryRoads() {
   )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
-    const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, [])
+    const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, project.context, {
+      referenceSurfaces: w.referenceSurfaces,
+      verticalReference: project.terrain.verticalReference,
+    })
     if (!terrainProfile) return result
     const completeLength = result.stations.slice(1).reduce((length, station, index) => {
       const previous = result.stations[index]
@@ -517,7 +548,17 @@ export default function DevForestryRoads() {
       })),
       warnings: ['Ground-only terrain transect. No formation, earthwork or cost design is assigned.'],
     }
-  }, [displayedAlignment, alignment, analysis, source, project.settings, terrainProfile])
+  }, [
+    displayedAlignment,
+    alignment,
+    analysis,
+    source,
+    project.settings,
+    project.context,
+    project.terrain.verticalReference,
+    terrainProfile,
+    w.referenceSurfaces,
+  ])
   useEffect(() => {
     setStation((s) =>
       draftAlignment || numericPegAlignment ? displayedAnalysis.length : Math.min(s, displayedAnalysis.length),
@@ -779,6 +820,8 @@ export default function DevForestryRoads() {
         toLonLat: grid.toLonLat,
         resolutionM: project.terrain.resolutionM,
         settings: drainageSettings,
+        pourPoint: project.drainage?.pourPoint,
+        watershedMinAreaHa: project.drainage?.watershedMinAreaHa,
       })
       // Keep runs only for roads that still exist, and at most three: each holds tens of
       // megabytes of grids, and an older run is a few seconds to recompute.
@@ -788,33 +831,70 @@ export default function DevForestryRoads() {
         ).set(alignment.id, {
           run: result,
           inputs: {
-            alignment,
-            settings: project.settings,
+            fingerprint: drainageFingerprint,
             source,
-            drainage: JSON.stringify(drainageSettings),
           },
         }),
       )
+      const evidence = createDrainageEvidence(result, drainageInput)
+      update((p) => ({
+        ...p,
+        drainage: {
+          ...p.drainage,
+          settings: drainageSettings,
+          records: [
+            ...(p.drainage?.records ?? []).filter(
+              (r) => r.alignmentId !== alignment.id && p.alignments.some((a) => a.id === r.alignmentId),
+            ),
+            evidence,
+          ],
+        },
+      }))
       const redirected = result.crossings.filter((c) => c.redirected && !c.throughCulvertId).length
       w.setNotice(
         `Drainage: ${result.crossings.length} stream crossing${result.crossings.length === 1 ? '' : 's'}, ${redirected} carried along the road, ${result.lowPoints.filter((p) => !p.throughCulvert).length} low points without a culvert.`,
       )
     })
   const drainageEntry = drainage.get(alignment.id)
+  const drainageEvidence = project.drainage?.records.find((record) => record.alignmentId === alignment.id)
   const drainageStale =
-    !!drainageEntry &&
-    (drainageEntry.inputs.alignment !== alignment ||
-      drainageEntry.inputs.settings !== project.settings ||
-      drainageEntry.inputs.source !== source ||
-      drainageEntry.inputs.drainage !== JSON.stringify(drainageSettings))
+    !!(drainageEntry || drainageEvidence) &&
+    (drainageEntry
+      ? drainageEntry.inputs.fingerprint !== drainageFingerprint || drainageEntry.inputs.source !== source
+      : drainageEvidence?.fingerprint !== drainageFingerprint || project.terrain.kind === 'regional')
   /** Drawn on the plan only while current, so an outdated run never reads as the present road. */
-  const drainageOnPlan = drainageEntry && !drainageStale && !terrainProfile ? drainageEntry.run.plan : undefined
+  const drainageOnPlan =
+    !drainageStale && !terrainProfile ? (drainageEntry?.run.plan ?? drainageEvidence?.features) : undefined
   const changeDrainageSettings = (next: DrainageSettings) => {
-    setDrainageSettings(next)
+    update((p) => ({ ...p, drainage: { ...p.drainage, settings: next, records: p.drainage?.records ?? [] } }))
     try {
       localStorage.setItem(DRAINAGE_SETTINGS_KEY, JSON.stringify(next))
     } catch {
       // Storage can be unavailable (private windows); the settings still apply to this session.
+    }
+  }
+  const changePourPoint = (pourPoint: PourPoint | undefined) => {
+    update((p) => ({
+      ...p,
+      drainage: { ...p.drainage, settings: drainageSettings, records: p.drainage?.records ?? [], pourPoint },
+    }))
+    setDrainagePicking(null)
+  }
+  const exportDrainage = (kind: 'geojson' | 'evidence') => {
+    try {
+      if (!drainageEvidence) throw Error('Run drainage before exporting its evidence.')
+      if (drainageStale) throw Error('Drainage evidence is out of date. Re-run before exporting current results.')
+      const content =
+        kind === 'geojson'
+          ? drainageEvidenceGeoJson(drainageEvidence, drainageFingerprint, { hasLiveRun: !!drainageEntry })
+          : drainageEvidence
+      downloadText(
+        JSON.stringify(content, null, 2),
+        `${project.name.replace(/[^a-z0-9_-]+/gi, '-')}-drainage.${kind === 'geojson' ? 'geojson' : 'json'}`,
+        'application/json',
+      )
+    } catch (error) {
+      w.setError(error instanceof Error ? error.message : 'Could not export drainage evidence.')
     }
   }
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
@@ -933,7 +1013,7 @@ export default function DevForestryRoads() {
             ? '.json'
             : kind === 'breaklines'
               ? '.json,.geojson'
-              : '.json,.geojson,.zip'
+              : '.json,.geojson,.zip,.kml,.kmz'
       fileRef.current.value = ''
       fileRef.current.click()
     }
@@ -944,6 +1024,7 @@ export default function DevForestryRoads() {
         const loaded = /\.la[sz]$/i.test(file.name)
           ? await loadLas(file, verticalReference, {
               ...pointCloud,
+              preservePath: alignment.points.map((point) => point.coordinate),
               breaklines: breaklines?.data,
               signal,
               onProgress: (message) => w.setBusy(`${file.name}: ${message}`),
@@ -990,6 +1071,9 @@ export default function DevForestryRoads() {
           raw = Array.isArray(layers)
             ? { type: 'FeatureCollection', features: layers.flatMap((layer) => layer.features) }
             : layers
+        } else if (/\.km[lz]$/i.test(file.name)) {
+          const { readSpatialFile } = await import('./dev-forestry-roads/surveyInterchange')
+          raw = await readSpatialFile(file)
         } else raw = JSON.parse(await file.text())
         if (signal.aborted) return
         if (fileKind.current === 'project') {
@@ -1027,7 +1111,7 @@ export default function DevForestryRoads() {
         throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
       const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
       if (kind === 'map-pdf' || kind === 'report-pdf') {
-        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async () => {
+        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
           if (kind === 'map-pdf') {
             if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
@@ -1041,19 +1125,34 @@ export default function DevForestryRoads() {
               project.terrain.name,
               project.terrain.verticalReference,
               `${basename}-map.pdf`,
+              signal,
             )
           } else
             await exportReportPdf(
               terrainProfile
                 ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-                : projectReportHtml(safe, analysis),
+                : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
               `${basename}-report.pdf`,
             )
           w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
       }
-      if (kind === 'project') downloadText(serializeProject(safe), `${basename}.road.json`, 'application/json')
+      if (kind === 'terrain-landxml' || kind === 'terrain-ascii') {
+        const raster = safe.terrain.raster
+        if (!raster) throw Error('Import or prepare an embedded terrain surface before exporting its grid.')
+        void run('Exporting the terrain surface…', async () => {
+          const { terrainSurfaceLandXml, terrainAscii } = await import('./dev-forestry-roads/terrainPreparation')
+          downloadText(
+            kind === 'terrain-landxml'
+              ? terrainSurfaceLandXml(raster, safe.terrain.preparation?.tin)
+              : terrainAscii(raster),
+            `${basename}-terrain.${kind === 'terrain-landxml' ? 'xml' : 'asc'}`,
+            kind === 'terrain-landxml' ? 'application/xml' : 'text/plain',
+          )
+          w.setNotice('Terrain surface exported with its source grid coordinates and datum notes.')
+        })
+      } else if (kind === 'project') downloadText(serializeProject(safe), `${basename}.road.json`, 'application/json')
       else if (kind === 'geojson')
         downloadText(
           JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
@@ -1092,6 +1191,7 @@ export default function DevForestryRoads() {
             downloadText(
               plotBookHtml({
                 projectName: safe.name,
+                settings: safe.reportSettings,
                 alignment,
                 analysis,
                 terrain: project.terrain,
@@ -1161,7 +1261,7 @@ export default function DevForestryRoads() {
         downloadText(
           terrainProfile
             ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-            : projectReportHtml(safe, analysis),
+            : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
           `${basename}-report.html`,
           'text/html;charset=utf-8',
         )
@@ -1675,6 +1775,8 @@ export default function DevForestryRoads() {
         onName={(name) => update((p) => ({ ...p, name }))}
         onFile={requestFile}
         onSave={save}
+        reportSettings={project.reportSettings}
+        onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
         busy={!!busy}
         portalContainer={ref.current}
       />
@@ -1800,10 +1902,12 @@ export default function DevForestryRoads() {
                     ? 'Candidate complete cost'
                     : completeCostRecord
                       ? 'Complete access cost'
-                      : summaryLabel(
-                          'Base engineering estimate',
-                          hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                        ),
+                      : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
+                        ? 'Incomplete estimate'
+                        : summaryLabel(
+                            'Base engineering estimate',
+                            hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                          ),
                   value: costPreview
                     ? costPreview.totalCost === null
                       ? costPreview.status === 'infeasible'
@@ -1814,12 +1918,14 @@ export default function DevForestryRoads() {
                       ? completeCostCurrent
                         ? `$${number(completeCostRecord.totalCost, 0)}`
                         : 'Recalculate'
-                      : displayedAnalysis.stations.length
-                        ? summaryValue(
-                            `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                            `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                          )
-                        : 'Unavailable',
+                      : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
+                        ? 'Material plan infeasible'
+                        : displayedAnalysis.stations.length
+                          ? summaryValue(
+                              `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                              `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                            )
+                          : 'Unavailable',
                   // Opens the calculation: quantities × editable rates.
                   onToggle:
                     costPreview || completeCostRecord
@@ -2155,6 +2261,16 @@ export default function DevForestryRoads() {
                             onCableDistance={setCableDistance}
                             overlay={planOverlay}
                             drainage={drainageOnPlan}
+                            pourPointPicking={!!drainagePicking}
+                            onPourPoint={
+                              drainagePicking
+                                ? (coordinate) => {
+                                    changePourPoint({ ...drainagePicking, coordinate })
+                                    setDetail('drainage')
+                                    if (focusMode) setFocusPane('detail')
+                                  }
+                                : undefined
+                            }
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
                             }}
@@ -2441,6 +2557,37 @@ export default function DevForestryRoads() {
                                     onSettings={changeDrainageSettings}
                                     onRun={checkDrainage}
                                     busy={!!busy}
+                                    pourPoint={project.drainage?.pourPoint}
+                                    onPourPointChange={changePourPoint}
+                                    pourPointPicking={!!drainagePicking}
+                                    onPickPourPoint={(options) => {
+                                      setDrainagePicking((current) => (current ? null : options))
+                                      setMode('inspect')
+                                      setDraft([])
+                                      if (!drainagePicking && focusMode) {
+                                        setFocusPane('plan')
+                                        setControlsOpen(false)
+                                      }
+                                      w.setNotice(
+                                        drainagePicking
+                                          ? 'Drainage point selection cancelled.'
+                                          : 'Tap the plan to choose the drainage pour point.',
+                                      )
+                                    }}
+                                    watershedMinAreaHa={project.drainage?.watershedMinAreaHa}
+                                    onWatershedMinAreaChange={(watershedMinAreaHa) =>
+                                      update((p) => ({
+                                        ...p,
+                                        drainage: {
+                                          ...p.drainage,
+                                          settings: drainageSettings,
+                                          records: p.drainage?.records ?? [],
+                                          watershedMinAreaHa,
+                                        },
+                                      }))
+                                    }
+                                    evidence={drainageEvidence}
+                                    onExport={exportDrainage}
                                     onStation={(chainage) => {
                                       w.setStation(chainage)
                                       if (focusMode) setFocusPane('plan')
@@ -2454,6 +2601,8 @@ export default function DevForestryRoads() {
                                     activeId={alignment.id}
                                     onSelect={selectAlignment}
                                     project={project}
+                                    terrain={source}
+                                    onAlignmentChange={(next) => updateAlignment(() => next)}
                                     onCompareCompleteCosts={openCompleteCosts}
                                   />
                                 )}
@@ -2462,7 +2611,7 @@ export default function DevForestryRoads() {
                                     <InlineAlert tone="error">{cableResult.error}</InlineAlert>
                                   ) : cableAnalysis ? (
                                     <div className="flex h-full min-h-0 flex-col">
-                                      <select
+                                      <NativeSelect
                                         aria-label="Active D-line"
                                         className="mb-1 rounded border bg-background text-xs"
                                         value={cableLine.id}
@@ -2473,7 +2622,7 @@ export default function DevForestryRoads() {
                                             {c.name}
                                           </option>
                                         ))}
-                                      </select>
+                                      </NativeSelect>
                                       {cableResult.summary && (
                                         <details
                                           className="mb-1 rounded border px-2 py-1 text-[11px]"

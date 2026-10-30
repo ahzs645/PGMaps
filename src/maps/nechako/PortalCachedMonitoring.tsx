@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -28,7 +29,7 @@ export function PortalCachedMonitoring({
         <div className="flex flex-wrap items-end gap-2">
           <label className="min-w-0 flex-1 text-sm">
             Saved monitoring table
-            <select
+            <NativeSelect
               aria-label="Saved monitoring table"
               className="mt-1 w-full rounded border bg-background p-2 text-base"
               value={selected?.id ?? ''}
@@ -43,7 +44,7 @@ export function PortalCachedMonitoring({
                   {record.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <Button
             onClick={() => {

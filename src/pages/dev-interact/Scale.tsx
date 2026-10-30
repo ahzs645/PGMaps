@@ -28,7 +28,7 @@ const positionClasses: Record<ScalePosition, string> = {
 
 function haversineMeters(a: { lng: number; lat: number }, b: { lng: number; lat: number }) {
   const radius = 6371008.8
-  const toRadians = (value: number) => value * Math.PI / 180
+  const toRadians = (value: number) => (value * Math.PI) / 180
   const lat1 = toRadians(a.lat)
   const lat2 = toRadians(b.lat)
   const deltaLat = toRadians(b.lat - a.lat)
@@ -93,7 +93,7 @@ export function Scale({
       const distanceMeters = scaleDistanceMetersFromLabel(label)
       setScale({
         label,
-        width: Math.max(48, Math.min(MAX_SCALE_WIDTH, Math.round(MAX_SCALE_WIDTH * distanceMeters / maxMeters))),
+        width: Math.max(48, Math.min(MAX_SCALE_WIDTH, Math.round((MAX_SCALE_WIDTH * distanceMeters) / maxMeters))),
       })
     }
 
@@ -137,7 +137,10 @@ export function Scale({
         <div className="absolute left-0 top-[14px] h-2.5 w-px bg-slate-950/90" />
         <div className="absolute top-[14px] h-2.5 w-px bg-slate-950/90" style={{ left: scale.width }} />
 
-        <div className="absolute top-1 rounded-sm bg-white/80 px-1 text-xs leading-5 shadow-sm backdrop-blur" style={{ left: `calc(${scale.width / 2}px + 4px)` }}>
+        <div
+          className="absolute top-1 rounded-sm bg-white/80 px-1 text-xs leading-5 shadow-sm backdrop-blur"
+          style={{ left: `calc(${scale.width / 2}px + 4px)` }}
+        >
           {scale.label}
         </div>
         {rightDistanceLabel && (
@@ -148,11 +151,23 @@ export function Scale({
       </div>
 
       <div className="max-w-[min(92vw,680px)] rounded-sm bg-white/80 px-1.5 py-0.5 text-center text-xs leading-4 text-slate-950 shadow-sm backdrop-blur">
-        <a className="pointer-events-auto font-medium underline-offset-2 hover:underline" href="https://felt.com" title="Made with Felt." target="_blank" rel="noopener noreferrer">
+        <a
+          className="pointer-events-auto font-medium underline-offset-2 hover:underline"
+          href="https://felt.com"
+          title="Made with Felt."
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           Made with Felt.
         </a>{' '}
         <span title="Data from">Data from</span>{' '}
-        <a className="pointer-events-auto font-medium underline-offset-2 hover:underline" href="https://www.openstreetmap.org/copyright" title="OpenStreetMap" target="_blank" rel="noopener noreferrer">
+        <a
+          className="pointer-events-auto font-medium underline-offset-2 hover:underline"
+          href="https://www.openstreetmap.org/copyright"
+          title="OpenStreetMap"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           OpenStreetMap
         </a>
         {sources.map((source) => (

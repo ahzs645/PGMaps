@@ -36,16 +36,19 @@ export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }
     )
   }, [featureCount])
 
-  const mapData = useMemo(() => ({
-    ...data,
-    features: data.features.map((feature) => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        id: String(feature.id ?? feature.properties.sourceObjectId),
-      },
-    })),
-  }), [data])
+  const mapData = useMemo(
+    () => ({
+      ...data,
+      features: data.features.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          id: String(feature.id ?? feature.properties.sourceObjectId),
+        },
+      })),
+    }),
+    [data],
+  )
 
   return (
     <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} loading={loading}>

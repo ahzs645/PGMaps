@@ -12,6 +12,7 @@
 type Whitebox = typeof import('whitebox-wasm')
 type WhiteboxTools = typeof import('whitebox-wasm/tools')
 type WasmSource = BufferSource | URL | string
+import { strategicPointIndices, type PointPreservation } from './terrainPreparation'
 
 export interface PointCloud {
   x: Float64Array
@@ -30,6 +31,8 @@ export interface PointCloud {
   sourceCount: number
   /** Cell of the lowest-point thinning, or null when every point was kept. */
   thinCellM: number | null
+  /** Count retained at full density inside requested preservation regions. */
+  preservedPoints?: number
 }
 
 export interface PointCloudHeader {
@@ -344,8 +347,23 @@ function boundsOf(x: Float64Array, y: Float64Array, z: Float64Array): PointCloud
  * ground point where the cell has one, else the lowest non-noise point, else the lowest point.
  * Ties go to the earlier point, and kept points stay in file order, so it is deterministic.
  */
-export function thinLowest(cloud: Pick<PointCloud, 'x' | 'y' | 'z' | 'classification'>, maxPoints: number) {
+export function thinLowest(
+  cloud: Pick<PointCloud, 'x' | 'y' | 'z' | 'classification'>,
+  maxPoints: number,
+  preserve?: PointPreservation,
+) {
   const { x, y, z, classification } = cloud
+  if (preserve) {
+    const { indices, cellM, preserved } = strategicPointIndices(cloud, maxPoints, preserve)
+    return {
+      x: Float64Array.from(indices, (i) => x[i]),
+      y: Float64Array.from(indices, (i) => y[i]),
+      z: Float64Array.from(indices, (i) => z[i]),
+      classification: Uint8Array.from(indices, (i) => classification[i]),
+      cellM: cellM ?? 0,
+      preserved,
+    }
+  }
   const n = x.length
   const [minX, minY, , maxX, maxY] = boundsOf(x, y, z)
   const area = Math.max(maxX - minX, 1e-3) * Math.max(maxY - minY, 1e-3)
@@ -380,7 +398,7 @@ export function thinLowest(cloud: Pick<PointCloud, 'x' | 'y' | 'z' | 'classifica
           out.z[k] = z[i]
           out.classification[k++] = classification[i]
         }
-      return { ...out, cellM: cell }
+      return { ...out, cellM: cell, preserved: 0 }
     }
     cell *= 1.15
   }
@@ -392,7 +410,7 @@ export function thinLowest(cloud: Pick<PointCloud, 'x' | 'y' | 'z' | 'classifica
  */
 export async function readPointCloud(
   data: Uint8Array | ArrayBuffer,
-  { maxPoints = DEFAULT_MAX_POINTS }: { maxPoints?: number } = {},
+  { maxPoints = DEFAULT_MAX_POINTS, preserve }: { maxPoints?: number; preserve?: PointPreservation } = {},
 ): Promise<PointCloud> {
   const bytes = asBytes(data)
   const header = readPointCloudHeader(bytes)
@@ -426,10 +444,12 @@ export async function readPointCloud(
   const sourceCount = x.length
   if (!sourceCount) throw Error('The point cloud has no points.')
   let thinCellM: number | null = null
+  let preservedPoints = 0
   if (sourceCount > maxPoints) {
-    const thinned = thinLowest({ x, y, z, classification }, maxPoints)
+    const thinned = thinLowest({ x, y, z, classification }, maxPoints, preserve)
     ;({ x, y, z, classification } = thinned)
     thinCellM = thinned.cellM
+    preservedPoints = thinned.preserved
   }
   return {
     x,
@@ -444,6 +464,55 @@ export async function readPointCloud(
     bounds: boundsOf(x, y, z),
     sourceCount,
     thinCellM,
+    preservedPoints,
+  }
+}
+
+/** Combine decoded source clouds in one CRS/datum, preserving every requested corridor return. */
+export function mergePointClouds(
+  clouds: PointCloud[],
+  maxPoints = DEFAULT_MAX_POINTS,
+  preserve?: PointPreservation,
+): PointCloud {
+  if (!clouds.length || clouds.length > 12) throw Error('Combine 1–12 point clouds at a time.')
+  const first = clouds[0]
+  if (clouds.some((c) => c.epsg !== first.epsg || c.verticalEpsg !== first.verticalEpsg))
+    throw Error('Point-cloud mosaics require matching horizontal and vertical CRS keys.')
+  const size = clouds.reduce((s, c) => s + c.count, 0)
+  let x = new Float64Array(size),
+    y = new Float64Array(size),
+    z = new Float64Array(size),
+    classification = new Uint8Array(size),
+    at = 0
+  for (const c of clouds) {
+    x.set(c.x, at)
+    y.set(c.y, at)
+    z.set(c.z, at)
+    classification.set(c.classification, at)
+    at += c.count
+  }
+  let thinCellM = clouds.reduce<number | null>(
+      (cell, c) => (c.thinCellM === null ? cell : Math.max(cell ?? 0, c.thinCellM)),
+      null,
+    ),
+    preservedPoints = clouds.reduce((s, c) => s + (c.preservedPoints ?? 0), 0)
+  if (size > maxPoints) {
+    const thinned = thinLowest({ x, y, z, classification }, maxPoints, preserve)
+    ;({ x, y, z, classification } = thinned)
+    thinCellM = Math.max(thinCellM ?? 0, thinned.cellM)
+    preservedPoints = thinned.preserved
+  }
+  return {
+    ...first,
+    x,
+    y,
+    z,
+    classification,
+    count: x.length,
+    sourceCount: clouds.reduce((s, c) => s + c.sourceCount, 0),
+    bounds: boundsOf(x, y, z),
+    thinCellM,
+    preservedPoints,
   }
 }
 

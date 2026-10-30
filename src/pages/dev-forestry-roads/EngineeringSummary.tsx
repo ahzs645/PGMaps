@@ -247,6 +247,17 @@ export function EngineeringSummary({
               </p>
             ) : (
               <>
+                <p className="my-2 text-xs" role="status" data-testid="road-haul-allocation-status">
+                  {result.haul.allocationMethod === 'economic'
+                    ? result.haul.optimizationStatus === 'optimal'
+                      ? 'Economic material flow · optimal within the entered model'
+                      : result.haul.optimizationStatus === 'infeasible'
+                        ? 'Material prescription infeasible · no movement cost adopted'
+                        : 'Internal or disabled material plan · external supply not resolved'
+                    : 'Nearest-source material scenario'}
+                  {(result.haul.sidecastBankM3 ?? 0) > 0 &&
+                    ` · ${fmt(result.haul.sidecastBankM3)} bank m³ permitted sidecast`}
+                </p>
                 <StatGroup
                   variant="tiles"
                   size="sm"
@@ -299,7 +310,14 @@ export function EngineeringSummary({
                   <tbody>
                     {movements.slice(currentPage * 100, (currentPage + 1) * 100).map((m) => (
                       <tr key={m.id}>
-                        <td className="border-b p-2 text-left">{m.kind}</td>
+                        <td className="border-b p-2 text-left">
+                          {m.externalUnresolved
+                            ? 'unresolved external'
+                            : m.disposalMethod === 'sidecast'
+                              ? 'sidecast'
+                              : m.kind}
+                          {m.demandLayer ? ` · ${m.demandLayer}` : ''}
+                        </td>
                         <td className="border-b p-2">
                           <button className="underline" onClick={() => onStation(m.fromChainage)}>
                             {formatRoadStation(m.fromChainage)}

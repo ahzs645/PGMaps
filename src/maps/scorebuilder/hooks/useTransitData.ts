@@ -54,7 +54,10 @@ function parseGtfsSummary(payload: unknown): Map<string, GtfsStopSummary> {
   return summaries
 }
 
-function parseTransitStops(geojson: GeoJSON.FeatureCollection, gtfsSummaries = new Map<string, GtfsStopSummary>()): TransitStop[] {
+function parseTransitStops(
+  geojson: GeoJSON.FeatureCollection,
+  gtfsSummaries = new Map<string, GtfsStopSummary>(),
+): TransitStop[] {
   return geojson.features
     .map((feature): TransitStop | null => {
       if (!feature.geometry || feature.geometry.type !== 'Point') return null
@@ -96,7 +99,8 @@ export function useTransitData(enabled = true) {
   const { data: gtfs } = useFetchData<unknown>(GTFS_SUMMARY_PATH, { enabled, optional: true })
 
   const stops = useMemo(
-    () => (geojson ? parseTransitStops(geojson, gtfs ? parseGtfsSummary(gtfs) : new Map<string, GtfsStopSummary>()) : []),
+    () =>
+      geojson ? parseTransitStops(geojson, gtfs ? parseGtfsSummary(gtfs) : new Map<string, GtfsStopSummary>()) : [],
     [geojson, gtfs],
   )
 

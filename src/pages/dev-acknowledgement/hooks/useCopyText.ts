@@ -1,18 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useClipboardText } from '@/hooks/useClipboardText'
 
+/** Preserve draft-specific wording while sharing clipboard state and cleanup. */
 export function useCopyText() {
-  const [message, setMessage] = useState('')
-  const timeout = useRef<ReturnType<typeof setTimeout>>()
-  useEffect(() => () => clearTimeout(timeout.current), [])
-  const copy = async (text: string) => {
-    clearTimeout(timeout.current)
-    try {
-      await navigator.clipboard.writeText(text)
-      setMessage('Copied to clipboard.')
-      timeout.current = setTimeout(() => setMessage(''), 3000)
-    } catch {
-      setMessage('Copy was unavailable. Select the draft text and use your device’s Copy command.')
-    }
-  }
+  const { copy, status } = useClipboardText({ resetAfterMs: 3000, failureResetAfterMs: 0 })
+  const message =
+    status === 'copied'
+      ? 'Copied to clipboard.'
+      : status === 'failed'
+        ? 'Copy was unavailable. Select the draft text and use your device’s Copy command.'
+        : ''
   return { copy, message }
 }

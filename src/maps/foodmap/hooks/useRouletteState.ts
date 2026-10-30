@@ -1,7 +1,14 @@
 import { useState, useMemo, useCallback } from 'react'
 import { haversineKm } from '@/lib/geo'
 import { getHazardRating } from '../hazard'
-import { DINING_CATEGORIES, DINING_EXCEPTIONS, diningCategory, selectDiningRestaurants, type DiningCategory, type DiningExceptionName } from '../dining'
+import {
+  DINING_CATEGORIES,
+  DINING_EXCEPTIONS,
+  diningCategory,
+  selectDiningRestaurants,
+  type DiningCategory,
+  type DiningExceptionName,
+} from '../dining'
 import type { Restaurant, HazardRating, SourceLocation, SpinnerMode, RouletteRestaurant } from '../types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -11,7 +18,20 @@ function parseInspectionDate(dateStr: string | undefined): Date | null {
   // Try "DD-MMM-YYYY" format
   const shortMatch = dateStr.match(/(\d{1,2})-(\w{3})-(\d{4})/)
   if (shortMatch) {
-    const months: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 }
+    const months: Record<string, number> = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    }
     return new Date(parseInt(shortMatch[3]), months[shortMatch[2]], parseInt(shortMatch[1]))
   }
 
@@ -44,10 +64,10 @@ function countViolationsInPeriod(restaurant: Restaurant, months: number): number
   const inspections = restaurant.inspections || []
   let total = 0
 
-  inspections.forEach(insp => {
+  inspections.forEach((insp) => {
     const date = parseInspectionDate(insp.date || insp.inspection_date)
     if (date && date >= cutoffDate) {
-      total += (insp.violations?.length || 0)
+      total += insp.violations?.length || 0
     }
   })
 
@@ -58,8 +78,8 @@ function countViolationsInPeriod(restaurant: Restaurant, months: number): number
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
 }
@@ -69,8 +89,14 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
   const [useFilters, setUseFilters] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<DiningCategory[]>([...DINING_CATEGORIES])
   const [selectedExceptions, setSelectedExceptions] = useState<DiningExceptionName[]>([])
-  const availableExceptions = useMemo(() => DINING_EXCEPTIONS.filter((item) => allRestaurants.some((r) => r.name === item.name)), [allRestaurants])
-  const diningRestaurants = useMemo(() => selectDiningRestaurants(allRestaurants, DINING_CATEGORIES, selectedExceptions), [allRestaurants, selectedExceptions])
+  const availableExceptions = useMemo(
+    () => DINING_EXCEPTIONS.filter((item) => allRestaurants.some((r) => r.name === item.name)),
+    [allRestaurants],
+  )
+  const diningRestaurants = useMemo(
+    () => selectDiningRestaurants(allRestaurants, DINING_CATEGORIES, selectedExceptions),
+    [allRestaurants, selectedExceptions],
+  )
   const categoryCounts = useMemo(
     () =>
       Object.fromEntries(
@@ -163,9 +189,9 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
   }, [])
 
   const toggleException = useCallback((name: DiningExceptionName) => {
-    setSelectedExceptions((previous) => previous.includes(name)
-      ? previous.filter((value) => value !== name)
-      : [...previous, name])
+    setSelectedExceptions((previous) =>
+      previous.includes(name) ? previous.filter((value) => value !== name) : [...previous, name],
+    )
   }, [])
 
   const setSourceFromGeolocation = useCallback((position: SourceLocation) => {
@@ -186,12 +212,12 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
   }, [])
 
   const toggleHazardExclusion = useCallback((rating: HazardRating) => {
-    setExcludedHazardRatings(prev => {
+    setExcludedHazardRatings((prev) => {
       const index = prev.indexOf(rating)
       if (index === -1) {
         return [...prev, rating]
       } else {
-        return prev.filter(r => r !== rating)
+        return prev.filter((r) => r !== rating)
       }
     })
   }, [])
@@ -306,6 +332,6 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
     completeSpinning,
     completeSpinningWithWinner,
     resetSpin,
-    resetFilters
+    resetFilters,
   }
 }

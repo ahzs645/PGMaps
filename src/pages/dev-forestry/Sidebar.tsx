@@ -1,4 +1,10 @@
 import {
+  FormField,
+  NumberField as SharedNumberField,
+  NullableNumberField,
+  NativeSelect,
+} from '@/components/ui/form-field'
+import {
   Camera,
   Crosshair,
   Download,
@@ -151,13 +157,17 @@ function Field({
   children: ReactNode
   group?: boolean
 }) {
-  const Tag = group ? 'div' : 'label'
   return (
-    <Tag className="block">
-      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
+    <FormField
+      label={label}
+      hint={hint}
+      group={group}
+      contentClassName="block"
+      labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
+      descriptionClassName="text-[10px] leading-4"
+    >
       {children}
-      {hint && <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{hint}</span>}
-    </Tag>
+    </FormField>
   )
 }
 
@@ -181,23 +191,23 @@ function NumberField({
   onChange: (value: number) => void
 }) {
   return (
-    <Field label={label} hint={hint}>
-      <div className="flex items-center gap-1.5">
-        <input
-          type="number"
-          className={INPUT_CLASS}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(event) => {
-            const next = Number(event.target.value)
-            if (Number.isFinite(next)) onChange(Math.max(min, Math.min(max, next)))
-          }}
-        />
-        {suffix && <span className="shrink-0 text-[11px] text-muted-foreground">{suffix}</span>}
-      </div>
-    </Field>
+    <SharedNumberField
+      label={label}
+      hint={hint}
+      value={value}
+      onValueChange={onChange}
+      min={min}
+      max={max}
+      step={step}
+      suffix={suffix}
+      clampOn="change"
+      blankValue="zero"
+      inputClassName={INPUT_CLASS}
+      contentClassName="block"
+      labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
+      descriptionClassName="text-[10px] leading-4"
+      unitClassName="text-[11px]"
+    />
   )
 }
 
@@ -218,22 +228,20 @@ function OptionalNumber({
   onChange: (value: number | null) => void
 }) {
   return (
-    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-      <input
-        type="number"
-        className={`${SELECT_CLASS} w-16`}
-        aria-label={label}
-        value={value ?? ''}
-        min={min}
-        max={max}
-        onChange={(event) => {
-          if (event.target.value === '') return onChange(null)
-          const next = Number(event.target.value)
-          if (Number.isFinite(next)) onChange(Math.max(min, Math.min(max, next)))
-        }}
-      />
-      {suffix}
-    </label>
+    <NullableNumberField
+      label={label}
+      aria-label={label}
+      value={value ?? null}
+      onValueChange={onChange}
+      min={min}
+      max={max}
+      suffix={suffix}
+      clampOn="change"
+      hideLabel
+      contentClassName="flex flex-row items-center gap-1 text-[11px] text-muted-foreground"
+      inputClassName={`${SELECT_CLASS} w-16`}
+      unitClassName="text-[11px]"
+    />
   )
 }
 
@@ -257,7 +265,7 @@ function BlockHarvestFields({
   const system = target.harvestSystem ?? 'clearcut'
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
-      <select
+      <NativeSelect
         className={SELECT_CLASS}
         value={system}
         onChange={(event) => onChange({ harvestSystem: event.target.value as HarvestSystem })}
@@ -268,7 +276,7 @@ function BlockHarvestFields({
             {entry.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {system === 'retention' && (
         <OptionalNumber
           label={`Stand retained in ${target.name}`}
@@ -582,119 +590,110 @@ export function Sidebar({
   // One polygon's row: name, area and source, zoom and remove, then its role,
   // objective and whichever of VAC or harvest system applies.
   const renderTarget = (target: TargetPolygon) => (
-                  <li
-                    key={target.id}
-                    className={cn(
-                      'rounded-md border p-2',
-                      selectedTargetId === target.id ? 'border-primary/60 bg-muted/30' : 'border-border',
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span
-                        className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: ROLE_COLORS[target.role] }}
-                      />
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 text-left"
-                        onClick={() => onSelectTarget(target.id)}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <span className="min-w-0 truncate text-xs font-medium text-foreground">{target.name}</span>
-                          {target.role === 'landscape' && target.id === activeLandformId && (
-                            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-medium leading-4 text-primary">
-                              Active
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {targetAreaHectares(target).toLocaleString('en-CA', {
-                            maximumFractionDigits: 1,
-                          })}{' '}
-                          ha · {target.source}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                        onClick={() => onZoomToTarget(target.id)}
-                        title="Zoom to polygon"
-                      >
-                        <ZoomIn className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
-                        onClick={() => onRemoveTarget(target.id)}
-                        title="Remove polygon"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+    <li
+      key={target.id}
+      className={cn(
+        'rounded-md border p-2',
+        selectedTargetId === target.id ? 'border-primary/60 bg-muted/30' : 'border-border',
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: ROLE_COLORS[target.role] }} />
+        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onSelectTarget(target.id)}>
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-xs font-medium text-foreground">{target.name}</span>
+            {target.role === 'landscape' && target.id === activeLandformId && (
+              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-medium leading-4 text-primary">
+                Active
+              </span>
+            )}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {targetAreaHectares(target).toLocaleString('en-CA', {
+              maximumFractionDigits: 1,
+            })}{' '}
+            ha · {target.source}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          onClick={() => onZoomToTarget(target.id)}
+          title="Zoom to polygon"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
+          onClick={() => onRemoveTarget(target.id)}
+          title="Remove polygon"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
-                      <select
-                        className={SELECT_CLASS}
-                        value={target.role}
-                        onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
-                        aria-label={`Role for ${target.name}`}
-                      >
-                        <option value="block">Block</option>
-                        <option value="landscape">Landform</option>
-                      </select>
-                      <select
-                        className={SELECT_CLASS}
-                        value={target.objectiveId}
-                        onChange={(event) =>
-                          onTargetChange(target.id, {
-                            objectiveId: event.target.value as VisualQualityClassId,
-                          })
-                        }
-                        aria-label={`Visual quality objective for ${target.name}`}
-                      >
-                        {VISUAL_QUALITY_CLASSES.map((entry) => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.label} ≤ {thresholds.perspective[entry.id]}%
-                          </option>
-                        ))}
-                      </select>
-                      {/* Visual absorption capability rates a landform's capacity
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
+        <NativeSelect
+          className={SELECT_CLASS}
+          value={target.role}
+          onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
+          aria-label={`Role for ${target.name}`}
+        >
+          <option value="block">Block</option>
+          <option value="landscape">Landform</option>
+        </NativeSelect>
+        <NativeSelect
+          className={SELECT_CLASS}
+          value={target.objectiveId}
+          onChange={(event) =>
+            onTargetChange(target.id, {
+              objectiveId: event.target.value as VisualQualityClassId,
+            })
+          }
+          aria-label={`Visual quality objective for ${target.name}`}
+        >
+          {VISUAL_QUALITY_CLASSES.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.label} ≤ {thresholds.perspective[entry.id]}%
+            </option>
+          ))}
+        </NativeSelect>
+        {/* Visual absorption capability rates a landform's capacity
                       to hide alteration, so it only means anything on one. */}
-                      {target.role === 'landscape' && (
-                        <select
-                          className={SELECT_CLASS}
-                          value={target.vac ?? ''}
-                          onChange={(event) =>
-                            onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })
-                          }
-                          aria-label={`Visual absorption capability for ${target.name}`}
-                        >
-                          <option value="">VAC not rated</option>
-                          {VAC_RATINGS.map((rating) => (
-                            <option key={rating} value={rating}>
-                              VAC {VAC_LABELS[rating]}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                    {target.role === 'block' && (
-                      <BlockHarvestFields target={target} onChange={(patch) => onTargetChange(target.id, patch)} />
-                    )}
-                    {target.role === 'landscape' && target.id !== activeLandformId && (
-                      <div className="mt-1.5 pl-[18px]">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-[11px]"
-                          onClick={() => onActivateLandform(target.id)}
-                        >
-                          Assess against this landform
-                        </Button>
-                      </div>
-                    )}
-                  </li>
+        {target.role === 'landscape' && (
+          <NativeSelect
+            className={SELECT_CLASS}
+            value={target.vac ?? ''}
+            onChange={(event) => onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })}
+            aria-label={`Visual absorption capability for ${target.name}`}
+          >
+            <option value="">VAC not rated</option>
+            {VAC_RATINGS.map((rating) => (
+              <option key={rating} value={rating}>
+                VAC {VAC_LABELS[rating]}
+              </option>
+            ))}
+          </NativeSelect>
+        )}
+      </div>
+      {target.role === 'block' && (
+        <BlockHarvestFields target={target} onChange={(patch) => onTargetChange(target.id, patch)} />
+      )}
+      {target.role === 'landscape' && target.id !== activeLandformId && (
+        <div className="mt-1.5 pl-[18px]">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onActivateLandform(target.id)}
+          >
+            Assess against this landform
+          </Button>
+        </div>
+      )}
+    </li>
   )
   const landforms = targets.filter((target) => target.role === 'landscape')
   const activeLandformId = findSceneLandform(scene)?.id ?? null
@@ -763,7 +762,13 @@ export function Sidebar({
             </div>
           </div>
           <input ref={fileInputRef} type="file" accept=".zip,.geojson,.json" className="hidden" onChange={handleFile} />
-          <input ref={roadFileRef} type="file" accept=".zip,.geojson,.json" className="hidden" onChange={handleRoadFile} />
+          <input
+            ref={roadFileRef}
+            type="file"
+            accept=".zip,.geojson,.json"
+            className="hidden"
+            onChange={handleRoadFile}
+          />
 
           <SidebarSection title="Road or viewpoint" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
             {(drawMode === 'corridor' || drawMode === 'spot') && <div className="mb-3">{setup}</div>}
@@ -845,83 +850,83 @@ export function Sidebar({
               summaryWhenCollapsedOnly
               className="-mx-4 border-b-0 border-t border-border/60"
             >
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full"
-              disabled={blocks.length === 0 || reverseRunning}
-              onClick={onRunReverse}
-            >
-              {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
-              {reverseRunning ? 'Searching…' : 'Find them on screen'}
-            </Button>
-            <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
-              Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first —
-              roads off screen are not searched.
-            </p>
-
-            {reverseRunning && reverse.progress && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {reverse.progress.phase === 'terrain'
-                  ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
-                  : 'Tracing sightlines…'}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={blocks.length === 0 || reverseRunning}
+                onClick={onRunReverse}
+              >
+                {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+                {reverseRunning ? 'Searching…' : 'Find them on screen'}
+              </Button>
+              <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+                Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first —
+                roads off screen are not searched.
               </p>
-            )}
 
-            {reverse.error && (
-              <InlineAlert className="mt-2" tone="error">
-                {reverse.error}
-              </InlineAlert>
-            )}
+              {reverseRunning && reverse.progress && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {reverse.progress.phase === 'terrain'
+                    ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
+                    : 'Tracing sightlines…'}
+                </p>
+              )}
 
-            {reverse.result && reverse.result.roads.length === 0 && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                No road on screen can see it
-                {reverse.result.outOfRangeRoadCount > 0
-                  ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
-                  : '.'}
-              </p>
-            )}
+              {reverse.error && (
+                <InlineAlert className="mt-2" tone="error">
+                  {reverse.error}
+                </InlineAlert>
+              )}
 
-            {reverse.result && reverse.result.roads.length > 0 && (
-              <ul className="mt-2 space-y-1.5">
-                {reverse.result.roads.slice(0, 8).map((road) => (
-                  <li key={road.roadId}>
-                    <button
-                      type="button"
-                      className="w-full rounded-md border border-border p-2 text-left hover:bg-accent"
-                      onClick={() => onUseRoad(road.roadId)}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="min-w-0 truncate text-xs font-medium text-foreground">{road.name}</span>
-                        <span
-                          className={cn(
-                            'shrink-0 text-xs font-semibold tabular-nums',
-                            road.maxVisiblePercent > 0 ? 'text-rose-600' : 'text-muted-foreground',
-                          )}
-                        >
-                          {road.maxVisiblePercent.toFixed(0)}%
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
-                        {road.seeingStationCount === 0
-                          ? 'Hidden from every point on it'
-                          : `Seen from ${(road.exposedLengthFraction * 100).toFixed(0)}% of its length · ` +
-                            `nearest ${(road.nearestDistanceMeters / 1000).toFixed(1)} km`}
-                      </p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+              {reverse.result && reverse.result.roads.length === 0 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  No road on screen can see it
+                  {reverse.result.outOfRangeRoadCount > 0
+                    ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
+                    : '.'}
+                </p>
+              )}
 
-            {reverse.result && reverse.result.roads.length > 0 && (
-              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-                Percentages are the share of the block&rsquo;s ground area in view from one point. Pick a road to make
-                it the corridor, then run the full assessment for the figures an objective is judged on.
-              </p>
-            )}
+              {reverse.result && reverse.result.roads.length > 0 && (
+                <ul className="mt-2 space-y-1.5">
+                  {reverse.result.roads.slice(0, 8).map((road) => (
+                    <li key={road.roadId}>
+                      <button
+                        type="button"
+                        className="w-full rounded-md border border-border p-2 text-left hover:bg-accent"
+                        onClick={() => onUseRoad(road.roadId)}
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="min-w-0 truncate text-xs font-medium text-foreground">{road.name}</span>
+                          <span
+                            className={cn(
+                              'shrink-0 text-xs font-semibold tabular-nums',
+                              road.maxVisiblePercent > 0 ? 'text-rose-600' : 'text-muted-foreground',
+                            )}
+                          >
+                            {road.maxVisiblePercent.toFixed(0)}%
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
+                          {road.seeingStationCount === 0
+                            ? 'Hidden from every point on it'
+                            : `Seen from ${(road.exposedLengthFraction * 100).toFixed(0)}% of its length · ` +
+                              `nearest ${(road.nearestDistanceMeters / 1000).toFixed(1)} km`}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {reverse.result && reverse.result.roads.length > 0 && (
+                <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                  Percentages are the share of the block&rsquo;s ground area in view from one point. Pick a road to make
+                  it the corridor, then run the full assessment for the figures an objective is judged on.
+                </p>
+              )}
             </CollapsibleSection>
           </SidebarSection>
 
@@ -1017,100 +1022,100 @@ export function Sidebar({
               summaryWhenCollapsedOnly
               className="-mx-4 border-b-0 border-t border-border/60"
             >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-foreground">Units in this map view</span>
-              {inventory.units.length > 0 && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">Units in this map view</span>
+                {inventory.units.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={onToggleInventory}
+                  >
+                    {showInventory ? 'Hide' : 'Show'}
+                  </Button>
+                )}
+              </div>
+              <div className="mt-2">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-[11px]"
-                  onClick={onToggleInventory}
+                  className="w-full"
+                  disabled={inventory.status === 'loading'}
+                  onClick={onLookupInventory}
                 >
-                  {showInventory ? 'Hide' : 'Show'}
+                  {inventory.status === 'loading' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Landmark className="h-4 w-4" />
+                  )}
+                  {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
                 </Button>
-              )}
-            </div>
-            <div className="mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full"
-                disabled={inventory.status === 'loading'}
-                onClick={onLookupInventory}
-              >
-                {inventory.status === 'loading' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Landmark className="h-4 w-4" />
-                )}
-                {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
-              </Button>
-              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                Downloaded provincial sensitivity units, plus live harvest and forest-cover context. Boundaries are
-                candidates: review the visible landform before adopting one.
-              </p>
+                <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                  Downloaded provincial sensitivity units, plus live harvest and forest-cover context. Boundaries are
+                  candidates: review the visible landform before adopting one.
+                </p>
 
-              {inventory.status === 'error' && (
-                <InlineAlert className="mt-2" tone="error">
-                  {inventory.error}
-                </InlineAlert>
-              )}
-
-              {inventory.status === 'ready' &&
-                (inventory.units.length === 0 ? (
-                  <InlineAlert className="mt-2">
-                    No inventory boundaries intersect this map extent. Use "Find a landform in the BC inventory" above to search nearby units,
-                    or draw or import the visible hillside.
+                {inventory.status === 'error' && (
+                  <InlineAlert className="mt-2" tone="error">
+                    {inventory.error}
                   </InlineAlert>
-                ) : (
-                  <div className="mt-2">
-                    <p className="text-[11px] text-muted-foreground">
-                      {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective ·{' '}
-                      {inventorySummary.withVac} with a VAC rating
-                      {inventory.truncated ? ' · more exist than were returned' : ''}
-                      {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
-                      {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
-                    </p>
-                    <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
-                      {ratedUnits.map((unit) => (
-                        <li key={unit.id}>
-                          <button
-                            type="button"
-                            onClick={() => onAdoptUnit(unit.id)}
-                            className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
-                          >
-                            <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                              style={{
-                                backgroundColor: unit.objectiveId
-                                  ? visualQualityClass(unit.objectiveId).color
-                                  : 'transparent',
-                              }}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-xs font-medium text-foreground">{unit.name}</span>
-                              <span className="text-[11px] text-muted-foreground">
-                                {unit.objectiveId
-                                  ? visualQualityClass(unit.objectiveId).label
-                                  : 'No established objective'}
-                                {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
-                                {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    {ratedUnits.length < inventory.units.length && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
+                )}
+
+                {inventory.status === 'ready' &&
+                  (inventory.units.length === 0 ? (
+                    <InlineAlert className="mt-2">
+                      No inventory boundaries intersect this map extent. Use "Find a landform in the BC inventory" above
+                      to search nearby units, or draw or import the visible hillside.
+                    </InlineAlert>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective
+                        · {inventorySummary.withVac} with a VAC rating
+                        {inventory.truncated ? ' · more exist than were returned' : ''}
+                        {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
+                        {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
                       </p>
-                    )}
-                  </div>
-                ))}
-            </div>
+                      <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                        {ratedUnits.map((unit) => (
+                          <li key={unit.id}>
+                            <button
+                              type="button"
+                              onClick={() => onAdoptUnit(unit.id)}
+                              className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
+                            >
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                                style={{
+                                  backgroundColor: unit.objectiveId
+                                    ? visualQualityClass(unit.objectiveId).color
+                                    : 'transparent',
+                                }}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-medium text-foreground">{unit.name}</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {unit.objectiveId
+                                    ? visualQualityClass(unit.objectiveId).label
+                                    : 'No established objective'}
+                                  {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
+                                  {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {ratedUnits.length < inventory.units.length && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
             </CollapsibleSection>
           </SidebarSection>
         </StepSection>
@@ -1134,10 +1139,10 @@ export function Sidebar({
               <p className="mb-3 text-[11px] leading-4 text-muted-foreground">
                 Play, speed, position and the way back to the map are on the road-view panel over the map.
               </p>
-              {(
+              {
                 <div className="space-y-3">
                   <Field label="Where to look">
-                    <select
+                    <NativeSelect
                       className={cn(SELECT_CLASS, 'w-full')}
                       value={drive.lookAtTargetId ?? ''}
                       onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
@@ -1149,7 +1154,7 @@ export function Sidebar({
                           Face {block.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   {driveVisiblePercent !== null && (
@@ -1270,7 +1275,7 @@ export function Sidebar({
                     does not change the assessment.
                   </p>
                 </div>
-              )}
+              }
             </SidebarSection>
           )}
           <div className="border-t border-border/60 px-4 py-3">
@@ -1351,7 +1356,9 @@ export function Sidebar({
               rather than only in the package two steps on. */}
             {result && !running && (
               <InlineAlert className="mt-2" tone={numericalReady ? 'success' : 'warning'}>
-                {numericalReady ? 'Scenario numerical fields available' : 'Provisional result — PDF numerical fields withheld'}
+                {numericalReady
+                  ? 'Scenario numerical fields available'
+                  : 'Provisional result — PDF numerical fields withheld'}
                 {!numericalReady && result.quality?.warnings.length ? (
                   <span className="block">{result.quality.warnings[0]}</span>
                 ) : null}
@@ -1405,7 +1412,7 @@ export function Sidebar({
                     0,
                   )} m between elevation samples. Finer detail means many more tiles to fetch.`}
                 >
-                  <select
+                  <NativeSelect
                     className={INPUT_CLASS}
                     value={settings.demZoom}
                     onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
@@ -1418,7 +1425,7 @@ export function Sidebar({
                         </option>
                       )
                     })}
-                  </select>
+                  </NativeSelect>
                 </Field>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">

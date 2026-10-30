@@ -4,7 +4,7 @@ export const CRIME_CATEGORY_COLORS: Record<CrimeCategory, string> = {
   'Break & Enter': '#ef4444',
   'Bike Theft': '#a855f7',
   'Other Theft': '#f97316',
-  'Mischief': '#eab308',
+  Mischief: '#eab308',
   'Theft of Vehicle': '#3b82f6',
   'Theft from Vehicle': '#14b8a6',
 }

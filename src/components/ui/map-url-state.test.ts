@@ -60,9 +60,9 @@ describe('isMapViewValid', () => {
 
 describe('compact hash round-trip', () => {
   it('serializes view + codes as #/zoom/lat/lng/...codes', () => {
-    expect(
-      serializeMapViewHash({ center: [-120.8048, 67.7556], zoom: 2 }, ['B1', 'L1', 'L2'], AQ),
-    ).toBe('#/2.00/67.7556/-120.8048/B1/L1/L2')
+    expect(serializeMapViewHash({ center: [-120.8048, 67.7556], zoom: 2 }, ['B1', 'L1', 'L2'], AQ)).toBe(
+      '#/2.00/67.7556/-120.8048/B1/L1/L2',
+    )
   })
 
   it('parses the exact example hash back to view + codes', () => {

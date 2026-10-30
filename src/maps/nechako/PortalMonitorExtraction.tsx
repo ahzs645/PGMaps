@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -106,7 +107,7 @@ export function PortalMonitorExtraction({
         </label>
         <label className="text-sm">
           Unique row ID, if the source has one
-          <select
+          <NativeSelect
             aria-label="Monitoring unique row ID"
             className="mt-1 w-full rounded border bg-background p-2"
             value={uniqueKey}
@@ -119,7 +120,7 @@ export function PortalMonitorExtraction({
                 {field}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       </div>
       <div className="flex flex-wrap gap-2">

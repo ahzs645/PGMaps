@@ -43,8 +43,9 @@ Chapter 11 (pp89–98) demonstrates mass/haul reporting and pit inputs; chapter 
 cover named templates, station overrides and reporting; chapter 17 (pp143–147)
 shows drainage-structure placement and section/profile inspection. This workspace
 implements its own documented calculations below. Its deterministic allocation
-is not Softree Optimal/OptiHaul, and its cut-only stripping classification does
-not reproduce the tutorial's removal of original ground beneath fill.
+uses its own bounded material-flow solver rather than Softree Optimal/OptiHaul.
+Excavated stripping horizons and explicit pre-section site preparation are separate inputs;
+the latter removes ground beneath fill and records replacement fill.
 
 The transcript's example turnout reaches 6 m of extra width on the left from
 stations 210 to 240 m, with transitions over 200–210 m and 240–250 m. In this
@@ -676,11 +677,12 @@ For each classified interval:
 
 A material marked as excavated stripping must have reusable fraction zero.
 Its intersected cut quantity and excavation cost are reported separately, and
-it is excluded from reusable mass. This is **cut-only stripping classification**:
-it does not remove original ground under an embankment, deepen the construction
-formation, add replacement fill, extend stripping beyond daylight, or perform
-the full stripping procedure in chapter 13 of the supplied tutorial. Ordinary
-unclassified cut is never relabelled as stripping.
+it is excluded from reusable mass. A stripping horizon alone is **cut-only classification**.
+Explicit `sitePreparation` ranges remove ground before section construction, including
+beneath fill, with separate stripping quantities and replacement fill. Inside/outside
+offsets bound that preparation footprint. Original and prepared ground remain separate
+in views and exports; ordinary unclassified cut is never relabelled as stripping.
+See [section assemblies and site preparation](forestry-road-design/section-assemblies.md).
 
 Material-aware cumulative mass is usable compacted cut minus compacted fill.
 The reported covered balance applies the same expression to supported subtotals.
@@ -698,8 +700,13 @@ these entered costs. Horizontal route/corridor search does not choose a pit or
 solve delivery routes. Borrow/waste sites optionally use delivered batch cost
 instead of nearest-site order; each batch is re-ranked after capacity is used.
 
-Haul allocation is disabled by default. Enabling it runs a deterministic
-allocation scenario, not a global optimum: fill intervals are visited in
+Haul allocation is disabled by default. Legacy nearest-source mode remains a deterministic
+allocation scenario rather than an economic optimum. Optional economic mode solves a bounded
+mixed-integer material-flow model with quality/exact-material requirements, fixed site opening
+costs, shared capacities, construction-direction ranges and sidecast limits. Infeasible or
+unfinished prescriptions do not become complete estimates. See
+[material allocation](forestry-road-design/material-allocation.md) for conservation,
+pricing and solver budgets. In legacy nearest-source mode, fill intervals are visited in
 chainage order and draw from the nearest remaining reusable cut in the same
 continuously supported road section. Material conversion factors are retained
 for every movement. A site or source on the other side of a terrain/daylight gap
@@ -1075,8 +1082,14 @@ ponds small blue dots. The page keeps one run per road. A run is stale when that
 alignment, the road settings, the terrain or a drainage input changes; edits to other
 alternatives do not stale it. A stale run stays in the panel with a notice but is not drawn on
 the plan, whose header then reads "Drainage out of date · re-run it to show flow". The
-drainage inputs are remembered in this browser (`pgmaps-road-drainage-settings`); runs are not
-saved, since they recompute in seconds and hold tens of megabytes of grids.
+project saves drainage inputs and compact, fingerprinted review evidence (run date, source/datum,
+crossing and culvert metrics, catchment/watershed polygons and warnings). Full grids are not saved,
+since they recompute in seconds and hold tens of megabytes. Older projects use browser input
+defaults (`pgmaps-road-drainage-settings`). Unchecksummed regional terrain requires a fresh run
+after reopening. Drain-to-point supports an arbitrary plan location and metric snap radius;
+optional watershed partitioning returns exact unions of D8 basin cells with boundary/no-data
+truncation flags. The [drainage guide](forestry-road-design/drainage.md) specifies the polygon,
+portable-evidence and cell budgets, exports and interpretation limits.
 Selecting a drainage-table station updates linked views; focused mobile layouts also
 open the plan so the location and flow overlay can be inspected immediately.
 
@@ -1128,41 +1141,43 @@ cable-tension or payload solution.
 
 ## Scope boundaries
 
-The following capabilities appear in the references or would require more
-inputs, but are not implemented by this workspace:
+The implemented reference extensions are described in the guides for
+[section assemblies](forestry-road-design/section-assemblies.md),
+[material allocation](forestry-road-design/material-allocation.md),
+[terrain preparation and survey](forestry-road-design/terrain-preparation-and-survey.md),
+[drawings and vertical alternatives](forestry-road-design/drawings-and-vertical-alternatives.md),
+[alignment and search](forestry-road-design/alignment-and-optimization.md), and
+[drainage](forestry-road-design/drainage.md). They use explicit source inputs and bounded
+calculations; they do not reproduce proprietary software algorithms.
 
-- Full-density corridor reprocessing, point clouds over 1 GB, classes other than ground,
-  and a TIN kept as triangles for display or export. Point clouds are read, classified
-  and gridded in the browser (see [Imported LAS and LAZ](#imported-las-and-laz)); anything
-  heavier belongs in the `scripts/lidar/` pipeline or an external tool.
-- Automatic geological inference, material testing/suitability, layer-specific
-  fill requirements, full stripping/undercut beneath fill, geometric borrow-pit
-  excavation volumes, globally optimized borrow/waste allocation, construction
-  scheduling, and a profile optimizer that carries a running mass balance inside its
-  search. The cut-and-fill and total-cost profile optimizers, user-defined horizons and
-  the deterministic allocation scenario are implemented.
-- Programmable template components: new component types, point codes or scripted
-  conditions. The template is edited as a component tree over its fixed lane, ditch and
-  slope components. Also out of scope: a separately graded 3D landing pad, intersection
-  design and road-network topology or automatic spur snapping. Named parameter
-  templates, signed side crossfalls, U ditches, design-speed superelevation and widening,
-  clothoid spirals and linear station transitions are implemented. A spur can be a
-  separate, manually connected road.
-- Wetness indices, watershed delineation as polygons, infiltration, subsurface flow,
-  time of concentration, hydraulic grade lines and inlet control. The drainage check
-  (see [Drainage on the design surface](#drainage-on-the-design-surface)) routes surface
-  runoff with D8 and sizes pipes by the Rational method and full-pipe Manning flow. It is
-  a planning screen, not a hydrotechnical design. Bridge capacity and geotechnical
-  stability are not solved.
-- Automatic maximum cable reach, safe operating envelopes, cable force/tension,
-  equipment/payload selection and anchor capacity. Fixed-radius radial
-  exploration and individual D-lines use entered heights and assumed sag only.
-- Tree/species/DBH, merchantable timber volume, piece size or inventory recovery
-  from bare-earth terrain. These require their own inventory data and tools.
-- Native RoadEng/CAD project output (DWG/DXF), a full survey stakeout package or
-  dedicated per-chart PNG export. LandXML, a zipped shapefile, a slope-stake point CSV,
-  the A3 plot book and the outputs below are the interoperability contract. The plot
-  book and the report print through the browser's Print / Save as PDF.
+The workspace still does not infer geological properties or material quality, perform
+geotechnical/retaining-wall structural design, calculate pit reserves from excavation
+geometry, schedule construction/fleets, or prove a global minimum over every possible
+horizontal alignment, profile, pit and haul circuit. Economic material-flow optimality is
+limited to the entered model, while joint plan/profile refinement is a bounded local search.
+
+Terrain preparation preserves named source grids, can mosaic compatible inputs, retain and
+edit a constrained TIN, compose a designed road or graded pad, and preserve a point-cloud
+corridor while thinning its surroundings. It does not convert vertical datums or establish
+survey accuracy. Combined point-cloud imports remain bounded to 1 GB; heavier work belongs
+in the existing LiDAR pipeline or an external tool.
+
+Template components use typed, bounded geometry and named feature/surface references.
+They are not arbitrary executable scripts. A wall component is a geometric face, not a
+structural design. Composite road/pad surfaces support geometric intersection preparation,
+not an automatic intersection-design or swept-vehicle analysis.
+
+D8 catchments and Rational/Manning screens do not solve infiltration, subsurface flow,
+time of concentration, hydraulic grade lines, inlet control, bridge capacity, fish passage
+or terrain stability. Cable D-lines remain assumed geometric sag/clearance, without
+force/tension, payload, anchor or safe-operating-envelope calculations. A bare-earth DTM
+does not supply measured tree/species/DBH or merchantable timber inventory.
+
+Open handoff includes KML/KMZ import, survey field books, LandXML alignment and terrain
+surfaces, ASCII grids, shapefiles, stakeout CSV and configurable A3/A4 plot books. Native
+RoadEng/DWG project compatibility remains unavailable without a documented format and
+receiving-application validation. Survey reduction and point exports are not a complete
+instrument-specific construction stakeout package.
 
 ## Computation and file budgets
 
@@ -1262,7 +1277,9 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   and flags; and its culverts. Fields widen to fit, numbers up to 19 characters and text up
   to 254 bytes; a value that still does not fit, or a number of 10²¹ or more, is blanked or
   cut and counted in the page notice.
-- Plot book (`plotBook.ts`), A3 landscape, in two chapters:
+- Plot book (`plotBook.ts`), configurable A3/A4 landscape with saved chapters, ranges,
+  scales, subviews, label templates and schedule columns. The backward-compatible default
+  remains A3 landscape in two chapters:
   1. Plan-and-profile sheets, 250 m each. The plan is rotated so the road runs left to
      right, with contours from the active terrain, formation edges, catch lines, station
      ticks, a turned north arrow and a scale bar. Each plan prints the contour and index
@@ -1281,7 +1298,7 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   unknown fields remain blank and every row retains source provenance.
 - Selected-section CSV: signed left/right offsets, WGS84 coordinates, semantic
   section codes, ground/design elevations, ground-minus-design cut/fill depths,
-  completeness and source provenance. Actual cut-side ditch and daylight points
+  completeness, optional prepared-ground elevation/depth and source provenance. Actual cut-side ditch and daylight points
   use the calculated section; unavailable ground or exterior design stays blank.
 - D-line CSV and printable HTML: effective supports and sampled profile, yarder
   orientation, signed offsets, horizontal span, signed support rise, inclined

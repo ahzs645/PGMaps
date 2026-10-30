@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,10 @@ import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
 
 const id = () => crypto.randomUUID()
-const TEMPLATE_FIELDS: [keyof RoadTemplate, string, number, number][] = [
+type NumericTemplateKey = {
+  [K in keyof RoadTemplate]-?: RoadTemplate[K] extends number | undefined ? K : never
+}[keyof RoadTemplate]
+const TEMPLATE_FIELDS: [NumericTemplateKey, string, number, number][] = [
   ['leftWidth', 'Left half-width (m)', 0.1, 50],
   ['rightWidth', 'Right half-width (m)', 0.1, 50],
   ['crossfallPercent', 'Crown crossfall (%)', 0, 20],
@@ -55,6 +59,9 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
       <RoadSection title="Template components">
         <TemplateComponents
           template={alignment.template}
+          materials={alignment.engineering?.materials}
+          features={p.workspace.project.context}
+          surfaces={p.workspace.project.terrain.referenceSurfaces}
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
         />
       </RoadSection>
@@ -186,17 +193,17 @@ function Widenings(p: SidebarProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Widening type">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={v.kind}
                   onChange={(e) => tweak(v.id, { kind: e.target.value as WidthOverride['kind'] })}
                 >
                   <option value="landing">Landing · unsurfaced</option>
                   <option value="turnout">Turnout · surfaced</option>
-                </select>
+                </NativeSelect>
               </Field>
               <Field label="Widening side">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={v.side}
                   onChange={(e) => tweak(v.id, { side: e.target.value as WidthOverride['side'] })}
@@ -204,7 +211,7 @@ function Widenings(p: SidebarProps) {
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                   <option value="both">Both</option>
-                </select>
+                </NativeSelect>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -217,6 +224,20 @@ function Widenings(p: SidebarProps) {
                   onChange={(value) => tweak(v.id, { [key]: value })}
                 />
               ))}
+              <NumberField
+                label="Entry taper (m)"
+                value={v.entryTaperM ?? v.taper}
+                min={0}
+                max={Math.max(0, v.end - v.start - (v.exitTaperM ?? v.taper))}
+                onChange={(entryTaperM) => tweak(v.id, { entryTaperM })}
+              />
+              <NumberField
+                label="Exit taper (m)"
+                value={v.exitTaperM ?? v.taper}
+                min={0}
+                max={Math.max(0, v.end - v.start - (v.entryTaperM ?? v.taper))}
+                onChange={(exitTaperM) => tweak(v.id, { exitTaperM })}
+              />
             </div>
             {v.end <= v.start && (
               <p role="alert" className="text-xs text-red-600">

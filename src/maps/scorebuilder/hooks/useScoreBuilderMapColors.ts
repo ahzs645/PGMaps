@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { getChoroplethColor } from '@/components/ui/map-styles'
-import {
-  getScorePaletteOutputColor,
-  getWalkabilityReportMiColor,
-  type ScorePaletteProfile,
-} from '../constants'
+import { getScorePaletteOutputColor, getWalkabilityReportMiColor, type ScorePaletteProfile } from '../constants'
 import {
   computeCorrelation,
   topMetricCorrelations,
@@ -14,12 +10,7 @@ import {
 import { buildBivariateBreaks, getBivariateColor, getResidualColor } from '../lib/correlationColors'
 import type { RegionMetricRow } from '../lib/scoring'
 import type { ScoreSpread } from '../lib/scoreSummaries'
-import type {
-  ScoredBoundaryRegion,
-  ScoreMethodSettings,
-  ScoreMetricKey,
-  ScoreMetricRangeMap,
-} from '../types'
+import type { ScoredBoundaryRegion, ScoreMethodSettings, ScoreMetricKey, ScoreMetricRangeMap } from '../types'
 
 export interface ScoreBuilderMapColorsOptions {
   correlateMode: boolean
@@ -137,7 +128,7 @@ export function useScoreBuilderMapColors({
     ? correlateRegionFillColors
     : densityMode
       ? densityRegionFillColors
-      : walkabilityBoundaryRegionFillColors ?? scoreRegionFillColors
+      : (walkabilityBoundaryRegionFillColors ?? scoreRegionFillColors)
 
   return { correlationResult, correlationTopPairs, mapRegionFillColors }
 }

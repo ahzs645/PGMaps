@@ -251,10 +251,16 @@ cells, so it records provenance, not integrity of the cells in the JSON.
 
 Screen layouts, their pane sizes and the station table's hidden columns are kept in this
 browser's `localStorage` (`pgmaps-road-saved-layouts`, `pgmaps-road-layout`,
-`pgmaps-road-panes:…`, `pgmaps-road-station-columns`), and so are the drainage inputs
-(`pgmaps-road-drainage-settings`). They are not in the project file, do not
+`pgmaps-road-panes:…`, `pgmaps-road-station-columns`). These presentation preferences are not in the project file, do not
 follow you to another browser and are lost with site data or at the end of a private session.
 Write failures are ignored; the layout falls back to its defaults.
+
+Drainage settings and compact review evidence are saved in project `drainage`; browser
+`pgmaps-road-drainage-settings` is a fallback for older projects only. The compact record includes
+source/run provenance, catchment/watershed geometry and crossing/culvert metrics; full flow grids
+are recomputed. The Drainage panel exports current GeoJSON and evidence JSON; the road report
+includes status, settings, source and retained checks. Stale evidence cannot be exported as current,
+and unchecksummed regional terrain needs a fresh run after reopening.
 
 ## How problems show up
 
@@ -276,11 +282,13 @@ Write failures are ignored; the layout falls back to its defaults.
 
 ## What it does not do
 
-- **No native RoadEng, Civil 3D or CAD project (DWG/DXF)** and no LandXML surface, corridor or
-  feature lines.
-- **No survey stakeout package** and no field-book or data-collector format.
+- **No native RoadEng, Civil 3D or DWG project.** Open handoff includes LandXML alignment/profile/sections
+  and terrain surfaces, ASCII grids and KML/KMZ import; product-specific corridor objects are not reconstructed.
+- **No instrument-specific construction stakeout package.** Portable survey field books, traverse reduction,
+  closure adjustment, side shots and CSV exports are available; instrument/control workflows remain separate.
 - **No projected shapefile.** Reproject in a GIS if you need grid coordinates.
-- **No drainage output.** Drainage runs are not in any file or in the project.
+- **No full drainage raster output.** Project/evidence exports retain compact review geometry and
+  metrics, not accumulation, fill-depth or direction grids.
 - **No per-chart PNG or PDF export.** Print the HTML to PDF.
 - **No cloud sync, sharing or version history.** Undo is in memory and lost on reload; the
   downloaded project JSON is the record.
@@ -288,3 +296,12 @@ Write failures are ignored; the layout falls back to its defaults.
 - **Nothing is for construction.** The plot book, report and LandXML all say so. Construction
   drawings and set-out need field survey and the professional sign-off your jurisdiction
   requires.
+
+### Prepared-ground sections
+
+LandXML cross-sections retain **Ground** as the original observations and add a distinct
+**Prepared ground** surface where stripping or key excavation changed the construction base.
+**Design** remains the designed subgrade/section. Missing elevations split each surface into contiguous named parts rather than connecting across
+no-data intervals or writing zero; the same rule applies to the exported ground profile. A road
+without preparation has no artificial prepared-ground surface.
+The selected-section CSV also carries original and prepared elevations in separate columns.

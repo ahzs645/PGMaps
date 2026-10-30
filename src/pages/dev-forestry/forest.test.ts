@@ -382,8 +382,17 @@ describe('crownColor', () => {
 describe('thinned blocks', () => {
   const block = box(CENTRE.lng - 0.002, CENTRE.lat - 0.002, CENTRE.lng + 0.002, CENTRE.lat + 0.002)
   const grow = (thinnings: Parameters<typeof placeTrees>[0]['thinnings']) =>
-    placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: 400, spacingMeters: 5, heightMeters: 28, thinnings })
-  const inBlock = (trees: ReturnType<typeof placeTrees>) => trees.filter((tree) => pointInPolygon(block, tree.lng, tree.lat))
+    placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: 400,
+      spacingMeters: 5,
+      heightMeters: 28,
+      thinnings,
+    })
+  const inBlock = (trees: ReturnType<typeof placeTrees>) =>
+    trees.filter((tree) => pointInPolygon(block, tree.lng, tree.lat))
 
   it('keeps about the recorded share of stems, and leaves the rest of the stand alone', () => {
     const full = grow([])
@@ -391,12 +400,22 @@ describe('thinned blocks', () => {
     const share = inBlock(thinned).length / inBlock(full).length
     expect(share).toBeGreaterThan(0.15)
     expect(share).toBeLessThan(0.25)
-    const outside = (trees: ReturnType<typeof placeTrees>) => trees.filter((tree) => !pointInPolygon(block, tree.lng, tree.lat))
+    const outside = (trees: ReturnType<typeof placeTrees>) =>
+      trees.filter((tree) => !pointInPolygon(block, tree.lng, tree.lat))
     expect(outside(thinned)).toEqual(outside(full))
   })
 
   it('stands a partial cut’s residuals at the height entered for them', () => {
-    const trees = inBlock(grow([blockThinning({ geometry: block, harvestSystem: 'partial', volumeRemovedPercent: 60, residualHeightMeters: 12 })!]))
+    const trees = inBlock(
+      grow([
+        blockThinning({
+          geometry: block,
+          harvestSystem: 'partial',
+          volumeRemovedPercent: 60,
+          residualHeightMeters: 12,
+        })!,
+      ]),
+    )
     expect(trees.length).toBeGreaterThan(50)
     expect(Math.max(...trees.map((tree) => tree.heightMeters))).toBeLessThanOrEqual(12 * 1.3)
   })
@@ -411,12 +430,22 @@ describe('stand density and crown closure', () => {
   /** Closure as drawn: every crown rasterised at 1/16 of the spacing (0.5 m at least) over a central square. */
   function drawnClosure(options: Partial<Parameters<typeof placeTrees>[0]> & { spacingMeters: number }) {
     const spacing = options.spacingMeters
-    const half = Math.max(150, spacing * 12), res = Math.max(0.5, spacing / 16)
-    const trees = placeTrees({ stands: [], clearings: [], centre: CENTRE, radiusMeters: half * 1.6, maxTrees: 1e6, ...options })
+    const half = Math.max(150, spacing * 12),
+      res = Math.max(0.5, spacing / 16)
+    const trees = placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: half * 1.6,
+      maxTrees: 1e6,
+      ...options,
+    })
     const metresPerLng = 111_320 * Math.cos((53.75 * Math.PI) / 180) // the placement grid's quantised anchor
-    const n = Math.round((2 * half) / res), grid = new Uint8Array(n * n)
+    const n = Math.round((2 * half) / res),
+      grid = new Uint8Array(n * n)
     for (const tree of trees) {
-      const x = (tree.lng - CENTRE.lng) * metresPerLng + half, y = (tree.lat - CENTRE.lat) * 111_320 + half
+      const x = (tree.lng - CENTRE.lng) * metresPerLng + half,
+        y = (tree.lat - CENTRE.lat) * 111_320 + half
       const r = (tree.slenderness * tree.heightMeters) / 2
       for (let gy = Math.max(0, Math.floor((y - r) / res)); gy <= Math.min(n - 1, Math.ceil((y + r) / res)); gy += 1)
         for (let gx = Math.max(0, Math.floor((x - r) / res)); gx <= Math.min(n - 1, Math.ceil((x + r) / res)); gx += 1)
@@ -462,9 +491,21 @@ describe('stand density and crown closure', () => {
 
   it('gives unrecorded regeneration a young canopy, not mature crowns', () => {
     const young = box(CENTRE.lng - 0.02, CENTRE.lat - 0.02, CENTRE.lng + 0.02, CENTRE.lat + 0.02)
-    const { closure, trees } = drawnClosure({ spacingMeters: 4, inventory: [{ geometry: young, species: 'spruce', heightMeters: 2 }] })
+    const { closure, trees } = drawnClosure({
+      spacingMeters: 4,
+      inventory: [{ geometry: young, species: 'spruce', heightMeters: 2 }],
+    })
     expect(closure).toBeLessThan(0.12)
-    const far = drawnClosure({ spacingMeters: 80, inventory: [{ geometry: box(CENTRE.lng - 0.1, CENTRE.lat - 0.1, CENTRE.lng + 0.1, CENTRE.lat + 0.1), species: 'spruce', heightMeters: 2 }] })
+    const far = drawnClosure({
+      spacingMeters: 80,
+      inventory: [
+        {
+          geometry: box(CENTRE.lng - 0.1, CENTRE.lat - 0.1, CENTRE.lng + 0.1, CENTRE.lat + 0.1),
+          species: 'spruce',
+          heightMeters: 2,
+        },
+      ],
+    })
     // No hundred-metre strips a metre tall.
     expect(Math.max(...far.trees.map((tree) => tree.slenderness))).toBeLessThanOrEqual(4)
     expect(Math.max(...trees.map((tree) => tree.slenderness * tree.heightMeters))).toBeLessThan(4)
@@ -472,7 +513,10 @@ describe('stand density and crown closure', () => {
 
   it('sizes a crown from closure the way the regional numbers imply', () => {
     // 45% at 550 stems/ha, crowns at random: about a 3.7 m crown.
-    expect(crownWidthForClosure(REGIONAL_STAND.crownClosurePercent, REGIONAL_STAND.stemsPerHa / 10_000)).toBeCloseTo(3.7, 1)
+    expect(crownWidthForClosure(REGIONAL_STAND.crownClosurePercent, REGIONAL_STAND.stemsPerHa / 10_000)).toBeCloseTo(
+      3.7,
+      1,
+    )
     expect(crownWidthForClosure(45, 0)).toBe(0)
   })
 })
@@ -481,7 +525,12 @@ describe('viewing gap toward a block', () => {
   const metresNorth = (m: number) => m / 111_320
   const metresEast = (m: number) => m / (111_320 * Math.cos((CENTRE.lat * Math.PI) / 180))
   // A block 200 m wide, 1 km due east of the eye.
-  const block = box(CENTRE.lng + metresEast(1000), CENTRE.lat - metresNorth(100), CENTRE.lng + metresEast(1200), CENTRE.lat + metresNorth(100))
+  const block = box(
+    CENTRE.lng + metresEast(1000),
+    CENTRE.lat - metresNorth(100),
+    CENTRE.lng + metresEast(1200),
+    CENTRE.lat + metresNorth(100),
+  )
 
   it('points at the block, takes in its whole width, and stops short of its edge', () => {
     const gap = viewingGapToward(CENTRE, block)!
@@ -493,10 +542,14 @@ describe('viewing gap toward a block', () => {
   })
 
   it('caps how far out it reaches, and opens nothing from inside the block', () => {
-    const far = box(CENTRE.lng + metresEast(5000), CENTRE.lat - metresNorth(100), CENTRE.lng + metresEast(5200), CENTRE.lat + metresNorth(100))
+    const far = box(
+      CENTRE.lng + metresEast(5000),
+      CENTRE.lat - metresNorth(100),
+      CENTRE.lng + metresEast(5200),
+      CENTRE.lat + metresNorth(100),
+    )
     expect(viewingGapToward(CENTRE, far)!.lengthMeters).toBe(1500)
     const around = box(CENTRE.lng - 0.01, CENTRE.lat - 0.01, CENTRE.lng + 0.01, CENTRE.lat + 0.01)
     expect(viewingGapToward(CENTRE, around)).toBeNull()
   })
 })
-

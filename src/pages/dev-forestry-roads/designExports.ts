@@ -37,6 +37,25 @@ const pointList = (pairs: [number | null | undefined, number | null | undefined]
     .filter(Boolean)
     .join(' ')
 
+/** Keep missing intervals as breaks; a PntList must not imply a surveyed bridge over a hole. */
+const pointRuns = (pairs: [number | null | undefined, number | null | undefined][]) => {
+  const runs: string[] = []
+  let current: [number, number][] = []
+  const flush = () => {
+    if (current.length) runs.push(pointList(current))
+    current = []
+  }
+  for (const [x, y] of pairs) {
+    if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) {
+      flush()
+      continue
+    }
+    current.push([x, y])
+  }
+  flush()
+  return runs
+}
+
 /** Chord of a clothoid running from zero curvature to 1/radius over `length` (Simpson's rule). */
 function clothoidChord(length: number, radius: number) {
   const steps = 64
@@ -151,24 +170,33 @@ export function landXml({
         : `<PVI>${num(p.chainage)} ${num(p.elevation)}</PVI>`,
     )
     .join('')
-  const ground = pointList(analysis.stations.map((s) => [s.chainage, s.groundElevation]))
+  const ground = pointRuns(analysis.stations.map((s) => [s.chainage, s.groundElevation]))
+    .map(
+      (points, index) =>
+        `<ProfSurf name="Ground · ${xml(terrain.name)}${index ? ` · part ${index + 1}` : ''}"><PntList2D>${points}</PntList2D></ProfSurf>`,
+    )
+    .join('')
   const sections = sectionStations(analysis, sectionIntervalM)
     .map((s) => {
       const sta = num(s.chainage)
       if (sta === null) return ''
-      const surface = (label: string, key: 'design' | 'ground') => {
-        const points = pointList(s.section.map((p) => [p.offset, p[key]]))
-        return points ? `<CrossSectSurf name="${label}"><PntList2D>${points}</PntList2D></CrossSectSurf>` : ''
+      const surface = (label: string, key: 'design' | 'ground' | 'preparedGround') => {
+        return pointRuns(s.section.map((p) => [p.offset, p[key]]))
+          .map(
+            (points, index) =>
+              `<CrossSectSurf name="${label}${index ? ` part ${index + 1}` : ''}"><PntList2D>${points}</PntList2D></CrossSectSurf>`,
+          )
+          .join('')
       }
-      const surfaces = surface('Design', 'design') + surface('Ground', 'ground')
+      const surfaces =
+        surface('Design', 'design') +
+        surface('Ground', 'ground') +
+        (s.section.some((p) => p.preparedGround !== undefined) ? surface('Prepared ground', 'preparedGround') : '')
       return surfaces ? `<CrossSect sta="${sta}">${surfaces}</CrossSect>` : ''
     })
     .filter(Boolean)
     .join('\n        ')
-  const profileBody = [
-    profile ? `<ProfAlign name="Design formation">${profile}</ProfAlign>` : '',
-    ground ? `<ProfSurf name="Ground · ${xml(terrain.name)}"><PntList2D>${ground}</PntList2D></ProfSurf>` : '',
-  ]
+  const profileBody = [profile ? `<ProfAlign name="Design formation">${profile}</ProfAlign>` : '', ground]
     .filter(Boolean)
     .join('\n        ')
   const ratio = modelLength > 0 ? num(gridLength / modelLength, 5) : null

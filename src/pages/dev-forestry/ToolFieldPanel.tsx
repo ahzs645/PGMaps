@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { cloneElement, isValidElement, useRef, useState, type ReactElement } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -165,10 +166,10 @@ export function ToolFieldPanel({
           <input className={TOOL_INPUT} value={name} onChange={(e) => setName(e.target.value)} />
         </ToolField>
         <ToolField label="Save viewpoint from">
-          <select className={TOOL_INPUT} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+          <NativeSelect className={TOOL_INPUT} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
             <option value="station">Current sampled station</option>
             <option value="route">Entire current road or spot</option>
-          </select>
+          </NativeSelect>
         </ToolField>
         <Button size="sm" variant="outline" onClick={() => addView()} disabled={mode === 'station' && !result}>
           Record assessment viewpoint
@@ -211,12 +212,12 @@ export function ToolFieldPanel({
           </div>
         ))}
         <ToolField label="Attachment type">
-          <select className={TOOL_INPUT} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+          <NativeSelect className={TOOL_INPUT} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
             <option value="photo">Reference field photo</option>
             <option value="simulation">Simulation image</option>
             <option value="map">Topographic map</option>
             <option value="design">Design analysis</option>
-          </select>
+          </NativeSelect>
         </ToolField>
         <input
           ref={input}
@@ -333,7 +334,7 @@ export function ToolFieldPanel({
                 <input className={TOOL_INPUT} value={field.name} onChange={(e) => change({ name: e.target.value })} />
               </ToolField>
               <ToolField label="Evidence viewpoint">
-                <select
+                <NativeSelect
                   className={TOOL_INPUT}
                   value={field.viewId ?? ''}
                   onChange={(e) => change({ viewId: e.target.value || null })}
@@ -344,7 +345,7 @@ export function ToolFieldPanel({
                       {v.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </ToolField>
               <ToolField label="Field date">
                 <input

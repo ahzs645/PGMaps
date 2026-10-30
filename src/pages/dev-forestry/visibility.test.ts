@@ -123,7 +123,9 @@ describe('testSightline', () => {
   })
 
   it('still reports occlusion when a known ridge sits beyond a gap in the DEM', () => {
-    const gappyRidge = profileTerrain((lng) => (lng > 0.005 && lng < 0.015 ? Number.NaN : lng > 0.02 && lng < 0.025 ? 300 : 0))
+    const gappyRidge = profileTerrain((lng) =>
+      lng > 0.005 && lng < 0.015 ? Number.NaN : lng > 0.02 && lng < 0.025 ? 300 : 0,
+    )
     const result = testSightline(gappyRidge, ground(0, 0, 0), ground(0.045, 0, 0), DEFAULT_SIGHTLINE_OPTIONS)
     expect(result.status).toBe('occluded')
     expect(result.visible).toBe(false)

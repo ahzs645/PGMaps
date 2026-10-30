@@ -8,8 +8,18 @@ export function MobileFeatureCard(props: ComponentProps<typeof ToolkitMobileFeat
   const workspace = useWorkspace()
   const { resolvedTheme } = useTheme()
   if (workspace) return <ToolkitMobileFeatureCard {...props} />
-  return <WorkspaceProvider eventTarget={typeof window === 'undefined' ? undefined : window} placement="viewport" responsive="viewport" theme={resolvedTheme === 'dark' ? 'dark' : 'light'} style={{ display: 'contents' }}
-    rootElement={typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('[data-map-layout-root="true"]')}>
-    <ToolkitMobileFeatureCard {...props} />
-  </WorkspaceProvider>
+  return (
+    <WorkspaceProvider
+      eventTarget={typeof window === 'undefined' ? undefined : window}
+      placement="viewport"
+      responsive="viewport"
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      style={{ display: 'contents' }}
+      rootElement={
+        typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('[data-map-layout-root="true"]')
+      }
+    >
+      <ToolkitMobileFeatureCard {...props} />
+    </WorkspaceProvider>
+  )
 }

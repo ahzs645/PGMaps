@@ -52,10 +52,7 @@ export type EvChargingFeature = GeoJSON.Feature<
   }
 >
 
-export type EvChargingFeatureCollection = GeoJSON.FeatureCollection<
-  GeoJSON.Point,
-  EvChargingFeature['properties']
->
+export type EvChargingFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, EvChargingFeature['properties']>
 
 export interface EvChargingSummaryStats {
   stationCount: number
@@ -103,11 +100,13 @@ function EvSummarySection({
     <SidebarSection
       title={title}
       subtitle={<span className="block truncate">{subtitle}</span>}
-      actions={onClear && (
-        <TextButton tone="muted" onClick={onClear}>
-          Clear
-        </TextButton>
-      )}
+      actions={
+        onClear && (
+          <TextButton tone="muted" onClick={onClear}>
+            Clear
+          </TextButton>
+        )
+      }
     >
       <StatGroup
         variant="tiles"

@@ -32,10 +32,13 @@ export default function CrimeDataSection() {
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null)
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
-  disableTimeline,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    disableTimeline,
   } = useTimelineState(1)
 
   const allYears = useMemo(() => {
@@ -58,9 +61,7 @@ export default function CrimeDataSection() {
       if (selectedYears.length > 0 && !selectedYears.includes(inc.date.getFullYear())) return false
       if (selectedCommunity && inc.community !== selectedCommunity) return false
       if (normalizedQuery) {
-        const text = [inc.address, inc.fileNumber, inc.community, inc.crimeType]
-          .join(' ')
-          .toLowerCase()
+        const text = [inc.address, inc.fileNumber, inc.community, inc.crimeType].join(' ').toLowerCase()
         if (!text.includes(normalizedQuery)) return false
       }
       return true
@@ -125,19 +126,19 @@ export default function CrimeDataSection() {
 
   const toggleCategory = useCallback((category: CrimeCategory) => {
     setSelectedCategories((current) =>
-      current.includes(category)
-        ? current.filter((c) => c !== category)
-        : [...current, category]
+      current.includes(category) ? current.filter((c) => c !== category) : [...current, category],
     )
   }, [])
 
-  const toggleYear = useCallback((year: number) => {
-    setSelectedYearsOverride((current) => {
-      const base = current ?? allYears
-      return base.includes(year) ? base.filter((y) => y !== year) : [...base, year]
-    })
-  }, [allYears])
-
+  const toggleYear = useCallback(
+    (year: number) => {
+      setSelectedYearsOverride((current) => {
+        const base = current ?? allYears
+        return base.includes(year) ? base.filter((y) => y !== year) : [...base, year]
+      })
+    },
+    [allYears],
+  )
 
   // A selection that filters drop out of view simply stops rendering; the
   // stored state is harmless and avoids an effect-driven clear.
@@ -164,7 +165,9 @@ export default function CrimeDataSection() {
   return (
     <MapSectionLayout
       mobilePeekTitle={<>PG Data · {formatNumber(filteredIncidents.length)} incidents</>}
-      mobilePeekSubtitle={<>{visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}</>}
+      mobilePeekSubtitle={
+        <>{visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}</>
+      }
       sidebar={
         <CrimeSidebar
           className={MAP_SIDEBAR_CLASS}
@@ -232,15 +235,19 @@ export default function CrimeDataSection() {
             collapsible
           >
             {showCrimeLayer && showHeatmap ? (
-              <MapGradientLegendItem colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']} minLabel="Low" maxLabel="High" />
+              <MapGradientLegendItem
+                colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']}
+                minLabel="Low"
+                maxLabel="High"
+              />
             ) : (
               <div className="space-y-2">
                 {/* Point legends */}
                 {legendItems.length > 0 && (
                   <MapLegendSection title="Layers">
-                      {legendItems.map((item) => (
-                        <LegendItem key={item.label} color={item.color} label={item.label} />
-                      ))}
+                    {legendItems.map((item) => (
+                      <LegendItem key={item.label} color={item.color} label={item.label} />
+                    ))}
                   </MapLegendSection>
                 )}
               </div>

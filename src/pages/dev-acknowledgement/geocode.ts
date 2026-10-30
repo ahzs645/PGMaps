@@ -28,7 +28,7 @@ export async function geocodeAddress(address: string, signal?: AbortSignal): Pro
     throw new Error(`BC Address Geocoder returned ${response.status}`)
   }
 
-  const data = await response.json() as BcGeocoderResponse
+  const data = (await response.json()) as BcGeocoderResponse
   const feature = data.features?.[0]
   const coordinates = feature?.geometry?.coordinates
   if (!feature || !coordinates || coordinates.length < 2) {

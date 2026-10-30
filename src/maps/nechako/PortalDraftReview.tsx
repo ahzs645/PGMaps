@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -168,7 +169,7 @@ export function PortalDraftReview({
       {!!localSchemas.records.length && (
         <label className="block text-sm">
           Cached local schema
-          <select
+          <NativeSelect
             aria-label="Draft cached schema"
             defaultValue=""
             className="ml-2 max-w-full rounded border bg-background p-2"
@@ -189,7 +190,7 @@ export function PortalDraftReview({
                 {item.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -268,7 +269,7 @@ export function PortalDraftReview({
                     {field.required ? ', required' : ''})
                   </span>
                 </span>
-                <select
+                <NativeSelect
                   aria-label={`Match ${field.label}`}
                   value={mapping[field.id] ?? ''}
                   className="max-w-full rounded border bg-background p-2"
@@ -281,13 +282,13 @@ export function PortalDraftReview({
                   {columns.map((column) => (
                     <option key={column}>{column}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             ))}
           </div>
           <label className="block text-sm">
             Duplicate source identifier column{' '}
-            <select
+            <NativeSelect
               aria-label="Draft duplicate identifier"
               value={duplicateColumn}
               onChange={(event) => {
@@ -300,7 +301,7 @@ export function PortalDraftReview({
               {columns.map((column) => (
                 <option key={column}>{column}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -336,7 +337,7 @@ export function PortalDraftReview({
             {!!localPresets.records.length && (
               <label className="text-sm">
                 Cached mapping
-                <select
+                <NativeSelect
                   aria-label="Draft cached mapping preset"
                   defaultValue=""
                   className="ml-2 max-w-full rounded border bg-background p-2"
@@ -373,7 +374,7 @@ export function PortalDraftReview({
                       {item.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             )}
             <Button
@@ -569,7 +570,7 @@ export function PortalDraftReview({
               </p>
               <label className="block text-sm">
                 Native submission name column{' '}
-                <select
+                <NativeSelect
                   aria-label="Native draft name column"
                   value={nameColumn}
                   onChange={(event) => {
@@ -583,7 +584,7 @@ export function PortalDraftReview({
                   {columns.map((column) => (
                     <option key={column}>{column}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               <Button
                 size="sm"

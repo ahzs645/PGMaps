@@ -78,7 +78,8 @@ const ICBC_DATASET_LABELS: Record<string, string> = {
 
 const ICBC_DATASET_HELP: Record<string, string> = {
   all_crashes: 'All ICBC reported crash locations.',
-  car_crashes: 'Derived from all crashes by subtracting pedestrian, cyclist, and motorcycle crash counts at matching locations.',
+  car_crashes:
+    'Derived from all crashes by subtracting pedestrian, cyclist, and motorcycle crash counts at matching locations.',
   pedestrian_crashes: 'Crashes involving pedestrians.',
   cyclist_crashes: 'Crashes involving cyclists.',
   motorcycle_crashes: 'Crashes involving motorcycles.',
@@ -133,7 +134,7 @@ function aggregateIcbcCrashFeatures(
     })
   }
 
-  const byLocation = new Map<string, typeof features[number]>()
+  const byLocation = new Map<string, (typeof features)[number]>()
   for (const feature of filtered) {
     const key = getIcbcLocationKey(feature)
     const existing = byLocation.get(key)
@@ -163,10 +164,13 @@ export function useIcbcData(
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap !== '0')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
-  disableTimeline,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    disableTimeline,
   } = useTimelineState(1)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
   const datasets = useMemo(() => manifest.data?.datasets ?? [], [manifest.data])
@@ -224,16 +228,46 @@ export function useIcbcData(
   }, [timelineDate, yearEnd])
 
   const crashFeatures = useMemo(() => {
-    return aggregateIcbcCrashFeatures(rawCrashFeatures, timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart)
+    return aggregateIcbcCrashFeatures(
+      rawCrashFeatures,
+      timelineEnabled,
+      effectiveTimelineDate,
+      timelineWindowSize,
+      yearStart,
+    )
   }, [rawCrashFeatures, timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart])
 
   const typedCrashFeatures = useMemo(() => {
     if (selectedDataset?.id !== 'all_crashes') return crashFeatures
     return [
-      ...aggregateIcbcCrashFeatures(carCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(pedestrianCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(cyclistCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(motorcycleCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(
+        carCrashes.data?.features ?? [],
+        timelineEnabled,
+        effectiveTimelineDate,
+        timelineWindowSize,
+        yearStart,
+      ),
+      ...aggregateIcbcCrashFeatures(
+        pedestrianCrashes.data?.features ?? [],
+        timelineEnabled,
+        effectiveTimelineDate,
+        timelineWindowSize,
+        yearStart,
+      ),
+      ...aggregateIcbcCrashFeatures(
+        cyclistCrashes.data?.features ?? [],
+        timelineEnabled,
+        effectiveTimelineDate,
+        timelineWindowSize,
+        yearStart,
+      ),
+      ...aggregateIcbcCrashFeatures(
+        motorcycleCrashes.data?.features ?? [],
+        timelineEnabled,
+        effectiveTimelineDate,
+        timelineWindowSize,
+        yearStart,
+      ),
     ]
   }, [
     carCrashes.data?.features,
@@ -262,23 +296,27 @@ export function useIcbcData(
     if (!selectedLocation) return null
     return typedCrashFeatures.find((feature) => getIcbcLocationKey(feature) === selectedLocation) ?? null
   }, [selectedLocation, typedCrashFeatures])
-  const maxCrashCount = useMemo(() => (
-    crashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
-  ), [crashFeatures])
-  const totalCrashes = useMemo(() => (
-    crashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0)
-  ), [crashFeatures])
-  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: crashFeatures.map((feature) => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        weight: Math.max(1, Number(feature.properties.crashCount) || 1),
-      },
-    })),
-  }), [crashFeatures])
-
+  const maxCrashCount = useMemo(
+    () => crashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0),
+    [crashFeatures],
+  )
+  const totalCrashes = useMemo(
+    () => crashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0),
+    [crashFeatures],
+  )
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: crashFeatures.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          weight: Math.max(1, Number(feature.properties.crashCount) || 1),
+        },
+      })),
+    }),
+    [crashFeatures],
+  )
 
   return {
     manifest,
@@ -316,23 +354,13 @@ export type IcbcState = ReturnType<typeof useIcbcData>
 export function IcbcLayerControls({ icbc }: { icbc: IcbcState }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <ToggleChip
-        active={icbc.showPoints}
-        onClick={() => icbc.setShowPoints(!icbc.showPoints)}
-      >
+      <ToggleChip active={icbc.showPoints} onClick={() => icbc.setShowPoints(!icbc.showPoints)}>
         {icbc.showPoints ? 'Hide points' : 'Show points'}
       </ToggleChip>
-      <ToggleChip
-        active={icbc.showHeatmap}
-        onClick={() => icbc.setShowHeatmap(!icbc.showHeatmap)}
-        tone="orange"
-      >
+      <ToggleChip active={icbc.showHeatmap} onClick={() => icbc.setShowHeatmap(!icbc.showHeatmap)} tone="orange">
         Heatmap
       </ToggleChip>
-      <ToggleChip
-        active={icbc.timelineEnabled}
-        onClick={() => icbc.setTimelineEnabled(!icbc.timelineEnabled)}
-      >
+      <ToggleChip active={icbc.timelineEnabled} onClick={() => icbc.setTimelineEnabled(!icbc.timelineEnabled)}>
         Timeline
       </ToggleChip>
     </div>
@@ -378,7 +406,8 @@ export function IcbcSidebar({
           {icbc.crashes.error && <InlineAlert tone="error">{icbc.crashes.error}</InlineAlert>}
           {icbc.manifest.error && <InlineAlert tone="error">{icbc.manifest.error}</InlineAlert>}
           <InlineAlert>
-            {icbc.selectedDataset ? ICBC_DATASET_HELP[icbc.selectedDataset.id] : 'ICBC crash-location summaries.'} Locations are matched to CityPG road-intersection centroids where possible.
+            {icbc.selectedDataset ? ICBC_DATASET_HELP[icbc.selectedDataset.id] : 'ICBC crash-location summaries.'}{' '}
+            Locations are matched to CityPG road-intersection centroids where possible.
           </InlineAlert>
         </div>
       </SidebarSection>
@@ -433,7 +462,10 @@ export function IcbcSourceNotes({ icbc }: { icbc: IcbcState }) {
     <>
       <p>ICBC exports updated {formatDate(icbc.manifest.data?.generatedAt)}.</p>
       {icbc.selectedDataset && (
-        <p>{formatNumber(icbc.selectedDataset.geocodedRows)} of {formatNumber(icbc.selectedDataset.rows)} source rows have map coordinates.</p>
+        <p>
+          {formatNumber(icbc.selectedDataset.geocodedRows)} of {formatNumber(icbc.selectedDataset.rows)} source rows
+          have map coordinates.
+        </p>
       )}
     </>
   )
@@ -445,7 +477,15 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
       {icbc.showHeatmap && (
         <MapHeatmapLayer
           data={icbc.heatmapData}
-          weight={['interpolate', ['linear'], ['coalesce', ['get', 'weight'], 1], 1, 0.15, Math.max(icbc.maxCrashCount, 1), 1]}
+          weight={[
+            'interpolate',
+            ['linear'],
+            ['coalesce', ['get', 'weight'], 1],
+            1,
+            0.15,
+            Math.max(icbc.maxCrashCount, 1),
+            1,
+          ]}
           intensityStops={[
             [8, 0.8],
             [11, 1.35],
@@ -464,33 +504,34 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
         />
       )}
 
-      {icbc.showPoints && icbc.typedCrashFeatures.map((feature) => {
-        const [longitude, latitude] = feature.geometry.coordinates
-        const size = getIcbcMarkerSize(feature.properties.crashCount, icbc.maxCrashCount)
-        const color = getIcbcCrashTypeColor(feature.properties.dataset)
-        const locationKey = getIcbcLocationKey(feature)
-        const selected = icbc.selectedLocation === locationKey
+      {icbc.showPoints &&
+        icbc.typedCrashFeatures.map((feature) => {
+          const [longitude, latitude] = feature.geometry.coordinates
+          const size = getIcbcMarkerSize(feature.properties.crashCount, icbc.maxCrashCount)
+          const color = getIcbcCrashTypeColor(feature.properties.dataset)
+          const locationKey = getIcbcLocationKey(feature)
+          const selected = icbc.selectedLocation === locationKey
 
-        return (
-          <MapMarker
-            key={locationKey}
-            longitude={longitude}
-            latitude={latitude}
-            onClick={() => icbc.setSelectedLocation(selected ? null : locationKey)}
-          >
-            <MarkerContent>
-              <div
-                className={cn(
-                  'rounded-full border-2 border-white shadow-md transition-transform',
-                  selected ? 'scale-125 ring-2 ring-sky-300' : 'hover:brightness-110',
-                )}
-                style={{ width: size, height: size, backgroundColor: color, opacity: selected ? 1 : 0.9 }}
-                title={`${feature.properties.location}: ${formatNumber(feature.properties.crashCount)} crashes`}
-              />
-            </MarkerContent>
-          </MapMarker>
-        )
-      })}
+          return (
+            <MapMarker
+              key={locationKey}
+              longitude={longitude}
+              latitude={latitude}
+              onClick={() => icbc.setSelectedLocation(selected ? null : locationKey)}
+            >
+              <MarkerContent>
+                <div
+                  className={cn(
+                    'rounded-full border-2 border-white shadow-md transition-transform',
+                    selected ? 'scale-125 ring-2 ring-sky-300' : 'hover:brightness-110',
+                  )}
+                  style={{ width: size, height: size, backgroundColor: color, opacity: selected ? 1 : 0.9 }}
+                  title={`${feature.properties.location}: ${formatNumber(feature.properties.crashCount)} crashes`}
+                />
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
     </>
   )
 }
@@ -511,7 +552,11 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
       )}
       {icbc.showHeatmap && (
         <div className="border-t border-border pt-2">
-          <MapGradientLegendItem colors={['#7dd3fc', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
+          <MapGradientLegendItem
+            colors={['#7dd3fc', '#fde047', '#dc2626']}
+            minLabel="Lower density"
+            maxLabel="Higher density"
+          />
         </div>
       )}
       {!icbc.showPoints && !icbc.showHeatmap && (

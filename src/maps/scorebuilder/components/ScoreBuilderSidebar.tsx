@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useClipboardText } from '@/hooks/useClipboardText'
+import { useMemo, useState } from 'react'
 import { BookOpen, Check, Copy, Hammer, Plus, Settings as SettingsIcon } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -129,7 +130,7 @@ export function ScoreBuilderSidebar({
   onOpenSettings,
   onOpenBuild,
 }: ScoreBuilderSidebarProps) {
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
+  const { copy, status: shareStatus } = useClipboardText()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
@@ -150,18 +151,9 @@ export function ScoreBuilderSidebar({
     [selectedRegion, weights],
   )
 
-  const handleShare = useCallback(async () => {
-    if (!onShareUrl) return
-    setShareStatus('copying')
-    try {
-      await onShareUrl()
-      setShareStatus('copied')
-      window.setTimeout(() => setShareStatus('idle'), 1800)
-    } catch {
-      setShareStatus('failed')
-      window.setTimeout(() => setShareStatus('idle'), 2400)
-    }
-  }, [onShareUrl])
+  const handleShare = () => {
+    if (onShareUrl) void copy(onShareUrl)
+  }
 
   const actionClass =
     'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted'
@@ -193,6 +185,7 @@ export function ScoreBuilderSidebar({
               <button
                 type="button"
                 data-score-builder-share="true"
+                disabled={shareStatus === 'pending'}
                 onClick={handleShare}
                 className={cn(actionClass, 'min-w-10')}
                 aria-label="Copy share link"
@@ -200,7 +193,7 @@ export function ScoreBuilderSidebar({
               >
                 {shareStatus === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 <span className="sr-only">
-                  {shareStatus === 'copying' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : 'Share'}
+                  {shareStatus === 'pending' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : 'Share'}
                 </span>
               </button>
             )}

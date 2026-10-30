@@ -42,6 +42,53 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Tags and counts                                   | `Badge` (`badge.tsx`: `tone`, `variant`, `pill`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | "View source" links                               | `ExternalLink` (`variant="link" \| "button"`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
+## Form fields and ranges
+
+Use `form-field.tsx` exports `FormField`, `NativeSelect`, `SelectField`,
+`NumberField` and `NullableNumberField`. `FormField` associates a label and
+help/error text with direct native children; compound controls can pass
+`htmlFor` / `descriptionId`. `group` names a group of controls, and `hintAction`
+keeps an optional `InfoTip` outside the input's label.
+
+`NativeSelect` forwards every native select prop and its ref. It retains multiple
+selection, option groups and keyboard behavior. An explicit `className` is used
+unchanged; only an omitted class gets `FORM_INPUT_CLASS`. Use `SelectField` when
+the field wrapper is also needed; its `className` styles the select and
+`fieldClassName` styles the wrapper.
+
+Numeric fields take `value` / `onValueChange` and retain partial drafts. Choose
+`updateOn="change" | "commit"` and `clampOn="change" | "commit" | "never"`
+explicitly when adapting an existing editor. Required blank input restores the
+current value unless `blankValue="zero"`; nullable blank input stays `null`.
+`invalidValue="null"` is opt-in for nullable imported fields. Supply `unit` or
+`suffix` rather than rebuilding unit rows. Source precision is retained by
+default, and untouched blur does not emit a rounded value. Road adapters request
+`precision={6}` and `stepMode="increment"` to retain their existing edit/keyboard
+convention. Other numeric fields keep native arrow-key step alignment by default.
+
+`NumericRangeField` (`numeric-range-field.tsx`) shares the label, numeric
+`onChange`, value/unit readout and description for a range. Supply `display` for
+a formatted value, `layout="inline"` for a compact engineering header, or
+`renderControl` for an existing custom slider. Its native input forwards refs
+and native attributes. Keep host recalculation timing in the caller.
+
+## Copy actions
+
+Use `CopyButton` (`copy-button.tsx`) or `useClipboardText`
+(`src/hooks/useClipboardText.ts`) for copy feedback. Each instance owns
+`idle` / `pending` / `copied` / `failed` state, the text/error, and timer cleanup.
+`copy` accepts text or an async text producer and returns whether copying
+succeeded. `resetAfterMs` / `failureResetAfterMs` control feedback lifetime;
+zero keeps feedback until reset. Superseded async attempts cannot overwrite a
+newer result.
+
+Hosts provide serialization, manual-copy UI and an optional transport/fallback.
+`CopyButton.onResult` receives `{ copied, text }` for that UI. Missing clipboard
+support is a failure. `copyTextWithSelection` is an opt-in compatibility fallback
+that restores focus and selection; AVAST and dataset-information adapters retain
+their existing specialized fallback behavior. Keep serialization errors distinct
+from clipboard rejection when presenting a share-link failure.
+
 ## Result lists
 
 - `VirtualResultList` for any list that can exceed ~50 rows. Do not cap with
@@ -239,6 +286,31 @@ Logic for these pages lives in `src/lib/` and has no DOM access:
 - Phone peek text: `mobilePeekTitle` / `mobilePeekSubtitle` on
   `MapSectionLayout`, parts separated with `·`.
 
+## Settled map observation and HTML-marker clustering
+
+`map-viewport.ts` exports `MapViewportSnapshot` (`bounds` in west/south/east/north
+order, `zoom`, canvas `width` and `height`), `readMapViewport`,
+`observeMapViewport`, `useObserveMapViewport` and `useMapViewport`.
+The observer returns exact unsubscribe cleanup. Defaults are `load`, `moveend`,
+`zoomend` and `resize`, with an initial publication only if the map is loaded.
+Callers can override `events` and `initial`; hooks also accept `enabled` and a
+`refreshKey` to republish for a changed filter or calculation configuration.
+Callback changes do not create duplicate event subscriptions. Use this for
+settled viewport calculations, while per-frame drawing stays on its specialized
+map/canvas path.
+
+`screen-point-clusters.ts` exports `clusterScreenPoints` and
+`useScreenPointClusters` for projected HTML markers. Supply ID/coordinate
+accessors, pixel radius, optional ascending priority, padding and ID prefix.
+The pure helper accepts a projection and viewport; without projection it returns
+singletons in input order. Both preserve original records in each cluster.
+ER and specialist maps share this mechanism while retaining different marker
+content, priority and expand/reveal actions. This differs from source-based
+`MapClusterLayer` clustering.
+
+Use existing toolkit `pointBounds`, `fitMapToPoints` and `geometryBounds` for
+fitting where appropriate, passing each app's own padding/span/zoom policy.
+
 ## Touch
 
 `touch:` is a Tailwind variant for `(pointer: coarse)`. Use it to grow hit
@@ -253,6 +325,28 @@ the mouse layout. The shared controls above already do.
   `MONTH_SHORT_NAMES`. Pass `DEFAULT_LOCALE` to any direct `toLocaleString`.
 - `color.ts`: `hexToRgba`, `readableTextColor`, `colorForKey`.
 - `download.ts`: `downloadBlob`, `downloadText`.
+
+## Shared application behavior
+
+- `src/hooks/useFetchData.ts`: static JSON loading, optional/fallback URLs,
+  in-flight deduplication and retry. Cached transform exceptions become error
+  state just like asynchronous failures. Repeated retry attempts rerun, and a
+  superseded request cannot refill a retry-invalidated cache. Keep source
+  validation in transforms and preserve development-only dataset gating.
+- `src/features/walkability/WalkabilityFactorControls.tsx`: factor rows and report
+  options shared by MISC and Index Lab. The factor catalog, dropped-term rules,
+  direct-control and reset policies stay with the walkability feature.
+- `src/maps/nechako/data/usePortalWorkspace.ts`: the two portal interfaces share
+  session-bound workspace lifetime and local-vector styling. Navigation and
+  source/session transports remain domain-owned.
+- `src/pages/dev-lidar/coloredVertexLayer.ts`: mesh/point GPU lifetime is shared;
+  source vertices, shading and shader/draw-mode choices stay with each tool.
+- `PaginationControls` takes optional `previousLabel`, `nextLabel` and
+  `formatPage(page, pageCount)` for existing preview/table conventions. Page
+  indexes are zero-based; the caller owns the page size and current-page bounds.
+
+See [implementation coverage](shared-component-implementation.md) for the
+completed audit migrations and verification record.
 
 ## Story diagrams and editorial reading
 

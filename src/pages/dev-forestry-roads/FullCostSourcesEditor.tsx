@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -80,7 +81,7 @@ export function FullCostSourcesEditor({
       ) : (
         <div key={selected.id} className="space-y-3">
           <Field label="Planning source">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={selected.id}
               onChange={(event) => setSelectedId(event.target.value)}
@@ -90,7 +91,7 @@ export function FullCostSourcesEditor({
                   {source.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <label className="flex items-start gap-2 text-xs">
             <input
@@ -109,7 +110,7 @@ export function FullCostSourcesEditor({
             />
           </Field>
           <Field label="Source material use">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={
                 selected.uses.includes('waste') ? 'waste' : selected.uses.length === 2 ? 'aggregate' : selected.uses[0]
@@ -140,15 +141,54 @@ export function FullCostSourcesEditor({
               <option value="surfacing">Surfacing only (compacted m³)</option>
               <option value="fill">Fill only (compacted m³)</option>
               <option value="waste">Waste disposal only (bank m³)</option>
-            </select>
+            </NativeSelect>
           </Field>
+          <fieldset className="space-y-2 rounded border p-2">
+            <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
+            <p className="text-[11px] text-muted-foreground">
+              A general suitability confirmation does not identify an exact material or quality class. Select the
+              materials this source can supply or accept; changing these fields requires review again.
+            </p>
+            {(w.alignment.engineering?.materials ?? []).map((material) => (
+              <label key={material.id} className="flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selected.materialIds?.includes(material.id) ?? false}
+                  onChange={(event) =>
+                    patch({
+                      materialIds: event.target.checked
+                        ? [...(selected.materialIds ?? []), material.id]
+                        : (selected.materialIds ?? []).filter((id) => id !== material.id),
+                      qualityConfirmed: false,
+                    })
+                  }
+                />
+                {material.name}
+              </label>
+            ))}
+            <OptionalNumberField
+              label="Source material quality (0–100)"
+              min={0}
+              max={100}
+              value={selected.quality ?? null}
+              placeholder="unknown"
+              onChange={(quality) => patch({ quality: quality ?? undefined, qualityConfirmed: false })}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => patch({ materialIds: undefined, quality: undefined, qualityConfirmed: false })}
+            >
+              Clear material classification
+            </Button>
+          </fieldset>
           <PlanningCoordinateField
             label="Source"
             value={selected.entrance}
             onChange={(entrance) => patch({ entrance, accessConfirmed: false, qualityConfirmed: false })}
           />
           <Field label="Source entrance road attachment">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={selected.entranceRoadId ?? ''}
               onChange={(event) =>
@@ -163,7 +203,7 @@ export function FullCostSourcesEditor({
                     {road.name}
                   </option>
                 ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Button
             size="sm"

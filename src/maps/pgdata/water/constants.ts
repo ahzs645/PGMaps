@@ -87,8 +87,8 @@ function isWaterBoundarySource(value: string): value is WaterBoundarySource {
   return WATER_SUPPORTED_BOUNDARY_SOURCES.has(value as WaterBoundarySource)
 }
 
-export const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySource>> = ALL_BOUNDARY_SOURCE_OPTIONS
-  .flatMap((option): Array<StudyAreaSourceOption<WaterBoundarySource>> => {
+export const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySource>> =
+  ALL_BOUNDARY_SOURCE_OPTIONS.flatMap((option): Array<StudyAreaSourceOption<WaterBoundarySource>> => {
     if (!isWaterBoundarySource(option.value)) return []
     return [
       {

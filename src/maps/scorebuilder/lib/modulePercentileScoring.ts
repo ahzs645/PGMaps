@@ -54,19 +54,24 @@ function activeIndexMetrics(weights: ScoreMetricWeightMap) {
   return SCORE_METRICS.filter((metric) => weights[metric.key] !== 0 && metric.indexModule)
 }
 
-function getComparisonUniverseLabel(source: RegionMetricRow['region']['source'], level: RegionMetricRow['region']['level']): string {
+function getComparisonUniverseLabel(
+  source: RegionMetricRow['region']['source'],
+  level: RegionMetricRow['region']['level'],
+): string {
   const sourceLabel =
     source === 'bcHealth'
       ? 'BC health regions'
       : source === 'cityCommunity'
         ? 'CityPG community polygons'
-      : source === 'cityPG'
-        ? 'CityPG school catchments'
-        : source === 'watershed'
-          ? 'BC Freshwater Atlas watershed boundaries'
-          : source === 'census'
-            ? level === 'db' ? 'Prince George dissemination blocks' : 'BC census regions'
-            : 'selected boundary regions'
+        : source === 'cityPG'
+          ? 'CityPG school catchments'
+          : source === 'watershed'
+            ? 'BC Freshwater Atlas watershed boundaries'
+            : source === 'census'
+              ? level === 'db'
+                ? 'Prince George dissemination blocks'
+                : 'BC census regions'
+              : 'selected boundary regions'
   return `EJI-style percentile ranks are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
 }
 
@@ -119,7 +124,10 @@ export function scoreRegionRowsWithModulePercentiles({
   const missingFlagsByRegion = new Map<string, string[]>()
   const moduleRawByRegion = new Map<string, Record<ScoreIndexModule, number>>()
   const moduleCountsByRegion = new Map<string, Record<ScoreIndexModule, { active: number; missing: number }>>()
-  const domainRawByRegion = new Map<string, Record<ScoreIndexDomain, { module: ScoreIndexModule; sum: number; count: number }>>()
+  const domainRawByRegion = new Map<
+    string,
+    Record<ScoreIndexDomain, { module: ScoreIndexModule; sum: number; count: number }>
+  >()
 
   rows.forEach((row) => {
     const normalizedMetrics = createMetricValueMap(0)
@@ -182,7 +190,9 @@ export function scoreRegionRowsWithModulePercentiles({
   })
 
   const activeModules = MODULE_ORDER.filter((module) =>
-    activeMetrics.some((metric) => (settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext') === module),
+    activeMetrics.some(
+      (metric) => (settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext') === module,
+    ),
   )
   const moduleRankValues = new Map<ScoreIndexModule, number[]>()
   activeModules.forEach((module) => {
@@ -196,8 +206,11 @@ export function scoreRegionRowsWithModulePercentiles({
     const normalizedMetrics = normalizedByRegion.get(row.region.id) || createMetricValueMap(0)
     const burdenMetrics = burdenByRegion.get(row.region.id) || createMetricValueMap(0)
     const moduleRaw = moduleRawByRegion.get(row.region.id) || ({} as Record<ScoreIndexModule, number>)
-    const moduleCounts = moduleCountsByRegion.get(row.region.id) || ({} as Record<ScoreIndexModule, { active: number; missing: number }>)
-    const domainRaw = domainRawByRegion.get(row.region.id) || ({} as Record<ScoreIndexDomain, { module: ScoreIndexModule; sum: number; count: number }>)
+    const moduleCounts =
+      moduleCountsByRegion.get(row.region.id) || ({} as Record<ScoreIndexModule, { active: number; missing: number }>)
+    const domainRaw =
+      domainRawByRegion.get(row.region.id) ||
+      ({} as Record<ScoreIndexDomain, { module: ScoreIndexModule; sum: number; count: number }>)
 
     const moduleScores: ScoreModuleResult[] = activeModules.map((module) => {
       const rawScore = moduleRaw[module] ?? 0
@@ -231,7 +244,7 @@ export function scoreRegionRowsWithModulePercentiles({
       const module = settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'
       const moduleScore = entry.moduleScores.find((candidate) => candidate.key === module)
       const moduleMetricCount = Math.max(1, moduleScore?.activeMetricCount ?? 1)
-      contributions[metric.key] = ((moduleScore?.rank ?? 0) / Math.max(1, activeModules.length)) / moduleMetricCount
+      contributions[metric.key] = (moduleScore?.rank ?? 0) / Math.max(1, activeModules.length) / moduleMetricCount
     })
 
     const domainScores: ScoreDomainResult[] = Object.entries(entry.domainRaw).map(([domain, value]) => ({
@@ -242,7 +255,9 @@ export function scoreRegionRowsWithModulePercentiles({
       activeMetricCount: value.count,
     }))
 
-    const activeMetricCoverage = activeMetrics.filter((metric) => metricHasCoverage(metric.key, entry.row.counts)).length
+    const activeMetricCoverage = activeMetrics.filter((metric) =>
+      metricHasCoverage(metric.key, entry.row.counts),
+    ).length
     const dataCoverageScore = activeMetrics.length ? activeMetricCoverage / activeMetrics.length : 1
     const missingDataFlags = missingFlagsByRegion.get(entry.row.region.id) || []
 
@@ -267,10 +282,15 @@ export function scoreRegionRowsWithModulePercentiles({
         rankDelta: 0,
         referenceScore: null,
         deprivationQuintile:
-          entry.row.metrics.cimdComposite > 0 ? Math.max(1, Math.min(5, Math.ceil(entry.row.metrics.cimdComposite * 5))) : null,
+          entry.row.metrics.cimdComposite > 0
+            ? Math.max(1, Math.min(5, Math.ceil(entry.row.metrics.cimdComposite * 5)))
+            : null,
         burdenOverlap: Math.sqrt(
-          Math.max(entry.normalizedMetrics.foodRiskScore, entry.normalizedMetrics.crimePerCapita, entry.normalizedMetrics.shadeGap) *
-            Math.max(entry.normalizedMetrics.cimdComposite, entry.normalizedMetrics.populationDensity),
+          Math.max(
+            entry.normalizedMetrics.foodRiskScore,
+            entry.normalizedMetrics.crimePerCapita,
+            entry.normalizedMetrics.shadeGap,
+          ) * Math.max(entry.normalizedMetrics.cimdComposite, entry.normalizedMetrics.populationDensity),
         ),
         cutoffWarning: missingDataFlags.length ? 'Missing-data policy affects this EJI-style score.' : null,
       },

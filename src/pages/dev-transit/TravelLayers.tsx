@@ -1,3 +1,4 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect, useMemo, useRef } from 'react'
 import { contours as makeContours } from 'd3'
 import type { CanvasSource, MapMouseEvent } from 'maplibre-gl'
@@ -140,11 +141,13 @@ export function TravelLayers({
     () => ({
       type: 'FeatureCollection',
       features: data.patterns
-        .map((p, i): GeoJSON.Feature<GeoJSON.LineString> => ({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: p.points },
-          properties: { id: String(i), color: data.routes[p.route].color },
-        }))
+        .map(
+          (p, i): GeoJSON.Feature<GeoJSON.LineString> => ({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: p.points },
+            properties: { id: String(i), color: data.routes[p.route].color },
+          }),
+        )
         .filter((f) => f.geometry.coordinates.length >= 2),
     }),
     [data],
@@ -171,17 +174,19 @@ export function TravelLayers({
       type: 'FeatureCollection',
       features: contours.flatMap((c) =>
         c.coordinates.flatMap((polygon, i) =>
-          polygon.map((ring, j): GeoJSON.Feature<GeoJSON.LineString> => ({
-            type: 'Feature',
-            properties: { id: `${c.value}:${i}:${j}`, minutes: -c.value },
-            geometry: {
-              type: 'LineString',
-              coordinates: ring.map(([x, y]) => [
-                west + (x * (east - west)) / grid.cols,
-                north - (y * (north - south)) / grid.rows,
-              ]),
-            },
-          })),
+          polygon.map(
+            (ring, j): GeoJSON.Feature<GeoJSON.LineString> => ({
+              type: 'Feature',
+              properties: { id: `${c.value}:${i}:${j}`, minutes: -c.value },
+              geometry: {
+                type: 'LineString',
+                coordinates: ring.map(([x, y]) => [
+                  west + (x * (east - west)) / grid.cols,
+                  north - (y * (north - south)) / grid.rows,
+                ]),
+              },
+            }),
+          ),
         ),
       ),
     }
@@ -267,20 +272,12 @@ export function MapHeatViewport({
   onChange: (spec: HeatGridSpec) => void
 }) {
   const { map, isLoaded } = useMap()
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const refresh = () => {
-      const bounds = map.getBounds()
-      onChange(
-        viewportGrid(study, [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()], map.getZoom()),
-      )
-    }
-    refresh()
-    map.on('moveend', refresh)
-    return () => {
-      map.off('moveend', refresh)
-    }
-  }, [map, isLoaded, study, onChange])
+  useObserveMapViewport(map, ({ bounds, zoom }) => onChange(viewportGrid(study, bounds, zoom)), {
+    enabled: isLoaded,
+    events: ['moveend'],
+    initial: 'always',
+    refreshKey: study,
+  })
   return null
 }
 

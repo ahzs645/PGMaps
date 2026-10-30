@@ -40,8 +40,11 @@ export function useCensusOverlay(): CensusOverlayState {
   const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
 
   // useFetchData's module-level cache replaces the local geometryCache.
-  const { data: geometry, loading: geoLoading, error: geoError } =
-    useFetchData<GeoJSON.FeatureCollection>(DA_GEOMETRY_URL)
+  const {
+    data: geometry,
+    loading: geoLoading,
+    error: geoError,
+  } = useFetchData<GeoJSON.FeatureCollection>(DA_GEOMETRY_URL)
   const [selectedCategoryId, setCategoryId] = useState<string | null>(null)
   const [selectedVariableId, setVariableId] = useState<string | null>(null)
 
@@ -66,7 +69,7 @@ export function useCensusOverlay(): CensusOverlayState {
   const effectiveVariableId =
     selectedVariableId && variables.some((v) => v.id === selectedVariableId)
       ? selectedVariableId
-      : variables[0]?.id ?? null
+      : (variables[0]?.id ?? null)
 
   // Load variable data
   const { data: variableData, loading: varLoading } = useCensusVariableData('da', effectiveCategoryId)
@@ -113,11 +116,7 @@ export function useCensusOverlay(): CensusOverlayState {
       steps.push(scale[i])
     }
 
-    const expr = [
-      'case',
-      ['==', ['get', '_value'], null], '#475569',
-      steps,
-    ]
+    const expr = ['case', ['==', ['get', '_value'], null], '#475569', steps]
 
     return { enrichedGeojson: enriched, fillColorExpression: expr, legendMin: min, legendMax: max }
   }, [geometry, variableData, effectiveVariableId])

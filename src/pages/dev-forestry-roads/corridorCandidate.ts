@@ -10,14 +10,22 @@ export function corridorCandidate(
   id: () => string = () => crypto.randomUUID(),
 ): Alignment {
   const candidate: Alignment = {
-    id: id(), name: name.slice(0, 200), color: '#2563eb',
-    points: result.controlPoints.map(p => ({ id: id(), coordinate: [...p.coordinate], radiusM: p.radiusM })),
-    vertical: [], template: structuredClone(template), overrides: [],
+    id: id(),
+    name: name.slice(0, 200),
+    color: '#2563eb',
+    points: result.controlPoints.map((p) => ({ id: id(), coordinate: [...p.coordinate], radiusM: p.radiusM })),
+    vertical: [],
+    template: structuredClone(template),
+    overrides: [],
   }
   const length = alignmentLength(candidate)
   const curves = horizontalCurveSummary(candidate)
-  const expected = result.controlPoints.filter(p => p.radiusM > 0)
-  if (Math.abs(length - result.lengthM) > 0.001 || curves.length !== expected.length || curves.some((c, i) => Math.abs(c.radius - expected[i].radiusM) > 0.001))
+  const expected = result.controlPoints.filter((p) => p.radiusM > 0)
+  if (
+    Math.abs(length - result.lengthM) > 0.001 ||
+    curves.length !== expected.length ||
+    curves.some((c, i) => Math.abs(c.radius - expected[i].radiusM) > 0.001)
+  )
     throw Error('The candidate does not reproduce its verified curves in the road engine; nothing was adopted.')
   // Independent check against the real application's coordinate/chainage model.
   const stride = Math.max(1, Math.floor(result.profile.length / 32))

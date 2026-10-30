@@ -13,18 +13,28 @@ export const albersToLngLat = (x: number, y: number) => albers.forward([x, y]) a
 export function multiPolygonToLngLat(geometry: MultiPolygonCoords): GeoJSON.MultiPolygon {
   return {
     type: 'MultiPolygon',
-    coordinates: geometry.map((polygon) => polygon.map((ring) => ring.map(([x, y]) => {
-      const [lng, lat] = albers.forward([x, y])
-      return [Math.round(lng * 1e7) / 1e7, Math.round(lat * 1e7) / 1e7]
-    }))),
+    coordinates: geometry.map((polygon) =>
+      polygon.map((ring) =>
+        ring.map(([x, y]) => {
+          const [lng, lat] = albers.forward([x, y])
+          return [Math.round(lng * 1e7) / 1e7, Math.round(lat * 1e7) / 1e7]
+        }),
+      ),
+    ),
   }
 }
 
 /** `[minLng, minLat, maxLng, maxLat]` around an Albers box, from its corners and edge midpoints. */
 export function albersBoxToLngLat([minX, minY, maxX, maxY]: BBox): [number, number, number, number] {
   const points = [
-    [minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY],
-    [(minX + maxX) / 2, minY], [(minX + maxX) / 2, maxY], [minX, (minY + maxY) / 2], [maxX, (minY + maxY) / 2],
+    [minX, minY],
+    [maxX, minY],
+    [maxX, maxY],
+    [minX, maxY],
+    [(minX + maxX) / 2, minY],
+    [(minX + maxX) / 2, maxY],
+    [minX, (minY + maxY) / 2],
+    [maxX, (minY + maxY) / 2],
   ].map(([x, y]) => albers.forward([x, y]))
   return [
     Math.min(...points.map((point) => point[0])),

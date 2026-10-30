@@ -37,11 +37,13 @@ const CITYPG_OVERLAY_GROUPS = {
     { path: '/data/citypg/active_transportation_connectors.geojson', label: 'Connector', color: '#0f766e' },
     { path: '/data/citypg/sidewalks.geojson', label: 'Sidewalk', color: '#64748b' },
     { path: '/data/citypg/walkways.geojson', label: 'Walkway', color: '#84cc16' },
-    { path: '/data/citypg/ocp_2025_cycle_pedestrian_network.geojson', label: 'OCP proposed active route', color: '#f97316' },
+    {
+      path: '/data/citypg/ocp_2025_cycle_pedestrian_network.geojson',
+      label: 'OCP proposed active route',
+      color: '#f97316',
+    },
   ],
-  mobilityPoints: [
-    { path: '/data/citypg/traffic_counts.geojson', label: 'Traffic count', color: '#ef4444' },
-  ],
+  mobilityPoints: [{ path: '/data/citypg/traffic_counts.geojson', label: 'Traffic count', color: '#ef4444' }],
   ecologyAreas: [
     { path: '/data/citypg/ecology_sensitivity.geojson', label: 'Ecology sensitivity', color: '#16a34a' },
     { path: '/data/citypg/ecology_high_conservation_value.geojson', label: 'High conservation', color: '#15803d' },
@@ -53,19 +55,19 @@ const CITYPG_OVERLAY_GROUPS = {
     { path: '/data/citypg/community_boundaries.geojson', label: 'Community boundary', color: '#6366f1' },
     { path: '/data/citypg/subdivision_boundaries.geojson', label: 'Subdivision', color: '#8b5cf6' },
   ],
-  civicAreas: [
-    { path: '/data/citypg/civic_facility_buildings.geojson', label: 'Civic facility', color: '#0ea5e9' },
-  ],
-  serviceLines: [
-    { path: '/data/citypg/snow_removal.geojson', label: 'Snow removal', color: '#38bdf8' },
-  ],
+  civicAreas: [{ path: '/data/citypg/civic_facility_buildings.geojson', label: 'Civic facility', color: '#0ea5e9' }],
+  serviceLines: [{ path: '/data/citypg/snow_removal.geojson', label: 'Snow removal', color: '#38bdf8' }],
   serviceAreas: [
     { path: '/data/citypg/garbage_collection_zones.geojson', label: 'Garbage zone', color: '#65a30d' },
     { path: '/data/citypg/evacuation_zones.geojson', label: 'Evacuation zone', color: '#f97316' },
   ],
   planningLines: [],
   planningPoints: [
-    { path: '/data/citypg/ocp_2025_proposed_park_improvements.geojson', label: 'OCP park improvement', color: '#f59e0b' },
+    {
+      path: '/data/citypg/ocp_2025_proposed_park_improvements.geojson',
+      label: 'OCP park improvement',
+      color: '#f59e0b',
+    },
     { path: '/data/citypg/ocp_2025_community_facilities.geojson', label: 'OCP community facility', color: '#06b6d4' },
   ],
   planningAreas: [],
@@ -142,16 +144,13 @@ async function loadOverlayCollection<T extends GeoJSON.Geometry>(
   signal: AbortSignal,
 ): Promise<GeoJSON.FeatureCollection<T>> {
   const collections = await Promise.all(
-    sources.map(async (source) => annotateFeatures<T>(await fetchLocalGeojson(source.path, signal), source))
+    sources.map(async (source) => annotateFeatures<T>(await fetchLocalGeojson(source.path, signal), source)),
   )
   return { type: 'FeatureCollection', features: collections.flat() }
 }
 
 function centroid(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): [number, number] {
-  const coords =
-    geometry.type === 'MultiPolygon'
-      ? geometry.coordinates.flat(2)
-      : geometry.coordinates.flat(1)
+  const coords = geometry.type === 'MultiPolygon' ? geometry.coordinates.flat(2) : geometry.coordinates.flat(1)
 
   let sumLng = 0
   let sumLat = 0
@@ -165,8 +164,15 @@ function centroid(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): [number, nu
 function normalizeClassification(value: string | null | undefined): ParkClassification | null {
   if (!value) return null
   const valid: ParkClassification[] = [
-    'Athletic', 'Community', 'Downtown', 'Green Space',
-    'Major', 'Nature', 'Neighbourhood', 'Public', 'Special Purpose',
+    'Athletic',
+    'Community',
+    'Downtown',
+    'Green Space',
+    'Major',
+    'Nature',
+    'Neighbourhood',
+    'Public',
+    'Special Purpose',
   ]
   return valid.find((v) => v === value) ?? null
 }
@@ -195,7 +201,12 @@ function parseParks(geojson: GeoJSON.FeatureCollection): Park[] {
         id: props.OBJECTID ?? f.id ?? 0,
         name: props.ParkName || props.Location || 'Unnamed Park',
         classification: normalizeClassification(props.ParkClassification),
-        subType: props.SubType_TEXT === 'Open Space' ? 'Open Space' as const : props.SubType_TEXT === 'Park' ? 'Park' as const : null,
+        subType:
+          props.SubType_TEXT === 'Open Space'
+            ? ('Open Space' as const)
+            : props.SubType_TEXT === 'Park'
+              ? ('Park' as const)
+              : null,
         developed: props.Developed === 1,
         area: props.Shape__Area ?? null,
         longitude,
@@ -267,17 +278,19 @@ export function useParksData(activeLayers: ActiveLayer[] = [], enabled = true) {
   const [overlayError, setOverlayError] = useState<string | null>(null)
   const loadedOverlaysRef = useRef(new Set<CityPgOverlayLayer>())
   const activeOverlayKey = useMemo(
-    () => activeLayers
-      .filter((layer): layer is CityPgOverlayLayer => (
-        layer === 'parkAssets' ||
-        layer === 'mobility' ||
-        layer === 'ecology' ||
-        layer === 'community' ||
-        layer === 'services' ||
-        layer === 'planning'
-      ))
-      .sort()
-      .join('|'),
+    () =>
+      activeLayers
+        .filter(
+          (layer): layer is CityPgOverlayLayer =>
+            layer === 'parkAssets' ||
+            layer === 'mobility' ||
+            layer === 'ecology' ||
+            layer === 'community' ||
+            layer === 'services' ||
+            layer === 'planning',
+        )
+        .sort()
+        .join('|'),
     [activeLayers],
   )
 
@@ -324,9 +337,7 @@ export function useParksData(activeLayers: ActiveLayer[] = [], enabled = true) {
   useEffect(() => {
     if (!enabled) return
 
-    const requestedOverlays = activeOverlayKey
-      .split('|')
-      .filter(Boolean) as CityPgOverlayLayer[]
+    const requestedOverlays = activeOverlayKey.split('|').filter(Boolean) as CityPgOverlayLayer[]
     const missingOverlays = requestedOverlays.filter((layer) => !loadedOverlaysRef.current.has(layer))
     if (missingOverlays.length === 0) return
 
@@ -335,65 +346,94 @@ export function useParksData(activeLayers: ActiveLayer[] = [], enabled = true) {
     async function loadOverlays() {
       setOverlayError(null)
       try {
-        await Promise.all(missingOverlays.map(async (layer) => {
-          if (layer === 'parkAssets') {
-            const [parkAssets, parkLines, parkAreas] = await Promise.all([
-              loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.parkAssets, controller.signal),
-              loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(CITYPG_OVERLAY_GROUPS.parkLines, controller.signal),
-              loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(CITYPG_OVERLAY_GROUPS.parkAreas, controller.signal),
-            ])
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, parkAssets, parkLines, parkAreas }))
-          }
+        await Promise.all(
+          missingOverlays.map(async (layer) => {
+            if (layer === 'parkAssets') {
+              const [parkAssets, parkLines, parkAreas] = await Promise.all([
+                loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.parkAssets, controller.signal),
+                loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(
+                  CITYPG_OVERLAY_GROUPS.parkLines,
+                  controller.signal,
+                ),
+                loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                  CITYPG_OVERLAY_GROUPS.parkAreas,
+                  controller.signal,
+                ),
+              ])
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, parkAssets, parkLines, parkAreas }))
+            }
 
-          if (layer === 'mobility') {
-            const [mobilityLines, mobilityPoints] = await Promise.all([
-              loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(CITYPG_OVERLAY_GROUPS.mobilityLines, controller.signal),
-              loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.mobilityPoints, controller.signal),
-            ])
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, mobilityLines, mobilityPoints }))
-          }
+            if (layer === 'mobility') {
+              const [mobilityLines, mobilityPoints] = await Promise.all([
+                loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(
+                  CITYPG_OVERLAY_GROUPS.mobilityLines,
+                  controller.signal,
+                ),
+                loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.mobilityPoints, controller.signal),
+              ])
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, mobilityLines, mobilityPoints }))
+            }
 
-          if (layer === 'ecology') {
-            const ecologyAreas = await loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
-              CITYPG_OVERLAY_GROUPS.ecologyAreas,
-              controller.signal,
-            )
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, ecologyAreas }))
-          }
+            if (layer === 'ecology') {
+              const ecologyAreas = await loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                CITYPG_OVERLAY_GROUPS.ecologyAreas,
+                controller.signal,
+              )
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, ecologyAreas }))
+            }
 
-          if (layer === 'community') {
-            const [communityAreas, civicAreas] = await Promise.all([
-              loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(CITYPG_OVERLAY_GROUPS.communityAreas, controller.signal),
-              loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(CITYPG_OVERLAY_GROUPS.civicAreas, controller.signal),
-            ])
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, communityAreas, civicAreas }))
-          }
+            if (layer === 'community') {
+              const [communityAreas, civicAreas] = await Promise.all([
+                loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                  CITYPG_OVERLAY_GROUPS.communityAreas,
+                  controller.signal,
+                ),
+                loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                  CITYPG_OVERLAY_GROUPS.civicAreas,
+                  controller.signal,
+                ),
+              ])
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, communityAreas, civicAreas }))
+            }
 
-          if (layer === 'services') {
-            const [serviceLines, serviceAreas] = await Promise.all([
-              loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(CITYPG_OVERLAY_GROUPS.serviceLines, controller.signal),
-              loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(CITYPG_OVERLAY_GROUPS.serviceAreas, controller.signal),
-            ])
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, serviceLines, serviceAreas }))
-          }
+            if (layer === 'services') {
+              const [serviceLines, serviceAreas] = await Promise.all([
+                loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(
+                  CITYPG_OVERLAY_GROUPS.serviceLines,
+                  controller.signal,
+                ),
+                loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                  CITYPG_OVERLAY_GROUPS.serviceAreas,
+                  controller.signal,
+                ),
+              ])
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, serviceLines, serviceAreas }))
+            }
 
-          if (layer === 'planning') {
-            const [planningLines, planningPoints, planningAreas] = await Promise.all([
-              loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(CITYPG_OVERLAY_GROUPS.planningLines, controller.signal),
-              loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.planningPoints, controller.signal),
-              loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(CITYPG_OVERLAY_GROUPS.planningAreas, controller.signal),
-            ])
-            if (controller.signal.aborted) return
-            setCityOverlays((current) => ({ ...current, planningLines, planningPoints, planningAreas }))
-          }
+            if (layer === 'planning') {
+              const [planningLines, planningPoints, planningAreas] = await Promise.all([
+                loadOverlayCollection<GeoJSON.LineString | GeoJSON.MultiLineString>(
+                  CITYPG_OVERLAY_GROUPS.planningLines,
+                  controller.signal,
+                ),
+                loadOverlayCollection<GeoJSON.Point>(CITYPG_OVERLAY_GROUPS.planningPoints, controller.signal),
+                loadOverlayCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>(
+                  CITYPG_OVERLAY_GROUPS.planningAreas,
+                  controller.signal,
+                ),
+              ])
+              if (controller.signal.aborted) return
+              setCityOverlays((current) => ({ ...current, planningLines, planningPoints, planningAreas }))
+            }
 
-          loadedOverlaysRef.current.add(layer)
-        }))
+            loadedOverlaysRef.current.add(layer)
+          }),
+        )
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
         setOverlayError((err as Error).message || 'Unable to load CityPG overlay data')

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -226,7 +227,7 @@ export function ViewpointTypeField({
           : 'Run the simulation to estimate how long the proposal is in view.'
       }
     >
-      <select
+      <NativeSelect
         className={SELECT_CLASS}
         aria-label="Viewpoint type"
         value={review.viewpointType ?? ''}
@@ -242,7 +243,7 @@ export function ViewpointTypeField({
             {type.id}. {type.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </ChoiceField>
   )
 }
@@ -269,7 +270,7 @@ export function OcularAssessmentFields({
         alteration — every existing opening not yet greened up included. The model does not fill these in.
       </p>
       <ChoiceField label="Ease of seeing">
-        <select
+        <NativeSelect
           className={SELECT_CLASS}
           aria-label="Ease of seeing"
           value={ocular.visibleness ?? ''}
@@ -281,10 +282,10 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </ChoiceField>
       <ChoiceField label="Scale, relative to the landform">
-        <select
+        <NativeSelect
           className={SELECT_CLASS}
           aria-label="Scale relative to the landform"
           value={ocular.scale ?? ''}
@@ -296,10 +297,10 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </ChoiceField>
       <ChoiceField label="Shape">
-        <select
+        <NativeSelect
           className={SELECT_CLASS}
           aria-label="Shape"
           value={ocular.shape ?? ''}
@@ -311,7 +312,7 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </ChoiceField>
       <label className="flex items-start gap-2 text-[11px] leading-4 text-muted-foreground">
         <input
@@ -420,7 +421,7 @@ export function AdjustmentFields({
                 : element.question
             }
           >
-            <select
+            <NativeSelect
               className={SELECT_CLASS}
               aria-label={element.label}
               value={own ?? ''}
@@ -436,12 +437,12 @@ export function AdjustmentFields({
               <option value="-1">Good (−1) · {element.good}</option>
               <option value="0">Moderate (0) · {element.moderate}</option>
               <option value="1">Poor (+1) · {element.poor}</option>
-            </select>
+            </NativeSelect>
           </ChoiceField>
         )
       })}
       <ChoiceField label="Roads, landings and sidecast (Table 4)">
-        <select
+        <NativeSelect
           className={SELECT_CLASS}
           aria-label="Roads, landings and sidecast"
           value={review.roads ?? ''}
@@ -455,10 +456,10 @@ export function AdjustmentFields({
               {entry.label} ({signed(entry.value)})
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </ChoiceField>
       <ChoiceField label="Tree retention (Table 5)">
-        <select
+        <NativeSelect
           className={SELECT_CLASS}
           aria-label="Tree retention"
           value={review.retention ?? ''}
@@ -475,7 +476,7 @@ export function AdjustmentFields({
               {level.label} ({signed(level.factor)})
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </ChoiceField>
       <label className="flex items-start gap-2 text-[11px] leading-4 text-muted-foreground">
         <input

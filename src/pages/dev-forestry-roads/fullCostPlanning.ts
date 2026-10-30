@@ -18,6 +18,9 @@ export interface RoadPlanSource {
   entranceRoadId: string | null
   accessConfirmed: boolean
   qualityConfirmed: boolean
+  /** Explicit supplied/accepted material classes; omission retains legacy generic uses. */
+  materialIds?: string[]
+  quality?: number
   /** Waste is bank m³ and may not share a capacity with compacted aggregate. */
   uses: RoadPlanMaterialUse[]
   /** Null is an explicitly unbounded planning capacity; quoted usable units depend on uses. */
@@ -149,6 +152,22 @@ export function parseTotalCostPlanning(raw: unknown): TotalCostPlanning {
       (s.uses.includes('waste') && s.uses.length !== 1)
     )
       throw Error('Source uses must be surfacing/fill or a separate bank-volume waste site.')
+    let materialIds: string[] | undefined
+    if (s.materialIds !== undefined) {
+      if (!Array.isArray(s.materialIds) || s.materialIds.length > 32)
+        throw Error('A source supports at most 32 material classes.')
+      materialIds = s.materialIds.map((value) => {
+        const materialId = text(value, 'Source material ID', 100)
+        if (!/^[a-zA-Z0-9_.:-]+$/.test(materialId)) throw Error('Source material ID contains unsupported characters.')
+        return materialId
+      })
+      if (new Set(materialIds).size !== materialIds.length) throw Error('Source material classes must be unique.')
+    }
+    if (
+      s.quality !== undefined &&
+      (typeof s.quality !== 'number' || !Number.isFinite(s.quality) || s.quality < 0 || s.quality > 100)
+    )
+      throw Error('Source material quality must be between 0 and 100.')
     return {
       id,
       name: text(s.name, 'Source name', 200),
@@ -157,6 +176,8 @@ export function parseTotalCostPlanning(raw: unknown): TotalCostPlanning {
       entranceRoadId: roadReference(s.entranceRoadId, 'Source entrance road ID'),
       accessConfirmed: flag(s.accessConfirmed, 'Source access review'),
       qualityConfirmed: flag(s.qualityConfirmed, 'Source material review'),
+      ...(materialIds === undefined ? {} : { materialIds }),
+      ...(s.quality === undefined ? {} : { quality: s.quality as number }),
       uses: s.uses as RoadPlanMaterialUse[],
       capacityM3: price(s.capacityM3, 'Source capacity', 1e12),
       acquisitionRate: price(s.acquisitionRate, 'Source acquisition/disposal rate'),

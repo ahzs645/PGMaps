@@ -16,7 +16,8 @@ export const sourceMeta: Record<SourceKey, { label: string; type: string; descri
   verified: {
     label: 'Documented relationships',
     type: 'Curated wording graph',
-    description: 'Reviewed place-to-Nation and people-group relationships used to generate controlled acknowledgement variants.',
+    description:
+      'Reviewed place-to-Nation and people-group relationships used to generate controlled acknowledgement variants.',
   },
   nativeLand: {
     label: 'Native Land Digital',
@@ -26,7 +27,8 @@ export const sourceMeta: Record<SourceKey, { label: string; type: string; descri
   cad: {
     label: 'BC CAD',
     type: 'Report workflow',
-    description: 'External CAD/PIP workflow for preliminary First Nations consultation contacts. The public app does not expose consultation-area polygons as downloadable boundary data.',
+    description:
+      'External CAD/PIP workflow for preliminary First Nations consultation contacts. The public app does not expose consultation-area polygons as downloadable boundary data.',
   },
   treaty: {
     label: 'Treaty lands',
@@ -41,7 +43,8 @@ export const sourceMeta: Record<SourceKey, { label: string; type: string; descri
   local: {
     label: 'Nearest community',
     type: 'Community reference',
-    description: 'Nearest First Nation community office from the B.C. community-locations layer. Proximity context for review, not a territory boundary.',
+    description:
+      'Nearest First Nation community office from the B.C. community-locations layer. Proximity context for review, not a territory boundary.',
   },
 }
 
@@ -58,7 +61,11 @@ export const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}cad_pip_layer_382_indian_re
 export const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
 export const NATIVE_LAND_DATA_BASE = `${import.meta.env.BASE_URL}data/native-land/`
 export const NATIVE_LAND_LAYERS = [
-  { category: 'territories', url: `${NATIVE_LAND_DATA_BASE}territories.geojson`, label: 'Native Land territory overlap' },
+  {
+    category: 'territories',
+    url: `${NATIVE_LAND_DATA_BASE}territories.geojson`,
+    label: 'Native Land territory overlap',
+  },
   { category: 'languages', url: `${NATIVE_LAND_DATA_BASE}languages.geojson`, label: 'Native Land language overlap' },
   { category: 'treaties', url: `${NATIVE_LAND_DATA_BASE}treaties.geojson`, label: 'Native Land treaty overlap' },
 ] as const
@@ -72,7 +79,12 @@ export const LOCAL_COMMUNITY_MAX_KM = 120
 export const initialLookupState: Record<SourceKey, SourceLookupState> = {
   verified: { status: 'idle', matches: [] },
   nativeLand: { status: 'idle', matches: [] },
-  cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. The public app exposes contact reports; consultation-area polygons are not available as bundled boundary data.' },
+  cad: {
+    status: 'skipped',
+    matches: [],
+    message:
+      'Use the B.C. CAD map/report manually. The public app exposes contact reports; consultation-area polygons are not available as bundled boundary data.',
+  },
   treaty: { status: 'idle', matches: [] },
   reserve: { status: 'idle', matches: [] },
   local: { status: 'idle', matches: [] },
@@ -98,23 +110,28 @@ export const unresolvedDataGaps: DataGap[] = [
 export const acknowledgementTemplatePrompts: TemplatePrompt[] = [
   {
     label: 'Locate the speaker',
-    prompt: 'Name your relationship to this place, including whether you are a host, visitor, resident, settler, immigrant, or guest.',
+    prompt:
+      'Name your relationship to this place, including whether you are a host, visitor, resident, settler, immigrant, or guest.',
   },
   {
     label: 'Name the gathering',
-    prompt: 'Connect the acknowledgement to why people are meeting, learning, building, or making decisions together today.',
+    prompt:
+      'Connect the acknowledgement to why people are meeting, learning, building, or making decisions together today.',
   },
   {
     label: 'Use local names with care',
-    prompt: 'Practice pronunciation and leave room for multiple Nations, overlapping relationships, and changed guidance.',
+    prompt:
+      'Practice pronunciation and leave room for multiple Nations, overlapping relationships, and changed guidance.',
   },
   {
     label: 'People before layers',
-    prompt: 'Do not let treaty, reserve, CAD, or other administrative layers substitute for Nation-specific relationships.',
+    prompt:
+      'Do not let treaty, reserve, CAD, or other administrative layers substitute for Nation-specific relationships.',
   },
   {
     label: 'Avoid one-size wording',
-    prompt: 'Replace rote scripts with context-specific wording that reflects the place, audience, and current relationships.',
+    prompt:
+      'Replace rote scripts with context-specific wording that reflects the place, audience, and current relationships.',
   },
   {
     label: 'Connect words to action',
@@ -126,11 +143,13 @@ export const acknowledgementTemplatePrompts: TemplatePrompt[] = [
   },
   {
     label: 'Keep wording living',
-    prompt: 'Record when wording was reviewed and revisit it when local guidance, relationships, or event context changes.',
+    prompt:
+      'Record when wording was reviewed and revisit it when local guidance, relationships, or event context changes.',
   },
 ]
 
-const PRONUNCIATION_GUIDE_URL = 'https://www2.gov.bc.ca/assets/gov/british-columbians-our-governments/indigenous-people/aboriginal-peoples-documents/a_guide_to_pronunciation_of_bc_first_nations_-_oct_29_2018.pdf'
+const PRONUNCIATION_GUIDE_URL =
+  'https://www2.gov.bc.ca/assets/gov/british-columbians-our-governments/indigenous-people/aboriginal-peoples-documents/a_guide_to_pronunciation_of_bc_first_nations_-_oct_29_2018.pdf'
 const LHEIDLI_LANGUAGE_URL = 'https://www.lheidli.ca/about/our-language/'
 const LHEIDLI_DICTIONARY_URL = 'https://www.billposer.org/LheidliCarrierDictionary/'
 const LHEIDLI_SOUND_SYSTEM_URL = 'https://www.billposer.org/LheidliDialect/SoundSystemIntro/LheidliPronunciation.html'
@@ -150,7 +169,8 @@ export const pronunciationSources: PronunciationSource[] = [
     name: 'Lheidli Dakelh Dictionary',
     status: 'Audio link-out',
     use: 'Lheidli-specific dictionary entries with syllabics, IPA hover notes, playable speaker recordings, and QR codes.',
-    caveat: 'Audio reuse rights are not clearly permissive. Link out rather than bundling or mirroring audio unless permission is obtained.',
+    caveat:
+      'Audio reuse rights are not clearly permissive. Link out rather than bundling or mirroring audio unless permission is obtained.',
     url: LHEIDLI_DICTIONARY_URL,
   },
   {
@@ -164,7 +184,8 @@ export const pronunciationSources: PronunciationSource[] = [
     name: 'BC pronunciation guide',
     status: 'Text phonetics',
     use: 'Seed English-style pronunciation approximations for many B.C. Indigenous communities and organizations.',
-    caveat: 'Introductory only. The guide says final authority rests with each community and many sounds cannot be expressed in English.',
+    caveat:
+      'Introductory only. The guide says final authority rests with each community and many sounds cannot be expressed in English.',
     url: PRONUNCIATION_GUIDE_URL,
   },
   {
@@ -216,7 +237,8 @@ export const localLanguageResources: LocalLanguageResource[] = [
     name: 'UNBC in Dakelh',
     status: 'Local term',
     use: 'Dictionary entry for “University of Northern British Columbia,” with audio spoken by Edith Frederick and a QR code for sharing.',
-    caveat: 'Keep this as a linked pronunciation aid for local UNBC contexts; verify before embedding in formal acknowledgement wording.',
+    caveat:
+      'Keep this as a linked pronunciation aid for local UNBC contexts; verify before embedding in formal acknowledgement wording.',
     url: LHEIDLI_UNBC_ENTRY_URL,
     audioUrl: LHEIDLI_UNBC_AUDIO_URL,
     qrUrl: LHEIDLI_UNBC_QR_URL,
@@ -289,16 +311,21 @@ export const confidenceLabels: Record<Confidence, string> = {
 const verificationMeta: Record<string, { label: string; className: string }> = {
   verified_institutional: { label: 'Institutional', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
   verified_local_context: { label: 'Local context', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
-  verified_institutional_context: { label: 'Institutional context', className: 'border-amber-200 bg-amber-50 text-amber-800' },
+  verified_institutional_context: {
+    label: 'Institutional context',
+    className: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
   boundary_context: { label: 'Boundary context', className: 'border-amber-200 bg-amber-50 text-amber-800' },
   template_context: { label: 'Template', className: 'border-slate-200 bg-slate-50 text-slate-700' },
 }
 
 export function verificationLabel(status: string) {
-  return verificationMeta[status] ?? {
-    label: status.replace(/_/g, ' '),
-    className: 'border-slate-200 bg-slate-50 text-slate-700',
-  }
+  return (
+    verificationMeta[status] ?? {
+      label: status.replace(/_/g, ' '),
+      className: 'border-slate-200 bg-slate-50 text-slate-700',
+    }
+  )
 }
 
 export const wordingModeLabels: Record<WordingMode, string> = {

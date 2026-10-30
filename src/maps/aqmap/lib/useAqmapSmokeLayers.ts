@@ -25,16 +25,20 @@ interface UseAqmapSmokeLayersResult {
 }
 
 function isFeatureCollection(value: unknown): value is SmokeFeatureCollection {
-  return !!value
-    && typeof value === 'object'
-    && (value as { type?: unknown }).type === 'FeatureCollection'
-    && Array.isArray((value as { features?: unknown }).features)
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'FeatureCollection' &&
+    Array.isArray((value as { features?: unknown }).features)
+  )
 }
 
 function extractFeatureCollection(value: unknown): SmokeFeatureCollection | null {
   if (isFeatureCollection(value)) return value
   if (value && typeof value === 'object' && 'data' in value) {
-    return isFeatureCollection((value as { data?: unknown }).data) ? (value as { data: SmokeFeatureCollection }).data : null
+    return isFeatureCollection((value as { data?: unknown }).data)
+      ? (value as { data: SmokeFeatureCollection }).data
+      : null
   }
   return null
 }
@@ -65,18 +69,21 @@ export function useAqmapSmokeLayers(): UseAqmapSmokeLayersResult {
 
       const primaryEndpoints = import.meta.env.DEV ? LIVE_SMOKE_ENDPOINTS : STATIC_SMOKE_ENDPOINTS
       const primaryResults = await Promise.all(
-        (Object.entries(primaryEndpoints) as Array<[SmokeLayerKey, string]>)
-          .map(async ([key, endpoint]) => [key, await loadSmokeLayerData(endpoint, controller.signal)] as const),
+        (Object.entries(primaryEndpoints) as Array<[SmokeLayerKey, string]>).map(
+          async ([key, endpoint]) => [key, await loadSmokeLayerData(endpoint, controller.signal)] as const,
+        ),
       )
       if (cancelled) return
 
       // The Vite dev adapter provides live smoke endpoints. If either one is
       // unavailable, use the same public snapshots deployed in production.
       const results = import.meta.env.DEV
-        ? await Promise.all(primaryResults.map(async ([key, result]) => [
-            key,
-            result ?? await loadSmokeLayerData(STATIC_SMOKE_ENDPOINTS[key], controller.signal),
-          ] as const))
+        ? await Promise.all(
+            primaryResults.map(
+              async ([key, result]) =>
+                [key, result ?? (await loadSmokeLayerData(STATIC_SMOKE_ENDPOINTS[key], controller.signal))] as const,
+            ),
+          )
         : primaryResults
       if (cancelled) return
 
@@ -101,9 +108,12 @@ export function useAqmapSmokeLayers(): UseAqmapSmokeLayersResult {
     }
   }, [])
 
-  return useMemo(() => ({
-    layers,
-    loading,
-    error,
-  }), [error, layers, loading])
+  return useMemo(
+    () => ({
+      layers,
+      loading,
+      error,
+    }),
+    [error, layers, loading],
+  )
 }

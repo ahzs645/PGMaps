@@ -46,11 +46,19 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
           const restaurants = await res.json()
           const withDist = restaurants
             .filter((r: { latitude: number; longitude: number }) => r.latitude && r.longitude)
-            .map((r: { name: string; latitude: number; longitude: number; current_hazard_rating?: string; hazard_rating?: string }) => ({
-              name: r.name,
-              distance: haversineKm(lat, lng, r.latitude, r.longitude),
-              hazard: r.current_hazard_rating || r.hazard_rating || 'Unknown',
-            }))
+            .map(
+              (r: {
+                name: string
+                latitude: number
+                longitude: number
+                current_hazard_rating?: string
+                hazard_rating?: string
+              }) => ({
+                name: r.name,
+                distance: haversineKm(lat, lng, r.latitude, r.longitude),
+                hazard: r.current_hazard_rating || r.hazard_rating || 'Unknown',
+              }),
+            )
             .sort((a: { distance: number }, b: { distance: number }) => a.distance - b.distance)
 
           const within2km = withDist.filter((r: { distance: number }) => r.distance <= 2)
@@ -65,7 +73,9 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
             moderateCount: within2km.filter((r: { hazard: string }) => r.hazard === 'Moderate').length,
           }
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
 
       // Parks
       try {
@@ -91,7 +101,9 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
             nearest: withDist.slice(0, 5),
           }
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
 
       // Air monitors
       try {
@@ -118,7 +130,9 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
             nearest: monitorItems.slice(0, 3),
           }
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
 
       if (!cancelled) {
         setData({
@@ -131,7 +145,9 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [lat, lng])
 
   // z-30 keeps the report above the explorer's z-20 map overlays.
@@ -141,12 +157,12 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
       className="left-4 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background/95 px-4 py-3 shadow-2xl backdrop-blur md:bottom-6 md:left-auto md:right-72 md:w-80"
     >
       <MapPopupCard
-        title={(
+        title={
           <span className="flex items-center gap-2">
             <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             Neighborhood Report
           </span>
-        )}
+        }
         subtitle={`${lat.toFixed(4)}, ${lng.toFixed(4)}`}
         onClose={onClose}
         closeLabel="Close neighborhood report"

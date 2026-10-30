@@ -1,3 +1,4 @@
+import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { useEffect, useState } from 'react'
 import { Copy, ExternalLink, MapPin, Quote } from 'lucide-react'
 import { useCopyText } from '../hooks/useCopyText'
@@ -30,22 +31,16 @@ function FitToCampuses({ campuses }: { campuses: LatLng[] }) {
       map.flyTo({ center: [campuses[0].longitude, campuses[0].latitude], zoom: 9, duration: 600 })
       return
     }
-    let west = Infinity
-    let south = Infinity
-    let east = -Infinity
-    let north = -Infinity
-    for (const campus of campuses) {
-      west = Math.min(west, campus.longitude)
-      east = Math.max(east, campus.longitude)
-      south = Math.min(south, campus.latitude)
-      north = Math.max(north, campus.latitude)
-    }
-    map.fitBounds(
-      [
-        [west, south],
-        [east, north],
-      ],
-      { padding: 56, maxZoom: 10, duration: 600 },
+    fitMapToPoints(
+      map,
+      campuses.map((campus) => [campus.longitude, campus.latitude]),
+      {
+        padding: 56,
+        maxZoom: 10,
+        duration: 600,
+        minSpan: 0,
+        pad: 0,
+      },
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, key])

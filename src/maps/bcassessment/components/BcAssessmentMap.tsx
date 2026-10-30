@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { formatCompactCurrency } from '@/lib/format'
-import {
-  Map as PgMap,
-  type MapRef,
-} from '@/components/ui/map'
+import { Map as PgMap, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { interpolateStopColor, stopColor } from '@/lib/valueBands'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
-import {
-  VALUE_STOPS,
-  YEAR_STOPS,
-} from '../constants'
+import { VALUE_STOPS, YEAR_STOPS } from '../constants'
 import type { Property, ColorMetric, BoundaryAggregate, BoundaryLevel } from '../types'
 
 type ColorScaleMode = 'stepped' | 'continuous'
@@ -35,10 +29,14 @@ const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', feature
 
 function getAggregateValue(agg: BoundaryAggregate, metric: ColorMetric): number | null {
   switch (metric) {
-    case 'totalAssessed': return agg.avgAssessed
-    case 'totalLand': return agg.avgLand
-    case 'totalBuilding': return agg.avgBuilding
-    case 'yearBuilt': return agg.avgYearBuilt
+    case 'totalAssessed':
+      return agg.avgAssessed
+    case 'totalLand':
+      return agg.avgLand
+    case 'totalBuilding':
+      return agg.avgBuilding
+    case 'yearBuilt':
+      return agg.avgYearBuilt
   }
 }
 
@@ -165,13 +163,7 @@ export function BcAssessmentMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-               loading={loading}
-      >
-
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
         {/* Property parcels — hidden when boundary overlay is active */}
         <MapFillLayer
           data={geojson}
