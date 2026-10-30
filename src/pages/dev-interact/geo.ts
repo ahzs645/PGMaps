@@ -39,7 +39,10 @@ export function filterCollection<TGeometry extends GeoJSON.Geometry>(
   }
 }
 
-export function featureMatchesYearRange(feature: GeoJSON.Feature<GeoJSON.Geometry, InteractFeatureProperties>, yearRange: YearRange): boolean {
+export function featureMatchesYearRange(
+  feature: GeoJSON.Feature<GeoJSON.Geometry, InteractFeatureProperties>,
+  yearRange: YearRange,
+): boolean {
   return feature.properties.issuedYear >= yearRange[0] && feature.properties.issuedYear <= yearRange[1]
 }
 
@@ -80,18 +83,23 @@ export function measurementCanClose(points: [number, number][]): boolean {
 }
 
 export function lineLengthKm(coordinates: [number, number][]): number {
-  return coordinates.slice(1).reduce((total, coordinate, index) => total + distanceKm(coordinates[index], coordinate), 0)
+  return coordinates
+    .slice(1)
+    .reduce((total, coordinate, index) => total + distanceKm(coordinates[index], coordinate), 0)
 }
 
 export function measurementStats(points: [number, number][], complete: boolean) {
   if (points.length < 2) return null
   const lineCoordinates = complete ? closeRing(points) : points
   const perimeter = lineLengthKm(lineCoordinates)
-  const areaValue = points.length >= 3 ? area({
-    type: 'Feature',
-    properties: {},
-    geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
-  }) : 0
+  const areaValue =
+    points.length >= 3
+      ? area({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
+        })
+      : 0
   return { perimeter, area: areaValue }
 }
 

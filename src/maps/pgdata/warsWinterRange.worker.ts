@@ -74,9 +74,10 @@ workerScope.onmessage = (event) => {
     loadedPromise
       .then(({ decompressedText, processed }) => {
         if (objectUrl) URL.revokeObjectURL(objectUrl)
-        objectUrl = message.mode === 'blob'
-          ? URL.createObjectURL(new Blob([decompressedText], { type: 'application/json' }))
-          : null
+        objectUrl =
+          message.mode === 'blob'
+            ? URL.createObjectURL(new Blob([decompressedText], { type: 'application/json' }))
+            : null
         workerScope.postMessage({
           type: 'loaded',
           data: objectUrl ?? processed.data,

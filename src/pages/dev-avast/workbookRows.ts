@@ -66,7 +66,8 @@ export function evaluatedChecks(rows: BlockRow[]): Array<{ reported: number; dup
   })
 }
 
-const number = (value: number | null, decimals: number) => (value === null || !Number.isFinite(value) ? '' : String(Number(value.toFixed(decimals))))
+const number = (value: number | null, decimals: number) =>
+  value === null || !Number.isFinite(value) ? '' : String(Number(value.toFixed(decimals)))
 /** Tabs and line breaks would split a cell when pasted. */
 const text = (value: string) => value.replace(/[\t\r\n]+/g, ' ').trim()
 
@@ -76,7 +77,10 @@ const text = (value: string) => value.replace(/[\t\r\n]+/g, ' ').trim()
  * rewritten for the rows they land on, so a paste over the pre-filled formula
  * rows changes nothing about how the sheet totals or flags duplicates.
  */
-export function blockRowsTsv(rows: BlockRow[], options: { startRow: number; formulas: boolean; header?: boolean }): string {
+export function blockRowsTsv(
+  rows: BlockRow[],
+  options: { startRow: number; formulas: boolean; header?: boolean },
+): string {
   const checks = evaluatedChecks(rows)
   const lines = rows.map((row, index) => {
     const sheetRow = options.startRow + index
@@ -130,5 +134,8 @@ export function exportBlockRows(
 ): Array<{ key: string; row: BlockRow }> {
   return summary.candidates
     .filter((candidate) => !candidate.excluded && !(candidate.duplicate && settings.duplicates === 'drop'))
-    .map((candidate) => ({ key: candidate.key, row: withVriVolume(blockRow(candidate), vri?.get(candidate.key), settings.vphDecimals) }))
+    .map((candidate) => ({
+      key: candidate.key,
+      row: withVriVolume(blockRow(candidate), vri?.get(candidate.key), settings.vphDecimals),
+    }))
 }

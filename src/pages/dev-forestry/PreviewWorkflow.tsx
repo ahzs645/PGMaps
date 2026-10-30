@@ -61,7 +61,7 @@ export function PreviewWorkflow(props: Props) {
     if (props.drawMode === 'none') return null
     return (
       <section aria-label="Drawing">
-        {(
+        {
           <div className="rounded border bg-muted p-3 text-xs" role="status">
             <p>
               {props.drawMode === 'spot'
@@ -77,12 +77,10 @@ export function PreviewWorkflow(props: Props) {
                   Finish drawing
                 </ActionButton>
               )}
-              <ActionButton onClick={() => props.onDraw('none')}>
-                Cancel drawing
-              </ActionButton>
+              <ActionButton onClick={() => props.onDraw('none')}>Cancel drawing</ActionButton>
             </div>
           </div>
-        )}
+        }
       </section>
     )
   }
@@ -140,16 +138,19 @@ export function PreviewWorkflow(props: Props) {
       <div className="rounded-lg border p-3 text-xs space-y-2">
         <h4 className="font-semibold text-sm">Saved views</h4>
         <p className="text-muted-foreground">
-          Your record of each viewpoint (handbook 3.2): save a view from the drive and download its image. Reopen it to compare both harvest phases from the same spot.
+          Your record of each viewpoint (handbook 3.2): save a view from the drive and download its image. Reopen it to
+          compare both harvest phases from the same spot.
         </p>
         {props.onReopenPrevious && (
-          <ActionButton onClick={props.onReopenPrevious}>
-            Reopen previous saved preview
-          </ActionButton>
+          <ActionButton onClick={props.onReopenPrevious}>Reopen previous saved preview</ActionButton>
         )}
         {props.views.map((view) => (
           <div key={view.id} className="flex items-center gap-2">
-            <ActionButton className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10" disabled={busy} onClick={() => props.onRestore(view)}>
+            <ActionButton
+              className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10"
+              disabled={busy}
+              onClick={() => props.onRestore(view)}
+            >
               {view.name} · {(view.positionMeters / 1000).toFixed(2)} km
             </ActionButton>
             <ActionButton aria-label={`Remove ${view.name}`} onClick={() => props.onRemoveView(view.id)}>

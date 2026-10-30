@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { usePagination } from '@/hooks/usePagination'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { errorText, parsePortalSearch, portalRead } from '@/lib/nechakoPortal'
 import { geographicArea, type VectorData } from './data/workspace'
@@ -50,34 +53,28 @@ export function useReadCheck(read = portalRead) {
 }
 
 export function JsonResults({ data }: { data: unknown }) {
-  const [page, setPage] = useState(0)
   const rows = Array.isArray(data)
     ? data
     : data && typeof data === 'object' && 'results' in data && Array.isArray(data.results)
       ? data.results
       : null
-  const size = 20
-  const pages = rows ? Math.max(1, Math.ceil(rows.length / size)) : 1
-  const current = Math.min(page, pages - 1)
+  const pagination = usePagination(rows ?? [], 20, 'json-results')
   return (
     <div className="rounded-lg border p-4">
       {rows && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>
-            {rows.length} records · Page {current + 1} of {pages}
-          </span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={current === 0} onClick={() => setPage(current - 1)}>
-              Previous
-            </Button>
-            <Button size="sm" variant="outline" disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>
-              Next
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          onPageChange={pagination.setPage}
+          label="JSON result pages"
+          className="mb-3 border-0 p-0"
+          layout="summary-first"
+          summaryClassName="text-sm text-foreground"
+          formatPage={(page, count) => `${rows.length} records · Page ${page + 1} of ${count}`}
+        />
       )}
       <pre className="max-h-[500px] overflow-auto whitespace-pre-wrap break-words text-xs">
-        {JSON.stringify(rows ? rows.slice(current * size, (current + 1) * size) : data, null, 2)}
+        {JSON.stringify(rows ? pagination.items : data, null, 2)}
       </pre>
     </div>
   )
@@ -266,7 +263,7 @@ export function PortalSearch({
         </fieldset>
         <fieldset className="space-y-3 rounded-lg border p-3">
           <legend className="px-1 text-sm font-medium">Geographic limit</legend>
-          <select
+          <NativeSelect
             aria-label="Search geographic limit"
             value={areaMode}
             onChange={(event) => setAreaMode(event.target.value as typeof areaMode)}
@@ -275,7 +272,7 @@ export function PortalSearch({
             <option value="none">No geographic limit</option>
             <option value="extent">Longitude/latitude extent</option>
             <option value="polygon">Imported or drawn polygon layer</option>
-          </select>
+          </NativeSelect>
           {areaMode === 'extent' && (
             <>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -320,7 +317,7 @@ export function PortalSearch({
           {areaMode === 'polygon' && (
             <label className="block text-sm">
               Search area layer
-              <select
+              <NativeSelect
                 aria-label="Search area layer"
                 value={areaVectorId}
                 onChange={(event) => setAreaVectorId(event.target.value)}
@@ -340,7 +337,7 @@ export function PortalSearch({
                       {item.name}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
               <p className="mt-2 text-xs text-muted-foreground">
                 The original client also sends vector search areas as GeoJSON. Live geographic filtering needs
                 verification after registration is fixed.
@@ -481,10 +478,7 @@ export function PortalSearch({
           <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(tree, null, 2)}</pre>
         </details>
       )}
-      <Link
-        className="inline-block text-sm text-primary underline"
-        to="/projects/nechako-watershed-research-portal"
-      >
+      <Link className="inline-block text-sm text-primary underline" to="/projects/nechako-watershed-research-portal">
         Open the existing literature project
       </Link>
     </div>
@@ -631,7 +625,7 @@ export function PortalFormats({ defaultSource = 'live' }: { defaultSource?: Cata
       </h2>
       <label className="block text-sm font-medium">
         Format registry source
-        <select
+        <NativeSelect
           aria-label="Format registry source"
           className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
           value={source}
@@ -639,7 +633,7 @@ export function PortalFormats({ defaultSource = 'live' }: { defaultSource?: Cata
         >
           <option value="snapshot">Repository snapshot</option>
           <option value="live">Live portal registry</option>
-        </select>
+        </NativeSelect>
       </label>
       <p className="text-sm text-muted-foreground">
         These formats are advertised by the portal. Listing a format does not verify import/export round trips or make

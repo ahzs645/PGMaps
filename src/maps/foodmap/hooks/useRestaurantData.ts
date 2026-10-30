@@ -38,25 +38,21 @@ export function useRestaurantData(enabled = true) {
         fetch(`${import.meta.env.BASE_URL}data/restaurants.json`),
         fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`),
         fetch(`${import.meta.env.BASE_URL}data/restaurant-location-overrides.json`),
-        fetch(`${import.meta.env.BASE_URL}data/ui/restaurant-locations.json`)
+        fetch(`${import.meta.env.BASE_URL}data/ui/restaurant-locations.json`),
       ])
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`)
       }
       const data = await response.json()
-      const classifications: Record<string, EstablishmentType> = clsResponse.ok
-        ? await clsResponse.json()
-        : {}
+      const classifications: Record<string, EstablishmentType> = clsResponse.ok ? await clsResponse.json() : {}
       const locationOverrides: Record<string, { latitude: number; longitude: number }> = locationResponse.ok
         ? await locationResponse.json()
         : {}
-      const geocodedFile: GeocodedLocationsFile = geocodedResponse.ok
-        ? await geocodedResponse.json()
-        : {}
+      const geocodedFile: GeocodedLocationsFile = geocodedResponse.ok ? await geocodedResponse.json() : {}
       const restaurantGeocodes = new Map(
         (geocodedFile.locations ?? [])
           .filter((location) => location.dataset === 'restaurants')
-          .map((location) => [location.source_index, location])
+          .map((location) => [location.source_index, location]),
       )
 
       const merged = data.map((r: Restaurant, index: number) => {
@@ -66,7 +62,7 @@ export function useRestaurantData(enabled = true) {
         // once at load, so the panel, cards, and roulette all get clean data.
         const inspections = r.inspections?.map((inspection) => ({
           ...inspection,
-          violations: inspection.violations?.map(normalizeViolation)
+          violations: inspection.violations?.map(normalizeViolation),
         }))
         return {
           ...r,
@@ -77,7 +73,7 @@ export function useRestaurantData(enabled = true) {
           google_place_id: geocodedLocation?.google_place_id,
           google_location_type: geocodedLocation?.google_location_type,
           google_partial_match: geocodedLocation?.google_partial_match,
-          establishment_type: classifications[r.name] || r.facility_type || 'Unknown'
+          establishment_type: classifications[r.name] || r.facility_type || 'Unknown',
         }
       })
       setRestaurants(merged)
@@ -94,28 +90,37 @@ export function useRestaurantData(enabled = true) {
 
   const stats = useMemo<RestaurantStats>(() => {
     const total = restaurants.length
-    const geocoded = restaurants.filter(r => r.latitude && r.longitude).length
+    const geocoded = restaurants.filter((r) => r.latitude && r.longitude).length
 
-    const byHazard = restaurants.reduce((acc, r) => {
-      const rating = getHazardRating(r)
-      acc[rating] = (acc[rating] || 0) + 1
-      return acc
-    }, {} as Record<HazardRating, number>)
+    const byHazard = restaurants.reduce(
+      (acc, r) => {
+        const rating = getHazardRating(r)
+        acc[rating] = (acc[rating] || 0) + 1
+        return acc
+      },
+      {} as Record<HazardRating, number>,
+    )
 
-    const byFacilityType = restaurants.reduce((acc, r) => {
-      const type = r.establishment_type || r.facility_type || 'Unknown'
-      acc[type] = (acc[type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    const byFacilityType = restaurants.reduce(
+      (acc, r) => {
+        const type = r.establishment_type || r.facility_type || 'Unknown'
+        acc[type] = (acc[type] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
 
     const totalInspections = restaurants.reduce((acc, r) => {
       return acc + (r.inspections?.length || 0)
     }, 0)
 
     const totalViolations = restaurants.reduce((acc, r) => {
-      return acc + (r.inspections || []).reduce((sum, insp) => {
-        return sum + (insp.violations?.length || 0)
-      }, 0)
+      return (
+        acc +
+        (r.inspections || []).reduce((sum, insp) => {
+          return sum + (insp.violations?.length || 0)
+        }, 0)
+      )
     }, 0)
 
     return {
@@ -124,7 +129,7 @@ export function useRestaurantData(enabled = true) {
       byHazard,
       byFacilityType,
       totalInspections,
-      totalViolations
+      totalViolations,
     }
   }, [restaurants])
 
@@ -133,6 +138,6 @@ export function useRestaurantData(enabled = true) {
     loading,
     error,
     stats,
-    reload: loadData
+    reload: loadData,
   }
 }

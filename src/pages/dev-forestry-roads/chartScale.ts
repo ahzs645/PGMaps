@@ -29,7 +29,11 @@ export function axisTicks(min: number, max: number, targetCount: number): AxisTi
   const divisions = leading === 2 || leading === 2.5 ? 4 : 5
   const minorStep = step / divisions
   const minor: number[] = []
-  for (let value = Math.ceil(low / minorStep - 1e-9) * minorStep; value <= high + minorStep * 1e-9; value += minorStep) {
+  for (
+    let value = Math.ceil(low / minorStep - 1e-9) * minorStep;
+    value <= high + minorStep * 1e-9;
+    value += minorStep
+  ) {
     const rounded = Number(value.toPrecision(12))
     if (!major.some((m) => Math.abs(m - rounded) < minorStep * 1e-6)) minor.push(rounded)
   }

@@ -1,3 +1,5 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { NativeSelect } from '@/components/ui/form-field'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -93,7 +95,7 @@ export function InventorySidebar({
               </p>
               <label className="block text-xs">
                 Species source
-                <select
+                <NativeSelect
                   aria-label="Inventory species scenario"
                   className="mt-1 w-full rounded border bg-background p-1.5"
                   value={rules.speciesMode}
@@ -101,7 +103,7 @@ export function InventorySidebar({
                 >
                   <option value="vri">Assume VRI leading species per stand</option>
                   <option value="reviewed">Unknown unless reviewed</option>
-                </select>
+                </NativeSelect>
               </label>
               {(
                 [
@@ -113,19 +115,18 @@ export function InventorySidebar({
                   { key: 'recovery', label: 'Recovery of remaining volume (%)', min: 0, max: 100, step: 5 },
                 ] as const
               ).map((c) => (
-                <label className="mt-3 block text-xs" key={c.key}>
-                  {c.label}: {rules[c.key]}
-                  <input
-                    aria-label={c.label}
-                    className="mt-1 w-full"
-                    type="range"
-                    min={c.min}
-                    max={c.max}
-                    step={c.step}
-                    value={rules[c.key]}
-                    onChange={(e) => patch({ [c.key]: +e.target.value })}
-                  />
-                </label>
+                <NumericRangeField
+                  key={c.key}
+                  label={c.label}
+                  layout="inline"
+                  className="mt-3 space-y-0 text-xs"
+                  inputClassName="mt-1 h-auto w-full"
+                  min={c.min}
+                  max={c.max}
+                  step={c.step}
+                  value={rules[c.key]}
+                  onChange={(value) => patch({ [c.key]: value })}
+                />
               ))}
               <p className="mt-2 text-[10px]">
                 These controls filter saved runs and recalculate estimates; they do not rerun segmentation. Point-count

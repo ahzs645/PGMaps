@@ -190,8 +190,11 @@ function stationGeometry(station: RoadStation, toGrid: ToGrid): StationGeometry 
     for (; i >= 0 && i < section.length; i += step) {
       const sample = section[i]
       // Outside the constructed prism, stripping margins still lower the final terrain.
-      const z = sample.design ?? (sample.preparedGround != null && sample.ground != null &&
-        sample.preparedGround < sample.ground - EPS ? sample.preparedGround : null)
+      const z =
+        sample.design ??
+        (sample.preparedGround != null && sample.ground != null && sample.preparedGround < sample.ground - EPS
+          ? sample.preparedGround
+          : null)
       if (z === null || !Number.isFinite(z)) break
       out.push({ d: Math.abs(section[i].offset), z })
     }

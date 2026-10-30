@@ -11,10 +11,7 @@ import {
   WALKABILITY_MI_GRID_FALLBACK_PATH,
 } from '@/maps/pgdata/walkabilityMiBands'
 import type { AirMonitor } from '@/maps/airquality'
-import {
-  resolveWalkabilitySurfaceModel,
-  type WalkabilitySurfaceTuning,
-} from '../lib/walkabilitySurface'
+import { resolveWalkabilitySurfaceModel, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
 import type { ScoreMetricWeightMap, ScoredBoundaryRegion } from '../types'
 
 interface ScoreBuilderMapProps {
@@ -170,7 +167,6 @@ export function ScoreBuilderMap({
   return (
     <div className="h-full w-full">
       <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
-
         {walkabilitySourceSurface && (
           <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />
         )}
@@ -216,14 +212,8 @@ function ScoreBuilderWalkabilitySourceGrid({
   )
   const sourceId = 'score-builder-walkability-source-grid'
   const layerId = 'score-builder-walkability-source-grid-layer'
-  const { factorWeights, options } = useMemo(
-    () => resolveWalkabilitySurfaceModel(tuning, weights),
-    [tuning, weights],
-  )
-  const liveRequestKey = useMemo(
-    () => JSON.stringify({ options, factorWeights }),
-    [factorWeights, options],
-  )
+  const { factorWeights, options } = useMemo(() => resolveWalkabilitySurfaceModel(tuning, weights), [tuning, weights])
+  const liveRequestKey = useMemo(() => JSON.stringify({ options, factorWeights }), [factorWeights, options])
   const [liveGrid, setLiveGrid] = useState<WalkabilityLiveGridState>({
     status: 'idle',
     requestKey: '',
@@ -284,7 +274,7 @@ function ScoreBuilderWalkabilitySourceGrid({
     let pixel = 0
     for (const [value, count] of rle) {
       const sourceColor = colors[String(value)] ?? fallbackColors[String(value)]
-      const color = sourceColor ? hexToRgbaArray(sourceColor, 217) : [0, 0, 0, 0] as [number, number, number, number]
+      const color = sourceColor ? hexToRgbaArray(sourceColor, 217) : ([0, 0, 0, 0] as [number, number, number, number])
       for (let index = 0; index < count; index += 1) {
         const offset = pixel * 4
         image.data[offset] = color[0]

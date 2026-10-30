@@ -4,13 +4,7 @@ import { AppSelect } from '@/components/ui/select'
 import { YEAR_FILTER_DOMAIN, yearHistogramBins } from './data'
 import type { YearRange } from './types'
 
-export function YearFilterWidget({
-  value,
-  onChange,
-}: {
-  value: YearRange
-  onChange: (value: YearRange) => void
-}) {
+export function YearFilterWidget({ value, onChange }: { value: YearRange; onChange: (value: YearRange) => void }) {
   const [minYear, maxYear] = YEAR_FILTER_DOMAIN
   const svgRef = useRef<SVGSVGElement>(null)
   const dragAnchorYear = useRef<number | null>(null)
@@ -110,7 +104,11 @@ export function YearFilterWidget({
                 width={width}
                 height={height}
                 rx="1"
-                className={selected ? 'fill-primary/80 hover:fill-primary' : 'fill-muted-foreground/25 hover:fill-muted-foreground/45'}
+                className={
+                  selected
+                    ? 'fill-primary/80 hover:fill-primary'
+                    : 'fill-muted-foreground/25 hover:fill-muted-foreground/45'
+                }
                 onPointerEnter={() => setHoveredYear(bin.year)}
               />
             )
@@ -134,7 +132,12 @@ export function YearFilterWidget({
               {hoveredBin.count.toLocaleString()}
             </text>
           ) : (
-            <text x={(yearToX(value[0], minYear, maxYear) + yearToX(value[1], minYear, maxYear)) / 2} y="-6" textAnchor="middle" className="fill-foreground text-xs font-semibold">
+            <text
+              x={(yearToX(value[0], minYear, maxYear) + yearToX(value[1], minYear, maxYear)) / 2}
+              y="-6"
+              textAnchor="middle"
+              className="fill-foreground text-xs font-semibold"
+            >
               {selectedCount.toLocaleString()}
             </text>
           )}
@@ -194,9 +197,10 @@ function clientXToYear(clientX: number, element: SVGSVGElement | null, minYear: 
 }
 
 function RangeHandle({ x, side }: { x: number; side: 'start' | 'end' }) {
-  const path = side === 'start'
-    ? 'M1 0H7V12L0.310345 5.6289C0.112165 5.44016 0 5.17844 0 4.90476V1C0 0.447715 0.447715 0 1 0Z'
-    : 'M6 0H0V12L6.68966 5.6289C6.88784 5.44016 7 5.17844 7 4.90476V1C7 0.447715 6.55228 0 6 0Z'
+  const path =
+    side === 'start'
+      ? 'M1 0H7V12L0.310345 5.6289C0.112165 5.44016 0 5.17844 0 4.90476V1C0 0.447715 0.447715 0 1 0Z'
+      : 'M6 0H0V12L6.68966 5.6289C6.88784 5.44016 7 5.17844 7 4.90476V1C7 0.447715 6.55228 0 6 0Z'
 
   return (
     <g transform={`translate(${x - (side === 'start' ? 6 : 0)} 0)`} className="fill-primary">

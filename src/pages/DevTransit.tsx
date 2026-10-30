@@ -1,3 +1,4 @@
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTheme } from 'next-themes'
@@ -33,6 +34,28 @@ function placeName(data: TransitData | null, point: Point) {
   return stop?.name ?? `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`
 }
 
+interface CalculationInput {
+  data: TransitData | null
+  options: TravelOptions
+  heatGrid: HeatGridSpec | null
+  max: number
+  theme: HeatTheme
+  dragging: boolean
+}
+interface TravelJob {
+  id: number
+  options: TravelOptions
+  heatGrid: HeatGridSpec
+  max: number
+  theme: HeatTheme
+  input: CalculationInput
+}
+function postTravelJob(worker: Worker, job: TravelJob) {
+  // Input identity is only for React's completion tracking; never clone the
+  // full source dataset again with every drag frame.
+  worker.postMessage({ id: job.id, options: job.options, heatGrid: job.heatGrid, max: job.max, theme: job.theme })
+}
+
 export default function DevTransit() {
   const { resolvedTheme, forcedTheme } = useTheme()
   const heatTheme: HeatTheme = (forcedTheme ?? resolvedTheme) === 'dark' ? 'dark' : 'light'
@@ -58,19 +81,20 @@ export default function DevTransit() {
   const isDragging = Boolean(drag)
   const dragging = useRef(false)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(true)
+  const [loadingData, setLoadingData] = useState(true)
+  const [settledCalculation, setSettledCalculation] = useState<CalculationInput | null>(null)
   const [pickMode, setPickMode] = useState<'from' | 'to'>('to')
   const [showHeat, setShowHeat] = useState(true)
   const [showRoutes, setShowRoutes] = useState(true)
   const [showStops, setShowStops] = useState(true)
   const [notice, setNotice] = useState('')
   const [shareUrl, setShareUrl] = useState('')
+  const clipboard = useClipboardText()
   const [retry, setRetry] = useState(0)
   const worker = useRef<Worker | null>(null)
   const request = useRef(0)
-  type Job = { id: number; options: TravelOptions; heatGrid: HeatGridSpec; max: number; theme: HeatTheme }
-  const active = useRef<Job | null>(null)
-  const pending = useRef<Job | null>(null)
+  const active = useRef<TravelJob | null>(null)
+  const pending = useRef<TravelJob | null>(null)
   const map = useRef<MapRef>(null)
 
   useEffect(() => {
@@ -78,12 +102,15 @@ export default function DevTransit() {
     void fetchJson<TransitData>('/data/transit/prince_george_travel_time.json.gz', abort.signal)
       .then((loaded) => {
         if (loaded.schema !== 'pg-travel-time-v1') throw new Error('Unsupported transit snapshot')
-        if (!abort.signal.aborted) setData(loaded)
+        if (!abort.signal.aborted) {
+          setData(loaded)
+          setLoadingData(false)
+        }
       })
       .catch((err: Error) => {
         if (!abort.signal.aborted) {
           setError(err.message)
-          setBusy(false)
+          setLoadingData(false)
         }
       })
     return () => abort.abort()
@@ -110,21 +137,22 @@ export default function DevTransit() {
           next.theme === completed.theme)
       if (event.data.error && !next) setError(event.data.error)
       else if (event.data.result && compatible) {
-        const offNetwork = dragging.current && (!event.data.result.originOnNetwork || !!event.data.result.originIsolated)
+        const offNetwork =
+          dragging.current && (!event.data.result.originOnNetwork || !!event.data.result.originIsolated)
         setPreviewOffNetwork(offNetwork)
         // A brief gap in street access must not clear the entire heat field.
         // Label the retained preview until access resumes or the drag ends.
         if (!offNetwork) setResult(event.data.result)
         setError('')
       }
-      if (next) instance.postMessage(next)
-      setBusy(Boolean(next))
+      if (next) postTravelJob(instance, next)
+      setSettledCalculation(completed.input)
     }
     instance.onerror = () => {
       setError('The travel-time worker could not run. Reload this page to try again.')
+      setSettledCalculation((pending.current ?? active.current)?.input ?? null)
       active.current = null
       pending.current = null
-      setBusy(false)
     }
     return () => {
       instance.terminate()
@@ -143,18 +171,31 @@ export default function DevTransit() {
     heatFrom: options.heatFrom,
   })
   const calculation = useMemo(() => JSON.parse(calculationKey) as TravelOptions, [calculationKey])
+  const calculationInput = useMemo<CalculationInput>(
+    () => ({ data, options: calculation, heatGrid, max: options.max, theme: heatTheme, dragging: isDragging }),
+    [data, calculation, heatGrid, options.max, heatTheme, isDragging],
+  )
+  // New controls are busy immediately; completion belongs to the exact input
+  // that produced it, so an older drag reply cannot clear a newer busy state.
+  const busy = loadingData || (data !== null && settledCalculation !== calculationInput)
   useEffect(() => {
-    if (!worker.current || !data || !heatGrid) return
-    setBusy(true)
+    if (!worker.current || !calculationInput.data || !calculationInput.heatGrid) return
     // Retain the heat during updates. Keep just one pending calculation so a
     // long drag cannot build up a queue of obsolete pointer positions.
-    const job = { options: calculation, heatGrid, max: options.max, theme: heatTheme, id: ++request.current }
+    const job: TravelJob = {
+      options: calculationInput.options,
+      heatGrid: calculationInput.heatGrid,
+      max: calculationInput.max,
+      theme: calculationInput.theme,
+      input: calculationInput,
+      id: ++request.current,
+    }
     if (active.current) pending.current = job
     else {
       active.current = job
-      worker.current.postMessage(job)
+      postTravelJob(worker.current, job)
     }
-  }, [data, calculation, heatGrid, options.max, isDragging, heatTheme])
+  }, [calculationInput])
 
   const setViewportGrid = useCallback((next: HeatGridSpec) => {
     setHeatGrid((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
@@ -209,12 +250,7 @@ export default function DevTransit() {
       url.searchParams.set('z', map.current.getZoom().toFixed(2))
     }
     setShareUrl(url.href)
-    try {
-      await navigator.clipboard.writeText(url.href)
-      setNotice('Map link copied.')
-    } catch {
-      setNotice('Copy the map link below.')
-    }
+    setNotice((await clipboard.copy(url.href)) ? 'Map link copied.' : 'Copy the map link below.')
   }
 
   const journey = previewOffNetwork ? null : result?.journey
@@ -273,7 +309,7 @@ export default function DevTransit() {
             className="mt-2"
             onClick={() => {
               setError('')
-              setBusy(true)
+              setLoadingData(true)
               setRetry((n) => n + 1)
             }}
           >
@@ -492,10 +528,11 @@ export default function DevTransit() {
       <SidebarSection title="Data & method">
         <p className="text-xs leading-5 text-muted-foreground">
           Scheduled journeys from BC Transit, with estimated walking at 4.5 km/h along City of Prince George street
-          centrelines and walkways. Starting points and heat samples include up to {markerAccessMeters(data?.meta ?? {})} m
-          of estimated access to the network, counted in the travel time. Transfers allow up to 650 m of walking. The heatmap is generated live for the
-          current view and gains detail as you zoom in. Blank areas exceed the time limit or have no connected mapped access. Street access does not verify
-          sidewalks, pedestrian permissions or accessibility. No live delays are included.
+          centrelines and walkways. Starting points and heat samples include up to{' '}
+          {markerAccessMeters(data?.meta ?? {})} m of estimated access to the network, counted in the travel time.
+          Transfers allow up to 650 m of walking. The heatmap is generated live for the current view and gains detail as
+          you zoom in. Blank areas exceed the time limit or have no connected mapped access. Street access does not
+          verify sidewalks, pedestrian permissions or accessibility. No live delays are included.
         </p>
         {data && (
           <p className="mt-2 text-xs text-muted-foreground">

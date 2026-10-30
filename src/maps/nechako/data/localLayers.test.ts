@@ -55,7 +55,9 @@ describe('source catalogues and materialized layers', () => {
     expect(() =>
       parseLayerCatalogue({ success: true, status: 'failure', error: 'Not allowed', attributes: [] }, 'submission'),
     ).toThrow('Not allowed')
-    expect(() => parseLayerCatalogue({ success: true, status: 'failure', error: 'Not allowed' }, 'submission')).toThrow('Not allowed')
+    expect(() => parseLayerCatalogue({ success: true, status: 'failure', error: 'Not allowed' }, 'submission')).toThrow(
+      'Not allowed',
+    )
     expect(() =>
       parseLayerCatalogue(
         [

@@ -135,11 +135,7 @@ export function computeCensusMetricValue(
   categoryData: Partial<Record<string, CensusCategoryData>>,
 ): number {
   if (recipe.operation !== 'censusVariable' || !recipe.censusNumerator) return 0
-  const numerator = getVectorValue(
-    categoryData[recipe.censusNumerator.category],
-    geoId,
-    recipe.censusNumerator.vector,
-  )
+  const numerator = getVectorValue(categoryData[recipe.censusNumerator.category], geoId, recipe.censusNumerator.vector)
   if (!Number.isFinite(numerator)) return 0
   if (!recipe.censusDenominator || recipe.format === 'count') return numerator ?? 0
   const denominator = getVectorValue(

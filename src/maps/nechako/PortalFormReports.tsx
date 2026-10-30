@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScatterPlot, type XYDomain } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
@@ -50,7 +51,7 @@ function FormReportGraphs({ report }: { report: FormReport }) {
         <>
           <label className="grid gap-1 text-sm">
             Graph dataset
-            <select
+            <NativeSelect
               aria-label="Report graph dataset"
               value={selection}
               onChange={(event) => setSelected(event.target.value)}
@@ -61,7 +62,7 @@ function FormReportGraphs({ report }: { report: FormReport }) {
                   {option.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           {graph?.error && <InlineAlert tone="error">{graph.error}</InlineAlert>}
           {graph?.data && (
@@ -216,7 +217,7 @@ export function PortalFormReports() {
         </Button>
         <label className="text-sm">
           Source form{' '}
-          <select
+          <NativeSelect
             aria-label="Source report form"
             value={formId}
             onChange={(event) => {
@@ -233,7 +234,7 @@ export function PortalFormReports() {
                 {item.name} ({item.id})
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-sm">
           Known form ID{' '}

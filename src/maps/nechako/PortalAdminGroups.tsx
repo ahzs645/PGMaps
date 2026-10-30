@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -70,7 +71,7 @@ export function PortalAdminGroups({
       </Button>
       <label className="grid gap-1 text-sm">
         Existing group
-        <select
+        <NativeSelect
           aria-label="Administration group"
           className="rounded border bg-background p-2 text-base"
           disabled={busy}
@@ -88,7 +89,7 @@ export function PortalAdminGroups({
               {String(group.gname)} · {String(group.count)} members
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <Button variant="outline" disabled={busy || !gid} onClick={() => void run(load)}>
         Load group membership

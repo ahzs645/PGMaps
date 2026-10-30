@@ -19,11 +19,7 @@ interface RouletteModalProps {
 
 const wheelSizeOptions = [4, 6, 8, 10, 65, 0]
 
-export function RouletteModal({
-  restaurants,
-  onClose,
-  onSelectOnMap
-}: RouletteModalProps) {
+export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteModalProps) {
   const {
     availableExceptions,
     selectedExceptions,
@@ -59,15 +55,10 @@ export function RouletteModal({
     startSpinning,
     completeSpinningWithWinner,
     resetSpin,
-    resetFilters
+    resetFilters,
   } = useRouletteState(restaurants)
 
-  const {
-    error: geoError,
-    loading: geoLoading,
-    getCurrentPosition,
-    clearPosition: clearGeoPosition
-  } = useGeolocation()
+  const { error: geoError, loading: geoLoading, getCurrentPosition, clearPosition: clearGeoPosition } = useGeolocation()
 
   // shuffleWheel's identity tracks the eligible list and wheel size, so this
   // covers the initial shuffle and idle-time reshuffles in one effect.
@@ -84,9 +75,12 @@ export function RouletteModal({
     }
   }, [getCurrentPosition, setSourceFromGeolocation])
 
-  const handleMapClick = useCallback((lngLat: SourceLocation) => {
-    setSourceFromMap(lngLat)
-  }, [setSourceFromMap])
+  const handleMapClick = useCallback(
+    (lngLat: SourceLocation) => {
+      setSourceFromMap(lngLat)
+    },
+    [setSourceFromMap],
+  )
 
   const handleClearLocation = useCallback(() => {
     clearSourceLocation()
@@ -110,21 +104,25 @@ export function RouletteModal({
   }, [resetFilters, onClose])
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) handleClose() }}>
-      <DialogContent
-        variant="sheet"
-        elevated
-        showClose={false}
-        className="sm:max-h-[calc(100dvh-1rem)]"
-      >
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) handleClose()
+      }}
+    >
+      <DialogContent variant="sheet" elevated showClose={false} className="sm:max-h-[calc(100dvh-1rem)]">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
           <div className="min-w-0">
             <DialogTitle className="flex items-center gap-2 text-lg font-bold leading-tight text-foreground sm:text-xl">
-              <span className="text-xl sm:text-2xl" aria-hidden="true">🎰</span>
+              <span className="text-xl sm:text-2xl" aria-hidden="true">
+                🎰
+              </span>
               Restaurant Roulette
             </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">Spin to pick a random restaurant</DialogDescription>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Spin to pick a random restaurant
+            </DialogDescription>
           </div>
           <button
             onClick={handleClose}
@@ -181,7 +179,8 @@ export function RouletteModal({
               <section aria-label="Individual exceptions" className="space-y-2">
                 <h3 className="text-sm font-semibold">Individual exceptions</h3>
                 <p className="text-xs text-muted-foreground">
-                  Optional places outside the default dining list. Included places also follow your selected categories and filters.
+                  Optional places outside the default dining list. Included places also follow your selected categories
+                  and filters.
                 </p>
                 {availableExceptions.map((item) => {
                   const restaurant = restaurants.find((r) => r.name === item.name)!
@@ -192,11 +191,16 @@ export function RouletteModal({
                       key={item.name}
                       label={item.name}
                       aria-label={`Include ${item.name}`}
-                      description={sourceCategory === item.category ? sourceCategory : `${sourceCategory} → ${item.category}`}
+                      description={
+                        sourceCategory === item.category ? sourceCategory : `${sourceCategory} → ${item.category}`
+                      }
                       active={active}
                       trailing={active ? 'Included' : 'Excluded'}
                       disabled={isSpinning}
-                      onClick={() => { resetSpin(); toggleException(item.name) }}
+                      onClick={() => {
+                        resetSpin()
+                        toggleException(item.name)
+                      }}
                     />
                   )
                 })}
@@ -244,7 +248,12 @@ export function RouletteModal({
                     className="flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
                     </svg>
                     Shuffle
                   </button>
@@ -298,11 +307,7 @@ export function RouletteModal({
           <div className="flex min-h-[358px] min-w-0 flex-col items-center justify-center max-[360px]:min-h-[342px] min-[390px]:min-h-[388px] sm:min-h-[368px]">
             {/* Show result popup */}
             {hasSpun && !isSpinning && winner && (
-              <RouletteResult
-                winner={winner}
-                onSpinAgain={handleSpinAgain}
-                onViewOnMap={handleViewOnMap}
-              />
+              <RouletteResult winner={winner} onSpinAgain={handleSpinAgain} onViewOnMap={handleViewOnMap} />
             )}
 
             {/* Show wheel */}

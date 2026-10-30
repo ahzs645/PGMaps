@@ -101,16 +101,17 @@ function buildForecastZonePm25ByCode(monitors: AirMonitor[]): Map<string, number
 function styleForecastZoneData(
   collection: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
   monitors: AirMonitor[],
-): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor: string; hasPm25: boolean; pm25: number | null }> {
+): GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  ForecastZoneFeatureProperties & { fillColor: string; hasPm25: boolean; pm25: number | null }
+> {
   const pm25ByCode = buildForecastZonePm25ByCode(monitors)
 
   return {
     ...collection,
     features: collection.features.map((feature) => {
       const zoneCode = String(feature.properties?.CLC ?? '').trim()
-      const pm25 = zoneCode && pm25ByCode.has(zoneCode)
-        ? pm25ByCode.get(zoneCode) ?? null
-        : null
+      const pm25 = zoneCode && pm25ByCode.has(zoneCode) ? (pm25ByCode.get(zoneCode) ?? null) : null
       return {
         ...feature,
         properties: {
@@ -168,13 +169,7 @@ function getFirstMonitorLayerId(map: maplibregl.Map): string | undefined {
   return map.getStyle().layers?.find((layer) => layer.id.startsWith('aqmap-monitor-'))?.id
 }
 
-export function WmsRasterLayer({
-  definition,
-  visible,
-}: {
-  definition: WmsLayerDefinition
-  visible: boolean
-}) {
+export function WmsRasterLayer({ definition, visible }: { definition: WmsLayerDefinition; visible: boolean }) {
   const { map, isLoaded } = useMap()
   const sourceId = `aqmap-wms-source-${definition.key}`
   const layerId = `aqmap-wms-layer-${definition.key}`
@@ -345,15 +340,7 @@ export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
             '#ef4444',
           ],
           'circle-opacity': 0.16,
-          'circle-radius': [
-            'step',
-            ['coalesce', ['to-number', ['get', 'fire_size']], 0],
-            7,
-            100,
-            11,
-            1000,
-            17,
-          ],
+          'circle-radius': ['step', ['coalesce', ['to-number', ['get', 'fire_size']], 0], 7, 100, 11, 1000, 17],
         },
       })
     }
@@ -381,25 +368,9 @@ export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
             '#d946ef',
             '#ef4444',
           ],
-          'circle-radius': [
-            'step',
-            ['coalesce', ['to-number', ['get', 'fire_size']], 0],
-            3.5,
-            100,
-            5.5,
-            1000,
-            8,
-          ],
+          'circle-radius': ['step', ['coalesce', ['to-number', ['get', 'fire_size']], 0], 3.5, 100, 5.5, 1000, 8],
           'circle-stroke-color': '#111827',
-          'circle-stroke-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            0.8,
-            8,
-            1.4,
-          ],
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 0.8, 8, 1.4],
         },
       })
     }
@@ -423,7 +394,10 @@ export function FireDangerVectorLayer({ visible }: { visible: boolean }) {
   const sourceId = 'aqmap-fire-danger-vector-source'
   const fillLayerId = 'aqmap-fire-danger-vector-fill'
   const lineLayerId = 'aqmap-fire-danger-vector-line'
-  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, FireDangerFeatureProperties> | null>(null)
+  const [data, setData] = useState<GeoJSON.FeatureCollection<
+    GeoJSON.MultiPolygon | GeoJSON.Polygon,
+    FireDangerFeatureProperties
+  > | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -435,7 +409,11 @@ export function FireDangerVectorLayer({ visible }: { visible: boolean }) {
         if (!response.ok) throw new Error(`Failed to load fire danger polygons: ${response.status}`)
         return response.json()
       })
-      .then((payload) => setData(payload as GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, FireDangerFeatureProperties>))
+      .then((payload) =>
+        setData(
+          payload as GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, FireDangerFeatureProperties>,
+        ),
+      )
       .catch((err) => {
         if ((err as Error).name !== 'AbortError') {
           console.error('Fire danger vector layer failed', err)
@@ -489,15 +467,7 @@ export function FireDangerVectorLayer({ visible }: { visible: boolean }) {
         source: sourceId,
         paint: {
           'line-color': 'rgba(17, 24, 39, 0.35)',
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            0.2,
-            7,
-            0.8,
-          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.2, 7, 0.8],
         },
       })
     }
@@ -521,7 +491,10 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
   const sourceId = 'aqmap-fire-perimeters-vector-source'
   const fillLayerId = 'aqmap-fire-perimeters-vector-fill'
   const lineLayerId = 'aqmap-fire-perimeters-vector-line'
-  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, FirePerimeterFeatureProperties> | null>(null)
+  const [data, setData] = useState<GeoJSON.FeatureCollection<
+    GeoJSON.Polygon | GeoJSON.MultiPolygon,
+    FirePerimeterFeatureProperties
+  > | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -533,7 +506,11 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
         if (!response.ok) throw new Error(`Failed to load fire perimeter polygons: ${response.status}`)
         return response.json()
       })
-      .then((payload) => setData(payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, FirePerimeterFeatureProperties>))
+      .then((payload) =>
+        setData(
+          payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, FirePerimeterFeatureProperties>,
+        ),
+      )
       .catch((err) => {
         if ((err as Error).name !== 'AbortError') {
           console.error('Fire perimeter vector layer failed', err)
@@ -561,15 +538,7 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
         source: sourceId,
         paint: {
           'fill-color': '#f7b4b4',
-          'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            0.55,
-            8,
-            0.65,
-          ],
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.55, 8, 0.65],
         },
       })
     }
@@ -582,17 +551,7 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
         paint: {
           'line-color': '#111111',
           'line-opacity': 1,
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            0.6,
-            7,
-            1.4,
-            11,
-            2.4,
-          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.6, 7, 1.4, 11, 2.4],
         },
       })
     }
@@ -628,7 +587,7 @@ export function ForecastZonesVectorLayer({
   const sourceId = 'aqmap-forecast-zones-vector-source'
   const fillLayerId = 'aqmap-forecast-zones-vector-fill'
   const lineLayerId = 'aqmap-forecast-zones-vector-line'
-  const styledData = useMemo(() => data ? styleForecastZoneData(data, monitors) : null, [data, monitors])
+  const styledData = useMemo(() => (data ? styleForecastZoneData(data, monitors) : null), [data, monitors])
 
   useEffect(() => {
     if (!isLoaded || !map || !visible || !styledData) return
@@ -645,45 +604,41 @@ export function ForecastZonesVectorLayer({
     }
 
     if (!map.getLayer(fillLayerId)) {
-      map.addLayer({
-        id: fillLayerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': ['coalesce', ['get', 'fillColor'], '#bfdbfe'],
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            0.58,
-            ['boolean', ['get', 'hasPm25'], false],
-            0.34,
-            0.22,
-          ],
+      map.addLayer(
+        {
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': ['coalesce', ['get', 'fillColor'], '#bfdbfe'],
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              0.58,
+              ['boolean', ['get', 'hasPm25'], false],
+              0.34,
+              0.22,
+            ],
+          },
         },
-      }, beforeMonitorLayerId)
+        beforeMonitorLayerId,
+      )
     }
 
     if (!map.getLayer(lineLayerId)) {
-      map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#64748b',
-          'line-opacity': 0.9,
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            0.7,
-            7,
-            1.3,
-            11,
-            2.2,
-          ],
+      map.addLayer(
+        {
+          id: lineLayerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': '#64748b',
+            'line-opacity': 0.9,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.7, 7, 1.3, 11, 2.2],
+          },
         },
-      }, beforeMonitorLayerId)
+        beforeMonitorLayerId,
+      )
     }
 
     const popup = new maplibregl.Popup({
@@ -707,10 +662,13 @@ export function ForecastZonesVectorLayer({
       if (!feature) return null
       const featureId = String(feature.properties?.FEATURE_ID ?? '')
       const clc = String(feature.properties?.CLC ?? '')
-      return styledData.features.find((candidate) => (
-        (featureId && String(candidate.properties?.FEATURE_ID ?? '') === featureId)
-        || (clc && String(candidate.properties?.CLC ?? '') === clc)
-      )) ?? null
+      return (
+        styledData.features.find(
+          (candidate) =>
+            (featureId && String(candidate.properties?.FEATURE_ID ?? '') === featureId) ||
+            (clc && String(candidate.properties?.CLC ?? '') === clc),
+        ) ?? null
+      )
     }
 
     const handleMouseMove = (event: maplibregl.MapLayerMouseEvent) => {
@@ -772,10 +730,7 @@ export function ForecastZonesVectorLayer({
         clickPopup.remove()
         return
       }
-      clickPopup
-        .setLngLat(event.lngLat)
-        .setHTML(formatForecastZoneSummaryPopup(zone, monitors))
-        .addTo(map)
+      clickPopup.setLngLat(event.lngLat).setHTML(formatForecastZoneSummaryPopup(zone, monitors)).addTo(map)
     }
 
     map.on('click', fillLayerId, handleClick)
@@ -921,8 +876,7 @@ function ringDonutSegment(start: number, end: number, r: number, r0: number, col
   // continuous shape with no hairline seam showing the backing through.
   const d =
     r0 <= 0
-      ? `M ${r} ${r} L ${r + r * x0} ${r + r * y0} ` +
-        `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} Z`
+      ? `M ${r} ${r} L ${r + r * x0} ${r + r * y0} ` + `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} Z`
       : `M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
         `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
         `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}`
@@ -934,7 +888,11 @@ const RING_COUNT_DARK = '#0f172a'
 const RING_COUNT_LIGHT = '#f8fafc'
 
 /** Build the ring marker element for a cluster from its aggregated band counts. */
-function createRingDonutElement(props: Record<string, unknown>, style: AqRingStyle, darkBasemap: boolean): HTMLDivElement {
+function createRingDonutElement(
+  props: Record<string, unknown>,
+  style: AqRingStyle,
+  darkBasemap: boolean,
+): HTMLDivElement {
   const counts = RING_BAND_COLORS.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 250 ? 28 : total >= 100 ? 25 : total >= 50 ? 22 : total >= 25 ? 19 : total >= 10 ? 16 : 14
@@ -1046,9 +1004,11 @@ export function AqMonitorLayer({
     return {
       type: 'FeatureCollection',
       features: monitors
-        .filter((monitor) => visibleNetworks
-          ? visibleNetworks.has(getAqmapNetworkSlug(monitor))
-          : visibleGroups.has(getMonitorGroup(monitor.network)))
+        .filter((monitor) =>
+          visibleNetworks
+            ? visibleNetworks.has(getAqmapNetworkSlug(monitor))
+            : visibleGroups.has(getMonitorGroup(monitor.network)),
+        )
         .map((monitor) => {
           const group = getMonitorGroup(monitor.network)
           const pm25 = getMonitorAqhiPm25(monitor)
@@ -1140,10 +1100,12 @@ export function AqMonitorLayer({
     }
 
     async function addLayer() {
-      const iconMap = new Map(monitors.map((monitor) => {
-        const icon = getAqmapMarkerIcon(monitor)
-        return [icon.id, icon]
-      }))
+      const iconMap = new Map(
+        monitors.map((monitor) => {
+          const icon = getAqmapMarkerIcon(monitor)
+          return [icon.id, icon]
+        }),
+      )
 
       await Promise.all(Array.from(iconMap.values()).map((icon) => loadMapImage(currentMap, icon.id, icon.src)))
       if (cancelled) return
@@ -1245,7 +1207,24 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, tightClusters, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
+  }, [
+    clusterLayerId,
+    clusterColorScheme,
+    clusterMaxZoom,
+    clusterRadius,
+    tightClusters,
+    features,
+    iconMode,
+    isLoaded,
+    map,
+    monitors,
+    offlineLayerId,
+    onMonitorClick,
+    onMonitorHover,
+    onlineLayerId,
+    revealedLayerId,
+    sourceId,
+  ])
 
   useEffect(() => {
     // Ring mode recreates its clustered source on data change, so skip the
@@ -1331,10 +1310,12 @@ export function AqMonitorLayer({
 
     async function setup() {
       // Load the same per-monitor marker icons the AQMap mode uses for points.
-      const iconMap = new Map(monitors.map((monitor) => {
-        const icon = getAqmapMarkerIcon(monitor)
-        return [icon.id, icon]
-      }))
+      const iconMap = new Map(
+        monitors.map((monitor) => {
+          const icon = getAqmapMarkerIcon(monitor)
+          return [icon.id, icon]
+        }),
+      )
       await Promise.all(Array.from(iconMap.values()).map((icon) => loadMapImage(currentMap, icon.id, icon.src)))
       if (cancelled) return
 
@@ -1389,7 +1370,20 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterMaxZoom, clusterRadius, darkBasemap, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, ringStyle, sourceId])
+  }, [
+    clusterMaxZoom,
+    clusterRadius,
+    darkBasemap,
+    features,
+    iconMode,
+    isLoaded,
+    map,
+    monitors,
+    onMonitorClick,
+    onMonitorHover,
+    ringStyle,
+    sourceId,
+  ])
 
   return null
 }

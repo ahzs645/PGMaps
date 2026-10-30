@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { NativeSelect } from '@/components/ui/form-field'
+import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
 import type { Basemap } from '../basemaps'
@@ -18,8 +19,8 @@ export function RgbComparison({
   selectedModel?: string
 }) {
   const [sampleId, setSampleId] = useState('osbs'),
-    [a, setA] = useState('deepforest'),
-    [b, setB] = useState('canopy-maskrcnn'),
+    [a, setA] = useState(selectedModel || 'deepforest'),
+    [b, setB] = useState(!selectedModel || selectedModel === 'deepforest' ? 'canopy-maskrcnn' : 'deepforest'),
     [threshold, setThreshold] = useState(0.25),
     [masks, setMasks] = useState(true),
     [truth, setTruth] = useState(true),
@@ -27,12 +28,14 @@ export function RgbComparison({
     [linked, setLinked] = useState(true),
     [camera, setCamera] = useState<ComparisonCamera | null>(null),
     [reset, setReset] = useState(0)
-  useEffect(() => {
+  const [previousSelectedModel, setPreviousSelectedModel] = useState(selectedModel)
+  if (previousSelectedModel !== selectedModel) {
+    setPreviousSelectedModel(selectedModel)
     if (selectedModel) {
       setA(selectedModel)
       setB(selectedModel === 'deepforest' ? 'canopy-maskrcnn' : 'deepforest')
     }
-  }, [selectedModel])
+  }
   const sample = data.rgb.samples.find((s) => s.id === sampleId) ?? data.rgb.samples[0]
   const fa = useMemo(() => rgbFeatures(sample, a, threshold, masks), [sample, a, threshold, masks]),
     fb = useMemo(() => rgbFeatures(sample, b, threshold, masks), [sample, b, threshold, masks])
@@ -62,7 +65,7 @@ export function RgbComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           RGB sample
-          <select
+          <NativeSelect
             aria-label="RGB comparison sample"
             className="ml-1 rounded border bg-background p-1.5"
             value={sample.id}
@@ -76,7 +79,7 @@ export function RgbComparison({
                 {s.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {[
           [a, setA, 'A'],
@@ -84,7 +87,7 @@ export function RgbComparison({
         ].map(([id, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               aria-label={`RGB model ${label}`}
               className="ml-1 max-w-[185px] rounded border bg-background p-1.5"
               value={String(id)}
@@ -95,7 +98,7 @@ export function RgbComparison({
                   {modelById(id)?.name ?? id}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
         <label>

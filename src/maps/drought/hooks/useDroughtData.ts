@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { fetchJson } from '@/lib/fetchJson'
-import type { DroughtFeatureCollection, DroughtManifest, DroughtTimeSeries, DroughtTimeSeriesRecord, DroughtTimeSeriesYearInfo } from '../types'
+import type {
+  DroughtFeatureCollection,
+  DroughtManifest,
+  DroughtTimeSeries,
+  DroughtTimeSeriesRecord,
+  DroughtTimeSeriesYearInfo,
+} from '../types'
 
 const BASE_PATH = '/data/drought'
 
@@ -31,11 +37,11 @@ export function useDroughtData(year: number) {
     async function load() {
       setState((current) => ({ ...current, loading: true, error: null }))
       try {
-        const manifest = state.manifest ?? await fetchJson<DroughtManifest>(`${BASE_PATH}/manifest.json`)
+        const manifest = state.manifest ?? (await fetchJson<DroughtManifest>(`${BASE_PATH}/manifest.json`))
         const basinFile = manifest.canonical?.basinFile ?? 'basins.geojson'
         const timeseriesFile = manifest.canonical?.timeseriesFile ?? 'timeseries.json'
-        const collection = state.collection ?? await fetchJson<DroughtFeatureCollection>(`${BASE_PATH}/${basinFile}`)
-        const timeseries = state.timeseries ?? await fetchJson<DroughtTimeSeries>(`${BASE_PATH}/${timeseriesFile}`)
+        const collection = state.collection ?? (await fetchJson<DroughtFeatureCollection>(`${BASE_PATH}/${basinFile}`))
+        const timeseries = state.timeseries ?? (await fetchJson<DroughtTimeSeries>(`${BASE_PATH}/${timeseriesFile}`))
         const yearInfo = timeseries.years.find((item) => item.year === year)
         if (!yearInfo) {
           throw new Error(`No drought records are listed for ${year}`)

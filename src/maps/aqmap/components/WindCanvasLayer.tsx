@@ -96,16 +96,8 @@ function buildWindSampler() {
 
     const tx = (wrappedLng - lng0) / WIND_GRID_STEP
     const ty = (lat - lat0) / Math.max(WIND_GRID_STEP, lat1 - lat0)
-    const u =
-      q11.u * (1 - tx) * (1 - ty) +
-      q21.u * tx * (1 - ty) +
-      q12.u * (1 - tx) * ty +
-      q22.u * tx * ty
-    const v =
-      q11.v * (1 - tx) * (1 - ty) +
-      q21.v * tx * (1 - ty) +
-      q12.v * (1 - tx) * ty +
-      q22.v * tx * ty
+    const u = q11.u * (1 - tx) * (1 - ty) + q21.u * tx * (1 - ty) + q12.u * (1 - tx) * ty + q22.u * tx * ty
+    const v = q11.v * (1 - tx) * (1 - ty) + q21.v * tx * (1 - ty) + q12.v * (1 - tx) * ty + q22.v * tx * ty
 
     return { u, v, speed: Math.hypot(u, v) }
   }
@@ -117,11 +109,7 @@ type WindCanvasLayerProps = {
   basemap?: 'light' | 'dark'
 }
 
-export function WindCanvasLayer({
-  visible = true,
-  interactionMode = 'live',
-  basemap = 'dark',
-}: WindCanvasLayerProps) {
+export function WindCanvasLayer({ visible = true, interactionMode = 'live', basemap = 'dark' }: WindCanvasLayerProps) {
   const { map, isLoaded } = useMap()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isMoving, setIsMoving] = useState(false)
@@ -198,19 +186,10 @@ export function WindCanvasLayer({
           continue
         }
 
-        const start = mapInstance.project([
-          particle.lng > 180 ? particle.lng - 360 : particle.lng,
-          particle.lat,
-        ])
+        const start = mapInstance.project([particle.lng > 180 ? particle.lng - 360 : particle.lng, particle.lat])
         const nextLng = wrapLongitude(particle.lng + wind.u * VELOCITY_SCALE)
-        const nextLat = Math.max(
-          -78,
-          Math.min(78, particle.lat + wind.v * VELOCITY_SCALE),
-        )
-        const end = mapInstance.project([
-          nextLng > 180 ? nextLng - 360 : nextLng,
-          nextLat,
-        ])
+        const nextLat = Math.max(-78, Math.min(78, particle.lat + wind.v * VELOCITY_SCALE))
+        const end = mapInstance.project([nextLng > 180 ? nextLng - 360 : nextLng, nextLat])
         const segmentLength = Math.hypot(end.x - start.x, end.y - start.y)
 
         if (
@@ -262,9 +241,7 @@ export function WindCanvasLayer({
       className={cn(
         'pointer-events-none absolute inset-0 z-[2] h-full w-full transition-opacity duration-150',
         basemap === 'dark' && 'mix-blend-screen',
-        interactionMode === 'hide-while-moving' && isMoving
-          ? 'opacity-0'
-          : 'opacity-100',
+        interactionMode === 'hide-while-moving' && isMoving ? 'opacity-0' : 'opacity-100',
       )}
     />
   )

@@ -546,8 +546,7 @@ export default function MiscDataSection() {
     else params.delete('warsWinterRange')
     if (
       activeTab !== 'wars' ||
-      (searchParams.get('warsWinterRangeMode') !== 'inline' &&
-        searchParams.get('warsWinterRangeMode') !== 'blob')
+      (searchParams.get('warsWinterRangeMode') !== 'inline' && searchParams.get('warsWinterRangeMode') !== 'blob')
     ) {
       params.delete('warsWinterRangeMode')
     }
@@ -887,9 +886,9 @@ export default function MiscDataSection() {
               ? flood.loading
               : activeTab === 'openLitterMap'
                 ? !openLitterMap.points.data && !openLitterMap.points.error
-              : activeTab === 'bcer'
-                ? bcer.loading
-                : false
+                : activeTab === 'bcer'
+                  ? bcer.loading
+                  : false
   const showLegendPanel = activeTab !== 'ev' || evShowPoints || evShowHeatmap || evShowBoundaries
 
   const sidebar = (
@@ -1204,20 +1203,20 @@ export default function MiscDataSection() {
                       : activeTab === 'icbc'
                         ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                         : activeTab === 'wars'
-                        ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
-                        : activeTab === 'openLitterMap'
-                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
-                          : activeTab === 'walkability'
-                            ? walkability.displayMode === 'heatmap'
-                              ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
-                              : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
-                            : activeTab === 'water'
-                              ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
-                              : activeTab === 'flood'
-                                ? `${flood.filteredStations.length.toLocaleString()} stations | ${flood.highRiskCount.toLocaleString()} above 2 year`
-                                : activeTab === 'bcer'
-                                  ? `${bcer.filteredWells.length.toLocaleString()} wells | ${bcer.horizontalCount.toLocaleString()} horizontal`
-                                  : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
+                          ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
+                          : activeTab === 'openLitterMap'
+                            ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
+                            : activeTab === 'walkability'
+                              ? walkability.displayMode === 'heatmap'
+                                ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
+                                : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
+                              : activeTab === 'water'
+                                ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
+                                : activeTab === 'flood'
+                                  ? `${flood.filteredStations.length.toLocaleString()} stations | ${flood.highRiskCount.toLocaleString()} above 2 year`
+                                  : activeTab === 'bcer'
+                                    ? `${bcer.filteredWells.length.toLocaleString()} wells | ${bcer.horizontalCount.toLocaleString()} horizontal`
+                                    : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
               </div>
             </div>
           }
@@ -1236,7 +1235,6 @@ export default function MiscDataSection() {
         >
           <div className="relative h-full">
             <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} loading={mapLoading}>
-
               <MapFillLayer
                 data={forestGeojson}
                 fillColor="#15803d"
@@ -1313,15 +1311,7 @@ export default function MiscDataSection() {
               {activeTab === 'network' && networkAvailabilityLayer.data && (
                 <MapFillLayer
                   data={networkAvailabilityLayer.data}
-                  fillColor={[
-                    'match',
-                    ['get', 'technology'],
-                    '5G',
-                    '#0f766e',
-                    'LTE',
-                    '#2563eb',
-                    '#64748b',
-                  ]}
+                  fillColor={['match', ['get', 'technology'], '5G', '#0f766e', 'LTE', '#2563eb', '#64748b']}
                   fillOpacity={0.56}
                   lineColor="#083344"
                   lineOpacity={0.18}

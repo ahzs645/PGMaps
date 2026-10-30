@@ -32,9 +32,7 @@ export function DevCard({ title, description, href, icon: Icon, color, label, su
         <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', color)}>
           <Icon className="h-5 w-5 text-white" />
         </div>
-        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-          {label}
-        </span>
+        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">{label}</span>
       </div>
 
       <h2 className="text-xl font-semibold text-foreground">{title}</h2>
@@ -47,9 +45,7 @@ export function DevCard({ title, description, href, icon: Icon, color, label, su
 
       {subpages && subpages.length > 0 && (
         <div className="relative z-10 mt-4 border-t pt-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Subpages
-          </div>
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Subpages</div>
           <div className="flex flex-wrap gap-2">
             {subpages.map((subpage) => (
               <Link

@@ -4,7 +4,10 @@ import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { DEFAULT_WARS_HEATMAP, WARS_HEATMAP_PALETTES, type WarsHeatmapSettings } from './WarsHeatmapControls'
 import { estimateHeatmapPeak, warsHeatmapRadius } from './warsHeatmapDensity'
 
-export function WarsHeatmapLayer({ data, settings }: {
+export function WarsHeatmapLayer({
+  data,
+  settings,
+}: {
   data: GeoJSON.FeatureCollection<GeoJSON.Point>
   settings: WarsHeatmapSettings
 }) {
@@ -23,7 +26,11 @@ export function WarsHeatmapLayer({ data, settings }: {
           const [longitude, latitude] = feature.geometry.coordinates
           const { x, y } = map.project([longitude, latitude])
           const quantity = Number(feature.properties?.weight)
-          return { x, y, weight: settings.weighting === 'animals' && Number.isFinite(quantity) ? Math.max(1, quantity) * 0.25 : 0.25 }
+          return {
+            x,
+            y,
+            weight: settings.weighting === 'animals' && Number.isFinite(quantity) ? Math.max(1, quantity) * 0.25 : 0.25,
+          }
         })
         const peak = estimateHeatmapPeak(points, width, height, radius)
         // Keep individual kernels above MapLibre's shader cutoff. The default
@@ -46,10 +53,23 @@ export function WarsHeatmapLayer({ data, settings }: {
     <MapHeatmapLayer
       data={data}
       weight={settings.weighting === 'records' ? 0.25 : ['*', ['get', 'weight'], 0.25]}
-      intensityStops={settings.scale === 'relative'
-        ? [[0, relativeIntensity], [24, relativeIntensity]]
-        : [[8, settings.intensity / 100 * 0.56], [11, settings.intensity / 100], [14, settings.intensity / 100 * 1.52]]}
-      radiusStops={[[8, settings.radius * 0.53], [11, settings.radius], [14, settings.radius * 1.53]]}
+      intensityStops={
+        settings.scale === 'relative'
+          ? [
+              [0, relativeIntensity],
+              [24, relativeIntensity],
+            ]
+          : [
+              [8, (settings.intensity / 100) * 0.56],
+              [11, settings.intensity / 100],
+              [14, (settings.intensity / 100) * 1.52],
+            ]
+      }
+      radiusStops={[
+        [8, settings.radius * 0.53],
+        [11, settings.radius],
+        [14, settings.radius * 1.53],
+      ]}
       opacity={settings.opacity / 100}
       colorRamp={WARS_HEATMAP_PALETTES[settings.palette].stops}
     />

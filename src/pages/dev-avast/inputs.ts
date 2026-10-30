@@ -19,9 +19,41 @@ export type DensityFields = {
   operatingAreaField: string | null
 }
 
-const ID_GUESSES = ['Candidate_ID', 'CANDIDATE_ID', 'BLOCK_ID', 'Block_ID', 'BlockID', 'CUT_BLOCK_ID', 'CUTBLOCK_ID', 'Blob_ID', 'BLOB_ID', 'BLOCK', 'Block', 'NAME', 'Name']
-const OPERATING_AREA_GUESSES = ['Operating_Area', 'OPERATING_AREA', 'OPERATING_', 'OPER_AREA', 'BCTS_OPER', 'OA', 'OpArea']
-const AREA_GUESSES = ['Gross_HA', 'GROSS_HA', 'MERCH_AREA', 'Merch_Area', 'MERCH_HA', 'NET_AREA', 'AREA_HA', 'Area_ha', 'HECTARES']
+const ID_GUESSES = [
+  'Candidate_ID',
+  'CANDIDATE_ID',
+  'BLOCK_ID',
+  'Block_ID',
+  'BlockID',
+  'CUT_BLOCK_ID',
+  'CUTBLOCK_ID',
+  'Blob_ID',
+  'BLOB_ID',
+  'BLOCK',
+  'Block',
+  'NAME',
+  'Name',
+]
+const OPERATING_AREA_GUESSES = [
+  'Operating_Area',
+  'OPERATING_AREA',
+  'OPERATING_',
+  'OPER_AREA',
+  'BCTS_OPER',
+  'OA',
+  'OpArea',
+]
+const AREA_GUESSES = [
+  'Gross_HA',
+  'GROSS_HA',
+  'MERCH_AREA',
+  'Merch_Area',
+  'MERCH_HA',
+  'NET_AREA',
+  'AREA_HA',
+  'Area_ha',
+  'HECTARES',
+]
 const SOURCE_TYPE_GUESSES = ['Source_Type', 'SOURCE_TYPE', 'SourceType']
 const DENSITY_GUESSES = ['CMM_m3ha', 'CMM_M3HA', 'VOL_M3HA', 'Vol_m3ha', 'LiDAR_m3ha', 'VOLUME_M3HA', 'M3HA', 'm3ha']
 const SLOPE_GUESSES = ['Avg_Slope', 'AVG_SLOPE', 'SLOPE_PCT', 'Slope_Pct', 'MEAN_SLOPE']
@@ -40,7 +72,11 @@ export function guessField(fields: string[], guesses: string[]): string | null {
 export function guessCandidateFields(fields: string[]): CandidateFields {
   return {
     // Never fall back to a geometry or row-number column (Shape_Leng, OBJECTID, FID_*): they are unique but mean nothing.
-    idField: guessField(fields, ID_GUESSES) ?? fields.find((field) => !/^(shape|objectid|fid)/i.test(field)) ?? fields[0] ?? '',
+    idField:
+      guessField(fields, ID_GUESSES) ??
+      fields.find((field) => !/^(shape|objectid|fid)/i.test(field)) ??
+      fields[0] ??
+      '',
     operatingAreaField: guessField(fields, OPERATING_AREA_GUESSES),
     areaField: guessField(fields, AREA_GUESSES),
     sourceTypeField: guessField(fields, SOURCE_TYPE_GUESSES),

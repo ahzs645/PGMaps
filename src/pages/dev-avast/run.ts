@@ -30,11 +30,19 @@ export async function runOverlay(options: {
     const warnings: string[] = []
     if (settings.slopeSource === 'dem') {
       const pad = settings.slopeCellMeters * 2
-      const box: BBox = [candidate.bbox[0] - pad, candidate.bbox[1] - pad, candidate.bbox[2] + pad, candidate.bbox[3] + pad]
+      const box: BBox = [
+        candidate.bbox[0] - pad,
+        candidate.bbox[1] - pad,
+        candidate.bbox[2] + pad,
+        candidate.bbox[3] + pad,
+      ]
       try {
         if (!elevation) throw new Error('No DEM source')
         const dem = await elevation(box)
-        if (dem.missingTiles) warnings.push(`${dem.missingTiles} DEM tile${dem.missingTiles === 1 ? '' : 's'} failed to load for this block.`)
+        if (dem.missingTiles)
+          warnings.push(
+            `${dem.missingTiles} DEM tile${dem.missingTiles === 1 ? '' : 's'} failed to load for this block.`,
+          )
         const grid = slopeGrid(candidate.bbox, settings.slopeCellMeters, dem.elevationAt, settings.slopeBreaks)
         slope = { source: 'dem', classPolygons: slopeClassPolygons(grid) }
       } catch (error) {

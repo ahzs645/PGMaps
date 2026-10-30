@@ -152,7 +152,11 @@ describe('interpolateStopColor', () => {
   })
 
   it('survives duplicate thresholds instead of dividing by zero', () => {
-    const duplicated = [[0, '#000000'], [10, '#ff0000'], [10, '#00ff00']] as const
+    const duplicated = [
+      [0, '#000000'],
+      [10, '#ff0000'],
+      [10, '#00ff00'],
+    ] as const
     expect(interpolateStopColor(duplicated, 10)).toBe('#ff0000')
   })
 

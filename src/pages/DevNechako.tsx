@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { lazy, Suspense, useState, useCallback } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { TabBar, type TabOption } from '@/components/ui/tab-bar'
+import { NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { errorText, NECHAKO_PORTAL } from '@/lib/nechakoPortal'
+import { NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { PortalLayers } from '@/maps/nechako/PortalLayers'
 import { PortalFormats } from '@/maps/nechako/PortalChecks'
 import { PortalResearch, PortalResearchMap } from '@/maps/nechako/PortalResearch'
@@ -10,9 +11,8 @@ import { FEATURE_COMPARISON, FORMAT_COMPARISON } from '@/maps/nechako/comparison
 import { PortalFiles } from '@/maps/nechako/PortalFiles'
 import { PortalSourceLayers } from '@/maps/nechako/PortalSourceLayers'
 import { PortalLocalWorkbench } from '@/maps/nechako/PortalLocalWorkbench'
-import { applyLocalDefaultStyle } from '@/maps/nechako/data/styleLibrary'
 import { PortalMonitoring } from '@/maps/nechako/PortalMonitoring'
-import { EMPTY_WORKSPACE, type VectorData, type Workspace } from '@/maps/nechako/data/workspace'
+import { type VectorData } from '@/maps/nechako/data/workspace'
 import { PortalShowcase } from '@/maps/nechako/PortalShowcase'
 import type { CatalogueSource } from '@/maps/nechako/data/showcase'
 import { PortalInventory } from '@/maps/nechako/PortalInventory'
@@ -29,7 +29,7 @@ import {
 import { PortalProjectManager } from '@/maps/nechako/PortalProjectManager'
 import { PortalFormReports } from '@/maps/nechako/PortalFormReports'
 import { portalWrite } from '@/lib/nechakoPortal'
-import { usePortalSession } from '@/maps/nechako/data/usePortalSession'
+import { usePortalWorkspace } from '@/maps/nechako/data/usePortalWorkspace'
 import type { InventoryPanel } from '@/maps/nechako/data/portalInventory'
 import type { ProjectPackage } from '@/lib/projectPackages'
 
@@ -91,8 +91,9 @@ function Comparison() {
         Captured public submissions and research, nine public map definitions, a learning adaptation, local GIS tools
         and live map services are available. The hosted portal connection supports permitted source reads and downloads;
         the updated service adds verified administrator reads. Form, schema, submission, system and schedule inspectors
-        and map-image composition extend the native interface. Browser-local layers, styles, GIS/GPAP imports, monitoring extracts and project packages persist through Local workbench. Source mutations remain restricted to existing reviewed
-        development adapters or the original portal.
+        and map-image composition extend the native interface. Browser-local layers, styles, GIS/GPAP imports,
+        monitoring extracts and project packages persist through Local workbench. Source mutations remain restricted to
+        existing reviewed development adapters or the original portal.
       </InlineAlert>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[1000px] text-left text-sm">
@@ -189,23 +190,7 @@ export default function DevNechako() {
     layerId?: string
     recId?: string
   }>()
-  const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE)
-  const clearSessionWorkspace = useCallback(
-    () =>
-      setWorkspace((current) =>
-        current.sessionBound
-          ? {
-              ...EMPTY_WORKSPACE,
-              camera: current.camera,
-              warnings: [
-                'The portal connection changed; unsaved source-session map data was cleared. Explicit browser saves remain available.',
-              ],
-            }
-          : current,
-      ),
-    [],
-  )
-  const session = usePortalSession(clearSessionWorkspace)
+  const { workspace, setWorkspace, session, addLocalVectors: appendLocalVectors } = usePortalWorkspace()
   const [workspaceRevision, setWorkspaceRevision] = useState(0)
   const [mapBounds, setMapBounds] = useState<[number, number, number, number]>()
   const [params, setParams] = useSearchParams()
@@ -255,22 +240,7 @@ export default function DevNechako() {
     else window.location.assign(`/dev/nechako/portal?panel=${panel}`)
   }
   const addLocalVectors = async (vectors: VectorData[]) => {
-    const warnings: string[] = []
-    const styled = await Promise.all(
-      vectors.map(async (vector) => {
-        try {
-          return await applyLocalDefaultStyle(vector)
-        } catch (reason) {
-          warnings.push(`Default style unavailable for ${vector.name}: ${errorText(reason)}`)
-          return vector
-        }
-      }),
-    )
-    setWorkspace((current) => ({
-      ...current,
-      vectors: [...current.vectors, ...styled],
-      warnings: [...(current.warnings ?? []), ...warnings],
-    }))
+    await appendLocalVectors(vectors)
     showView('layers')
   }
   return (
@@ -318,7 +288,7 @@ export default function DevNechako() {
         <div className="mb-4">
           <label className="text-sm font-medium">
             Map catalogue source
-            <select
+            <NativeSelect
               aria-label="Map catalogue source"
               value={catalogueSource}
               className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
@@ -332,7 +302,7 @@ export default function DevNechako() {
             >
               <option value="snapshot">Repository snapshot</option>
               <option value="live">Live portal catalogue</option>
-            </select>
+            </NativeSelect>
           </label>
         </div>
         <PortalLayers

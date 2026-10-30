@@ -3,10 +3,7 @@ import { useFetchData } from '@/hooks/useFetchData'
 import type { Property, PropertyCategory } from '../types'
 
 function centroid(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): [number, number] {
-  const coords =
-    geometry.type === 'MultiPolygon'
-      ? geometry.coordinates.flat(2)
-      : geometry.coordinates.flat(1)
+  const coords = geometry.type === 'MultiPolygon' ? geometry.coordinates.flat(2) : geometry.coordinates.flat(1)
 
   let sumLng = 0
   let sumLat = 0

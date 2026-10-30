@@ -109,13 +109,12 @@ export function DismissSelectionOnMapClick({
       ] as never)
       const ids = features.flatMap((feature) => {
         const layerId = feature.layer?.id ?? ''
-        const isFeatureLayer = (
-          layerId.startsWith('fill-layer-')
-          || layerId.startsWith('fill-line-')
-          || layerId.startsWith('fill-sel-')
-          || layerId.startsWith('line-layer-')
-          || layerId.startsWith('line-sel-')
-        )
+        const isFeatureLayer =
+          layerId.startsWith('fill-layer-') ||
+          layerId.startsWith('fill-line-') ||
+          layerId.startsWith('fill-sel-') ||
+          layerId.startsWith('line-layer-') ||
+          layerId.startsWith('line-sel-')
         const id = feature.properties?.id
         return isFeatureLayer && id != null ? [String(id)] : []
       })
@@ -138,12 +137,14 @@ export function DismissSelectionOnMapClick({
     }) => {
       if (event.originalEvent?.defaultPrevented) return
       if (event.lngLat && onMapTap?.([event.lngLat.lng, event.lngLat.lat])) return
-      const point = event.point ?? (() => {
-        const { clientX, clientY } = event.originalEvent ?? {}
-        if (clientX == null || clientY == null) return undefined
-        const rect = map.getCanvas().getBoundingClientRect()
-        return { x: clientX - rect.left, y: clientY - rect.top }
-      })()
+      const point =
+        event.point ??
+        (() => {
+          const { clientX, clientY } = event.originalEvent ?? {}
+          if (clientX == null || clientY == null) return undefined
+          const rect = map.getCanvas().getBoundingClientRect()
+          return { x: clientX - rect.left, y: clientY - rect.top }
+        })()
       if (!point) return
       dismissTimeout = window.setTimeout(() => {
         dismiss(point)
@@ -178,13 +179,7 @@ export function ZoomToFeature({ feature, nonce }: { feature: InteractFeature; no
   return null
 }
 
-export function CollapseInspectorOnMapDrag({
-  enabled,
-  onCollapse,
-}: {
-  enabled: boolean
-  onCollapse: () => void
-}) {
+export function CollapseInspectorOnMapDrag({ enabled, onCollapse }: { enabled: boolean; onCollapse: () => void }) {
   const { map, isLoaded } = useMap()
 
   useEffect(() => {

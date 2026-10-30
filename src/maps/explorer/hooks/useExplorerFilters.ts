@@ -50,10 +50,7 @@ export function useExplorerFilters() {
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
 
   useUrlParamSync({
-    datasets:
-      activeDatasetIds.length === ALL_DATASET_IDS.length
-        ? 'all'
-        : datasetCodec.encode(activeDatasetIds),
+    datasets: activeDatasetIds.length === ALL_DATASET_IDS.length ? 'all' : datasetCodec.encode(activeDatasetIds),
     geom: geometryCodec.encode(geometryFilters),
     q: searchQuery.trim(),
     sort: sortMode === 'relevance' ? null : sortMode,

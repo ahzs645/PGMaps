@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
 import { ResultRow } from '@/components/ui/result-list'
@@ -77,7 +78,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
               {(options.mode === 'gaps' || options.mode === 'clearance') && (
                 <label className="block text-xs">
                   Height threshold
-                  <select
+                  <NativeSelect
                     aria-label="Workflow height threshold"
                     className="mt-1 w-full rounded border bg-background p-2"
                     value={options.threshold}
@@ -85,14 +86,14 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   >
                     <option value={2}>2 m · low vegetation / openings</option>
                     <option value={5}>5 m · taller surface threshold</option>
-                  </select>
+                  </NativeSelect>
                 </label>
               )}
               {options.mode === 'gaps' && (
                 <div className="mt-3 space-y-3 text-xs">
                   <label className="block">
                     Minimum opening area
-                    <select
+                    <NativeSelect
                       className="mt-1 w-full rounded border bg-background p-2"
                       value={options.minGap}
                       onChange={(e) => props.onOptions({ minGap: Number(e.target.value), selectedId: null })}
@@ -100,7 +101,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       <option value={25}>25 m²</option>
                       <option value={100}>100 m²</option>
                       <option value={500}>500 m²</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label className="flex gap-2">
                     <input
@@ -121,7 +122,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                 <div className="space-y-3 text-xs">
                   <label className="block">
                     Plot size
-                    <select
+                    <NativeSelect
                       className="mt-1 w-full rounded border bg-background p-2"
                       value={options.plotSize}
                       onChange={(e) =>
@@ -130,11 +131,11 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                     >
                       <option value={25}>25 × 25 m</option>
                       <option value={50}>50 × 50 m</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label className="block">
                     Minimum supported coverage
-                    <select
+                    <NativeSelect
                       className="mt-1 w-full rounded border bg-background p-2"
                       value={options.support}
                       onChange={(e) => props.onOptions({ support: Number(e.target.value), selectedId: null })}
@@ -143,7 +144,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       <option value={80}>80%</option>
                       <option value={95}>95%</option>
                       <option value={100}>100%</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                   <p className="text-[10px] leading-4 text-muted-foreground">
                     Colour: P95 surface height, 0–35 m, pale to dark purple. Percentiles use all supported 1 m surface
@@ -155,7 +156,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                 <div className="mt-3 text-xs">
                   <label className="block">
                     Show centre distance up to
-                    <select
+                    <NativeSelect
                       className="mt-1 w-full rounded border bg-background p-2"
                       value={options.clearance}
                       onChange={(e) => props.onOptions({ clearance: Number(e.target.value), selectedId: null })}
@@ -163,7 +164,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       <option value={5}>5 m</option>
                       <option value={10}>10 m</option>
                       <option value={30}>30 m · entire search radius</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                   <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
                     Pink lines connect roof polygons to nearest elevated cell centres. Roofs plus 2 m are excluded to
@@ -289,7 +290,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                 </Button>
                 <label className="mt-3 block text-xs">
                   Review decision
-                  <select
+                  <NativeSelect
                     className="mt-1 w-full rounded border bg-background p-2"
                     value={review.decision}
                     onChange={(e) =>
@@ -299,7 +300,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                     <option value="unreviewed">Unreviewed</option>
                     <option value="retain">Retain for further inspection</option>
                     <option value="reject">Reject candidate</option>
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label className="mt-2 block text-xs">
                   Review notes

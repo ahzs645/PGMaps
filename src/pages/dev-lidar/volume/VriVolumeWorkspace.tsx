@@ -1,3 +1,5 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { NativeSelect, NumberField } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -139,7 +141,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               </div>
               <label className="mt-3 block text-xs">
                 Utilization level
-                <select
+                <NativeSelect
                   aria-label="VRI utilization"
                   className="mt-1 w-full rounded border bg-background p-2"
                   value={String(rules.utilization)}
@@ -155,7 +157,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   <option value="175">17.5 cm · all stands</option>
                   <option value="225">22.5 cm · unreported in this tile</option>
                   <option value="species">Pine 12.5 cm · others 17.5 cm</option>
-                </select>
+                </NativeSelect>
               </label>
               <p className="mt-1 text-[10px] leading-5">
                 Same utilization choices as PGMaps AVAST. These are inventory DBH utilization levels, not measured top
@@ -163,7 +165,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               </p>
               <label className="mt-2 block text-xs">
                 Dead volume
-                <select
+                <NativeSelect
                   aria-label="VRI dead volume"
                   className="mt-1 w-full rounded border bg-background p-2"
                   value={rules.dead}
@@ -172,51 +174,50 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   <option value="none">Live only</option>
                   <option value="full">Live + reported dead</option>
                   <option value="shelf">Live + reported dead · PG shelf-life scenario</option>
-                </select>
+                </NativeSelect>
               </label>
-              <label className="mt-2 block text-xs">
-                Minimum projected stand age · years
-                <input
-                  aria-label="VRI minimum stand age"
-                  type="number"
-                  min={0}
-                  max={500}
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value={rules.minAge}
-                  onChange={(e) => patch({ minAge: Math.max(0, Number(e.target.value) || 0) })}
-                />
-              </label>
+              <NumberField
+                label="Minimum projected stand age · years"
+                aria-label="VRI minimum stand age"
+                value={rules.minAge}
+                min={0}
+                max={500}
+                clampOn="never"
+                blankValue="zero"
+                fieldClassName="mt-2"
+                contentClassName="text-xs"
+                inputClassName="mt-1 w-full rounded border bg-background p-2"
+                onValueChange={(value) => patch({ minAge: Math.max(0, value || 0) })}
+              />
               <p className="mt-1 text-[10px] leading-5">
                 0 includes all recorded ages. PG planning rules use age ≥60; an unknown age is excluded when a minimum
                 is applied.
               </p>
               {rules.dead === 'shelf' && (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  <label className="text-xs">
-                    Years dead if unknown
-                    <input
-                      aria-label="VRI unknown years dead"
-                      type="number"
-                      min={0}
-                      value={rules.unknownDeathYears}
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      onChange={(e) => patch({ unknownDeathYears: Math.max(0, Number(e.target.value) || 0) })}
-                    />
-                  </label>
-                  <label className="text-xs">
-                    Shelf-life year
-                    <input
-                      aria-label="VRI shelf life year"
-                      type="number"
-                      min={1900}
-                      max={2200}
-                      value={rules.asOfYear}
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      onChange={(e) =>
-                        patch({ asOfYear: Math.max(1900, Math.min(2200, Number(e.target.value) || 2026)) })
-                      }
-                    />
-                  </label>
+                  <NumberField
+                    label="Years dead if unknown"
+                    aria-label="VRI unknown years dead"
+                    value={rules.unknownDeathYears}
+                    min={0}
+                    clampOn="never"
+                    blankValue="zero"
+                    contentClassName="text-xs"
+                    inputClassName="mt-1 w-full rounded border bg-background p-2"
+                    onValueChange={(value) => patch({ unknownDeathYears: Math.max(0, value || 0) })}
+                  />
+                  <NumberField
+                    label="Shelf-life year"
+                    aria-label="VRI shelf life year"
+                    value={rules.asOfYear}
+                    min={1900}
+                    max={2200}
+                    clampOn="never"
+                    blankValue="zero"
+                    contentClassName="text-xs"
+                    inputClassName="mt-1 w-full rounded border bg-background p-2"
+                    onValueChange={(value) => patch({ asOfYear: Math.max(1900, Math.min(2200, value || 2026)) })}
+                  />
                   <p className="col-span-2 text-[10px] leading-5">
                     AVAST's PG curve: 100% through year 1, 80% at year 2, declining to 40% at year 15+. Earliest
                     disturbance is only a proxy for death. This does not project inventory growth to the chosen year.
@@ -314,19 +315,21 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                 [retention, setRetention, 'Volume retained'],
                 [recovery, setRecovery, 'Extraction recovery'],
               ].map(([value, set, label]) => (
-                <label className="mt-2 block text-xs" key={String(label)}>
-                  {String(label)} · {Number(value)}%
-                  <input
-                    aria-label={`VRI ${String(label).toLowerCase()}`}
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={Number(value)}
-                    className="w-full"
-                    onChange={(e) => (set as (n: number) => void)(+e.target.value)}
-                  />
-                </label>
+                <NumericRangeField
+                  key={String(label)}
+                  label={String(label)}
+                  layout="inline"
+                  valueSeparator=" · "
+                  display={`${Number(value)}%`}
+                  className="mt-2 space-y-0 text-xs"
+                  inputClassName="h-auto w-full"
+                  aria-label={`VRI ${String(label).toLowerCase()}`}
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={Number(value)}
+                  onChange={set as (value: number) => void}
+                />
               ))}
               <p className="mt-2 text-sm font-semibold" aria-label="VRI recovered volume">
                 {m3(totals.scenario_recovered_m3)} scenario recovered

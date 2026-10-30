@@ -15,6 +15,9 @@ import {
   StatGrid,
 } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { useFetchData } from '@/hooks/useFetchData'
 import { cn } from '@/lib/utils'
 import { formatCompactCurrency, formatPercent as formatPercentFraction } from '@/lib/format'
 
@@ -70,7 +73,10 @@ interface MspFacilityCollection extends GeoJSON.FeatureCollection<GeoJSON.Point,
   }
 }
 
-const TYPE_META: Record<PayeeType, { label: string; color: string; swatch: string; marker: string; icon: typeof Hospital }> = {
+const TYPE_META: Record<
+  PayeeType,
+  { label: string; color: string; swatch: string; marker: string; icon: typeof Hospital }
+> = {
   hospital: {
     label: 'Hospitals',
     color: '#ef4444',
@@ -95,52 +101,56 @@ const TYPE_META: Record<PayeeType, { label: string; color: string; swatch: strin
 }
 
 function DevHealthMsp() {
-  const [facilities, setFacilities] = useState<MspFacility[]>([])
-  const [metadata, setMetadata] = useState<MspFacilityCollection['metadata']>()
+  const {
+    data: source,
+    loading,
+    error,
+  } = useFetchData<MspFacilityCollection>(MSP_FACILITIES_URL, {
+    transform: (json) => {
+      const collection = json as MspFacilityCollection
+      if (!Array.isArray(collection?.features)) throw new Error('The MSP facility layer has no feature collection.')
+      return collection
+    },
+  })
+  const facilities = useMemo(
+    () => source?.features.filter((feature) => feature.geometry?.type === 'Point') ?? [],
+    [source],
+  )
+  const metadata = source?.metadata
   const [selected, setSelected] = useState<MspFacility | null>(null)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [showTimeline, setShowTimeline] = useState(false)
-  const [timelineDate, setTimelineDate] = useState(() => new Date(2024, 0, 1))
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    async function loadFacilities() {
-      setLoading(true)
-      try {
-        const response = await fetch(MSP_FACILITIES_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json() as MspFacilityCollection
-        setFacilities(data.features.filter((feature) => feature.geometry?.type === 'Point'))
-        setMetadata(data.metadata)
-        const maxYear = data.metadata?.fiscalStartYearRange?.max
-        if (Number.isFinite(maxYear)) setTimelineDate(new Date(Number(maxYear), 0, 1))
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') console.error('Failed to load MSP facility layer.', err)
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-    loadFacilities()
-    return () => controller.abort()
-  }, [])
+  const [timelineSelection, setTimelineDate] = useState<Date | null>(null)
+  const maxFiscalYear = metadata?.fiscalStartYearRange?.max
+  const timelineDate = useMemo(
+    () => timelineSelection ?? new Date(Number.isFinite(maxFiscalYear) ? Number(maxFiscalYear) : 2024, 0, 1),
+    [timelineSelection, maxFiscalYear],
+  )
 
   const fiscalYearRange = useMemo(() => {
     const metadataRange = metadata?.fiscalStartYearRange
     if (metadataRange && Number.isFinite(metadataRange.min) && Number.isFinite(metadataRange.max)) {
       return metadataRange
     }
-    return facilities.reduce((range, feature) => ({
-      min: Math.min(range.min, feature.properties.firstFiscalStartYear),
-      max: Math.max(range.max, feature.properties.latestFiscalStartYear),
-    }), { min: 2014, max: 2024 })
+    return facilities.reduce(
+      (range, feature) => ({
+        min: Math.min(range.min, feature.properties.firstFiscalStartYear),
+        max: Math.max(range.max, feature.properties.latestFiscalStartYear),
+      }),
+      { min: 2014, max: 2024 },
+    )
   }, [facilities, metadata?.fiscalStartYearRange])
 
   const selectedFiscalStartYear = timelineDate.getFullYear()
-  const timelineYearOptions = useMemo(() => (
-    Array.from({ length: Math.max(0, fiscalYearRange.max - fiscalYearRange.min + 1) }, (_, index) => fiscalYearRange.min + index)
-  ), [fiscalYearRange.max, fiscalYearRange.min])
+  const timelineYearOptions = useMemo(
+    () =>
+      Array.from(
+        { length: Math.max(0, fiscalYearRange.max - fiscalYearRange.min + 1) },
+        (_, index) => fiscalYearRange.min + index,
+      ),
+    [fiscalYearRange.max, fiscalYearRange.min],
+  )
   const selectedFiscalYears = useMemo(() => {
     if (showTimeline) return new Set([selectedFiscalStartYear])
     return fiscalYearsForWindow(fiscalYearRange.max, -1, fiscalYearRange.min)
@@ -181,11 +191,17 @@ function DevHealthMsp() {
   }, [baseFilteredFacilities, fiscalYearRange.max, fiscalYearRange.min])
 
   const stats = useMemo(() => {
-    const visibleAmount = filteredFacilities.reduce((sum, feature) => sum + periodAmount(feature, selectedFiscalYears), 0)
-    const byType = filteredFacilities.reduce<Record<PayeeType, number>>((acc, feature) => {
-      acc[feature.properties.payeeType] += 1
-      return acc
-    }, { hospital: 0, clinic: 0, diagnostic_facility: 0 })
+    const visibleAmount = filteredFacilities.reduce(
+      (sum, feature) => sum + periodAmount(feature, selectedFiscalYears),
+      0,
+    )
+    const byType = filteredFacilities.reduce<Record<PayeeType, number>>(
+      (acc, feature) => {
+        acc[feature.properties.payeeType] += 1
+        return acc
+      },
+      { hospital: 0, clinic: 0, diagnostic_facility: 0 },
+    )
     return {
       byType,
       visible: filteredFacilities.length,
@@ -208,20 +224,22 @@ function DevHealthMsp() {
     >
       <SidebarSection
         title="Timeline"
-        actions={(
+        actions={
           <button
             type="button"
             onClick={() => setShowTimeline((current) => !current)}
             className={cn(
               'flex size-8 items-center justify-center rounded-lg transition-colors touch:size-10',
-              showTimeline ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
+              showTimeline
+                ? 'bg-sky-500 text-white hover:bg-sky-600'
+                : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
             aria-pressed={showTimeline}
             title={showTimeline ? 'Hide timeline' : 'Show timeline'}
           >
             <Clock className="size-4" />
           </button>
-        )}
+        }
       >
         {showTimeline ? (
           <AppSelect
@@ -251,8 +269,11 @@ function DevHealthMsp() {
       <SidebarSection title="Search">
         <SearchInput
           id="msp-search"
+          aria-label="Search MSP facilities"
+          icon
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
           placeholder="Facility, city, address"
         />
       </SidebarSection>
@@ -264,9 +285,24 @@ function DevHealthMsp() {
           showDot={false}
           items={[
             { value: 'all', label: 'All', count: facilities.length },
-            { value: 'hospital', label: TYPE_META.hospital.label, count: stats.byType.hospital, color: TYPE_META.hospital.color },
-            { value: 'clinic', label: TYPE_META.clinic.label, count: stats.byType.clinic, color: TYPE_META.clinic.color },
-            { value: 'diagnostic_facility', label: TYPE_META.diagnostic_facility.label, count: stats.byType.diagnostic_facility, color: TYPE_META.diagnostic_facility.color },
+            {
+              value: 'hospital',
+              label: TYPE_META.hospital.label,
+              count: stats.byType.hospital,
+              color: TYPE_META.hospital.color,
+            },
+            {
+              value: 'clinic',
+              label: TYPE_META.clinic.label,
+              count: stats.byType.clinic,
+              color: TYPE_META.clinic.color,
+            },
+            {
+              value: 'diagnostic_facility',
+              label: TYPE_META.diagnostic_facility.label,
+              count: stats.byType.diagnostic_facility,
+              color: TYPE_META.diagnostic_facility.color,
+            },
           ]}
           selectedValues={[typeFilter]}
           onToggle={(value) => setTypeFilter(value)}
@@ -277,21 +313,41 @@ function DevHealthMsp() {
 
       <SidebarSection
         title="Visible facilities"
-        actions={<span className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{stats.visible}</span>}
+        actions={
+          <span className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {stats.visible}
+          </span>
+        }
       >
         <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">{timelinePeriodLabel}</p>
-          <div className="space-y-1.5">
-            {filteredFacilities.slice(0, 80).map((feature) => (
-              <FacilityListButton
-                key={feature.properties.id}
-                feature={feature}
-                amount={periodAmount(feature, selectedFiscalYears)}
-                selected={selected?.properties.id === feature.properties.id}
-                onSelect={setSelected}
-              />
-            ))}
-          </div>
+          <ListHeader count={filteredFacilities.length} noun={['facility', 'facilities']} sticky={false} />
+          <ListState
+            loading={loading}
+            error={error}
+            empty={!filteredFacilities.length}
+            emptyLabel="No matching facilities."
+            onReset={() => {
+              setQuery('')
+              setTypeFilter('all')
+            }}
+          >
+            <VirtualResultList
+              items={filteredFacilities}
+              getKey={(feature) => feature.properties.id}
+              estimateSize={65}
+              label="MSP facilities"
+            >
+              {(feature) => (
+                <FacilityListButton
+                  feature={feature}
+                  amount={periodAmount(feature, selectedFiscalYears)}
+                  selected={selected?.properties.id === feature.properties.id}
+                  onSelect={setSelected}
+                />
+              )}
+            </VirtualResultList>
+          </ListState>
         </div>
       </SidebarSection>
     </MapSidebarShell>
@@ -302,10 +358,14 @@ function DevHealthMsp() {
       sidebar={sidebar}
       desktopSidebarWidth={380}
       mobileInitialSheetState="half"
-      selectedFeatureMobilePeek={selected ? {
-        title: selected.properties.payeeName,
-        subtitle: selected.properties.matchedLocality ?? selected.properties.matchedName ?? undefined,
-      } : undefined}
+      selectedFeatureMobilePeek={
+        selected
+          ? {
+              title: selected.properties.payeeName,
+              subtitle: selected.properties.matchedLocality ?? selected.properties.matchedName ?? undefined,
+            }
+          : undefined
+      }
       showMobilePeek={Boolean(selected)}
       mobileSnapTo={selected ? 'collapsed' : undefined}
       mobileSnapKey={selected?.properties.id ?? 'msp-controls'}
@@ -318,7 +378,8 @@ function DevHealthMsp() {
         maxZoom={16}
         loading={loading}
         className="h-full"
-       controls={<MapControls position="top-right" showFullscreen showLocate />}>
+        controls={<MapControls position="top-right" showFullscreen showLocate />}
+      >
         <ZoomToSelected selected={selected} />
         <MapLegendPanel
           title="Legend"
@@ -329,11 +390,28 @@ function DevHealthMsp() {
           contentClassName="space-y-0.5 text-xs"
         >
           {(Object.keys(TYPE_META) as PayeeType[]).map((type) => (
-            <LegendItem key={type} color={TYPE_META[type].color} label={TYPE_META[type].label} value={stats.byType[type]} />
+            <LegendItem
+              key={type}
+              color={TYPE_META[type].color}
+              label={TYPE_META[type].label}
+              value={stats.byType[type]}
+            />
           ))}
         </MapLegendPanel>
-        <MspMarkers facilities={filteredFacilities} selectedYears={selectedFiscalYears} selectedId={selected?.properties.id ?? null} onSelect={setSelected} />
-        {selected && <SelectedPanel feature={selected} selectedYears={selectedFiscalYears} periodLabel={timelinePeriodLabel} onClose={() => setSelected(null)} />}
+        <MspMarkers
+          facilities={filteredFacilities}
+          selectedYears={selectedFiscalYears}
+          selectedId={selected?.properties.id ?? null}
+          onSelect={setSelected}
+        />
+        {selected && (
+          <SelectedPanel
+            feature={selected}
+            selectedYears={selectedFiscalYears}
+            periodLabel={timelinePeriodLabel}
+            onClose={() => setSelected(null)}
+          />
+        )}
         {showTimeline && timelineYearOptions.length > 1 && (
           <Timeline
             startDate={new Date(fiscalYearRange.min, 0, 1)}
@@ -414,12 +492,12 @@ function SelectedPanel({
         className="space-y-3"
         eyebrow={TYPE_META[props.payeeType].label}
         title={props.payeeName}
-        subtitle={(
+        subtitle={
           <span className="mt-1 flex items-center gap-1">
             <MapPin className="size-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{props.matchedLocality ?? 'BC'}</span>
           </span>
-        )}
+        }
         onClose={onClose}
       >
         <div className="rounded-md border bg-muted/35 px-3 py-2">
@@ -469,24 +547,24 @@ function FacilityListButton({
   const props = feature.properties
   const Icon = TYPE_META[props.payeeType].icon
   return (
-    <button
-      type="button"
+    <ResultRow
       onClick={() => onSelect(feature)}
-      className={cn(
-        'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors',
-        selected ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background hover:bg-muted',
-      )}
-    >
-      <span className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-white', TYPE_META[props.payeeType].swatch)}>
-        <Icon className="size-3.5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{props.payeeName}</span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-          {[props.matchedLocality, formatCurrency(amount)].filter(Boolean).join(' · ')}
+      selected={selected}
+      accent="sky"
+      className="rounded-md border border-border"
+      title={props.payeeName}
+      subtitle={[props.matchedLocality, formatCurrency(amount)].filter(Boolean).join(' · ')}
+      leading={
+        <span
+          className={cn(
+            'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-white',
+            TYPE_META[props.payeeType].swatch,
+          )}
+        >
+          <Icon className="size-3.5" />
         </span>
-      </span>
-    </button>
+      }
+    />
   )
 }
 
@@ -511,7 +589,7 @@ function fiscalYearsForWindow(selectedYear: number, windowSize: number, minYear:
 
 function periodAmount(feature: MspFacility, years: Set<number>): number {
   return (feature.properties.annualPayments ?? []).reduce(
-    (sum, payment) => years.has(payment.fiscalStartYear) ? sum + payment.amount : sum,
+    (sum, payment) => (years.has(payment.fiscalStartYear) ? sum + payment.amount : sum),
     0,
   )
 }

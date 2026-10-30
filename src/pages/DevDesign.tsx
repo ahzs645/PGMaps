@@ -1,3 +1,6 @@
+import { FormField } from '@/components/ui/form-field'
+import { ToggleRow as SharedToggleRow } from '@/components/ui/toggle-row'
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
@@ -23,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Map as AppMap, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapControls } from '@/components/ui/map-controls'
 import {
+  InlineAlert,
   MapLegend,
   MapLegendItem,
   MapSidebarShell,
@@ -165,7 +169,8 @@ function coerceDesignState(value: unknown): DesignState {
 
   return {
     title: typeof candidate.title === 'string' ? candidate.title.slice(0, 80) : SHARED_BASEMAP_CAPTURE.title,
-    subtitle: typeof candidate.subtitle === 'string' ? candidate.subtitle.slice(0, 120) : SHARED_BASEMAP_CAPTURE.subtitle,
+    subtitle:
+      typeof candidate.subtitle === 'string' ? candidate.subtitle.slice(0, 120) : SHARED_BASEMAP_CAPTURE.subtitle,
     primaryColor: isHexColor(candidate.primaryColor) ? candidate.primaryColor : SHARED_BASEMAP_CAPTURE.primaryColor,
     backgroundColor: isHexColor(candidate.backgroundColor)
       ? candidate.backgroundColor
@@ -234,9 +239,7 @@ function coerceDesignState(value: unknown): DesignState {
       : SHARED_BASEMAP_CAPTURE.articleBackground,
     textDefault: isHexColor(candidate.textDefault) ? candidate.textDefault : SHARED_BASEMAP_CAPTURE.textDefault,
     textPrimary: isHexColor(candidate.textPrimary) ? candidate.textPrimary : SHARED_BASEMAP_CAPTURE.textPrimary,
-    textSecondary: isHexColor(candidate.textSecondary)
-      ? candidate.textSecondary
-      : SHARED_BASEMAP_CAPTURE.textSecondary,
+    textSecondary: isHexColor(candidate.textSecondary) ? candidate.textSecondary : SHARED_BASEMAP_CAPTURE.textSecondary,
   }
 }
 
@@ -269,43 +272,21 @@ function hasWebGlContext() {
   const canvas = document.createElement('canvas')
 
   try {
-    return Boolean(
-      canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl'),
-    )
+    return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
   } catch {
     return false
   }
 }
 
-
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string
-  children: React.ReactNode
-  className?: string
-}) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className={cn('grid gap-1.5 text-xs font-medium text-muted-foreground', className)}>
-      <span>{label}</span>
+    <FormField label={label} contentClassName={cn('grid gap-1.5 text-xs font-medium text-muted-foreground', className)}>
       {children}
-    </label>
+    </FormField>
   )
 }
 
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <Field label={label}>
       <div className="flex items-center gap-2">
@@ -336,19 +317,16 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex h-9 items-center justify-between gap-3 rounded-md border border-border px-3 text-sm">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    </label>
+    <SharedToggleRow
+      label={label}
+      active={checked}
+      onClick={() => onChange(!checked)}
+      tone="primary"
+      className="h-9 justify-between px-3 text-sm"
+    />
   )
 }
 
-// Toggle row for the tasmap-style submenu popovers (theme-aware).
 function EditorToggle({
   label,
   checked,
@@ -359,15 +337,13 @@ function EditorToggle({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-sm text-foreground transition-colors hover:bg-accent">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    </label>
+    <SharedToggleRow
+      label={label}
+      active={checked}
+      onClick={() => onChange(!checked)}
+      tone="primary"
+      className="h-8 justify-between border-0 px-2 text-sm"
+    />
   )
 }
 
@@ -432,9 +408,7 @@ function DesignerMarker({ design }: { design: DesignState }) {
       aria-label="Designer marker preview"
     >
       <path d={markerPath} fill={design.markerFill} />
-      {design.markerShape === 'badge' ? (
-        <circle cx="12" cy="12" r="3.2" fill={design.markerInset} />
-      ) : null}
+      {design.markerShape === 'badge' ? <circle cx="12" cy="12" r="3.2" fill={design.markerInset} /> : null}
     </svg>
   )
 }
@@ -541,6 +515,7 @@ function StaticMapPreview({ design }: { design: DesignState }) {
 }
 
 export default function DevDesign() {
+  const clipboard = useClipboardText({ failureResetAfterMs: 0 })
   const [design, setDesign] = useUrlState('design', designCodec)
   const [baseStyles, setBaseStyles] = useState<{ light: StyleSpecification; dark: StyleSpecification } | null>(null)
   // Probing WebGL support once in the lazy initializer avoids flipping state
@@ -687,10 +662,7 @@ export default function DevDesign() {
 
     async function loadBaseStyles() {
       try {
-        const [lightResponse, darkResponse] = await Promise.all([
-          fetch(MAP_STYLES.light),
-          fetch(MAP_STYLES.dark),
-        ])
+        const [lightResponse, darkResponse] = await Promise.all([fetch(MAP_STYLES.light), fetch(MAP_STYLES.dark)])
         if (!lightResponse.ok || !darkResponse.ok) {
           throw new Error('Unable to load shared basemap styles')
         }
@@ -731,9 +703,7 @@ export default function DevDesign() {
     setDesign({ ...design, [key]: value })
   }
 
-  const copyShareUrl = async () => {
-    await navigator.clipboard?.writeText(window.location.href)
-  }
+  const copyShareUrl = () => clipboard.copy(window.location.href)
 
   const boundaryPanel = (
     <MapEditorPanel className="w-72 space-y-3">
@@ -810,7 +780,11 @@ export default function DevDesign() {
   const labelPanel = (
     <MapEditorPanel className="w-72 space-y-3">
       <div className="text-xs font-medium text-muted-foreground">Map labels</div>
-      <EditorToggle label="Labels" checked={design.showLabels} onChange={(checked) => updateDesign('showLabels', checked)} />
+      <EditorToggle
+        label="Labels"
+        checked={design.showLabels}
+        onChange={(checked) => updateDesign('showLabels', checked)}
+      />
       <SourceStyleRow
         title="Country"
         description="Country labels"
@@ -919,8 +893,8 @@ export default function DevDesign() {
                 type="button"
                 size="icon"
                 variant="outline"
-                title="Copy share URL"
-                aria-label="Copy share URL"
+                title={clipboard.status === 'copied' ? 'Share URL copied' : 'Copy share URL'}
+                aria-label={clipboard.status === 'copied' ? 'Share URL copied' : 'Copy share URL'}
                 onClick={copyShareUrl}
               >
                 <Copy className="h-4 w-4" />
@@ -939,13 +913,35 @@ export default function DevDesign() {
           }
           className="border-r-0 lg:border-r"
         >
+          {clipboard.status === 'copied' && (
+            <div className="px-3 pt-3" aria-live="polite">
+              <InlineAlert>Share URL copied.</InlineAlert>
+            </div>
+          )}
+          {clipboard.status === 'failed' && (
+            <div className="space-y-2 px-3 pt-3" aria-live="polite">
+              <InlineAlert tone="warning">Copy was unavailable. Select and copy the share URL below.</InlineAlert>
+              <input
+                aria-label="Share URL"
+                readOnly
+                value={clipboard.text ?? ''}
+                onFocus={(event) => event.currentTarget.select()}
+                className="w-full rounded border bg-background px-2 py-1.5 text-sm"
+              />
+            </div>
+          )}
           <SidebarSection title="Coloring" icon={Palette}>
             <div className="grid grid-cols-2 gap-3">
               <ColorField
                 label="Primary"
                 value={design.primaryColor}
                 onChange={(value) =>
-                  setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value, labelColor: value }))
+                  setNextDesign((current) => ({
+                    ...current,
+                    primaryColor: value,
+                    markerFill: value,
+                    labelColor: value,
+                  }))
                 }
               />
               <ColorField
@@ -960,7 +956,11 @@ export default function DevDesign() {
                   }))
                 }
               />
-              <ColorField label="Water" value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} />
+              <ColorField
+                label="Water"
+                value={design.waterColor}
+                onChange={(value) => updateDesign('waterColor', value)}
+              />
               <ColorField
                 label="Landcover"
                 value={design.landcoverColor}
@@ -1008,8 +1008,16 @@ export default function DevDesign() {
 
           <SidebarSection title="Map Options" icon={SlidersHorizontal}>
             <div className="grid gap-2">
-              <ToggleRow label="Labels" checked={design.showLabels} onChange={(checked) => updateDesign('showLabels', checked)} />
-              <ToggleRow label="Water layer" checked={design.showWater} onChange={(checked) => updateDesign('showWater', checked)} />
+              <ToggleRow
+                label="Labels"
+                checked={design.showLabels}
+                onChange={(checked) => updateDesign('showLabels', checked)}
+              />
+              <ToggleRow
+                label="Water layer"
+                checked={design.showWater}
+                onChange={(checked) => updateDesign('showWater', checked)}
+              />
               <ToggleRow
                 label="Landcover layer"
                 checked={design.showLandcover}
@@ -1112,7 +1120,10 @@ export default function DevDesign() {
               columns={3}
               stats={[
                 { label: 'Palette', value: designEqualsDefault(design) ? 'base' : 'custom' },
-                { label: 'Layers on', value: [design.showWater, design.showLandcover, design.showLabels].filter(Boolean).length },
+                {
+                  label: 'Layers on',
+                  value: [design.showWater, design.showLandcover, design.showLabels].filter(Boolean).length,
+                },
                 { label: 'Marker', value: `${design.markerSize}px` },
               ]}
             />
@@ -1138,7 +1149,8 @@ export default function DevDesign() {
               maxZoom={14}
               pitch={0}
               bearing={0}
-             controls={<MapControls showCompass showFullscreen position="bottom-right" />}>
+              controls={<MapControls showCompass showFullscreen position="bottom-right" />}
+            >
               <MapMarker
                 longitude={MARKER_COORDINATE.longitude}
                 latitude={MARKER_COORDINATE.latitude}
@@ -1361,10 +1373,26 @@ export default function DevDesign() {
                 flyoutOpen={openTool === 'settings'}
                 flyout={
                   <MapEditorPanel className="w-72 space-y-3">
-                    <EditorToggle label="Story panel" checked={design.showStory} onChange={(checked) => updateDesign('showStory', checked)} />
-                    <EditorToggle label="Focus area" checked={design.showFocusArea} onChange={(checked) => updateDesign('showFocusArea', checked)} />
-                    <EditorToggle label="Markers" checked={design.showMarkers} onChange={(checked) => updateDesign('showMarkers', checked)} />
-                    <EditorToggle label="Paths" checked={design.showPath} onChange={(checked) => updateDesign('showPath', checked)} />
+                    <EditorToggle
+                      label="Story panel"
+                      checked={design.showStory}
+                      onChange={(checked) => updateDesign('showStory', checked)}
+                    />
+                    <EditorToggle
+                      label="Focus area"
+                      checked={design.showFocusArea}
+                      onChange={(checked) => updateDesign('showFocusArea', checked)}
+                    />
+                    <EditorToggle
+                      label="Markers"
+                      checked={design.showMarkers}
+                      onChange={(checked) => updateDesign('showMarkers', checked)}
+                    />
+                    <EditorToggle
+                      label="Paths"
+                      checked={design.showPath}
+                      onChange={(checked) => updateDesign('showPath', checked)}
+                    />
                     <div className="border-t border-border pt-3">
                       <SourceStyleRow
                         title="Country"
@@ -1510,9 +1538,9 @@ export default function DevDesign() {
             </MapStorySection>
             <MapStorySection heading="About this panel" accentColor={design.textPrimary} textColor={design.textDefault}>
               <p>
-                This is tasmap&rsquo;s &ldquo;classic&rdquo; story panel rebuilt on PGMaps&rsquo; own stack &mdash;
-                drag the handle on its left edge to resize. Recolor the basemap and markers from the sidebar; the share
-                URL captures every change.
+                This is tasmap&rsquo;s &ldquo;classic&rdquo; story panel rebuilt on PGMaps&rsquo; own stack &mdash; drag
+                the handle on its left edge to resize. Recolor the basemap and markers from the sidebar; the share URL
+                captures every change.
               </p>
             </MapStorySection>
           </MapStoryPanel>

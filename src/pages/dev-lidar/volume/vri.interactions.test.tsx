@@ -39,7 +39,11 @@ describe('VRI estimates through the interface', () => {
           .findAllByType('button')
           .find((b) => b.children.join('') === name)!
       const change = async (label: string, value: string) =>
-        act(async () => root().findByProps({ 'aria-label': label }).props.onChange({ target: { value } }))
+        act(async () =>
+          root()
+            .findAll((node) => typeof node.type === 'string' && node.props['aria-label'] === label)[0]
+            .props.onChange({ target: { value } }),
+        )
       expect(stats()[0].value).toBe('36,796 m³')
       expect(map().props['data-features'].features).toHaveLength(30)
       await change('VRI utilization', '225')

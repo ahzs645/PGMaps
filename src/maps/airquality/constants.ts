@@ -9,7 +9,7 @@ export const NETWORK_COLORS: Record<string, string> = {
   'EPA NATTS': '#f97316',
   'EPA NCORE': '#6366f1',
   'EPA CSN STN': '#8b5cf6',
-  'EPA NEAR ROAD': '#facc15'
+  'EPA NEAR ROAD': '#facc15',
 }
 
 export function getNetworkColor(network: string): string {

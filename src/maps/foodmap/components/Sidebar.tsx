@@ -30,13 +30,7 @@ import {
   type FoodMapFilterActions,
 } from '../hooks/useFoodMapFilters'
 import type { FoodSortOrder, MarkerStyle } from '../types'
-import type {
-  RestaurantWithStats,
-  RestaurantStats,
-  TimelineStats,
-  HazardStatsAtDate,
-  HazardRating,
-} from '../types'
+import type { RestaurantWithStats, RestaurantStats, TimelineStats, HazardStatsAtDate, HazardRating } from '../types'
 
 export interface SidebarData {
   /** Filtered and sorted for the list. */
@@ -161,7 +155,7 @@ export function Sidebar({
   const hasActiveFilters = activeFilterCount > 0 || searchQuery !== ''
   // Hazard chips filter on the rating the active mode uses, so count that one.
   const hazardCounts: Partial<Record<HazardRating, number>> =
-    visualizationMode === 'hazard' ? hazardStatsAtDate : stats?.byHazard ?? {}
+    visualizationMode === 'hazard' ? hazardStatsAtDate : (stats?.byHazard ?? {})
 
   // A pick from the list or the map inserts the detail card above the list,
   // out of view if the list was scrolled. Scroll it in (desktop only: the
@@ -325,7 +319,8 @@ export function Sidebar({
         count={
           !loading && !error ? (
             <>
-              {restaurants.length.toLocaleString('en-CA')} {restaurants.length === 1 ? 'establishment' : 'establishments'}
+              {restaurants.length.toLocaleString('en-CA')}{' '}
+              {restaurants.length === 1 ? 'establishment' : 'establishments'}
               {unmappedCount > 0 && ` · ${unmappedCount.toLocaleString('en-CA')} not on map`}
             </>
           ) : undefined
@@ -417,7 +412,12 @@ export function Sidebar({
         emptyLabel="No establishments match these filters."
         onReset={hasActiveFilters ? onResetFilters : undefined}
       >
-        <VirtualResultList items={restaurants} getKey={(restaurant) => restaurant.details_url} estimateSize={96} label="Establishments">
+        <VirtualResultList
+          items={restaurants}
+          getKey={(restaurant) => restaurant.details_url}
+          estimateSize={96}
+          label="Establishments"
+        >
           {(restaurant) => (
             <RestaurantCard
               key={restaurant.details_url}

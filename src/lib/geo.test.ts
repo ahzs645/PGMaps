@@ -8,13 +8,32 @@ describe('geometryBounds', () => {
 
   it('covers a LineString', () => {
     expect(
-      geometryBounds({ type: 'LineString', coordinates: [[-1, 1], [2, -3], [0, 0]] }),
+      geometryBounds({
+        type: 'LineString',
+        coordinates: [
+          [-1, 1],
+          [2, -3],
+          [0, 0],
+        ],
+      }),
     ).toEqual([-1, -3, 2, 1])
   })
 
   it('covers a MultiLineString, which the scorebuilder copy dropped to null', () => {
     expect(
-      geometryBounds({ type: 'MultiLineString', coordinates: [[[-1, 0], [1, 0]], [[0, -5], [0, 5]]] }),
+      geometryBounds({
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [-1, 0],
+            [1, 0],
+          ],
+          [
+            [0, -5],
+            [0, 5],
+          ],
+        ],
+      }),
     ).toEqual([-1, -5, 1, 5])
   })
 
@@ -23,8 +42,20 @@ describe('geometryBounds', () => {
       geometryBounds({
         type: 'Polygon',
         coordinates: [
-          [[0, 0], [4, 0], [4, 4], [0, 4], [0, 0]],
-          [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]],
+          [
+            [0, 0],
+            [4, 0],
+            [4, 4],
+            [0, 4],
+            [0, 0],
+          ],
+          [
+            [1, 1],
+            [2, 1],
+            [2, 2],
+            [1, 2],
+            [1, 1],
+          ],
         ],
       }),
     ).toEqual([0, 0, 4, 4])
@@ -35,21 +66,49 @@ describe('geometryBounds', () => {
       geometryBounds({
         type: 'MultiPolygon',
         coordinates: [
-          [[[0, 0], [1, 0], [1, 1], [0, 0]]],
-          [[[5, 5], [6, 5], [6, 6], [5, 5]]],
+          [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+          [
+            [
+              [5, 5],
+              [6, 5],
+              [6, 6],
+              [5, 5],
+            ],
+          ],
         ],
       }),
     ).toEqual([0, 0, 6, 6])
   })
 
   it('covers MultiPoint and GeometryCollection', () => {
-    expect(geometryBounds({ type: 'MultiPoint', coordinates: [[-2, 3], [4, -1]] })).toEqual([-2, -1, 4, 3])
+    expect(
+      geometryBounds({
+        type: 'MultiPoint',
+        coordinates: [
+          [-2, 3],
+          [4, -1],
+        ],
+      }),
+    ).toEqual([-2, -1, 4, 3])
     expect(
       geometryBounds({
         type: 'GeometryCollection',
         geometries: [
           { type: 'Point', coordinates: [0, 0] },
-          { type: 'LineString', coordinates: [[10, 10], [20, 20]] },
+          {
+            type: 'LineString',
+            coordinates: [
+              [10, 10],
+              [20, 20],
+            ],
+          },
         ],
       }),
     ).toEqual([0, 0, 20, 20])
@@ -64,14 +123,29 @@ describe('geometryBounds', () => {
 
   it('skips non-finite coordinates rather than poisoning the box', () => {
     expect(
-      geometryBounds({ type: 'LineString', coordinates: [[0, 0], [Number.NaN, 5], [3, 3]] }),
+      geometryBounds({
+        type: 'LineString',
+        coordinates: [
+          [0, 0],
+          [Number.NaN, 5],
+          [3, 3],
+        ],
+      }),
     ).toEqual([0, 0, 3, 3])
   })
 })
 
 describe('boundsCenter', () => {
   it('returns the midpoint of the bounding box', () => {
-    expect(boundsCenter({ type: 'LineString', coordinates: [[0, 0], [4, 10]] })).toEqual([2, 5])
+    expect(
+      boundsCenter({
+        type: 'LineString',
+        coordinates: [
+          [0, 0],
+          [4, 10],
+        ],
+      }),
+    ).toEqual([2, 5])
   })
 
   it('returns null when there are no coordinates', () => {

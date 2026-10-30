@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -64,7 +65,7 @@ export function CompareAlternatives({
     <div className="h-full space-y-2 overflow-auto" data-testid="road-compare">
       <label className="flex items-center gap-2 text-xs">
         Compared with
-        <select
+        <NativeSelect
           aria-label="Comparison baseline"
           className="rounded border bg-background px-1 text-base md:text-xs"
           value={baselineId}
@@ -75,7 +76,7 @@ export function CompareAlternatives({
               {a.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <EngineeringTable>
         <thead className="sticky top-0 z-10">

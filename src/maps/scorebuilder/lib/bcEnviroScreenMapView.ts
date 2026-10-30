@@ -157,7 +157,11 @@ function clampBinCount(value: number): number {
 
 function hexToRgb(hex: string): [number, number, number] {
   const normalized = hex.replace('#', '')
-  return [0, 2, 4].map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16)) as [number, number, number]
+  return [0, 2, 4].map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16)) as [
+    number,
+    number,
+    number,
+  ]
 }
 
 function rgbToHex(rgb: [number, number, number]): string {

@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useState, type ReactNode } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
@@ -7,7 +8,12 @@ import { cn } from '@/lib/utils'
 import { isMobileViewport } from '@/hooks/useIsMobile'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
-import { AQ_OBSERVATION_NETWORKS, type AqBasemap, type AqMonitorGroup, type AqNetworkSlug } from '../lib/monitorPresentation'
+import {
+  AQ_OBSERVATION_NETWORKS,
+  type AqBasemap,
+  type AqMonitorGroup,
+  type AqNetworkSlug,
+} from '../lib/monitorPresentation'
 import {
   formatGroupLabel,
   formatLocalizedDate,
@@ -17,7 +23,19 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingCenter, AqRingShape, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode, OverlayRenderMode } from '../lib/aqMapTypes'
+import type {
+  ActiveFiresRenderMode,
+  AqClusterColorScheme,
+  AqMonitorIconMode,
+  AqRingCenter,
+  AqRingShape,
+  AqRingStyle,
+  FireDangerRenderMode,
+  FirePerimetersRenderMode,
+  ForecastZonesRenderMode,
+  ModelledSmokeRenderMode,
+  OverlayRenderMode,
+} from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 import { CANADA_CENTER, DEFAULT_ZOOM } from '../lib/urlState'
 import type { FireDangerLegendVariant } from './AqMapLegends'
@@ -84,42 +102,6 @@ export function FireDangerLegendVariantControl({
   )
 }
 
-export function RangeField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-  unit,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  onChange: (value: number) => void
-  unit?: string
-}) {
-  return (
-    <label className="block space-y-1">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
-        <span className="font-medium text-foreground">{value}{unit ? ` ${unit}` : ''}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="h-1.5 w-full cursor-pointer accent-primary"
-      />
-    </label>
-  )
-}
-
 export function RevealClusterControls({
   clusterColorScheme,
   onClusterColorSchemeChange,
@@ -173,7 +155,11 @@ export function RevealClusterControls({
           ]}
         />
       </div>
-      <RangeField
+      <NumericRangeField
+        className="space-y-1"
+        headerClassName="text-xs text-muted-foreground"
+        valueClassName="font-medium text-foreground"
+        inputClassName="h-1.5 cursor-pointer accent-primary"
         label={translate('reveal.clusterRadius', locale)}
         value={clusterRadius}
         min={REVEAL_CLUSTER_BOUNDS.radius.min}
@@ -182,7 +168,11 @@ export function RevealClusterControls({
         onChange={onClusterRadiusChange}
         unit="px"
       />
-      <RangeField
+      <NumericRangeField
+        className="space-y-1"
+        headerClassName="text-xs text-muted-foreground"
+        valueClassName="font-medium text-foreground"
+        inputClassName="h-1.5 cursor-pointer accent-primary"
         label={translate('reveal.clusterMaxZoom', locale)}
         value={clusterMaxZoom}
         min={REVEAL_CLUSTER_BOUNDS.maxZoom.min}
@@ -358,7 +348,10 @@ export function FloatingLayerControl({
   locale: AqmapLocale
 }) {
   return (
-    <MapFloatingPanel position="top-right" className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur">
+    <MapFloatingPanel
+      position="top-right"
+      className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur"
+    >
       <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
       <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
         {(['agency', 'lcm', 'other'] as AqMonitorGroup[]).map((group) => (
@@ -408,7 +401,11 @@ export function FloatingLayerControl({
         </div>
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
+            <input
+              type="checkbox"
+              checked={visibleSmokeLayers.has(layer.key)}
+              onChange={() => onToggleSmokeLayer(layer.key)}
+            />
             <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
               <span className="truncate">{localizeSmokeLabel(layer.key, locale)}</span>
               {layer.key === 'modelledSmoke' && (
@@ -422,12 +419,22 @@ export function FloatingLayerControl({
         {WMS_LAYERS.map((layer) => (
           <div key={layer.key} className="space-y-1">
             <label className="flex items-center gap-2 text-muted-foreground">
-              <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
+              <input
+                type="checkbox"
+                checked={visibleWmsLayers.has(layer.key)}
+                onChange={() => onToggleWmsLayer(layer.key)}
+              />
               <span>{localizeWmsLabel(layer.key, locale)}</span>
             </label>
             {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
               <div className="space-y-1">
-                <OverlayModeControl layerKey="fireDanger" value={fireDangerMode} onChange={onFireDangerModeChange} includeDeck locale={locale} />
+                <OverlayModeControl
+                  layerKey="fireDanger"
+                  value={fireDangerMode}
+                  onChange={onFireDangerModeChange}
+                  includeDeck
+                  locale={locale}
+                />
                 <FireDangerLegendVariantControl
                   value={fireDangerLegendVariant}
                   onChange={onFireDangerLegendVariantChange}
@@ -437,16 +444,40 @@ export function FloatingLayerControl({
               </div>
             )}
             {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
-              <OverlayModeControl layerKey="activeFires" value={activeFiresMode} onChange={onActiveFiresModeChange} includeDeck locale={locale} />
+              <OverlayModeControl
+                layerKey="activeFires"
+                value={activeFiresMode}
+                onChange={onActiveFiresModeChange}
+                includeDeck
+                locale={locale}
+              />
             )}
             {layer.key === 'firePerimeters' && visibleWmsLayers.has('firePerimeters') && (
-              <OverlayModeControl layerKey="firePerimeters" value={firePerimetersMode} onChange={onFirePerimetersModeChange} includeDeck locale={locale} />
+              <OverlayModeControl
+                layerKey="firePerimeters"
+                value={firePerimetersMode}
+                onChange={onFirePerimetersModeChange}
+                includeDeck
+                locale={locale}
+              />
             )}
             {layer.key === 'forecastZones' && visibleWmsLayers.has('forecastZones') && (
-              <OverlayModeControl layerKey="forecastZones" value={forecastZonesMode} onChange={onForecastZonesModeChange} includeDeck locale={locale} />
+              <OverlayModeControl
+                layerKey="forecastZones"
+                value={forecastZonesMode}
+                onChange={onForecastZonesModeChange}
+                includeDeck
+                locale={locale}
+              />
             )}
             {layer.key === 'modelledPm25' && visibleWmsLayers.has('modelledPm25') && (
-              <OverlayModeControl layerKey="modelledPm25" value={modelledSmokeMode} onChange={onModelledSmokeModeChange} includeDeck locale={locale} />
+              <OverlayModeControl
+                layerKey="modelledPm25"
+                value={modelledSmokeMode}
+                onChange={onModelledSmokeModeChange}
+                includeDeck
+                locale={locale}
+              />
             )}
           </div>
         ))}
@@ -615,19 +646,11 @@ export function MainLayerControl({
 }
 
 function LayerControlHeading({ children }: { children: ReactNode }) {
-  return (
-    <div className="text-xs font-semibold uppercase tracking-wide text-foreground">
-      {children}
-    </div>
-  )
+  return <div className="text-xs font-semibold uppercase tracking-wide text-foreground">{children}</div>
 }
 
 function LayerControlSubheading({ children }: { children: ReactNode }) {
-  return (
-    <div className="pt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-      {children}
-    </div>
-  )
+  return <div className="pt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{children}</div>
 }
 
 function SourceToggle({
@@ -727,11 +750,19 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
   }
 
   return (
-    <MapFloatingPanel position="top-left" className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex flex-col overflow-hidden rounded border border-border bg-background shadow-md md:top-3">
+    <MapFloatingPanel
+      position="top-left"
+      className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex flex-col overflow-hidden rounded border border-border bg-background shadow-md md:top-3"
+    >
       <button type="button" aria-label="Zoom in" onClick={zoomIn} className="p-2 hover:bg-secondary">
         <Plus className="size-4" />
       </button>
-      <button type="button" aria-label="Zoom out" onClick={zoomOut} className="border-t border-border p-2 hover:bg-secondary">
+      <button
+        type="button"
+        aria-label="Zoom out"
+        onClick={zoomOut}
+        className="border-t border-border p-2 hover:bg-secondary"
+      >
         <Minus className="size-4" />
       </button>
       <button
@@ -753,7 +784,12 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
       >
         <RotateCcw className="size-4" />
       </button>
-      <button type="button" aria-label="Toggle fullscreen" onClick={toggleFullscreen} className="hidden border-t border-border p-2 hover:bg-secondary md:block">
+      <button
+        type="button"
+        aria-label="Toggle fullscreen"
+        onClick={toggleFullscreen}
+        className="hidden border-t border-border p-2 hover:bg-secondary md:block"
+      >
         <Maximize className="size-4" />
       </button>
     </MapFloatingPanel>
@@ -769,18 +805,12 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
 
     const updateScale = () => {
       const center = map.getCenter()
-      const metersPerPixel = (
-        Math.cos(center.lat * Math.PI / 180)
-        * 2
-        * Math.PI
-        * 6378137
-      ) / (512 * (2 ** map.getZoom()))
+      const metersPerPixel =
+        (Math.cos((center.lat * Math.PI) / 180) * 2 * Math.PI * 6378137) / (512 * 2 ** map.getZoom())
       const maxWidth = isMobileViewport() ? 72 : 100
       const rawDistanceMeters = metersPerPixel * maxWidth
       const niceDistances = [
-        1, 2, 5, 10, 20, 50, 100, 200, 500,
-        1000, 2000, 5000, 10000, 20000, 50000,
-        100000, 200000, 500000, 1000000,
+        1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
       ]
       const distance = [...niceDistances].reverse().find((value) => value <= rawDistanceMeters) ?? 1
       const width = Math.max(36, Math.round(distance / metersPerPixel))
@@ -798,7 +828,11 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
   }, [map])
 
   return (
-    <MapFloatingPanel reserveLegendSpace={false} position="bottom-left" className="flex max-w-[calc(100vw-1.5rem)] items-end gap-2 md:max-w-[calc(100vw-16rem)]">
+    <MapFloatingPanel
+      reserveLegendSpace={false}
+      position="bottom-left"
+      className="flex max-w-[calc(100vw-1.5rem)] items-end gap-2 md:max-w-[calc(100vw-16rem)]"
+    >
       <details data-aqmap-status-info="true" className="group relative md:hidden">
         <summary
           aria-label="Map information"
@@ -825,7 +859,10 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           <MapInfoText latestDate={latestDate} locale={locale} attributionClassName="mt-0.5" />
         </div>
       </details>
-      <div data-aqmap-scale-bar="true" className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-xs leading-none text-foreground shadow-md">
+      <div
+        data-aqmap-scale-bar="true"
+        className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-xs leading-none text-foreground shadow-md"
+      >
         <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
         <div className="mt-1 text-center">{scale.label}</div>
       </div>
@@ -846,17 +883,23 @@ function MapInfoText({
   const linkClassName = 'underline-offset-2 hover:text-foreground hover:underline'
   return (
     <>
-      <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
+      <div>
+        {translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}
+      </div>
       <div className={cn('text-muted-foreground', attributionClassName)}>
         ©{' '}
         <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className={linkClassName}>
           CARTO
         </a>
         , ©{' '}
-        <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className={linkClassName}>
+        <a
+          href="http://www.openstreetmap.org/about/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClassName}
+        >
           OpenStreetMap
-        </a>
-        {' '}
+        </a>{' '}
         contributors
       </div>
     </>

@@ -5,7 +5,11 @@ import { localLanguageResources, pronunciationSources } from '../data'
 
 export function LanguageReferences() {
   return (
-    <CollapsiblePanel title="Language References" icon={<Globe2 className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
+    <CollapsiblePanel
+      title="Language References"
+      icon={<Globe2 className="h-4 w-4 text-teal-700" />}
+      defaultOpen={false}
+    >
       <div className="space-y-3 text-xs leading-5 text-slate-600">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pronunciation</div>
         {pronunciationSources.map((source) => (
@@ -28,7 +32,8 @@ export function LanguageReferences() {
           </a>
         ))}
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
-          Audio links are only shown when they come from a Nation site, FPCC permission/API access, or another source with clear reuse rights.
+          Audio links are only shown when they come from a Nation site, FPCC permission/API access, or another source
+          with clear reuse rights.
         </div>
         <div className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Local resources</div>
         {localLanguageResources.map((resource) => (
@@ -49,12 +54,22 @@ export function LanguageReferences() {
             {(resource.audioUrl || resource.qrUrl) && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {resource.audioUrl && (
-                  <a href={resource.audioUrl} target="_blank" rel="noreferrer" className="rounded border bg-white px-2 py-1 font-medium text-teal-800">
+                  <a
+                    href={resource.audioUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border bg-white px-2 py-1 font-medium text-teal-800"
+                  >
                     Audio
                   </a>
                 )}
                 {resource.qrUrl && (
-                  <a href={resource.qrUrl} target="_blank" rel="noreferrer" className="rounded border bg-white px-2 py-1 font-medium text-teal-800">
+                  <a
+                    href={resource.qrUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border bg-white px-2 py-1 font-medium text-teal-800"
+                  >
                     QR code
                   </a>
                 )}

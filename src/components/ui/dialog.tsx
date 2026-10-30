@@ -8,8 +8,15 @@ const toolbarVisibility = (open: boolean) => {
 export const DialogContent = React.forwardRef<React.ElementRef<typeof ToolkitDialogContent>, DialogContentProps>(
   ({ elevated, onOpenEffect, theme, ...props }, ref) => {
     const { resolvedTheme } = useTheme()
-    return <ToolkitDialogContent theme={theme ?? (resolvedTheme === 'dark' ? 'dark' : 'light')} ref={ref} elevated={elevated} {...props}
-    onOpenEffect={onOpenEffect ?? (elevated ? toolbarVisibility : undefined)} />
+    return (
+      <ToolkitDialogContent
+        theme={theme ?? (resolvedTheme === 'dark' ? 'dark' : 'light')}
+        ref={ref}
+        elevated={elevated}
+        {...props}
+        onOpenEffect={onOpenEffect ?? (elevated ? toolbarVisibility : undefined)}
+      />
+    )
   },
 )
 DialogContent.displayName = 'DialogContent'

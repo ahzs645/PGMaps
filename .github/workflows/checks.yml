@@ -34,5 +34,6 @@ jobs:
       - run: npm --prefix vendor/json-url run build
       - run: npm run data:sync-from-bcdatamapper
       - run: npx tsc -b
-      - run: npm run lint
+      - run: npm run lint -- --max-warnings=0
+      - run: npm run format:check
       - run: npx vitest run

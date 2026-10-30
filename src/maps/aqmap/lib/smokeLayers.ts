@@ -1,11 +1,14 @@
 export type SmokeLayerKey = 'modelledSmoke' | 'visibleSmoke'
 
-export type SmokeFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry, {
-  fill?: string
-  density?: string
-  minPm25?: number
-  [key: string]: unknown
-}>
+export type SmokeFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Geometry,
+  {
+    fill?: string
+    density?: string
+    minPm25?: number
+    [key: string]: unknown
+  }
+>
 
 export interface SmokeLayerDefinition {
   key: SmokeLayerKey
@@ -47,15 +50,17 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
           },
           geometry: {
             type: 'Polygon',
-            coordinates: [[
-              [-126, 50],
-              [-118, 50.8],
-              [-111, 55],
-              [-114, 59],
-              [-124, 58],
-              [-129, 54],
-              [-126, 50],
-            ]],
+            coordinates: [
+              [
+                [-126, 50],
+                [-118, 50.8],
+                [-111, 55],
+                [-114, 59],
+                [-124, 58],
+                [-129, 54],
+                [-126, 50],
+              ],
+            ],
           },
         },
         {
@@ -66,15 +71,17 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
           },
           geometry: {
             type: 'Polygon',
-            coordinates: [[
-              [-123.5, 51.2],
-              [-116.5, 52],
-              [-112, 55.1],
-              [-115.8, 57.3],
-              [-123, 56.1],
-              [-126.5, 53.4],
-              [-123.5, 51.2],
-            ]],
+            coordinates: [
+              [
+                [-123.5, 51.2],
+                [-116.5, 52],
+                [-112, 55.1],
+                [-115.8, 57.3],
+                [-123, 56.1],
+                [-126.5, 53.4],
+                [-123.5, 51.2],
+              ],
+            ],
           },
         },
       ],
@@ -101,15 +108,17 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
           },
           geometry: {
             type: 'Polygon',
-            coordinates: [[
-              [-123, 48.8],
-              [-116, 49.4],
-              [-108, 52.4],
-              [-111, 56.2],
-              [-120, 55.2],
-              [-126, 52.4],
-              [-123, 48.8],
-            ]],
+            coordinates: [
+              [
+                [-123, 48.8],
+                [-116, 49.4],
+                [-108, 52.4],
+                [-111, 56.2],
+                [-120, 55.2],
+                [-126, 52.4],
+                [-123, 48.8],
+              ],
+            ],
           },
         },
         {
@@ -120,15 +129,17 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
           },
           geometry: {
             type: 'Polygon',
-            coordinates: [[
-              [-121.7, 49.6],
-              [-116.2, 50.4],
-              [-111.5, 53.2],
-              [-114.4, 55],
-              [-119.8, 53.9],
-              [-123.1, 51.4],
-              [-121.7, 49.6],
-            ]],
+            coordinates: [
+              [
+                [-121.7, 49.6],
+                [-116.2, 50.4],
+                [-111.5, 53.2],
+                [-114.4, 55],
+                [-119.8, 53.9],
+                [-123.1, 51.4],
+                [-121.7, 49.6],
+              ],
+            ],
           },
         },
       ],

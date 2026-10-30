@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -80,7 +81,7 @@ export function FullCostSourcesEditor({
       ) : (
         <div key={selected.id} className="space-y-3">
           <Field label="Planning source">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={selected.id}
               onChange={(event) => setSelectedId(event.target.value)}
@@ -90,7 +91,7 @@ export function FullCostSourcesEditor({
                   {source.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <label className="flex items-start gap-2 text-xs">
             <input
@@ -109,7 +110,7 @@ export function FullCostSourcesEditor({
             />
           </Field>
           <Field label="Source material use">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={
                 selected.uses.includes('waste') ? 'waste' : selected.uses.length === 2 ? 'aggregate' : selected.uses[0]
@@ -140,7 +141,7 @@ export function FullCostSourcesEditor({
               <option value="surfacing">Surfacing only (compacted m³)</option>
               <option value="fill">Fill only (compacted m³)</option>
               <option value="waste">Waste disposal only (bank m³)</option>
-            </select>
+            </NativeSelect>
           </Field>
           <fieldset className="space-y-2 rounded border p-2">
             <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
@@ -187,7 +188,7 @@ export function FullCostSourcesEditor({
             onChange={(entrance) => patch({ entrance, accessConfirmed: false, qualityConfirmed: false })}
           />
           <Field label="Source entrance road attachment">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={selected.entranceRoadId ?? ''}
               onChange={(event) =>
@@ -202,7 +203,7 @@ export function FullCostSourcesEditor({
                     {road.name}
                   </option>
                 ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Button
             size="sm"

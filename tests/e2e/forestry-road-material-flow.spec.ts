@@ -26,13 +26,27 @@ async function savedProject(page: Page): Promise<RoadProject> {
 }
 async function importProject(page: Page, project: RoadProject) {
   await activate(page.getByRole('button', { name: 'Open', exact: true }))
-  await page
-    .getByTestId('road-file-input')
-    .setInputFiles({
-      name: 'material-flow.road.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(project)),
-    })
+  await page.getByTestId('road-file-input').setInputFiles({
+    name: 'material-flow.road.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  })
+  // Import includes local persistence and analysis/rendering before busy clears.
+  // Wait for that lifecycle within the existing overall test budget, rather
+  // than treating a generic button action timeout as an import deadline.
+  const save = page.getByRole('button', { name: 'Save', exact: true })
+  await expect
+    .poll(
+      async () => ({
+        loading: await page.getByTestId('workspace-toast-loading').count(),
+        saveEnabled: await save.isEnabled(),
+      }),
+      { timeout: 60_000, message: 'Imported road project finishes loading and enables saving' },
+    )
+    .toEqual({ loading: 0, saveEnabled: true })
+  await expect(save).toBeEnabled()
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(project.activeAlignmentId)
+  await expect(page.getByTestId('workspace-toast-error')).toHaveCount(0)
 }
 async function dialogFits(dialog: Locator) {
   await expect

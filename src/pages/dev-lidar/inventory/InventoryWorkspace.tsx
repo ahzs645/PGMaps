@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { InventorySidebar } from './InventorySidebar'
 import { InventoryActions } from './InventoryActions'
 import { useEffect, useMemo, useState } from 'react'
@@ -168,7 +169,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
         <h1 className="mr-auto font-semibold">Tree inventory</h1>
         <label>
           Method{' '}
-          <select
+          <NativeSelect
             aria-label="Inventory method"
             className="max-w-[230px] rounded border bg-background p-1"
             value={method}
@@ -182,11 +183,11 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
                 {m.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Area{' '}
-          <select
+          <NativeSelect
             aria-label="Inventory area preset"
             className="rounded border bg-background p-1"
             value={custom ? 'custom' : areaId}
@@ -205,11 +206,11 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
               </option>
             ))}
             {custom && <option value="custom">User polygon</option>}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Colour{' '}
-          <select
+          <NativeSelect
             aria-label="Inventory map colour"
             className="rounded border bg-background p-1"
             value={colour}
@@ -227,7 +228,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <Button size="sm" variant="outline" onClick={() => setPanel(!panel)}>
           {panel ? 'Hide' : 'Show'} inventory panel

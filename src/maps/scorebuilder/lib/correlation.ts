@@ -211,7 +211,13 @@ export function topMetricCorrelations(
 
   const skipPairs = new Set<string>()
   const equivalenceGroups: ScoreMetricKey[][] = [
-    ['cimdComposite', 'cimdResidentialInstability', 'cimdEconomicDependency', 'cimdSituationalVulnerability', 'cimdEthnoCulturalComposition'],
+    [
+      'cimdComposite',
+      'cimdResidentialInstability',
+      'cimdEconomicDependency',
+      'cimdSituationalVulnerability',
+      'cimdEthnoCulturalComposition',
+    ],
   ]
   for (const group of equivalenceGroups) {
     for (let a = 0; a < group.length; a += 1) {

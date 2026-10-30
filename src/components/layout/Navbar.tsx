@@ -3,7 +3,23 @@ import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useMatch } from 'react-router-dom'
 import { projectCatalogDestination } from '@/lib/projectCollections'
-import { Map, Layers, FlaskConical, Wind, FolderKanban, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Map,
+  Layers,
+  FlaskConical,
+  Wind,
+  FolderKanban,
+  Trees,
+  Sun,
+  Moon,
+  ShieldAlert,
+  Building2,
+  UtensilsCrossed,
+  Database,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -83,13 +99,13 @@ export function Navbar() {
   // The desktop nav scrolls sideways between md and xl; these fades say so.
   const [navOverflow, setNavOverflow] = useState({ left: false, right: false })
   const locationParams = new URLSearchParams(location.search)
-  const isProjectPage = location.pathname.startsWith('/projects/') || (
-    location.pathname === '/projects' && locationParams.has('project')
-  )
+  const isProjectPage =
+    location.pathname.startsWith('/projects/') || (location.pathname === '/projects' && locationParams.has('project'))
   const projectRoute = useMatch('/projects/:projectSlug')
   const projectBack = projectCatalogDestination(projectRoute?.params.projectSlug ?? locationParams.get('project'))
   const showProjectBackButton = isProjectPage
-  const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
+  const mobileGlassButtonClass =
+    'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -141,11 +157,7 @@ export function Navbar() {
     if (!mobileMenuOpen) return
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(target) &&
-        !menuButtonRef.current?.contains(target)
-      ) {
+      if (menuRef.current && !menuRef.current.contains(target) && !menuButtonRef.current?.contains(target)) {
         closeMobileMenu()
       }
     }
@@ -206,109 +218,111 @@ export function Navbar() {
     EXTRA_PAGE_LABELS[location.pathname] ??
     navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
     null
-  const mobileMenuLabel = isProjectPage ? 'Project' : activeNavLabel ?? 'PGMaps'
+  const mobileMenuLabel = isProjectPage ? 'Project' : (activeNavLabel ?? 'PGMaps')
 
-  const activeMobileSubmenu = mobileSubmenu === 'pgdata'
-    ? { label: 'PG Data', links: pgDataTabLinks, isActive: isPgDataTabActive }
-    : mobileSubmenu === 'misc'
-      ? { label: 'MISC', links: miscTabLinks, isActive: isMiscTabActive }
-      : null
+  const activeMobileSubmenu =
+    mobileSubmenu === 'pgdata'
+      ? { label: 'PG Data', links: pgDataTabLinks, isActive: isPgDataTabActive }
+      : mobileSubmenu === 'misc'
+        ? { label: 'MISC', links: miscTabLinks, isActive: isMiscTabActive }
+        : null
 
-  const mobileMenu = mobileMenuOpen && typeof document !== 'undefined'
-    ? createPortal(
-        <div
-          ref={menuRef}
-          id="mobile-navigation"
-          data-testid="mobile-nav-menu"
-          className={cn(
-            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur md:hidden",
-          )}
-        >
-          {activeMobileSubmenu ? (
-            <nav className="flex flex-col p-1.5" aria-label={`${activeMobileSubmenu.label} submenu`}>
-              <button
-                type="button"
-                onClick={() => setMobileSubmenu(null)}
-                className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-accent hover:text-accent-foreground"
-                aria-label="Back to main menu"
-              >
-                <ChevronLeft className="h-5 w-5" />
-                <span className="min-w-0 flex-1">{activeMobileSubmenu.label}</span>
-              </button>
-              {activeMobileSubmenu.links.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
-                <Link
-                  key={tabPath}
-                  to={tabPath}
-                  onClick={closeMobileMenu}
-                  aria-current={activeMobileSubmenu.isActive(tabPath) ? 'page' : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                    activeMobileSubmenu.isActive(tabPath)
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  )}
+  const mobileMenu =
+    mobileMenuOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            id="mobile-navigation"
+            data-testid="mobile-nav-menu"
+            className={cn(
+              'fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur md:hidden',
+            )}
+          >
+            {activeMobileSubmenu ? (
+              <nav className="flex flex-col p-1.5" aria-label={`${activeMobileSubmenu.label} submenu`}>
+                <button
+                  type="button"
+                  onClick={() => setMobileSubmenu(null)}
+                  className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Back to main menu"
                 >
-                  <TabIcon className="h-5 w-5 shrink-0" />
-                  <span className="min-w-0 truncate">{tabLabel}</span>
-                </Link>
-              ))}
-            </nav>
-          ) : (
-            <nav className="flex flex-col p-1.5">
-              {navLinks.map(({ path, label, icon: Icon }) => (
-                path === '/pgdata' || path === '/misc' ? (
-                  <button
-                    key={path}
-                    type="button"
-                    onClick={() => setMobileSubmenu(path === '/pgdata' ? 'pgdata' : 'misc')}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
-                      isNavActive(path)
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                    aria-haspopup="menu"
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="min-w-0 flex-1">{label}</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                ) : (
+                  <ChevronLeft className="h-5 w-5" />
+                  <span className="min-w-0 flex-1">{activeMobileSubmenu.label}</span>
+                </button>
+                {activeMobileSubmenu.links.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
                   <Link
-                    key={path}
-                    to={path}
+                    key={tabPath}
+                    to={tabPath}
                     onClick={closeMobileMenu}
-                    aria-current={isNavActive(path) ? 'page' : undefined}
+                    aria-current={activeMobileSubmenu.isActive(tabPath) ? 'page' : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                      isNavActive(path)
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      'flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors',
+                      activeMobileSubmenu.isActive(tabPath)
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    {label}
+                    <TabIcon className="h-5 w-5 shrink-0" />
+                    <span className="min-w-0 truncate">{tabLabel}</span>
                   </Link>
-                )
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  toggleTheme()
-                  closeMobileMenu()
-                }}
-                className="mt-1 flex w-full items-center gap-3 rounded-md border-t border-border px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                aria-label="Toggle theme"
-              >
-                {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </button>
-            </nav>
-          )}
-        </div>,
-        document.body,
-      )
-    : null
+                ))}
+              </nav>
+            ) : (
+              <nav className="flex flex-col p-1.5">
+                {navLinks.map(({ path, label, icon: Icon }) =>
+                  path === '/pgdata' || path === '/misc' ? (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => setMobileSubmenu(path === '/pgdata' ? 'pgdata' : 'misc')}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors',
+                        isNavActive(path)
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      )}
+                      aria-haspopup="menu"
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="min-w-0 flex-1">{label}</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <Link
+                      key={path}
+                      to={path}
+                      onClick={closeMobileMenu}
+                      aria-current={isNavActive(path) ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors',
+                        isNavActive(path)
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {label}
+                    </Link>
+                  ),
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleTheme()
+                    closeMobileMenu()
+                  }}
+                  className="mt-1 flex w-full items-center gap-3 rounded-md border-t border-border px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Toggle theme"
+                >
+                  {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
+                </button>
+              </nav>
+            )}
+          </div>,
+          document.body,
+        )
+      : null
 
   return (
     <header className="fixed inset-x-0 top-0 z-[1100] h-0 border-b border-transparent bg-transparent md:relative md:h-14 md:border-border md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/60">
@@ -377,37 +391,42 @@ export function Navbar() {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             )}
-          <nav
-            ref={primaryNavRef}
-            onWheel={handleHorizontalWheelScroll}
-            className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            aria-label="Primary navigation"
-          >
-            {navLinks.map(({ path, label, icon: Icon }) => (
-              <Link
-                key={path}
-                to={path}
-                aria-label={label}
-                aria-current={isNavActive(path) ? 'page' : undefined}
-                title={label}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-sm font-medium transition-colors xl:px-3",
-                  isNavActive(path)
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
-              </Link>
-            ))}
-          </nav>
+            <nav
+              ref={primaryNavRef}
+              onWheel={handleHorizontalWheelScroll}
+              className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Primary navigation"
+            >
+              {navLinks.map(({ path, label, icon: Icon }) => (
+                <Link
+                  key={path}
+                  to={path}
+                  aria-label={label}
+                  aria-current={isNavActive(path) ? 'page' : undefined}
+                  title={label}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-sm font-medium transition-colors xl:px-3',
+                    isNavActive(path)
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </nav>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 md:gap-1">
-          <GlobalSearch className={cn('pointer-events-auto h-11 w-11 rounded-md md:h-10 md:w-10 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground', mobileGlassButtonClass)} />
+          <GlobalSearch
+            className={cn(
+              'pointer-events-auto h-11 w-11 rounded-md md:h-10 md:w-10 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground',
+              mobileGlassButtonClass,
+            )}
+          />
           <div id="dataset-info-toolbar-slot" className="contents" />
           <Button
             variant="ghost"
@@ -417,11 +436,7 @@ export function Navbar() {
             // On phones the theme switch lives in the menu so the floating row stays to search + info.
             className="pointer-events-auto hidden h-10 w-10 rounded-md text-muted-foreground hover:bg-accent md:inline-flex"
           >
-            {resolvedTheme === 'dark' ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
+            {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
         </div>
       </div>

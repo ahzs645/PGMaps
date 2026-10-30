@@ -43,7 +43,12 @@ export function resizeFractions(
 }
 
 /** Stacked panes have pixel heights of their own; a boundary changes only the pane above it. */
-export function resizeStacked(heights: readonly number[], index: number, deltaPx: number, limits: readonly PaneLimits[]) {
+export function resizeStacked(
+  heights: readonly number[],
+  index: number,
+  deltaPx: number,
+  limits: readonly PaneLimits[],
+) {
   if (index < 0 || index >= heights.length || !Number.isFinite(deltaPx)) return [...heights]
   const next = [...heights]
   next[index] = Math.round(

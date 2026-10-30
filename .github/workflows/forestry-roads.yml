@@ -24,6 +24,10 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
@@ -50,13 +54,13 @@ jobs:
             if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
             sleep 1
           done
-          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forestry-road-*.spec.ts --workers=1
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forestry-road-*.spec.ts --workers=1 --shard=${{ matrix.shard }}/3
       - name: Test three subareas of the published native LiDAR tile
         run: PGMAPS_ROAD_NATIVE=1 npx vitest run src/pages/dev-forestry-roads/corridorNative.test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: forestry-road-browser-results
+          name: forestry-road-browser-results-${{ matrix.shard }}
           path: |
             test-results
             playwright-report

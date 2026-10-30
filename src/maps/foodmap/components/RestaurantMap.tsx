@@ -1,13 +1,7 @@
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useMemo, useSyncExternalStore, useCallback } from 'react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
-import {
-  MapMarker,
-  MarkerContent,
-  MarkerPopup,
-  MarkerTooltip,
-  useMap
-} from '@/components/ui/map'
+import { MapMarker, MarkerContent, MarkerPopup, MarkerTooltip, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -37,7 +31,11 @@ interface RestaurantMapProps {
   onClearSelection: () => void
 }
 
-function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: VisualizationMode, isDarkMode: boolean): string {
+function getMarkerColor(
+  restaurant: RestaurantWithStats,
+  visualizationMode: VisualizationMode,
+  isDarkMode: boolean,
+): string {
   const colorMode = isDarkMode ? 'dark' : 'light'
 
   if (visualizationMode === 'violations') {
@@ -85,8 +83,7 @@ const SELECTED_RING_CLASS =
  * size rather than position, so morph those instead of snapping between them. Also
  * covers the hover scale that used to be the only animated property.
  */
-const MARKER_MORPH_CLASS =
-  'transition-[transform,background-color,border-color,color,width,height] duration-200'
+const MARKER_MORPH_CLASS = 'transition-[transform,background-color,border-color,color,width,height] duration-200'
 
 /** Zoom level at which the 'heat' style trades the heatmap for individual dots. */
 const HEAT_REVEAL_ZOOM = 13
@@ -139,7 +136,7 @@ function MarkerDot({
           'cursor-pointer rounded-full hover:scale-110',
           MARKER_MORPH_CLASS,
           'shadow-[0_1px_4px_rgba(0,0,0,0.35)] dark:shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_1px_5px_rgba(0,0,0,0.6)]',
-          isSelected && SELECTED_RING_CLASS
+          isSelected && SELECTED_RING_CLASS,
         )}
         style={{
           width: Math.max(size, 12),
@@ -158,7 +155,7 @@ function MarkerDot({
           className={cn(
             'cursor-pointer rounded-full hover:scale-125',
             MARKER_MORPH_CLASS,
-            isSelected && SELECTED_RING_CLASS
+            isSelected && SELECTED_RING_CLASS,
           )}
           style={{ width: 7, height: 7, backgroundColor: color, opacity: 0.55 }}
         />
@@ -178,7 +175,7 @@ function MarkerDot({
           className={cn(
             'absolute inset-0 cursor-pointer rounded-full border border-white/90 hover:scale-110 dark:border-black/60',
             MARKER_MORPH_CLASS,
-            isSelected && SELECTED_RING_CLASS
+            isSelected && SELECTED_RING_CLASS,
           )}
           style={{
             backgroundColor: color,
@@ -196,24 +193,21 @@ function MarkerDot({
           className={cn(
             'cursor-pointer rounded-full border border-white/80 shadow-sm hover:scale-125 dark:border-black/50',
             MARKER_MORPH_CLASS,
-            isSelected && SELECTED_RING_CLASS
+            isSelected && SELECTED_RING_CLASS,
           )}
           style={{ width: 8, height: 8, backgroundColor: color, opacity: 0.8 }}
         />
       )
     }
-    const label = visualizationMode === 'violations'
-      ? String(violationCount)
-      : rating === 'Unknown' ? '?' : rating.charAt(0)
-    const badgeSize = visualizationMode === 'violations'
-      ? 17 + Math.min(violationCount, 10)
-      : 18
+    const label =
+      visualizationMode === 'violations' ? String(violationCount) : rating === 'Unknown' ? '?' : rating.charAt(0)
+    const badgeSize = visualizationMode === 'violations' ? 17 + Math.min(violationCount, 10) : 18
     return (
       <div
         className={cn(
           'relative flex cursor-pointer items-center justify-center rounded-full border-2 border-white font-bold leading-none shadow-md hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_6px_rgba(0,0,0,0.8)]',
           MARKER_MORPH_CLASS,
-          isSelected && SELECTED_RING_CLASS
+          isSelected && SELECTED_RING_CLASS,
         )}
         style={{
           width: badgeSize,
@@ -225,9 +219,7 @@ function MarkerDot({
       >
         {label}
         {criticalCount > 0 && visualizationMode === 'violations' && (
-          <span
-            className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-red-600 dark:border-slate-950"
-          />
+          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-red-600 dark:border-slate-950" />
         )}
       </div>
     )
@@ -239,12 +231,12 @@ function MarkerDot({
       className={cn(
         'cursor-pointer rounded-full border-2 border-white shadow-lg hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
         MARKER_MORPH_CLASS,
-        isSelected && SELECTED_RING_CLASS
+        isSelected && SELECTED_RING_CLASS,
       )}
       style={{
         width: size,
         height: size,
-        backgroundColor: color
+        backgroundColor: color,
       }}
     />
   )
@@ -258,14 +250,14 @@ export function RestaurantMap({
   loading = false,
   onRestaurantClick,
   onViewInspections,
-  onClearSelection
+  onClearSelection,
 }: RestaurantMapProps) {
   const { map } = useMap()
   const isMobileViewport = useIsMobile()
 
   // Filter to only restaurants with valid coordinates
   const geocodedRestaurants = useMemo(() => {
-    return restaurants.filter(r => r.latitude != null && r.longitude != null)
+    return restaurants.filter((r) => r.latitude != null && r.longitude != null)
   }, [restaurants])
 
   const { resolvedTheme } = useTheme()
@@ -275,56 +267,79 @@ export function RestaurantMap({
   // revealed on zoom-in.
   const isRevealStyle = markerStyle === 'heat' || markerStyle === 'cluster'
   const revealZoom = markerStyle === 'cluster' ? CLUSTER_REVEAL_ZOOM : HEAT_REVEAL_ZOOM
-  const [dotsRevealed, setDotsRevealed] = useState(true)
-  useEffect(() => {
-    if (!map || !isRevealStyle) {
-      setDotsRevealed(true)
-      return
-    }
-    const update = () => setDotsRevealed(map.getZoom() >= revealZoom)
-    update()
-    map.on('zoom', update)
-    return () => { map.off('zoom', update) }
-  }, [map, isRevealStyle, revealZoom])
+  const subscribeZoom = useCallback(
+    (notify: () => void) => {
+      if (!map || !isRevealStyle) return () => {}
+      map.on('zoom', notify)
+      return () => {
+        map.off('zoom', notify)
+      }
+    },
+    [map, isRevealStyle],
+  )
+  const readDotsRevealed = useCallback(
+    () => !map || !isRevealStyle || map.getZoom() >= revealZoom,
+    [map, isRevealStyle, revealZoom],
+  )
+  const dotsRevealed = useSyncExternalStore(subscribeZoom, readDotsRevealed, () => true)
 
-  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: markerStyle !== 'heat' ? [] : geocodedRestaurants.map(r => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
-      properties: {
-        weight: visualizationMode === 'violations'
-          ? 0.3 + (r.violationStats?.total || 0)
-          : getHazardRating(r, { atDate: true }) === 'Moderate' ? 1.5 : 0.3,
-      },
-    })),
-  }), [geocodedRestaurants, markerStyle, visualizationMode])
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features:
+        markerStyle !== 'heat'
+          ? []
+          : geocodedRestaurants.map((r) => ({
+              type: 'Feature' as const,
+              geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
+              properties: {
+                weight:
+                  visualizationMode === 'violations'
+                    ? 0.3 + (r.violationStats?.total || 0)
+                    : getHazardRating(r, { atDate: true }) === 'Moderate'
+                      ? 1.5
+                      : 0.3,
+              },
+            })),
+    }),
+    [geocodedRestaurants, markerStyle, visualizationMode],
+  )
 
   // Clustered source data: per-feature color matches what the DOM marker would
   // show, and bandIndex feeds the donut wedge tallies. Emptied once dots are
   // revealed so the two renderings never double-draw.
   const clusterBandColors = visualizationMode === 'violations' ? VIOLATION_BAND_COLORS : HAZARD_BAND_COLORS
-  const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: markerStyle !== 'cluster' || dotsRevealed ? [] : geocodedRestaurants.map(r => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
-      properties: {
-        color: getMarkerColor(r, visualizationMode, isDarkMode),
-        bandIndex: visualizationMode === 'violations'
-          ? getViolationBucketIndex(r.violationStats)
-          : getHazardBandIndex(getHazardRating(r, { atDate: true })),
-        details_url: r.details_url,
-      },
-    })),
-  }), [geocodedRestaurants, markerStyle, dotsRevealed, visualizationMode, isDarkMode])
+  const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features:
+        markerStyle !== 'cluster' || dotsRevealed
+          ? []
+          : geocodedRestaurants.map((r) => ({
+              type: 'Feature' as const,
+              geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
+              properties: {
+                color: getMarkerColor(r, visualizationMode, isDarkMode),
+                bandIndex:
+                  visualizationMode === 'violations'
+                    ? getViolationBucketIndex(r.violationStats)
+                    : getHazardBandIndex(getHazardRating(r, { atDate: true })),
+                details_url: r.details_url,
+              },
+            })),
+    }),
+    [geocodedRestaurants, markerStyle, dotsRevealed, visualizationMode, isDarkMode],
+  )
 
-  const handleClusterPointClick = useCallback((properties: Record<string, unknown>) => {
-    const detailsUrl = String(properties.details_url ?? '')
-    if (!detailsUrl) return
-    const restaurant = geocodedRestaurants.find((r) => r.details_url === detailsUrl)
-    if (restaurant) onRestaurantClick(restaurant)
-  }, [geocodedRestaurants, onRestaurantClick])
+  const handleClusterPointClick = useCallback(
+    (properties: Record<string, unknown>) => {
+      const detailsUrl = String(properties.details_url ?? '')
+      if (!detailsUrl) return
+      const restaurant = geocodedRestaurants.find((r) => r.details_url === detailsUrl)
+      if (restaurant) onRestaurantClick(restaurant)
+    },
+    [geocodedRestaurants, onRestaurantClick],
+  )
 
   const showMarkers = !isRevealStyle || dotsRevealed
 
@@ -357,28 +372,39 @@ export function RestaurantMap({
         <MapHeatmapLayer
           data={heatmapData}
           colorRamp="air"
-          intensityStops={[[10, 0.32], [13, 0.85]]}
-          radiusStops={[[10, 15], [13, 34]]}
-          opacity={[[0, 0.85], [HEAT_REVEAL_ZOOM - 1, 0.7], [HEAT_REVEAL_ZOOM + 0.8, 0]]}
+          intensityStops={[
+            [10, 0.32],
+            [13, 0.85],
+          ]}
+          radiusStops={[
+            [10, 15],
+            [13, 34],
+          ]}
+          opacity={[
+            [0, 0.85],
+            [HEAT_REVEAL_ZOOM - 1, 0.7],
+            [HEAT_REVEAL_ZOOM + 0.8, 0],
+          ]}
         />
       )}
-      {showMarkers && lingeringMarkers.map(({ key, item: restaurant, phase }) => (
-        <RestaurantMarker
-          key={key}
-          restaurant={restaurant}
-          phase={phase}
-          visualizationMode={visualizationMode}
-          markerStyle={markerStyle}
-          isSelected={selectedRestaurant?.details_url === restaurant.details_url}
-          isMobileViewport={isMobileViewport}
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            onRestaurantClick(restaurant)
-          }}
-          onViewInspections={() => onViewInspections(restaurant)}
-        />
-      ))}
+      {showMarkers &&
+        lingeringMarkers.map(({ key, item: restaurant, phase }) => (
+          <RestaurantMarker
+            key={key}
+            restaurant={restaurant}
+            phase={phase}
+            visualizationMode={visualizationMode}
+            markerStyle={markerStyle}
+            isSelected={selectedRestaurant?.details_url === restaurant.details_url}
+            isMobileViewport={isMobileViewport}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onRestaurantClick(restaurant)
+            }}
+            onViewInspections={() => onViewInspections(restaurant)}
+          />
+        ))}
       {isMobileViewport && selectedRestaurant && (
         <MobileRestaurantFeatureCard
           restaurant={selectedRestaurant}
@@ -403,13 +429,22 @@ interface RestaurantMarkerProps {
   onViewInspections: () => void
 }
 
-function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, isSelected, isMobileViewport, onClick, onViewInspections }: RestaurantMarkerProps) {
+function RestaurantMarker({
+  restaurant,
+  phase,
+  visualizationMode,
+  markerStyle,
+  isSelected,
+  isMobileViewport,
+  onClick,
+  onViewInspections,
+}: RestaurantMarkerProps) {
   const { resolvedTheme } = useTheme()
   const isDarkMode = resolvedTheme === 'dark'
   const stats = restaurant.violationStats || {
     total: 0,
     critical: 0,
-    inspectionCount: 0
+    inspectionCount: 0,
   }
   const color = getMarkerColor(restaurant, visualizationMode, isDarkMode)
   const size = getMarkerSize(stats.total, visualizationMode)
@@ -418,11 +453,7 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
   const hazardColorClass = HAZARD_TAILWIND[rating].bg
 
   return (
-    <MapMarker
-      longitude={restaurant.longitude!}
-      latitude={restaurant.latitude!}
-      onClick={onClick}
-    >
+    <MapMarker longitude={restaurant.longitude!} latitude={restaurant.latitude!} onClick={onClick}>
       <MarkerContent
         className={cn('transition-opacity', phase === 'leaving' && 'pointer-events-none opacity-0')}
         style={{ transitionDuration: `${MARKER_FADE_MS}ms` }}
@@ -445,9 +476,7 @@ function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, i
             <div className="font-semibold text-sm mb-1">{restaurant.name}</div>
             <div className="text-xs text-muted-foreground mb-2">{restaurant.address}</div>
             {visualizationMode === 'hazard' ? (
-              <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', hazardColorClass)}>
-                {rating}
-              </span>
+              <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', hazardColorClass)}>{rating}</span>
             ) : (
               <span className={cn('text-xs px-1.5 py-0.5 rounded', getViolationBucketStyle(stats).badgeClass)}>
                 {getViolationBadgeLabel(stats)}

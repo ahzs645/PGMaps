@@ -43,10 +43,7 @@ export interface BundledFeatureProperties {
   [key: string]: unknown
 }
 
-export type BundledFeatureCollection = GeoJSON.FeatureCollection<
-  GeoJSON.LineString,
-  BundledFeatureProperties
->
+export type BundledFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.LineString, BundledFeatureProperties>
 
 function routeOrderValue(name: string): number {
   const numeric = Number(name)
@@ -76,9 +73,7 @@ function overlapCellsForRoute(coords: [number, number][]): Set<string> {
  * AlignmentBundle membership in transitive.js — we don't care about the
  * exact alignment, only "do these two routes co-occupy any road?"
  */
-function buildOverlapAdjacency(
-  routes: RouteInput[],
-): Map<string, Set<string>> {
+function buildOverlapAdjacency(routes: RouteInput[]): Map<string, Set<string>> {
   const cellsByRoute = new Map<string, Set<string>>()
   for (const route of routes) {
     const existing = cellsByRoute.get(route.routeShortName)
@@ -125,9 +120,7 @@ function buildOverlapAdjacency(
  * is global rather than context-dependent, but the maximum offset is the
  * graph's chromatic number rather than the total route count.
  */
-function assignLanesByGreedyColoring(
-  routes: RouteInput[],
-): { laneByRoute: Map<string, number>; laneCount: number } {
+function assignLanesByGreedyColoring(routes: RouteInput[]): { laneByRoute: Map<string, number>; laneCount: number } {
   const adjacency = buildOverlapAdjacency(routes)
   const orderedNames = Array.from(adjacency.keys()).sort((a, b) => {
     const av = routeOrderValue(a)
@@ -163,23 +156,22 @@ export function bundleRoutes(routes: RouteInput[]): BundledFeatureCollection {
   const { laneByRoute, laneCount } = assignLanesByGreedyColoring(routes)
   const center = (laneCount - 1) / 2
 
-  const features: GeoJSON.Feature<GeoJSON.LineString, BundledFeatureProperties>[] =
-    routes.map((route) => {
-      const lane = laneByRoute.get(route.routeShortName) ?? 0
-      return {
-        type: 'Feature',
-        id: route.shapeId,
-        geometry: { type: 'LineString', coordinates: route.coordinates },
-        properties: {
-          ...(route.extra ?? {}),
-          routeShortName: route.routeShortName,
-          shapeId: route.shapeId,
-          routeColor: route.color,
-          offsetIndex: lane - center,
-          laneCount,
-        },
-      }
-    })
+  const features: GeoJSON.Feature<GeoJSON.LineString, BundledFeatureProperties>[] = routes.map((route) => {
+    const lane = laneByRoute.get(route.routeShortName) ?? 0
+    return {
+      type: 'Feature',
+      id: route.shapeId,
+      geometry: { type: 'LineString', coordinates: route.coordinates },
+      properties: {
+        ...(route.extra ?? {}),
+        routeShortName: route.routeShortName,
+        shapeId: route.shapeId,
+        routeColor: route.color,
+        offsetIndex: lane - center,
+        laneCount,
+      },
+    }
+  })
 
   return { type: 'FeatureCollection', features }
 }

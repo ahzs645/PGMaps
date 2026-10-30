@@ -74,10 +74,13 @@ export function useWaterData(active: boolean) {
     if (!facilityId) setShowSelectedFacilityReport(false)
   }, [])
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
-  disableTimeline,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    disableTimeline,
   } = useTimelineState(12)
 
   const manifest = useWaterJson<WaterManifest>(active, 'water_download_manifest.json')
@@ -86,65 +89,94 @@ export function useWaterData(active: boolean) {
   const chemicalJson = useWaterJson<unknown>(active, 'chemical_samples.json')
   const noticesJson = useWaterJson<unknown>(active, 'active_water_notices.json')
   const combinedNoticesJson = useWaterJson<unknown>(active, 'combined_water_notices.json')
-  const combinedNoticesSummary = useWaterJson<CombinedWaterNoticesSummary>(active, 'combined_water_notices_summary.json')
+  const combinedNoticesSummary = useWaterJson<CombinedWaterNoticesSummary>(
+    active,
+    'combined_water_notices_summary.json',
+  )
   const referenceJson = useWaterJson<unknown>(active, 'water_reference.json')
-  const geocodedLocations = useJsonManifest<GeocodedLocationsFile>(active ? '/data/geocoding/geocoded_locations.json' : null)
+  const geocodedLocations = useJsonManifest<GeocodedLocationsFile>(
+    active ? '/data/geocoding/geocoded_locations.json' : null,
+  )
   const boundaryConfig = WATER_BOUNDARY_CONFIG[boundaryLevel]
   const boundaryJson = useJsonManifest<BoundaryFeatureCollection>(active && showBoundaries ? boundaryConfig.path : null)
 
   const samples = useMemo(() => {
     const bacteriologicalRows: WaterSampleRow[] = []
     findArray(bacteriologicalJson.data, ['facilities', 'records', 'rows']).forEach((facility, facilityIndex) => {
-      const facilityId = firstString(facility, ['facilityId', 'facility_id', 'details_url', 'id'], `bacteriological-facility-${facilityIndex}`)
+      const facilityId = firstString(
+        facility,
+        ['facilityId', 'facility_id', 'details_url', 'id'],
+        `bacteriological-facility-${facilityIndex}`,
+      )
       const facilityName = firstString(facility, ['facilityName', 'facility_name', 'name'])
       const rows = Array.isArray(facility.samples) ? facility.samples.filter(isRecord) : []
       rows.forEach((row, rowIndex) => {
-        bacteriologicalRows.push(normalizeSample({
-          ...row,
-          facilityId,
-          facilityName,
-        }, bacteriologicalRows.length + rowIndex, 'bacteriological'))
+        bacteriologicalRows.push(
+          normalizeSample(
+            {
+              ...row,
+              facilityId,
+              facilityName,
+            },
+            bacteriologicalRows.length + rowIndex,
+            'bacteriological',
+          ),
+        )
       })
     })
 
     const chemicalRows: WaterSampleRow[] = []
     findArray(chemicalJson.data, ['facilities', 'records', 'rows']).forEach((facility, facilityIndex) => {
-      const facilityId = firstString(facility, ['facilityId', 'facility_id', 'details_url', 'id'], `chemical-facility-${facilityIndex}`)
+      const facilityId = firstString(
+        facility,
+        ['facilityId', 'facility_id', 'details_url', 'id'],
+        `chemical-facility-${facilityIndex}`,
+      )
       const facilityName = firstString(facility, ['facilityName', 'facility_name', 'name'])
-      const packages = Array.isArray(facility.chemical_result_packages) ? facility.chemical_result_packages.filter(isRecord) : []
+      const packages = Array.isArray(facility.chemical_result_packages)
+        ? facility.chemical_result_packages.filter(isRecord)
+        : []
       packages.forEach((samplePackage, packageIndex) => {
         const packageDate = firstString(samplePackage, ['date'])
         const results = Array.isArray(samplePackage.results) ? samplePackage.results.filter(isRecord) : []
         results.forEach((result, resultIndex) => {
-          chemicalRows.push(normalizeSample({
-            ...result,
-            facilityId,
-            facilityName,
-            date: packageDate,
-            sampleId: `${facilityId}-${packageIndex}-${resultIndex}`,
-          }, chemicalRows.length + resultIndex, 'chemical'))
+          chemicalRows.push(
+            normalizeSample(
+              {
+                ...result,
+                facilityId,
+                facilityName,
+                date: packageDate,
+                sampleId: `${facilityId}-${packageIndex}-${resultIndex}`,
+              },
+              chemicalRows.length + resultIndex,
+              'chemical',
+            ),
+          )
         })
       })
     })
 
     if (!bacteriologicalRows.length && !chemicalRows.length) {
       return [
-        ...collectRows(bacteriologicalJson.data, ['sample', 'result']).map((row, index) => normalizeSample(row, index, 'bacteriological')),
+        ...collectRows(bacteriologicalJson.data, ['sample', 'result']).map((row, index) =>
+          normalizeSample(row, index, 'bacteriological'),
+        ),
         ...collectRows(chemicalJson.data, ['result']).map((row, index) => normalizeSample(row, index, 'chemical')),
       ]
     }
     return [...bacteriologicalRows, ...chemicalRows]
   }, [bacteriologicalJson.data, chemicalJson.data])
 
-  const notices = useMemo(() => (
-    findArray(combinedNoticesJson.data, ['notices', 'activeNotices', 'records', 'rows'])
-      .map(normalizeNotice)
-  ), [combinedNoticesJson.data])
+  const notices = useMemo(
+    () => findArray(combinedNoticesJson.data, ['notices', 'activeNotices', 'records', 'rows']).map(normalizeNotice),
+    [combinedNoticesJson.data],
+  )
 
-  const fallbackNotices = useMemo(() => (
-    findArray(noticesJson.data, ['notices', 'activeNotices', 'records', 'rows'])
-      .map(normalizeNotice)
-  ), [noticesJson.data])
+  const fallbackNotices = useMemo(
+    () => findArray(noticesJson.data, ['notices', 'activeNotices', 'records', 'rows']).map(normalizeNotice),
+    [noticesJson.data],
+  )
 
   const activeNotices = notices.length > 0 ? notices : fallbackNotices
 
@@ -180,13 +212,16 @@ export function useWaterData(active: boolean) {
       byName.set(facility.name.toLowerCase(), facility)
     }
 
-    const facilityUpdates = new Map<string, {
-      bacteriologicalSamples: number
-      chemicalResults: number
-      activeNotices: number
-      lastSampleDate: Date | null
-      noticeIds: string[]
-    }>()
+    const facilityUpdates = new Map<
+      string,
+      {
+        bacteriologicalSamples: number
+        chemicalResults: number
+        activeNotices: number
+        lastSampleDate: Date | null
+        noticeIds: string[]
+      }
+    >()
     const getFacilityUpdate = (facility: WaterFacility) => {
       const existing = facilityUpdates.get(facility.id)
       if (existing) return existing
@@ -202,18 +237,23 @@ export function useWaterData(active: boolean) {
     }
 
     for (const sample of samples) {
-      const facility = (sample.facilityId && byId.get(sample.facilityId)) || (sample.facilityName && byName.get(sample.facilityName.toLowerCase()))
+      const facility =
+        (sample.facilityId && byId.get(sample.facilityId)) ||
+        (sample.facilityName && byName.get(sample.facilityName.toLowerCase()))
       if (!facility) continue
       const update = getFacilityUpdate(facility)
       if (sample.kind === 'bacteriological') update.bacteriologicalSamples += 1
       else update.chemicalResults += 1
-      if (sample.date && (!update.lastSampleDate || sample.date > update.lastSampleDate)) update.lastSampleDate = sample.date
+      if (sample.date && (!update.lastSampleDate || sample.date > update.lastSampleDate))
+        update.lastSampleDate = sample.date
     }
 
     const matchedNoticeIds = new Set<string>()
 
     for (const notice of activeNotices) {
-      const facility = (notice.facilityId && byId.get(notice.facilityId)) || (notice.facilityName && byName.get(notice.facilityName.toLowerCase()))
+      const facility =
+        (notice.facilityId && byId.get(notice.facilityId)) ||
+        (notice.facilityName && byName.get(notice.facilityName.toLowerCase()))
       if (!facility) continue
       const update = getFacilityUpdate(facility)
       update.activeNotices += 1
@@ -251,11 +291,13 @@ export function useWaterData(active: boolean) {
     return Array.from(byId.values())
       .map((facility) => {
         const update = facilityUpdates.get(facility.id)
-        return update
-          ? { ...facility, ...update }
-          : facility
+        return update ? { ...facility, ...update } : facility
       })
-      .sort((left, right) => right.activeNotices - left.activeNotices || right.bacteriologicalSamples + right.chemicalResults - left.bacteriologicalSamples - left.chemicalResults)
+      .sort(
+        (left, right) =>
+          right.activeNotices - left.activeNotices ||
+          right.bacteriologicalSamples + right.chemicalResults - left.bacteriologicalSamples - left.chemicalResults,
+      )
   }, [activeNotices, facilitiesJson.data, geocodedLocations.data, samples])
 
   const hazardCounts = useMemo(() => {
@@ -268,9 +310,7 @@ export function useWaterData(active: boolean) {
     return counts
   }, [facilities])
 
-  const hazardOptions = useMemo(() => (
-    orderHazardRatings(Object.keys(hazardCounts))
-  ), [hazardCounts])
+  const hazardOptions = useMemo(() => orderHazardRatings(Object.keys(hazardCounts)), [hazardCounts])
 
   const facilityTypeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -282,9 +322,13 @@ export function useWaterData(active: boolean) {
     return counts
   }, [facilities])
 
-  const facilityTypeOptions = useMemo(() => (
-    Object.keys(facilityTypeCounts).sort((left, right) => facilityTypeCounts[right] - facilityTypeCounts[left] || left.localeCompare(right))
-  ), [facilityTypeCounts])
+  const facilityTypeOptions = useMemo(
+    () =>
+      Object.keys(facilityTypeCounts).sort(
+        (left, right) => facilityTypeCounts[right] - facilityTypeCounts[left] || left.localeCompare(right),
+      ),
+    [facilityTypeCounts],
+  )
 
   const sampleKindCounts = useMemo(() => {
     const counts: Record<WaterSampleRow['kind'], number> = {
@@ -307,14 +351,16 @@ export function useWaterData(active: boolean) {
     return counts
   }, [sampleKindFilter, samples])
 
-  const sampleParameterOptions = useMemo(() => (
-    Object.entries(sampleParameterCounts)
-      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
-      .map(([parameter, count]) => ({
-        value: parameter,
-        label: `${parameter} (${count.toLocaleString(DEFAULT_LOCALE)})`,
-      }))
-  ), [sampleParameterCounts])
+  const sampleParameterOptions = useMemo(
+    () =>
+      Object.entries(sampleParameterCounts)
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .map(([parameter, count]) => ({
+          value: parameter,
+          label: `${parameter} (${count.toLocaleString(DEFAULT_LOCALE)})`,
+        })),
+    [sampleParameterCounts],
+  )
 
   // A parameter that drops out of the current options falls back to 'all'
   // without rewriting the user's stored choice.
@@ -342,9 +388,7 @@ export function useWaterData(active: boolean) {
   // one explicitly; deriving it avoids a state write when the timeline opens.
   const effectiveTimelineDate = useMemo(() => {
     if (timelineDate) return timelineDate
-    return samples.length > 0
-      ? new Date(sampleDateRange.end.getFullYear(), sampleDateRange.end.getMonth(), 1)
-      : null
+    return samples.length > 0 ? new Date(sampleDateRange.end.getFullYear(), sampleDateRange.end.getMonth(), 1) : null
   }, [timelineDate, samples.length, sampleDateRange.end])
 
   const timelineFilterRange = useMemo(() => {
@@ -380,17 +424,23 @@ export function useWaterData(active: boolean) {
     })
   }, [sampleKindFilter, effectiveSampleParameterFilter, samples, timelineFilterRange])
 
-  const facilityLookup = useMemo(() => ({
-    byId: new Map(facilities.map((facility) => [facility.id, facility])),
-    byName: new Map(facilities.map((facility) => [facility.name.toLowerCase(), facility])),
-  }), [facilities])
+  const facilityLookup = useMemo(
+    () => ({
+      byId: new Map(facilities.map((facility) => [facility.id, facility])),
+      byName: new Map(facilities.map((facility) => [facility.name.toLowerCase(), facility])),
+    }),
+    [facilities],
+  )
 
   const activeFacilityIds = useMemo(() => {
-    const sampleFilterActive = timelineFilterRange != null || sampleKindFilter !== 'all' || effectiveSampleParameterFilter !== 'all'
+    const sampleFilterActive =
+      timelineFilterRange != null || sampleKindFilter !== 'all' || effectiveSampleParameterFilter !== 'all'
     if (!sampleFilterActive) return null
     const ids = new Set<string>()
     for (const sample of filteredSamples) {
-      const facility = (sample.facilityId && facilityLookup.byId.get(sample.facilityId)) || (sample.facilityName && facilityLookup.byName.get(sample.facilityName.toLowerCase()))
+      const facility =
+        (sample.facilityId && facilityLookup.byId.get(sample.facilityId)) ||
+        (sample.facilityName && facilityLookup.byName.get(sample.facilityName.toLowerCase()))
       if (facility) ids.add(facility.id)
     }
     return ids
@@ -399,7 +449,9 @@ export function useWaterData(active: boolean) {
   const facilityFilteredSampleCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const sample of filteredSamples) {
-      const facility = (sample.facilityId && facilityLookup.byId.get(sample.facilityId)) || (sample.facilityName && facilityLookup.byName.get(sample.facilityName.toLowerCase()))
+      const facility =
+        (sample.facilityId && facilityLookup.byId.get(sample.facilityId)) ||
+        (sample.facilityName && facilityLookup.byName.get(sample.facilityName.toLowerCase()))
       if (facility) counts.set(facility.id, (counts.get(facility.id) ?? 0) + 1)
     }
     return counts
@@ -408,7 +460,8 @@ export function useWaterData(active: boolean) {
   const visibleFacilities = useMemo(() => {
     const modeFiltered = facilities.filter((facility) => {
       if (layerMode === 'notices') return facility.activeNotices > 0
-      if (layerMode === 'samples') return !facility.noticeOnly && facility.bacteriologicalSamples + facility.chemicalResults > 0
+      if (layerMode === 'samples')
+        return !facility.noticeOnly && facility.bacteriologicalSamples + facility.chemicalResults > 0
       return !facility.noticeOnly
     })
     const facetFiltered = modeFiltered.filter((facility) => {
@@ -421,37 +474,45 @@ export function useWaterData(active: boolean) {
     return facetFiltered.filter((facility) => activeFacilityIds.has(facility.id))
   }, [activeFacilityIds, facilities, layerMode, selectedFacilityTypes, selectedHazardRatings])
 
-  const mappedFacilities = useMemo(() => (
-    visibleFacilities.filter((facility) => facility.latitude != null && facility.longitude != null)
-  ), [visibleFacilities])
+  const mappedFacilities = useMemo(
+    () => visibleFacilities.filter((facility) => facility.latitude != null && facility.longitude != null),
+    [visibleFacilities],
+  )
 
-  const visibleNoticeCount = useMemo(() => (
-    visibleFacilities.reduce((sum, facility) => sum + facility.activeNotices, 0)
-  ), [visibleFacilities])
+  const visibleNoticeCount = useMemo(
+    () => visibleFacilities.reduce((sum, facility) => sum + facility.activeNotices, 0),
+    [visibleFacilities],
+  )
 
-  const selectedFacility = useMemo(() => (
-    selectedFacilityId ? facilities.find((facility) => facility.id === selectedFacilityId) ?? null : null
-  ), [facilities, selectedFacilityId])
+  const selectedFacility = useMemo(
+    () => (selectedFacilityId ? (facilities.find((facility) => facility.id === selectedFacilityId) ?? null) : null),
+    [facilities, selectedFacilityId],
+  )
 
-  const selectedFacilitySamples = useMemo(() => (
-    selectedFacility
-      ? samples
-        .filter((sample) => sameFacility(sample, selectedFacility))
-        .sort((left, right) => (right.date?.getTime() ?? 0) - (left.date?.getTime() ?? 0))
-      : []
-  ), [samples, selectedFacility])
+  const selectedFacilitySamples = useMemo(
+    () =>
+      selectedFacility
+        ? samples
+            .filter((sample) => sameFacility(sample, selectedFacility))
+            .sort((left, right) => (right.date?.getTime() ?? 0) - (left.date?.getTime() ?? 0))
+        : [],
+    [samples, selectedFacility],
+  )
 
-  const selectedFacilityNotices = useMemo(() => (
-    selectedFacility
-      ? activeNotices
-        .filter((notice) => sameFacility(notice, selectedFacility))
-        .sort((left, right) => (right.date?.getTime() ?? 0) - (left.date?.getTime() ?? 0))
-      : []
-  ), [activeNotices, selectedFacility])
+  const selectedFacilityNotices = useMemo(
+    () =>
+      selectedFacility
+        ? activeNotices
+            .filter((notice) => sameFacility(notice, selectedFacility))
+            .sort((left, right) => (right.date?.getTime() ?? 0) - (left.date?.getTime() ?? 0))
+        : [],
+    [activeNotices, selectedFacility],
+  )
 
-  const selectedFacilityInspections = useMemo(() => (
-    selectedFacility ? getInspectionRows(selectedFacility) : []
-  ), [selectedFacility])
+  const selectedFacilityInspections = useMemo(
+    () => (selectedFacility ? getInspectionRows(selectedFacility) : []),
+    [selectedFacility],
+  )
 
   const bucketCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -463,98 +524,127 @@ export function useWaterData(active: boolean) {
     return counts
   }, [samples])
 
-  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: mappedFacilities.map((facility) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [facility.longitude as number, facility.latitude as number] },
-      properties: {
-        id: facility.id,
-        weight: Math.max(1, facility.activeNotices * 8 + (facilityFilteredSampleCounts.get(facility.id) ?? getFacilitySampleTotal(facility))),
-      },
-    })),
-  }), [facilityFilteredSampleCounts, mappedFacilities])
-
-  const facilityPointData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, WaterFacilityFeatureProperties>>(() => ({
-    type: 'FeatureCollection',
-    features: mappedFacilities.flatMap((facility) => {
-      const categories: WaterPointCategory[] = []
-      if (!facility.noticeOnly) categories.push('facility')
-      if (!facility.noticeOnly && getFacilitySampleTotal(facility) > 0) categories.push('samples')
-      if (facility.activeNotices > 0) categories.push('notice')
-      return categories.map((category) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [facility.longitude as number, facility.latitude as number] },
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: mappedFacilities.map((facility) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [facility.longitude as number, facility.latitude as number] },
         properties: {
           id: facility.id,
-          name: facility.name,
-          category,
-          hazardRating: facility.hazardRating || 'Unknown',
-          pointColor: category === 'facility'
-            ? WATER_HAZARD_DOT_COLORS[facility.hazardRating || 'Unknown'] ?? WATER_HAZARD_DOT_COLORS.Unknown
-            : WATER_POINT_COLORS[category],
+          weight: Math.max(
+            1,
+            facility.activeNotices * 8 +
+              (facilityFilteredSampleCounts.get(facility.id) ?? getFacilitySampleTotal(facility)),
+          ),
         },
-      }))
+      })),
     }),
-  }), [mappedFacilities])
+    [facilityFilteredSampleCounts, mappedFacilities],
+  )
+
+  const facilityPointData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, WaterFacilityFeatureProperties>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: mappedFacilities.flatMap((facility) => {
+        const categories: WaterPointCategory[] = []
+        if (!facility.noticeOnly) categories.push('facility')
+        if (!facility.noticeOnly && getFacilitySampleTotal(facility) > 0) categories.push('samples')
+        if (facility.activeNotices > 0) categories.push('notice')
+        return categories.map((category) => ({
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [facility.longitude as number, facility.latitude as number],
+          },
+          properties: {
+            id: facility.id,
+            name: facility.name,
+            category,
+            hazardRating: facility.hazardRating || 'Unknown',
+            pointColor:
+              category === 'facility'
+                ? (WATER_HAZARD_DOT_COLORS[facility.hazardRating || 'Unknown'] ?? WATER_HAZARD_DOT_COLORS.Unknown)
+                : WATER_POINT_COLORS[category],
+          },
+        }))
+      }),
+    }),
+    [mappedFacilities],
+  )
 
   const togglePointCategory = useCallback((category: WaterPointCategory) => {
-    setVisiblePointCategories((current) => (
-      current.includes(category)
-        ? current.filter((item) => item !== category)
-        : [...current, category]
-    ))
+    setVisiblePointCategories((current) =>
+      current.includes(category) ? current.filter((item) => item !== category) : [...current, category],
+    )
   }, [])
 
-  const boundaryLevelOptions = boundarySource === 'bcHealth'
-    ? WATER_HEALTH_LEVEL_OPTIONS
-    : boundarySource === 'regionalDistrict'
-      ? WATER_REGIONAL_DISTRICT_LEVEL_OPTIONS
-    : boundarySource === 'census'
-      ? WATER_CENSUS_LEVEL_OPTIONS
-      : boundarySource === 'watershed'
-        ? WATER_WATERSHED_LEVEL_OPTIONS
-        : WATER_NR_ADMIN_LEVEL_OPTIONS
+  const boundaryLevelOptions =
+    boundarySource === 'bcHealth'
+      ? WATER_HEALTH_LEVEL_OPTIONS
+      : boundarySource === 'regionalDistrict'
+        ? WATER_REGIONAL_DISTRICT_LEVEL_OPTIONS
+        : boundarySource === 'census'
+          ? WATER_CENSUS_LEVEL_OPTIONS
+          : boundarySource === 'watershed'
+            ? WATER_WATERSHED_LEVEL_OPTIONS
+            : WATER_NR_ADMIN_LEVEL_OPTIONS
 
-  const boundaries = useMemo(() => prepareBoundaries(boundaryJson.data, boundaryConfig), [boundaryConfig, boundaryJson.data])
+  const boundaries = useMemo(
+    () => prepareBoundaries(boundaryJson.data, boundaryConfig),
+    [boundaryConfig, boundaryJson.data],
+  )
 
-  const boundaryData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WaterBoundaryAggregateProperties>>(() => ({
-    type: 'FeatureCollection',
-    features: boundaries.features.map((feature, index) => {
-      const boundaryId = String(feature.properties?.boundaryId ?? feature.id ?? index)
-      const boundaryName = String(feature.properties?.boundaryName ?? 'Boundary')
-      const containedFacilities = mappedFacilities.filter((facility) => (
-        booleanPointInPolygon(point([facility.longitude as number, facility.latitude as number]), feature)
-      ))
-      const properties: WaterBoundaryAggregateProperties = {
-        ...feature.properties,
-        boundaryId,
-        boundaryName,
-        facilityCount: containedFacilities.length,
-        sampleRows: containedFacilities.reduce((sum, facility) => sum + (facilityFilteredSampleCounts.get(facility.id) ?? getFacilitySampleTotal(facility)), 0),
-        avgSamplesPerFacility: 0,
-        activeNotices: containedFacilities.reduce((sum, facility) => sum + facility.activeNotices, 0),
-        metricValue: 0,
-      }
-      properties.avgSamplesPerFacility = properties.facilityCount > 0 ? properties.sampleRows / properties.facilityCount : 0
-      properties.metricValue = getBoundaryMetricValue(properties, boundaryMetric)
-      return {
-        ...feature,
-        id: boundaryId,
-        properties,
-      }
+  const boundaryData = useMemo<
+    GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WaterBoundaryAggregateProperties>
+  >(
+    () => ({
+      type: 'FeatureCollection',
+      features: boundaries.features.map((feature, index) => {
+        const boundaryId = String(feature.properties?.boundaryId ?? feature.id ?? index)
+        const boundaryName = String(feature.properties?.boundaryName ?? 'Boundary')
+        const containedFacilities = mappedFacilities.filter((facility) =>
+          booleanPointInPolygon(point([facility.longitude as number, facility.latitude as number]), feature),
+        )
+        const properties: WaterBoundaryAggregateProperties = {
+          ...feature.properties,
+          boundaryId,
+          boundaryName,
+          facilityCount: containedFacilities.length,
+          sampleRows: containedFacilities.reduce(
+            (sum, facility) =>
+              sum + (facilityFilteredSampleCounts.get(facility.id) ?? getFacilitySampleTotal(facility)),
+            0,
+          ),
+          avgSamplesPerFacility: 0,
+          activeNotices: containedFacilities.reduce((sum, facility) => sum + facility.activeNotices, 0),
+          metricValue: 0,
+        }
+        properties.avgSamplesPerFacility =
+          properties.facilityCount > 0 ? properties.sampleRows / properties.facilityCount : 0
+        properties.metricValue = getBoundaryMetricValue(properties, boundaryMetric)
+        return {
+          ...feature,
+          id: boundaryId,
+          properties,
+        }
+      }),
     }),
-  }), [boundaries, boundaryMetric, facilityFilteredSampleCounts, mappedFacilities])
+    [boundaries, boundaryMetric, facilityFilteredSampleCounts, mappedFacilities],
+  )
 
-  const boundaryMaxValue = useMemo(() => (
-    Math.max(1, ...boundaryData.features.map((feature) => feature.properties?.metricValue ?? 0))
-  ), [boundaryData])
+  const boundaryMaxValue = useMemo(
+    () => Math.max(1, ...boundaryData.features.map((feature) => feature.properties?.metricValue ?? 0)),
+    [boundaryData],
+  )
 
-  const selectedBoundary = useMemo(() => (
-    selectedBoundaryId
-      ? boundaryData.features.find((feature) => feature.properties.boundaryId === selectedBoundaryId) ?? null
-      : null
-  ), [boundaryData, selectedBoundaryId])
+  const selectedBoundary = useMemo(
+    () =>
+      selectedBoundaryId
+        ? (boundaryData.features.find((feature) => feature.properties.boundaryId === selectedBoundaryId) ?? null)
+        : null,
+    [boundaryData, selectedBoundaryId],
+  )
 
   const handleBoundarySourceChange = useCallback((source: WaterBoundarySource) => {
     setBoundarySource(source)
@@ -573,20 +663,23 @@ export function useWaterData(active: boolean) {
     setSelectedBoundaryId(null)
   }, [])
 
+  const toggleHazardRating = useCallback(
+    (rating: string) => {
+      const current = selectedHazardRatings ?? hazardOptions
+      setSelectedHazardRatings(
+        current.includes(rating) ? current.filter((value) => value !== rating) : [...current, rating],
+      )
+    },
+    [hazardOptions, selectedHazardRatings],
+  )
 
-  const toggleHazardRating = useCallback((rating: string) => {
-    const current = selectedHazardRatings ?? hazardOptions
-    setSelectedHazardRatings(current.includes(rating)
-      ? current.filter((value) => value !== rating)
-      : [...current, rating])
-  }, [hazardOptions, selectedHazardRatings])
-
-  const toggleFacilityType = useCallback((type: string) => {
-    const current = selectedFacilityTypes ?? facilityTypeOptions
-    setSelectedFacilityTypes(current.includes(type)
-      ? current.filter((value) => value !== type)
-      : [...current, type])
-  }, [facilityTypeOptions, selectedFacilityTypes])
+  const toggleFacilityType = useCallback(
+    (type: string) => {
+      const current = selectedFacilityTypes ?? facilityTypeOptions
+      setSelectedFacilityTypes(current.includes(type) ? current.filter((value) => value !== type) : [...current, type])
+    },
+    [facilityTypeOptions, selectedFacilityTypes],
+  )
 
   return {
     manifest,

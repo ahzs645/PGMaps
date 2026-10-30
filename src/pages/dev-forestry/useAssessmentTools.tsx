@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, GitCompareArrows } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -459,7 +460,7 @@ export function useAssessmentTools({
             terrain and screening surface.
           </p>
           <ToolField label="Sightline target">
-            <select
+            <NativeSelect
               className={TOOL_INPUT}
               value={inspectTarget}
               onChange={(e) => {
@@ -473,7 +474,7 @@ export function useAssessmentTools({
                   {scene.targets.find((v) => v.id === t.targetId)?.name ?? t.targetId} · {t.sampleCount} samples
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </ToolField>
           <ToolField label="Sample index (zero based)">
             <input
@@ -486,7 +487,7 @@ export function useAssessmentTools({
             />
           </ToolField>
           <ToolField label="Viewing station">
-            <select
+            <NativeSelect
               className={TOOL_INPUT}
               value={inspectStation}
               onChange={(e) => setInspectStation(Number(e.target.value))}
@@ -496,7 +497,7 @@ export function useAssessmentTools({
                   Station {i + 1} · {s.distanceAlongMeters.toFixed(0)} m
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </ToolField>
           <Button
             size="sm"
@@ -582,14 +583,14 @@ export function useAssessmentTools({
       <div className="space-y-3 text-xs">
         {message}
         <ToolField label="Assessment evidence viewpoint">
-          <select className={TOOL_INPUT} value={reportView} onChange={(e) => setReportView(e.target.value)}>
+          <NativeSelect className={TOOL_INPUT} value={reportView} onChange={(e) => setReportView(e.target.value)}>
             <option value="">Not linked</option>
             {d.views.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </ToolField>
         <Button size="sm" variant="outline" disabled={busy || !result} onClick={() => perform(record)}>
           {openedRun ? 'Update reviewed assessment record' : 'Record current assessment'}

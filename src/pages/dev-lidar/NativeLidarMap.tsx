@@ -12,7 +12,7 @@ import type { ElevationProfile } from 'maplibre-gl-lidar'
 import type { TransectControl } from './NativeTransect'
 import { startNativeTransect, refreshNativeTransect } from './NativeTransect'
 import { applyTreeInspectionMap, inspectionPitch } from './treeInspectionMap'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -84,7 +84,9 @@ export function NativeLidarMap(props: Props) {
   const lidar = useRef<LidarControl | null>(null)
   const cloudId = useRef<string | null>(null)
   const latest = useRef(props)
-  latest.current = props
+  useLayoutEffect(() => {
+    latest.current = props
+  }, [props])
   const detailRef = useRef<Awaited<ReturnType<typeof loadHeightDetail>> | null>(null)
   const [detailStatus, setDetailStatus] = useState('Overview · about 3.5 m display cells')
   const [ready, setReady] = useState(false)
@@ -95,7 +97,53 @@ export function NativeLidarMap(props: Props) {
   const contextLayers = useRef<LayerSpecification[]>([])
   const [contextError, setContextError] = useState('')
 
+  const viewContext = useMemo(
+    () => [
+      ready,
+      props.cloud,
+      props.modelActive,
+      props.treeCrop,
+      props.inspectionView,
+      props.pointStatus,
+      props.sceneGround,
+      props.workflowOptions.mode,
+      props.workflowOptions.threshold,
+    ],
+    [
+      ready,
+      props.cloud,
+      props.modelActive,
+      props.treeCrop,
+      props.inspectionView,
+      props.pointStatus,
+      props.sceneGround,
+      props.workflowOptions.mode,
+      props.workflowOptions.threshold,
+    ],
+  )
+  const [previousViewContext, setPreviousViewContext] = useState(viewContext)
+  if (previousViewContext !== viewContext) {
+    setPreviousViewContext(viewContext)
+    if (ready) {
+      setHeight(null)
+      setStatus(
+        props.treeCrop
+          ? (props.pointStatus ??
+              `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`)
+          : props.cloud
+            ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
+            : props.modelActive
+              ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
+              : isHeatmapMode(props.workflowOptions.mode)
+                ? 'Canopy heatmap · click map to inspect height or cover'
+                : 'Processed layers · click to sample height',
+      )
+    }
+  }
+
   useEffect(() => {
+    // Recreate GPU resources only for a new source snapshot; option effects update the live map.
+    const initial = latest.current
     if (!container.current) return
     let active = true
     let samples: Float32Array | null = null
@@ -108,14 +156,16 @@ export function NativeLidarMap(props: Props) {
         container: container.current,
         style: initialLidarStyle(latest.current.basemap),
         bounds: [
-          [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
-          [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
+          [initial.summary.bounds_wgs84[0], initial.summary.bounds_wgs84[1]],
+          [initial.summary.bounds_wgs84[2], initial.summary.bounds_wgs84[3]],
         ],
         fitBoundsOptions: { padding: 35 },
         maxPitch: 75,
         attributionControl: { compact: true },
       })
     } catch (e) {
+      // Publish a synchronous MapLibre/WebGL failure as visible error UI.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(e instanceof Error ? e.message : 'WebGL map could not start')
       return
     }
@@ -127,11 +177,11 @@ export function NativeLidarMap(props: Props) {
     })
     instance.on('load', () => {
       if (!active) return
-      for (const [key, layer] of Object.entries(props.summary.rasters)) {
+      for (const [key, layer] of Object.entries(initial.summary.rasters)) {
         instance.addSource(`analysis-${key}`, {
           type: 'image',
-          url: new URL(layer.file, props.analysisBase).href,
-          coordinates: props.summary.image_coordinates as [
+          url: new URL(layer.file, initial.analysisBase).href,
+          coordinates: initial.summary.image_coordinates as [
             [number, number],
             [number, number],
             [number, number],
@@ -155,7 +205,7 @@ export function NativeLidarMap(props: Props) {
       }
       instance.addSource('roof-candidates', {
         type: 'geojson',
-        data: new URL('building-candidates.geojson', props.analysisBase).href,
+        data: new URL('building-candidates.geojson', initial.analysisBase).href,
       })
       instance.addLayer({
         id: 'roofs-fill',
@@ -173,7 +223,7 @@ export function NativeLidarMap(props: Props) {
       })
       instance.addSource('tree-candidates', {
         type: 'geojson',
-        data: new URL('tree-candidates.geojson', props.analysisBase).href,
+        data: new URL('tree-candidates.geojson', initial.analysisBase).href,
       })
       instance.addLayer({
         id: 'trees',
@@ -191,11 +241,11 @@ export function NativeLidarMap(props: Props) {
       })
       instance.addSource('reference-trees', {
         type: 'geojson',
-        data: new URL('geolibre-tree-reference.geojson', props.analysisBase).href,
+        data: new URL('geolibre-tree-reference.geojson', initial.analysisBase).href,
       })
       instance.addSource('reference-area', {
         type: 'geojson',
-        data: new URL('reference-area.geojson', props.analysisBase).href,
+        data: new URL('reference-area.geojson', initial.analysisBase).href,
       })
       instance.addLayer({
         id: 'reference-area',
@@ -241,6 +291,9 @@ export function NativeLidarMap(props: Props) {
       control.on('loaderror', (event) => {
         if (active) setError(String(event.error ?? 'Point-cloud loading failed'))
       })
+      control.on('loadstart', () => {
+        if (active && latest.current.cloud) setStatus('Loading the original full-resolution cloud…')
+      })
       control.on('streamingprogress', () => {
         const progress = control.getStreamingProgress()
         if (active && latest.current.cloud && progress)
@@ -270,7 +323,7 @@ export function NativeLidarMap(props: Props) {
         })
         .finally(() => window.clearTimeout(contextTimeout))
     })
-    fetch(new URL(props.summary.sample_grid.file, props.analysisBase), { signal: abort.signal })
+    fetch(new URL(initial.summary.sample_grid.file, initial.analysisBase), { signal: abort.signal })
       .then((r) => {
         if (!r.ok) throw Error('Height samples unavailable')
         return r.arrayBuffer()
@@ -329,7 +382,7 @@ export function NativeLidarMap(props: Props) {
               : `≈${value.toFixed(0)}% canopy cover >${options.threshold} m · 21 m window`,
         )
       } else if (samples) {
-        const value = heightAtLocation(samples, props.summary.sample_grid, event.lngLat.lng, event.lngLat.lat)
+        const value = heightAtLocation(samples, initial.summary.sample_grid, event.lngLat.lng, event.lngLat.lat)
         setHeight(
           value !== null
             ? `${value.toFixed(1)} m above terrain · resampled web-grid value`
@@ -362,7 +415,7 @@ export function NativeLidarMap(props: Props) {
   useEffect(() => {
     const instance = map.current
     if (!ready || !instance) return
-    applyAnalysisLayers(instance, Object.keys(props.summary.rasters), props)
+    applyAnalysisLayers(instance, Object.keys(props.summary.rasters), latest.current)
   }, [
     ready,
     props.raster,
@@ -451,6 +504,8 @@ export function NativeLidarMap(props: Props) {
       try {
         instance.addLayer(treePointLayer(props.treeCrop, props.pointAppearance))
       } catch (error) {
+        // Publish a synchronous MapLibre/WebGL failure as visible error UI.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setError(`Tree points could not render: ${String(error)}`)
       }
   }, [ready, props.treeCrop, props.pointAppearance])
@@ -465,7 +520,7 @@ export function NativeLidarMap(props: Props) {
     const control = lidar.current
     if (!ready || !control || !props.transectControl?.active) return
     latest.current.onTransectProfile?.(null)
-    startNativeTransect(control, props.transectControl.width)
+    startNativeTransect(control, latest.current.transectControl!.width)
     let previous: ElevationProfile | null = null
     const update = () => {
       const next = control.getCrossSectionProfile()
@@ -494,6 +549,8 @@ export function NativeLidarMap(props: Props) {
       try {
         instance.addLayer(buildingMeshLayer(props.buildingModel, -sceneOffset(props.sceneGround)))
       } catch (e) {
+        // Publish a synchronous MapLibre/WebGL failure as visible error UI.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setError(`Building mesh could not render: ${String(e)}`)
       }
     }
@@ -517,7 +574,6 @@ export function NativeLidarMap(props: Props) {
     applyPointCloudVisibility(control, cloudId.current, props.cloud)
     if (props.cloud && !cloudId.current && !loadingCloud.current) {
       loadingCloud.current = true
-      setStatus('Loading the original full-resolution cloud…')
       control
         .loadPointCloud(props.cloudUrl)
         .then((info) => {
@@ -548,19 +604,6 @@ export function NativeLidarMap(props: Props) {
 
   useEffect(() => {
     if (!ready) return
-    setHeight(null)
-    setStatus(
-      props.treeCrop
-        ? (props.pointStatus ??
-            `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`)
-        : props.cloud
-          ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
-          : props.modelActive
-            ? 'Experimental Roofer model · amber roofs / blue walls · unverified patch input'
-            : isHeatmapMode(props.workflowOptions.mode)
-              ? 'Canopy heatmap · click map to inspect height or cover'
-              : 'Processed layers · click to sample height',
-    )
     map.current?.easeTo({
       pitch: inspectionPitch(props.inspectionView, !!(props.cloud || props.modelActive || props.treeCrop)),
       duration: 700,

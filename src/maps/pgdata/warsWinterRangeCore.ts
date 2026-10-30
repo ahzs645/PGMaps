@@ -21,10 +21,9 @@ export interface WinterRangeSourceMetadata {
   sourceLayer?: string
 }
 
-export type WinterRangeSource = GeoJSON.FeatureCollection<
-  GeoJSON.Geometry | null,
-  WinterRangeSourceProperties
-> & { metadata?: WinterRangeSourceMetadata }
+export type WinterRangeSource = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, WinterRangeSourceProperties> & {
+  metadata?: WinterRangeSourceMetadata
+}
 
 export interface WinterRangeProperties {
   key: string

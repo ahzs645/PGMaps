@@ -73,12 +73,8 @@ export function pointInForecastZone(monitor: AirMonitor, zone: ForecastZoneFeatu
 /** Monitors tagged with the zone's code, or (when none are tagged) those inside its polygon. */
 export function getForecastZoneMonitors(zone: ForecastZoneFeature, monitors: AirMonitor[]): AirMonitor[] {
   const zoneCode = String(zone.properties?.CLC ?? '').trim()
-  const monitorsByCode = zoneCode
-    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
-    : []
-  return monitorsByCode.length
-    ? monitorsByCode
-    : monitors.filter((monitor) => pointInForecastZone(monitor, zone))
+  const monitorsByCode = zoneCode ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode) : []
+  return monitorsByCode.length ? monitorsByCode : monitors.filter((monitor) => pointInForecastZone(monitor, zone))
 }
 
 export function getForecastZoneMonitorGroup(monitor: AirMonitor): Exclude<ForecastZoneColumn, 'ALL'> | null {

@@ -7,11 +7,13 @@ export function measurementPolygon(points: [number, number][]): GeoJSON.FeatureC
   if (points.length < 3) return { type: 'FeatureCollection', features: [] }
   return {
     type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { id: 'measurement' },
-      geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
-    }],
+    features: [
+      {
+        type: 'Feature',
+        properties: { id: 'measurement' },
+        geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
+      },
+    ],
   }
 }
 
@@ -25,18 +27,20 @@ export function measurementCircle(
   const coordinates = circleCoordinates(center, radiusKm)
   return {
     type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { id: 'measurement-circle' },
-      geometry: { type: 'Polygon', coordinates: [coordinates] },
-    }],
+    features: [
+      {
+        type: 'Feature',
+        properties: { id: 'measurement-circle' },
+        geometry: { type: 'Polygon', coordinates: [coordinates] },
+      },
+    ],
   }
 }
 
 function circleCoordinates(center: [number, number], radiusKm: number, steps = 96): [number, number][] {
   const [lng, lat] = center
-  const centerLat = lat * Math.PI / 180
-  const centerLng = lng * Math.PI / 180
+  const centerLat = (lat * Math.PI) / 180
+  const centerLng = (lng * Math.PI) / 180
   const angularDistance = radiusKm / EARTH_RADIUS_KM
 
   const points = Array.from({ length: steps }, (_, index): [number, number] => {
@@ -45,15 +49,14 @@ function circleCoordinates(center: [number, number], radiusKm: number, steps = 9
       Math.sin(centerLat) * Math.cos(angularDistance) +
         Math.cos(centerLat) * Math.sin(angularDistance) * Math.cos(bearing),
     )
-    const pointLng = centerLng + Math.atan2(
-      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(centerLat),
-      Math.cos(angularDistance) - Math.sin(centerLat) * Math.sin(pointLat),
-    )
+    const pointLng =
+      centerLng +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(centerLat),
+        Math.cos(angularDistance) - Math.sin(centerLat) * Math.sin(pointLat),
+      )
 
-    return [
-      ((pointLng * 180 / Math.PI + 540) % 360) - 180,
-      pointLat * 180 / Math.PI,
-    ]
+    return [(((pointLng * 180) / Math.PI + 540) % 360) - 180, (pointLat * 180) / Math.PI]
   })
 
   return closeRing(points)
@@ -65,13 +68,16 @@ export function measurementLine(
 ): GeoJSON.FeatureCollection<GeoJSON.LineString> {
   return {
     type: 'FeatureCollection',
-    features: points.length > 1
-      ? [{
-          type: 'Feature',
-          properties: { id: 'measurement-line' },
-          geometry: { type: 'LineString', coordinates: mode === 'complete' ? closeRing(points) : points },
-        }]
-      : [],
+    features:
+      points.length > 1
+        ? [
+            {
+              type: 'Feature',
+              properties: { id: 'measurement-line' },
+              geometry: { type: 'LineString', coordinates: mode === 'complete' ? closeRing(points) : points },
+            },
+          ]
+        : [],
   }
 }
 
@@ -83,16 +89,16 @@ export function measurementPreviewLine(
   if (mode !== 'drawing' || points.length === 0 || !cursor) return { type: 'FeatureCollection', features: [] }
 
   const lastPoint = points[points.length - 1]
-  const coordinates = measurementCanClose(points)
-    ? [lastPoint, cursor, points[0]]
-    : [lastPoint, cursor]
+  const coordinates = measurementCanClose(points) ? [lastPoint, cursor, points[0]] : [lastPoint, cursor]
 
   return {
     type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { id: 'measurement-preview-line' },
-      geometry: { type: 'LineString', coordinates },
-    }],
+    features: [
+      {
+        type: 'Feature',
+        properties: { id: 'measurement-preview-line' },
+        geometry: { type: 'LineString', coordinates },
+      },
+    ],
   }
 }

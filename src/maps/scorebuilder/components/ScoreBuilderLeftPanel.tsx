@@ -127,9 +127,7 @@ export function ScoreBuilderLeftPanel({
             onBoundarySourceChange(source)
             if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
           }}
-          onSelectedSourceClick={
-            canUseWalkabilitySourceSurface ? () => onMapSurfaceChange('source') : undefined
-          }
+          onSelectedSourceClick={canUseWalkabilitySourceSurface ? () => onMapSurfaceChange('source') : undefined}
           onLevelChange={onRegionLevelChange}
           levelSelectId="score-builder-level"
           dataPrefix="score-builder"
@@ -301,7 +299,9 @@ export function CustomMetricBuilder({
   const [filterField, setFilterField] = useState('category')
   const [filterOperator, setFilterOperator] = useState<'equals' | 'in' | 'exists'>('equals')
   const [filterValue, setFilterValue] = useState('school_k12')
-  const [extraFilters, setExtraFilters] = useState<Array<{ field: string; operator: 'equals' | 'in' | 'exists'; value: string }>>([])
+  const [extraFilters, setExtraFilters] = useState<
+    Array<{ field: string; operator: 'equals' | 'in' | 'exists'; value: string }>
+  >([])
   const [expression, setExpression] = useState('shadeGap * cimdComposite')
   const [censusPresetId, setCensusPresetId] = useState(CENSUS_COMPOSER_PRESETS[0]?.id ?? '')
   const [direction, setDirection] = useState<'higherIsBetter' | 'higherIsWorse'>('higherIsBetter')
@@ -322,7 +322,8 @@ export function CustomMetricBuilder({
   const metricId = slugifyMetricId(label || 'custom_metric')
   const selectedIsFormula = source === 'custom' || operation === 'derivedExpression'
   const selectedIsCensus = source === 'census'
-  const selectedCensusPreset = CENSUS_COMPOSER_PRESETS.find((preset) => preset.id === censusPresetId) ?? CENSUS_COMPOSER_PRESETS[0]
+  const selectedCensusPreset =
+    CENSUS_COMPOSER_PRESETS.find((preset) => preset.id === censusPresetId) ?? CENSUS_COMPOSER_PRESETS[0]
   const sourceOptions = [
     ...SCORE_BUILDER_DATASETS.map((entry) => ({ value: entry.id, label: entry.label })),
     ...userDatasets.map((entry) => ({ value: userDatasetSourceId(entry.id), label: `${entry.label} (uploaded)` })),
@@ -371,62 +372,64 @@ export function CustomMetricBuilder({
         contentClassName="px-3"
       >
         {uploadsOpen && (
-        <div className="space-y-2 rounded-md border border-border bg-card p-3" data-score-builder-user-uploads="true">
-          <p className="text-xs text-muted-foreground">
-            Upload GeoJSON or CSV (with lat/lon columns) point data to use in custom metrics. Files are stored in this
-            browser only and are not included in shared URLs.
-          </p>
-          <input
-            value={uploadLabel}
-            onChange={(event) => setUploadLabel(event.target.value)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-            placeholder="Dataset name (optional, defaults to file name)"
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".geojson,.json,.csv,.tsv,application/geo+json,application/json,text/csv"
-            className="hidden"
-            onChange={(event) => void handleUploadFile(event.target.files?.[0])}
-          />
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground disabled:opacity-50"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {uploading ? 'Parsing…' : 'Choose file (.geojson, .json, .csv)'}
-          </button>
-          {uploadStatus && (
-            <InlineAlert tone={uploadStatus.tone === 'error' ? 'error' : 'success'}>{uploadStatus.message}</InlineAlert>
-          )}
-          {userDatasets.length > 0 && (
-            <div className="space-y-1">
-              {userDatasets.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-foreground">{entry.label}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {entry.featureCount.toLocaleString(DEFAULT_LOCALE)} points · {entry.fileName}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void onRemoveUserDataset(entry.id)}
-                    className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label={`Delete uploaded dataset ${entry.label}`}
+          <div className="space-y-2 rounded-md border border-border bg-card p-3" data-score-builder-user-uploads="true">
+            <p className="text-xs text-muted-foreground">
+              Upload GeoJSON or CSV (with lat/lon columns) point data to use in custom metrics. Files are stored in this
+              browser only and are not included in shared URLs.
+            </p>
+            <input
+              value={uploadLabel}
+              onChange={(event) => setUploadLabel(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+              placeholder="Dataset name (optional, defaults to file name)"
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".geojson,.json,.csv,.tsv,application/geo+json,application/json,text/csv"
+              className="hidden"
+              onChange={(event) => void handleUploadFile(event.target.files?.[0])}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground disabled:opacity-50"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? 'Parsing…' : 'Choose file (.geojson, .json, .csv)'}
+            </button>
+            {uploadStatus && (
+              <InlineAlert tone={uploadStatus.tone === 'error' ? 'error' : 'success'}>
+                {uploadStatus.message}
+              </InlineAlert>
+            )}
+            {userDatasets.length > 0 && (
+              <div className="space-y-1">
+                {userDatasets.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-foreground">{entry.label}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {entry.featureCount.toLocaleString(DEFAULT_LOCALE)} points · {entry.fileName}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void onRemoveUserDataset(entry.id)}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={`Delete uploaded dataset ${entry.label}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </CollapsibleSection>
 
@@ -441,265 +444,282 @@ export function CustomMetricBuilder({
         contentClassName="px-3"
       >
         {builderOpen && (
-        <div className="space-y-2 rounded-md border border-border bg-card p-3">
-          <input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-            placeholder="Metric label"
-          />
-          <AppSelect
-            value={source}
-            onValueChange={(nextValue) => {
-              const next = nextValue as MetricRecipeSource
-              setSource(next)
-              if (next === 'custom') setOperation('derivedExpression')
-              else if (next === 'census') {
-                setOperation('censusVariable')
-                setFormat('percent')
-                setDirection(selectedCensusPreset?.direction ?? 'higherIsWorse')
-                setLabel(selectedCensusPreset?.label ?? 'Census demographic metric')
-              } else if (operation === 'derivedExpression' || operation === 'censusVariable') {
-                setOperation('pointCountInPolygon')
-              }
-              if (isUserDatasetSource(next)) {
-                // The prefilled education filter would silently zero out uploaded data.
-                setFilterField('')
-                setFilterValue('')
-              }
-            }}
-            options={sourceOptions}
-            triggerClassName={metricSelectTriggerClass}
-            triggerAriaLabel="Metric data source"
-          />
-          <div className="text-xs text-muted-foreground">
-            {selectedUserDataset
-              ? `Uploaded ${selectedUserDataset.fileName} — stored on this device; recipes built from it compute locally and are not reproducible from a shared URL.`
-              : dataset?.description}
-          </div>
-
-          {profile && source !== 'custom' && (
-            <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-              <div>
-                {profile.rowCount.toLocaleString(DEFAULT_LOCALE)} rows · {profile.pointCount.toLocaleString(DEFAULT_LOCALE)} points ·{' '}
-                {profile.coordinateValidity.validPoints.toLocaleString(DEFAULT_LOCALE)} valid coordinates
-              </div>
-              <div className="mt-1 line-clamp-2">
-                Fields: {profile.fields.slice(0, 8).map((field) => field.field).join(', ') || 'none detected'}
-              </div>
+          <div className="space-y-2 rounded-md border border-border bg-card p-3">
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+              placeholder="Metric label"
+            />
+            <AppSelect
+              value={source}
+              onValueChange={(nextValue) => {
+                const next = nextValue as MetricRecipeSource
+                setSource(next)
+                if (next === 'custom') setOperation('derivedExpression')
+                else if (next === 'census') {
+                  setOperation('censusVariable')
+                  setFormat('percent')
+                  setDirection(selectedCensusPreset?.direction ?? 'higherIsWorse')
+                  setLabel(selectedCensusPreset?.label ?? 'Census demographic metric')
+                } else if (operation === 'derivedExpression' || operation === 'censusVariable') {
+                  setOperation('pointCountInPolygon')
+                }
+                if (isUserDatasetSource(next)) {
+                  // The prefilled education filter would silently zero out uploaded data.
+                  setFilterField('')
+                  setFilterValue('')
+                }
+              }}
+              options={sourceOptions}
+              triggerClassName={metricSelectTriggerClass}
+              triggerAriaLabel="Metric data source"
+            />
+            <div className="text-xs text-muted-foreground">
+              {selectedUserDataset
+                ? `Uploaded ${selectedUserDataset.fileName} — stored on this device; recipes built from it compute locally and are not reproducible from a shared URL.`
+                : dataset?.description}
             </div>
-          )}
 
-          {selectedIsCensus ? (
-            <>
-              <AppSelect
-                value={censusPresetId}
-                onValueChange={(nextValue) => {
-                  const preset = CENSUS_COMPOSER_PRESETS.find((entry) => entry.id === nextValue)
-                  setCensusPresetId(nextValue)
-                  if (preset) {
-                    setLabel(preset.label)
-                    setDirection(preset.direction)
-                    setFormat(preset.format)
-                  }
-                }}
-                options={CENSUS_COMPOSER_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
-                triggerClassName={metricSelectTriggerClass}
-                triggerAriaLabel="Census preset"
-              />
+            {profile && source !== 'custom' && (
               <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-                {selectedCensusPreset?.description}
+                <div>
+                  {profile.rowCount.toLocaleString(DEFAULT_LOCALE)} rows ·{' '}
+                  {profile.pointCount.toLocaleString(DEFAULT_LOCALE)} points ·{' '}
+                  {profile.coordinateValidity.validPoints.toLocaleString(DEFAULT_LOCALE)} valid coordinates
+                </div>
+                <div className="mt-1 line-clamp-2">
+                  Fields:{' '}
+                  {profile.fields
+                    .slice(0, 8)
+                    .map((field) => field.field)
+                    .join(', ') || 'none detected'}
+                </div>
               </div>
-            </>
-          ) : !selectedIsFormula ? (
-            <>
-              <AppSelect
-                value={operation}
-                onValueChange={(nextValue) => setOperation(nextValue as MetricRecipeOperation)}
-                options={[
-                  { value: 'pointCountInPolygon', label: 'Count inside boundary' },
-                  { value: 'pointDensityInPolygon', label: 'Density inside boundary' },
-                  { value: 'countWithinCentroidRadius', label: 'Count within centroid radius' },
-                  { value: 'accessWithinCentroidRadius', label: 'Access within centroid radius' },
-                  { value: 'averagePropertyInPolygon', label: 'Average property inside boundary' },
-                ]}
-                triggerClassName={metricSelectTriggerClass}
-                triggerAriaLabel="Metric operation"
-              />
-              {(operation === 'countWithinCentroidRadius' || operation === 'accessWithinCentroidRadius') && (
-                <input
-                  type="number"
-                  min={50}
-                  step={50}
-                  value={radiusMeters}
-                  onChange={(event) => setRadiusMeters(Number(event.target.value))}
-                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-                  placeholder="Radius meters"
-                />
-              )}
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-1">
-                <input
-                  value={filterField}
-                  onChange={(event) => setFilterField(event.target.value)}
-                  className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-                  placeholder="field"
-                />
+            )}
+
+            {selectedIsCensus ? (
+              <>
                 <AppSelect
-                  value={filterOperator}
-                  onValueChange={(nextValue) => setFilterOperator(nextValue as typeof filterOperator)}
-                  options={filterOperatorOptions}
-                  triggerClassName={metricSelectTriggerClass}
-                  triggerAriaLabel="Filter operator"
-                />
-                <input
-                  value={filterValue}
-                  onChange={(event) => setFilterValue(event.target.value)}
-                  disabled={filterOperator === 'exists'}
-                  className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground disabled:opacity-50"
-                  placeholder="value"
-                />
-              </div>
-              {extraFilters.map((filter, index) => (
-                <div key={index} className="grid grid-cols-[1fr_auto_1fr_auto] gap-1">
-                  <input
-                    value={filter.field}
-                    onChange={(event) =>
-                      setExtraFilters((current) =>
-                        current.map((entry, entryIndex) =>
-                          entryIndex === index ? { ...entry, field: event.target.value } : entry,
-                        ),
-                      )
+                  value={censusPresetId}
+                  onValueChange={(nextValue) => {
+                    const preset = CENSUS_COMPOSER_PRESETS.find((entry) => entry.id === nextValue)
+                    setCensusPresetId(nextValue)
+                    if (preset) {
+                      setLabel(preset.label)
+                      setDirection(preset.direction)
+                      setFormat(preset.format)
                     }
+                  }}
+                  options={CENSUS_COMPOSER_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+                  triggerClassName={metricSelectTriggerClass}
+                  triggerAriaLabel="Census preset"
+                />
+                <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+                  {selectedCensusPreset?.description}
+                </div>
+              </>
+            ) : !selectedIsFormula ? (
+              <>
+                <AppSelect
+                  value={operation}
+                  onValueChange={(nextValue) => setOperation(nextValue as MetricRecipeOperation)}
+                  options={[
+                    { value: 'pointCountInPolygon', label: 'Count inside boundary' },
+                    { value: 'pointDensityInPolygon', label: 'Density inside boundary' },
+                    { value: 'countWithinCentroidRadius', label: 'Count within centroid radius' },
+                    { value: 'accessWithinCentroidRadius', label: 'Access within centroid radius' },
+                    { value: 'averagePropertyInPolygon', label: 'Average property inside boundary' },
+                  ]}
+                  triggerClassName={metricSelectTriggerClass}
+                  triggerAriaLabel="Metric operation"
+                />
+                {(operation === 'countWithinCentroidRadius' || operation === 'accessWithinCentroidRadius') && (
+                  <input
+                    type="number"
+                    min={50}
+                    step={50}
+                    value={radiusMeters}
+                    onChange={(event) => setRadiusMeters(Number(event.target.value))}
+                    className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+                    placeholder="Radius meters"
+                  />
+                )}
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-1">
+                  <input
+                    value={filterField}
+                    onChange={(event) => setFilterField(event.target.value)}
                     className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
                     placeholder="field"
                   />
                   <AppSelect
-                    value={filter.operator}
-                    onValueChange={(nextValue) =>
-                      setExtraFilters((current) =>
-                        current.map((entry, entryIndex) =>
-                          entryIndex === index ? { ...entry, operator: nextValue as typeof filter.operator } : entry,
-                        ),
-                      )
-                    }
+                    value={filterOperator}
+                    onValueChange={(nextValue) => setFilterOperator(nextValue as typeof filterOperator)}
                     options={filterOperatorOptions}
                     triggerClassName={metricSelectTriggerClass}
-                    triggerAriaLabel="Extra filter operator"
+                    triggerAriaLabel="Filter operator"
                   />
                   <input
-                    value={filter.value}
-                    onChange={(event) =>
-                      setExtraFilters((current) =>
-                        current.map((entry, entryIndex) =>
-                          entryIndex === index ? { ...entry, value: event.target.value } : entry,
-                        ),
-                      )
-                    }
-                    disabled={filter.operator === 'exists'}
+                    value={filterValue}
+                    onChange={(event) => setFilterValue(event.target.value)}
+                    disabled={filterOperator === 'exists'}
                     className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground disabled:opacity-50"
                     placeholder="value"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setExtraFilters((current) => current.filter((_, entryIndex) => entryIndex !== index))}
-                    className="rounded-md border border-input px-2 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    -
-                  </button>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setExtraFilters((current) => [...current, { field: '', operator: 'equals', value: '' }])}
-                className="text-left text-xs font-medium text-cyan-700 hover:text-cyan-800 dark:text-cyan-300"
-              >
-                Add another filter
-              </button>
-            </>
-          ) : (
-            <textarea
-              value={expression}
-              onChange={(event) => setExpression(event.target.value)}
-              className="min-h-16 w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs text-foreground"
-              placeholder="Example: shadeGap * cimdComposite"
-            />
-          )}
+                {extraFilters.map((filter, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_auto_1fr_auto] gap-1">
+                    <input
+                      value={filter.field}
+                      onChange={(event) =>
+                        setExtraFilters((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, field: event.target.value } : entry,
+                          ),
+                        )
+                      }
+                      className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+                      placeholder="field"
+                    />
+                    <AppSelect
+                      value={filter.operator}
+                      onValueChange={(nextValue) =>
+                        setExtraFilters((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, operator: nextValue as typeof filter.operator } : entry,
+                          ),
+                        )
+                      }
+                      options={filterOperatorOptions}
+                      triggerClassName={metricSelectTriggerClass}
+                      triggerAriaLabel="Extra filter operator"
+                    />
+                    <input
+                      value={filter.value}
+                      onChange={(event) =>
+                        setExtraFilters((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, value: event.target.value } : entry,
+                          ),
+                        )
+                      }
+                      disabled={filter.operator === 'exists'}
+                      className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground disabled:opacity-50"
+                      placeholder="value"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExtraFilters((current) => current.filter((_, entryIndex) => entryIndex !== index))
+                      }
+                      className="rounded-md border border-input px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      -
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExtraFilters((current) => [...current, { field: '', operator: 'equals', value: '' }])
+                  }
+                  className="text-left text-xs font-medium text-cyan-700 hover:text-cyan-800 dark:text-cyan-300"
+                >
+                  Add another filter
+                </button>
+              </>
+            ) : (
+              <textarea
+                value={expression}
+                onChange={(event) => setExpression(event.target.value)}
+                className="min-h-16 w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs text-foreground"
+                placeholder="Example: shadeGap * cimdComposite"
+              />
+            )}
 
-          <div className="grid grid-cols-2 gap-1">
-            <AppSelect
-              value={direction}
-              onValueChange={(nextValue) => setDirection(nextValue as typeof direction)}
-              options={[
-                { value: 'higherIsBetter', label: 'Higher helps' },
-                { value: 'higherIsWorse', label: 'Higher hurts' },
-              ]}
-              triggerClassName={metricSelectTriggerClass}
-              triggerAriaLabel="Metric direction"
-            />
-            <AppSelect
-              value={format}
-              onValueChange={(nextValue) => setFormat(nextValue as typeof format)}
-              options={[
-                { value: 'count', label: 'Count' },
-                { value: 'density', label: 'Density' },
-                { value: 'ratio', label: 'Ratio' },
-                { value: 'percent', label: 'Percent' },
-                { value: 'index', label: 'Index' },
-              ]}
-              triggerClassName={metricSelectTriggerClass}
-              triggerAriaLabel="Metric format"
-            />
+            <div className="grid grid-cols-2 gap-1">
+              <AppSelect
+                value={direction}
+                onValueChange={(nextValue) => setDirection(nextValue as typeof direction)}
+                options={[
+                  { value: 'higherIsBetter', label: 'Higher helps' },
+                  { value: 'higherIsWorse', label: 'Higher hurts' },
+                ]}
+                triggerClassName={metricSelectTriggerClass}
+                triggerAriaLabel="Metric direction"
+              />
+              <AppSelect
+                value={format}
+                onValueChange={(nextValue) => setFormat(nextValue as typeof format)}
+                options={[
+                  { value: 'count', label: 'Count' },
+                  { value: 'density', label: 'Density' },
+                  { value: 'ratio', label: 'Ratio' },
+                  { value: 'percent', label: 'Percent' },
+                  { value: 'index', label: 'Index' },
+                ]}
+                triggerClassName={metricSelectTriggerClass}
+                triggerAriaLabel="Metric format"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedIsCensus && selectedCensusPreset) {
+                  onCreate(
+                    censusPresetToMetricRecipe({
+                      ...selectedCensusPreset,
+                      label: label.trim() || selectedCensusPreset.label,
+                    }),
+                  )
+                  return
+                }
+                const filters: MetricRecipeFilter[] = []
+                if (!selectedIsFormula && filterField.trim()) {
+                  filters.push({
+                    field: filterField.trim(),
+                    operator: filterOperator,
+                    value: parseFilterValue(filterValue, filterOperator),
+                  })
+                }
+                extraFilters.forEach((filter) => {
+                  if (!filter.field.trim()) return
+                  filters.push({
+                    field: filter.field.trim(),
+                    operator: filter.operator,
+                    value: parseFilterValue(filter.value, filter.operator),
+                  })
+                })
+                onCreate({
+                  id: metricId || `custom_metric_${recipes.length + 1}`,
+                  label: label.trim() || 'Custom metric',
+                  source,
+                  operation: selectedIsFormula ? 'derivedExpression' : operation,
+                  radiusMeters,
+                  expression: selectedIsFormula ? expression : undefined,
+                  filters: filters.length ? filters : undefined,
+                  direction,
+                  format,
+                  proxyLevel: 'experimental',
+                  sourcePath: dataset?.path,
+                })
+              }}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add recipe metric
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedIsCensus && selectedCensusPreset) {
-                onCreate(censusPresetToMetricRecipe({ ...selectedCensusPreset, label: label.trim() || selectedCensusPreset.label }))
-                return
-              }
-              const filters: MetricRecipeFilter[] = []
-              if (!selectedIsFormula && filterField.trim()) {
-                filters.push({
-                  field: filterField.trim(),
-                  operator: filterOperator,
-                  value: parseFilterValue(filterValue, filterOperator),
-                })
-              }
-              extraFilters.forEach((filter) => {
-                if (!filter.field.trim()) return
-                filters.push({
-                  field: filter.field.trim(),
-                  operator: filter.operator,
-                  value: parseFilterValue(filter.value, filter.operator),
-                })
-              })
-              onCreate({
-                id: metricId || `custom_metric_${recipes.length + 1}`,
-                label: label.trim() || 'Custom metric',
-                source,
-                operation: selectedIsFormula ? 'derivedExpression' : operation,
-                radiusMeters,
-                expression: selectedIsFormula ? expression : undefined,
-                filters: filters.length ? filters : undefined,
-                direction,
-                format,
-                proxyLevel: 'experimental',
-                sourcePath: dataset?.path,
-              })
-            }}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-700"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add recipe metric
-          </button>
-        </div>
         )}
       </CollapsibleSection>
 
       {recipes.length > 0 && (
         <div className="mt-3 space-y-1">
           {recipes.map((recipe) => (
-            <div key={recipe.id} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs">
+            <div
+              key={recipe.id}
+              className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"
+            >
               <div className="min-w-0">
                 <div className="truncate font-medium text-foreground">{recipe.label}</div>
                 <div className="truncate text-xs text-muted-foreground">{recipe.id}</div>

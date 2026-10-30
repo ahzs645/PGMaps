@@ -40,12 +40,7 @@ export type AirQualityCorrectionModel =
   | 'wildfireSmoke'
   | 'siteSpecific'
 
-export type AirQualityObservationLayer =
-  | 'rawPA'
-  | 'correctedPA'
-  | 'rawEGG'
-  | 'correctedEGG'
-  | 'agencyFEM'
+export type AirQualityObservationLayer = 'rawPA' | 'correctedPA' | 'rawEGG' | 'correctedEGG' | 'agencyFEM'
 
 export type AirQualityBoundaryColorMetric =
   | 'sensorCount'
@@ -85,10 +80,7 @@ export type EconomicRegionBoundaryLevel = 'economicRegion'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'northSouthCsd' | 'ct' | 'da' | 'db' | 'bcDaSimplified'
 export type CommunityBoundaryLevel = 'communityPolygon'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
-export type WatershedBoundaryLevel =
-  | 'majorWatershed'
-  | 'watershedGroup'
-  | 'assessmentWatershed'
+export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
 export type NamedWatershedBoundaryLevel =
   | 'namedWatershedOrder1'
   | 'namedWatershedOrder2'

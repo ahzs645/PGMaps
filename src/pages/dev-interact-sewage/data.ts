@@ -20,8 +20,20 @@ export interface SewageAttribute {
 }
 
 export const SEWAGE_ATTRIBUTES: SewageAttribute[] = [
-  { id: 'pfas', label: 'Total PFAS', caption: 'PFAS sites (total PFAS ng/l)', unit: 'ng/l', color: 'hsl(320, 55%, 52%)' },
-  { id: 'spillHours', label: 'Spill hours', caption: 'Sewage discharge sites (annual spill hours)', unit: 'hrs', color: 'hsl(3, 62%, 52%)' },
+  {
+    id: 'pfas',
+    label: 'Total PFAS',
+    caption: 'PFAS sites (total PFAS ng/l)',
+    unit: 'ng/l',
+    color: 'hsl(320, 55%, 52%)',
+  },
+  {
+    id: 'spillHours',
+    label: 'Spill hours',
+    caption: 'Sewage discharge sites (annual spill hours)',
+    unit: 'hrs',
+    color: 'hsl(3, 62%, 52%)',
+  },
 ]
 
 export interface SewageSiteProperties {
@@ -57,7 +69,8 @@ function makeSite(i: number): SewageSite {
   const pfas = Math.round(10 + pseudo(i + 17) ** 2 * 4920)
   const spillHours = Math.round(pseudo(i + 53) ** 1.7 * 1400)
   const dischargeType = DISCHARGE_TYPES[Math.floor(pseudo(i + 101) * DISCHARGE_TYPES.length) % DISCHARGE_TYPES.length]
-  const receivingWater = RECEIVING_WATERS[Math.floor(pseudo(i + 211) * RECEIVING_WATERS.length) % RECEIVING_WATERS.length]
+  const receivingWater =
+    RECEIVING_WATERS[Math.floor(pseudo(i + 211) * RECEIVING_WATERS.length) % RECEIVING_WATERS.length]
   const id = `site-${i + 1}`
 
   return {

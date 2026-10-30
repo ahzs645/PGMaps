@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import type { ContextFeature, GroundMaterial, RoadTemplate, SectionComponent, SectionLayer } from './types'
@@ -25,7 +26,7 @@ export function SectionAssemblyEditor({
     onChange({ ...template, layers: layers.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const material = (value: string | undefined, change: (id: string | undefined) => void, label: string) => (
     <Field label={label}>
-      <select
+      <NativeSelect
         className={roadFieldClass}
         aria-label={label}
         value={value ?? ''}
@@ -40,7 +41,7 @@ export function SectionAssemblyEditor({
               {m.name}
             </option>
           ))}
-      </select>
+      </NativeSelect>
     </Field>
   )
   return (
@@ -118,7 +119,7 @@ export function SectionAssemblyEditor({
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label={`Component ${i + 1} type`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={c.kind}
                 onChange={(e) =>
@@ -139,20 +140,20 @@ export function SectionAssemblyEditor({
                 <option value="slope">Slope segment</option>
                 <option value="wall">Retaining face</option>
                 <option value="key">Excavated key</option>
-              </select>
+              </NativeSelect>
             </Field>
             <Field label={`Component ${i + 1} side`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={c.side}
                 onChange={(e) => update(c.id, { side: e.target.value as SectionComponent['side'] })}
               >
                 <option value="left">Left</option>
                 <option value="right">Right</option>
-              </select>
+              </NativeSelect>
             </Field>
             <Field label={`Component ${i + 1} condition`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={c.condition}
                 onChange={(e) => update(c.id, { condition: e.target.value as SectionComponent['condition'] })}
@@ -160,7 +161,7 @@ export function SectionAssemblyEditor({
                 <option value="always">Always</option>
                 <option value="cut">Cut side</option>
                 <option value="fill">Fill side</option>
-              </select>
+              </NativeSelect>
             </Field>
             <NumberField
               label={`Component ${i + 1} width (m)`}
@@ -206,7 +207,7 @@ export function SectionAssemblyEditor({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Field label={`Component ${i + 1} reference feature`}>
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={c.referenceFeatureId ?? ''}
                     onChange={(e) => update(c.id, { referenceFeatureId: e.target.value || undefined })}
@@ -220,10 +221,10 @@ export function SectionAssemblyEditor({
                         {f.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <Field label={`Component ${i + 1} reference surface`}>
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={c.referenceSurfaceId ?? ''}
                     onChange={(e) => update(c.id, { referenceSurfaceId: e.target.value || undefined })}
@@ -240,7 +241,7 @@ export function SectionAssemblyEditor({
                         {s.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <NumberField
                   label={`Component ${i + 1} reference offset (m)`}
@@ -336,7 +337,7 @@ export function SectionAssemblyEditor({
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label={`Course ${i + 1} side`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={l.side}
                 onChange={(e) => updateLayer(l.id, { side: e.target.value as SectionLayer['side'] })}
@@ -344,7 +345,7 @@ export function SectionAssemblyEditor({
                 <option value="both">Both sides</option>
                 <option value="left">Left</option>
                 <option value="right">Right</option>
-              </select>
+              </NativeSelect>
             </Field>
             <NumberField
               label={`Course ${i + 1} depth (m)`}

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
 import { useRef } from 'react'
@@ -64,7 +65,7 @@ export function WorkflowPanel(props: WorkflowPanelProps) {
       <SidebarSection title="Workspace analysis" subtitle="Processed from your tile · selectable parameters">
         <label className="block text-xs">
           <span className="sr-only">LiDAR workflow</span>
-          <select
+          <NativeSelect
             aria-label="LiDAR workflow"
             value={options.mode ?? ''}
             onChange={(event) => props.onMode(event.target.value as AnalysisMode)}
@@ -78,7 +79,7 @@ export function WorkflowPanel(props: WorkflowPanelProps) {
                 {item.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
           Map context and overlays follow the selected workflow.

@@ -4,4 +4,3 @@
 // RAQDPS GRIB2 grid.
 
 export const PM25_NATIVE_VECTOR_URL = '/data/aqmap/modelled-pm25-native-vector.geojson.gz'
-

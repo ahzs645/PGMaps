@@ -1,28 +1,22 @@
-"use client";
+'use client'
 
-import { Check, Plus } from "lucide-react";
+import { Check, Plus } from 'lucide-react'
 
-import { PATH_TYPE_OPTIONS } from "./editor-core";
-import { MapColorPicker } from "./color-picker";
-import { MapEditorPanel, MapSubToolButton, PathPreviewSwatch } from "./tool-rail";
-import type { MapEditorController } from "./use-map-editor";
+import { PATH_TYPE_OPTIONS } from './editor-core'
+import { MapColorPicker } from './color-picker'
+import { MapEditorPanel, MapSubToolButton, PathPreviewSwatch } from './tool-rail'
+import type { MapEditorController } from './use-map-editor'
 
 /**
  * tasmap's path submenu: an "Add path" sub-button plus a popover with the 2×4
  * grid of path-type previews, a color picker, and a Finish action. Theme-aware.
  */
-export function PathFlyout({
-  editor,
-  swatches,
-}: {
-  editor: MapEditorController;
-  swatches: string[];
-}) {
-  const { pathDraft, updatePathDraft, activePathId, finishPath, enterTool } = editor;
+export function PathFlyout({ editor, swatches }: { editor: MapEditorController; swatches: string[] }) {
+  const { pathDraft, updatePathDraft, activePathId, finishPath, enterTool } = editor
 
   return (
     <div className="relative flex flex-col gap-3">
-      <MapSubToolButton icon={<Plus />} label="Add path" active onClick={() => enterTool("path")} />
+      <MapSubToolButton icon={<Plus />} label="Add path" active onClick={() => enterTool('path')} />
       <div className="absolute left-full top-0 ml-3">
         <MapEditorPanel className="w-[252px]">
           <div className="grid grid-cols-4 gap-2">
@@ -51,7 +45,7 @@ export function PathFlyout({
               title="Path color"
               swatches={swatches}
             />
-            <span className="ml-auto text-xs text-muted-foreground">{activePathId ? "drawing…" : "idle"}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{activePathId ? 'drawing…' : 'idle'}</span>
           </div>
           <p className="mt-2 text-xs leading-snug text-muted-foreground">
             Pick a style, then click the map to add points.
@@ -68,5 +62,5 @@ export function PathFlyout({
         </MapEditorPanel>
       </div>
     </div>
-  );
+  )
 }

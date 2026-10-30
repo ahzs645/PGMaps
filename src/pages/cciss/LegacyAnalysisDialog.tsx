@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
@@ -213,7 +214,7 @@ function Comparison({ point }: { point: [number, number] }) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <label className="text-sm">
           Site condition
-          <select
+          <NativeSelect
             aria-label="Analysis site condition"
             className={selectClass}
             value={edatope}
@@ -222,37 +223,41 @@ function Comparison({ point }: { point: [number, number] }) {
             <option value="B2">B2 · Poor / subxeric</option>
             <option value="C4">C4 · Medium / mesic</option>
             <option value="D6">D6 · Rich / hygric</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-sm">
           Climate model
-          <select className={selectClass} value={member.key} onChange={(e) => setModelKey(e.target.value)}>
+          <NativeSelect className={selectClass} value={member.key} onChange={(e) => setModelKey(e.target.value)}>
             {comparison.members.map((m) => (
               <option key={m.key} value={m.key}>
                 {m.model} · {m.run}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-sm">
           Projection period
-          <select className={selectClass} value={selectedPeriod} onChange={(e) => setPeriod(e.target.value)}>
+          <NativeSelect className={selectClass} value={selectedPeriod} onChange={(e) => setPeriod(e.target.value)}>
             {comparison.periods.map((p) => (
               <option key={p} value={p}>
                 {periodLabel(p)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-sm">
           Comparison species
-          <select className={selectClass} value={selectedSpecies.species} onChange={(e) => setSpecies(e.target.value)}>
+          <NativeSelect
+            className={selectClass}
+            value={selectedSpecies.species}
+            onChange={(e) => setSpecies(e.target.value)}
+          >
             {comparison.species.map((s) => (
               <option key={s.species} value={s.species}>
                 {s.species} · {s.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       </div>
       <p className="text-sm">
@@ -381,7 +386,7 @@ function Comparison({ point }: { point: [number, number] }) {
         <SidebarSection title={`Regional outlook · ${region}`}>
           <label className="block max-w-sm text-sm">
             Regional summary
-            <select
+            <NativeSelect
               className={selectClass}
               value={region}
               onChange={(e) => {
@@ -392,7 +397,7 @@ function Comparison({ point }: { point: [number, number] }) {
               {data.manifest.regions.map((r) => (
                 <option key={r.id}>{r.id}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <p className="my-3 text-sm">
             {selectedSpecies.species} · {member.model} · {member.run}. This named area is chosen independently of the

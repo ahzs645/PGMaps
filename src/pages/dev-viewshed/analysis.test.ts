@@ -4,8 +4,12 @@ import { metersPerDegree } from '../dev-forestry/visibility'
 import type { ElevationSource } from '../dev-forestry/terrain'
 
 const input: ViewshedInput = {
-  observer: { lng: -122.75, lat: 53.92 }, radiusMeters: 1000,
-  observerHeightMeters: 1.6, targetHeightMeters: 2, demZoom: 13, localTerrain: null,
+  observer: { lng: -122.75, lat: 53.92 },
+  radiusMeters: 1000,
+  observerHeightMeters: 1.6,
+  targetHeightMeters: 2,
+  demZoom: 13,
+  localTerrain: null,
 }
 function compute(source: ElevationSource, settings = input) {
   const result = createViewshedResult(source, settings, 20)
@@ -23,10 +27,12 @@ describe('terrain viewshed', () => {
   })
   it('a ridge hides ground behind it; raising the observer clears more ground', () => {
     const scale = metersPerDegree(input.observer.lat)
-    const ridge: ElevationSource = { elevationAt(lng) {
-      const east = (lng - input.observer.lng) * scale.lng
-      return east > 150 && east < 230 ? 530 : 500
-    } }
+    const ridge: ElevationSource = {
+      elevationAt(lng) {
+        const east = (lng - input.observer.lng) * scale.lng
+        return east > 150 && east < 230 ? 530 : 500
+      },
+    }
     const low = compute(ridge)
     const high = compute(ridge, { ...input, observerHeightMeters: 120 })
     expect(low.occluded).toBeGreaterThan(1000)
@@ -34,7 +40,7 @@ describe('terrain viewshed', () => {
     expect(high.visible).toBeGreaterThan(low.visible)
   })
   it('keeps missing terrain unknown rather than treating it as sea level', () => {
-    const result = compute({ elevationAt: (lng) => lng < input.observer.lng - 0.002 ? NaN : 500 })
+    const result = compute({ elevationAt: (lng) => (lng < input.observer.lng - 0.002 ? NaN : 500) })
     expect(result.unknown).toBeGreaterThan(1000)
     expect(result.visible).toBeGreaterThan(1000)
     expect(result.occluded).toBe(0)
@@ -42,10 +48,12 @@ describe('terrain viewshed', () => {
   })
   it('propagates missing interior terrain to a sightline with known endpoints', () => {
     const scale = metersPerDegree(input.observer.lat)
-    const result = compute({ elevationAt(lng) {
-      const east = (lng - input.observer.lng) * scale.lng
-      return east > 150 && east < 230 ? NaN : 500
-    } })
+    const result = compute({
+      elevationAt(lng) {
+        const east = (lng - input.observer.lng) * scale.lng
+        return east > 150 && east < 230 ? NaN : 500
+      },
+    })
     expect(result.unknown).toBeGreaterThan(1000)
     expect(result.occluded).toBe(0)
   })

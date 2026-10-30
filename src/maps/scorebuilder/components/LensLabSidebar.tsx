@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useClipboardText } from '@/hooks/useClipboardText'
+import { useMemo, useState } from 'react'
 import { Check, Copy, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -93,7 +94,7 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
     onClearRegionSelection,
   } = props
   const [sourcesOpen, setSourcesOpen] = useState(false)
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const { copy, status: copyStatus } = useClipboardText({ failureResetAfterMs: 1800 })
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
 
   const primaryMetric = props.lab === 'density' ? props.densityMetric : props.correlateMetricX
@@ -109,15 +110,9 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
     return getUnavailableWeightedMetrics(metrics, lensWeights, enabledDataSources, boundarySource)
   }, [boundarySource, enabledDataSources, lensMetrics, metrics])
 
-  const handleCopyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      setCopyStatus('copied')
-    } catch {
-      setCopyStatus('failed')
-    }
-    window.setTimeout(() => setCopyStatus('idle'), 1800)
-  }, [])
+  const handleCopyLink = () => {
+    void copy(window.location.href)
+  }
 
   return (
     <div
@@ -135,6 +130,7 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             </div>
             <button
               type="button"
+              disabled={copyStatus === 'pending'}
               onClick={handleCopyLink}
               className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               aria-label="Copy link to this view"

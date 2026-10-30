@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Map as PgMap,
-  MapClusterLayer,
-  MapMarker,
-  MarkerContent,
-  type MapRef
-} from '@/components/ui/map'
+import { Map as PgMap, MapClusterLayer, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
@@ -14,7 +8,7 @@ import type {
   ExplorerLineCollection,
   ExplorerPointCollection,
   ExplorerPolygonCollection,
-  SpatialFilter
+  SpatialFilter,
 } from '../types'
 
 interface ExplorerMapProps {
@@ -42,7 +36,7 @@ export function ExplorerMap({
   onSpatialFilterChange,
   onMapRightClick,
   heatmapLayer,
-  loading = false
+  loading = false,
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [drawMode, setDrawMode] = useState(false)
@@ -77,7 +71,9 @@ export function ExplorerMap({
       onMapRightClick(e.lngLat.lng, e.lngLat.lat)
     }
     map.on('contextmenu', handler)
-    return () => { map.off('contextmenu', handler) }
+    return () => {
+      map.off('contextmenu', handler)
+    }
   }, [onMapRightClick])
 
   useEffect(() => {
@@ -85,37 +81,46 @@ export function ExplorerMap({
     mapRef.current.fitBounds(
       [
         [selectedItem.bounds.minLng, selectedItem.bounds.minLat],
-        [selectedItem.bounds.maxLng, selectedItem.bounds.maxLat]
+        [selectedItem.bounds.maxLng, selectedItem.bounds.maxLat],
       ],
-      { padding: 90, duration: 500, maxZoom: 14 }
+      { padding: 90, duration: 500, maxZoom: 14 },
     )
   }, [selectedItem])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!drawMode) return
-    e.preventDefault()
-    const rect = overlayRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setDrawStart({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-    setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-  }, [drawMode])
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!drawMode) return
+      e.preventDefault()
+      const rect = overlayRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setDrawStart({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    },
+    [drawMode],
+  )
 
-  const handleReportClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!reportMode || !mapRef.current || !onMapRightClick) return
-    const rect = overlayRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const point = mapRef.current.unproject([e.clientX - rect.left, e.clientY - rect.top])
-    onMapRightClick(point.lng, point.lat)
-    setReportMode(false)
-  }, [onMapRightClick, reportMode])
+  const handleReportClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!reportMode || !mapRef.current || !onMapRightClick) return
+      const rect = overlayRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const point = mapRef.current.unproject([e.clientX - rect.left, e.clientY - rect.top])
+      onMapRightClick(point.lng, point.lat)
+      setReportMode(false)
+    },
+    [onMapRightClick, reportMode],
+  )
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!drawMode || !drawStart) return
-    e.preventDefault()
-    const rect = overlayRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-  }, [drawMode, drawStart])
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!drawMode || !drawStart) return
+      e.preventDefault()
+      const rect = overlayRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    },
+    [drawMode, drawStart],
+  )
 
   const handleMouseUp = useCallback(() => {
     if (!drawMode || !drawStart || !drawCurrent || !mapRef.current) {
@@ -130,8 +135,10 @@ export function ExplorerMap({
 
     if (sw && ne && Math.abs(drawStart.x - drawCurrent.x) > 10 && Math.abs(drawStart.y - drawCurrent.y) > 10) {
       onSpatialFilterChange({
-        minLng: sw.lng, minLat: sw.lat,
-        maxLng: ne.lng, maxLat: ne.lat
+        minLng: sw.lng,
+        minLat: sw.lat,
+        maxLng: ne.lng,
+        maxLat: ne.lat,
       })
     }
 
@@ -146,14 +153,13 @@ export function ExplorerMap({
       left: Math.min(drawStart.x, drawCurrent.x),
       top: Math.min(drawStart.y, drawCurrent.y),
       width: Math.abs(drawCurrent.x - drawStart.x),
-      height: Math.abs(drawCurrent.y - drawStart.y)
+      height: Math.abs(drawCurrent.y - drawStart.y),
     }
   }, [drawStart, drawCurrent])
 
   return (
     <div className="h-full w-full relative">
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
-
         {heatmapLayer}
 
         {polygonCollections.map((collection) => (
@@ -233,7 +239,7 @@ export function ExplorerMap({
                 left: drawRect.left,
                 top: drawRect.top,
                 width: drawRect.width,
-                height: drawRect.height
+                height: drawRect.height,
               }}
             />
           )}
@@ -258,7 +264,7 @@ export function ExplorerMap({
             'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors touch:min-h-10 sm:px-3',
             drawMode
               ? 'border-cyan-500 bg-cyan-500 text-white'
-              : 'border-border bg-background/95 text-foreground hover:bg-accent'
+              : 'border-border bg-background/95 text-foreground hover:bg-accent',
           )}
         >
           {drawMode ? 'Drawing...' : 'Draw Area'}
@@ -276,7 +282,7 @@ export function ExplorerMap({
             'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors touch:min-h-10 sm:px-3',
             reportMode
               ? 'border-emerald-500 bg-emerald-500 text-white'
-              : 'border-border bg-background/95 text-foreground hover:bg-accent'
+              : 'border-border bg-background/95 text-foreground hover:bg-accent',
           )}
         >
           {reportMode ? 'Tap map...' : 'Report Point'}

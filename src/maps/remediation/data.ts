@@ -1,7 +1,8 @@
 import { fetchGzipText, fetchJson } from '@/lib/fetchJson'
 
 export const REMEDIATION_CATALOGUE = 'https://catalogue.data.gov.bc.ca/dataset/environmental-remediation-sites'
-export const REMEDIATION_ARCGIS = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_waste/MapServer/3'
+export const REMEDIATION_ARCGIS =
+  'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_waste/MapServer/3'
 export const REMEDIATION_R2_BASE = 'https://data.map.ahmad.sh/bc/environmental-remediation/v1/'
 
 export type SiteProperties = {
@@ -43,16 +44,19 @@ export async function loadRemediation(signal: AbortSignal) {
   try {
     manifest = await fetchJson<RemediationManifest>(`${base}map-manifest.json`, signal)
   } catch {
-    throw new Error(import.meta.env.DEV
-      ? 'Local snapshot unavailable. Run npm run remediation:sync, then Retry.'
-      : 'Remediation snapshot unavailable from R2. Try again later.')
+    throw new Error(
+      import.meta.env.DEV
+        ? 'Local snapshot unavailable. Run npm run remediation:sync, then Retry.'
+        : 'Remediation snapshot unavailable from R2. Try again later.',
+    )
   }
   if (manifest.schemaVersion !== 1 || !/^sites-[a-f0-9]{64}\.geojson\.gz$/.test(manifest.resource)) {
     throw new Error('Unrecognized remediation snapshot manifest.')
   }
   const data = await fetchGzipText(base + manifest.resource, signal)
   const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))))
-    .map((byte) => byte.toString(16).padStart(2, '0')).join('')
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
   if (digest !== manifest.sha256) throw new Error('Snapshot integrity check failed.')
   const collection = JSON.parse(data) as SiteCollection
   if (collection.type !== 'FeatureCollection' || collection.features.length !== manifest.featureCount) {

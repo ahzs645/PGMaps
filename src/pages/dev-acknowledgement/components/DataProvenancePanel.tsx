@@ -29,10 +29,13 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
                 <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
               </span>
               <span className="mt-1 inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-emerald-800">
-                {source.access ?? 'automated'}{source.featureCount ? ` · ${source.featureCount} features` : ''}
+                {source.access ?? 'automated'}
+                {source.featureCount ? ` · ${source.featureCount} features` : ''}
               </span>
               <span className="mt-2 block">
-                {source.output ? `Synced by bcdatamapper to ${source.output}.` : 'Tracked by the bcdatamapper Indigenous source manifest.'}
+                {source.output
+                  ? `Synced by bcdatamapper to ${source.output}.`
+                  : 'Tracked by the bcdatamapper Indigenous source manifest.'}
               </span>
               <span className="mt-1 block text-slate-500">{source.caveat}</span>
             </a>
@@ -61,9 +64,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
               <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
                 {source.access ?? 'manual'}
               </span>
-              <span className="mt-2 block">
-                Tracked in the bcdatamapper manifest as a non-automated source.
-              </span>
+              <span className="mt-2 block">Tracked in the bcdatamapper manifest as a non-automated source.</span>
               <span className="mt-1 block text-slate-500">{source.caveat}</span>
             </a>
           )

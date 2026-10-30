@@ -76,7 +76,6 @@ function DevInteractSewage() {
           zoom={SEWAGE_DEFAULT_ZOOM}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
-
           {visible &&
             siteFeatures.features.map((site) => {
               const value = site.properties[attribute]

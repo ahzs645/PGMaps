@@ -26,22 +26,15 @@ interface MapCardProps {
 function MapCard({ title, description, icon: Icon, href, color, status }: MapCardProps) {
   const isAvailable = status === 'available'
   const firstSentenceEnd = description.indexOf('.')
-  const compactDescription = firstSentenceEnd > -1
-    ? description.slice(0, firstSentenceEnd + 1)
-    : description
+  const compactDescription = firstSentenceEnd > -1 ? description.slice(0, firstSentenceEnd + 1) : description
   const cardClasses = cn(
     'group relative flex h-full flex-col rounded-lg border bg-card p-4 transition-all duration-200 sm:rounded-xl sm:p-6',
-    isAvailable
-      ? 'hover:border-primary/50 hover:shadow-lg cursor-pointer'
-      : 'opacity-60'
+    isAvailable ? 'hover:border-primary/50 hover:shadow-lg cursor-pointer' : 'opacity-60',
   )
 
   const cardContent = (
     <>
-      <div className={cn(
-        'mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12',
-        color
-      )}>
+      <div className={cn('mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12', color)}>
         <Icon className="h-4 w-4 text-white sm:h-6 sm:w-6" />
       </div>
 
@@ -57,9 +50,7 @@ function MapCard({ title, description, icon: Icon, href, color, status }: MapCar
           <ArrowRight className="h-4 w-4" />
         </div>
       ) : (
-        <div className="mt-3 text-sm font-medium text-muted-foreground sm:mt-5">
-          Coming soon
-        </div>
+        <div className="mt-3 text-sm font-medium text-muted-foreground sm:mt-5">Coming soon</div>
       )}
     </>
   )
@@ -82,7 +73,8 @@ function MapCard({ title, description, icon: Icon, href, color, status }: MapCar
 const mapProjects: MapCardProps[] = [
   {
     title: 'Food Safety',
-    description: 'Explore restaurant health inspection results across Prince George. View ratings, violations, and inspection history.',
+    description:
+      'Explore restaurant health inspection results across Prince George. View ratings, violations, and inspection history.',
     icon: UtensilsCrossed,
     href: '/foodmap',
     color: 'bg-orange-500',
@@ -90,7 +82,8 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'Air Quality',
-    description: 'Monitor real-time air quality data from stations throughout the city. Track AQI, PM2.5, and other pollutants.',
+    description:
+      'Monitor real-time air quality data from stations throughout the city. Track AQI, PM2.5, and other pollutants.',
     icon: Wind,
     href: '/airquality',
     color: 'bg-sky-500',
@@ -106,7 +99,8 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'Census Data',
-    description: 'Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.',
+    description:
+      'Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.',
     icon: BarChart3,
     href: '/misc?tab=census',
     color: 'bg-amber-600',
@@ -122,7 +116,8 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'PG Data',
-    description: 'Explore City of Prince George open datasets, including property crime, parks, trails, and recreation amenities.',
+    description:
+      'Explore City of Prince George open datasets, including property crime, parks, trails, and recreation amenities.',
     icon: ShieldAlert,
     href: '/pgdata',
     color: 'bg-red-500',
@@ -130,7 +125,8 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'MISC Data',
-    description: 'Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, drinking water, and remote sensing metadata.',
+    description:
+      'Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, drinking water, and remote sensing metadata.',
     icon: Database,
     href: '/misc',
     color: 'bg-violet-600',
@@ -146,7 +142,8 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'Explorer',
-    description: 'Browse all point, line, and polygon datasets together. Filter by geometry type, toggle sources, and rank features by relevance.',
+    description:
+      'Browse all point, line, and polygon datasets together. Filter by geometry type, toggle sources, and rank features by relevance.',
     icon: Layers,
     href: '/explorer',
     color: 'bg-indigo-500',
@@ -167,8 +164,8 @@ export default function Home() {
             Prince George Data Platform
           </h1>
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
-            Explore and analyze multiple datasets about Prince George through interactive maps.
-            Combine layers, build custom scores, and discover insights about your community.
+            Explore and analyze multiple datasets about Prince George through interactive maps. Combine layers, build
+            custom scores, and discover insights about your community.
           </p>
         </div>
 
@@ -207,7 +204,7 @@ export default function Home() {
           </h2>
           <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
             {upcomingProjects.map((project) => (
-            <MapCard key={project.href} {...project} />
+              <MapCard key={project.href} {...project} />
             ))}
           </div>
         </section>

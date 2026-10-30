@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, PanelLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -21,7 +22,7 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
       <div className="min-w-0 flex-1">
         <span className="hidden text-sm font-semibold sm:inline">LiDAR</span>
       </div>
-      <select
+      <NativeSelect
         aria-label="LiDAR tool"
         className="h-8 min-w-0 max-w-[150px] rounded border bg-background px-2 text-xs"
         value={c.tool?.id ?? ''}
@@ -33,10 +34,10 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
             {t.title}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {!c.isLibrary && (
         <>
-          <select
+          <NativeSelect
             aria-label="Basemap"
             value={c.basemap}
             onChange={(e) => c.setBasemap(e.target.value as Basemap)}
@@ -45,7 +46,7 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
             <option value="vector">Vector</option>
             <option value="satellite">Satellite</option>
             <option value="none">None</option>
-          </select>
+          </NativeSelect>
           {c.tool?.id !== 'compare' && c.tool?.id !== 'volume' && c.tool?.id !== 'inventory' && (
             <Button
               variant="outline"

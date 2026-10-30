@@ -1,4 +1,4 @@
-import bbox from '@turf/bbox'
+import { featureCollectionBounds } from '@pgmaps/geo-toolkit/calculations'
 import { Filter, MapPin, RadioTower, Search, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Map, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
@@ -53,7 +53,8 @@ function FitBounds({ data }: { data: GeoJSON.FeatureCollection }) {
 
   useEffect(() => {
     if (!isLoaded || !map || data.features.length === 0) return
-    const bounds = bbox(data as never) as [number, number, number, number]
+    const bounds = featureCollectionBounds(data)
+    if (!bounds) return
     map.fitBounds(bounds, {
       padding: { top: 72, bottom: 56, left: 36, right: 36 },
       duration: 650,
@@ -85,7 +86,7 @@ function DevFallout() {
       try {
         const response = await fetch(DATA_PATH, { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to load fallout data: ${response.status}`)
-        const data = await response.json() as FalloutCollection
+        const data = (await response.json()) as FalloutCollection
         if (!controller.signal.aborted) setCollection(data)
       } catch (err) {
         if (!controller.signal.aborted) setError((err as Error).message || 'Unable to load fallout data')
@@ -124,32 +125,43 @@ function DevFallout() {
     })
   }, [collection, featureType, province, query])
 
-  const pointData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, FalloutProperties>>(() => ({
-    type: 'FeatureCollection',
-    features: filteredFeatures.filter((feature): feature is FalloutPointFeature => feature.geometry.type === 'Point'),
-  }), [filteredFeatures])
+  const pointData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, FalloutProperties>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: filteredFeatures.filter((feature): feature is FalloutPointFeature => feature.geometry.type === 'Point'),
+    }),
+    [filteredFeatures],
+  )
 
-  const lineData = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString, FalloutProperties>>(() => ({
-    type: 'FeatureCollection',
-    features: filteredFeatures.filter((feature): feature is FalloutLineFeature => feature.geometry.type === 'LineString'),
-  }), [filteredFeatures])
+  const lineData = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString, FalloutProperties>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: filteredFeatures.filter(
+        (feature): feature is FalloutLineFeature => feature.geometry.type === 'LineString',
+      ),
+    }),
+    [filteredFeatures],
+  )
 
-  const visibleFitData = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: 'FeatureCollection',
-    features: [
-      ...(showPoints ? pointData.features : []),
-      ...(showLines ? lineData.features : []),
-    ],
-  }), [lineData, pointData, showLines, showPoints])
+  const visibleFitData = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: [...(showPoints ? pointData.features : []), ...(showLines ? lineData.features : [])],
+    }),
+    [lineData, pointData, showLines, showPoints],
+  )
 
   const selectedCoordinate = selected ? featureCoordinate(selected) : null
   const selectedGeometryType = selected?.geometry.type ?? null
   const totalFeatures = collection?.metadata?.totalFeatures ?? collection?.features.length ?? 0
 
-  const handleLineClick = useCallback((id: string) => {
-    const feature = lineData.features.find((candidate) => candidate.properties.id === id) ?? null
-    setSelected(feature)
-  }, [lineData])
+  const handleLineClick = useCallback(
+    (id: string) => {
+      const feature = lineData.features.find((candidate) => candidate.properties.id === id) ?? null
+      setSelected(feature)
+    },
+    [lineData],
+  )
 
   const sidebar = (
     <MapSidebarShell
@@ -160,7 +172,9 @@ function DevFallout() {
     >
       {error && (
         <div className="border-b border-border p-4">
-          <InlineAlert tone="error" className="text-sm">{error}</InlineAlert>
+          <InlineAlert tone="error" className="text-sm">
+            {error}
+          </InlineAlert>
         </div>
       )}
 
@@ -220,13 +234,21 @@ function DevFallout() {
         <div className="space-y-2">
           <ToggleRow
             active={showPoints}
-            label={<LayerLabel color="bg-red-500" active={showPoints}>Point placemarks</LayerLabel>}
+            label={
+              <LayerLabel color="bg-red-500" active={showPoints}>
+                Point placemarks
+              </LayerLabel>
+            }
             trailing={<span className="text-muted-foreground">{formatNumber(pointData.features.length)}</span>}
             onClick={() => setShowPoints((current) => !current)}
           />
           <ToggleRow
             active={showLines}
-            label={<LayerLabel color="bg-amber-400" active={showLines}>Communication lines</LayerLabel>}
+            label={
+              <LayerLabel color="bg-amber-400" active={showLines}>
+                Communication lines
+              </LayerLabel>
+            }
             trailing={<span className="text-muted-foreground">{formatNumber(lineData.features.length)}</span>}
             onClick={() => setShowLines((current) => !current)}
           />
@@ -242,7 +264,9 @@ function DevFallout() {
               onClick={() => setSelected(feature as FalloutFeature)}
               className={cn(
                 'w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-muted',
-                selected?.properties.id === feature.properties.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
+                selected?.properties.id === feature.properties.id
+                  ? 'border-sky-500 bg-sky-500/10'
+                  : 'border-border bg-background',
               )}
             >
               <div className="truncate text-xs font-semibold">{feature.properties.name}</div>
@@ -335,7 +359,10 @@ function DevFallout() {
 function LayerLabel({ color, active, children }: { color: string; active: boolean; children: string }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span className={cn('size-2.5 shrink-0 rounded-full', active ? color : 'bg-muted-foreground/40')} aria-hidden="true" />
+      <span
+        className={cn('size-2.5 shrink-0 rounded-full', active ? color : 'bg-muted-foreground/40')}
+        aria-hidden="true"
+      />
       <span className="truncate">{children}</span>
     </span>
   )

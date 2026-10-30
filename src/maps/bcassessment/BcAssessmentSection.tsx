@@ -73,7 +73,9 @@ export default function BcAssessmentSection() {
   const [selectedCategoriesOverride, setSelectedCategoriesOverride] = useState<PropertyCategory[] | null>(null)
   const selectedCategories = selectedCategoriesOverride ?? ALL_CATEGORIES
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [colorMetric, setColorMetric] = useState<ColorMetric>(() => (searchParams.get('metric') as ColorMetric) || 'totalAssessed')
+  const [colorMetric, setColorMetric] = useState<ColorMetric>(
+    () => (searchParams.get('metric') as ColorMetric) || 'totalAssessed',
+  )
   const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>(() => {
     const boundary = searchParams.get('boundary')
     return isAssessmentBoundaryLevel(boundary) ? boundary : 'none'
@@ -105,7 +107,7 @@ export default function BcAssessmentSection() {
   const [timelineYearState, setTimelineYear] = useState(new Date().getFullYear())
   const timelineYear = timelineYearOptions.includes(timelineYearState)
     ? timelineYearState
-    : timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYearState
+    : (timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYearState)
 
   const filteredBaseProperties = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -145,14 +147,18 @@ export default function BcAssessmentSection() {
 
   // A deep-linked property cannot resolve until its parcel records arrive.
   // Preserve the selection parameter while loading, as the parks section does.
-  useUrlParamSync(propertySelection.pending ? null : {
-    q: searchQuery.trim(),
-    metric: colorMetric === 'totalAssessed' ? null : colorMetric,
-    boundary: boundaryLevel === 'none' ? null : boundaryLevel,
-    source: boundarySource === 'census' ? null : boundarySource,
-    property: visibleSelectedProperty ? visibleSelectedProperty.id : null,
-    region: selectedBoundaryId,
-  })
+  useUrlParamSync(
+    propertySelection.pending
+      ? null
+      : {
+          q: searchQuery.trim(),
+          metric: colorMetric === 'totalAssessed' ? null : colorMetric,
+          boundary: boundaryLevel === 'none' ? null : boundaryLevel,
+          source: boundarySource === 'census' ? null : boundarySource,
+          property: visibleSelectedProperty ? visibleSelectedProperty.id : null,
+          region: selectedBoundaryId,
+        },
+  )
 
   const timelineBucketValues = useMemo(() => {
     const totals = new Map<string, { total: number; count: number }>()
@@ -175,10 +181,13 @@ export default function BcAssessmentSection() {
     )
   }, [filteredBaseProperties])
 
-  const timelineDateRange = useMemo(() => ({
-    start: new Date(timelineYearOptions[0] ?? timelineYear, 0, 1),
-    end: new Date(timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYear, 0, 1),
-  }), [timelineYear, timelineYearOptions])
+  const timelineDateRange = useMemo(
+    () => ({
+      start: new Date(timelineYearOptions[0] ?? timelineYear, 0, 1),
+      end: new Date(timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYear, 0, 1),
+    }),
+    [timelineYear, timelineYearOptions],
+  )
 
   const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
   const toggleCategory = useCallback((category: PropertyCategory) => {
@@ -190,23 +199,29 @@ export default function BcAssessmentSection() {
     setSelectedBoundaryId(null)
   }, [propertySelection])
 
-  const handlePropertyClick = useCallback((property: Property) => {
-    if (effectiveSelectedProperty?.id === property.id) {
-      handleClearSelection()
-      return
-    }
-    propertySelection.select(property)
-    setSelectedBoundaryId(null)
-  }, [handleClearSelection, effectiveSelectedProperty, propertySelection])
+  const handlePropertyClick = useCallback(
+    (property: Property) => {
+      if (effectiveSelectedProperty?.id === property.id) {
+        handleClearSelection()
+        return
+      }
+      propertySelection.select(property)
+      setSelectedBoundaryId(null)
+    },
+    [handleClearSelection, effectiveSelectedProperty, propertySelection],
+  )
 
-  const handleBoundaryClick = useCallback((boundaryId: string) => {
-    if (selectedBoundaryId === boundaryId) {
-      handleClearSelection()
-      return
-    }
-    setSelectedBoundaryId(boundaryId)
-    propertySelection.select(null)
-  }, [handleClearSelection, selectedBoundaryId, propertySelection])
+  const handleBoundaryClick = useCallback(
+    (boundaryId: string) => {
+      if (selectedBoundaryId === boundaryId) {
+        handleClearSelection()
+        return
+      }
+      setSelectedBoundaryId(boundaryId)
+      propertySelection.select(null)
+    },
+    [handleClearSelection, selectedBoundaryId, propertySelection],
+  )
 
   const handleBoundarySourceChange = useCallback((source: AssessmentBoundarySource) => {
     setBoundarySource(source)
@@ -240,7 +255,7 @@ export default function BcAssessmentSection() {
     <MapSectionLayout
       mobilePeekTitle={<>BC Assessment | {filteredProperties.length.toLocaleString(DEFAULT_LOCALE)} parcels</>}
       mobilePeekSubtitle={<>{visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}</>}
-      sidebar={(
+      sidebar={
         <BcAssessmentSidebar
           className={MAP_SIDEBAR_CLASS}
           properties={properties}
@@ -261,14 +276,17 @@ export default function BcAssessmentSection() {
           onToggleCategory={toggleCategory}
           onColorMetricChange={setColorMetric}
           onBoundarySourceChange={handleBoundarySourceChange}
-          selectedBoundary={selectedBoundaryId ? boundaryAggregates.get(selectedBoundaryId) ?? null : null}
-          onBoundaryLevelChange={(level) => { setBoundaryLevel(level); setSelectedBoundaryId(null) }}
+          selectedBoundary={selectedBoundaryId ? (boundaryAggregates.get(selectedBoundaryId) ?? null) : null}
+          onBoundaryLevelChange={(level) => {
+            setBoundaryLevel(level)
+            setSelectedBoundaryId(null)
+          }}
           onPropertyClick={handlePropertyClick}
           onClearSelection={handleClearSelection}
           onToggleTimeline={() => setShowTimeline((current) => !current)}
           onTimelineYearChange={setTimelineYear}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <BcAssessmentMap
@@ -332,20 +350,9 @@ export default function BcAssessmentSection() {
   )
 }
 
-function MobileBcAssessmentFeatureCard({
-  property,
-  onClose,
-}: {
-  property: Property
-  onClose: () => void
-}) {
+function MobileBcAssessmentFeatureCard({ property, onClose }: { property: Property; onClose: () => void }) {
   return (
-    <MobileFeatureCard
-      cardKey={property.id}
-      title={property.address}
-      subtitle={property.description}
-      onClose={onClose}
-    >
+    <MobileFeatureCard cardKey={property.id} title={property.address} subtitle={property.description} onClose={onClose}>
       <KeyValueRows
         className="mt-3 rounded-md border border-blue-300/60 bg-blue-50 p-3 text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100"
         rows={[
@@ -355,9 +362,7 @@ function MobileBcAssessmentFeatureCard({
           property.yearBuilt ? { label: 'Year Built', value: String(property.yearBuilt) } : null,
         ]}
       />
-      {property.histValues && property.histValues.length > 1 && (
-        <HistorySparkline values={property.histValues} />
-      )}
+      {property.histValues && property.histValues.length > 1 && <HistorySparkline values={property.histValues} />}
     </MobileFeatureCard>
   )
 }

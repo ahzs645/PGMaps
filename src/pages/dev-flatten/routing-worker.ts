@@ -12,7 +12,13 @@ export type RoutingResponse =
 export class RoutingWorker {
   private worker: Worker
   private nextId = 0
-  private active: { id: number; partial: (family: Family) => void; resolve: (family: Family) => void; reject: (error: Error) => void; cleanup: () => void } | null = null
+  private active: {
+    id: number
+    partial: (family: Family) => void
+    resolve: (family: Family) => void
+    reject: (error: Error) => void
+    cleanup: () => void
+  } | null = null
 
   constructor(private city: CityId = 'sf') {
     this.worker = new Worker(new URL('./routing.worker.ts', import.meta.url), { type: 'module' })

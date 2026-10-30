@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -100,7 +101,7 @@ export function PortalFiles({
         </label>
         <label className="block text-sm">
           Source CRS override
-          <select
+          <NativeSelect
             aria-label="GIS source CRS"
             className="ml-2 rounded-md border bg-background p-2 text-base"
             value={sourceCrs}
@@ -115,7 +116,7 @@ export function PortalFiles({
             <option value="EPSG:4326">EPSG:4326 — WGS84</option>
             <option value="EPSG:3857">EPSG:3857 — Web Mercator</option>
             <option value="EPSG:3005">EPSG:3005 — BC Albers</option>
-          </select>
+          </NativeSelect>
         </label>
         <Button disabled={!files.length || loading} onClick={() => void importFiles()}>
           {loading ? 'Converting GIS files…' : 'Review GIS import'}
@@ -252,7 +253,7 @@ export function PortalFiles({
               ].map(([label, value, setValue]) => (
                 <label key={String(label)} className="text-sm">
                   {String(label)}
-                  <select
+                  <NativeSelect
                     aria-label={String(label)}
                     value={String(value)}
                     className="ml-2 rounded-md border bg-background p-2"
@@ -262,7 +263,7 @@ export function PortalFiles({
                     {bibliography.headers.map((header) => (
                       <option key={header}>{header}</option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
               ))}
             </div>

@@ -49,7 +49,8 @@ export const DEFAULT_SETTINGS: AvastSettings = {
 /** The wording the Dunkley workbook uses, so pasted rows read the same as existing ones. */
 export const COVERAGE_NOTES = {
   good: 'Good AVAST coverage. Volume estimate is considered suitable for first-pass screening.',
-  moderate: 'Moderate AVAST coverage. Volume estimate is generally useful for screening, but non-covered portions should be reviewed if this shape is advanced.',
+  moderate:
+    'Moderate AVAST coverage. Volume estimate is generally useful for screening, but non-covered portions should be reviewed if this shape is advanced.',
   low: 'Low AVAST coverage. Volume estimate should be treated as incomplete and used for screening only. Additional inventory data may be required.',
   none: 'Little/no AVAST coverage. Estimated volume could not be calculated from AVAST for this proposed shape.',
 } as const
@@ -60,7 +61,10 @@ export type ReportContext = {
   slopeAssessed: boolean
 }
 
-export function coverageClass(percent: number, settings: Pick<ReportSettings, 'coverageGoodPct' | 'coverageModeratePct' | 'coverageLowPct'>): CandidateSummary['coverageClass'] {
+export function coverageClass(
+  percent: number,
+  settings: Pick<ReportSettings, 'coverageGoodPct' | 'coverageModeratePct' | 'coverageLowPct'>,
+): CandidateSummary['coverageClass'] {
   if (percent >= settings.coverageGoodPct) return 'good'
   if (percent >= settings.coverageModeratePct) return 'moderate'
   if (percent >= settings.coverageLowPct) return 'low'
@@ -73,7 +77,8 @@ export function roundTo(value: number, decimals: number): number {
   return Math.round((value + Number.EPSILON) * scale) / scale
 }
 
-const fmt = (value: number, digits = 0) => value.toLocaleString('en-CA', { maximumFractionDigits: digits, minimumFractionDigits: digits })
+const fmt = (value: number, digits = 0) =>
+  value.toLocaleString('en-CA', { maximumFractionDigits: digits, minimumFractionDigits: digits })
 
 /**
  * Part 2's aggregate factor: total LiDAR ÷ total AVAST over the common
@@ -139,14 +144,16 @@ export function summarize(
   }
 
   const lidarActive = settings.lidarMode !== 'none' && context.lidarLayerNames.length > 0
-  const calibration = settings.lidarMode === 'calibrate' && lidarActive
-    ? calibrate(candidates, raws, settings, (candidate) => !duplicateKeys.has(candidate.key))
-    : null
-  const factor = settings.lidarMode === 'factor'
-    ? settings.lidarFactor
-    : settings.lidarMode === 'calibrate'
-      ? calibration?.factor ?? null
+  const calibration =
+    settings.lidarMode === 'calibrate' && lidarActive
+      ? calibrate(candidates, raws, settings, (candidate) => !duplicateKeys.has(candidate.key))
       : null
+  const factor =
+    settings.lidarMode === 'factor'
+      ? settings.lidarFactor
+      : settings.lidarMode === 'calibrate'
+        ? (calibration?.factor ?? null)
+        : null
   const breaks = settings.slopeBreaks
   const avastName = context.avastLayerNames.join(' + ') || 'AVAST'
   const lidarName = context.lidarLayerNames.join(' + ') || 'LiDAR'
@@ -165,23 +172,28 @@ export function summarize(
 
     let volumeSource: VolumeSource = 'AVAST Raw'
     let finalVolume = raw.avast.volume
-    let classVolume = raw.avast.byClass ? [...raw.avast.byClass.volume] as [number, number, number] : null
-    let classAreaHa = raw.avast.byClass ? [...raw.avast.byClass.areaHa] as [number, number, number] : null
+    let classVolume = raw.avast.byClass ? ([...raw.avast.byClass.volume] as [number, number, number]) : null
+    let classAreaHa = raw.avast.byClass ? ([...raw.avast.byClass.areaHa] as [number, number, number]) : null
     let unclassifiedVolume = raw.avast.byClass?.unclassifiedVolume ?? 0
     let coveredHa = raw.avast.coveredHa
-    if (lidarActive && raw.lidar && lidarCoveragePct !== null && lidarCoveragePct >= settings.directLidarMinCoveragePct) {
+    if (
+      lidarActive &&
+      raw.lidar &&
+      lidarCoveragePct !== null &&
+      lidarCoveragePct >= settings.directLidarMinCoveragePct
+    ) {
       // Direct LiDAR is already the reference estimate; the factor never applies to it.
       volumeSource = 'LiDAR'
       finalVolume = raw.lidar.volume
-      classVolume = raw.lidar.byClass ? [...raw.lidar.byClass.volume] as [number, number, number] : null
-      classAreaHa = raw.lidar.byClass ? [...raw.lidar.byClass.areaHa] as [number, number, number] : null
+      classVolume = raw.lidar.byClass ? ([...raw.lidar.byClass.volume] as [number, number, number]) : null
+      classAreaHa = raw.lidar.byClass ? ([...raw.lidar.byClass.areaHa] as [number, number, number]) : null
       unclassifiedVolume = raw.lidar.byClass?.unclassifiedVolume ?? 0
       coveredHa = raw.lidar.coveredHa
     } else if (factor !== null) {
       // The factor calibrates volume per slope class too. It never changes area.
       volumeSource = 'AVAST - LiDAR Adjusted'
       finalVolume = raw.avast.volume * factor
-      classVolume = classVolume ? classVolume.map((value) => value * factor) as [number, number, number] : null
+      classVolume = classVolume ? (classVolume.map((value) => value * factor) as [number, number, number]) : null
       unclassifiedVolume *= factor
     }
 
@@ -206,26 +218,37 @@ export function summarize(
       }
     }
 
-    const estimateSource = volumeSource === 'LiDAR'
-      ? `LiDAR volume · ${lidarName}`
-      : volumeSource === 'AVAST - LiDAR Adjusted'
-        ? `AVAST × LiDAR factor ${roundTo(factor!, 4)} · ${avastName}`
-        : `AVAST estimate · ${avastName}`
+    const estimateSource =
+      volumeSource === 'LiDAR'
+        ? `LiDAR volume · ${lidarName}`
+        : volumeSource === 'AVAST - LiDAR Adjusted'
+          ? `AVAST × LiDAR factor ${roundTo(factor!, 4)} · ${avastName}`
+          : `AVAST estimate · ${avastName}`
 
     const notes: string[] = []
-    if (volumeSource === 'LiDAR') notes.push(`LiDAR-supported volume used directly (${fmt(lidarCoveragePct ?? 0, 1)}% LiDAR coverage); AVAST-only volume kept for reference.`)
-    if (volumeSource === 'AVAST - LiDAR Adjusted') notes.push(`AVAST volume adjusted by LiDAR factor ${roundTo(factor!, 4)}.`)
+    if (volumeSource === 'LiDAR')
+      notes.push(
+        `LiDAR-supported volume used directly (${fmt(lidarCoveragePct ?? 0, 1)}% LiDAR coverage); AVAST-only volume kept for reference.`,
+      )
+    if (volumeSource === 'AVAST - LiDAR Adjusted')
+      notes.push(`AVAST volume adjusted by LiDAR factor ${roundTo(factor!, 4)}.`)
     if (raw.avast.coveredHa === 0) notes.push('No AVAST coverage (0 ha).')
-    if (!useField && settings.grossArea === 'field') notes.push('Merch area missing; gross area taken from the polygon.')
+    if (!useField && settings.grossArea === 'field')
+      notes.push('Merch area missing; gross area taken from the polygon.')
     if (settings.volumeBasis !== 'total' && classVolume) {
-      notes.push(`Reported volume is the ${settings.volumeBasis === 'class1' ? slopeClassLabel(1, breaks) : `≤${breaks[1]}%`} slope portion.`)
+      notes.push(
+        `Reported volume is the ${settings.volumeBasis === 'class1' ? slopeClassLabel(1, breaks) : `≤${breaks[1]}%`} slope portion.`,
+      )
     }
     notes.push(COVERAGE_NOTES[cover])
     if (settings.notesIncludeSlope && classVolume && finalVolume > 0) {
       const share = classVolume.map((value) => fmt((100 * value) / finalVolume))
-      notes.push(`Slope: ${share[0]}% of volume ${slopeClassLabel(1, breaks)}, ${share[1]}% ${slopeClassLabel(2, breaks)}, ${share[2]}% ${slopeClassLabel(3, breaks)}.`)
+      notes.push(
+        `Slope: ${share[0]}% of volume ${slopeClassLabel(1, breaks)}, ${share[1]}% ${slopeClassLabel(2, breaks)}, ${share[2]}% ${slopeClassLabel(3, breaks)}.`,
+      )
     }
-    if (raw.overlapHa > 0.01) notes.push(`${fmt(raw.overlapHa, 2)} ha covered by more than one AVAST source; counted once.`)
+    if (raw.overlapHa > 0.01)
+      notes.push(`${fmt(raw.overlapHa, 2)} ha covered by more than one AVAST source; counted once.`)
 
     summaries.push({
       key: candidate.key,
@@ -263,7 +286,12 @@ export function summarize(
   const counted = reportable.filter((row) => !row.duplicate)
   const byArea = new Map<string, { operatingArea: string; blocks: number; volume: number; class1: number | null }>()
   for (const row of counted) {
-    const entry = byArea.get(row.operatingArea) ?? { operatingArea: row.operatingArea, blocks: 0, volume: 0, class1: context.slopeAssessed ? 0 : null }
+    const entry = byArea.get(row.operatingArea) ?? {
+      operatingArea: row.operatingArea,
+      blocks: 0,
+      volume: 0,
+      class1: context.slopeAssessed ? 0 : null,
+    }
     entry.blocks += 1
     entry.volume += row.reportedVolume
     if (entry.class1 !== null) entry.class1 += row.classVolume?.[0] ?? 0
@@ -275,15 +303,25 @@ export function summarize(
   if (blankIds) qa.push(`${blankIds} candidate${blankIds === 1 ? ' has' : 's have'} no Block ID.`)
   if (duplicateKeys.size) {
     const ids = [...new Set(summaries.filter((row) => row.duplicate).map((row) => row.id))]
-    qa.push(`Duplicate Block IDs ${settings.duplicates === 'drop' ? 'dropped' : 'flagged and left out of totals'}: ${ids.join(', ')}.`)
+    qa.push(
+      `Duplicate Block IDs ${settings.duplicates === 'drop' ? 'dropped' : 'flagged and left out of totals'}: ${ids.join(', ')}.`,
+    )
   }
   const lowCoverage = counted.filter((row) => row.coverageClass === 'low' || row.coverageClass === 'none')
-  if (lowCoverage.length) qa.push(`${lowCoverage.length} block${lowCoverage.length === 1 ? '' : 's'} below ${settings.coverageModeratePct}% AVAST coverage: ${lowCoverage.map((row) => row.id).join(', ')}.`)
+  if (lowCoverage.length)
+    qa.push(
+      `${lowCoverage.length} block${lowCoverage.length === 1 ? '' : 's'} below ${settings.coverageModeratePct}% AVAST coverage: ${lowCoverage.map((row) => row.id).join(', ')}.`,
+    )
   if (settings.lidarMode === 'calibrate' && lidarActive && !calibration?.rows.length) {
-    qa.push(`No block has ${settings.calibrationMinCoveragePct}% common AVAST + LiDAR coverage, so no calibration factor could be derived; AVAST volumes are raw.`)
+    qa.push(
+      `No block has ${settings.calibrationMinCoveragePct}% common AVAST + LiDAR coverage, so no calibration factor could be derived; AVAST volumes are raw.`,
+    )
   }
   const warned = summaries.filter((row) => row.warnings.length).length
-  if (warned) qa.push(`${warned} block${warned === 1 ? ' has' : 's have'} geometry or reconciliation warnings — see the block list.`)
+  if (warned)
+    qa.push(
+      `${warned} block${warned === 1 ? ' has' : 's have'} geometry or reconciliation warnings — see the block list.`,
+    )
 
   return {
     candidates: summaries,

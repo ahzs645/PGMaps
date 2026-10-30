@@ -42,14 +42,18 @@ function loadJson(url: string, cache: boolean, signal: AbortSignal): Promise<unk
 
   // Deliberately unsignalled: the promise is shared, so one unmounting consumer
   // must not abort the request the others are still waiting on.
-  const promise = fetchJson(url)
+  const promise: Promise<unknown> = fetchJson(url)
     .then((json) => {
-      valueCache.set(url, json)
-      promiseCache.delete(url)
+      // A retry may already have invalidated this shared request. Its late
+      // response must not repopulate the cache after the caller asked for fresh data.
+      if (promiseCache.get(url) === promise) {
+        valueCache.set(url, json)
+        promiseCache.delete(url)
+      }
       return json as unknown
     })
     .catch((error: unknown) => {
-      promiseCache.delete(url)
+      if (promiseCache.get(url) === promise) promiseCache.delete(url)
       throw error
     })
   promiseCache.set(url, promise)
@@ -96,7 +100,13 @@ function resolveSyncState<T>(
     const hit = urls.find((url) => valueCache.has(url))
     if (hit !== undefined) {
       const cached = valueCache.get(hit)
-      return { data: transform ? transform(cached) : (cached as T), loading: false, error: null }
+      try {
+        return { data: transform ? transform(cached) : (cached as T), loading: false, error: null }
+      } catch (error) {
+        // Each consumer validates independently. Keep the raw JSON available
+        // for other transforms, and expose validation failures like async loads.
+        return { data: null, loading: false, error: errorMessage(error, hit) }
+      }
     }
   }
   return { data: null, loading: true, error: null }
@@ -111,10 +121,7 @@ export function useFetchData<T>(url: string | null, options: UseFetchDataOptions
   const { enabled = true, cache = true, transform, fallbackUrls, optional = false } = options
 
   const fallbackKey = (fallbackUrls ?? []).join('|')
-  const urls = useMemo(
-    () => (url ? [url, ...(fallbackKey ? fallbackKey.split('|') : [])] : []),
-    [url, fallbackKey],
-  )
+  const urls = useMemo(() => (url ? [url, ...(fallbackKey ? fallbackKey.split('|') : [])] : []), [url, fallbackKey])
 
   const [attempt, setAttempt] = useState(0)
   const useCacheThisRun = cache && attempt === 0
@@ -160,7 +167,7 @@ export function useFetchData<T>(url: string | null, options: UseFetchDataOptions
         setState({ data: null, loading: false, error: errorMessage(error, urls[0]) })
       })
     return () => controller.abort()
-  }, [urls, enabled, useCacheThisRun, optional])
+  }, [urls, enabled, useCacheThisRun, optional, attempt])
 
   return { ...state, retry }
 }
@@ -242,7 +249,7 @@ export function useFetchAll<T>(
       })
 
     return () => controller.abort()
-  }, [list, enabled, useCacheThisRun, optional])
+  }, [list, enabled, useCacheThisRun, optional, attempt])
 
   return { ...state, retry }
 }

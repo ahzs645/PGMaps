@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -119,7 +120,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
       <div className="space-y-2 rounded border p-3">
         <label className="block text-sm">
           Cached schema for a new draft
-          <select
+          <NativeSelect
             aria-label="New local draft schema"
             className="mt-1 block w-full rounded border bg-background p-2"
             value={schemaId}
@@ -131,7 +132,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
                 {record.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <p className="text-xs text-muted-foreground">
           New fields start as missing (null), with no geometry. Edit them below. Cache a schema in the Local workbench
@@ -211,7 +212,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
           </label>
           <label className="block text-sm">
             Local review status
-            <select
+            <NativeSelect
               aria-label="Local draft review status"
               value={status}
               onChange={(event) => setStatus(event.target.value as LocalDraftData['status'])}
@@ -220,7 +221,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
               <option value="draft">Draft</option>
               <option value="reviewed">Reviewed locally</option>
               <option value="archived">Archived locally</option>
-            </select>
+            </NativeSelect>
           </label>
           <div className="max-h-96 space-y-3 overflow-auto">
             {Object.entries(editors).map(([key, editor]) => (
@@ -229,7 +230,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
                   <label htmlFor={`draft-field-${encodeURIComponent(key)}`} className="break-all text-sm">
                     {key}
                   </label>
-                  <select
+                  <NativeSelect
                     aria-label={`Local draft type ${key}`}
                     value={editor.type}
                     onChange={(event) => {
@@ -246,10 +247,10 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
                     <option value="boolean">True / false</option>
                     <option value="null">Missing (null)</option>
                     <option value="json">Structured JSON</option>
-                  </select>
+                  </NativeSelect>
                 </div>
                 {editor.type === 'boolean' ? (
-                  <select
+                  <NativeSelect
                     id={`draft-field-${encodeURIComponent(key)}`}
                     aria-label={`Local draft value ${key}`}
                     value={editor.text}
@@ -260,7 +261,7 @@ export function PortalLocalDrafts({ onVectors }: { onVectors: (layers: VectorDat
                   >
                     <option value="false">False</option>
                     <option value="true">True</option>
-                  </select>
+                  </NativeSelect>
                 ) : (
                   editor.type !== 'null' && (
                     <textarea

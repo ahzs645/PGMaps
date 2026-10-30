@@ -1,3 +1,4 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect } from 'react'
 import type * as MapLibreGL from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
@@ -7,20 +8,11 @@ import type { ViewportBounds } from './layerData'
 export function ViewportTracker({ onChange }: { onChange: (bounds: ViewportBounds) => void }) {
   const { map, isLoaded } = useMap()
 
-  useEffect(() => {
-    if (!map || !isLoaded) return
-
-    const report = () => {
-      const bounds = map.getBounds()
-      onChange([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()])
-    }
-
-    report()
-    map.on('moveend', report)
-    return () => {
-      map.off('moveend', report)
-    }
-  }, [isLoaded, map, onChange])
+  useObserveMapViewport(map, (viewport) => onChange(viewport.bounds), {
+    enabled: isLoaded,
+    events: ['moveend'],
+    initial: 'always',
+  })
 
   return null
 }

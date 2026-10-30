@@ -4,57 +4,161 @@ import { downloadBlob } from '@/lib/download'
 const text = (value: string) =>
   value.replace(/−/g, '-').replace(/[–—]/g, ' - ').replace(/→/g, ' to ').replace(/Σ/g, 'Sum ')
 
-/** Read WebGL inside the render event, before its drawing buffer is discarded. */
-async function mapImage(map: MapLibreMap) {
-  const image = await new Promise<string>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      map.off('render', capture)
-      reject(Error('The map did not finish rendering. Try the export again.'))
-    }, 10000)
-    const capture = () => {
-      clearTimeout(timeout)
-      try {
-        resolve(map.getCanvas().toDataURL('image/png'))
-      } catch (error) {
-        reject(error)
-      }
-    }
-    map.once('render', capture)
-    map.triggerRepaint()
-  })
-  const { default: html2canvas } = await import('html2canvas')
-  const container = map.getContainer()
-  const canvas = await html2canvas(container, {
-    backgroundColor: '#ffffff',
-    useCORS: true,
-    scale: 2,
-    logging: false,
-    ignoreElements: (element) => {
-      if (element.hasAttribute('data-map-export-ignore') || element.tagName === 'BUTTON') return true
-      if (
-        element.getAttribute('data-testid') === 'road-terrain-legend' &&
-        !element.querySelector('[aria-expanded="true"]')
-      )
-        return true
-      return !!element.querySelector(':scope > button[aria-label="Zoom in"]')
-    },
-    onclone: (document) => {
-      const original = map.getCanvas()
-      const replacement = document.createElement('img')
-      replacement.src = image
-      replacement.style.cssText = original.style.cssText
-      replacement.style.width = `${original.clientWidth}px`
-      replacement.style.height = `${original.clientHeight}px`
-      document.querySelector('.maplibregl-canvas')?.replaceWith(replacement)
-    },
-  })
-  return { image: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height }
+const MAP_IMAGE_STAGE_TIMEOUT_MS = 10000
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException('Map PDF preparation cancelled.', 'AbortError')
 }
 
-export async function exportMapPdf(map: MapLibreMap, name: string, terrain: string, datum: string, filename: string) {
+/** Bound asynchronous export stages and consume late completion/rejection after cancellation. */
+function withinExportBudget<T>(start: () => Promise<T>, signal: AbortSignal | undefined, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (success: boolean, value: unknown) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', aborted)
+      if (success) resolve(value as T)
+      else reject(value)
+    }
+    const aborted = () => finish(false, new DOMException('Map PDF preparation cancelled.', 'AbortError'))
+    const timer = setTimeout(() => finish(false, Error(message)), MAP_IMAGE_STAGE_TIMEOUT_MS)
+    if (signal?.aborted) {
+      aborted()
+      return
+    }
+    signal?.addEventListener('abort', aborted, { once: true })
+    try {
+      start().then(
+        (value) => finish(true, value),
+        (error: unknown) => finish(false, error),
+      )
+    } catch (error) {
+      finish(false, error)
+    }
+  })
+}
+
+/** Read WebGL once, inside render, before its drawing buffer is discarded. */
+async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
+  let capture = () => {}
+  let removed = () => {}
+  const image = await withinExportBudget(
+    () =>
+      new Promise<string>((resolve, reject) => {
+        capture = () => {
+          try {
+            resolve(map.getCanvas().toDataURL('image/png'))
+          } catch (error) {
+            reject(error)
+          }
+        }
+        removed = () => reject(Error('The map closed before its image could be prepared.'))
+        map.once('render', capture)
+        map.once('remove', removed)
+        map.triggerRepaint()
+      }),
+    signal,
+    'The map did not finish rendering. Try the export again.',
+  ).finally(() => {
+    map.off('render', capture)
+    map.off('remove', removed)
+  })
+  throwIfAborted(signal)
+  const container = map.getContainer()
+  const original = map.getCanvas()
+  const bounds = container.getBoundingClientRect()
+  const width = Math.ceil(bounds.width),
+    height = Math.ceil(bounds.height)
+  const canvas = document.createElement('canvas')
+  canvas.width = width * 2
+  canvas.height = height * 2
+  // Composition is immediately encoded. A CPU-backed canvas avoids another GPU readback.
+  if (!canvas.getContext('2d', { willReadFrequently: true })) throw Error('This browser cannot create a map image.')
+  const existingFrames = new Set(document.querySelectorAll<HTMLIFrameElement>('iframe.html2canvas-container'))
+  const ownedFrames = new Set<HTMLIFrameElement>()
+  let active = true
+  try {
+    await withinExportBudget(
+      async () => {
+        const { default: html2canvas } = await import('html2canvas')
+        if (!active) throw new DOMException('Map PDF preparation cancelled.', 'AbortError')
+        throwIfAborted(signal)
+        const composition = html2canvas(container, {
+          canvas,
+          width,
+          height,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          scale: 2,
+          logging: false,
+          imageTimeout: MAP_IMAGE_STAGE_TIMEOUT_MS,
+          ignoreElements: (element) => {
+            // DocumentCloner reads canvases before onclone. Skip the live map now;
+            // the captured image is inserted below without changing overlay z-order.
+            if (element === original) return true
+            if (element.tagName === 'CANVAS' && !container.contains(element)) return true
+            if (element.hasAttribute('data-map-export-ignore') || element.tagName === 'BUTTON') return true
+            if (
+              element.getAttribute('data-testid') === 'road-terrain-legend' &&
+              !element.querySelector('[aria-expanded="true"]')
+            )
+              return true
+            return !!element.querySelector(':scope > button[aria-label="Zoom in"]')
+          },
+          onclone: async (clonedDocument, clonedMap) => {
+            if (!active) throw new DOMException('Map PDF preparation cancelled.', 'AbortError')
+            throwIfAborted(signal)
+            const frame = clonedDocument.defaultView?.frameElement
+            if (frame) ownedFrames.add(frame as HTMLIFrameElement)
+            const host = clonedMap.querySelector('.maplibregl-canvas-container')
+            if (!host) throw Error('The map image could not be placed in the export.')
+            const replacement = clonedDocument.createElement('img')
+            replacement.className = original.className
+            replacement.src = image
+            replacement.style.cssText = original.style.cssText
+            replacement.style.width = `${original.clientWidth}px`
+            replacement.style.height = `${original.clientHeight}px`
+            // MapLibre places its canvas first; markers follow and remain above it.
+            host.prepend(replacement)
+            await replacement.decode()
+            if (!active) throw new DOMException('Map PDF preparation cancelled.', 'AbortError')
+            throwIfAborted(signal)
+          },
+        })
+        // html2canvas attaches its iframe synchronously before awaiting fonts/images.
+        // Track it here as well so a timeout before onclone cannot leave a hidden clone.
+        for (const frame of document.querySelectorAll<HTMLIFrameElement>('iframe.html2canvas-container'))
+          if (!existingFrames.has(frame)) ownedFrames.add(frame)
+        await composition
+      },
+      signal,
+      'The map image could not be prepared in time. Try the export again.',
+    )
+    throwIfAborted(signal)
+    return { image: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height }
+  } finally {
+    active = false
+    for (const frame of ownedFrames) frame.remove()
+    canvas.width = 0
+    canvas.height = 0
+  }
+}
+
+export async function exportMapPdf(
+  map: MapLibreMap,
+  name: string,
+  terrain: string,
+  datum: string,
+  filename: string,
+  signal?: AbortSignal,
+) {
+  throwIfAborted(signal)
   if (map.getCanvas().clientWidth < 1 || map.getCanvas().clientHeight < 1)
     throw Error('Show the plan panel before exporting its map.')
-  const [{ jsPDF }, capture] = await Promise.all([import('jspdf'), mapImage(map)])
+  const [{ jsPDF }, capture] = await Promise.all([import('jspdf'), mapImage(map, signal)])
+  throwIfAborted(signal)
   const pdf = new jsPDF({
     orientation: capture.width >= capture.height ? 'landscape' : 'portrait',
     unit: 'mm',
@@ -90,6 +194,7 @@ export async function exportMapPdf(map: MapLibreMap, name: string, terrain: stri
   }
   pdf.setFontSize(7)
   pdf.text('Current plan view | Preliminary planning - not for construction', 12, height - 8)
+  throwIfAborted(signal)
   downloadBlob(pdf.output('blob'), filename)
 }
 

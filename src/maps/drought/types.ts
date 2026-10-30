@@ -78,4 +78,7 @@ export interface DroughtTimeSeries {
 }
 
 export type DroughtFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, DroughtProperties>
-export type DroughtFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, DroughtProperties>
+export type DroughtFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  DroughtProperties
+>

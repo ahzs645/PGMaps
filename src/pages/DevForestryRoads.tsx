@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -1110,7 +1111,7 @@ export default function DevForestryRoads() {
         throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
       const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
       if (kind === 'map-pdf' || kind === 'report-pdf') {
-        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async () => {
+        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
           if (kind === 'map-pdf') {
             if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
@@ -1124,6 +1125,7 @@ export default function DevForestryRoads() {
               project.terrain.name,
               project.terrain.verticalReference,
               `${basename}-map.pdf`,
+              signal,
             )
           } else
             await exportReportPdf(
@@ -2609,7 +2611,7 @@ export default function DevForestryRoads() {
                                     <InlineAlert tone="error">{cableResult.error}</InlineAlert>
                                   ) : cableAnalysis ? (
                                     <div className="flex h-full min-h-0 flex-col">
-                                      <select
+                                      <NativeSelect
                                         aria-label="Active D-line"
                                         className="mb-1 rounded border bg-background text-xs"
                                         value={cableLine.id}
@@ -2620,7 +2622,7 @@ export default function DevForestryRoads() {
                                             {c.name}
                                           </option>
                                         ))}
-                                      </select>
+                                      </NativeSelect>
                                       {cableResult.summary && (
                                         <details
                                           className="mb-1 rounded border px-2 py-1 text-[11px]"

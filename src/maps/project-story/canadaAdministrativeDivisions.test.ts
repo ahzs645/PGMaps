@@ -37,10 +37,12 @@ describe('canada-administrative-divisions story package', () => {
   })
 
   it('advertises counts that agree with the acquired foundation', () => {
-    expect(project!.catalogMetrics).toEqual(expect.arrayContaining([
-      { label: 'Current regional parents', value: '290' },
-      { label: 'Municipal/statistical areas', value: '5,054' },
-      { label: 'Indigenous legal-land polygons', value: '3,372' },
-    ]))
+    expect(project!.catalogMetrics).toEqual(
+      expect.arrayContaining([
+        { label: 'Current regional parents', value: '290' },
+        { label: 'Municipal/statistical areas', value: '5,054' },
+        { label: 'Indigenous legal-land polygons', value: '3,372' },
+      ]),
+    )
   })
 })

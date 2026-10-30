@@ -109,9 +109,9 @@ export function procedureMatchesFilter(procedure: SpecialistProcedure, filter: S
 
 export function facilityMatchesFilter(facility: SpecialistFacility, filter: SpecialistFilter): boolean {
   if (!filter.procedureName && (!filter.patientType || filter.patientType === 'all')) return true
-  return facility.specialists.some((specialist) => (
-    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter))
-  ))
+  return facility.specialists.some((specialist) =>
+    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter)),
+  )
 }
 
 export function facilityWaitMetrics(facility: SpecialistFacility, filter: SpecialistFilter = {}): FacilityWaitMetrics {
@@ -199,15 +199,16 @@ function median(values: number[]): number | null {
 export function searchFacility(facility: SpecialistFacility, term: string): boolean {
   const normalized = term.trim().toLowerCase()
   if (!normalized) return true
-  return [
-    facility.facility_name,
-    facility.source_facility_name,
-    facility.health_authority,
-    facility.locality,
-    facility.address,
-    ...facility.specialists.slice(0, 80).map((specialist) => specialist.specialist_name),
-    ...facility.procedures.slice(0, 80).map((procedure) => procedure.name),
-  ]
-    .filter(Boolean)
-    .some((value) => value?.toLowerCase().includes(normalized))
+  const matches = (value: string | null | undefined) => value?.toLowerCase().includes(normalized) ?? false
+  return (
+    [
+      facility.facility_name,
+      facility.source_facility_name,
+      facility.health_authority,
+      facility.locality,
+      facility.address,
+    ].some(matches) ||
+    facility.specialists.some((specialist) => matches(specialist.specialist_name)) ||
+    facility.procedures.some((procedure) => matches(procedure.name))
+  )
 }

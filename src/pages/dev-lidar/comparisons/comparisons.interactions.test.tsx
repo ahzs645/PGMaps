@@ -26,13 +26,11 @@ describe('comparison workspace interactions', () => {
   it('loads the individual-tree view directly with full candidate points', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation(async (url: string) => ({
-          ok: true,
-          json: async () =>
-            read(url.includes('neural-trees') ? './neural-trees.generated.json' : './neural.generated.json'),
-        })),
+      vi.fn().mockImplementation(async (url: string) => ({
+        ok: true,
+        json: async () =>
+          read(url.includes('neural-trees') ? './neural-trees.generated.json' : './neural.generated.json'),
+      })),
     )
     let renderer: ReturnType<typeof create>
     try {

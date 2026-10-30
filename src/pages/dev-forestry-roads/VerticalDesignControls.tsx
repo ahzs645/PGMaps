@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -387,7 +388,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Search band centre
-          <select
+          <NativeSelect
             aria-label="Profile search band centre"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.bandCenter}
@@ -397,11 +398,11 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             <option value="design" disabled={!designed}>
               Current fitted design
             </option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Objective
-          <select
+          <NativeSelect
             aria-label="Profile optimization objective"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.objective}
@@ -409,7 +410,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           >
             <option value="earthwork">Cut and fill</option>
             <option value="total">Total cost incl. haul, borrow, waste</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="mt-2 flex items-center gap-2 text-xs">
           <input
@@ -421,7 +422,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </label>
         <label className="mt-2 block text-xs">
           Save optimized result as
-          <select
+          <NativeSelect
             aria-label="Profile optimization result target"
             className="mt-1 w-full rounded border bg-background p-1 text-base md:text-xs"
             value={resultTarget}
@@ -429,7 +430,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           >
             <option value="road">Separate road alternative</option>
             <option value="vertical">Named vertical profile on this road</option>
-          </select>
+          </NativeSelect>
         </label>
         <Button
           className="mt-2 w-full"

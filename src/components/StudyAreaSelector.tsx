@@ -2,12 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Check, Plus, X } from 'lucide-react'
 import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { AppSelect } from '@/components/ui/select'
 import { StudyAreaSourcePickerDialog } from '@/components/StudyAreaSourcePicker'
 
@@ -56,7 +51,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   levelLabel = 'Boundary level',
   sectionClassName,
   levelSelectId = 'study-area-level',
-  dataPrefix = 'study-area'
+  dataPrefix = 'study-area',
 }: StudyAreaSelectorProps<TSource, TLevel>) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const showLevelSelect = levelOptions.length > 1
@@ -64,23 +59,25 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   const hasSourceList = Boolean(sourceOptions && sourceOptions.length > 0)
   const selectedSource = sourceOptions?.find((option) => option.value === source)
   const selectedLevel = levelOptions.find((option) => option.value === level)
-  const sourceGroups = sourceOptions?.reduce<Array<{ label: string | null; options: Array<StudyAreaSourceOption<TSource>> }>>(
-    (groups, option) => {
-      const label = option.group ?? null
-      const group = groups.find((item) => item.label === label)
-      if (group) {
-        group.options.push(option)
-      } else {
-        groups.push({ label, options: [option] })
-      }
-      return groups
-    },
-    [],
-  ) ?? []
+  const sourceGroups =
+    sourceOptions?.reduce<Array<{ label: string | null; options: Array<StudyAreaSourceOption<TSource>> }>>(
+      (groups, option) => {
+        const label = option.group ?? null
+        const group = groups.find((item) => item.label === label)
+        if (group) {
+          group.options.push(option)
+        } else {
+          groups.push({ label, options: [option] })
+        }
+        return groups
+      },
+      [],
+    ) ?? []
   const categoryCount = new Set(sourceOptions?.map((option) => option.group).filter(Boolean)).size
-  const sourceSummary = categoryCount > 0
-    ? `${sourceOptions?.length ?? 0} boundary sources across ${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}.`
-    : `${sourceOptions?.length ?? 0} boundary ${sourceOptions?.length === 1 ? 'source' : 'sources'} available.`
+  const sourceSummary =
+    categoryCount > 0
+      ? `${sourceOptions?.length ?? 0} boundary sources across ${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}.`
+      : `${sourceOptions?.length ?? 0} boundary ${sourceOptions?.length === 1 ? 'source' : 'sources'} available.`
   const unified = Boolean(levelOptionsForSource && hasSourceList)
   const selectedLevelLabel = selectedLevel?.label ?? level
   // Unified mode leads with the resolved boundary level, since the source label already
@@ -92,7 +89,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
       ? [selectedLevelLabel, levelOptions.length > 1 ? `${levelOptions.length} levels` : null]
           .filter(Boolean)
           .join(' · ')
-      : selectedSource?.description ?? selectedLevelLabel
+      : (selectedSource?.description ?? selectedLevelLabel)
 
   return (
     <>
@@ -189,7 +186,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                           'rounded border px-2 py-1 text-xs transition-colors',
                           showPoints
                             ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                            : 'border-input text-muted-foreground hover:text-foreground'
+                            : 'border-input text-muted-foreground hover:text-foreground',
                         )}
                       >
                         {showPoints ? toggleOnLabel : toggleOffLabel}
@@ -230,7 +227,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                       'rounded border px-2 py-1 text-xs transition-colors',
                       showPoints
                         ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                        : 'border-input text-muted-foreground hover:text-foreground'
+                        : 'border-input text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {showPoints ? toggleOnLabel : toggleOffLabel}
@@ -293,7 +290,9 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                           <button
                             key={option.value}
                             type="button"
-                            data-score-builder-boundary-source={dataPrefix === 'score-builder' ? option.value : undefined}
+                            data-score-builder-boundary-source={
+                              dataPrefix === 'score-builder' ? option.value : undefined
+                            }
                             disabled={option.disabled}
                             title={option.disabled ? option.disabledReason : undefined}
                             onClick={() => {
@@ -306,7 +305,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                               selected
                                 ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
                                 : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                              option.disabled && 'cursor-not-allowed opacity-50 hover:text-muted-foreground'
+                              option.disabled && 'cursor-not-allowed opacity-50 hover:text-muted-foreground',
                             )}
                           >
                             <div className="flex items-center gap-2">

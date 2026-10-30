@@ -15,8 +15,15 @@ import type { Park, Trail, ParkClassification, TrailUserClass, ActiveLayer } fro
 import { formatArea, formatLength, formatNumber } from '@/lib/format'
 
 const ALL_CLASSIFICATIONS: ParkClassification[] = [
-  'Athletic', 'Community', 'Downtown', 'Green Space',
-  'Major', 'Nature', 'Neighbourhood', 'Public', 'Special Purpose',
+  'Athletic',
+  'Community',
+  'Downtown',
+  'Green Space',
+  'Major',
+  'Nature',
+  'Neighbourhood',
+  'Public',
+  'Special Purpose',
 ]
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
@@ -42,7 +49,6 @@ export default function ParksSection() {
   const [mobileFeatureSheetOpen, setMobileFeatureSheetOpen] = useState(false)
   const [selectionFocusKey, setSelectionFocusKey] = useState(0)
 
-
   const filteredParks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return parks.filter((park) => {
@@ -56,11 +62,9 @@ export default function ParksSection() {
     const query = searchQuery.trim().toLowerCase()
     return trails.filter((trail) => {
       const matchesType = !trail.userClass || selectedTrailTypes.includes(trail.userClass)
-      const matchesSearch = !query || [
-        trail.name,
-        trail.parkName,
-        trail.surfaceMaterial,
-      ].filter(Boolean).join(' ').toLowerCase().includes(query)
+      const matchesSearch =
+        !query ||
+        [trail.name, trail.parkName, trail.surfaceMaterial].filter(Boolean).join(' ').toLowerCase().includes(query)
       return matchesType && matchesSearch
     })
   }, [trails, selectedTrailTypes, searchQuery])
@@ -125,58 +129,61 @@ export default function ParksSection() {
     setMobileFeatureSheetOpen(false)
   }, [parkSelection, trailSelection])
 
-  const handleParkClick = useCallback((park: Park | null) => {
-    if (!park) {
-      handleClearSelection()
-      return
-    }
-    parkSelection.select(park)
-    trailSelection.select(null)
-    setMobileFeatureSheetOpen(true)
-    setSelectionFocusKey((key) => key + 1)
-  }, [handleClearSelection, parkSelection, trailSelection])
+  const handleParkClick = useCallback(
+    (park: Park | null) => {
+      if (!park) {
+        handleClearSelection()
+        return
+      }
+      parkSelection.select(park)
+      trailSelection.select(null)
+      setMobileFeatureSheetOpen(true)
+      setSelectionFocusKey((key) => key + 1)
+    },
+    [handleClearSelection, parkSelection, trailSelection],
+  )
 
-  const handleTrailClick = useCallback((trail: Trail | null) => {
-    if (!trail) {
-      handleClearSelection()
-      return
-    }
-    trailSelection.select(trail)
-    parkSelection.select(null)
-    setMobileFeatureSheetOpen(true)
-    setSelectionFocusKey((key) => key + 1)
-  }, [handleClearSelection, parkSelection, trailSelection])
+  const handleTrailClick = useCallback(
+    (trail: Trail | null) => {
+      if (!trail) {
+        handleClearSelection()
+        return
+      }
+      trailSelection.select(trail)
+      parkSelection.select(null)
+      setMobileFeatureSheetOpen(true)
+      setSelectionFocusKey((key) => key + 1)
+    },
+    [handleClearSelection, parkSelection, trailSelection],
+  )
 
   const parkLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return ALL_CLASSIFICATIONS
-      .map((classification) => ({
-        classification,
-        count: parks.filter((park) => (
-          park.classification === classification &&
-          (!query || park.name.toLowerCase().includes(query))
-        )).length,
-        active: selectedClassifications.includes(classification),
-      }))
-      .filter((row) => row.count > 0)
+    return ALL_CLASSIFICATIONS.map((classification) => ({
+      classification,
+      count: parks.filter(
+        (park) => park.classification === classification && (!query || park.name.toLowerCase().includes(query)),
+      ).length,
+      active: selectedClassifications.includes(classification),
+    })).filter((row) => row.count > 0)
   }, [parks, searchQuery, selectedClassifications])
 
   const trailLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return ALL_TRAIL_TYPES
-      .map((type) => ({
-        type,
-        count: trails.filter((trail) => (
+    return ALL_TRAIL_TYPES.map((type) => ({
+      type,
+      count: trails.filter(
+        (trail) =>
           trail.userClass === type &&
-          (!query || [
-            trail.name,
-            trail.parkName,
-            trail.surfaceMaterial,
-          ].filter(Boolean).join(' ').toLowerCase().includes(query))
-        )).length,
-        active: selectedTrailTypes.includes(type),
-      }))
-      .filter((row) => row.count > 0)
+          (!query ||
+            [trail.name, trail.parkName, trail.surfaceMaterial]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase()
+              .includes(query)),
+      ).length,
+      active: selectedTrailTypes.includes(type),
+    })).filter((row) => row.count > 0)
   }, [searchQuery, selectedTrailTypes, trails])
 
   const overlayLegendItems = useMemo(() => {
@@ -191,15 +198,18 @@ export default function ParksSection() {
     return items
   }, [activeLayers])
 
-  const showLegend = (activeLayers.includes('parks') && selectedClassifications.length > 0)
-    || (activeLayers.includes('trails') && selectedTrailTypes.length > 0)
-    || overlayLegendItems.length > 0
+  const showLegend =
+    (activeLayers.includes('parks') && selectedClassifications.length > 0) ||
+    (activeLayers.includes('trails') && selectedTrailTypes.length > 0) ||
+    overlayLegendItems.length > 0
 
   return (
     <MapSectionLayout
       mobilePeekTitle={<>Parks & Trails · {formatNumber(filteredParks.length + filteredTrails.length)} visible</>}
-      mobilePeekSubtitle={<>{visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}</>}
-      sidebar={(
+      mobilePeekSubtitle={
+        <>{visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}</>
+      }
+      sidebar={
         <ParksSidebar
           className={MAP_SIDEBAR_CLASS}
           parks={parks}
@@ -225,7 +235,7 @@ export default function ParksSection() {
           onClearSelection={handleClearSelection}
           onResetFilters={handleResetFilters}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <ParksMap
@@ -273,7 +283,11 @@ export default function ParksSection() {
             )}
 
             {activeLayers.includes('trails') && selectedTrailTypes.length > 0 && (
-              <MapLegendSection title="Trails" value={formatNumber(trailLegendRows.length)} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+              <MapLegendSection
+                title="Trails"
+                value={formatNumber(trailLegendRows.length)}
+                className="border-t border-border pt-3 first:border-t-0 first:pt-0"
+              >
                 {trailLegendRows.length > 0 ? (
                   trailLegendRows.map((row) => (
                     <LegendItem
@@ -293,7 +307,11 @@ export default function ParksSection() {
             )}
 
             {overlayLegendItems.length > 0 && (
-              <MapLegendSection title="Overlays" value={formatNumber(overlayLegendItems.length)} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+              <MapLegendSection
+                title="Overlays"
+                value={formatNumber(overlayLegendItems.length)}
+                className="border-t border-border pt-3 first:border-t-0 first:pt-0"
+              >
                 {overlayLegendItems.map((item) => (
                   <LegendItem
                     key={item.layer}
@@ -316,15 +334,12 @@ function MobileParkFeatureCard({ park, onClose }: { park: Park; onClose: () => v
   const subtitle = [
     `${park.classification || 'Unknown'} ${park.subType || 'Park'}`,
     park.area ? formatArea(park.area) : null,
-  ].filter(Boolean).join(' · ')
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <MobileFeatureCard
-      cardKey={`park-${park.id}`}
-      title={park.name}
-      subtitle={subtitle}
-      onClose={onClose}
-    >
+    <MobileFeatureCard cardKey={`park-${park.id}`} title={park.name} subtitle={subtitle} onClose={onClose}>
       <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
         <KeyValueRows
           variant="divided"
@@ -342,19 +357,12 @@ function MobileParkFeatureCard({ park, onClose }: { park: Park; onClose: () => v
 }
 
 function MobileTrailFeatureCard({ trail, onClose }: { trail: Trail; onClose: () => void }) {
-  const subtitle = [
-    trail.userClass || 'Trail',
-    trail.surfaceMaterial,
-    trail.length ? formatLength(trail.length) : null,
-  ].filter(Boolean).join(' · ')
+  const subtitle = [trail.userClass || 'Trail', trail.surfaceMaterial, trail.length ? formatLength(trail.length) : null]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <MobileFeatureCard
-      cardKey={`trail-${trail.id}`}
-      title={trail.name}
-      subtitle={subtitle}
-      onClose={onClose}
-    >
+    <MobileFeatureCard cardKey={`trail-${trail.id}`} title={trail.name} subtitle={subtitle} onClose={onClose}>
       <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
         <KeyValueRows
           variant="divided"

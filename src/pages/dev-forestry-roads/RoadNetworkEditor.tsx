@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CollapsibleSection } from '@/components/ui/map-panels'
@@ -95,7 +96,7 @@ export function RoadNetworkEditor({
         </p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Road access">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={network.access}
               onChange={(event) => patch({ access: event.target.value as RoadNetworkEvidence['access'] })}
@@ -104,10 +105,10 @@ export function RoadNetworkEditor({
               <option value="allowed">Allowed (reviewed input)</option>
               <option value="permission-required">Permission required</option>
               <option value="closed">Closed / unavailable</option>
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Travel direction">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={network.direction}
               onChange={(event) => patch({ direction: event.target.value as RoadNetworkEvidence['direction'] })}
@@ -115,7 +116,7 @@ export function RoadNetworkEditor({
               <option value="both">Both directions</option>
               <option value="forward">Forward along line only</option>
               <option value="reverse">Reverse along line only</option>
-            </select>
+            </NativeSelect>
           </Field>
           <RestrictionList
             label="Permitted seasons"
@@ -137,7 +138,7 @@ export function RoadNetworkEditor({
             onChange={(maxVehicleWeightTonnes) => patch({ maxVehicleWeightTonnes })}
           />
           <Field label="Bridge / structure status">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={network.bridgeStatus}
               onChange={(event) => patch({ bridgeStatus: event.target.value as RoadNetworkEvidence['bridgeStatus'] })}
@@ -146,7 +147,7 @@ export function RoadNetworkEditor({
               <option value="none">Reviewed: none on road</option>
               <option value="reviewed">Present: limits reviewed</option>
               <option value="closed">Closed structure</option>
-            </select>
+            </NativeSelect>
           </Field>
         </div>
         {network.bridgeStatus === 'reviewed' && (

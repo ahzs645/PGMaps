@@ -15,16 +15,28 @@ describe('BC economic-region snapshot integration', () => {
     vi.mocked(fetchJson).mockResolvedValue(collection)
     const regions = await loadStudyAreaRegions('economicRegion', 'economicRegion')
     expect(fetchJson).toHaveBeenCalledWith('/data/boundaries/StatCan/bc_economic_regions_2021.geojson.gz', undefined)
-    expect(regions.map(region => region.code).sort()).toEqual(['5910', '5920', '5930', '5940', '5950', '5960', '5970', '5980'])
-    expect(regions.find(region => region.code === '5950')).toMatchObject({
-      id: 'economicRegion:economicRegion:5950', name: 'Cariboo', source: 'economicRegion', level: 'economicRegion',
+    expect(regions.map((region) => region.code).sort()).toEqual([
+      '5910',
+      '5920',
+      '5930',
+      '5940',
+      '5950',
+      '5960',
+      '5970',
+      '5980',
+    ])
+    expect(regions.find((region) => region.code === '5950')).toMatchObject({
+      id: 'economicRegion:economicRegion:5950',
+      name: 'Cariboo',
+      source: 'economicRegion',
+      level: 'economicRegion',
       feature: { properties: { censusDivisionCodes: ['5941', '5953'] } },
     })
-    expect(regions.every(region => region.areaKm2 > 0 && region.bounds.every(Number.isFinite))).toBe(true)
+    expect(regions.every((region) => region.areaKm2 > 0 && region.bounds.every(Number.isFinite))).toBe(true)
     expect(isValidLevelForSource('economicRegion', 'economicRegion')).toBe(true)
     expect(isValidLevelForSource('census', 'economicRegion')).toBe(false)
     expect(getDefaultLevelForSource('census')).toBe('cd')
-    expect(getLevelOptionsForSource('economicRegion').map(option => option.value)).toEqual(['economicRegion'])
+    expect(getLevelOptionsForSource('economicRegion').map((option) => option.value)).toEqual(['economicRegion'])
     expect(parseBoundarySource('economicRegion')).toBe('economicRegion')
     expect(isValidLevelForSource('regionalDistrict', 'economicRegion')).toBe(false)
     expect(parseCensusBoundaryLevel('economicRegion')).toBe('ct')

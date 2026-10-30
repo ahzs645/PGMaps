@@ -8,9 +8,7 @@ import type { CensusCategoryData, CensusHierarchyLevel } from '../types'
  * abandoned category cannot land over the current one.
  */
 export function useCensusVariableData(level: CensusHierarchyLevel, categoryId: string | null) {
-  return useFetchData<CensusCategoryData>(
-    categoryId ? `/data/census/variables/${level}/${categoryId}.json` : null,
-  )
+  return useFetchData<CensusCategoryData>(categoryId ? `/data/census/variables/${level}/${categoryId}.json` : null)
 }
 
 /**
@@ -18,7 +16,7 @@ export function useCensusVariableData(level: CensusHierarchyLevel, categoryId: s
  */
 export function getVariableValues(
   categoryData: CensusCategoryData | null,
-  variableId: string
+  variableId: string,
 ): Map<string, number | null> {
   const result = new Map<string, number | null>()
   if (!categoryData) return result

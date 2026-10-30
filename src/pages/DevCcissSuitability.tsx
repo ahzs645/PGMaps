@@ -1,3 +1,5 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useState } from 'react'
 import type { GeoTIFF } from 'geotiff'
 import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
@@ -205,21 +207,19 @@ function SyncMapUrl({ renderSource, traceMethod }: { renderSource: RenderSource;
     if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url)
   }, [renderSource, traceMethod])
 
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const updateViewport = () => {
+  useObserveMapViewport(
+    map,
+    ({ zoom }) => {
+      if (!map) return
       const center = map.getCenter()
       const url = new URL(window.location.href)
       url.searchParams.set('lng', center.lng.toFixed(6))
       url.searchParams.set('lat', center.lat.toFixed(6))
-      url.searchParams.set('z', map.getZoom().toFixed(2))
+      url.searchParams.set('z', zoom.toFixed(2))
       if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url)
-    }
-    map.on('moveend', updateViewport)
-    return () => {
-      map.off('moveend', updateViewport)
-    }
-  }, [map, isLoaded])
+    },
+    { enabled: isLoaded, events: ['moveend'], initial: 'none' },
+  )
 
   return null
 }
@@ -329,7 +329,7 @@ export default function DevCcissSuitability() {
           <SidebarSection title="Map layer">
             <label className="block text-sm">
               Display
-              <select
+              <NativeSelect
                 className={selectClass}
                 value={selection.kind}
                 onChange={(event) =>
@@ -338,11 +338,11 @@ export default function DevCcissSuitability() {
               >
                 <option value="suitability">Tree species suitability</option>
                 <option value="bgc">BGC classification</option>
-              </select>
+              </NativeSelect>
             </label>
             <label className="mt-3 block text-sm">
               Time period
-              <select
+              <NativeSelect
                 className={selectClass}
                 value={selection.period}
                 onChange={(event) =>
@@ -357,14 +357,14 @@ export default function DevCcissSuitability() {
                     {period.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             {selection.kind === 'suitability' ? (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <label className="block text-sm">
                     Species
-                    <select
+                    <NativeSelect
                       className={selectClass}
                       value={selection.species}
                       onChange={(event) =>
@@ -379,11 +379,11 @@ export default function DevCcissSuitability() {
                           {species}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label className="block text-sm">
                     Edatope
-                    <select
+                    <NativeSelect
                       className={selectClass}
                       value={selection.edatope}
                       onChange={(event) =>
@@ -398,13 +398,13 @@ export default function DevCcissSuitability() {
                           {edatope}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                 </div>
                 {!selection.period.startsWith('1961_1990') && (
                   <label className="mt-3 block text-sm">
                     Map type
-                    <select
+                    <NativeSelect
                       className={selectClass}
                       value={selection.statistic}
                       onChange={(event) =>
@@ -416,7 +416,7 @@ export default function DevCcissSuitability() {
                     >
                       <option value="NewFeas">Projected suitability</option>
                       <option value="MeanChange">Suitability change</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                 )}
               </>
@@ -433,7 +433,7 @@ export default function DevCcissSuitability() {
                 {selection.period.startsWith('20') && selection.period !== '2001_2020_obs' && (
                   <label className="mt-3 block text-sm">
                     Climate model
-                    <select
+                    <NativeSelect
                       className={selectClass}
                       value={selection.gcm}
                       onChange={(event) =>
@@ -448,7 +448,7 @@ export default function DevCcissSuitability() {
                           {gcm}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                 )}
               </>

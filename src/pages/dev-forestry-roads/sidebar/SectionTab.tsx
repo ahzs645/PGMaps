@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -192,17 +193,17 @@ function Widenings(p: SidebarProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Widening type">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={v.kind}
                   onChange={(e) => tweak(v.id, { kind: e.target.value as WidthOverride['kind'] })}
                 >
                   <option value="landing">Landing · unsurfaced</option>
                   <option value="turnout">Turnout · surfaced</option>
-                </select>
+                </NativeSelect>
               </Field>
               <Field label="Widening side">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={v.side}
                   onChange={(e) => tweak(v.id, { side: e.target.value as WidthOverride['side'] })}
@@ -210,7 +211,7 @@ function Widenings(p: SidebarProps) {
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                   <option value="both">Both</option>
-                </select>
+                </NativeSelect>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-2">

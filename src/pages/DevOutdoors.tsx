@@ -1,3 +1,5 @@
+import { NativeSelect } from '@/components/ui/form-field'
+import { useClipboardText } from '@/hooks/useClipboardText'
 import type MapLibreGL from 'maplibre-gl'
 import {
   Check,
@@ -305,7 +307,7 @@ function FeatureRow({
         </button>
       </div>
       <div className="mt-1.5 flex items-center gap-2">
-        <select
+        <NativeSelect
           className={KIND_SELECT_CLASS}
           value={kind}
           aria-label="Feature kind"
@@ -316,7 +318,7 @@ function FeatureRow({
               {kindLabels[option]}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <span className="text-[11px] tabular-nums text-muted-foreground">{detail}</span>
       </div>
       {selected && (
@@ -347,7 +349,9 @@ function DevOutdoors() {
   const [drawMode, setDrawMode] = useState<DrawMode | null>(null)
   const [draftVertices, setDraftVertices] = useState<Array<[number, number]>>([])
   const [selectedFeature, setSelectedFeature] = useState<SelectedFeature>(null)
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const clipboard = useClipboardText({ resetAfterMs: 2000, failureResetAfterMs: 2000 })
+  const { copy, status: copyState } = clipboard
+  const [shareFallback, setShareFallback] = useState('')
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   const mapRef = useRef<MapRef>(null)
@@ -600,21 +604,26 @@ function DevOutdoors() {
   // --- save & share ----------------------------------------------------------
 
   const handleCopyLink = useCallback(async () => {
-    try {
+    let generatedUrl = ''
+    setShareFallback('')
+    const copied = await copy(async () => {
       const token = await encodeOutdoorsPlanToken(plan)
       const url = new URL(window.location.href)
       url.searchParams.set('s', token)
       window.history.replaceState(null, '', url)
       lastEncodedShareToken.current = token
-      await navigator.clipboard.writeText(url.toString())
-      setCopyState('copied')
-      setStatusMessage(null)
-    } catch {
-      setCopyState('failed')
-      setStatusMessage('This plan is too large for a link (drawn geometry adds up) — use Export plan instead.')
-    }
-    window.setTimeout(() => setCopyState('idle'), 2000)
-  }, [plan])
+      generatedUrl = url.toString()
+      return generatedUrl
+    })
+    setStatusMessage(
+      copied
+        ? null
+        : generatedUrl
+          ? 'Clipboard access was unavailable. Copy the plan link below.'
+          : 'This plan is too large for a link (drawn geometry adds up) — use Export plan instead.',
+    )
+    if (!copied && generatedUrl) setShareFallback(generatedUrl)
+  }, [plan, copy])
 
   const handleExportPlan = useCallback(() => {
     downloadText(serializeOutdoorsPlan(plan), planFileName(plan, 'plan.json'), 'application/json')
@@ -879,7 +888,7 @@ function DevOutdoors() {
                 onChange={(event) => setPlan((current) => ({ ...current, name: event.target.value }))}
               />
               <div className="grid grid-cols-2 gap-2">
-                <select
+                <NativeSelect
                   className={INPUT_CLASS}
                   value={plan.activity}
                   aria-label="Activity"
@@ -892,7 +901,7 @@ function DevOutdoors() {
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
                 <input
                   className={INPUT_CLASS}
                   placeholder="Species, e.g. Elk"
@@ -926,9 +935,7 @@ function DevOutdoors() {
           </SidebarSection>
 
           <SidebarSection title="Management units">
-            {wmuLayerError && (
-              <InlineAlert tone="warning">{wmuLayerError}</InlineAlert>
-            )}
+            {wmuLayerError && <InlineAlert tone="warning">{wmuLayerError}</InlineAlert>}
             {plan.wmus.length === 0 ? (
               <p className="text-xs leading-5 text-muted-foreground">
                 Click a Wildlife Management Unit on the map to add it to the plan.
@@ -1124,8 +1131,17 @@ function DevOutdoors() {
       </SidebarSection>
 
       <SidebarSection title="Save & share">
+        {shareFallback && (
+          <input
+            aria-label="Plan link for manual copying"
+            readOnly
+            value={shareFallback}
+            onFocus={(event) => event.currentTarget.select()}
+            className="mb-2 w-full rounded border border-input bg-background p-2 text-base md:text-xs"
+          />
+        )}
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={handleCopyLink}>
+          <Button type="button" variant="outline" size="sm" disabled={copyState === 'pending'} onClick={handleCopyLink}>
             {copyState === 'copied' ? (
               <Check className="size-3.5" />
             ) : copyState === 'failed' ? (

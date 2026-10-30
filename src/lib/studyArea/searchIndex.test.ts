@@ -98,12 +98,8 @@ describe('boundary search index', () => {
   })
 
   it('does not match a descendant through inherited hierarchy metadata', () => {
-    expect(searchBoundaryCatalog(records, 'Bulkley-Nechako').map(({ record }) => record.id)).toEqual([
-      'census:cd:5951',
-    ])
-    expect(searchBoundaryCatalog(records, '59510158').map(({ record }) => record.id)).toEqual([
-      'census:da:59510158',
-    ])
+    expect(searchBoundaryCatalog(records, 'Bulkley-Nechako').map(({ record }) => record.id)).toEqual(['census:cd:5951'])
+    expect(searchBoundaryCatalog(records, '59510158').map(({ record }) => record.id)).toEqual(['census:da:59510158'])
   })
 
   it('ranks an exact code before a property-only match', () => {

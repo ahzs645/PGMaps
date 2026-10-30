@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -158,7 +159,7 @@ export function PortalLocalAttachments() {
           </label>
           <label className="block text-sm">
             Link to local draft
-            <select
+            <NativeSelect
               aria-label="Attachment local draft"
               className="ml-2 max-w-full rounded border bg-background p-2"
               value={linkedDraft}
@@ -170,7 +171,7 @@ export function PortalLocalAttachments() {
                   {record.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => void save()}>

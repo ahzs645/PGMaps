@@ -258,8 +258,7 @@ export function samplesToGeoJson(
       options.stationIndex != null && options.stationIndex >= 0 ? options.stationIndex * target.sampleCount : null
 
     for (let index = 0; index < target.sampleCount; index += 1) {
-      const visible =
-        stationRow === null ? target.anyVisible[index] : target.visibleByStation[stationRow + index]
+      const visible = stationRow === null ? target.anyVisible[index] : target.visibleByStation[stationRow + index]
       features.push({
         type: 'Feature',
         id: `${target.targetId}-${index}`,
@@ -325,7 +324,12 @@ export function corridorExposureToGeoJson(
       properties: {
         id: `corridor-${index}`,
         visiblePercent: (exposureAt(index - 1) + exposureAt(index)) / 2,
-        unknown: sources.some((target) => (target.stations[index - 1]?.unknownPercent ?? 0) > 0 || (target.stations[index]?.unknownPercent ?? 0) > 0) ? 1 : 0,
+        unknown: sources.some(
+          (target) =>
+            (target.stations[index - 1]?.unknownPercent ?? 0) > 0 || (target.stations[index]?.unknownPercent ?? 0) > 0,
+        )
+          ? 1
+          : 0,
         distanceAlongMeters: from.distanceAlongMeters,
       },
     })
@@ -443,7 +447,10 @@ export function parseScene(input: unknown): ForestryScene | null {
             harvestYear: typeof target.harvestYear === 'number' ? target.harvestYear : null,
             clearcutPercent: typeof target.clearcutPercent === 'number' ? target.clearcutPercent : null,
             siteDisturbance: target.siteDisturbance === true,
-            recoveryPercent: typeof target.recoveryPercent === 'number' && Number.isFinite(target.recoveryPercent) ? Math.max(0, Math.min(100, target.recoveryPercent)) : null,
+            recoveryPercent:
+              typeof target.recoveryPercent === 'number' && Number.isFinite(target.recoveryPercent)
+                ? Math.max(0, Math.min(100, target.recoveryPercent))
+                : null,
             inventoryUnitId: typeof target.inventoryUnitId === 'string' ? target.inventoryUnitId : null,
             ...(target.harvestSystem === 'retention' || target.harvestSystem === 'partial'
               ? { harvestSystem: target.harvestSystem }
@@ -451,10 +458,18 @@ export function parseScene(input: unknown): ForestryScene | null {
             retentionPercent: percentOrNull(target.retentionPercent),
             volumeRemovedPercent: percentOrNull(target.volumeRemovedPercent),
             residualHeightMeters:
-              typeof target.residualHeightMeters === 'number' && target.residualHeightMeters > 0 && target.residualHeightMeters < 100
+              typeof target.residualHeightMeters === 'number' &&
+              target.residualHeightMeters > 0 &&
+              target.residualHeightMeters < 100
                 ? target.residualHeightMeters
                 : null,
-            plannedHarvestYear: typeof target.plannedHarvestYear === 'number' && Number.isInteger(target.plannedHarvestYear) && target.plannedHarvestYear >= 1900 && target.plannedHarvestYear <= 2200 ? target.plannedHarvestYear : null,
+            plannedHarvestYear:
+              typeof target.plannedHarvestYear === 'number' &&
+              Number.isInteger(target.plannedHarvestYear) &&
+              target.plannedHarvestYear >= 1900 &&
+              target.plannedHarvestYear <= 2200
+                ? target.plannedHarvestYear
+                : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
           },
@@ -477,8 +492,15 @@ export function parseScene(input: unknown): ForestryScene | null {
     targets,
     activeLandformId: typeof raw.activeLandformId === 'string' ? raw.activeLandformId : null,
     assessmentYear: numeric(raw.assessmentYear, base.assessmentYear ?? new Date().getFullYear()),
-    harvestInventory: raw.harvestInventory && ['complete', 'partial', 'unavailable', 'not-requested', 'scenario-only'].includes(raw.harvestInventory.status) ? raw.harvestInventory : undefined,
-    reportMetadata: raw.reportMetadata && typeof raw.reportMetadata === 'object' ? Object.fromEntries(Object.entries(raw.reportMetadata).filter(([, value]) => typeof value === 'string')) : {},
+    harvestInventory:
+      raw.harvestInventory &&
+      ['complete', 'partial', 'unavailable', 'not-requested', 'scenario-only'].includes(raw.harvestInventory.status)
+        ? raw.harvestInventory
+        : undefined,
+    reportMetadata:
+      raw.reportMetadata && typeof raw.reportMetadata === 'object'
+        ? Object.fromEntries(Object.entries(raw.reportMetadata).filter(([, value]) => typeof value === 'string'))
+        : {},
     viaReview: parseViaReview(raw.viaReview),
     settings: {
       demZoom: numeric(raw.settings?.demZoom, base.settings.demZoom),

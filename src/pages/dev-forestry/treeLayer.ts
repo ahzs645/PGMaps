@@ -444,7 +444,9 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       if (billboard) {
         // One distant camera-facing card, or fixed foreground planes through the stem.
         const plane = [-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0]
-        const corners = new Float32Array(Array.from({ length: cardPlanes }, (_, p) => plane.map((v, i) => i % 3 === 2 ? p : v)).flat())
+        const corners = new Float32Array(
+          Array.from({ length: cardPlanes }, (_, p) => plane.map((v, i) => (i % 3 === 2 ? p : v))).flat(),
+        )
         staticBuffer(corners, attribute('a_corner'), 3)
         offsetBuffer = perInstance(attribute('a_offset'), 3)
         scaleBuffer = perInstance(attribute('a_scale'), 2)
@@ -454,7 +456,13 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         const indexBuffer = gl.createBuffer()
         instanceBuffers.push(indexBuffer!)
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(Array.from({ length: cardPlanes }, (_, p) => [0, 1, 2, 0, 2, 3].map(i => i + p * 4)).flat()), gl.STATIC_DRAW)
+        gl.bufferData(
+          gl.ELEMENT_ARRAY_BUFFER,
+          new Uint16Array(
+            Array.from({ length: cardPlanes }, (_, p) => [0, 1, 2, 0, 2, 3].map((i) => i + p * 4)).flat(),
+          ),
+          gl.STATIC_DRAW,
+        )
       } else {
         staticBuffer(mesh!.attributes.positions.value, attribute('a_position'), 3)
         staticBuffer(mesh!.attributes.normals.value, attribute('a_normal'), 3)
@@ -542,7 +550,13 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       if (gap) {
         // Mercator y runs south, so north is −y.
         const bearing = (gap.bearingDegrees * Math.PI) / 180
-        gl.uniform4f(gapLocation, Math.sin(bearing), -Math.cos(bearing), gap.lengthMeters, Math.cos((gap.halfAngleDegrees * Math.PI) / 180))
+        gl.uniform4f(
+          gapLocation,
+          Math.sin(bearing),
+          -Math.cos(bearing),
+          gap.lengthMeters,
+          Math.cos((gap.halfAngleDegrees * Math.PI) / 180),
+        )
       } else gl.uniform4f(gapLocation, 0, 0, 0, 1)
       gl.uniform4fv(rangeLocation, options.range ?? [-2, -1, 99000, 100000])
       gl.uniform1f(meterScaleLocation, meterScale)

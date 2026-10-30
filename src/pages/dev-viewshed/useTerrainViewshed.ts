@@ -7,9 +7,15 @@ export function useTerrainViewshed(input: ViewshedInput, revision: number) {
   const sequence = useRef(0)
   const [state, setState] = useState<RunState | null>(null)
   useEffect(() => {
-    try { worker.current = new Worker(new URL('./viewshed.worker.ts', import.meta.url), { type: 'module' }) }
-    catch (error) { setState({ input, error: error instanceof Error ? error.message : 'Terrain worker could not start.' }) }
-    return () => { worker.current?.terminate(); worker.current = null }
+    try {
+      worker.current = new Worker(new URL('./viewshed.worker.ts', import.meta.url), { type: 'module' })
+    } catch (error) {
+      setState({ input, error: error instanceof Error ? error.message : 'Terrain worker could not start.' })
+    }
+    return () => {
+      worker.current?.terminate()
+      worker.current = null
+    }
     // The worker lives for the page lifetime; requests are handled by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -39,5 +45,10 @@ export function useTerrainViewshed(input: ViewshedInput, revision: number) {
   }, [input, revision])
   // Hide old coverage as soon as its observer or settings change.
   const current = state?.input === input ? state : null
-  return { result: current?.result ?? null, error: current?.error ?? null, progress: current?.progress ?? 'Updating viewshed…', loading: !current?.result && !current?.error }
+  return {
+    result: current?.result ?? null,
+    error: current?.error ?? null,
+    progress: current?.progress ?? 'Updating viewshed…',
+    loading: !current?.result && !current?.error,
+  }
 }

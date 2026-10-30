@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -37,7 +38,7 @@ export function ShapeComparison({ data, basemap }: { data: ComparisonData; basem
         ].map(([id, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               aria-label={`Shape candidate ${label}`}
               className="ml-1 rounded border bg-background p-1.5"
               value={String(id)}
@@ -50,7 +51,7 @@ export function ShapeComparison({ data, basemap }: { data: ComparisonData; basem
               {data.shapes.crops.map((c) => (
                 <option key={c.id}>{c.id}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
         <SegmentedControl

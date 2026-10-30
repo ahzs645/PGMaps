@@ -69,9 +69,7 @@ export function ExplorerLegend({
                 color={dataset.color}
                 label={dataset.label}
                 className="min-h-6 touch:min-h-8"
-                value={
-                  display === 'count' ? formatNumber(stat?.count ?? 0) : GEOMETRY_TYPE_LABEL[dataset.geometryType]
-                }
+                value={display === 'count' ? formatNumber(stat?.count ?? 0) : GEOMETRY_TYPE_LABEL[dataset.geometryType]}
               />
             )
           })}

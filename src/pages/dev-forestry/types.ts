@@ -12,8 +12,14 @@ export type TargetRole = 'block' | 'landscape' | 'harvested'
  */
 export type HarvestSystem = 'clearcut' | 'retention' | 'partial'
 export type TargetPolygon = {
-  id: string; name: string; role: TargetRole; objectiveId: VisualQualityClassId; vac: VacRating | null
-  harvestYear: number | null; clearcutPercent: number | null; siteDisturbance?: boolean
+  id: string
+  name: string
+  role: TargetRole
+  objectiveId: VisualQualityClassId
+  vac: VacRating | null
+  harvestYear: number | null
+  clearcutPercent: number | null
+  siteDisturbance?: boolean
   /** Optional observed/modelled recovery estimate. Null retains the explicitly labelled age assumption. */
   recoveryPercent?: number | null
   /** Proposed blocks only; absent means clearcut. */
@@ -25,62 +31,150 @@ export type TargetPolygon = {
   residualHeightMeters?: number | null
   /** Optional planned date; used by the explicit scheduling runner, not ordinary VIA runs. */
   plannedHarvestYear?: number | null
-  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; source: string; inventoryUnitId?: string | null
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+  source: string
+  inventoryUnitId?: string | null
 }
 export type AssessmentMaskKind = 'natural' | 'private' | 'permanent' | 'retained'
-export type AssessmentMask = { id: string; name: string; kind: AssessmentMaskKind; geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; source: string }
+export type AssessmentMask = {
+  id: string
+  name: string
+  kind: AssessmentMaskKind
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+  source: string
+}
 /** A cropped, native-resolution, north-up raster. Null cells remain unknown. Heights are metres. */
 export type LocalRaster = {
-  id: string; name: string; kind: 'terrain' | 'canopy'; epsg: number
-  origin: [number, number]; pixelSize: [number, number]; width: number; height: number
-  values: Array<number | null>; acquired: string; verticalReference: string; sha256: string
+  id: string
+  name: string
+  kind: 'terrain' | 'canopy'
+  epsg: number
+  origin: [number, number]
+  pixelSize: [number, number]
+  width: number
+  height: number
+  values: Array<number | null>
+  acquired: string
+  verticalReference: string
+  sha256: string
 }
 export type Availability = 'complete' | 'partial' | 'unavailable' | 'not-requested' | 'scenario-only'
 export type InventoryEvidence = {
-  status: Availability; bounds?: [number, number, number, number]; retrievedAt?: string; source?: string
+  status: Availability
+  bounds?: [number, number, number, number]
+  retrievedAt?: string
+  source?: string
 }
 export type AnalysisSettings = {
-  demZoom: number; observerHeightMeters: number; targetOffsetMeters: number; stationSpacingMeters: number
-  maxViewDistanceMeters: number; sampleBudget: number; greenUpAgeYears: number
-  screeningEnabled: boolean; minCrownClosurePercent: number
+  demZoom: number
+  observerHeightMeters: number
+  targetOffsetMeters: number
+  stationSpacingMeters: number
+  maxViewDistanceMeters: number
+  sampleBudget: number
+  greenUpAgeYears: number
+  screeningEnabled: boolean
+  minCrownClosurePercent: number
   /** Explicit scenario assumptions, NEVER silently enabled by migration or by a failed query. */
   greenAreaConfirmed?: boolean
   existingDisturbanceConfirmed?: boolean
 }
 export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
-  demZoom: DEFAULT_DEM_ZOOM, observerHeightMeters: 1.6, targetOffsetMeters: 0, stationSpacingMeters: 150,
-  maxViewDistanceMeters: 12000, sampleBudget: 900, greenUpAgeYears: 20,
-  screeningEnabled: false, minCrownClosurePercent: 30,
-  greenAreaConfirmed: false, existingDisturbanceConfirmed: false,
+  demZoom: DEFAULT_DEM_ZOOM,
+  observerHeightMeters: 1.6,
+  targetOffsetMeters: 0,
+  stationSpacingMeters: 150,
+  maxViewDistanceMeters: 12000,
+  sampleBudget: 900,
+  greenUpAgeYears: 20,
+  screeningEnabled: false,
+  minCrownClosurePercent: 30,
+  greenAreaConfirmed: false,
+  existingDisturbanceConfirmed: false,
 }
 export type AnalysisInput = {
   viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'>
-  targets: Array<Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry' | 'harvestYear' | 'clearcutPercent' | 'siteDisturbance' | 'recoveryPercent' | 'harvestSystem'>>
-  settings: AnalysisSettings; assessmentYear: number; activeLandformId?: string | null
+  targets: Array<
+    Pick<
+      TargetPolygon,
+      | 'id'
+      | 'name'
+      | 'role'
+      | 'geometry'
+      | 'harvestYear'
+      | 'clearcutPercent'
+      | 'siteDisturbance'
+      | 'recoveryPercent'
+      | 'harvestSystem'
+    >
+  >
+  settings: AnalysisSettings
+  assessmentYear: number
+  activeLandformId?: string | null
   harvestInventory?: InventoryEvidence
   masks?: AssessmentMask[]
   localRasters?: LocalRaster[]
 }
-export type StationResult = { lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number; visiblePercent: number; unknownPercent?: number }
-export type TargetVisibility = {
-  targetId: string; role: TargetRole; positions: Float64Array; elevations: Float64Array
-  /** 0 = occluded/out-of-range, 1 = visible, 2 = unknown. A known visible station wins in the union. */
-  anyVisible: Uint8Array; visibleByStation: Uint8Array; visibleDistances: Float64Array
-  sampleCount: number; sampleAreaMeters: number; areaMeters: number; visibleAreaMeters: number; visiblePercent: number
+export type StationResult = {
+  lng: number
+  lat: number
+  groundElevationMeters: number
+  distanceAlongMeters: number
+  visiblePercent: number
   unknownPercent?: number
-  apparentSolidAngle: number; visibleApparentSolidAngle: number; apparentVisiblePercent: number
-  visibleAreaByZone: Record<string, number>; nearestVisibleDistanceMeters: number | null; farthestVisibleDistanceMeters: number | null
-  meanSlopePercent: number | null; vegHeightMeters: number | null; forestedAreaMeters: number | null
-  areaInsideLandformMeters: number | null; newAreaInsideLandformMeters: number | null
-  visibleApparentSolidAngleNew: number; visibleApparentSolidAngleByStation: Float64Array; visibleApparentSolidAngleNewByStation: Float64Array
-  alterationWeight: number; recovered: boolean; siteDisturbance: boolean; outOfRange: boolean; stations: StationResult[]
 }
-export type AlterationBreakdown = { existingPercent: number; disturbancePercent: number; proposedPercent: number; cumulativePercent: number }
+export type TargetVisibility = {
+  targetId: string
+  role: TargetRole
+  positions: Float64Array
+  elevations: Float64Array
+  /** 0 = occluded/out-of-range, 1 = visible, 2 = unknown. A known visible station wins in the union. */
+  anyVisible: Uint8Array
+  visibleByStation: Uint8Array
+  visibleDistances: Float64Array
+  sampleCount: number
+  sampleAreaMeters: number
+  areaMeters: number
+  visibleAreaMeters: number
+  visiblePercent: number
+  unknownPercent?: number
+  apparentSolidAngle: number
+  visibleApparentSolidAngle: number
+  apparentVisiblePercent: number
+  visibleAreaByZone: Record<string, number>
+  nearestVisibleDistanceMeters: number | null
+  farthestVisibleDistanceMeters: number | null
+  meanSlopePercent: number | null
+  vegHeightMeters: number | null
+  forestedAreaMeters: number | null
+  areaInsideLandformMeters: number | null
+  newAreaInsideLandformMeters: number | null
+  visibleApparentSolidAngleNew: number
+  visibleApparentSolidAngleByStation: Float64Array
+  visibleApparentSolidAngleNewByStation: Float64Array
+  alterationWeight: number
+  recovered: boolean
+  siteDisturbance: boolean
+  outOfRange: boolean
+  stations: StationResult[]
+}
+export type AlterationBreakdown = {
+  existingPercent: number
+  disturbancePercent: number
+  proposedPercent: number
+  cumulativePercent: number
+}
 export type AnalysisQuality = {
-  terrain: Availability; vegetation: Availability; existingInventory: Availability
+  terrain: Availability
+  vegetation: Availability
+  existingInventory: Availability
   greenBasis: 'inventory-and-openings' | 'confirmed-landform' | 'unverified-whole-landform'
-  unknownSightlines: number; unknownStationCount: number; underResolvedTargetIds: string[]
-  largestGroundCellPercent: number | null; numericalReady: boolean; warnings: string[]
+  unknownSightlines: number
+  unknownStationCount: number
+  underResolvedTargetIds: string[]
+  largestGroundCellPercent: number | null
+  numericalReady: boolean
+  warnings: string[]
 }
 export type AnalysisResult = {
   sightlineProfile?: import('./sightlineProfile').SightlineProfile
@@ -88,15 +182,35 @@ export type AnalysisResult = {
   landformDesign?: import('./landformDesign').LandformDesignReview | null
   settings: AnalysisSettings
   stations: Array<{ lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number }>
-  corridorLengthMeters: number; assessmentStationIndex: number; targets: TargetVisibility[]
-  perspectiveAlteration: AlterationBreakdown | null; perspectiveByStation: Array<AlterationBreakdown | null>
-  planimetricAlteration: AlterationBreakdown | null; landformAreaMeters: number | null; landformForestedAreaMeters: number | null
-  recoveredOpeningCount: number; canopyCoverageFraction: number | null; canopyStandCount: number
-  demTileCount: number; demResolutionMeters: number; missingTileCount: number; elapsedMs: number
+  corridorLengthMeters: number
+  assessmentStationIndex: number
+  targets: TargetVisibility[]
+  perspectiveAlteration: AlterationBreakdown | null
+  perspectiveByStation: Array<AlterationBreakdown | null>
+  planimetricAlteration: AlterationBreakdown | null
+  landformAreaMeters: number | null
+  landformForestedAreaMeters: number | null
+  recoveredOpeningCount: number
+  canopyCoverageFraction: number | null
+  canopyStandCount: number
+  demTileCount: number
+  demResolutionMeters: number
+  missingTileCount: number
+  elapsedMs: number
   /** Generated by the calculation, not by the view component. Old results without it cannot be exported as current. */
-  inputSignature?: string; inputSnapshot?: AnalysisInput; activeLandformId?: string | null
-  largestVisibleAreaStationIndex?: number; quality?: AnalysisQuality; actualSightlineCount?: number
-  renderStands?: Array<{ geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; heightMeters: number; crownClosurePercent: number | null; speciesCode?: string | null; stemsPerHa?: number | null }>
+  inputSignature?: string
+  inputSnapshot?: AnalysisInput
+  activeLandformId?: string | null
+  largestVisibleAreaStationIndex?: number
+  quality?: AnalysisQuality
+  actualSightlineCount?: number
+  renderStands?: Array<{
+    geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+    heightMeters: number
+    crownClosurePercent: number | null
+    speciesCode?: string | null
+    stemsPerHa?: number | null
+  }>
 }
 export type AnalysisProgress = { phase: 'terrain' | 'sightlines'; completed: number; total: number }
 export type ReverseInput = {
@@ -104,7 +218,14 @@ export type ReverseInput = {
   roads: Array<{ id: string; name: string; roadClass: string | null; coordinates: Array<[number, number]> }>
   settings: AnalysisSettings
 }
-export type AnalysisWorkerRequest = { type: 'analyze'; requestId: number; input: AnalysisInput; inspection?: { targetId: string; sampleIndex: number; stationIndex: number } } | { type: 'reverse'; requestId: number; input: ReverseInput }
+export type AnalysisWorkerRequest =
+  | {
+      type: 'analyze'
+      requestId: number
+      input: AnalysisInput
+      inspection?: { targetId: string; sampleIndex: number; stationIndex: number }
+    }
+  | { type: 'reverse'; requestId: number; input: ReverseInput }
 export type AnalysisWorkerResponse =
   | { type: 'progress'; requestId: number; progress: AnalysisProgress }
   | { type: 'result'; requestId: number; result: AnalysisResult }

@@ -12,10 +12,7 @@ const EMPTY = new Map<string, RegionMiSummary>()
  * runs once per boundary change, and stays off entirely unless the MI-surface
  * metric is actually in use.
  */
-export function useWalkabilityMiZonal(
-  enabled: boolean,
-  regions: ScoreBuilderRegion[],
-): Map<string, RegionMiSummary> {
+export function useWalkabilityMiZonal(enabled: boolean, regions: ScoreBuilderRegion[]): Map<string, RegionMiSummary> {
   const grid = useJsonManifest<WalkabilityMiGrid>(enabled ? CITYWIDE_MI_GRID_PATH : null)
 
   return useMemo(() => {

@@ -120,11 +120,15 @@ const EN: StringMap = {
   'health.low.general': 'General Population - Ideal air for outdoor activities.',
   'health.low.atRisk': 'At Risk - Enjoy usual outdoor activities.',
   'health.moderate.general': 'General Population - No need to modify usual outdoor activities unless symptoms occur.',
-  'health.moderate.atRisk': 'At Risk - Consider reducing or rescheduling strenuous activities outdoors if symptoms occur.',
-  'health.high.general': 'General Population - Consider reducing or rescheduling strenuous outdoor activities if symptoms occur.',
-  'health.high.atRisk': 'At Risk - Reduce or reschedule strenuous outdoor activities. Children and the elderly should also take it easy.',
+  'health.moderate.atRisk':
+    'At Risk - Consider reducing or rescheduling strenuous activities outdoors if symptoms occur.',
+  'health.high.general':
+    'General Population - Consider reducing or rescheduling strenuous outdoor activities if symptoms occur.',
+  'health.high.atRisk':
+    'At Risk - Reduce or reschedule strenuous outdoor activities. Children and the elderly should also take it easy.',
   'health.veryHigh.general': 'General Population - Reduce or reschedule strenuous outdoor activities.',
-  'health.veryHigh.atRisk': 'At Risk - Avoid strenuous outdoor activities. Children and the elderly should also avoid outdoor physical exertion.',
+  'health.veryHigh.atRisk':
+    'At Risk - Avoid strenuous outdoor activities. Children and the elderly should also avoid outdoor physical exertion.',
 
   'smoke.modelled': 'Modelled Smoke',
   'smoke.visible': 'Visible Smoke',
@@ -321,12 +325,17 @@ const FR: StringMap = {
   'health.noData': 'Les données de la dernière heure de ce moniteur sont manquantes.',
   'health.low.general': 'Population générale — air idéal pour les activités extérieures.',
   'health.low.atRisk': 'À risque — profitez des activités extérieures habituelles.',
-  'health.moderate.general': 'Population générale — pas besoin de modifier les activités extérieures à moins de présenter des symptômes.',
-  'health.moderate.atRisk': 'À risque — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
-  'health.high.general': 'Population générale — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
-  'health.high.atRisk': 'À risque — réduisez ou reportez les activités intenses. Les enfants et les personnes âgées devraient aussi y aller doucement.',
+  'health.moderate.general':
+    'Population générale — pas besoin de modifier les activités extérieures à moins de présenter des symptômes.',
+  'health.moderate.atRisk':
+    'À risque — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
+  'health.high.general':
+    'Population générale — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
+  'health.high.atRisk':
+    'À risque — réduisez ou reportez les activités intenses. Les enfants et les personnes âgées devraient aussi y aller doucement.',
   'health.veryHigh.general': 'Population générale — réduisez ou reportez les activités intenses à l’extérieur.',
-  'health.veryHigh.atRisk': 'À risque — évitez les activités intenses à l’extérieur. Les enfants et les personnes âgées devraient aussi éviter tout effort physique extérieur.',
+  'health.veryHigh.atRisk':
+    'À risque — évitez les activités intenses à l’extérieur. Les enfants et les personnes âgées devraient aussi éviter tout effort physique extérieur.',
 
   'smoke.modelled': 'Fumée modélisée',
   'smoke.visible': 'Fumée visible',
@@ -509,15 +518,14 @@ export function localizeWmsLabel(key: string, locale: AqmapLocale): string {
 }
 
 export function localizeSmokeLabel(key: 'modelledSmoke' | 'visibleSmoke', locale: AqmapLocale): string {
-  return key === 'modelledSmoke'
-    ? translate('smoke.modelled', locale)
-    : translate('smoke.visible', locale)
+  return key === 'modelledSmoke' ? translate('smoke.modelled', locale) : translate('smoke.visible', locale)
 }
 
 export function localizeSmokeDensity(label: string, locale: AqmapLocale): string {
   const normalized = label.toLowerCase()
   if (normalized.startsWith('light') || normalized.startsWith('faible')) return translate('smoke.density.light', locale)
-  if (normalized.startsWith('medium') || normalized.startsWith('moyen')) return translate('smoke.density.medium', locale)
+  if (normalized.startsWith('medium') || normalized.startsWith('moyen'))
+    return translate('smoke.density.medium', locale)
   if (normalized.startsWith('heavy') || normalized.startsWith('haute')) return translate('smoke.density.heavy', locale)
   return label
 }
@@ -532,8 +540,16 @@ export function buildObservationRowLabels(locale: AqmapLocale): LocalizedObserva
   return [
     { key: 'pm25_10min', label: translate('popup.tenMinAvg', locale), title: translate('popup.tenMinTitle', locale) },
     { key: 'pm25_1hr', label: translate('popup.oneHourAvg', locale), title: translate('popup.oneHourTitle', locale) },
-    { key: 'pm25_3hr', label: translate('popup.threeHourAvg', locale), title: translate('popup.threeHourTitle', locale) },
-    { key: 'pm25_24hr', label: translate('popup.twentyFourHourAvg', locale), title: translate('popup.twentyFourHourTitle', locale) },
+    {
+      key: 'pm25_3hr',
+      label: translate('popup.threeHourAvg', locale),
+      title: translate('popup.threeHourTitle', locale),
+    },
+    {
+      key: 'pm25_24hr',
+      label: translate('popup.twentyFourHourAvg', locale),
+      title: translate('popup.twentyFourHourTitle', locale),
+    },
   ]
 }
 

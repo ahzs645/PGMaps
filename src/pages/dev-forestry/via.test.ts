@@ -351,15 +351,30 @@ describe('harvest systems (3.4.3.3 and 3.4.4)', () => {
     const result = fakeResult({ x: 3, openings: 2 })
     result.targets.forEach((target, index) => {
       const id = index === 0 ? 'b0' : 'p1'
-      Object.assign(target, { targetId: id, visibleAreaMeters: visible[id] === false ? 0 : 1000, areaMeters: area[id] ?? 100000 })
+      Object.assign(target, {
+        targetId: id,
+        visibleAreaMeters: visible[id] === false ? 0 : 1000,
+        areaMeters: area[id] ?? 100000,
+      })
     })
     return result
   }
   const clearcut = { id: 'b0', name: 'Block A' }
-  const partial = { id: 'p1', name: 'Block B', harvestSystem: 'partial' as const, volumeRemovedPercent: 40, residualHeightMeters: 25 }
+  const partial = {
+    id: 'p1',
+    name: 'Block B',
+    harvestSystem: 'partial' as const,
+    volumeRemovedPercent: 40,
+    residualHeightMeters: 25,
+  }
 
   it('adds a visible partial cut’s Table 6 figure to the cleared ground', () => {
-    const assessment = assessVia({ objectiveId: 'partial-retention', result: withBlocks({}), review: FULL_REVIEW, blocks: [clearcut, partial] })
+    const assessment = assessVia({
+      objectiveId: 'partial-retention',
+      result: withBlocks({}),
+      review: FULL_REVIEW,
+      blocks: [clearcut, partial],
+    })
     // 40% removed among 25 m residuals reads as a 3.4% clearcut.
     expect(assessment.clearedPercent).toBe(3)
     expect(assessment.partialCuts).toEqual([{ id: 'p1', name: 'Block B', visible: true, equivalentPercent: 3.4 }])
@@ -367,7 +382,12 @@ describe('harvest systems (3.4.3.3 and 3.4.4)', () => {
   })
 
   it('adds nothing for a partial cut the viewpoint cannot see', () => {
-    const assessment = assessVia({ objectiveId: 'partial-retention', result: withBlocks({ p1: false }), review: FULL_REVIEW, blocks: [clearcut, partial] })
+    const assessment = assessVia({
+      objectiveId: 'partial-retention',
+      result: withBlocks({ p1: false }),
+      review: FULL_REVIEW,
+      blocks: [clearcut, partial],
+    })
     expect(assessment.initialPercent).toBe(3)
   })
 
@@ -397,4 +417,3 @@ describe('harvest systems (3.4.3.3 and 3.4.4)', () => {
     expect(measuredRetention([clearcut], () => 1000)).toBeNull()
   })
 })
-

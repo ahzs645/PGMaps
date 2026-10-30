@@ -33,10 +33,7 @@ const BOUNDARY_CODE_PROPERTIES: Record<AssessmentBoundaryLevel, string[]> = {
   assessmentWatershed: ['boundaryCode', 'OBJECTID'],
 }
 
-function boundaryCode(
-  feature: GeoJSON.Feature,
-  level: AssessmentBoundaryLevel,
-): string {
+function boundaryCode(feature: GeoJSON.Feature, level: AssessmentBoundaryLevel): string {
   const properties = feature.properties ?? {}
   for (const key of BOUNDARY_CODE_PROPERTIES[level]) {
     const value = properties[key]
@@ -54,10 +51,10 @@ function normalizeBoundaryData(
   return {
     type: 'FeatureCollection',
     features: geojson.features
-      .filter((feature) => (
-        feature.geometry &&
-        (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
-      ))
+      .filter(
+        (feature) =>
+          feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon'),
+      )
       .map((feature) => ({
         ...feature,
         properties: {
@@ -69,13 +66,10 @@ function normalizeBoundaryData(
 }
 
 export function useBoundaryData(level: BoundaryLevel) {
-  const { data, loading } = useFetchData<GeoJSON.FeatureCollection>(
-    level === 'none' ? null : BOUNDARY_FILES[level],
-    {
-      // The transform only runs when a URL is provided, i.e. level !== 'none'.
-      transform: (json) => normalizeBoundaryData(json as GeoJSON.FeatureCollection, level as AssessmentBoundaryLevel),
-    },
-  )
+  const { data, loading } = useFetchData<GeoJSON.FeatureCollection>(level === 'none' ? null : BOUNDARY_FILES[level], {
+    // The transform only runs when a URL is provided, i.e. level !== 'none'.
+    transform: (json) => normalizeBoundaryData(json as GeoJSON.FeatureCollection, level as AssessmentBoundaryLevel),
+  })
 
   return { boundaryData: data, boundaryLoading: loading }
 }

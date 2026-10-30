@@ -58,7 +58,8 @@ export function MeasurementOverlay({
 
   if (measurementMode === 'idle') return null
 
-  const canClose = measurementShape === 'circle' ? measurementPoints.length >= 2 : measurementCanClose(measurementPoints)
+  const canClose =
+    measurementShape === 'circle' ? measurementPoints.length >= 2 : measurementCanClose(measurementPoints)
   const addCenterPoint = () => {
     const center = map?.getCenter()
     if (!center) return
@@ -115,7 +116,9 @@ function DesktopMeasurementCard({
     <div className="absolute bottom-4 right-4 z-20 hidden w-[min(22rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 p-3 shadow-xl backdrop-blur md:block">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold">{measurementShape === 'circle' ? 'Circle measurement' : 'Polygon measurement'}</div>
+          <div className="text-sm font-semibold">
+            {measurementShape === 'circle' ? 'Circle measurement' : 'Polygon measurement'}
+          </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {measurementMode === 'drawing'
               ? measurementShape === 'circle'
@@ -124,7 +127,12 @@ function DesktopMeasurementCard({
               : 'Measurement is visible only in this session.'}
           </div>
         </div>
-        <button type="button" className="rounded-md p-1.5 hover:bg-muted touch:p-2.5" onClick={onClearMeasurement} aria-label="Clear measurement">
+        <button
+          type="button"
+          className="rounded-md p-1.5 hover:bg-muted touch:p-2.5"
+          onClick={onClearMeasurement}
+          aria-label="Clear measurement"
+        >
           <X className="size-4" />
         </button>
       </div>
@@ -138,8 +146,14 @@ function DesktopMeasurementCard({
           ...(measurementShape === 'circle'
             ? [{ label: 'Radius', value: measurementStats?.radius ? formatDistance(measurementStats.radius) : '-' }]
             : []),
-          { label: measurementShape === 'circle' ? 'Circumference' : 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
-          { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+          {
+            label: measurementShape === 'circle' ? 'Circumference' : 'Perimeter',
+            value: measurementStats ? formatDistance(measurementStats.perimeter) : '-',
+          },
+          {
+            label: 'Area',
+            value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
+          },
         ]}
       />
       {measurementMode === 'drawing' && (
@@ -244,7 +258,9 @@ function MobileMeasurementSheet({
             className="pointer-events-auto overflow-hidden rounded-t-lg bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 text-neutral-950 shadow-[0_-2px_16px_rgba(0,0,0,0.18)]"
           >
             <div className="mx-auto mb-5 h-1 w-9 rounded-full bg-neutral-300" />
-            <p id="circle-measurement-title" className="text-lg font-semibold">Circle measurement</p>
+            <p id="circle-measurement-title" className="text-lg font-semibold">
+              Circle measurement
+            </p>
             <Button
               className="mt-8 h-12 w-full rounded-md bg-pink-500 font-semibold text-white hover:bg-pink-600"
               onClick={measurementMode === 'drawing' ? onAddPoint : onClearMeasurement}
@@ -277,7 +293,9 @@ function MobileMeasurementSheet({
         className="pointer-events-auto relative z-10 overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)]"
       >
         <header className="border-b border-border px-4 py-3">
-          <p id="area-measurement-title" className="text-base font-semibold">Area measurement</p>
+          <p id="area-measurement-title" className="text-base font-semibold">
+            Area measurement
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {measurementMode === 'drawing'
               ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
@@ -299,12 +317,18 @@ function MobileMeasurementSheet({
             className={cn(measurementMode === 'drawing' && 'mt-3')}
             items={[
               { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
-              { label: 'Area', value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-' },
+              {
+                label: 'Area',
+                value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
+              },
             ]}
           />
         </div>
 
-        <div role="toolbar" className="flex items-center gap-2 border-t border-border bg-muted/35 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+        <div
+          role="toolbar"
+          className="flex items-center gap-2 border-t border-border bg-muted/35 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+        >
           <Button variant="secondary" size="sm" onClick={onClearMeasurement}>
             Cancel
           </Button>
@@ -384,7 +408,8 @@ function MobileCircleCanvas({
       const labelBackground = isDarkMode ? '#ffffff' : '#0a0a0a'
       const labelForeground = isDarkMode ? '#0a0a0a' : '#ffffff'
       setEdgeHandlePosition((current) => {
-        if (current && Math.abs(current.x - edgeScreen.x) < 0.5 && Math.abs(current.y - edgeScreen.y) < 0.5) return current
+        if (current && Math.abs(current.x - edgeScreen.x) < 0.5 && Math.abs(current.y - edgeScreen.y) < 0.5)
+          return current
         return { x: edgeScreen.x, y: edgeScreen.y }
       })
       const radius = Math.hypot(edgeScreen.x - centerScreen.x, edgeScreen.y - centerScreen.y)
@@ -504,7 +529,14 @@ function MobileCircleCanvas({
   )
 }
 
-function drawHandle(context: CanvasRenderingContext2D, x: number, y: number, color: string, radius: number, strokeColor = '#ffffff') {
+function drawHandle(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  radius: number,
+  strokeColor = '#ffffff',
+) {
   context.setLineDash([])
   context.fillStyle = color
   context.strokeStyle = strokeColor
@@ -533,7 +565,14 @@ function drawCrosshair(context: CanvasRenderingContext2D, x: number, y: number, 
   context.stroke()
 }
 
-function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+function roundRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
   context.beginPath()
   context.moveTo(x + radius, y)
   context.lineTo(x + width - radius, y)

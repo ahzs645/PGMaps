@@ -2,13 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
-import {
-  localizeSmokeDensity,
-  localizeSmokeLabel,
-  localizeWmsLabel,
-  translate,
-  type AqmapLocale,
-} from '../lib/i18n'
+import { localizeSmokeDensity, localizeSmokeLabel, localizeWmsLabel, translate, type AqmapLocale } from '../lib/i18n'
 import { FIRE_DANGER_LEGEND_BANDS } from '../lib/fireDangerGrid'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
 import { WIND_BARB_ICON_DEFINITIONS } from '../lib/windBarbIcons'
@@ -36,11 +30,12 @@ export function AqMonitorLegend({
   fireDangerLegendVariant?: FireDangerLegendVariant
   locale: AqmapLocale
 }) {
-  const visibleWms = WMS_LAYERS.filter((layer) =>
-    layer.key !== 'forecastZones'
-    && layer.key !== 'modelledPm25'
-    && visibleWmsLayers.has(layer.key)
-    && (layer.legendUrl || layer.key === 'activeFires')
+  const visibleWms = WMS_LAYERS.filter(
+    (layer) =>
+      layer.key !== 'forecastZones' &&
+      layer.key !== 'modelledPm25' &&
+      visibleWmsLayers.has(layer.key) &&
+      (layer.legendUrl || layer.key === 'activeFires'),
   )
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
   return (
@@ -57,10 +52,31 @@ export function AqMonitorLegend({
       </MapLegendSection>
 
       <MapLegendSection title={translate('sidebar.iconLegend', locale)} className="border-t border-border pt-3">
-        <MonitorIconLegendItem shape="diamond" fill="#189aca" stroke="#111827" label={translate('monitorType.fem', locale)} />
-        <MonitorIconLegendItem shape="circle" fill="#189aca" stroke="#ffffff" label={`${translate('monitorType.pa', locale)} / ${translate('groups.lcm', locale)}`} />
-        <MonitorIconLegendItem shape="square" fill="#189aca" stroke="#ffffff" label={translate('monitorType.egg', locale)} />
-        <MonitorIconLegendItem shape="circle" fill={AQHI_NO_DATA_COLOR} stroke="#ffffff" label={translate('monitorType.missing', locale)} muted />
+        <MonitorIconLegendItem
+          shape="diamond"
+          fill="#189aca"
+          stroke="#111827"
+          label={translate('monitorType.fem', locale)}
+        />
+        <MonitorIconLegendItem
+          shape="circle"
+          fill="#189aca"
+          stroke="#ffffff"
+          label={`${translate('monitorType.pa', locale)} / ${translate('groups.lcm', locale)}`}
+        />
+        <MonitorIconLegendItem
+          shape="square"
+          fill="#189aca"
+          stroke="#ffffff"
+          label={translate('monitorType.egg', locale)}
+        />
+        <MonitorIconLegendItem
+          shape="circle"
+          fill={AQHI_NO_DATA_COLOR}
+          stroke="#ffffff"
+          label={translate('monitorType.missing', locale)}
+          muted
+        />
       </MapLegendSection>
 
       {windVisible && (
@@ -76,7 +92,11 @@ export function AqMonitorLegend({
       )}
 
       {visibleWms.map((layer) => (
-        <MapLegendSection key={layer.key} title={localizeWmsLabel(layer.key, locale)} className="border-t border-border pt-3">
+        <MapLegendSection
+          key={layer.key}
+          title={localizeWmsLabel(layer.key, locale)}
+          className="border-t border-border pt-3"
+        >
           <WmsLegendContent
             layer={layer}
             label={localizeWmsLabel(layer.key, locale)}
@@ -87,7 +107,11 @@ export function AqMonitorLegend({
       ))}
 
       {visibleSmoke.map((layer) => (
-        <MapLegendSection key={layer.key} title={localizeSmokeLabel(layer.key, locale)} className="border-t border-border pt-3">
+        <MapLegendSection
+          key={layer.key}
+          title={localizeSmokeLabel(layer.key, locale)}
+          className="border-t border-border pt-3"
+        >
           <SmokeLegendContent layer={layer} locale={locale} />
         </MapLegendSection>
       ))}
@@ -153,14 +177,7 @@ export function WmsLegend({
   }
 
   if (layer.legendUrl) {
-    return (
-      <MapImageLegend
-        className={className}
-        src={layer.legendUrl}
-        alt={`${label} legend`}
-        label={label}
-      />
-    )
+    return <MapImageLegend className={className} src={layer.legendUrl} alt={`${label} legend`} label={label} />
   }
 
   return (
@@ -187,11 +204,20 @@ function WmsLegendContent({
   }
 
   if (layer.legendRenderer === 'structured') {
-    return <StructuredWmsLegendContent layer={layer} fireDangerLegendVariant={fireDangerLegendVariant} locale={locale} />
+    return (
+      <StructuredWmsLegendContent layer={layer} fireDangerLegendVariant={fireDangerLegendVariant} locale={locale} />
+    )
   }
 
   if (layer.legendUrl) {
-    return <img src={layer.legendUrl} alt={`${label} legend`} className="max-w-full rounded bg-white object-contain" style={{ maxHeight: 96 }} />
+    return (
+      <img
+        src={layer.legendUrl}
+        alt={`${label} legend`}
+        className="max-w-full rounded bg-white object-contain"
+        style={{ maxHeight: 96 }}
+      />
+    )
   }
 
   return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
@@ -215,7 +241,14 @@ function StructuredWmsLegendContent({
   }
 
   if (layer.legendUrl) {
-    return <img src={layer.legendUrl} alt={`${layer.label} legend`} className="max-w-full rounded bg-white object-contain" style={{ maxHeight: 96 }} />
+    return (
+      <img
+        src={layer.legendUrl}
+        alt={`${layer.label} legend`}
+        className="max-w-full rounded bg-white object-contain"
+        style={{ maxHeight: 96 }}
+      />
+    )
   }
 
   return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
@@ -332,9 +365,7 @@ function FireDangerStripLegend({ children }: { children: ReactNode }) {
 function Pm25AqhiLegend({ locale }: { locale: AqmapLocale }) {
   return (
     <div className="space-y-2">
-      <div className="text-xs text-muted-foreground">
-        AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
-      </div>
+      <div className="text-xs text-muted-foreground">AQHI+ · PM2.5 {translate('aqhi.unit', locale)}</div>
       <MapSteppedLegend
         variant="strip"
         bands={AQHI_LEVELS.map((level) => ({
@@ -371,9 +402,7 @@ function VectorWindBarbLegendContent({ locale }: { locale: AqmapLocale }) {
           <span>{translate(item.labelKey, locale)}</span>
         </div>
       ))}
-      <div className="text-xs leading-3 text-muted-foreground">
-        {translate('windBarbs.legend.note', locale)}
-      </div>
+      <div className="text-xs leading-3 text-muted-foreground">{translate('windBarbs.legend.note', locale)}</div>
     </div>
   )
 }
@@ -417,15 +446,7 @@ function ModelledSmokeStripLegend({ layer }: { layer: SmokeLayerDefinition }) {
   )
 }
 
-function ActiveFiresLegend({
-  label,
-  locale,
-  className,
-}: {
-  label: string
-  locale: AqmapLocale
-  className?: string
-}) {
+function ActiveFiresLegend({ label, locale, className }: { label: string; locale: AqmapLocale; className?: string }) {
   return (
     <div className={cn('rounded-md border border-border bg-secondary/30 p-3 text-xs', className)}>
       <div className="mb-2 font-medium text-foreground">{label}</div>

@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ComparisonMap } from '../comparisons/ComparisonMap'
@@ -51,19 +52,18 @@ export function InventoryPoints({
         <label>
           <input type="checkbox" checked={black} onChange={(e) => setBlack(e.target.checked)} /> Silhouette
         </label>
-        <label>
-          Rotate{' '}
-          <input
-            aria-label="Inventory profile rotation"
-            className="w-24"
-            type="range"
-            min="0"
-            max="180"
-            step="5"
-            value={angle}
-            onChange={(e) => setAngle(+e.target.value)}
-          />
-        </label>
+        <NumericRangeField
+          label="Rotate"
+          aria-label="Inventory profile rotation"
+          hideValue
+          className="flex items-center gap-1 space-y-0"
+          inputClassName="h-auto w-24"
+          min={0}
+          max={180}
+          step={5}
+          value={angle}
+          onChange={setAngle}
+        />
         <Button
           size="sm"
           variant="outline"

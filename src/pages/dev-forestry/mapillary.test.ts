@@ -167,7 +167,12 @@ describe('street photos while driving', () => {
     alongMeters,
     offRoadMeters: 2,
   })
-  const photos = [photo('east-100', 100, 90), photo('west-110', 110, 270), photo('east-400', 400, 92), photo('pano-700', 700, null, true)]
+  const photos = [
+    photo('east-100', 100, 90),
+    photo('west-110', 110, 270),
+    photo('east-400', 400, 92),
+    photo('pano-700', 700, null, true),
+  ]
 
   it('shows the nearest photo looking the way the camera looks', () => {
     expect(photoNearDrive(photos, 105, 88)?.id).toBe('east-100')
@@ -179,4 +184,3 @@ describe('street photos while driving', () => {
     expect(photoNearDrive(photos, 690, 180)?.id).toBe('pano-700')
   })
 })
-

@@ -337,10 +337,17 @@ export function PortalUnifiedSearch({
               <Button onClick={() => onProject(packageCandidate)}>Open imported project or story</Button>
             )}
             {!!mapCandidate && (
-              <Button onClick={() => {
-                try { onWorkspace(importWorkspace(mapCandidate)) }
-                catch (reason) { setActionError(errorText(reason)) }
-              }}>Load imported map</Button>
+              <Button
+                onClick={() => {
+                  try {
+                    onWorkspace(importWorkspace(mapCandidate))
+                  } catch (reason) {
+                    setActionError(errorText(reason))
+                  }
+                }}
+              >
+                Load imported map
+              </Button>
             )}
             {selected.kind === 'research' && (
               <>

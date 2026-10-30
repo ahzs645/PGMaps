@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -255,14 +256,14 @@ export function RoadConditionEditor({
           <div className="space-y-2 border-t p-2">
             <div className="grid grid-cols-2 gap-2">
               <Field label="Evidence source">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={draft.source}
                   onChange={(event) => change({ source: event.target.value as RoadConditionSource })}
                 >
                   <option value="inspection">Inspection record</option>
                   <option value="imagery">Dated imagery</option>
-                </select>
+                </NativeSelect>
               </Field>
               <Field label="Observation date">
                 <input
@@ -273,7 +274,7 @@ export function RoadConditionEditor({
                 />
               </Field>
               <Field label="Observed component">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={draft.component}
                   onChange={(event) =>
@@ -285,10 +286,10 @@ export function RoadConditionEditor({
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field label="Observed condition">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={draft.finding}
                   onChange={(event) => change({ finding: event.target.value as RoadCondition })}
@@ -298,7 +299,7 @@ export function RoadConditionEditor({
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             </div>
             <Field label="Observed asset / station (optional)">
@@ -360,7 +361,7 @@ export function RoadConditionEditor({
               </div>
             )}
             <Field label="Replaces observation (optional)">
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={draft.replaces}
                 onChange={(event) => change({ replaces: event.target.value })}
@@ -371,7 +372,7 @@ export function RoadConditionEditor({
                     {observation.observedAt} · {ROAD_CONDITION_LABELS[observation.finding]} · {observation.id}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <p className="text-[11px] text-muted-foreground">
               A newer date alone does not replace conflicting evidence. Replacements apply to the same component and

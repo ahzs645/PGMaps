@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
@@ -130,7 +131,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
       <SidebarSection title="GeoLibre point cloud" className="p-3">
         <label className="block text-xs">
           Point colour
-          <select
+          <NativeSelect
             value={color}
             onChange={(e) => setColor(e.target.value as ColorSchemeType)}
             className="mt-1 w-full rounded border bg-background p-2"
@@ -138,7 +139,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
             <option value="elevation">Absolute elevation</option>
             <option value="intensity">Intensity</option>
             <option value="classification">Source classification</option>
-          </select>
+          </NativeSelect>
         </label>
         <Button className="mt-2 h-8 w-full text-xs" variant="outline" onClick={openTools}>
           Open native LiDAR tools

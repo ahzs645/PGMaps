@@ -1,28 +1,28 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { ImageOff, Plus, Search, Wand2 } from "lucide-react";
+import { useState } from 'react'
+import { ImageOff, Plus, Search, Wand2 } from 'lucide-react'
 
-import { cn } from "@/lib/utils";
-import { EditorMarkerView, type EditorMarkerVariant } from "./editor-core";
-import { IconifyIcon, MarkerGlyph } from "./iconify";
-import { MapColorPicker } from "./color-picker";
-import { MapEditorPanel, MapSubToolButton } from "./tool-rail";
-import type { MapEditorController } from "./use-map-editor";
+import { cn } from '@/lib/utils'
+import { EditorMarkerView, type EditorMarkerVariant } from './editor-core'
+import { IconifyIcon, MarkerGlyph } from './iconify'
+import { MapColorPicker } from './color-picker'
+import { MapEditorPanel, MapSubToolButton } from './tool-rail'
+import type { MapEditorController } from './use-map-editor'
 
-const MARKER_VARIANTS: EditorMarkerVariant[] = ["dot", "pin", "badge"];
+const MARKER_VARIANTS: EditorMarkerVariant[] = ['dot', 'pin', 'badge']
 
 /** Colourful sample images for the "Image" tab (Twemoji SVGs render as <img>). */
 const SAMPLE_IMAGES = [
-  "https://api.iconify.design/twemoji/round-pushpin.svg",
-  "https://api.iconify.design/twemoji/camera.svg",
-  "https://api.iconify.design/twemoji/national-park.svg",
-  "https://api.iconify.design/twemoji/department-store.svg",
-  "https://api.iconify.design/twemoji/fork-and-knife-with-plate.svg",
-  "https://api.iconify.design/twemoji/mountain.svg",
-  "https://api.iconify.design/twemoji/tent.svg",
-  "https://api.iconify.design/twemoji/hot-beverage.svg",
-];
+  'https://api.iconify.design/twemoji/round-pushpin.svg',
+  'https://api.iconify.design/twemoji/camera.svg',
+  'https://api.iconify.design/twemoji/national-park.svg',
+  'https://api.iconify.design/twemoji/department-store.svg',
+  'https://api.iconify.design/twemoji/fork-and-knife-with-plate.svg',
+  'https://api.iconify.design/twemoji/mountain.svg',
+  'https://api.iconify.design/twemoji/tent.svg',
+  'https://api.iconify.design/twemoji/hot-beverage.svg',
+]
 
 /**
  * tasmap's marker submenu: a column of sub-buttons (new / recolor / the marker
@@ -30,13 +30,7 @@ const SAMPLE_IMAGES = [
  * Icon / Image tabbed picker (iconify search grid, or an image URL / sample).
  * Picking a type drops a marker at the map center. Theme-aware.
  */
-export function MarkerFlyout({
-  editor,
-  swatches,
-}: {
-  editor: MapEditorController;
-  swatches: string[];
-}) {
+export function MarkerFlyout({ editor, swatches }: { editor: MapEditorController; swatches: string[] }) {
   const {
     markers,
     markerDraft,
@@ -50,9 +44,9 @@ export function MarkerFlyout({
     iconQuery,
     setIconQuery,
     iconResults,
-  } = editor;
+  } = editor
 
-  const [tab, setTab] = useState<"icon" | "image">("icon");
+  const [tab, setTab] = useState<'icon' | 'image'>('icon')
 
   return (
     <div className="relative flex flex-col gap-3">
@@ -66,7 +60,7 @@ export function MarkerFlyout({
       {markers.map((marker) => (
         <MapSubToolButton
           key={marker.id}
-          label={marker.label || "Marker"}
+          label={marker.label || 'Marker'}
           active={selectedId === marker.id}
           onClick={() => selectMarker(marker.id)}
         >
@@ -95,8 +89,8 @@ export function MarkerFlyout({
                     onClick={() => addMarkerAtCenter(variant)}
                     aria-label={variant}
                     className={cn(
-                      "flex h-[60px] w-[60px] items-center justify-center rounded-lg border transition-colors",
-                      markerDraft.variant === variant ? "border-primary bg-accent" : "border-border hover:bg-accent",
+                      'flex h-[60px] w-[60px] items-center justify-center rounded-lg border transition-colors',
+                      markerDraft.variant === variant ? 'border-primary bg-accent' : 'border-border hover:bg-accent',
                     )}
                   >
                     <span className="pointer-events-none scale-[0.7]">
@@ -129,7 +123,7 @@ export function MarkerFlyout({
             </div>
 
             <div role="tablist" className="mt-3 flex gap-1 border-b border-border">
-              {(["icon", "image"] as const).map((value) => (
+              {(['icon', 'image'] as const).map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -137,10 +131,10 @@ export function MarkerFlyout({
                   aria-selected={tab === value}
                   onClick={() => setTab(value)}
                   className={cn(
-                    "-mb-px border-b-2 px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                    '-mb-px border-b-2 px-3 py-1.5 text-xs font-medium capitalize transition-colors',
                     tab === value
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {value}
@@ -148,7 +142,7 @@ export function MarkerFlyout({
               ))}
             </div>
 
-            {tab === "icon" ? (
+            {tab === 'icon' ? (
               <>
                 <div className="mt-3 flex items-center gap-2 rounded-md border border-input bg-background px-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
@@ -168,10 +162,10 @@ export function MarkerFlyout({
                       aria-label={name}
                       title={name}
                       className={cn(
-                        "flex aspect-square items-center justify-center rounded-md transition-colors",
+                        'flex aspect-square items-center justify-center rounded-md transition-colors',
                         markerDraft.icon === name && !markerDraft.image
-                          ? "bg-accent text-foreground"
-                          : "text-muted-foreground hover:bg-accent",
+                          ? 'bg-accent text-foreground'
+                          : 'text-muted-foreground hover:bg-accent',
                       )}
                     >
                       <IconifyIcon name={name} className="h-5 w-5" />
@@ -183,7 +177,7 @@ export function MarkerFlyout({
               <div className="mt-3 space-y-2">
                 <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2">
                   <input
-                    value={markerDraft.image ?? ""}
+                    value={markerDraft.image ?? ''}
                     onChange={(event) =>
                       setMarkerDraft((current) => ({ ...current, image: event.target.value || undefined }))
                     }
@@ -211,8 +205,8 @@ export function MarkerFlyout({
                       onClick={() => setMarkerDraft((current) => ({ ...current, image: url }))}
                       aria-label="Use image"
                       className={cn(
-                        "flex aspect-square items-center justify-center rounded-md border p-1.5 transition-colors",
-                        markerDraft.image === url ? "border-primary bg-accent" : "border-border hover:bg-accent",
+                        'flex aspect-square items-center justify-center rounded-md border p-1.5 transition-colors',
+                        markerDraft.image === url ? 'border-primary bg-accent' : 'border-border hover:bg-accent',
                       )}
                     >
                       <img src={url} alt="" className="size-full object-contain" />
@@ -243,5 +237,5 @@ export function MarkerFlyout({
         </div>
       ) : null}
     </div>
-  );
+  )
 }

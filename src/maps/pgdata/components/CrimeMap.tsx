@@ -1,10 +1,5 @@
 import { useMemo } from 'react'
-import {
-  MapClusterLayer,
-  MapMarker,
-  MapPopup,
-  MarkerContent,
-} from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { KeyValueRows } from '@/components/ui/map-panels'
@@ -130,14 +125,11 @@ export function CrimeMap({
     <div className="h-full w-full">
       <SharedMap loading={loading} loadingLabel="Loading crime map data">
         {/* Crime cluster layers */}
-        {showCrimeLayer && !showHeatmap &&
+        {showCrimeLayer &&
+          !showHeatmap &&
           collectionsByCategory.map(([category, collection]) => {
             const color = CRIME_CATEGORY_COLORS[category]
-            const clusterColors: [string, string, string] = [
-              hexToRgba(color, 0.65),
-              hexToRgba(color, 0.8),
-              color,
-            ]
+            const clusterColors: [string, string, string] = [hexToRgba(color, 0.65), hexToRgba(color, 0.8), color]
             return (
               <MapClusterLayer<CrimeFeatureProperties>
                 key={category}
@@ -178,7 +170,7 @@ export function CrimeMap({
             </MapMarker>
 
             <ResponsiveFeatureDetail
-              popup={(
+              popup={
                 <MapPopup
                   key={selectedIncident.id}
                   longitude={selectedIncident.longitude}
@@ -188,21 +180,13 @@ export function CrimeMap({
                   className="max-w-xs"
                 >
                   <div className="pr-6">
-                    <div className="text-sm font-semibold text-foreground">
-                      {selectedIncident.crimeType}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {selectedIncident.address}
-                    </div>
+                    <div className="text-sm font-semibold text-foreground">{selectedIncident.crimeType}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{selectedIncident.address}</div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatDate(selectedIncident.date)}</span>
-                      {formatTime(selectedIncident.time) && (
-                        <span>{formatTime(selectedIncident.time)}</span>
-                      )}
+                      {formatTime(selectedIncident.time) && <span>{formatTime(selectedIncident.time)}</span>}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {selectedIncident.community}
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{selectedIncident.community}</div>
                     <div className="mt-1.5 flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
@@ -214,13 +198,8 @@ export function CrimeMap({
                     </div>
                   </div>
                 </MapPopup>
-              )}
-              card={(
-                <MobileCrimeFeatureCard
-                  incident={selectedIncident}
-                  onClose={onIncidentClear}
-                />
-              )}
+              }
+              card={<MobileCrimeFeatureCard incident={selectedIncident} onClose={onIncidentClear} />}
             />
           </>
         )}
@@ -229,33 +208,20 @@ export function CrimeMap({
   )
 }
 
-function MobileCrimeFeatureCard({
-  incident,
-  onClose,
-}: {
-  incident: CrimeIncident
-  onClose: () => void
-}) {
+function MobileCrimeFeatureCard({ incident, onClose }: { incident: CrimeIncident; onClose: () => void }) {
   const category = getCrimeCategory(incident.crimeType)
   const categoryColor = getCrimeCategoryColor(incident.crimeType)
   const incidentTime = formatTime(incident.time)
 
   return (
-    <MobileFeatureCard
-      title={incident.crimeType}
-      subtitle={incident.address}
-      onClose={onClose}
-    >
+    <MobileFeatureCard title={incident.crimeType} subtitle={incident.address} onClose={onClose}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>{formatDate(incident.date)}</span>
         {incidentTime ? <span>{incidentTime}</span> : null}
       </div>
       <div className="mt-2 text-xs text-muted-foreground">{incident.community}</div>
       <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: categoryColor }}
-        />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: categoryColor }} />
         <span className="text-xs font-medium text-foreground">{category}</span>
       </div>
       <KeyValueRows

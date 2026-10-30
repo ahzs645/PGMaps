@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
+import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
@@ -323,7 +324,9 @@ function buildClientHexAggregate(
         for (const feature of hex.points) {
           const count = Number(feature.properties.litterCount) || 1
           litterCount += count
-          for (const category of feature.properties.categoryNames?.length ? feature.properties.categoryNames : ['Unknown']) {
+          for (const category of feature.properties.categoryNames?.length
+            ? feature.properties.categoryNames
+            : ['Unknown']) {
             const entry = categories.get(category) ?? { name: category, count: 0, litter: 0 }
             entry.count += 1
             entry.litter += count
@@ -395,10 +398,13 @@ export function useOpenLitterMapData(
   const [showHexes, setShowHexes] = useState(initialShowHexes === '1')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const {
-    timelineEnabled, setTimelineEnabled,
-    timelineDate, setTimelineDate,
-    timelineWindowSize, setTimelineWindowSize,
-  disableTimeline,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    disableTimeline,
   } = useTimelineState(3)
 
   const manifest = useJsonManifest<OpenLitterMapManifest>(active ? '/data/open-litter-map/manifest.json' : null)
@@ -558,7 +564,6 @@ export function useOpenLitterMapData(
     [filteredFeatures],
   )
 
-
   return {
     manifest,
     points,
@@ -622,9 +627,10 @@ export function OpenLitterMapSidebar({
   showLayerControls?: boolean
 }) {
   const manifest = litter.manifest.data
-  const dateLabel = manifest?.dateStart && manifest.dateEnd
-    ? `${formatLitterDate(manifest.dateStart)} - ${formatLitterDate(manifest.dateEnd)}`
-    : 'All dates'
+  const dateLabel =
+    manifest?.dateStart && manifest.dateEnd
+      ? `${formatLitterDate(manifest.dateStart)} - ${formatLitterDate(manifest.dateEnd)}`
+      : 'All dates'
   const objectFilterActive = litter.selectedObject !== ALL_OBJECTS
 
   return (
@@ -634,7 +640,10 @@ export function OpenLitterMapSidebar({
         icon={Trash2}
         iconClassName="text-rose-600"
         actions={
-          <ToggleChip active={litter.timelineEnabled} onClick={() => litter.setTimelineEnabled(!litter.timelineEnabled)}>
+          <ToggleChip
+            active={litter.timelineEnabled}
+            onClick={() => litter.setTimelineEnabled(!litter.timelineEnabled)}
+          >
             Timeline
           </ToggleChip>
         }
@@ -722,11 +731,16 @@ export function OpenLitterMapSidebar({
         <SidebarSection title="Top Contributors">
           <ul className="space-y-1 text-xs text-muted-foreground">
             {manifest.contributors.slice(0, 6).map((contributor) => (
-              <li key={`${contributor.name}-${contributor.team ?? ''}`} className="flex items-start justify-between gap-3">
+              <li
+                key={`${contributor.name}-${contributor.team ?? ''}`}
+                className="flex items-start justify-between gap-3"
+              >
                 <span className="min-w-0 truncate font-medium text-foreground">{contributor.name}</span>
                 <span className="shrink-0 text-right">
                   {formatNumber(contributor.litter)} items
-                  {contributor.team ? <span className="block max-w-36 truncate text-xs">{contributor.team}</span> : null}
+                  {contributor.team ? (
+                    <span className="block max-w-36 truncate text-xs">{contributor.team}</span>
+                  ) : null}
                 </span>
               </li>
             ))}
@@ -763,8 +777,9 @@ export function OpenLitterMapSourceNotes({ litter }: { litter: OpenLitterMapStat
       {litter.manifest.data?.dedication && <p>{litter.manifest.data.dedication}</p>}
       {litter.manifest.data?.gzipBytes && (
         <p>
-          Point GeoJSON is {formatBytes(litter.manifest.data.rawBytes)} raw, {formatBytes(litter.manifest.data.gzipBytes)} gzipped.
-          Hexes are calculated client-side from the compressed point payload.
+          Point GeoJSON is {formatBytes(litter.manifest.data.rawBytes)} raw,{' '}
+          {formatBytes(litter.manifest.data.gzipBytes)} gzipped. Hexes are calculated client-side from the compressed
+          point payload.
         </p>
       )}
       <p>{litter.manifest.data?.sourceLicense ?? 'OpenLitterMap public map data.'}</p>
@@ -776,15 +791,11 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
   const { map, isLoaded } = useMap()
   const [hexZoom, setHexZoom] = useState(9.4)
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-    const updateZoom = () => setHexZoom(map.getZoom())
-    updateZoom()
-    map.on('zoomend', updateZoom)
-    return () => {
-      map.off('zoomend', updateZoom)
-    }
-  }, [isLoaded, map])
+  useObserveMapViewport(map, ({ zoom }) => setHexZoom(zoom), {
+    enabled: isLoaded,
+    events: ['zoomend'],
+    initial: 'always',
+  })
 
   const collectionsByCategory = useMemo(() => {
     const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, OpenLitterPointProperties>>()
@@ -894,26 +905,28 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
           )
         })}
 
-      {litter.showPoints && litter.selectedFeature && (() => {
-        const [longitude, latitude] = litter.selectedFeature.geometry.coordinates
-        const category = getPrimaryCategory(litter.selectedFeature)
-        return (
-          <MapMarker longitude={longitude} latitude={latitude} onClick={() => litter.setSelectedId(null)}>
-            <MarkerContent>
-              <div
-                className="size-4 rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
-                style={{ backgroundColor: getCategoryColor(category) }}
-                title={`${formatLitterName(category)}: ${formatLitterDate(litter.selectedFeature.properties.datetime)}`}
-              />
-            </MarkerContent>
-          </MapMarker>
-        )
-      })()}
+      {litter.showPoints &&
+        litter.selectedFeature &&
+        (() => {
+          const [longitude, latitude] = litter.selectedFeature.geometry.coordinates
+          const category = getPrimaryCategory(litter.selectedFeature)
+          return (
+            <MapMarker longitude={longitude} latitude={latitude} onClick={() => litter.setSelectedId(null)}>
+              <MarkerContent>
+                <div
+                  className="size-4 rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
+                  style={{ backgroundColor: getCategoryColor(category) }}
+                  title={`${formatLitterName(category)}: ${formatLitterDate(litter.selectedFeature.properties.datetime)}`}
+                />
+              </MarkerContent>
+            </MapMarker>
+          )
+        })()}
 
       {/* The phone card is rendered by the section, which owns the card stack. */}
       {litter.selectedFeature && (
         <ResponsiveFeatureDetail
-          popup={(
+          popup={
             <MapPopup
               longitude={litter.selectedFeature.geometry.coordinates[0]}
               latitude={litter.selectedFeature.geometry.coordinates[1]}
@@ -935,7 +948,7 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
                 />
               </MapPopupCard>
             </MapPopup>
-          )}
+          }
         />
       )}
     </>

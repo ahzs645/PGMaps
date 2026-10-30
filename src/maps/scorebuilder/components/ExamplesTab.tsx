@@ -68,9 +68,7 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
         if (!group.length) return null
         return (
           <div key={source}>
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {title}
-            </div>
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
             <div className="space-y-2">
               {group.map((example) => {
                 const levelLabel =

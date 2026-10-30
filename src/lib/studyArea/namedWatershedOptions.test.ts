@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getDefaultLevelForSource,
-  getLevelOptionsForSource,
-  isValidLevelForSource,
-} from './options'
+import { getDefaultLevelForSource, getLevelOptionsForSource, isValidLevelForSource } from './options'
 
 describe('named watershed boundary options', () => {
   it('exposes named watersheds as a separate source with exact stream-order variants', () => {

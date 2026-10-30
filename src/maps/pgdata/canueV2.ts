@@ -1,5 +1,4 @@
-export const CANUE_V2_CATALOG_URL =
-  'https://data.map.ahmad.sh/canue/pmtiles-v2/canue-bc-grid-v2-app-catalog.json'
+export const CANUE_V2_CATALOG_URL = 'https://data.map.ahmad.sh/canue/pmtiles-v2/canue-bc-grid-v2-app-catalog.json'
 
 export const CANUE_V2_ENABLED = true
 

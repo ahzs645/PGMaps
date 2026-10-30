@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -178,13 +179,13 @@ export function ExistingRoadsPanel({
         {road && (
           <>
             <Field label="Review existing road">
-              <select className={roadFieldClass} value={road.id} onChange={(e) => setSelected(e.target.value)}>
+              <NativeSelect className={roadFieldClass} value={road.id} onChange={(e) => setSelected(e.target.value)}>
                 {roads.map((f) => (
                   <option key={f.id} value={f.id}>
                     {sectionLabel(f)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             {onLocateRoad && (
               <Button
@@ -236,7 +237,7 @@ export function ExistingRoadsPanel({
             <div className="grid grid-cols-2 gap-2">
               {evidence.source !== 'bc-ften' && (
                 <Field label="User road network class">
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={evidence.roadClass ?? 'user'}
                     onChange={(e) => change({ roadClass: e.target.value as ExistingRoadEvidence['roadClass'] })}
@@ -244,11 +245,11 @@ export function ExistingRoadsPanel({
                     <option value="user">Other / unknown</option>
                     <option value="fsr">FSR (user identified)</option>
                     <option value="permit">Permit road</option>
-                  </select>
+                  </NativeSelect>
                 </Field>
               )}
               <Field label="Planning condition">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={evidence.condition}
                   onChange={(e) => change({ condition: e.target.value as ExistingRoadEvidence['condition'] })}
@@ -257,10 +258,10 @@ export function ExistingRoadsPanel({
                   <option value="serviceable">Serviceable</option>
                   <option value="rehabilitation">Needs rehabilitation</option>
                   <option value="closed">Closed / unavailable</option>
-                </select>
+                </NativeSelect>
               </Field>
               <Field label="Condition evidence">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={evidence.conditionBasis}
                   onChange={(e) => change({ conditionBasis: e.target.value as ExistingRoadEvidence['conditionBasis'] })}
@@ -268,7 +269,7 @@ export function ExistingRoadsPanel({
                   <option value="unreviewed">Unreviewed</option>
                   <option value="assumed">Planning assumption</option>
                   <option value="field-verified">Field verified by user</option>
-                </select>
+                </NativeSelect>
               </Field>
             </div>
             <OptionalNumberField

@@ -123,8 +123,12 @@ export function DroughtSidebar({
       {selectedYearInfo && (
         <SidebarSection title="Source">
           <div className="space-y-2 text-xs text-muted-foreground">
-            <div>Source range: {selectedYearInfo.startDate ?? 'unknown'} to {selectedYearInfo.endDate ?? 'unknown'}</div>
-            <div>{formatNumber(selectedYearInfo.featureCount)} source rows for {selectedYear}.</div>
+            <div>
+              Source range: {selectedYearInfo.startDate ?? 'unknown'} to {selectedYearInfo.endDate ?? 'unknown'}
+            </div>
+            <div>
+              {formatNumber(selectedYearInfo.featureCount)} source rows for {selectedYear}.
+            </div>
             <ExternalLink href={selectedYearInfo.layerUrl}>ArcGIS REST layer</ExternalLink>
           </div>
         </SidebarSection>

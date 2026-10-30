@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,10 +17,10 @@ import {
   type VolumeExample,
 } from './example'
 import exampleUrl from './example.generated.json?url'
+import { useKeyedState } from '../useKeyedState'
 
 export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
   const [data, setData] = useState<VolumeExample | null>(null),
-    [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0)
   const [layer, setLayer] = useState('volume'),
     [showReferences, setShowReferences] = useState(true),
@@ -31,11 +32,11 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
     [panelOpen, setPanelOpen] = useState<boolean | null>(null)
   const mobile = useIsMobile(),
     panel = panelOpen ?? !mobile
+  const [error, setError] = useKeyedState(attempt, () => '')
   useEffect(() => {
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 30000)
-    setError('')
     fetch(exampleUrl, { signal: abort.signal })
       .then((r) => {
         if (!r.ok) throw Error('Completed volume example unavailable')
@@ -53,7 +54,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
       abort.abort()
       clearTimeout(timer)
     }
-  }, [attempt])
+  }, [attempt, setError])
   const features = useMemo(
     () =>
       data && {
@@ -167,32 +168,34 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
                 Apply assumptions to this example’s predicted merchantable volume. These settings do not estimate
                 access, decay, grades or harvest eligibility.
               </p>
-              <label className="mt-2 block text-xs">
-                Volume retained · {retention}%
-                <input
-                  className="w-full"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  aria-label="Example volume retained"
-                  value={retention}
-                  onChange={(e) => setRetention(+e.target.value)}
-                />
-              </label>
-              <label className="mt-2 block text-xs">
-                Extraction recovery · {recovery}%
-                <input
-                  className="w-full"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  aria-label="Example extraction recovery"
-                  value={recovery}
-                  onChange={(e) => setRecovery(+e.target.value)}
-                />
-              </label>
+              <NumericRangeField
+                label="Volume retained"
+                value={retention}
+                onChange={setRetention}
+                min={0}
+                max={100}
+                step={5}
+                display={`${retention}%`}
+                layout="inline"
+                valueSeparator=" · "
+                aria-label="Example volume retained"
+                className="mt-2 space-y-0 text-xs"
+                inputClassName="h-auto w-full"
+              />
+              <NumericRangeField
+                label="Extraction recovery"
+                value={recovery}
+                onChange={setRecovery}
+                min={0}
+                max={100}
+                step={5}
+                display={`${recovery}%`}
+                layout="inline"
+                valueSeparator=" · "
+                aria-label="Example extraction recovery"
+                className="mt-2 space-y-0 text-xs"
+                inputClassName="h-auto w-full"
+              />
               <p className="mt-2 text-sm font-semibold" aria-label="Example recovered volume">
                 {Math.round(
                   recoveredExampleVolume(data.map.modelled_merchantable_m3, retention, recovery),

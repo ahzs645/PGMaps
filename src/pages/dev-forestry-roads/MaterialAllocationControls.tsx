@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -104,7 +105,7 @@ export function MaterialAllocationControls({
                 onChange={(value) => patchRequirement(r.id, { end: value })}
               />
               <Field label={`Requirement ${index + 1} layer`}>
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={r.layer}
                   onChange={(event) => patchRequirement(r.id, { layer: event.target.value })}
@@ -114,10 +115,10 @@ export function MaterialAllocationControls({
                       {id === 'subgrade' ? 'Subgrade fill' : id === 'surfacing' ? 'Default surfacing' : id}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field label={`Requirement ${index + 1} material`}>
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={r.materialId ?? ''}
                   onChange={(event) => patchRequirement(r.id, { materialId: event.target.value || undefined })}
@@ -130,7 +131,7 @@ export function MaterialAllocationControls({
                         {m.name}
                       </option>
                     ))}
-                </select>
+                </NativeSelect>
               </Field>
               <OptionalNumberField
                 label={`Requirement ${index + 1} minimum quality`}
@@ -197,7 +198,7 @@ export function MaterialAllocationControls({
                   />
                 </div>
                 <Field label={`Direction ${index + 1} movement`}>
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={r.direction}
                     onChange={(event) =>
@@ -207,7 +208,7 @@ export function MaterialAllocationControls({
                     <option value="forward">Forward only</option>
                     <option value="backward">Backward only</option>
                     <option value="blocked">Blocked</option>
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <Button
                   size="sm"
@@ -273,7 +274,7 @@ export function MaterialAllocationControls({
                   />
                 </div>
                 <Field label={`Sidecast ${index + 1} accepted material`}>
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={r.materialIds?.length === 1 ? r.materialIds[0] : ''}
                     onChange={(event) =>
@@ -286,7 +287,7 @@ export function MaterialAllocationControls({
                         {m.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <Button
                   size="sm"

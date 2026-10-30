@@ -242,7 +242,7 @@ export interface TerrainMetadata {
   /** Independent imagery/canopy display stack; never analytical ground. */
   backgrounds?: import('./terrainPreparation').TerrainBackgroundLayer[]
   /** Reviewed analytical grid snapshots, kept separate from display-only canopy/imagery. */
-  referenceSurfaces?: Array<{id:string;name:string;raster:LocalRaster}>
+  referenceSurfaces?: Array<{ id: string; name: string; raster: LocalRaster }>
   /** Regional DEMs only: the extent loaded, [west, south, east, north], so reopening loads it again. */
   bounds?: [number, number, number, number]
 }

@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
-import { MapFeatureTablePanel, type MapFeatureTableColumn, type MapFeatureTableLayer } from '@/components/map/MapFeatureTable'
+import {
+  MapFeatureTablePanel,
+  type MapFeatureTableColumn,
+  type MapFeatureTableLayer,
+} from '@/components/map/MapFeatureTable'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
 import { featureMatchesYearRange, layerLabel } from './geo'
 import type { InteractFeature, LayerId, YearRange } from './types'
@@ -13,8 +17,20 @@ const tableLayers: Array<MapFeatureTableLayer<LayerId>> = [
 const columns: Array<MapFeatureTableColumn<InteractFeature>> = [
   { id: 'name', header: 'Name', type: 'text', width: 200, getValue: (feature) => feature.properties.name },
   { id: 'layer', header: 'Layer', type: 'text', getValue: (feature) => layerLabel(feature.properties.layer) },
-  { id: 'description', header: 'Description', type: 'text', width: 240, getValue: (feature) => feature.properties.description },
-  { id: 'issuedYear', header: 'Issued', type: 'numeric', width: 110, getValue: (feature) => feature.properties.issuedYear },
+  {
+    id: 'description',
+    header: 'Description',
+    type: 'text',
+    width: 240,
+    getValue: (feature) => feature.properties.description,
+  },
+  {
+    id: 'issuedYear',
+    header: 'Issued',
+    type: 'numeric',
+    width: 110,
+    getValue: (feature) => feature.properties.issuedYear,
+  },
   { id: 'value', header: 'Value', type: 'text', getValue: (feature) => feature.properties.value ?? '' },
   ...[0, 1, 2, 3].map((index) => ({
     id: `property-${index + 1}`,

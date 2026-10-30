@@ -43,15 +43,16 @@ export default function CensusSection() {
   const applyParams = useSetUrlParams()
 
   const variableSelection = useMemo<CensusVariableSelection | null>(
-    () => (selectedCategoryId && selectedVariableId
-      ? { categoryId: selectedCategoryId, variableId: selectedVariableId }
-      : null),
+    () =>
+      selectedCategoryId && selectedVariableId
+        ? { categoryId: selectedCategoryId, variableId: selectedVariableId }
+        : null,
     [selectedCategoryId, selectedVariableId],
   )
 
   const { data: variableData, loading: variableLoading } = useCensusVariableData(
     selectedHierarchy,
-    variableSelection?.categoryId ?? null
+    variableSelection?.categoryId ?? null,
   )
 
   const allUnits = useMemo(() => unitsByLevel[selectedHierarchy], [selectedHierarchy, unitsByLevel])
@@ -80,19 +81,21 @@ export default function CensusSection() {
     if (!query) return allUnits
     return allUnits.filter((unit) => {
       return (
-        unit.id.toLowerCase().includes(query)
-        || unit.name.toLowerCase().includes(query)
-        || (unit.parentCsdId || '').toLowerCase().includes(query)
-        || (unit.parentCtId || '').toLowerCase().includes(query)
+        unit.id.toLowerCase().includes(query) ||
+        unit.name.toLowerCase().includes(query) ||
+        (unit.parentCsdId || '').toLowerCase().includes(query) ||
+        (unit.parentCtId || '').toLowerCase().includes(query)
       )
     })
   }, [allUnits, searchQuery])
 
   const selectedUnit = useMemo(() => {
     if (!selectedUnitId) return null
-    return filteredUnits.find((unit) => unit.id === selectedUnitId)
-      || allUnits.find((unit) => unit.id === selectedUnitId)
-      || null
+    return (
+      filteredUnits.find((unit) => unit.id === selectedUnitId) ||
+      allUnits.find((unit) => unit.id === selectedUnitId) ||
+      null
+    )
   }, [allUnits, filteredUnits, selectedUnitId])
 
   const selectedMetricLabel = useMemo(() => {
@@ -150,8 +153,12 @@ export default function CensusSection() {
   return (
     <MapSectionLayout
       mobilePeekTitle={<>Census · {formatNumber(filteredUnits.length)} units</>}
-      mobilePeekSubtitle={<>{selectedHierarchyLabel} · {selectedUnit?.name || selectedMetricLabel}</>}
-      sidebar={(
+      mobilePeekSubtitle={
+        <>
+          {selectedHierarchyLabel} · {selectedUnit?.name || selectedMetricLabel}
+        </>
+      }
+      sidebar={
         <CensusSidebar
           className={MAP_SIDEBAR_CLASS}
           units={allUnits}
@@ -177,7 +184,7 @@ export default function CensusSection() {
           onVariableSelect={handleVariableSelect}
           onClearVariable={handleClearVariable}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <CensusMap
@@ -197,9 +204,7 @@ export default function CensusSection() {
           collapsible
           defaultCollapsed="mobile"
         >
-          {variableLoading && (
-            <div className="mb-2 text-xs text-amber-600">Loading variable data...</div>
-          )}
+          {variableLoading && <div className="mb-2 text-xs text-amber-600">Loading variable data...</div>}
           <MapGradientLegendItem colors={COLOR_SCALES.amber} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
 
@@ -243,11 +248,7 @@ function MobileCensusFeatureCard({
   onClose: () => void
 }) {
   return (
-    <MobileFeatureCard
-      title={formatUnitLabel(unit)}
-      subtitle={hierarchyLabel}
-      onClose={onClose}
-    >
+    <MobileFeatureCard title={formatUnitLabel(unit)} subtitle={hierarchyLabel} onClose={onClose}>
       <CensusUnitDetails
         unit={unit}
         isVariableMode={isVariableMode}

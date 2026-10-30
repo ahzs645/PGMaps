@@ -3,8 +3,13 @@ import { renderedGroundSource } from './terrain'
 
 /** Two fixed mosaics, at most 128 tiles each (~64 MB total). Reuse decoded
  * elevations, not rendered LOD samples, so reopening cannot move the ground. */
-export function createPreviewTerrainLoader(load: (options: LoadElevationGridOptions) => Promise<LoadElevationGridResult> = loadElevationGrid) {
-  const cache = new Map<string, { source: ReturnType<typeof renderedGroundSource> | null; missingTileCount: number; time: number }>()
+export function createPreviewTerrainLoader(
+  load: (options: LoadElevationGridOptions) => Promise<LoadElevationGridResult> = loadElevationGrid,
+) {
+  const cache = new Map<
+    string,
+    { source: ReturnType<typeof renderedGroundSource> | null; missingTileCount: number; time: number }
+  >()
   return async (options: LoadElevationGridOptions, retry = false) => {
     if (options.signal?.aborted) throw new DOMException('Terrain loading cancelled', 'AbortError')
     const key = JSON.stringify([options.tileUrlTemplate, options.range])
@@ -18,7 +23,11 @@ export function createPreviewTerrainLoader(load: (options: LoadElevationGridOpti
     }
     const { grid, missingTileCount } = await load({ ...options, refresh: retry })
     if (options.signal?.aborted) throw new DOMException('Terrain loading cancelled', 'AbortError')
-    const entry = { source: missingTileCount === options.range.tileCount ? null : renderedGroundSource(grid), missingTileCount, time: Date.now() }
+    const entry = {
+      source: missingTileCount === options.range.tileCount ? null : renderedGroundSource(grid),
+      missingTileCount,
+      time: Date.now(),
+    }
     cache.set(key, entry)
     while (cache.size > 2) cache.delete(cache.keys().next().value!)
     return entry

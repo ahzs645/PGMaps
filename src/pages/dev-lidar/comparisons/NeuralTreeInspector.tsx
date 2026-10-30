@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -151,7 +152,7 @@ export function NeuralTreeViews({
         />
         <label>
           Chunk{' '}
-          <select
+          <NativeSelect
             aria-label="Individual tree chunk"
             className="rounded border bg-background p-1"
             value={activeChunk}
@@ -164,11 +165,11 @@ export function NeuralTreeViews({
             {chunks.map((id) => (
               <option key={id}>{id}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Tree candidate{' '}
-          <select
+          <NativeSelect
             aria-label="Individual tree candidate"
             className="max-w-[230px] rounded border bg-background p-1"
             value={tree.id}
@@ -179,7 +180,7 @@ export function NeuralTreeViews({
                 #{t.instance} · {t.height_max_m.toFixed(1)} m · {t.core_returns.toLocaleString()} points
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <Button
           size="sm"

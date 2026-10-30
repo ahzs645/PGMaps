@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import type { AlignmentEngineering, SitePreparationRange } from './types'
@@ -69,7 +70,7 @@ export function SitePreparationEditor({
       {ranges.map((r, i) => (
         <div key={r.id} className="space-y-2 rounded border p-2">
           <Field label={`Stripping ${i + 1} material`}>
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={r.materialId}
               onChange={(e) => update(r.id, { materialId: e.target.value })}
@@ -81,7 +82,7 @@ export function SitePreparationEditor({
                     {m.name}
                   </option>
                 ))}
-            </select>
+            </NativeSelect>
           </Field>
           <div className="grid grid-cols-2 gap-2">
             {(

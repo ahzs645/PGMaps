@@ -50,15 +50,16 @@ function ScatterTooltip({
 }
 
 export function MonitorScatterLegend({ mode, locale }: { mode: 'xy' | 'xy_cor'; locale: AqmapLocale }) {
-  const items = mode === 'xy'
-    ? [
-        { name: translate('plot.ab.valid', locale), color: VALID_COLOR },
-        { name: translate('plot.ab.invalid', locale), color: INVALID_COLOR },
-      ]
-    : [
-        { name: translate('plot.fem.raw', locale), color: RAW_COLOR },
-        { name: translate('plot.fem.corrected', locale), color: CORRECTED_COLOR },
-      ]
+  const items =
+    mode === 'xy'
+      ? [
+          { name: translate('plot.ab.valid', locale), color: VALID_COLOR },
+          { name: translate('plot.ab.invalid', locale), color: INVALID_COLOR },
+        ]
+      : [
+          { name: translate('plot.fem.raw', locale), color: RAW_COLOR },
+          { name: translate('plot.fem.corrected', locale), color: CORRECTED_COLOR },
+        ]
 
   return (
     <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 text-xs leading-none text-muted-foreground">

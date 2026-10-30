@@ -18,12 +18,7 @@ export type AssessmentBoundaryLevel =
   | CityBoundaryLevel
   | WatershedBoundaryLevel
 export type AssessmentBoundarySelection = AssessmentBoundaryLevel | 'none'
-export type AssessmentBoundarySource =
-  | 'bcHealth'
-  | 'regionalDistrict'
-  | 'census'
-  | 'cityPG'
-  | 'watershed'
+export type AssessmentBoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed'
 
 export interface Property {
   id: string

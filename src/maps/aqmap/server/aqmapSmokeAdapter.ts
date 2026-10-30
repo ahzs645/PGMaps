@@ -137,11 +137,12 @@ function normalizeVisibleSmokeCollection(collection: GeoJSON.FeatureCollection):
       .filter((feature) => feature.geometry)
       .map((feature) => {
         const properties = isPlainObject(feature.properties) ? feature.properties : {}
-        const density = typeof properties.Density === 'string'
-          ? properties.Density
-          : typeof properties.density === 'string'
-            ? properties.density
-            : ''
+        const density =
+          typeof properties.Density === 'string'
+            ? properties.Density
+            : typeof properties.density === 'string'
+              ? properties.density
+              : ''
         const start = normalizeHmsDate(properties.Start)
         const end = normalizeHmsDate(properties.End)
         const period = start && end ? `${start}/${end}` : undefined
@@ -168,10 +169,7 @@ async function fetchNoaaVisibleSmokeData(): Promise<SmokeFeatureCollection | nul
     return visibleSmokeCache.data
   }
 
-  const candidateDates = [
-    new Date(),
-    new Date(Date.now() - 24 * 60 * 60 * 1000),
-  ]
+  const candidateDates = [new Date(), new Date(Date.now() - 24 * 60 * 60 * 1000)]
 
   for (const date of candidateDates) {
     try {
@@ -207,9 +205,10 @@ function floorUtcHours(date: Date, hours: number): Date {
 
 function eerSmokeZipUrl(modelRun: Date, region = 'Canada'): string {
   const runHour = String(modelRun.getUTCHours()).padStart(2, '0')
-  const runDirectory = modelRun >= utcStartOfDay(new Date())
-    ? 'latest'
-    : `${modelRun.getUTCFullYear()}${String(modelRun.getUTCMonth() + 1).padStart(2, '0')}${String(modelRun.getUTCDate()).padStart(2, '0')}.${runHour}00`
+  const runDirectory =
+    modelRun >= utcStartOfDay(new Date())
+      ? 'latest'
+      : `${modelRun.getUTCFullYear()}${String(modelRun.getUTCMonth() + 1).padStart(2, '0')}${String(modelRun.getUTCDate()).padStart(2, '0')}.${runHour}00`
   return `${EER_SMOKE_BASE_URL}/${runHour}UTC/Canada/${runDirectory}/shp/shp_${region}.zip`
 }
 
@@ -267,7 +266,10 @@ function eerGeometryToPolygon(geometry: GeoJSON.Geometry | null): GeoJSON.Polygo
   return null
 }
 
-function selectEerCollection(parsed: EerFeatureCollection | EerFeatureCollection[], selectTime: Date): EerFeatureCollection | null {
+function selectEerCollection(
+  parsed: EerFeatureCollection | EerFeatureCollection[],
+  selectTime: Date,
+): EerFeatureCollection | null {
   const collections = (Array.isArray(parsed) ? parsed : [parsed])
     .filter((collection) => collection.type === 'FeatureCollection' && collection.features.length > 0)
     .map((collection) => {
@@ -275,17 +277,21 @@ function selectEerCollection(parsed: EerFeatureCollection | EerFeatureCollection
       const forecastTime = parseEerForecastTime(properties.DateTime, collection.fileName)
       return { collection, forecastTime }
     })
-    .filter((entry): entry is { collection: GeoJSON.FeatureCollection; forecastTime: Date } => Boolean(entry.forecastTime))
+    .filter((entry): entry is { collection: GeoJSON.FeatureCollection; forecastTime: Date } =>
+      Boolean(entry.forecastTime),
+    )
     .sort((left, right) => left.forecastTime.getTime() - right.forecastTime.getTime())
 
   if (collections.length === 0) return null
 
   const target = selectTime.getTime()
   return (
-    collections.find((entry) => entry.forecastTime.getTime() === target)
-    ?? collections.find((entry) => entry.forecastTime.getTime() > target)
-    ?? collections.at(-1)
-  )?.collection ?? null
+    (
+      collections.find((entry) => entry.forecastTime.getTime() === target) ??
+      collections.find((entry) => entry.forecastTime.getTime() > target) ??
+      collections.at(-1)
+    )?.collection ?? null
+  )
 }
 
 function normalizeEerSmokeCollection(
@@ -330,17 +336,14 @@ async function fetchEcccModelledSmokeData(): Promise<SmokeFeatureCollection | nu
 
   const selectTime = floorUtcHours(new Date(), 1)
   const latestModelRun = floorUtcHours(selectTime, 6)
-  const candidateModelRuns = [
-    latestModelRun,
-    new Date(latestModelRun.getTime() - 6 * 60 * 60 * 1000),
-  ]
+  const candidateModelRuns = [latestModelRun, new Date(latestModelRun.getTime() - 6 * 60 * 60 * 1000)]
 
   for (const modelRun of candidateModelRuns) {
     try {
       const response = await fetch(eerSmokeZipUrl(modelRun))
       if (!response.ok) continue
 
-      const parsed = await shp(await response.arrayBuffer()) as EerFeatureCollection | EerFeatureCollection[]
+      const parsed = (await shp(await response.arrayBuffer())) as EerFeatureCollection | EerFeatureCollection[]
       const collection = selectEerCollection(parsed, selectTime)
       if (!collection) continue
 

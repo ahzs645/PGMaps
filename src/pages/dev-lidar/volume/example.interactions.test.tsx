@@ -70,7 +70,8 @@ describe('completed example first', () => {
       ).toBe(true)
       await act(async () =>
         renderer!.root
-          .findByProps({ 'aria-label': 'Example volume retained' })
+          .findAllByType('input')
+          .find((node) => node.props['aria-label'] === 'Example volume retained')!
           .props.onChange({ target: { value: '50' } }),
       )
       const button = (name: string) => renderer!.root.findAllByType('button').find((b) => b.children.join('') === name)!

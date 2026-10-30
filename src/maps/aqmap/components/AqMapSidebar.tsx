@@ -11,10 +11,7 @@ import type { AirMonitor } from '@/maps/airquality'
 import type { AqMapDebugInfo } from '../AqMapSection'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
-import {
-  getMonitorGroup,
-  type AqMonitorGroup,
-} from '../lib/monitorPresentation'
+import { getMonitorGroup, type AqMonitorGroup } from '../lib/monitorPresentation'
 import {
   formatGroupLabel,
   formatLocalizedDate,
@@ -25,8 +22,23 @@ import {
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
 import { EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
-import { FireDangerLegendVariantControl, OverlayModeControl, RevealClusterControls, RingStyleControls } from './AqMapControls'
+import type {
+  ActiveFiresRenderMode,
+  AqClusterColorScheme,
+  AqMonitorIconMode,
+  AqRingStyle,
+  FireDangerRenderMode,
+  FirePerimetersRenderMode,
+  ForecastZonesRenderMode,
+  MobileFeatureDisplay,
+  ModelledSmokeRenderMode,
+} from '../lib/aqMapTypes'
+import {
+  FireDangerLegendVariantControl,
+  OverlayModeControl,
+  RevealClusterControls,
+  RingStyleControls,
+} from './AqMapControls'
 import { WmsLegend, type FireDangerLegendVariant } from './AqMapLegends'
 
 export function AqMapSidebar({
@@ -159,8 +171,16 @@ export function AqMapSidebar({
           size="sm"
           columns={2}
           items={[
-            { key: 'visible', label: translate('sidebar.visible', locale), value: visibleCount.toLocaleString(numberLocale) },
-            { key: 'pm25', label: translate('sidebar.pm25Count', locale), value: recentCount.toLocaleString(numberLocale) },
+            {
+              key: 'visible',
+              label: translate('sidebar.visible', locale),
+              value: visibleCount.toLocaleString(numberLocale),
+            },
+            {
+              key: 'pm25',
+              label: translate('sidebar.pm25Count', locale),
+              value: recentCount.toLocaleString(numberLocale),
+            },
           ]}
         />
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
@@ -197,7 +217,10 @@ export function AqMapSidebar({
               <DebugValue label={translate('debug.lat', locale)} value={debugInfo.center[1].toFixed(4)} />
               <DebugValue label={translate('debug.selected', locale)} value={debugInfo.selectedFeature} />
             </div>
-            <DebugList label={translate('debug.renderModes', locale)} values={Object.entries(debugInfo.renderModes).map(([key, value]) => `${key}:${value}`)} />
+            <DebugList
+              label={translate('debug.renderModes', locale)}
+              values={Object.entries(debugInfo.renderModes).map(([key, value]) => `${key}:${value}`)}
+            />
             <DebugList label={translate('debug.wms', locale)} values={debugInfo.visibleWmsLayers} />
             <DebugList label={translate('debug.smoke', locale)} values={debugInfo.visibleSmokeLayers} />
             <DebugList
@@ -273,7 +296,12 @@ export function AqMapSidebar({
       {visibleWmsLayers.size > 0 && (
         <SidebarSection title={translate('sidebar.wmsLegends', locale)}>
           <div className="space-y-3">
-            {WMS_LAYERS.filter((layer) => layer.key !== 'forecastZones' && visibleWmsLayers.has(layer.key) && (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster')).map((layer) => {
+            {WMS_LAYERS.filter(
+              (layer) =>
+                layer.key !== 'forecastZones' &&
+                visibleWmsLayers.has(layer.key) &&
+                (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster'),
+            ).map((layer) => {
               const label = localizeWmsLabel(layer.key, locale)
               return (
                 <div key={layer.key}>
@@ -315,7 +343,9 @@ export function AqMapSidebar({
               active={visibleSmokeLayers.has(layer.key)}
               onClick={() => onToggleSmokeLayer(layer.key)}
               label={localizeSmokeLabel(layer.key, locale)}
-              trailing={layer.key === 'modelledSmoke' ? translate('overlay.vector', locale) : translate('smoke.tag', locale)}
+              trailing={
+                layer.key === 'modelledSmoke' ? translate('overlay.vector', locale) : translate('smoke.tag', locale)
+              }
             />
           ))}
           {WMS_LAYERS.map((layer) => (
@@ -327,18 +357,23 @@ export function AqMapSidebar({
                 icon={layer.icon}
                 label={localizeWmsLabel(layer.key, locale)}
                 trailing={
-                  (layer.key === 'activeFires' && activeFiresMode === 'vector')
-                  || (layer.key === 'fireDanger' && fireDangerMode === 'vector')
-                  || (layer.key === 'firePerimeters' && firePerimetersMode === 'vector')
-                  || (layer.key === 'forecastZones' && forecastZonesMode === 'vector')
-                  || (layer.key === 'modelledPm25' && modelledSmokeMode === 'vector')
+                  (layer.key === 'activeFires' && activeFiresMode === 'vector') ||
+                  (layer.key === 'fireDanger' && fireDangerMode === 'vector') ||
+                  (layer.key === 'firePerimeters' && firePerimetersMode === 'vector') ||
+                  (layer.key === 'forecastZones' && forecastZonesMode === 'vector') ||
+                  (layer.key === 'modelledPm25' && modelledSmokeMode === 'vector')
                     ? translate('overlay.vector', locale)
                     : translate('wms.tag', locale)
                 }
               />
               {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
                 <div className="space-y-2">
-                  <OverlayModeControl layerKey="fireDanger" value={fireDangerMode} onChange={onFireDangerModeChange} locale={locale} />
+                  <OverlayModeControl
+                    layerKey="fireDanger"
+                    value={fireDangerMode}
+                    onChange={onFireDangerModeChange}
+                    locale={locale}
+                  />
                   <FireDangerLegendVariantControl
                     value={fireDangerLegendVariant}
                     onChange={onFireDangerLegendVariantChange}
@@ -347,16 +382,36 @@ export function AqMapSidebar({
                 </div>
               )}
               {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
-                <OverlayModeControl layerKey="activeFires" value={activeFiresMode} onChange={onActiveFiresModeChange} locale={locale} />
+                <OverlayModeControl
+                  layerKey="activeFires"
+                  value={activeFiresMode}
+                  onChange={onActiveFiresModeChange}
+                  locale={locale}
+                />
               )}
               {layer.key === 'firePerimeters' && visibleWmsLayers.has('firePerimeters') && (
-                <OverlayModeControl layerKey="firePerimeters" value={firePerimetersMode} onChange={onFirePerimetersModeChange} locale={locale} />
+                <OverlayModeControl
+                  layerKey="firePerimeters"
+                  value={firePerimetersMode}
+                  onChange={onFirePerimetersModeChange}
+                  locale={locale}
+                />
               )}
               {layer.key === 'forecastZones' && visibleWmsLayers.has('forecastZones') && (
-                <OverlayModeControl layerKey="forecastZones" value={forecastZonesMode} onChange={onForecastZonesModeChange} locale={locale} />
+                <OverlayModeControl
+                  layerKey="forecastZones"
+                  value={forecastZonesMode}
+                  onChange={onForecastZonesModeChange}
+                  locale={locale}
+                />
               )}
               {layer.key === 'modelledPm25' && visibleWmsLayers.has('modelledPm25') && (
-                <OverlayModeControl layerKey="modelledPm25" value={modelledSmokeMode} onChange={onModelledSmokeModeChange} locale={locale} />
+                <OverlayModeControl
+                  layerKey="modelledPm25"
+                  value={modelledSmokeMode}
+                  onChange={onModelledSmokeModeChange}
+                  locale={locale}
+                />
               )}
             </div>
           ))}
@@ -382,9 +437,7 @@ export function AqMapSidebar({
               )}
             </button>
           ))}
-          {exportStatus.error && (
-            <div className="text-xs text-destructive">{exportStatus.error}</div>
-          )}
+          {exportStatus.error && <div className="text-xs text-destructive">{exportStatus.error}</div>}
         </div>
       </SidebarSection>
 
@@ -394,8 +447,13 @@ export function AqMapSidebar({
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             {translate('app.snapshot', locale)}
           </div>
-          <div className="mt-1">{translate('app.latestObservation', locale)} {formatLocalizedDate(latestDate, locale)}</div>
-          <div>{translate('app.monitorData', locale)} <span className="font-medium text-foreground">{translate('app.endpoints', locale)}</span></div>
+          <div className="mt-1">
+            {translate('app.latestObservation', locale)} {formatLocalizedDate(latestDate, locale)}
+          </div>
+          <div>
+            {translate('app.monitorData', locale)}{' '}
+            <span className="font-medium text-foreground">{translate('app.endpoints', locale)}</span>
+          </div>
         </div>
       </SidebarSection>
     </MapSidebarShell>
@@ -406,7 +464,9 @@ function DebugValue({ label, value }: { label: string; value: string }) {
   return (
     <>
       <div className="text-muted-foreground">{label}</div>
-      <div className="truncate text-right font-medium text-foreground" title={value}>{value}</div>
+      <div className="truncate text-right font-medium text-foreground" title={value}>
+        {value}
+      </div>
     </>
   )
 }

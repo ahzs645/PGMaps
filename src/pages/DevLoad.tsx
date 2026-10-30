@@ -3,11 +3,7 @@ import { Eye, EyeOff, Loader2, Play, RotateCcw } from 'lucide-react'
 
 import { DevPageHeader } from '@/components/DevPageHeader'
 import { Button } from '@/components/ui/button'
-import {
-  DEFAULT_MAP_LOADER,
-  MapLoader,
-  type MapLoaderVariant,
-} from '@/components/ui/map-loader'
+import { DEFAULT_MAP_LOADER, MapLoader, type MapLoaderVariant } from '@/components/ui/map-loader'
 import { cn } from '@/lib/utils'
 
 const VARIANTS: Array<{ value: MapLoaderVariant; label: string; description: string }> = [
@@ -81,9 +77,7 @@ export default function DevLoad() {
               <span
                 className={cn(
                   'rounded-full px-2.5 py-1 text-xs font-medium',
-                  isLoading
-                    ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
-                    : 'bg-muted text-muted-foreground',
+                  isLoading ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300' : 'bg-muted text-muted-foreground',
                 )}
               >
                 {isLoading ? 'Loading' : 'Loaded'}
@@ -104,12 +98,7 @@ export default function DevLoad() {
               <div className="absolute bottom-4 left-4 rounded-md border bg-background/85 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
                 Mock map canvas
               </div>
-              <MapLoader
-                key={previewKey}
-                visible={isLoading}
-                label={label || 'Loading map data'}
-                variant={variant}
-              />
+              <MapLoader key={previewKey} visible={isLoading} label={label || 'Loading map data'} variant={variant} />
             </div>
           </section>
 
@@ -129,9 +118,7 @@ export default function DevLoad() {
                       }}
                       className={cn(
                         'rounded-lg border p-3 text-left transition-colors',
-                        variant === option.value
-                          ? 'border-sky-500 bg-sky-500/10'
-                          : 'bg-background hover:bg-muted/60',
+                        variant === option.value ? 'border-sky-500 bg-sky-500/10' : 'bg-background hover:bg-muted/60',
                       )}
                     >
                       <span className="block text-sm font-medium">{option.label}</span>

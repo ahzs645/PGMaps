@@ -28,7 +28,8 @@ self.onmessage = async (event: MessageEvent<AvastWorkerRequest>) => {
     const { runId, candidates, avastPieces, vri, minPieceHa } = message
     const search = buildVriIndex(vri)
     const byCandidate = new Map<string, typeof avastPieces>()
-    for (const piece of avastPieces) byCandidate.set(piece.candidateKey, [...(byCandidate.get(piece.candidateKey) ?? []), piece])
+    for (const piece of avastPieces)
+      byCandidate.set(piece.candidateKey, [...(byCandidate.get(piece.candidateKey) ?? []), piece])
     try {
       for (const [index, candidate] of candidates.entries()) {
         if (local.signal.aborted) throw new DOMException('Cancelled', 'AbortError')
@@ -58,7 +59,8 @@ self.onmessage = async (event: MessageEvent<AvastWorkerRequest>) => {
       settings,
       elevation,
       signal: local.signal,
-      onCandidate: ({ index, total, candidate, overlay }) => post({ type: 'candidate', runId, index, total, key: candidate.key, overlay }),
+      onCandidate: ({ index, total, candidate, overlay }) =>
+        post({ type: 'candidate', runId, index, total, key: candidate.key, overlay }),
     })
     if (!local.signal.aborted) post({ type: 'done', runId })
   } catch (error) {

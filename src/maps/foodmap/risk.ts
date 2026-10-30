@@ -4,7 +4,7 @@ import type {
   ViolationRiskAssessment,
   ViolationRiskBand,
   ViolationRiskCategory,
-  ViolationRiskSummary
+  ViolationRiskSummary,
 } from './types'
 
 interface RiskRule {
@@ -18,7 +18,7 @@ const BAND_BASE_SCORE: Record<ViolationRiskBand, number> = {
   Administrative: 1,
   Moderate: 4,
   Elevated: 7,
-  Severe: 10
+  Severe: 10,
 }
 
 const CODE_RULES: Record<string, RiskRule> = {
@@ -61,21 +61,25 @@ const CODE_RULES: Record<string, RiskRule> = {
   '312': { band: 'Moderate', category: 'Facility & Equipment' },
   '313': { band: 'Elevated', category: 'Contamination' },
   '315': { band: 'Moderate', category: 'Facility & Equipment' },
-  '403': { band: 'Moderate', category: 'Sanitization & Hygiene' }
+  '403': { band: 'Moderate', category: 'Sanitization & Hygiene' },
 }
 
-const ADMIN_KEYWORDS = /\b(permit|posted|conspicuous|plan|approved|approval|foodsafe|training|certificate|remote inspection|written procedures)\b/i
+const ADMIN_KEYWORDS =
+  /\b(permit|posted|conspicuous|plan|approved|approval|foodsafe|training|certificate|remote inspection|written procedures)\b/i
 const PEST_KEYWORDS = /\b(pest|mice|mouse|rodent|droppings?|infestation|cockroach|flies?|harbourage)\b/i
 const CONTAMINATION_KEYWORDS = /\b(contaminat|cross[\s-]?contamin|foodborne|not protected|unsafe handling)\b/i
-const TEMPERATURE_KEYWORDS = /\b(thaw|cool|cooling|reheat|reheating|hot hold|cold hold|danger zone|temperature|thermometer|4\s*°?\s*c|60\s*°?\s*c|-18\s*°?\s*c)\b/i
-const HYGIENE_KEYWORDS = /\b(hand\s?wash|paper towel|soap|saniti[sz]er|chlorine|quat|ppm|dishwasher|dish washer|utensil)\b/i
+const TEMPERATURE_KEYWORDS =
+  /\b(thaw|cool|cooling|reheat|reheating|hot hold|cold hold|danger zone|temperature|thermometer|4\s*°?\s*c|60\s*°?\s*c|-18\s*°?\s*c)\b/i
+const HYGIENE_KEYWORDS =
+  /\b(hand\s?wash|paper towel|soap|saniti[sz]er|chlorine|quat|ppm|dishwasher|dish washer|utensil)\b/i
 const CHEMICAL_KEYWORDS = /\b(chemical|bleach|cleanser|labelled?|labeling)\b/i
 const REPEAT_KEYWORDS = /\brepeat\b/i
 
 // Specific, actively-observed hazards (as opposed to the generic "may lead to
 // foodborne illness" boilerplate that appears in nearly every NHA write-up).
 // Only these escalate a known code's band — boilerplate must not.
-const ACTIVE_PEST_SIGNAL = /\b(droppings?|infestation|gnaw\w*|nesting|live\s+(mice|mouse|rodent|cockroach|insect|pest))\b/i
+const ACTIVE_PEST_SIGNAL =
+  /\b(droppings?|infestation|gnaw\w*|nesting|live\s+(mice|mouse|rodent|cockroach|insect|pest))\b/i
 
 const EMPTY_SUMMARY: ViolationRiskSummary = {
   severe: 0,
@@ -84,7 +88,7 @@ const EMPTY_SUMMARY: ViolationRiskSummary = {
   administrative: 0,
   unknown: 0,
   score: 0,
-  worstBand: 'Unknown'
+  worstBand: 'Unknown',
 }
 
 // Corrective-action text is regulatory boilerplate ("an operator must ensure…
@@ -92,17 +96,11 @@ const EMPTY_SUMMARY: ViolationRiskSummary = {
 // row. Risk signals are read from the description + observation only; the full
 // text is used solely for repeat detection.
 function riskSignalText(violation: Violation): string {
-  return [violation.description || '', violation.observation || '']
-    .join(' ')
-    .toLowerCase()
+  return [violation.description || '', violation.observation || ''].join(' ').toLowerCase()
 }
 
 function fullText(violation: Violation): string {
-  return [
-    violation.description || '',
-    violation.observation || '',
-    violation.corrective_action || ''
-  ]
+  return [violation.description || '', violation.observation || '', violation.corrective_action || '']
     .join(' ')
     .toLowerCase()
 }
@@ -152,10 +150,7 @@ export function assessViolationRisk(violation: Violation): ViolationRiskAssessme
 
   const isRepeat = Boolean(violation.is_repeat) || REPEAT_KEYWORDS.test(fullText(violation))
   const isCorrected = Boolean(violation.corrected_during_inspection)
-  const score = Math.max(
-    1,
-    BAND_BASE_SCORE[band] + (isRepeat ? 2 : 0) + (isCorrected ? -1 : 1)
-  )
+  const score = Math.max(1, BAND_BASE_SCORE[band] + (isRepeat ? 2 : 0) + (isCorrected ? -1 : 1))
 
   return { band, category, score }
 }
@@ -194,7 +189,7 @@ const RISK_BAND_COLORS: Record<RiskColorMode, Record<ViolationRiskBand | 'None',
     Moderate: '#ffe629',
     Administrative: '#0090ff',
     Unknown: '#8b8d98',
-    None: '#30a46c'
+    None: '#30a46c',
   },
   dark: {
     Severe: '#ec5d5e',
@@ -202,14 +197,14 @@ const RISK_BAND_COLORS: Record<RiskColorMode, Record<ViolationRiskBand | 'None',
     Moderate: '#ffff57',
     Administrative: '#3b9eff',
     Unknown: '#777b84',
-    None: '#33b074'
-  }
+    None: '#33b074',
+  },
 }
 
 export function getRiskBandColor(
   band: ViolationRiskBand,
   hasViolations = true,
-  colorMode: RiskColorMode = 'light'
+  colorMode: RiskColorMode = 'light',
 ): string {
   const palette = RISK_BAND_COLORS[colorMode]
   if (!hasViolations) return palette.None
