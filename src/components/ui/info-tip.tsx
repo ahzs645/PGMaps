@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
+import { MOTION_DURATION, useMotionPresence } from '@pgmaps/geo-toolkit/ui/motion'
 import { cn } from '@/lib/utils'
 
 const GAP = 6,
@@ -30,16 +31,20 @@ export function InfoTip({
   const id = useId()
   const button = useRef<HTMLButtonElement>(null)
   const bubble = useRef<HTMLSpanElement>(null)
+  const restoringFocus = useRef(false)
   const [open, setOpen] = useState(false)
   const [pinned, setPinned] = useState(false)
+  const { present, visible } = useMotionPresence(open, MOTION_DURATION.feedback)
   const close = useCallback(() => {
     setOpen(false)
     setPinned(false)
   }, [])
   const place = useCallback(() => {
-    const anchor = button.current?.getBoundingClientRect(),
-      size = bubble.current?.getBoundingClientRect()
-    if (!anchor || !size) return
+    const anchor = button.current?.getBoundingClientRect()
+    const panel = bubble.current
+    if (!anchor || !panel) return
+    // The animated surface's scale must not change its placement calculation.
+    const size = { width: panel.offsetWidth, height: panel.offsetHeight }
     const width = window.innerWidth,
       height = window.innerHeight
     const left = Math.min(
@@ -47,17 +52,25 @@ export function InfoTip({
       width - size.width - MARGIN,
     )
     const below = anchor.bottom + GAP
-    const top = below + size.height <= height - MARGIN ? below : Math.max(MARGIN, anchor.top - GAP - size.height)
+    const fitsBelow = below + size.height <= height - MARGIN
+    const top = fitsBelow ? below : Math.max(MARGIN, anchor.top - GAP - size.height)
     // Written straight to the element: it is measured first, so it cannot be placed in render.
     Object.assign(bubble.current!.style, {
       left: `${Math.max(MARGIN, left)}px`,
       top: `${top}px`,
       visibility: 'visible',
+      transformOrigin: `center ${fitsBelow ? 'top' : 'bottom'}`,
     })
+    panel.dataset.side = fitsBelow ? 'bottom' : 'top'
   }, [])
   useLayoutEffect(() => {
     if (open) place()
-  }, [open, place])
+    else if (bubble.current?.contains(document.activeElement)) {
+      restoringFocus.current = true
+      button.current?.focus()
+      restoringFocus.current = false
+    }
+  }, [open, present, place])
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
@@ -97,7 +110,9 @@ export function InfoTip({
           showLabel ? 'px-1 py-1 text-xs' : 'size-5 justify-center',
           pinned && 'text-foreground',
         )}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (!restoringFocus.current) setOpen(true)
+        }}
         onBlur={(event) => {
           if (!bubble.current?.contains(event.relatedTarget as Node | null)) close()
         }}
@@ -118,15 +133,18 @@ export function InfoTip({
         <Info className="size-3.5" aria-hidden="true" />
         {showLabel && label}
       </button>
-      {open &&
+      {present &&
         createPortal(
           <span
             ref={bubble}
             role="tooltip"
             id={id}
-            style={{ left: 0, top: 0, visibility: 'hidden' }}
+            aria-hidden={!open || undefined}
+            {...(!open ? { inert: '' } : {})}
+            data-motion-state={open && visible ? 'open' : 'closed'}
+            style={{ left: 0, top: 0, visibility: 'hidden', pointerEvents: open ? undefined : 'none' }}
             className={cn(
-              'fixed z-[2000] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg',
+              'geo-motion-popover fixed z-[2000] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg',
               bubbleClassName,
             )}
           >

@@ -287,6 +287,7 @@ function DevData() {
       }
       sidebar={sidebar}
       bottomPaneHeight={tableLayer ? tableHeight : 0}
+      bottomPaneResizing={tableResizing}
       bottomPane={
         tableLayer ? (
           <DataTablePanel

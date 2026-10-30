@@ -27,6 +27,7 @@ import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
+import { MOTION_DURATION, MOTION_EASING, useReducedMotion } from '@pgmaps/geo-toolkit/ui/motion'
 
 /** Row height in px. Fixed so the virtualizer can measure without a layout pass. */
 const ROW_HEIGHT = 32
@@ -358,11 +359,12 @@ function DesktopTablePanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [containerHeight, setContainerHeight] = useState(0)
+  const reducedMotion = useReducedMotion()
 
   // Measured rather than read from the ref during render, so `expanded` is correct
   // on the first paint. ResizeObserver fires once on observe, so no sync setState.
   useEffect(() => {
-    const parent = panelRef.current?.parentElement
+    const parent = panelRef.current?.closest<HTMLElement>('[data-map-layout-root]') ?? panelRef.current?.parentElement
     if (!parent) return
     const observer = new ResizeObserver(() => setContainerHeight(parent.getBoundingClientRect().height))
     observer.observe(parent)
@@ -380,7 +382,7 @@ function DesktopTablePanel({
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!resizable) return
-      const parent = panelRef.current?.parentElement
+      const parent = panelRef.current?.closest<HTMLElement>('[data-map-layout-root]') ?? panelRef.current?.parentElement
       if (!parent) return
       event.preventDefault()
       const parentBottom = parent.getBoundingClientRect().bottom
@@ -425,7 +427,10 @@ function DesktopTablePanel({
       /* No drop shadow: the pane is docked in the layout rather than floating over
          the map, so the 1px top border is the only separation it needs. */
       className="absolute inset-x-0 bottom-0 z-30 hidden flex-col overflow-hidden border border-x-0 border-b-0 border-border bg-background md:flex"
-      style={{ height }}
+      style={{
+        height,
+        transition: dragging || reducedMotion ? 'none' : `height ${MOTION_DURATION.panel}ms ${MOTION_EASING}`,
+      }}
     >
       {resizable && (
         /* Invisible drag strip on the top border, like Felt's split-view divider.

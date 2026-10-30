@@ -2,6 +2,8 @@ import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect } from 'react'
 import type * as MapLibreGL from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
+import { useFlyToSelection } from '@/components/ui/map-fly-to'
+import { MOTION_DURATION, useReducedMotion } from '@pgmaps/geo-toolkit/ui/motion'
 import type { ViewportBounds } from './layerData'
 
 /** Reports the map viewport so the table's "Visible" mode and "In view" insights can filter. */
@@ -20,12 +22,11 @@ export function ViewportTracker({ onChange }: { onChange: (bounds: ViewportBound
 /** Eases the map to a row's centre when it is picked in the table. */
 export function FlyToCenter({ center, nonce }: { center: [number, number] | null; nonce: number }) {
   const { map, isLoaded } = useMap()
-
-  useEffect(() => {
-    if (!map || !isLoaded || !center) return
-    map.easeTo({ center, zoom: Math.max(map.getZoom(), 13.5), duration: 600 })
-    // `nonce` re-runs the ease when the same row is picked twice.
-  }, [center, isLoaded, map, nonce])
+  useFlyToSelection(isLoaded && center ? { longitude: center[0], latitude: center[1] } : null, {
+    zoom: Math.max(map?.getZoom() ?? 13.5, 13.5),
+    mode: 'ease',
+    focusKey: nonce,
+  })
 
   return null
 }
@@ -33,6 +34,7 @@ export function FlyToCenter({ center, nonce }: { center: [number, number] | null
 /** Fits the map to a layer's extent ("Zoom to layer"). */
 export function FitToBounds({ bounds, nonce }: { bounds: ViewportBounds | null; nonce: number }) {
   const { map, isLoaded } = useMap()
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (!map || !isLoaded || !bounds) return
@@ -42,9 +44,9 @@ export function FitToBounds({ bounds, nonce }: { bounds: ViewportBounds | null; 
         [west, south],
         [east, north],
       ],
-      { padding: 48, maxZoom: 16, duration: 700 },
+      { padding: 48, maxZoom: 16, duration: reducedMotion ? 0 : MOTION_DURATION.camera },
     )
-  }, [bounds, isLoaded, map, nonce])
+  }, [bounds, isLoaded, map, nonce, reducedMotion])
 
   return null
 }

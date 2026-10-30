@@ -1,5 +1,7 @@
 import { X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { MOTION_DURATION, MOTION_EASING, useMotionPresence, useReducedMotion } from '@pgmaps/geo-toolkit/ui/motion'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { RefObject } from 'react'
 import { cn } from '@/lib/utils'
 import { SearchInput } from '@/components/ui/map-panels'
@@ -33,27 +35,80 @@ export function MapSearchSheet({
   onSelect: (feature: InteractFeature) => void
 }) {
   const [query, setQuery] = useState('')
-  const [presented, setPresented] = useState(false)
+  const isMobile = useIsMobile()
+  const reducedMotion = useReducedMotion()
+  const presence = useMotionPresence(open)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const openerRef = useRef<HTMLElement | null>(null)
+  const wasOpenRef = useRef(false)
+  const exitNotifiedRef = useRef(false)
+  const onCloseRef = useRef(onClose)
+  const onExitedRef = useRef(onExited)
+  const titleId = useId()
+
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose
+    onExitedRef.current = onExited
+  }, [onClose, onExited])
+
+  const restoreFocus = useCallback(() => {
+    const opener = openerRef.current
+    if (opener?.isConnected && !opener.closest('[inert]') && opener.getClientRects().length) {
+      opener.focus({ preventScroll: true })
+    } else if (dialogRef.current?.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, [])
+
+  const requestClose = useCallback(() => {
+    if (dialogRef.current?.contains(document.activeElement)) restoreFocus()
+    onCloseRef.current()
+  }, [restoreFocus])
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current
+    if (open) {
+      if (!wasOpenRef.current) {
+        openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      }
+      if (dialog) dialog.inert = false
+      // StrictMode replays the unmount cleanup, which restores the opener.
+      // Re-focus on setup even when the logical open state did not change.
+      inputRef.current?.focus({ preventScroll: true })
+    } else {
+      if (dialog?.contains(document.activeElement)) restoreFocus()
+      if (dialog) dialog.inert = true
+    }
+    wasOpenRef.current = open
+  }, [open, presence.present, restoreFocus])
+
+  useLayoutEffect(() => {
+    if (open) exitNotifiedRef.current = false
+    else if (!presence.present && !exitNotifiedRef.current) {
+      exitNotifiedRef.current = true
+      onExitedRef.current()
+    }
+  }, [open, presence.present])
 
   useEffect(() => {
     if (!open) return
-    const frame = requestAnimationFrame(() => {
-      setPresented(true)
-      inputRef.current?.focus()
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [open])
-
-  useEffect(() => {
-    if (open) return
-    const frame = requestAnimationFrame(() => setPresented(false))
-    const timeout = window.setTimeout(onExited, 260)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.clearTimeout(timeout)
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      event.stopPropagation()
+      requestClose()
     }
-  }, [onExited, open])
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, requestClose])
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current
+    return () => {
+      if (dialog?.contains(document.activeElement)) restoreFocus()
+    }
+  }, [presence.present, restoreFocus])
 
   const rows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -90,60 +145,92 @@ export function MapSearchSheet({
 
   const selectFeature = (feature: InteractFeature) => {
     onSelect(feature)
-    onClose()
+    requestClose()
   }
+
+  if (!presence.present) return null
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="Close search"
-        className={cn(
-          'fixed inset-0 z-[1200] bg-black/55 transition-opacity duration-250 md:hidden',
-          presented ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-labelledby="map-search-title"
-        data-open={open}
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-[1210] flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden',
-          presented ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]',
-        )}
-      >
-        <SearchBody
-          query={query}
-          groupedRows={groupedRows}
-          inputRef={inputRef}
-          onQueryChange={setQuery}
-          onSelect={selectFeature}
-          mobilePrimary
+      {isMobile && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          disabled={!open}
+          className={cn('fixed inset-0 z-[1200] bg-black/55', !open && 'pointer-events-none')}
+          style={{
+            opacity: presence.visible ? 1 : 0,
+            transition: reducedMotion ? 'none' : `opacity ${MOTION_DURATION.panel}ms ${MOTION_EASING}`,
+          }}
+          onClick={requestClose}
         />
-      </div>
-
+      )}
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-labelledby={titleId}
+        aria-modal={isMobile}
         data-open={open}
         className={cn(
-          'absolute right-4 top-16 z-[70] hidden h-[min(520px,calc(100%-5rem))] w-[min(420px,calc(100%-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-[opacity,transform] duration-200 ease-out md:flex',
-          presented ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
+          'flex flex-col overflow-hidden border border-border bg-background',
+          isMobile
+            ? 'fixed inset-x-0 bottom-0 z-[1210] h-[calc(100dvh-4.75rem)] rounded-t-lg border-b-0 shadow-[0_-2px_16px_rgba(0,0,0,0.24)]'
+            : 'absolute right-4 top-16 z-[70] h-[min(520px,calc(100%-5rem))] w-[min(420px,calc(100%-2rem))] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.18)]',
+          !open && 'pointer-events-none',
         )}
+        style={{
+          transform: presence.visible
+            ? 'translateY(0)'
+            : isMobile
+              ? 'translateY(calc(100% + 2rem))'
+              : 'translateY(8px)',
+          opacity: isMobile || presence.visible ? 1 : 0,
+          transition: reducedMotion
+            ? 'none'
+            : `transform ${MOTION_DURATION.panel}ms ${MOTION_EASING}, opacity ${MOTION_DURATION.panel}ms ${MOTION_EASING}`,
+        }}
+        onKeyDown={(event) => {
+          if (!isMobile || event.key !== 'Tab') return
+          const focusable = [
+            ...event.currentTarget.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), input:not([disabled]), [tabindex="0"]',
+            ),
+          ].filter((element) => !element.closest('[inert]') && element.getClientRects().length)
+          const first = focusable[0]
+          const last = focusable.at(-1)
+          if (event.shiftKey && document.activeElement === first && last) {
+            event.preventDefault()
+            last.focus({ preventScroll: true })
+          } else if (!event.shiftKey && document.activeElement === last && first) {
+            event.preventDefault()
+            first.focus({ preventScroll: true })
+          }
+        }}
       >
-        <SearchHeader onClose={onClose} compact />
+        <SearchHeader titleId={titleId} onClose={requestClose} compact={!isMobile} />
         <SearchBody
           query={query}
           groupedRows={groupedRows}
           inputRef={inputRef}
           onQueryChange={setQuery}
           onSelect={selectFeature}
+          mobilePrimary={isMobile}
         />
       </div>
     </>
   )
 }
 
-function SearchHeader({ onClose, compact = false }: { onClose: () => void; compact?: boolean }) {
+function SearchHeader({
+  titleId,
+  onClose,
+  compact = false,
+}: {
+  titleId: string
+  onClose: () => void
+  compact?: boolean
+}) {
   return (
     <div className="shrink-0 border-b border-border">
       {!compact && (
@@ -156,7 +243,7 @@ function SearchHeader({ onClose, compact = false }: { onClose: () => void; compa
       )}
       <header className={cn('flex items-center justify-between gap-3 px-4 pb-3 pt-1', compact && 'py-3')}>
         <div className="min-w-0">
-          <p id="map-search-title" className="truncate text-base font-semibold">
+          <p id={titleId} className="truncate text-base font-semibold">
             Search locations
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">Find visible map features</p>

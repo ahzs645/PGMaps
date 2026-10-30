@@ -53,6 +53,12 @@ async function openDevData(page: Page) {
   )
   await page.route('https://dev-data-test.invalid/**', (route) => route.fulfill({ body: Buffer.alloc(0) }))
   await page.goto('/dev/data')
+  // Collapsed sheet content is inert; bring its controls into view first.
+  if ((page.viewportSize()?.width ?? 1280) < 768) {
+    const handle = page.getByRole('separator', { name: 'Drag to resize sheet' })
+    await expect(handle).toBeVisible()
+    await handle.press('End')
+  }
   await expect(page.getByRole('heading', { name: 'City data' }).first()).toBeVisible()
   return errors
 }

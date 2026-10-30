@@ -167,6 +167,7 @@ function DevInteract() {
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
   const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
   const [tableHeight, setTableHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
+  const [tableResizing, setTableResizing] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
@@ -677,6 +678,7 @@ function DevInteract() {
       onMobileSheetStateChange={(sheetState) => dispatchMobilePanel({ type: 'syncControlsSheet', sheetState })}
       sidebar={sidebar}
       bottomPaneHeight={tableLayer ? tableHeight : 0}
+      bottomPaneResizing={tableResizing}
       bottomPane={
         tableLayer ? (
           <FeatureTablePanel
@@ -688,6 +690,8 @@ function DevInteract() {
             selectedFeatureId={selectedFeature?.properties.id ?? null}
             height={tableHeight}
             onHeightChange={setTableHeight}
+            onResizeStart={() => setTableResizing(true)}
+            onResizeEnd={() => setTableResizing(false)}
             onClose={() => setTableLayer(null)}
             onSelect={(feature) => {
               const bounds = featureBounds(feature)
@@ -702,6 +706,7 @@ function DevInteract() {
           center={CENTER}
           zoom={11.1}
           attributionControl={false}
+          deferResize={tableResizing}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
           <MapClickCapture
