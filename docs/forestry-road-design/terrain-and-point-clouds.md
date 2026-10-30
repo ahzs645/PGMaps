@@ -43,6 +43,24 @@ companion.
 
 ## Choosing a terrain source
 
+### Reading the plan legend
+
+Expand **Legend** to see the styles present in the loaded map: the active road's grade states,
+named alternative roads, visible streams/roads/harvest/review areas, earthworks, culverts,
+cables, drainage results, station controls and temporary planning overlays. Reused access,
+loaded material haul and empty return paths have separate entries when those paths are drawn.
+The list follows the displayed layer data and visibility switches; it does not filter entries
+when you pan away from a feature. Scroll inside the expanded legend for additional sections.
+
+Turning off contours or selecting **Basemap** removes those terrain entries while keeping
+the legend for the remaining road and context layers. Hiding a context or earthwork layer
+removes its entries. Replacing or closing an analysis/preview removes its old symbols.
+
+The map's pointer and pencil icons switch between **Inspect** and **Edit points**; hover for
+their tooltips. Editing displays numbered controls and centred **+** insertion buttons.
+The editing hint can be closed with its X and reopened with the question-mark button. This
+hint preference is remembered in the browser.
+
 ### The scenario library
 
 **Projects → Browse example scenarios** opens nine editable examples. Prince George uses the verified

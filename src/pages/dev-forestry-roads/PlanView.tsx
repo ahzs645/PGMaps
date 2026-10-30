@@ -1,11 +1,13 @@
 import type { RoadSelectionRange } from './roadSelection'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
-import { LocateFixed, Mountain, Settings2, X } from 'lucide-react'
+import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { PlanLegend } from './PlanLegend'
+import { RoadMapTools } from './RoadMapTools'
+import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES } from './planLegend'
 import {
   distance,
   horizontalCurveSummary,
@@ -17,12 +19,7 @@ import {
 import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
 import { terrainBounds } from './terrain'
 import { roadPlanFitCoordinates } from './planFit'
-import {
-  buildTerrainDisplay,
-  TERRAIN_SLOPE_STOPS,
-  TERRAIN_ASPECT_STOPS,
-  TERRAIN_ASPECT_FLAT_COLOR,
-} from './terrainDisplay'
+import { buildTerrainDisplay } from './terrainDisplay'
 import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
@@ -57,6 +54,7 @@ interface PlanProps {
   onStation: (station: number) => void
   onSelectAlignment: (id: string) => void
   mode: DrawMode
+  onMode?: (mode: DrawMode) => void
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
@@ -602,7 +600,16 @@ function Layers(
       type: 'fill',
       source: 'road-context',
       filter: ['==', ['geometry-type'], 'Polygon'],
-      paint: { 'fill-color': ['match', ['get', 'kind'], 'harvest', '#15803d', '#be123c'], 'fill-opacity': 0.18 },
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'kind'],
+          'harvest',
+          PLAN_CONTEXT_STYLES.harvest.color,
+          PLAN_CONTEXT_STYLES.avoid.color,
+        ],
+        'fill-opacity': 0.18,
+      },
     })
     add({
       id: 'road-context-line',
@@ -613,12 +620,12 @@ function Layers(
           'match',
           ['get', 'kind'],
           'stream',
-          '#0284c7',
+          PLAN_CONTEXT_STYLES.stream.color,
           'existing-road',
-          '#52525b',
+          PLAN_CONTEXT_STYLES['existing-road'].color,
           'harvest',
-          '#15803d',
-          '#be123c',
+          PLAN_CONTEXT_STYLES.harvest.color,
+          PLAN_CONTEXT_STYLES.avoid.color,
         ],
         'line-width': 2,
         'line-dasharray': [3, 2],
@@ -708,7 +715,11 @@ function Layers(
       type: 'line',
       source: 'road-drainage',
       filter: ['==', ['get', 'role'], 'stream-existing'],
-      paint: { 'line-color': '#38bdf8', 'line-width': 1.5, 'line-dasharray': [2, 1.5] },
+      paint: {
+        'line-color': PLAN_DRAINAGE_STYLES['stream-existing'].color,
+        'line-width': 1.5,
+        'line-dasharray': [2, 1.5],
+      },
     })
     add({
       id: 'road-drainage-line',
@@ -716,7 +727,13 @@ function Layers(
       source: 'road-drainage',
       filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'role'], 'stream-existing']],
       paint: {
-        'line-color': ['match', ['get', 'role'], 'diversion', '#dc2626', '#0369a1'],
+        'line-color': [
+          'match',
+          ['get', 'role'],
+          'diversion',
+          PLAN_DRAINAGE_STYLES.diversion.color,
+          PLAN_DRAINAGE_STYLES['stream-design'].color,
+        ],
         'line-width': [
           'case',
           ['==', ['get', 'role'], 'diversion'],
@@ -731,7 +748,15 @@ function Layers(
       source: 'road-drainage',
       filter: ['==', ['geometry-type'], 'Point'],
       paint: {
-        'circle-color': ['match', ['get', 'role'], 'pond', '#2563eb', 'low-point', '#f59e0b', '#dc2626'],
+        'circle-color': [
+          'match',
+          ['get', 'role'],
+          'pond',
+          PLAN_DRAINAGE_STYLES.pond.color,
+          'low-point',
+          PLAN_DRAINAGE_STYLES['low-point'].color,
+          '#dc2626',
+        ],
         'circle-radius': ['match', ['get', 'role'], 'pond', 3, 6],
         'circle-stroke-width': ['match', ['get', 'role'], 'pond', 0, 2],
         'circle-stroke-color': '#ffffff',
@@ -1044,13 +1069,13 @@ function Layers(
                   type="button"
                   aria-label={`Add control between points ${index + 1} and ${index + 2}`}
                   title="Add a middle control, then drag it to shape the road"
-                  className="flex size-6 cursor-cell items-center justify-center rounded-full border border-dashed border-blue-600 bg-background/95 text-base font-bold leading-none text-blue-700 shadow"
+                  className="flex size-6 cursor-cell items-center justify-center rounded-full border border-dashed border-blue-600 bg-background/95 p-0 leading-none text-blue-700 shadow"
                   onClick={(event) => {
                     event.stopPropagation()
                     props.onInsertPoint?.(start.id, coordinate)
                   }}
                 >
-                  +
+                  <Plus className="size-3.5" aria-hidden="true" />
                 </button>
               </MarkerContent>
             </MapMarker>
@@ -1139,88 +1164,51 @@ function Layers(
             </MapMarker>
           )
         })}
-      {display && (props.showContours || props.terrainLayer !== 'none') && (
-        <div data-testid="road-terrain-legend">
-          <MapLegendPanel
-            title="Legend"
-            collapsible
-            defaultCollapsed
-            width="sm"
-            className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
-            contentClassName="min-h-0 max-h-64 overflow-y-auto text-[11px]"
-          >
-            <div className="mt-1 space-y-2 border-t pt-1.5">
-              {props.terrainOnly ? (
-                <LegendItem color="#0284c7" swatchShape="line" label="Terrain transect" />
-              ) : (
-                <MapLegendSection title="Road">
-                  <LegendItem color="#d97706" swatchShape="line" label="Within the grade limit" />
-                  <LegendItem
-                    color="#dc2626"
-                    swatchShape="line"
-                    label={`Over ${props.project.settings.maxGradePercent}% grade`}
-                  />
-                  <LegendItem color="#9ca3af" swatchShape="line" label="No terrain under it" />
-                </MapLegendSection>
-              )}
-              {props.showEarthwork && !props.terrainOnly && (
-                <MapLegendSection title="Earthwork">
-                  <LegendItem color="rgba(217,119,6,0.45)" swatchShape="square" label="Mostly cut" />
-                  <LegendItem color="rgba(59,130,246,0.45)" swatchShape="square" label="Mostly fill" />
-                  <LegendItem color="#dc2626" swatchShape="dashed-line" label="Batter past section reach" />
-                  <LegendItem color="#78716c" swatchShape="dashed-line" label="Formation edge" />
-                  <LegendItem color="#0369a1" swatchShape="dashed-line" label="Ditch bottom" />
-                </MapLegendSection>
-              )}
-              {props.terrainLayer === 'slope' && (
-                <MapGradientLegendItem
-                  className="py-1"
-                  aria-label="Terrain slope in degrees"
-                  colors={TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / 60) * 100}%`)}
-                  minLabel="Slope 0°"
-                  maxLabel="60°+"
-                />
-              )}
-              {props.terrainLayer === 'elevation' && (
-                <p>
-                  Elevation {Math.round(display.elevationRange[0])}–{Math.round(display.elevationRange[1])} m
-                </p>
-              )}
-              {props.terrainLayer === 'aspect' && (
-                <>
-                  <p>Aspect · downslope direction</p>
-                  <MapGradientLegendItem
-                    className="py-1"
-                    aria-label="Terrain aspect clockwise from north"
-                    colors={TERRAIN_ASPECT_STOPS.map((stop) => `${stop.color} ${stop.value / 3.6}%`)}
-                    minLabel="N 0°"
-                    maxLabel="N 360°"
-                  />
-                  <p className="flex justify-around">
-                    <span>E 90°</span>
-                    <span>S 180°</span>
-                    <span>W 270°</span>
-                  </p>
-                  <p className="flex items-center gap-1">
-                    <span
-                      className="inline-block size-2 rounded-sm border"
-                      style={{ backgroundColor: TERRAIN_ASPECT_FLAT_COLOR }}
-                    />
-                    Flat · missing terrain transparent
-                  </p>
-                </>
-              )}
-              <p
-                className="truncate border-t pt-1 text-muted-foreground"
-                title={`${props.project.terrain.name}. The map is drawn from terrain sampled at about ${Math.round(display.resolutionM)} m; every calculation uses the native terrain.`}
-              >
-                {props.showContours ? `${display.contourInterval} m contours · ` : ''}
-                {props.project.terrain.name}
-              </p>
-            </div>
-          </MapLegendPanel>
-        </div>
-      )}
+      <PlanLegend
+        sections={buildPlanLegend({
+          sources: {
+            roads: allLines,
+            context,
+            corridor,
+            formation,
+            edges: roadEdges,
+            ditches,
+            cable,
+            structures,
+            draft,
+            section,
+            ticks,
+            overlay: props.overlay,
+            drainage: props.drainage,
+          },
+          alignments: props.project.alignments,
+          maxGradePercent: props.project.settings.maxGradePercent,
+          terrainOnly: !!props.terrainOnly,
+          showEarthwork: props.showEarthwork,
+          selection:
+            !!props.selectedRange &&
+            !!placeOn(props.alignment, props.selectedRange.start) &&
+            !!placeOn(props.alignment, props.selectedRange.end),
+          draftPoints: props.draft.length > 0,
+          editing: props.mode === 'edit' && props.alignment.points.length > 0,
+          insertControls:
+            props.mode === 'edit' &&
+            !!props.onInsertPoint &&
+            props.alignment.points
+              .slice(1)
+              .some((point, index) => distance(props.alignment.points[index].coordinate, point.coordinate) > 0.4),
+          crossingMarkers:
+            !props.hiddenContextKinds.includes('stream') &&
+            analysis.crossings.some((crossing) => crossing.kind === 'stream'),
+          curveLabels: props.showLabels && radiusLabels.length > 0,
+          cableCursor: !!cableCursor,
+          cableSupports: !!activeCable,
+        })}
+        display={display}
+        terrainLayer={props.terrainLayer}
+        showContours={props.showContours}
+        terrainName={props.project.terrain.name}
+      />
     </>
   )
 }
@@ -1252,6 +1240,21 @@ export function PlanView(props: PlanProps) {
   const [showContours, setShowContours] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
   const [showEarthwork, setShowEarthwork] = useState(true)
+  const [editHelpVisible, setEditHelpVisible] = useState(() => {
+    try {
+      return localStorage.getItem('pgmaps-road-edit-help') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
+  const showEditHelp = (visible: boolean) => {
+    setEditHelpVisible(visible)
+    try {
+      localStorage.setItem('pgmaps-road-edit-help', visible ? 'visible' : 'hidden')
+    } catch {
+      /* The preference still works when browser storage is unavailable. */
+    }
+  }
   const [hiddenContextKinds, setHiddenContextKinds] = useState<ContextFeature['kind'][]>([])
   const contextKinds = (Object.keys(CONTEXT_LABELS) as ContextFeature['kind'][]).filter((kind) =>
     props.project.context.some((feature) => feature.kind === kind),
@@ -1350,7 +1353,7 @@ export function PlanView(props: PlanProps) {
           onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
           triggerAriaLabel="Terrain display"
           contentClassName="z-[1600] text-xs"
-          triggerClassName="h-8 w-32 bg-background/95 text-xs shadow-sm"
+          triggerClassName="h-8 w-24 min-w-0 bg-background/95 text-xs shadow-sm sm:w-32"
           options={[
             { value: 'hillshade', label: 'Hillshade' },
             { value: 'slope', label: 'Slope' },
@@ -1359,7 +1362,7 @@ export function PlanView(props: PlanProps) {
             { value: 'none', label: 'Basemap' },
           ]}
         />
-        <div className="relative" ref={settingsRef}>
+        <div className="relative shrink-0" ref={settingsRef}>
           <Button
             ref={settingsButton}
             size="icon"
@@ -1436,15 +1439,40 @@ export function PlanView(props: PlanProps) {
             </div>
           )}
         </div>
+        <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
       </div>
-      {props.mode === 'edit' && (
-        <div
-          className="pointer-events-none absolute left-2 top-12 z-20 max-w-[calc(100%-4rem)] rounded-md border bg-background/95 px-2 py-1 text-[11px] shadow"
-          data-testid="road-edit-help"
-        >
-          Drag numbered controls to move the start, end or path. Click + to add a middle control.
-        </div>
-      )}
+      {props.mode === 'edit' &&
+        (editHelpVisible ? (
+          <div
+            className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-[11px] shadow"
+            data-testid="road-edit-help"
+          >
+            <span className="min-w-0 flex-1">
+              Drag numbered controls to move the start, end or path. Click + to add a middle control.
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-6 shrink-0"
+              aria-label="Hide editing hint"
+              title="Hide editing hint"
+              onClick={() => showEditHelp(false)}
+            >
+              <X className="size-3" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="icon"
+            variant="outline"
+            className="absolute left-2 top-12 z-20 size-7 bg-background/95 shadow-sm"
+            aria-label="Show editing hint"
+            title="Show editing hint"
+            onClick={() => showEditHelp(true)}
+          >
+            <CircleHelp className="size-4" />
+          </Button>
+        ))}
     </div>
   )
 }

@@ -72,8 +72,8 @@ export const ROAD_SCENARIOS = [
     name: 'Training · connected access, gravel and condition',
     terrain: 'Synthetic ground · offline',
     detail:
-      'Two new connectors into a connected U-shaped road network, with dated evidence, a gravel source and waste site.',
-    focus: 'Compare actual-network haul, rehabilitation, closures and stale inspections',
+      'Two connectors and three selectable synthetic FSR sections, with dated evidence, a gravel source and waste site.',
+    focus: 'Choose an FSR from Road start, then compare haul, rehabilitation and condition',
     kind: 'training',
   },
   {

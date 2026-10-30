@@ -3,7 +3,6 @@ import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
@@ -69,28 +68,28 @@ export function DesignTab(p: SidebarProps) {
           <div className="flex gap-1">
             <Button
               size="sm"
-              className="flex-1"
+              className="min-w-0 flex-1 gap-1 px-1"
               onClick={() => p.onMode('road')}
               aria-pressed={p.mode === 'road'}
               disabled={full}
             >
-              <Plus className="mr-1 size-3" />
+              <Plus className="size-3" />
               Peg road
             </Button>
             <Button
               size="sm"
               variant="outline"
-              className="flex-1"
+              className="min-w-0 flex-1 gap-1 px-1"
               aria-label="Duplicate active alignment"
               title="Keep this road and edit a separate path alternative"
               onClick={p.onDuplicate}
               disabled={full}
             >
-              <Copy className="mr-1 size-3" /> Duplicate
+              <Copy className="size-3" /> Duplicate
             </Button>
             <Button
               size="icon"
-              className="size-8"
+              className="size-8 shrink-0"
               variant="ghost"
               aria-label="Delete active alignment"
               title="Delete this road"
@@ -100,16 +99,6 @@ export function DesignTab(p: SidebarProps) {
               <Trash2 className="size-3" />
             </Button>
           </div>
-          <SegmentedControl
-            size="sm"
-            label="Road map tool"
-            value={p.mode}
-            onChange={p.onMode}
-            options={[
-              { value: 'inspect', label: 'Inspect', title: 'Select stations and roads without moving controls' },
-              { value: 'edit', label: 'Edit points', title: 'Drag start/end controls or add middle controls with +' },
-            ]}
-          />
         </div>
       </RoadSection>
       <div className="space-y-2 border-y p-3" data-testid="full-cost-planning-controls">
@@ -661,11 +650,12 @@ function VerticalAlignment(p: SidebarProps) {
                   <Trash2 className="size-3" />
                 </Button>
               </div>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-3 items-end gap-1">
                 {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
                   <NumberField
                     key={key}
-                    label={
+                    label={key === 'chainage' ? 'Station' : key === 'elevation' ? 'Level' : 'Curve length (m)'}
+                    ariaLabel={
                       key === 'chainage'
                         ? `PVI ${i + 1} station`
                         : key === 'elevation'

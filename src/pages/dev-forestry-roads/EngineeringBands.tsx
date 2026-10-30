@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { verticalCurveSummary } from './engine'
 import type { Alignment, RoadAnalysis } from './types'
@@ -199,6 +199,33 @@ export function EngineeringBands({
   range?: [number, number]
 }) {
   const [expanded, setExpanded] = useState(false)
+  const drag = useRef<{
+    pointerId: number
+    start: number
+    end: number
+    plotLeft: number
+    plotWidth: number
+  } | null>(null)
+  // A hidden/replaced band cannot retain a gesture from its previous SVG.
+  useEffect(
+    () => () => {
+      drag.current = null
+    },
+    [expanded, alignment.id],
+  )
+  const inspectPointer = (pointerId: number, clientX: number) => {
+    const active = drag.current
+    if (!active || active.pointerId !== pointerId) return
+    onStation(
+      Math.max(
+        active.start,
+        Math.min(
+          active.end,
+          active.start + ((clientX - active.plotLeft) / active.plotWidth) * (active.end - active.start),
+        ),
+      ),
+    )
+  }
   const rows = rowsFor(analysis, alignment, terrainOnly)
   const start = range?.[0] ?? 0,
     end = range?.[1] ?? Math.max(1, analysis.length)
@@ -227,20 +254,45 @@ export function EngineeringBands({
                   height={rows.length * 22}
                   role="group"
                   tabIndex={0}
-                  aria-label="Connected profile data bands; click to inspect a station"
-                  className="touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Connected profile data bands; click or drag to inspect a station"
+                  className="cursor-ew-resize select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onPointerDown={(event) => {
+                    if (event.button !== 0 || !event.isPrimary || drag.current) return
+                    event.preventDefault()
                     const box = event.currentTarget.getBoundingClientRect()
-                    onStation(
-                      Math.max(
-                        start,
-                        Math.min(
-                          end,
-                          start +
-                            ((event.clientX - box.left - left) / Math.max(1, width - left - right)) * (end - start),
-                        ),
-                      ),
-                    )
+                    // Keep the displayed station domain fixed throughout the gesture, even
+                    // while its live shared station causes the connected views to render.
+                    drag.current = {
+                      pointerId: event.pointerId,
+                      start,
+                      end,
+                      plotLeft: box.left + (left / width) * box.width,
+                      plotWidth: Math.max(1, ((width - left - right) / width) * box.width),
+                    }
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    event.currentTarget.focus({ preventScroll: true })
+                    inspectPointer(event.pointerId, event.clientX)
+                  }}
+                  onPointerMove={(event) => {
+                    if (drag.current?.pointerId !== event.pointerId) return
+                    event.preventDefault()
+                    inspectPointer(event.pointerId, event.clientX)
+                  }}
+                  onPointerUp={(event) => {
+                    if (drag.current?.pointerId !== event.pointerId) return
+                    inspectPointer(event.pointerId, event.clientX)
+                    drag.current = null
+                    if (event.currentTarget.hasPointerCapture(event.pointerId))
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                  }}
+                  onPointerCancel={(event) => {
+                    if (drag.current?.pointerId !== event.pointerId) return
+                    drag.current = null
+                    if (event.currentTarget.hasPointerCapture(event.pointerId))
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                  }}
+                  onLostPointerCapture={(event) => {
+                    if (drag.current?.pointerId === event.pointerId) drag.current = null
                   }}
                   onKeyDown={(event) => {
                     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return

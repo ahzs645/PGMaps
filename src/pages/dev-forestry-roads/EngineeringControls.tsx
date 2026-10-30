@@ -272,6 +272,8 @@ export function EngineeringControls({
           label="Engineering inputs"
           value={activeTab}
           onChange={setTab}
+          stretch
+          className="grid grid-cols-2"
           options={[
             { value: 'templates', label: 'Templates' },
             { value: 'materials', label: 'Ground' },

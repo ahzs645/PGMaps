@@ -264,7 +264,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Objective
           <select
             aria-label="Profile optimization objective"
-            className="rounded border bg-background px-1 text-base md:text-xs"
+            className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.objective}
             onChange={(e) => setSearch((x) => ({ ...x, objective: e.target.value as 'earthwork' | 'total' }))}
           >

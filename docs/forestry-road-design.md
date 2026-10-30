@@ -424,6 +424,13 @@ to 30 px apart and shrinks the PVI handles. Zooming in brings them back. The mou
 trackpad pinch zooms about the pointer's chainage, and a horizontal scroll or Shift+wheel
 pans, without scrolling the page. The mass chart and bands follow the same range.
 
+Click or drag the connected profile data bands to inspect stations in all linked views.
+Mouse and touch gestures capture the pointer and keep the starting visible range fixed;
+dragging outside the SVG continues inspection and clamps at that range's ends. Releasing
+or cancelling leaves the last inspected station selected and ends the gesture. This only
+changes the shared station, without editing PVIs, templates or other road data. Left/right
+arrows still move by 10 m; Home and End select the full road's ends.
+
 The profile's pan, zoom, fit and vertical-exaggeration controls and its visible
 station range float in the top-right corner of the chart; the top-left carries a
 slope-profile summary (length, elevation difference, maximum and minimum grade,

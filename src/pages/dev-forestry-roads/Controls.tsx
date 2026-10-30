@@ -34,6 +34,7 @@ export function Field({
 }
 export function NumberField({
   label,
+  ariaLabel,
   value,
   onChange,
   min = 0,
@@ -44,6 +45,8 @@ export function NumberField({
   hint,
 }: {
   label: string
+  /** Distinguish repeated compact fields while keeping their visible labels short. */
+  ariaLabel?: string
   value: number
   onChange: (value: number) => void
   min?: number
@@ -67,6 +70,7 @@ export function NumberField({
     <Field label={label} hideLabel={hideLabel} hint={hint}>
       <input
         className={roadFieldClass}
+        aria-label={ariaLabel}
         type="number"
         value={draft}
         min={min}

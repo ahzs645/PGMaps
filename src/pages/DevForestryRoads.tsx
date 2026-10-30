@@ -2126,6 +2126,7 @@ export default function DevForestryRoads() {
                             station={station}
                             onStation={w.setStation}
                             onSelectAlignment={selectAlignment}
+                            onMode={busy || costPreview ? undefined : beginMode}
                             mode={costPreview ? 'inspect' : mode}
                             draft={draft}
                             onDraw={onDraw}

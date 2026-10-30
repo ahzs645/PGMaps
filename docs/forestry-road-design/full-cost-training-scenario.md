@@ -35,6 +35,29 @@ Loaded and return haul rates start at zero as explicit teaching inputs; the road
 support each required direction. Zero transport prices do not permit a disconnected or restricted
 route. These zero rates and capacities are placeholders for exploring behaviour, not quotes.
 
+## Try a forestry-road connection
+
+The three U-shaped sections are identified as **synthetic FSRs** and are immediately available as
+named connection choices. This example uses its loaded network and synthetic terrain offline;
+it does not query BC road data.
+
+1. With **Short connector A** active, open **Design → Terrain-cost search · corridor optimizer**.
+2. Under **Connect to a Forest Service Road**, set **Connect from → Road start**. The road end is
+   already tied into the A arm, so starting there would request a near-zero-length connector.
+3. Click **Find nearby FSRs**, then choose **Synthetic B arm · source and outlet access** in
+   **FSR to connect to**. The A arm and upper connection are also selectable.
+4. The selected section and its proposed junction appear blue on the plan. **Locate selected FSR**
+   fits the view to that section. Selection previews the destination without creating a road.
+5. Leave **Use regional terrain across connection** unchecked and click **Connect to selected FSR**.
+   A new preliminary road runs from the common block start to the chosen mapped section; both
+   original connector alternatives remain in the project. Its recorded connection identifies the
+   selected section and junction.
+
+The generated connector needs formation design, final checks and complete cost review. Its terrain
+search score does not establish an approved junction, road access or a complete construction price.
+Reload the library scenario to return to the two checked alternatives before trying the comparisons
+below.
+
 ## Comparisons to try
 
 1. Compare the two checked alternatives with the initial zero haul rates. The shorter new road A

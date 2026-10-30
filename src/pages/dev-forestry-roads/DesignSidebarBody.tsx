@@ -84,7 +84,10 @@ export function DesignSidebar(p: SidebarProps) {
     requestAnimationFrame(() => existingRoads.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
   return (
-    <aside aria-label="Road design controls" className="flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card">
+    <aside
+      aria-label="Road design controls"
+      className="road-design-sidebar flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card"
+    >
       <fieldset disabled={!!p.workspace.busy || p.readOnlyPreview} className="contents">
         <div className="border-b p-1.5">
           <TabBar
@@ -93,6 +96,7 @@ export function DesignSidebar(p: SidebarProps) {
             onChange={setTab}
             stretch
             stacked
+            getTabProps={(option) => ({ title: option.label })}
             options={[
               { value: 'terrain', label: 'Terrain', icon: Mountain },
               { value: 'design', label: 'Design', icon: Route },
@@ -102,7 +106,7 @@ export function DesignSidebar(p: SidebarProps) {
             ]}
           />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain" data-testid="road-sidebar-content">
           <div hidden={tab !== 'terrain'}>
             <TerrainTab {...p} />
             <div ref={existingRoads}>

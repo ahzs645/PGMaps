@@ -1,4 +1,44 @@
 /* A bounded engineering workspace: shrink chrome before sacrificing the plots. */
+.road-workspace .road-design-sidebar fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.road-design-sidebar [data-testid='road-sidebar-content'] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.road-design-sidebar [data-testid='road-sidebar-content'] button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.road-design-sidebar [data-testid='road-sidebar-content'] button.h-9 {
+  height: auto;
+  min-height: 2.25rem;
+}
+
+.road-design-sidebar [data-testid='road-sidebar-content'] button.h-7 {
+  height: auto;
+  min-height: 1.75rem;
+}
+
+.road-design-sidebar [data-testid='road-sidebar-content'] button[aria-controls][aria-expanded] > span:first-child {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.road-design-sidebar [aria-label='Road workflow'] [role='tab'] {
+  padding-inline: 0.125rem;
+}
+
+.road-design-sidebar [aria-label='Road workflow'] [role='tab'] > span {
+  max-width: 100%;
+}
+
 .road-workspace .road-map-legend {
   /* Expanded legends can share the fit control's corner on short maps. */
   z-index: 40;
@@ -90,6 +130,17 @@
 
 /* The chart view track fits the same 32 px row as its neighboring header controls. */
 .road-workspace [data-pane] .road-chart-view-switcher[role='group'] > button {
+  height: 1.75rem;
+  min-height: 1.75rem;
+  width: 2rem;
+  padding: 0;
+}
+
+.road-workspace .road-map-tool {
+  flex-shrink: 0;
+}
+
+.road-workspace .road-map-tool[role='group'] > button {
   height: 1.75rem;
   min-height: 1.75rem;
   width: 2rem;

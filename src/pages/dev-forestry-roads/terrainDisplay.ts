@@ -69,7 +69,8 @@ const rgb = (hex: string): Color => [
 const slopeColors = TERRAIN_SLOPE_STOPS.map((stop) => ({ value: stop.value, rgb: rgb(stop.color) }))
 const aspectColors = TERRAIN_ASPECT_STOPS.map((stop) => ({ value: stop.value, rgb: rgb(stop.color) }))
 const flatAspectColor = rgb(TERRAIN_ASPECT_FLAT_COLOR)
-const elevationColors: Color[] = ['#dce7c6', '#a7bea0', '#698d79', '#baa77c', '#d5cbb2', '#f0eee9'].map(rgb)
+export const TERRAIN_ELEVATION_COLORS = ['#dce7c6', '#a7bea0', '#698d79', '#baa77c', '#d5cbb2', '#f0eee9'] as const
+const elevationColors: Color[] = TERRAIN_ELEVATION_COLORS.map(rgb)
 
 function mix(a: Color, b: Color, t: number): Color {
   return a.map((value, index) => Math.round(value + (b[index] - value) * t)) as Color
