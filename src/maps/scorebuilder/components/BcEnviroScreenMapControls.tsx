@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Layers3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -36,7 +37,7 @@ export function BcEnviroScreenMapControls({
         <Layers3 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" />
         Map variable
       </div>
-      <select
+      <NativeSelect
         value={variable}
         onChange={(event) => onVariableChange(event.target.value as BcEnviroScreenMapVariable)}
         className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
@@ -51,7 +52,7 @@ export function BcEnviroScreenMapControls({
             ))}
           </optgroup>
         ))}
-      </select>
+      </NativeSelect>
 
       <div className="mt-3">
         <div className="flex items-center justify-between gap-3 text-xs">

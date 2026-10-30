@@ -1,4 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { FormField as Field, NativeSelect } from '@/components/ui/form-field'
+import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Download, Droplets, Info, Library, LocateFixed, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { DashboardToolbar, RangeControls, SelectedSeriesList, SeriesLegend } from '@pgmaps/geo-toolkit/ui'
@@ -27,14 +29,6 @@ import { chartDownloads } from './dev-water-temperature/exportChart'
 
 const fieldClass =
   'min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-base text-foreground md:text-sm'
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-      {label}
-      {children}
-    </label>
-  )
-}
 
 function FitStations({ stations }: { stations: Station[] }) {
   const { map, isLoaded } = useMap()
@@ -46,21 +40,20 @@ function FitStations({ stations }: { stations: Station[] }) {
       title="Fit all stations"
       className="absolute right-2 top-24 z-10 size-8"
       disabled={!map || !isLoaded || !stations.length}
-      onClick={() =>
-        map?.fitBounds(
-          [
-            [
-              Math.min(...stations.map((station) => station.longitude)),
-              Math.min(...stations.map((station) => station.latitude)),
-            ],
-            [
-              Math.max(...stations.map((station) => station.longitude)),
-              Math.max(...stations.map((station) => station.latitude)),
-            ],
-          ],
-          { padding: 35, maxZoom: 8, duration: 0 },
-        )
-      }
+      onClick={() => {
+        if (map)
+          fitMapToPoints(
+            map,
+            stations.map((station) => [station.longitude, station.latitude]),
+            {
+              padding: 35,
+              maxZoom: 8,
+              duration: 0,
+              minSpan: 0,
+              pad: 0,
+            },
+          )
+      }}
     >
       <LocateFixed className="size-4" />
     </Button>
@@ -453,11 +446,15 @@ export default function DevWaterTemperature() {
                       />
                     </Field>
                     <Field label="Sort stations">
-                      <select className={fieldClass} value={sort} onChange={(event) => setSort(event.target.value)}>
+                      <NativeSelect
+                        className={fieldClass}
+                        value={sort}
+                        onChange={(event) => setSort(event.target.value)}
+                      >
                         <option value="code">Station code</option>
                         <option value="count">Most observations</option>
                         <option value="waterbody">Waterbody</option>
-                      </select>
+                      </NativeSelect>
                     </Field>
                   </div>
                   <label className="flex min-w-0 items-center gap-2 text-sm">
@@ -606,7 +603,7 @@ export default function DevWaterTemperature() {
                   {aggregation === 'season' && (
                     <div className="mb-3 grid max-w-sm grid-cols-2 gap-3">
                       <Field label="Season starts">
-                        <select
+                        <NativeSelect
                           className={fieldClass}
                           value={startMonth}
                           onChange={(event) => {
@@ -619,10 +616,10 @@ export default function DevWaterTemperature() {
                               {month}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </Field>
                       <Field label="Season ends">
-                        <select
+                        <NativeSelect
                           className={fieldClass}
                           value={endMonth}
                           onChange={(event) => {
@@ -635,7 +632,7 @@ export default function DevWaterTemperature() {
                               {month}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </Field>
                     </div>
                   )}

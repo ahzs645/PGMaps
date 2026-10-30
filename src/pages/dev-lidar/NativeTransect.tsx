@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import type { ElevationProfile, LidarControl } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
@@ -98,7 +99,7 @@ export function NativeTransect({
       </p>
       <label className="block">
         Total transect width
-        <select
+        <NativeSelect
           className="ml-2 rounded border bg-background p-1"
           aria-label="Native transect total width"
           value={control.width}
@@ -109,7 +110,7 @@ export function NativeTransect({
               {n} m
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <div className="flex gap-2">
         <Button

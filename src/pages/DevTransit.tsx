@@ -1,3 +1,4 @@
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTheme } from 'next-themes'
@@ -65,6 +66,7 @@ export default function DevTransit() {
   const [showStops, setShowStops] = useState(true)
   const [notice, setNotice] = useState('')
   const [shareUrl, setShareUrl] = useState('')
+  const clipboard = useClipboardText()
   const [retry, setRetry] = useState(0)
   const worker = useRef<Worker | null>(null)
   const request = useRef(0)
@@ -209,12 +211,7 @@ export default function DevTransit() {
       url.searchParams.set('z', map.current.getZoom().toFixed(2))
     }
     setShareUrl(url.href)
-    try {
-      await navigator.clipboard.writeText(url.href)
-      setNotice('Map link copied.')
-    } catch {
-      setNotice('Copy the map link below.')
-    }
+    setNotice(await clipboard.copy(url.href) ? 'Map link copied.' : 'Copy the map link below.')
   }
 
   const journey = previewOffNetwork ? null : result?.journey

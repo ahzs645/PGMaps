@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { withBase } from '@/lib/dataUrl'
 import { downloadText } from '@/lib/download'
@@ -43,8 +44,8 @@ export function LandformSuggestions({ scene, onShow, onAdopt }: { scene: Forestr
   return <details className="rounded-lg border p-3 text-xs" data-forestry-disclosure="inventory-landforms">
     <summary className="cursor-pointer font-medium">Find a landform in the BC inventory</summary>
     <p className="my-2 text-muted-foreground">Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside from the road before using one as the assessment landform.</p>
-    {road.length > 1 && <label className="block">Search area<select aria-label="Landform search area" className="my-1 w-full rounded border bg-background p-1" value={searchMode} onChange={e => setSearchMode(e.target.value as 'road' | 'block')}><option value="road">Whole road corridor</option><option value="block">Selected cutblock centre</option></select></label>}
-    {!useRoad && blocks.length > 1 && <label className="block">Search near cutblock<select aria-label="Landform search cutblock" className="my-1 w-full rounded border bg-background p-1" value={selected?.id} onChange={e => setBlockId(e.target.value)}>{blocks.map(block => <option key={block.id} value={block.id}>{block.name}</option>)}</select></label>}
+    {road.length > 1 && <label className="block">Search area<NativeSelect aria-label="Landform search area" className="my-1 w-full rounded border bg-background p-1" value={searchMode} onChange={e => setSearchMode(e.target.value as 'road' | 'block')}><option value="road">Whole road corridor</option><option value="block">Selected cutblock centre</option></NativeSelect></label>}
+    {!useRoad && blocks.length > 1 && <label className="block">Search near cutblock<NativeSelect aria-label="Landform search cutblock" className="my-1 w-full rounded border bg-background p-1" value={selected?.id} onChange={e => setBlockId(e.target.value)}>{blocks.map(block => <option key={block.id} value={block.id}>{block.name}</option>)}</NativeSelect></label>}
     {!hasAnchor ? <p>Add a cutblock or road to find nearby boundaries automatically.</p> : <p>Within 25 km of {useRoad ? 'the whole road, including between its vertices' : selected ? `${selected.name}’s map centre` : 'the viewpoint'}; nearest polygon edge first.</p>}
     {tooLarge && <p role="alert">Split this road into sections under 1.5° extent and 5,000 vertices for a whole-corridor search.</p>}
     {hasAnchor && !tooLarge && !data && !error && <p role="status">Loading downloaded BC inventory…</p>}

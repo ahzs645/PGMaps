@@ -1,3 +1,6 @@
+import { FormField } from '@/components/ui/form-field'
+import { ToggleRow as SharedToggleRow } from '@/components/ui/toggle-row'
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
@@ -23,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Map as AppMap, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapControls } from '@/components/ui/map-controls'
 import {
+  InlineAlert,
   MapLegend,
   MapLegendItem,
   MapSidebarShell,
@@ -280,21 +284,10 @@ function hasWebGlContext() {
 }
 
 
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string
-  children: React.ReactNode
-  className?: string
+function Field({ label, children, className }: {
+  label: string; children: React.ReactNode; className?: string
 }) {
-  return (
-    <label className={cn('grid gap-1.5 text-xs font-medium text-muted-foreground', className)}>
-      <span>{label}</span>
-      {children}
-    </label>
-  )
+  return <FormField label={label} contentClassName={cn('grid gap-1.5 text-xs font-medium text-muted-foreground', className)}>{children}</FormField>
 }
 
 function ColorField({
@@ -326,49 +319,18 @@ function ColorField({
   )
 }
 
-function ToggleRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string
-  checked: boolean
-  onChange: (checked: boolean) => void
+function ToggleRow({ label, checked, onChange }: {
+  label: string; checked: boolean; onChange: (checked: boolean) => void
 }) {
-  return (
-    <label className="flex h-9 items-center justify-between gap-3 rounded-md border border-border px-3 text-sm">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    </label>
-  )
+  return <SharedToggleRow label={label} active={checked} onClick={() => onChange(!checked)} tone="primary"
+    className="h-9 justify-between px-3 text-sm" />
 }
 
-// Toggle row for the tasmap-style submenu popovers (theme-aware).
-function EditorToggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string
-  checked: boolean
-  onChange: (checked: boolean) => void
+function EditorToggle({ label, checked, onChange }: {
+  label: string; checked: boolean; onChange: (checked: boolean) => void
 }) {
-  return (
-    <label className="flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-sm text-foreground transition-colors hover:bg-accent">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    </label>
-  )
+  return <SharedToggleRow label={label} active={checked} onClick={() => onChange(!checked)} tone="primary"
+    className="h-8 justify-between border-0 px-2 text-sm" />
 }
 
 function SourceStyleRow({
@@ -541,6 +503,7 @@ function StaticMapPreview({ design }: { design: DesignState }) {
 }
 
 export default function DevDesign() {
+  const clipboard = useClipboardText({ failureResetAfterMs: 0 })
   const [design, setDesign] = useUrlState('design', designCodec)
   const [baseStyles, setBaseStyles] = useState<{ light: StyleSpecification; dark: StyleSpecification } | null>(null)
   // Probing WebGL support once in the lazy initializer avoids flipping state
@@ -731,9 +694,7 @@ export default function DevDesign() {
     setDesign({ ...design, [key]: value })
   }
 
-  const copyShareUrl = async () => {
-    await navigator.clipboard?.writeText(window.location.href)
-  }
+  const copyShareUrl = () => clipboard.copy(window.location.href)
 
   const boundaryPanel = (
     <MapEditorPanel className="w-72 space-y-3">
@@ -919,8 +880,8 @@ export default function DevDesign() {
                 type="button"
                 size="icon"
                 variant="outline"
-                title="Copy share URL"
-                aria-label="Copy share URL"
+                title={clipboard.status === 'copied' ? 'Share URL copied' : 'Copy share URL'}
+                aria-label={clipboard.status === 'copied' ? 'Share URL copied' : 'Copy share URL'}
                 onClick={copyShareUrl}
               >
                 <Copy className="h-4 w-4" />
@@ -939,6 +900,12 @@ export default function DevDesign() {
           }
           className="border-r-0 lg:border-r"
         >
+          {clipboard.status === 'copied' && <div className="px-3 pt-3" aria-live="polite"><InlineAlert>Share URL copied.</InlineAlert></div>}
+          {clipboard.status === 'failed' && <div className="space-y-2 px-3 pt-3" aria-live="polite">
+            <InlineAlert tone="warning">Copy was unavailable. Select and copy the share URL below.</InlineAlert>
+            <input aria-label="Share URL" readOnly value={clipboard.text ?? ''} onFocus={(event) => event.currentTarget.select()}
+              className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+          </div>}
           <SidebarSection title="Coloring" icon={Palette}>
             <div className="grid grid-cols-2 gap-3">
               <ColorField

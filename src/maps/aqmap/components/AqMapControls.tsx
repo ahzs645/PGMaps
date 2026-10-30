@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useState, type ReactNode } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
@@ -84,42 +85,6 @@ export function FireDangerLegendVariantControl({
   )
 }
 
-export function RangeField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-  unit,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  onChange: (value: number) => void
-  unit?: string
-}) {
-  return (
-    <label className="block space-y-1">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
-        <span className="font-medium text-foreground">{value}{unit ? ` ${unit}` : ''}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="h-1.5 w-full cursor-pointer accent-primary"
-      />
-    </label>
-  )
-}
-
 export function RevealClusterControls({
   clusterColorScheme,
   onClusterColorSchemeChange,
@@ -173,7 +138,7 @@ export function RevealClusterControls({
           ]}
         />
       </div>
-      <RangeField
+      <NumericRangeField className="space-y-1" headerClassName="text-xs text-muted-foreground" valueClassName="font-medium text-foreground" inputClassName="h-1.5 cursor-pointer accent-primary"
         label={translate('reveal.clusterRadius', locale)}
         value={clusterRadius}
         min={REVEAL_CLUSTER_BOUNDS.radius.min}
@@ -182,7 +147,7 @@ export function RevealClusterControls({
         onChange={onClusterRadiusChange}
         unit="px"
       />
-      <RangeField
+      <NumericRangeField className="space-y-1" headerClassName="text-xs text-muted-foreground" valueClassName="font-medium text-foreground" inputClassName="h-1.5 cursor-pointer accent-primary"
         label={translate('reveal.clusterMaxZoom', locale)}
         value={clusterMaxZoom}
         min={REVEAL_CLUSTER_BOUNDS.maxZoom.min}

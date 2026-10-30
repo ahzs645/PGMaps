@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useClipboardText } from '@/hooks/useClipboardText'
+import { useMemo } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
@@ -74,7 +75,7 @@ export function ScoreBuilderRightPanel({
   onPinBaseline,
   onClearBaseline,
 }: ScoreBuilderRightPanelProps) {
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
+  const { copy, status: shareStatus } = useClipboardText()
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const activeExample = useMemo(
@@ -89,16 +90,8 @@ export function ScoreBuilderRightPanel({
     () => (selectedRegion ? getScoreDrivers(selectedRegion, weights, 2) : []),
     [selectedRegion, weights],
   )
-  const handleShare = async () => {
-    setShareStatus('copying')
-    try {
-      await onShareUrl()
-      setShareStatus('copied')
-      window.setTimeout(() => setShareStatus('idle'), 1800)
-    } catch {
-      setShareStatus('failed')
-      window.setTimeout(() => setShareStatus('idle'), 2400)
-    }
+  const handleShare = () => {
+    void copy(onShareUrl)
   }
 
   return (
@@ -126,11 +119,12 @@ export function ScoreBuilderRightPanel({
           <button
             type="button"
             data-score-builder-share="true"
+            disabled={shareStatus === 'pending'}
             onClick={handleShare}
             className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {shareStatus === 'copying'
+            {shareStatus === 'pending'
               ? 'Copying'
               : shareStatus === 'copied'
                 ? 'Copied'

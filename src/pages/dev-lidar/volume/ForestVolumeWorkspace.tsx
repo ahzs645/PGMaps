@@ -1,3 +1,4 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -354,19 +355,21 @@ export function ForestVolumeWorkspace({
                 [retention, setRetention, 'Volume retained'],
                 [recovery, setRecovery, 'Extraction recovery'],
               ].map(([value, set, label]) => (
-                <label className="mt-2 block text-xs" key={String(label)}>
-                  {String(label)} · {Number(value)}%
-                  <input
-                    aria-label={`Volume ${String(label).toLowerCase()}`}
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                    value={Number(value)}
-                    onChange={(e) => (set as (v: number) => void)(+e.target.value)}
-                  />
-                </label>
+                <NumericRangeField
+                  key={String(label)}
+                  label={String(label)}
+                  layout="inline"
+                  valueSeparator=" · "
+                  display={`${Number(value)}%`}
+                  className="mt-2 space-y-0 text-xs"
+                  inputClassName="h-auto w-full"
+                  aria-label={`Volume ${String(label).toLowerCase()}`}
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={Number(value)}
+                  onChange={set as (value: number) => void}
+                />
               ))}
               <KeyValueRows
                 size="sm"

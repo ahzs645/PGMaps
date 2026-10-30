@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState, type ReactNode } from 'react'
 import { FileUp, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -40,11 +41,11 @@ function FieldSelect({ label, value, fields, onChange, optional, required }: {
   return (
     <label className={LABEL_CLASS}>
       {label}{required && <span className="text-red-600"> *</span>}
-      <select className={FIELD_CLASS} value={value ?? ''} onChange={(event) => onChange(event.target.value || null)}>
+      <NativeSelect className={FIELD_CLASS} value={value ?? ''} onChange={(event) => onChange(event.target.value || null)}>
         {!required && <option value="">{optional ?? '— none —'}</option>}
         {required && !value && <option value="">Choose a field…</option>}
         {fields.map((field) => <option key={field} value={field}>{field}</option>)}
-      </select>
+      </NativeSelect>
     </label>
   )
 }
@@ -79,9 +80,9 @@ function EntryCard({ entry, onRemove, onLayer, onUpdate }: {
           {entry.layers.length > 1 && (
             <label className={LABEL_CLASS}>
               Layer
-              <select className={FIELD_CLASS} value={entry.layer} onChange={(event) => onLayer(event.target.value)}>
+              <NativeSelect className={FIELD_CLASS} value={entry.layer} onChange={(event) => onLayer(event.target.value)}>
                 {entry.layers.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.featureCount.toLocaleString('en-CA')})</option>)}
-              </select>
+              </NativeSelect>
             </label>
           )}
           {layer && !layer.epsg && <InlineAlert tone="warning">No coordinate system found; the layer is read as BC Albers (EPSG:3005).</InlineAlert>}

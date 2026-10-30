@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -120,7 +121,7 @@ export function TerrainLandformFinder({
         {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water.
       </p>
       {blocks.length > 1 && (
-        <select
+        <NativeSelect
           aria-label="Block to read the landform around"
           className="w-full rounded border bg-background p-1"
           value={block?.id}
@@ -131,7 +132,7 @@ export function TerrainLandformFinder({
               {entry.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       )}
       <Button
         type="button"

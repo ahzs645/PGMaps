@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import packageJson from '../../../public/data/projects/nechako-watershed-research-portal.json'
@@ -217,7 +218,7 @@ export function PortalResearch({ onMap }: { onMap?: () => void }) {
     <div className="space-y-4">
       <label className="block text-sm font-medium">
         Research data source
-        <select
+        <NativeSelect
           aria-label="Research data source"
           value={source}
           onChange={(event) => setSource(event.target.value as 'snapshot' | 'live')}
@@ -225,7 +226,7 @@ export function PortalResearch({ onMap }: { onMap?: () => void }) {
         >
           <option value="snapshot">Repository snapshot</option>
           <option value="live">Live nwsviz data</option>
-        </select>
+        </NativeSelect>
       </label>
       {onMap && (
         <Button variant="outline" onClick={onMap}>

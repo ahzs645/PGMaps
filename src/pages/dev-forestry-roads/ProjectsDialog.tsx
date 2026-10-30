@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -328,7 +329,7 @@ export function ProjectsDialog({
             {kind === 'regional' && (
               <div className="space-y-2 rounded-lg border p-3">
                 <Field label="Place">
-                  <select
+                  <NativeSelect
                     className={roadFieldClass}
                     value={place}
                     onChange={(e) => {
@@ -342,7 +343,7 @@ export function ProjectsDialog({
                         {p.label}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <div className="grid grid-cols-3 gap-2">
                   <NumberField label="Latitude" value={at[1]} min={-85} max={85} step={0.001} onChange={setLat} />

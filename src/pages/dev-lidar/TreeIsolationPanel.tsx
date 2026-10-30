@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
@@ -71,7 +72,7 @@ export function TreeIsolationPanel({
             </label>
             <label className="mt-3 block text-xs">
               Minimum crown area
-              <select
+              <NativeSelect
                 aria-label="Minimum crown area"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.treeAreaMinimum}
@@ -82,7 +83,7 @@ export function TreeIsolationPanel({
                     {n} m²
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <label className="mt-3 flex gap-2 text-xs">
               <input

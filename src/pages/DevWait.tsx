@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
+import { useScreenPointClusters, type ScreenPointCluster } from '@/components/ui/screen-point-clusters'
 import { Clock3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
@@ -34,12 +36,10 @@ import {
 
 type SourceFilter = 'all' | WaitSource | 'closed'
 
-interface MarkerCluster {
-  id: string
-  longitude: number
-  latitude: number
-  hospitals: WaitHospital[]
-}
+type MarkerCluster = ScreenPointCluster<WaitHospital>
+const EMPTY_HOSPITALS: WaitHospital[] = []
+const hospitalId = (hospital: WaitHospital) => hospital.id
+const hospitalCoordinates = (hospital: WaitHospital): [number, number] => [hospital.lng, hospital.lat]
 
 const CLUSTER_RADIUS_PX = 54
 
@@ -82,37 +82,15 @@ const STATUS_META: Record<WaitStatus, { label: string; color: string; marker: st
 }
 
 function DevWait() {
-  const [hospitals, setHospitals] = useState<WaitHospital[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error: loadError } = useFetchData<WaitHospital[]>(WAIT_DATA_URL, {
+    transform: (json) => (json as ErstatHospital[]).filter((item) => item.has_er && Number.isFinite(item.lat) && Number.isFinite(item.lng)).map(normalizeHospital),
+  })
+  const hospitals = data ?? EMPTY_HOSPITALS
+  const error = loadError ? 'Failed to load ERStat hospital data.' : null
   const [province, setProvince] = useState('all')
   const [source, setSource] = useState<SourceFilter>('all')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<WaitHospital | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadHospitals() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(WAIT_DATA_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json() as ErstatHospital[]
-        setHospitals(data.filter((item) => item.has_er && Number.isFinite(item.lat) && Number.isFinite(item.lng)).map(normalizeHospital))
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          setError('Failed to load ERStat hospital data.')
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    loadHospitals()
-    return () => controller.abort()
-  }, [])
 
   const provinces = useMemo(() => {
     const codes = new Set(hospitals.map((hospitalItem) => hospitalItem.province).filter((value): value is string => Boolean(value)))
@@ -283,70 +261,13 @@ function WaitMarkers({
   onSelect: (hospitalItem: WaitHospital) => void
 }) {
   const { map } = useMap()
-  const [version, setVersion] = useState(0)
-
-  useEffect(() => {
-    if (!map) return
-    const update = () => setVersion((current) => current + 1)
-    update()
-    map.on('moveend', update)
-    map.on('zoomend', update)
-    map.on('resize', update)
-    return () => {
-      map.off('moveend', update)
-      map.off('zoomend', update)
-      map.off('resize', update)
-    }
-  }, [map])
-
-  const clusters = useMemo(() => {
-    void version
-
-    if (!map) {
-      return hospitals.map((hospitalItem) => ({
-        id: hospitalItem.id,
-        longitude: hospitalItem.lng,
-        latitude: hospitalItem.lat,
-        hospitals: [hospitalItem],
-      }))
-    }
-
-    const canvas = map.getCanvas()
-    const width = canvas.clientWidth
-    const height = canvas.clientHeight
-    const nextClusters: Array<MarkerCluster & { x: number; y: number }> = []
-    const orderedHospitals = [...hospitals].sort((a, b) => markerPriority(a) - markerPriority(b))
-
-    for (const hospitalItem of orderedHospitals) {
-      const point = map.project([hospitalItem.lng, hospitalItem.lat])
-      if (point.x < -140 || point.y < -140 || point.x > width + 140 || point.y > height + 140) continue
-
-      let cluster = nextClusters.find((candidate) => (
-        Math.hypot(candidate.x - point.x, candidate.y - point.y) <= CLUSTER_RADIUS_PX
-      ))
-
-      if (!cluster) {
-        cluster = {
-          id: `cluster-${Math.round(point.x)}-${Math.round(point.y)}-${hospitalItem.id}`,
-          x: point.x,
-          y: point.y,
-          longitude: hospitalItem.lng,
-          latitude: hospitalItem.lat,
-          hospitals: [],
-        }
-        nextClusters.push(cluster)
-      }
-
-      cluster.hospitals.push(hospitalItem)
-      const count = cluster.hospitals.length
-      cluster.x = cluster.x + (point.x - cluster.x) / count
-      cluster.y = cluster.y + (point.y - cluster.y) / count
-      cluster.longitude = cluster.longitude + (hospitalItem.lng - cluster.longitude) / count
-      cluster.latitude = cluster.latitude + (hospitalItem.lat - cluster.latitude) / count
-    }
-
-    return nextClusters.map(({ x: _x, y: _y, ...cluster }) => cluster)
-  }, [hospitals, map, version])
+  const clusters = useScreenPointClusters(map, hospitals, {
+    getId: hospitalId,
+    getCoordinates: hospitalCoordinates,
+    priority: markerPriority,
+    radius: CLUSTER_RADIUS_PX,
+    padding: 140,
+  })
 
   const expandCluster = (cluster: MarkerCluster) => {
     if (!map) return
@@ -355,7 +276,7 @@ function WaitMarkers({
     let minLat = Infinity
     let maxLng = -Infinity
     let maxLat = -Infinity
-    for (const hospitalItem of cluster.hospitals) {
+    for (const hospitalItem of cluster.items) {
       minLng = Math.min(minLng, hospitalItem.lng)
       minLat = Math.min(minLat, hospitalItem.lat)
       maxLng = Math.max(maxLng, hospitalItem.lng)
@@ -385,8 +306,8 @@ function WaitMarkers({
   return (
     <>
       {clusters.map((cluster) => {
-        if (cluster.hospitals.length === 1) {
-          const hospitalItem = cluster.hospitals[0]
+        if (cluster.items.length === 1) {
+          const hospitalItem = cluster.items[0]
           return (
             <WaitMarker
               key={hospitalItem.id}
@@ -404,14 +325,14 @@ function WaitMarkers({
                 <button
                   type="button"
                   onClick={() => expandCluster(cluster)}
-                  aria-label={`Zoom to ${cluster.hospitals.length} hospitals`}
+                  aria-label={`Zoom to ${cluster.items.length} hospitals`}
                   className={cn(
                     'flex items-center justify-center rounded-full border-2 border-white text-sm font-bold text-white shadow-md transition-transform hover:scale-105',
-                    clusterStyle(cluster.hospitals.length),
+                    clusterStyle(cluster.items.length),
                     'wait-cluster-pulse',
                   )}
                 >
-                  {cluster.hospitals.length}
+                  {cluster.items.length}
                 </button>
               </MarkerContent>
             </MapMarker>
@@ -440,7 +361,10 @@ function WaitMarker({
       <MarkerContent>
         <button
           type="button"
-          onClick={() => onSelect(hospitalItem)}
+          onClick={(event) => {
+              event.stopPropagation()
+              onSelect(hospitalItem)
+            }}
           aria-label={`${hospitalItem.name}: ${hospitalItem.waitLabel}`}
           className={cn(
             'relative rounded-full border-2 px-3 py-1.5 text-[13px] font-semibold leading-none shadow-md transition-transform hover:scale-105',

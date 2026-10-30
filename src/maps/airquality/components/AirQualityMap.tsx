@@ -1,3 +1,4 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect, useMemo } from 'react'
 import {
   MapClusterLayer,
@@ -277,35 +278,9 @@ export function AirQualityMap({
     })
   }, [selectedRegionFeature, map])
 
-  useEffect(() => {
-    if (!onBoundsChange || !map) return
-
-    const publishBounds = () => {
-      const bounds = map.getBounds()
-      onBoundsChange({
-        west: bounds.getWest(),
-        east: bounds.getEast(),
-        south: bounds.getSouth(),
-        north: bounds.getNorth()
-      })
-    }
-
-    map.on('load', publishBounds)
-    map.on('moveend', publishBounds)
-    map.on('zoomend', publishBounds)
-    map.on('resize', publishBounds)
-
-    if (map.loaded()) {
-      publishBounds()
-    }
-
-    return () => {
-      map.off('load', publishBounds)
-      map.off('moveend', publishBounds)
-      map.off('zoomend', publishBounds)
-      map.off('resize', publishBounds)
-    }
-  }, [map, onBoundsChange])
+  useObserveMapViewport(map, onBoundsChange ? ({ bounds: [west, south, east, north] }) => {
+    onBoundsChange({ west, south, east, north })
+  } : undefined)
 
   return (
     <SharedMap styles={mapStyles} loading={loading} loadingLabel="Loading air quality data">

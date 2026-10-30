@@ -1,3 +1,4 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect, useMemo, useRef } from 'react'
 import { contours as makeContours } from 'd3'
 import type { CanvasSource, MapMouseEvent } from 'maplibre-gl'
@@ -267,20 +268,9 @@ export function MapHeatViewport({
   onChange: (spec: HeatGridSpec) => void
 }) {
   const { map, isLoaded } = useMap()
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const refresh = () => {
-      const bounds = map.getBounds()
-      onChange(
-        viewportGrid(study, [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()], map.getZoom()),
-      )
-    }
-    refresh()
-    map.on('moveend', refresh)
-    return () => {
-      map.off('moveend', refresh)
-    }
-  }, [map, isLoaded, study, onChange])
+  useObserveMapViewport(map, ({ bounds, zoom }) => onChange(viewportGrid(study, bounds, zoom)), {
+    enabled: isLoaded, events: ['moveend'], initial: 'always', refreshKey: study,
+  })
   return null
 }
 

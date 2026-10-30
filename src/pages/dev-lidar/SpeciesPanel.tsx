@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
 import { ResultRow } from '@/components/ui/result-list'
@@ -138,7 +139,7 @@ export function SpeciesPanel({
           <>
             <label className="mt-3 block text-xs">
               Species share
-              <select
+              <NativeSelect
                 aria-label="Species share"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.speciesCode}
@@ -149,7 +150,7 @@ export function SpeciesPanel({
                     {code} · {name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <Range
               label="Minimum recorded species share (%)"
@@ -163,7 +164,7 @@ export function SpeciesPanel({
         {isComparison && (
           <label className="mt-3 block text-xs">
             Composition to compare
-            <select
+            <NativeSelect
               aria-label="Species comparison metric"
               className="mt-1 w-full rounded border bg-background p-2"
               value={options.speciesCompare}
@@ -175,12 +176,12 @@ export function SpeciesPanel({
                   {code} · {name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         )}
         <label className="mt-3 block text-xs">
           Filter by leading inventory species
-          <select
+          <NativeSelect
             aria-label="Leading species filter"
             className="mt-1 w-full rounded border bg-background p-2"
             value={options.speciesFilter}
@@ -192,7 +193,7 @@ export function SpeciesPanel({
                 {code} · {name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {mode === 'species-disagreement' && (
           <Range
@@ -245,7 +246,7 @@ export function SpeciesPanel({
           <>
             <label className="mt-3 block text-xs">
               Structure metric
-              <select
+              <NativeSelect
                 aria-label="Species structure metric"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.speciesStructureMetric}
@@ -257,11 +258,11 @@ export function SpeciesPanel({
                 <option value="density">Canopy cover above 5 m</option>
                 <option value="texture">Mean 5 m surface texture</option>
                 <option value="layers">Return-height dispersion</option>
-              </select>
+              </NativeSelect>
             </label>
             <label className="mt-3 block text-xs">
               Map colour
-              <select
+              <NativeSelect
                 aria-label="Species structure map colour"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.speciesColour}
@@ -269,7 +270,7 @@ export function SpeciesPanel({
               >
                 <option value="species">Leading inventory species</option>
                 <option value="metric">Selected LiDAR metric</option>
-              </select>
+              </NativeSelect>
             </label>
             <p className="mt-2 text-[10px] text-muted-foreground">
               Plots require ≥95% eligible support. Species context requires ≥80% overlap with one supported inventory

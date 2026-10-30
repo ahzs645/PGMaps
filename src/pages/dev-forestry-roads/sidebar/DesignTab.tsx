@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,7 @@ export function DesignTab(p: SidebarProps) {
       >
         <div className="space-y-2">
           <Field label="Active road">
-            <select
+            <NativeSelect
               aria-label="Active road"
               className={roadFieldClass}
               value={alignment.id}
@@ -55,7 +56,7 @@ export function DesignTab(p: SidebarProps) {
                   {a.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Road name">
             <input
@@ -386,7 +387,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         )}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Preference">
-            <select
+            <NativeSelect
               aria-label="Corridor optimization objective"
               className={roadFieldClass}
               value={objective}
@@ -395,7 +396,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
               <option value="shortest">Shortest (less grade penalty)</option>
               <option value="balanced">Balanced (grade, length, curves)</option>
               <option value="contour">Contour-friendly (gentler terrain)</option>
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Half-width (m)">
             <input
@@ -439,7 +440,7 @@ function HorizontalPoints(p: SidebarProps) {
       help="Select a control point to type its position, radius and spirals, or use the bulk tools to fit every corner at once. Sharp corners need a fitted radius before the road is a design."
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1">
-        <select
+        <NativeSelect
           aria-label="Selected horizontal point"
           className={roadFieldClass}
           value={point?.id ?? ''}
@@ -455,7 +456,7 @@ function HorizontalPoints(p: SidebarProps) {
               {i === 0 ? ' · start' : i === alignment.points.length - 1 ? ' · end' : ''} · radius {x.radiusM} m
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <Button
           size="sm"
           variant="outline"

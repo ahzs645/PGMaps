@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
@@ -80,7 +81,7 @@ export function AdminDataTable({
         </label>
         <label className="grid gap-1 text-sm">
           Search field
-          <select
+          <NativeSelect
             className="rounded border bg-background p-2 text-base"
             aria-label={`${title} search field`}
             value={field}
@@ -95,7 +96,7 @@ export function AdminDataTable({
                 {column.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {children}
         <Button

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import proj4 from 'proj4'
 import type { FeatureCollection, Polygon, Point } from 'geojson'
@@ -214,7 +215,7 @@ export function TreeBenchmarks({
       </p>
       <label className="block">
         Benchmark plot
-        <select
+        <NativeSelect
           className="mt-1 w-full rounded border bg-background p-1"
           aria-label="Segmentation benchmark plot"
           value={plot.id}
@@ -223,7 +224,7 @@ export function TreeBenchmarks({
           {data.plots.map((p) => (
             <option key={p.id}>{p.id}</option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -232,7 +233,7 @@ export function TreeBenchmarks({
         ].map(([value, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               className="mt-1 w-full rounded border bg-background p-1"
               aria-label={`Segmentation method ${String(label)}`}
               value={String(value)}
@@ -243,7 +244,7 @@ export function TreeBenchmarks({
                   {m.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
       </div>

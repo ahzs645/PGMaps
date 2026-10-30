@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -485,7 +486,7 @@ export function PortalSourceLayers({
         <section className="space-y-3">
           <label className="block text-sm font-medium">
             Map layer to query
-            <select
+            <NativeSelect
               aria-label="Map layer to query"
               className={inputClass}
               value={queryVector?.id ?? ''}
@@ -496,7 +497,7 @@ export function PortalSourceLayers({
                   {vector.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           {queryVector && <PortalLayerQuery key={queryVector.id} vector={queryVector} onAdd={onVectors} />}
         </section>

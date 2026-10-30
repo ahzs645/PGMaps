@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -81,7 +82,7 @@ function QueryNodeEditor({
       <fieldset className="min-w-0 space-y-2 rounded border p-3">
         <legend className="px-1 text-xs font-semibold">{depth ? 'Nested conditions' : 'Layer conditions'}</legend>
         <div className="flex flex-wrap items-center gap-2">
-          <select
+          <NativeSelect
             aria-label={`Condition match level ${depth + 1}`}
             className="rounded border bg-background p-2"
             value={node.match}
@@ -89,7 +90,7 @@ function QueryNodeEditor({
           >
             <option value="all">All conditions (AND)</option>
             <option value="any">Any condition (OR)</option>
-          </select>
+          </NativeSelect>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -151,7 +152,7 @@ function QueryNodeEditor({
     <div className="grid min-w-0 gap-2 rounded bg-muted/30 p-2 sm:grid-cols-2">
       <label className="min-w-0 text-xs">
         Field
-        <select
+        <NativeSelect
           aria-label="Query field"
           className="mt-1 w-full rounded border bg-background p-2 text-sm"
           value={node.field}
@@ -160,11 +161,11 @@ function QueryNodeEditor({
           {fields.map((field) => (
             <option key={field}>{field}</option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <label className="min-w-0 text-xs">
         Comparison
-        <select
+        <NativeSelect
           aria-label="Query comparison"
           className="mt-1 w-full rounded border bg-background p-2 text-sm"
           value={node.operator}
@@ -183,13 +184,13 @@ function QueryNodeEditor({
               {label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       {needsValue && (
         <>
           <label className="text-xs">
             Value type
-            <select
+            <NativeSelect
               aria-label="Query value type"
               className="mt-1 w-full rounded border bg-background p-2 text-sm"
               value={node.valueType}
@@ -205,12 +206,12 @@ function QueryNodeEditor({
               <option value="number">Number</option>
               <option value="boolean">Boolean</option>
               <option value="null">Null</option>
-            </select>
+            </NativeSelect>
           </label>
           {node.valueType === 'boolean' ? (
             <label className="text-xs">
               Value
-              <select
+              <NativeSelect
                 aria-label="Query value"
                 className="mt-1 w-full rounded border bg-background p-2 text-sm"
                 value={node.text}
@@ -218,7 +219,7 @@ function QueryNodeEditor({
               >
                 <option value="true">true</option>
                 <option value="false">false</option>
-              </select>
+              </NativeSelect>
             </label>
           ) : (
             node.valueType !== 'null' && (

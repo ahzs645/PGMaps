@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { FeatureCollection } from 'geojson'
-import bbox from '@turf/bbox'
+import { geometryBounds } from '@/lib/geo'
 import { Map, useMap } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { NativeSelect } from '@/components/ui/form-field'
+import { useFetchData } from '@/hooks/useFetchData'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { boundaryWithNames, describeCrosswalk, formatObservation, getObservation, joinFor, mapValues, WAVE_PERIODS, type Crosswalk, type Family, type Manifest } from './early-learning/data'
 
@@ -13,19 +17,13 @@ const ROOT = '/__dev_early_learning/'
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
 const MiB = (bytes = 0) => `${(bytes / 1048576).toFixed(1)} MiB`
 function useLocalJson<T>(path: string | undefined) {
-  const [state, setState] = useState<{ path: string; data?: T; error?: string }>()
-  useEffect(() => {
-    if (!path) return
-    const controller = new AbortController()
-    fetch(ROOT + path, { signal: controller.signal }).then(async r => {
-      if (!r.ok) throw new Error('Local EDI data is unavailable. Run the capture and normalizer documented in the scraper README.')
-      return r.json() as Promise<T>
-    }).then(data => setState({ path, data })).catch(e => {
-      if (!controller.signal.aborted) setState({ path, error: String(e.message) })
-    })
-    return () => controller.abort()
-  }, [path])
-  return state?.path === path ? state : undefined
+  const state = useFetchData<T>(import.meta.env.DEV && path ? ROOT + path : null)
+  return {
+    ...state,
+    error: state.error
+      ? `Local EDI data is unavailable. Run the capture and normalizer documented in the scraper README. ${state.error}`
+      : null,
+  }
 }
 function FocusRegion({ data, selected }: { data: FeatureCollection; selected: string }) {
   const { map, isLoaded } = useMap()
@@ -33,7 +31,8 @@ function FocusRegion({ data, selected }: { data: FeatureCollection; selected: st
     if (!map || !isLoaded) return
     const feature = data.features.find(f => f.properties?.regionId === selected)
     if (!feature) return
-    const bounds = bbox(feature)
+    const bounds = geometryBounds(feature.geometry)
+    if (!bounds) return
     map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 45, maxZoom: 11, duration: 600 })
   }, [map, isLoaded, selected, data])
   return null
@@ -65,9 +64,9 @@ export default function DevEarlyLearning() {
   const region = selected ? data?.regions.find(r => r.id === selected) : data?.regions[0]
   const selectedBoundaryName = geometry.features.find(f => f.properties?.regionId === selected)?.properties?.regionName as string | undefined
   const [search, setSearch] = useState('')
-  const join = useMemo(() => joinFor(manifest, dataset, boundary, wave), [manifest, dataset, boundary, wave])
+  const join = useMemo(() => joinFor(manifest ?? undefined, dataset, boundary, wave), [manifest, dataset, boundary, wave])
   const compatible = join.kind !== 'none'
-  const mapData = useMemo(() => mapValues(geometry, data, wave, measure?.id ?? '', join, crosswalk), [geometry, data, wave, measure?.id, join, crosswalk])
+  const mapData = useMemo(() => mapValues(geometry, data ?? undefined, wave, measure?.id ?? '', join, crosswalk), [geometry, data, wave, measure?.id, join, crosswalk])
   const currentNames = manifest?.boundaries.find(b => b.id === manifest.crosswalk?.families[family]?.reference)?.regionNames
   const ediNames = useMemo(() => Object.fromEntries((data?.regions ?? []).map(r => [r.id, r.name])), [data])
   const crosswalkNames = { current: (id: string) => currentNames?.[id] ?? id, edi: (id: string) => ediNames[id] ?? id }
@@ -95,16 +94,16 @@ export default function DevEarlyLearning() {
       {!manifest && !error && import.meta.env.DEV && <p className="p-4">Loading local releases…</p>}
       {manifest && <>
         <SidebarSection title="Choose a version">
-          <label className="block text-sm">EDI source release<select aria-label="EDI source release" className={selectClass} value={dataset?.id} onChange={e => setDatasetId(e.target.value)}>{manifest.datasets.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
+          <label className="block text-sm">EDI source release<NativeSelect aria-label="EDI source release" className={selectClass} value={dataset?.id} onChange={e => setDatasetId(e.target.value)}>{manifest.datasets.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</NativeSelect></label>
           <div className="mt-3 grid grid-cols-[1fr_90px] gap-2">
-            <label className="text-sm">Geography<select aria-label="Geography" className={selectClass} value={family} onChange={e => { setFamilyCode(e.target.value); setSearch(''); setSelected('') }}>{Object.keys(dataset?.families ?? {}).map(c => <option key={c} value={c}>{manifest.families[c]}</option>)}</select></label>
-            <label className="text-sm">EDI wave<select aria-label="EDI wave" className={selectClass} value={wave} onChange={e => setWave(Number(e.target.value))}>{dataset?.waves.map(w => <option key={w} value={w}>{w}</option>)}</select></label>
+            <label className="text-sm">Geography<NativeSelect aria-label="Geography" className={selectClass} value={family} onChange={e => { setFamilyCode(e.target.value); setSearch(''); setSelected('') }}>{Object.keys(dataset?.families ?? {}).map(c => <option key={c} value={c}>{manifest.families[c]}</option>)}</NativeSelect></label>
+            <label className="text-sm">EDI wave<NativeSelect aria-label="EDI wave" className={selectClass} value={wave} onChange={e => setWave(Number(e.target.value))}>{dataset?.waves.map(w => <option key={w} value={w}>{w}</option>)}</NativeSelect></label>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Wave {wave}: {WAVE_PERIODS[wave]}.</p>
-          <label className="mt-3 block text-sm">Boundary edition<select aria-label="Boundary edition" className={selectClass} value={boundary?.id ?? ''} onChange={e => setBoundaryId(e.target.value)}>{!editions.length && <option value="">No geometry available</option>}{editions.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}</select></label>
+          <label className="mt-3 block text-sm">Boundary edition<NativeSelect aria-label="Boundary edition" className={selectClass} value={boundary?.id ?? ''} onChange={e => setBoundaryId(e.target.value)}>{!editions.length && <option value="">No geometry available</option>}{editions.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}</NativeSelect></label>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{join.kind === 'publisher' ? `Map values use the dashboard’s Wave ${wave} polygons. Grey areas have no reported value.` : join.kind === 'crosswalk' ? `Values appear only on the ${sameArea ?? ''} current polygons that cover the same area as the dashboard’s polygon (at least ${Math.round((manifest.crosswalk?.thresholds.sameAreaIoU ?? 0.95) * 100)}% overlap). Tan areas have changed or were created later; values are not reassigned to them.` : 'Reference boundaries only. This release and wave have no verified matching geometry. Results remain available below.'}</p>
           {compatible && join.inferred && <InlineAlert tone="warning" className="mt-2" title="Inferred join">The workbook has no geometry. Its values are drawn on the dashboard’s polygon with the same area code. UBC does not publish this pairing{joinEvidence ? `, but all ${joinEvidence.overlappingValues.toLocaleString('en-CA')} values both releases publish for this geography agree` : ''}.</InlineAlert>}
-          <label className="mt-3 block text-sm">Measure<select aria-label="Measure" className={selectClass} value={measure?.id} onChange={e => setMeasure(e.target.value)}>{dataset?.measures.map(m => <option key={m.id} value={m.id}>{m.label} · {m.unit === 'percent' ? '%' : m.unit === 'count' ? 'count' : 'score'}</option>)}</select></label>
+          <label className="mt-3 block text-sm">Measure<NativeSelect aria-label="Measure" className={selectClass} value={measure?.id} onChange={e => setMeasure(e.target.value)}>{dataset?.measures.map(m => <option key={m.id} value={m.id}>{m.label} · {m.unit === 'percent' ? '%' : m.unit === 'count' ? 'count' : 'score'}</option>)}</NativeSelect></label>
           <p className="mt-2 text-xs text-muted-foreground">{unitLabel}. Missing and suppressed values are never treated as zero. {measure?.unit === 'standardized_score' && 'Darker colour indicates a higher score; interpretation depends on the subscale.'}</p>
           {dataset?.capture && !dataset.capture.complete && <p className="mt-3 rounded-md bg-amber-50 p-2 text-xs text-amber-900">Partial dashboard capture: {dataset.capture.completed} of {dataset.capture.inventoryRegions} selections. Only collected areas appear in this release.</p>}
         </SidebarSection>
@@ -127,8 +126,13 @@ export default function DevEarlyLearning() {
           </>}
         </SidebarSection>
         <SidebarSection title={`Areas (${rows.length})`}>
-          <label className="sr-only" htmlFor="edi-area-search">Find an area</label><input id="edi-area-search" className={selectClass} placeholder="Find an area or code" value={search} onChange={e => setSearch(e.target.value)} />
-          <div className="mt-2 max-h-72 overflow-y-auto">{rows.map(r => <button key={r.id} className={`flex w-full items-start justify-between gap-3 rounded p-2 text-left text-sm hover:bg-muted ${region?.id === r.id ? 'bg-muted font-medium' : ''}`} onClick={() => setSelected(r.id)}><span>{r.name}<span className="block text-xs font-normal text-muted-foreground">{r.id}</span></span><span className="text-right tabular-nums">{formatObservation(getObservation(r,wave,measure?.id ?? ''),measure?.unit)}</span></button>)}</div>
+          <SearchInput id="edi-area-search" aria-label="Find an area" icon placeholder="Find an area or code" value={search} onChange={e => setSearch(e.target.value)} onClear={() => setSearch('')} />
+          <ListHeader count={rows.length} noun={['area', 'areas']} sticky={false} />
+          <ListState loading={familyState.loading} error={familyState.error} empty={!rows.length} emptyLabel="No matching areas." onReset={() => setSearch('')}>
+            <VirtualResultList items={rows} getKey={r => r.id} estimateSize={65} label="Early development areas">
+              {r => <ResultRow title={r.name} subtitle={r.id} selected={region?.id === r.id} accent="teal" onClick={() => setSelected(r.id)} trailing={formatObservation(getObservation(r,wave,measure?.id ?? ''),measure?.unit)} />}
+            </VirtualResultList>
+          </ListState>
         </SidebarSection>
         <SidebarSection title="Coverage & provenance">
           <a className="text-sm underline" href={dataset?.source} target="_blank" rel="noreferrer">Open publisher source</a>

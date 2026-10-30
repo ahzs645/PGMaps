@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -211,7 +212,7 @@ export function DriveCamera(props: Props) {
         >
           {props.playing ? 'Pause' : 'Play'}
         </Button>
-        {props.onSpeedChange && <select aria-label="Driving speed" className="rounded border bg-background py-1" value={props.speedKmh} onChange={e => props.onSpeedChange?.(Number(e.target.value))}>{DRIVE_SPEEDS_KMH.map(speed => <option key={speed} value={speed}>{speed} km/h</option>)}</select>}
+        {props.onSpeedChange && <NativeSelect aria-label="Driving speed" className="rounded border bg-background py-1" value={props.speedKmh} onChange={e => props.onSpeedChange?.(Number(e.target.value))}>{DRIVE_SPEEDS_KMH.map(speed => <option key={speed} value={speed}>{speed} km/h</option>)}</NativeSelect>}
         <Button variant="outline" size="sm" className="touch:h-10" onClick={props.onExit}>
           Return to map
         </Button>

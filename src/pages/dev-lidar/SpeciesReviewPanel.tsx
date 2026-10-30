@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
@@ -37,7 +38,7 @@ export function SpeciesReviewPanel({ data, standId }: { data: SpeciesData; stand
         <fieldset disabled={!loaded} className="space-y-2 text-xs">
           <label className="block">
             Visit status
-            <select
+            <NativeSelect
               aria-label="Species visit status"
               className="mt-1 w-full rounded border bg-background p-2"
               value={review.status}
@@ -48,11 +49,11 @@ export function SpeciesReviewPanel({ data, standId }: { data: SpeciesData; stand
               <option value="unvisited">Unvisited</option>
               <option value="needs-check">Needs checking</option>
               <option value="checked">Checked by reviewer</option>
-            </select>
+            </NativeSelect>
           </label>
           <label className="block">
             Observed leading species
-            <select
+            <NativeSelect
               aria-label="Observed leading species"
               className="mt-1 w-full rounded border bg-background p-2"
               value={review.observedLeading}
@@ -64,7 +65,7 @@ export function SpeciesReviewPanel({ data, standId }: { data: SpeciesData; stand
                   {code} · {name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label className="block">
             Observation date

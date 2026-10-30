@@ -1,5 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
+import { PaginationControls } from '@/components/ui/pagination-controls'
+import { usePagination } from '@/hooks/usePagination'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadBlob, downloadText } from '@/lib/download'
 import { errorText } from '@/lib/nechakoPortal'
@@ -31,7 +34,6 @@ export function PortalMonitoringImport() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
-  const [page, setPage] = useState(0)
   const readGeneration = useRef(0)
   const cache = useLocalWorkbenchRecords('monitoring')
   const normalized = useMemo(() => {
@@ -50,8 +52,7 @@ export function PortalMonitoringImport() {
   const saved = cache.records.filter(
     (record) => (record.data as { schema?: string })?.schema === 'nechako-local-monitoring-v1',
   )
-  const pages = Math.max(1, Math.ceil((table?.records.length ?? 0) / 25)),
-    current = Math.min(page, pages - 1)
+  const pagination = usePagination(table?.records ?? [], 25, `ingestion-${readGeneration.current}`)
   const save = async () => {
     if (!file || !table || !normalized?.value) return
     setBusy(true)
@@ -101,7 +102,7 @@ export function PortalMonitoringImport() {
               if (generation !== readGeneration.current) return
               setFile(next)
               setTable(value)
-              setPage(0)
+              pagination.setPage(0)
               setMapping({
                 ...EMPTY_MAPPING,
                 timestamp: value.headers.find((key) => /^(timestamp|datetime|date|time)$/i.test(key)) ?? '',
@@ -131,7 +132,7 @@ export function PortalMonitoringImport() {
             ).map(([key, label]) => (
               <label key={key} className="block text-sm">
                 {label}
-                <select
+                <NativeSelect
                   aria-label={`Ingestion ${label}`}
                   value={mapping[key] ?? ''}
                   className="mt-1 block w-full rounded border bg-background p-2"
@@ -141,12 +142,12 @@ export function PortalMonitoringImport() {
                   {table.headers.map((header) => (
                     <option key={header}>{header}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             ))}
             <label className="block text-sm">
               Date format
-              <select
+              <NativeSelect
                 aria-label="Ingestion date format"
                 value={mapping.dateFormat}
                 className="mt-1 block w-full rounded border bg-background p-2"
@@ -156,7 +157,7 @@ export function PortalMonitoringImport() {
                 <option value="ymd">Daily YYYY-MM-DD</option>
                 <option value="dmy">Daily DD/MM/YYYY</option>
                 <option value="mdy">Daily MM/DD/YYYY</option>
-              </select>
+              </NativeSelect>
             </label>
             <label className="block text-sm">
               Timezone / UTC offset
@@ -255,23 +256,21 @@ export function PortalMonitoringImport() {
             </Button>
           )}
           <p className="text-sm">
-            Original rows {current * 25 + (table.records.length ? 1 : 0)}–
-            {Math.min((current + 1) * 25, table.records.length)} of {table.records.length}
+            Original rows {pagination.start}–{pagination.end} of {table.records.length}
           </p>
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
-            {JSON.stringify(table.records.slice(current * 25, (current + 1) * 25), null, 2)}
+            {JSON.stringify(pagination.items, null, 2)}
           </pre>
-          <div className="flex items-center gap-2">
-            <Button size="sm" disabled={!current} onClick={() => setPage(current - 1)}>
-              Previous ingestion rows
-            </Button>
-            <span className="text-sm">
-              Page {current + 1} of {pages}
-            </span>
-            <Button size="sm" disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>
-              Next ingestion rows
-            </Button>
-          </div>
+          <PaginationControls
+            page={pagination.page}
+            pageCount={pagination.pageCount}
+            onPageChange={pagination.setPage}
+            label="Monitoring ingestion row pages"
+            previousLabel="Previous ingestion rows"
+            nextLabel="Next ingestion rows"
+            formatPage={(page, count) => `Page ${page + 1} of ${count}`}
+            className="border-0 p-0"
+          />
         </>
       )}
       {!!saved.length && (
@@ -298,7 +297,7 @@ export function PortalMonitoringImport() {
                           ? new File([record.blob], record.filename ?? record.name, { type: 'text/csv' })
                           : undefined,
                       )
-                      setPage(0)
+                      pagination.setPage(0)
                       setError('')
                       setNotice('Restored the cached CSV and its mapping.')
                       setAcknowledged(false)

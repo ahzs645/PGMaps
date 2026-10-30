@@ -1,3 +1,4 @@
+import { FormField, NumberField as SharedNumberField, NullableNumberField, NativeSelect } from '@/components/ui/form-field'
 import {
   Camera,
   Crosshair,
@@ -140,101 +141,34 @@ const INPUT_CLASS =
 const SELECT_CLASS =
   'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-function Field({
-  label,
-  hint,
-  children,
-  group = false,
-}: {
-  label: string
-  hint?: ReactNode
-  children: ReactNode
-  group?: boolean
+function Field({ label, hint, children, group = false }: {
+  label: string; hint?: ReactNode; children: ReactNode; group?: boolean
 }) {
-  const Tag = group ? 'div' : 'label'
-  return (
-    <Tag className="block">
-      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{hint}</span>}
-    </Tag>
-  )
+  return <FormField label={label} hint={hint} group={group} contentClassName="block"
+    labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
+    descriptionClassName="text-[10px] leading-4">{children}</FormField>
 }
 
-function NumberField({
-  label,
-  hint,
-  value,
-  min,
-  max,
-  step = 1,
-  suffix,
-  onChange,
-}: {
-  label: string
-  hint?: ReactNode
-  value: number
-  min: number
-  max: number
-  step?: number
-  suffix?: string
-  onChange: (value: number) => void
+function NumberField({ label, hint, value, min, max, step = 1, suffix, onChange }: {
+  label: string; hint?: ReactNode; value: number; min: number; max: number; step?: number
+  suffix?: string; onChange: (value: number) => void
 }) {
-  return (
-    <Field label={label} hint={hint}>
-      <div className="flex items-center gap-1.5">
-        <input
-          type="number"
-          className={INPUT_CLASS}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(event) => {
-            const next = Number(event.target.value)
-            if (Number.isFinite(next)) onChange(Math.max(min, Math.min(max, next)))
-          }}
-        />
-        {suffix && <span className="shrink-0 text-[11px] text-muted-foreground">{suffix}</span>}
-      </div>
-    </Field>
-  )
+  return <SharedNumberField label={label} hint={hint} value={value} onValueChange={onChange}
+    min={min} max={max} step={step} suffix={suffix} clampOn="change" blankValue="zero"
+    inputClassName={INPUT_CLASS} contentClassName="block"
+    labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
+    descriptionClassName="text-[10px] leading-4" unitClassName="text-[11px]" />
 }
 
 /** An empty input clears the value rather than reading as zero. */
-function OptionalNumber({
-  label,
-  value,
-  min,
-  max,
-  suffix,
-  onChange,
-}: {
-  label: string
-  value: number | null | undefined
-  min: number
-  max: number
-  suffix: string
+function OptionalNumber({ label, value, min, max, suffix, onChange }: {
+  label: string; value: number | null | undefined; min: number; max: number; suffix: string
   onChange: (value: number | null) => void
 }) {
-  return (
-    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-      <input
-        type="number"
-        className={`${SELECT_CLASS} w-16`}
-        aria-label={label}
-        value={value ?? ''}
-        min={min}
-        max={max}
-        onChange={(event) => {
-          if (event.target.value === '') return onChange(null)
-          const next = Number(event.target.value)
-          if (Number.isFinite(next)) onChange(Math.max(min, Math.min(max, next)))
-        }}
-      />
-      {suffix}
-    </label>
-  )
+  return <NullableNumberField label={label} aria-label={label} value={value ?? null} onValueChange={onChange}
+    min={min} max={max} suffix={suffix} clampOn="change" hideLabel
+    contentClassName="flex flex-row items-center gap-1 text-[11px] text-muted-foreground"
+    inputClassName={`${SELECT_CLASS} w-16`} unitClassName="text-[11px]" />
 }
 
 const HARVEST_SYSTEMS: ReadonlyArray<{ id: HarvestSystem; label: string }> = [
@@ -257,7 +191,7 @@ function BlockHarvestFields({
   const system = target.harvestSystem ?? 'clearcut'
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
-      <select
+      <NativeSelect
         className={SELECT_CLASS}
         value={system}
         onChange={(event) => onChange({ harvestSystem: event.target.value as HarvestSystem })}
@@ -268,7 +202,7 @@ function BlockHarvestFields({
             {entry.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {system === 'retention' && (
         <OptionalNumber
           label={`Stand retained in ${target.name}`}
@@ -633,7 +567,7 @@ export function Sidebar({
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
-                      <select
+                      <NativeSelect
                         className={SELECT_CLASS}
                         value={target.role}
                         onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
@@ -641,8 +575,8 @@ export function Sidebar({
                       >
                         <option value="block">Block</option>
                         <option value="landscape">Landform</option>
-                      </select>
-                      <select
+                      </NativeSelect>
+                      <NativeSelect
                         className={SELECT_CLASS}
                         value={target.objectiveId}
                         onChange={(event) =>
@@ -657,11 +591,11 @@ export function Sidebar({
                             {entry.label} ≤ {thresholds.perspective[entry.id]}%
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                       {/* Visual absorption capability rates a landform's capacity
                       to hide alteration, so it only means anything on one. */}
                       {target.role === 'landscape' && (
-                        <select
+                        <NativeSelect
                           className={SELECT_CLASS}
                           value={target.vac ?? ''}
                           onChange={(event) =>
@@ -675,7 +609,7 @@ export function Sidebar({
                               VAC {VAC_LABELS[rating]}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       )}
                     </div>
                     {target.role === 'block' && (
@@ -1137,7 +1071,7 @@ export function Sidebar({
               {(
                 <div className="space-y-3">
                   <Field label="Where to look">
-                    <select
+                    <NativeSelect
                       className={cn(SELECT_CLASS, 'w-full')}
                       value={drive.lookAtTargetId ?? ''}
                       onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
@@ -1149,7 +1083,7 @@ export function Sidebar({
                           Face {block.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   {driveVisiblePercent !== null && (
@@ -1405,7 +1339,7 @@ export function Sidebar({
                     0,
                   )} m between elevation samples. Finer detail means many more tiles to fetch.`}
                 >
-                  <select
+                  <NativeSelect
                     className={INPUT_CLASS}
                     value={settings.demZoom}
                     onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
@@ -1418,7 +1352,7 @@ export function Sidebar({
                         </option>
                       )
                     })}
-                  </select>
+                  </NativeSelect>
                 </Field>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">

@@ -1,3 +1,4 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useCallback, useMemo, useReducer, useRef, useState } from 'react'
 import type * as MapLibreGL from 'maplibre-gl'
 import { X } from 'lucide-react'
@@ -83,12 +84,16 @@ function DevData() {
 
   const handleMapReady = useCallback((map: MapLibreGL.Map | null) => {
     setLeftMap(map)
-    if (!map) return
-    map.on('moveend', () => {
-      const center = map.getCenter()
-      camera.current = { center: [center.lng, center.lat], zoom: map.getZoom() }
-    })
   }, [])
+  useObserveMapViewport(
+    leftMap,
+    ({ zoom }) => {
+      if (!leftMap) return
+      const center = leftMap.getCenter()
+      camera.current = { center: [center.lng, center.lat], zoom }
+    },
+    { events: ['moveend'], initial: 'none' },
+  )
   const handlePointer = useCallback((lngLat: [number, number]) => {
     lastPointer.current = lngLat
   }, [])

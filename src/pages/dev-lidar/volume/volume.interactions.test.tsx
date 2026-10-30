@@ -55,7 +55,8 @@ describe('volume calibration and selected-area workflow', () => {
       await act(async () => button('Select supported plots').props.onClick())
       await act(async () =>
         renderer!.root
-          .findByProps({ 'aria-label': 'Volume volume retained' })
+          .findAllByType('input')
+          .find((node) => node.props['aria-label'] === 'Volume volume retained')!
           .props.onChange({ target: { value: '25' } }),
       )
       await act(async () => button('Export selected volume scenario').props.onClick())

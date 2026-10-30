@@ -1,3 +1,4 @@
+import { FormField, NullableNumberField, NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import { FilterChipGroup, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -20,29 +21,16 @@ function NumberField({ label, value, onChange, min, max, step = 1, suffix, place
   placeholder?: string
   hint?: ReactNode
 }) {
-  return (
-    <label className={LABEL_CLASS}>
-      {label}
-      <span className="mt-1 flex items-center gap-1.5">
-        <input type="number" inputMode="decimal" className={FIELD_CLASS.replace('mt-1 ', '')} value={value ?? ''} min={min} max={max} step={step} placeholder={placeholder}
-          onChange={(event) => {
-            const next = event.target.value === '' ? null : Number(event.target.value)
-            onChange(next !== null && Number.isFinite(next) ? next : null)
-          }} />
-        {suffix && <span className="shrink-0 text-xs text-muted-foreground">{suffix}</span>}
-      </span>
-      {hint && <span className="mt-1 block font-normal leading-4">{hint}</span>}
-    </label>
-  )
+  return <NullableNumberField label={label} value={value} onValueChange={onChange} min={min} max={max}
+    step={step} suffix={suffix} placeholder={placeholder} hint={hint} clampOn="never" invalidValue="null"
+    inputMode="decimal" inputClassName={FIELD_CLASS.replace('mt-1 ', '')} contentClassName="block"
+    labelClassName={LABEL_CLASS} rowClassName="mt-1" descriptionClassName="font-normal leading-4" />
 }
 
 function TextField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
-  return (
-    <label className={LABEL_CLASS}>
-      {label}
-      <input type="text" className={FIELD_CLASS} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  )
+  return <FormField label={label} contentClassName="block" labelClassName={LABEL_CLASS}>
+    <input type="text" className={FIELD_CLASS} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+  </FormField>
 }
 
 export function SettingsPanel({ settings, onChange, operatingAreas, lidarAvailable, stale }: {
@@ -140,11 +128,11 @@ export function SettingsPanel({ settings, onChange, operatingAreas, lidarAvailab
           <div className="grid grid-cols-2 gap-2">
             <label className={LABEL_CLASS}>
               DEM detail
-              <select className={FIELD_CLASS} value={settings.demZoom} onChange={(event) => onChange({ demZoom: Number(event.target.value) })}>
+              <NativeSelect className={FIELD_CLASS} value={settings.demZoom} onChange={(event) => onChange({ demZoom: Number(event.target.value) })}>
                 <option value={12}>Overview (~19 m)</option>
                 <option value={13}>Standard (~10 m)</option>
                 <option value={14}>Fine (~5 m)</option>
-              </select>
+              </NativeSelect>
             </label>
             <NumberField label="Slope cell" value={settings.slopeCellMeters} min={5} max={100} suffix="m" onChange={setNumber('slopeCellMeters', 20)} />
           </div>
@@ -161,11 +149,11 @@ export function SettingsPanel({ settings, onChange, operatingAreas, lidarAvailab
         <div className="grid grid-cols-2 gap-2">
           <label className={LABEL_CLASS}>
             Preferred VPH decimals
-            <select className={FIELD_CLASS} value={settings.vphDecimals} onChange={(event) => onChange({ vphDecimals: Number(event.target.value) })}>
+            <NativeSelect className={FIELD_CLASS} value={settings.vphDecimals} onChange={(event) => onChange({ vphDecimals: Number(event.target.value) })}>
               <option value={0}>Whole m³/ha</option>
               <option value={1}>1 decimal</option>
               <option value={2}>2 decimals</option>
-            </select>
+            </NativeSelect>
           </label>
           <NumberField label="Reference target" value={settings.referenceTargetM3} min={0} suffix="m³" placeholder="Optional"
             onChange={(referenceTargetM3) => onChange({ referenceTargetM3 })} />

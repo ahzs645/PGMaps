@@ -1,3 +1,4 @@
+import { NumericRangeField, type NumericRangeControlProps } from '@/components/ui/numeric-range-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { Eye, RotateCw } from 'lucide-react'
@@ -22,14 +23,9 @@ const PRESETS = [
   { label: 'Vancouver', lng: -123.12, lat: 49.28 },
   { label: 'Whistler', lng: -122.957, lat: 50.116 },
 ]
-function HeightControl({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number; onChange: (value: number) => void
-}) {
-  return <div className="space-y-2">
-    <div className="flex justify-between gap-3 text-sm"><span>{label}</span><span className="tabular-nums">{value} m</span></div>
-    <Slider aria-label={label} min={min} max={max} step={step} value={[value]} onValueChange={([next]) => onChange(next)} />
-  </div>
-}
+const heightSlider = ({ value, onChange, ...props }: NumericRangeControlProps) => (
+  <Slider {...props} value={[value]} onValueChange={([next]) => onChange(next)} />
+)
 export default function DevViewshedTerrain() {
   const [observer, setObserver] = useState<GeoPoint>(PRESETS[0])
   const [observerHeight, setObserverHeight] = useState(1.6)
@@ -96,9 +92,9 @@ export default function DevViewshedTerrain() {
       )}</div>
       <p className="text-xs tabular-nums text-muted-foreground">{observer.lat.toFixed(5)}, {observer.lng.toFixed(5)}</p>
       {locationError && <InlineAlert tone="error">{locationError}</InlineAlert>}
-      <HeightControl label="Observer height above ground" value={observerHeight} min={0.5} max={120} step={0.1} onChange={setObserverHeight} />
-      <HeightControl label="Target height above ground" value={targetHeight} min={0} max={120} step={1} onChange={setTargetHeight} />
-      <HeightControl label="View radius" value={radius} min={250} max={10000} step={250} onChange={setRadius} />
+      <NumericRangeField className="text-sm" unit="m" renderControl={heightSlider} label="Observer height above ground" value={observerHeight} min={0.5} max={120} step={0.1} onChange={setObserverHeight} />
+      <NumericRangeField className="text-sm" unit="m" renderControl={heightSlider} label="Target height above ground" value={targetHeight} min={0} max={120} step={1} onChange={setTargetHeight} />
+      <NumericRangeField className="text-sm" unit="m" renderControl={heightSlider} label="View radius" value={radius} min={250} max={10000} step={250} onChange={setRadius} />
       <SegmentedControl label="Terrain tile detail" value={String(demZoom)} options={[
         { value: '12', label: 'Overview' }, { value: '13', label: 'Standard' }, { value: '14', label: 'Fine' },
       ]} onChange={(value) => setDemZoom(Number(value))} />

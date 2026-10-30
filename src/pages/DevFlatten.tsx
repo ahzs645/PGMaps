@@ -1,3 +1,4 @@
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { ArrowDownUp, Bike, Copy, Download, Footprints, MapPinned, Repeat2 } from 'lucide-react'
@@ -25,7 +26,8 @@ export default function DevFlatten({ cityId = 'sf' }: { cityId?: CityId }) {
   const { trip, setTrip, units, setUnits, model, family, selected, memberIndex, loading, searching, error, setPoint, setFocus } = controller
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const [shareFallback, setShareFallback] = useState('')
-  const [copied, setCopied] = useState(false)
+  const clipboard = useClipboardText()
+  const copied = clipboard.status === 'copied'
   const mapRef = useRef<MapLibreMap | null>(null)
   const onMapReady = useCallback((map: MapLibreMap | null) => { mapRef.current = map }, [])
   useEffect(() => {
@@ -34,11 +36,11 @@ export default function DevFlatten({ cityId = 'sf' }: { cityId?: CityId }) {
     return () => { document.title = previous }
   }, [city])
   useEffect(() => { setHoverIndex(null) }, [selected])
-  useEffect(() => { if (copied) { const timeout = setTimeout(() => setCopied(false), 1800); return () => clearTimeout(timeout) } }, [copied])
   const streetNames = useMemo(() => model && selected ? routeStreets(model, selected) : [], [model, selected])
   const shareUrl = () => `${location.origin}${location.pathname}${location.search}${tripHash(trip) ?? ''}`
   const copyLink = async () => {
-    try { await navigator.clipboard.writeText(shareUrl()); setCopied(true); setShareFallback('') } catch { setShareFallback(shareUrl()) }
+    const url = shareUrl()
+    setShareFallback(await clipboard.copy(url) ? '' : url)
   }
   const tools: WebMCPTool[] = [
     { name: 'search_flatten_places', title: `Search ${city.name} places`, description: `Search the local ${city.title} index of places and intersections.`, inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false }, annotations: { readOnlyHint: true }, execute(input) {
@@ -101,7 +103,7 @@ export default function DevFlatten({ cityId = 'sf' }: { cityId?: CityId }) {
         {!trip.loop && shortest && selected !== shortest && <p className="text-sm text-muted-foreground">Compared with shortest: <span className="font-medium text-foreground">{distanceText(selected.stats.distance_m - shortest.stats.distance_m, units)} longer</span>, <span className="font-medium text-emerald-700 dark:text-emerald-400">{climbText(shortest.stats.elev_gain_m - selected.stats.elev_gain_m, units)} less climbing</span>.</p>}
         {trip.loop && family && family.members.length > 1 && <div className="flex flex-wrap gap-2" role="group" aria-label="Alternative loops">{family.members.map((_, index) => <Button key={index} type="button" variant={index === memberIndex ? 'default' : 'outline'} size="sm" aria-pressed={index === memberIndex} onClick={() => setTrip((current) => ({ ...current, loopIndex: index }))}>Loop {index + 1}</Button>)}</div>}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => void copyLink()}><Copy className="mr-2 h-4 w-4" />{copied ? 'Link copied' : 'Copy link'}</Button>
+          <Button type="button" variant="outline" size="sm" disabled={clipboard.status === 'pending'} onClick={() => void copyLink()}><Copy className="mr-2 h-4 w-4" />{copied ? 'Link copied' : 'Copy link'}</Button>
           <Button type="button" variant="outline" size="sm" onClick={() => downloadText(routeGpx(selected, trip.loop ? `Loop from ${trip.from?.label}` : `${trip.from?.label} to ${trip.to?.label}`, `PGMaps ${city.title}`), `flatten${cityId}-route.gpx`, 'application/gpx+xml')}><Download className="mr-2 h-4 w-4" />GPX</Button>
         </div>
         {shareFallback && <input className="w-full rounded-md border bg-background p-2 text-xs" aria-label="Link to this route" readOnly value={shareFallback} onFocus={(event) => event.currentTarget.select()} />}

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -170,7 +171,7 @@ export function PortalGpapImport({ onVectors }: { onVectors: (layers: VectorData
           </div>
           <label className="block text-sm">
             Note form group
-            <select
+            <NativeSelect
               aria-label="GPAP form group"
               className="ml-2 max-w-full rounded border bg-background p-2"
               value={group}
@@ -183,7 +184,7 @@ export function PortalGpapImport({ onVectors }: { onVectors: (layers: VectorData
               {groups.map((name) => (
                 <option key={name}>{name}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <Button

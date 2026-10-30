@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -97,7 +98,7 @@ export function PortalLayerRecords({
       ) : (
         <label className="block">
           Submission spatial layer
-          <select
+          <NativeSelect
             aria-label="Submission attribute layer"
             className="mt-1 w-full rounded border bg-background p-2"
             value={selected}
@@ -116,7 +117,7 @@ export function PortalLayerRecords({
                 {layer.name} · layer {layer.id}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       )}
       <Button

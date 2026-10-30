@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
@@ -106,7 +107,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
           {
             <label className="block">
               Return selection
-              <select
+              <NativeSelect
                 aria-label="Forestry return selection"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.returnMode}
@@ -114,13 +115,13 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
               >
                 <option value="all">All accepted returns</option>
                 <option value="first">First returns only</option>
-              </select>
+              </NativeSelect>
             </label>
           }
           {mode === 'edges' && (
             <label className="block">
               Edge / interior distance
-              <select
+              <NativeSelect
                 aria-label="Canopy edge distance"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.edgeDistance}
@@ -129,13 +130,13 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 <option value={10}>10 m</option>
                 <option value={20}>20 m</option>
                 <option value={30}>30 m</option>
-              </select>
+              </NativeSelect>
             </label>
           )}
           <div className="grid grid-cols-2 gap-2">
             <label>
               Eligible coverage
-              <select
+              <NativeSelect
                 aria-label="Forestry eligible coverage"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.support}
@@ -145,11 +146,11 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 <option value={80}>≥80%</option>
                 <option value={95}>≥95%</option>
                 <option value={100}>100%</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Canopy proxy
-              <select
+              <NativeSelect
                 aria-label="Minimum canopy proxy"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={options.canopyMinimum}
@@ -158,7 +159,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 <option value={0}>Any cover</option>
                 <option value={40}>≥40%</option>
                 <option value={70}>≥70%</option>
-              </select>
+              </NativeSelect>
             </label>
           </div>
         </div>

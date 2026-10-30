@@ -463,11 +463,6 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
     url.search = ''
     url.searchParams.set('s', token)
     window.history.replaceState(null, '', url)
-    try {
-      await navigator.clipboard?.writeText(url.toString())
-    } catch {
-      // The URL is still visible in the address bar if clipboard permissions are unavailable.
-    }
     return url.toString()
   }, [buildShareState])
 

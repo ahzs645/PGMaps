@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
+import { useScreenPointClusters } from '@/components/ui/screen-point-clusters'
 import type { CSSProperties } from 'react'
 import { Activity, MapPin, Stethoscope } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -65,20 +67,23 @@ const SORT_OPTIONS: Array<{ value: SpecialistSort; label: string }> = [
   { value: 'name', label: 'Facility name (A-Z)' },
 ]
 
-interface SpecialistMarkerCluster {
-  id: string
-  longitude: number
-  latitude: number
-  facilities: SpecialistFacility[]
-}
+const EMPTY_FACILITIES: SpecialistFacility[] = []
+const facilityId = (facility: SpecialistFacility) => facility.id
+const facilityCoordinates = (facility: SpecialistFacility): [number, number] => [facility.longitude, facility.latitude]
 
 const CLUSTER_RADIUS_PX = 54
 const REVEAL_LIMIT = 14
 
 function DevWaitSpecialist() {
-  const [facilities, setFacilities] = useState<SpecialistFacility[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error: loadError } = useFetchData<SpecialistMapData>(SPECIALIST_WAIT_DATA_URL, {
+    transform: (json) => {
+      const value = json as SpecialistMapData
+      return { ...value, facilities: value.facilities.filter((facility) => Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude)) }
+    },
+  })
+  const facilities = data?.facilities ?? EMPTY_FACILITIES
+  const metadata = data?.metadata ?? null
+  const error = loadError ? 'Failed to load BC specialist wait-time data.' : null
   const [query, setQuery] = useState('')
   const [authority, setAuthority] = useState<AuthorityFilter>('all')
   const [procedureName, setProcedureName] = useState<string>('all')
@@ -86,33 +91,6 @@ function DevWaitSpecialist() {
   const [band, setBand] = useState<BandFilter>('all')
   const [sort, setSort] = useState<SpecialistSort>('wait')
   const [selected, setSelected] = useState<SpecialistFacility | null>(null)
-  const [metadata, setMetadata] = useState<SpecialistMapData['metadata'] | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadData() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(SPECIALIST_WAIT_DATA_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json() as SpecialistMapData
-        setFacilities(data.facilities.filter((facility) => Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude)))
-        setMetadata(data.metadata)
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          setError('Failed to load BC specialist wait-time data.')
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    loadData()
-    return () => controller.abort()
-  }, [])
-
   const authorities = useMemo(() => (
     Array.from(new Set(facilities.map((facility) => facility.health_authority))).sort()
   ), [facilities])
@@ -369,76 +347,21 @@ function SpecialistFacilityMarkers({
   onSelect: (facility: SpecialistFacility) => void
 }) {
   const { map } = useMap()
-  const [version, setVersion] = useState(0)
   const [revealedClusterId, setRevealedClusterId] = useState<{
     clusterId: string
     facilitiesKey: string
   } | null>(null)
 
-  useEffect(() => {
-    if (!map) return
-    const update = () => setVersion((current) => current + 1)
-    update()
-    map.on('moveend', update)
-    map.on('zoomend', update)
-    map.on('resize', update)
-    return () => {
-      map.off('moveend', update)
-      map.off('zoomend', update)
-      map.off('resize', update)
-    }
-  }, [map])
-
   const facilitiesKey = useMemo(() => facilities.map((facility) => facility.id).join('|'), [facilities])
-
-  const clusters = useMemo(() => {
-    void version
-
-    if (!map) {
-      return facilities.map((facility) => ({
-        id: facility.id,
-        longitude: facility.longitude,
-        latitude: facility.latitude,
-        facilities: [facility],
-      }))
-    }
-
-    const canvas = map.getCanvas()
-    const width = canvas.clientWidth
-    const height = canvas.clientHeight
-    const nextClusters: Array<SpecialistMarkerCluster & { x: number; y: number }> = []
-    const orderedFacilities = [...facilities].sort((a, b) => markerPriority(a, filter) - markerPriority(b, filter))
-
-    for (const facility of orderedFacilities) {
-      const point = map.project([facility.longitude, facility.latitude])
-      if (point.x < -140 || point.y < -140 || point.x > width + 140 || point.y > height + 140) continue
-
-      let cluster = nextClusters.find((candidate) => (
-        Math.hypot(candidate.x - point.x, candidate.y - point.y) <= CLUSTER_RADIUS_PX
-      ))
-
-      if (!cluster) {
-        cluster = {
-          id: `specialist-cluster-${Math.round(point.x)}-${Math.round(point.y)}-${facility.id}`,
-          x: point.x,
-          y: point.y,
-          longitude: facility.longitude,
-          latitude: facility.latitude,
-          facilities: [],
-        }
-        nextClusters.push(cluster)
-      }
-
-      cluster.facilities.push(facility)
-      const count = cluster.facilities.length
-      cluster.x = cluster.x + (point.x - cluster.x) / count
-      cluster.y = cluster.y + (point.y - cluster.y) / count
-      cluster.longitude = cluster.longitude + (facility.longitude - cluster.longitude) / count
-      cluster.latitude = cluster.latitude + (facility.latitude - cluster.latitude) / count
-    }
-
-    return nextClusters.map(({ x: _x, y: _y, ...cluster }) => cluster)
-  }, [facilities, filter, map, version])
+  const priority = useMemo(() => (facility: SpecialistFacility) => markerPriority(facility, filter), [filter])
+  const clusters = useScreenPointClusters(map, facilities, {
+    getId: facilityId,
+    getCoordinates: facilityCoordinates,
+    priority,
+    radius: CLUSTER_RADIUS_PX,
+    padding: 140,
+    idPrefix: 'specialist-cluster',
+  })
   const activeRevealedClusterId = revealedClusterId?.facilitiesKey === facilitiesKey
     ? revealedClusterId.clusterId
     : null
@@ -446,8 +369,8 @@ function SpecialistFacilityMarkers({
   return (
     <>
       {clusters.map((cluster) => {
-        if (cluster.facilities.length === 1) {
-          const facility = cluster.facilities[0]
+        if (cluster.items.length === 1) {
+          const facility = cluster.items[0]
           return (
             <SpecialistFacilityMarker
               key={facility.id}
@@ -460,7 +383,7 @@ function SpecialistFacilityMarkers({
         }
 
         const isRevealed = activeRevealedClusterId === cluster.id
-        const visibleFacilities = cluster.facilities.slice(0, REVEAL_LIMIT)
+        const visibleFacilities = cluster.items.slice(0, REVEAL_LIMIT)
         return (
           <div key={cluster.id}>
             <MapMarker longitude={cluster.longitude} latitude={cluster.latitude} anchor="center">
@@ -472,16 +395,16 @@ function SpecialistFacilityMarkers({
                       ? null
                       : { clusterId: cluster.id, facilitiesKey }
                   ))}
-                  aria-label={`${isRevealed ? 'Hide' : 'Reveal'} ${cluster.facilities.length} facilities`}
+                  aria-label={`${isRevealed ? 'Hide' : 'Reveal'} ${cluster.items.length} facilities`}
                   aria-pressed={isRevealed}
                   className={cn(
                     'flex items-center justify-center rounded-full border-2 border-white text-sm font-bold text-white shadow-md transition-transform hover:scale-105',
-                    clusterStyle(cluster.facilities.length),
+                    clusterStyle(cluster.items.length),
                     !isRevealed && 'wait-cluster-pulse',
                     isRevealed && 'ring-2 ring-sky-400 ring-offset-2 ring-offset-background',
                   )}
                 >
-                  {cluster.facilities.length}
+                  {cluster.items.length}
                 </button>
               </MarkerContent>
             </MapMarker>
@@ -500,7 +423,7 @@ function SpecialistFacilityMarkers({
               />
             ))}
 
-            {isRevealed && cluster.facilities.length > visibleFacilities.length && (
+            {isRevealed && cluster.items.length > visibleFacilities.length && (
               <MapMarker longitude={cluster.longitude} latitude={cluster.latitude} anchor="center">
                 <MarkerContent>
                   <span
@@ -510,7 +433,7 @@ function SpecialistFacilityMarkers({
                       animationDelay: `${Math.min(180, visibleFacilities.length * 16)}ms`,
                     }}
                   >
-                    +{cluster.facilities.length - visibleFacilities.length}
+                    +{cluster.items.length - visibleFacilities.length}
                   </span>
                 </MarkerContent>
               </MapMarker>
@@ -558,7 +481,10 @@ function SpecialistFacilityMarker({
         >
           <button
             type="button"
-            onClick={() => onSelect(facility)}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect(facility)
+            }}
             aria-label={`${facility.facility_name}: median P90 ${formatWeeks(metrics.p90MedianWeeks)}, ${facility.specialist_count} specialists`}
             className={cn(
               'relative rounded-full border-2 px-3 py-1.5 text-[13px] font-semibold leading-none text-white shadow-md transition-transform hover:scale-105',

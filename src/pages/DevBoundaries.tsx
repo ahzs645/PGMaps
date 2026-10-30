@@ -1,3 +1,5 @@
+import { NativeSelect } from '@/components/ui/form-field'
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { PostalHierarchyControls } from '@/maps/boundaries/PostalHierarchyControls'
 import { migrateEconomicRegionShareState } from '@/maps/boundaries/economicRegionShareState'
 import { migratePostalShareState } from '@/maps/boundaries/postalShareState'
@@ -1015,24 +1017,10 @@ function TrackMapBounds({
 }) {
   const { map, isLoaded } = useMap()
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    const updateBounds = () => {
-      const bounds = map.getBounds()
-      onBoundsChange([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()])
-      onZoomChange(map.getZoom())
-    }
-
-    updateBounds()
-    map.on('moveend', updateBounds)
-    map.on('zoomend', updateBounds)
-
-    return () => {
-      map.off('moveend', updateBounds)
-      map.off('zoomend', updateBounds)
-    }
-  }, [isLoaded, map, onBoundsChange, onZoomChange])
+  useObserveMapViewport(map, (viewport) => {
+    onBoundsChange(viewport.bounds)
+    onZoomChange(viewport.zoom)
+  }, { enabled: isLoaded, events: ['moveend', 'zoomend'], initial: 'always' })
 
   return null
 }
@@ -2561,7 +2549,7 @@ function DevBoundaries() {
         </div>
         <div className="mt-2 flex items-center gap-2">
           <span className="shrink-0 text-xs font-medium text-muted-foreground">Match</span>
-          <select
+          <NativeSelect
             aria-label="Choose boundary search match mode"
             value={boundarySearchMatchMode}
             onChange={(event) => setBoundarySearchMatchMode(event.target.value as BoundarySearchMatchMode)}
@@ -2570,10 +2558,10 @@ function DevBoundaries() {
             <option value="contains">Anywhere in text</option>
             <option value="startsWith">Starts with query</option>
             <option value="exact">Exact field value</option>
-          </select>
+          </NativeSelect>
         </div>
         <div className="mt-2 grid grid-cols-3 gap-1.5">
-          <select
+          <NativeSelect
             aria-label="Filter boundary search by category"
             value={boundarySearchGroup}
             onChange={(event) => {
@@ -2589,8 +2577,8 @@ function DevBoundaries() {
                 {group}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             aria-label="Filter boundary search by source"
             value={boundarySearchSource}
             onChange={(event) => {
@@ -2605,8 +2593,8 @@ function DevBoundaries() {
                 {option.label}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             aria-label="Filter boundary search by level"
             value={boundarySearchLevel}
             onChange={(event) => setBoundarySearchLevel(event.target.value as RegionLevel | '')}
@@ -2618,7 +2606,7 @@ function DevBoundaries() {
                 {option.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         {boundarySearchState === 'loading' && (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">

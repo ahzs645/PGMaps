@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { CopyButton } from '@/components/ui/copy-button'
+import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Copy, Database, Download, ExternalLink, Flame, Info } from 'lucide-react'
 import { formatDate } from '@/lib/format'
@@ -37,14 +38,10 @@ function formatUpdated(value?: string | null): string {
   return formatDate(value, { fallback: value || 'Unknown' })
 }
 
-function copyText(value: string) {
-  if (!navigator.clipboard) return
-  void navigator.clipboard.writeText(value)
-}
-
 export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = false }: DatasetInfoProps) {
   const toolbarSlot = typeof document === 'undefined' ? null : document.getElementById('dataset-info-toolbar-slot')
   const primaryUrl = dataset.downloadUrl || dataset.apiUrl
+  const [manualCopy, setManualCopy] = useState(false)
 
   const content = (
     <Dialog defaultOpen={defaultOpen}>
@@ -122,14 +119,20 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
                   API
                 </a>
               )}
-              <button
-                type="button"
-                onClick={() => copyText(primaryUrl)}
+              <CopyButton
+                text={primaryUrl}
+                copiedLabel="Link copied"
+                failedLabel="Copy link manually"
+                onResult={({ copied }) => setManualCopy(!copied)}
                 className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground touch:min-h-10"
               >
                 <Copy className="h-3.5 w-3.5" />
                 Copy link
-              </button>
+              </CopyButton>
+              {manualCopy && <label className="w-full text-xs">Copy this link
+                <input aria-label="Dataset link for manual copying" readOnly value={primaryUrl}
+                  onFocus={(event) => event.currentTarget.select()} className="mt-1 w-full rounded border border-input bg-background p-2 text-base md:text-xs" />
+              </label>}
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { KeyValueRows, SearchInput, CollapsibleSection } from '@/components/ui/map-panels'
@@ -254,7 +255,7 @@ export function TreeInspector({
                   <div className="grid grid-cols-2 gap-2">
                     <label>
                       Total slice width
-                      <select
+                      <NativeSelect
                         aria-label="Total slice width"
                         className="mt-1 w-full rounded border bg-background p-1"
                         value={settings.width}
@@ -265,7 +266,7 @@ export function TreeInspector({
                             {n} m
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </label>
                     <label>
                       Offset {settings.offset.toFixed(1)} m
@@ -516,7 +517,7 @@ export function TreeInspector({
           <div className="space-y-3 p-3 text-xs">
             <label className="block">
               Reviewer decision
-              <select
+              <NativeSelect
                 aria-label="Tree review decision"
                 className="mt-1 w-full rounded border bg-background p-2"
                 disabled={!id}
@@ -532,7 +533,7 @@ export function TreeInspector({
                 {REVIEW_DECISIONS.map((d) => (
                   <option key={d}>{d}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <label className="block">
               Review notes
@@ -556,7 +557,7 @@ export function TreeInspector({
             </div>
             <label className="block">
               Review queue
-              <select
+              <NativeSelect
                 aria-label="Tree review queue"
                 className="mt-1 w-full rounded border bg-background p-1"
                 value={reviewFilter}
@@ -566,7 +567,7 @@ export function TreeInspector({
                 {REVIEW_DECISIONS.map((d) => (
                   <option key={d}>{d}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <p>{filtered.length.toLocaleString()} candidates in queue. Previous/Next follows this filter.</p>
             <details>
@@ -623,7 +624,7 @@ export function TreeInspector({
               </div>
               <label className="mt-2 block">
                 Assign selection to group
-                <select
+                <NativeSelect
                   aria-label="Target point group"
                   className="m-1 rounded border bg-background p-1"
                   value={target}
@@ -633,14 +634,14 @@ export function TreeInspector({
                   {groups.map((g) => (
                     <option key={g}>{g}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               <Button size="sm" variant="outline" disabled={!target || !selected.size} onClick={() => assign(target)}>
                 Assign selected
               </Button>
               <label className="mt-2 block">
                 Merge loaded group into target
-                <select
+                <NativeSelect
                   aria-label="Merge point group"
                   className="m-1 rounded border bg-background p-1"
                   value={mergeFrom}
@@ -652,7 +653,7 @@ export function TreeInspector({
                     .map((g) => (
                       <option key={g}>{g}</option>
                     ))}
-                </select>
+                </NativeSelect>
               </label>
               <Button
                 size="sm"

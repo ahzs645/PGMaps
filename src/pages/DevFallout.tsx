@@ -1,4 +1,4 @@
-import bbox from '@turf/bbox'
+import { featureCollectionBounds } from '@pgmaps/geo-toolkit/calculations'
 import { Filter, MapPin, RadioTower, Search, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Map, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
@@ -53,7 +53,8 @@ function FitBounds({ data }: { data: GeoJSON.FeatureCollection }) {
 
   useEffect(() => {
     if (!isLoaded || !map || data.features.length === 0) return
-    const bounds = bbox(data as never) as [number, number, number, number]
+    const bounds = featureCollectionBounds(data)
+    if (!bounds) return
     map.fitBounds(bounds, {
       padding: { top: 72, bottom: 56, left: 36, right: 36 },
       duration: 650,

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -118,7 +119,7 @@ export function TerrainTab(p: SidebarProps) {
             </summary>
             <div className="space-y-2 border-t p-2">
               <Field label="Point-cloud surface">
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={p.pointCloud.surface}
                   onChange={(e) =>
@@ -130,13 +131,13 @@ export function TerrainTab(p: SidebarProps) {
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field
                 label="Ground classification"
                 hint="Unclassified clouds are classified in the browser with WhiteboxTools' ground point filter."
               >
-                <select
+                <NativeSelect
                   className={roadFieldClass}
                   value={String(p.pointCloud.classify)}
                   onChange={(e) =>
@@ -151,7 +152,7 @@ export function TerrainTab(p: SidebarProps) {
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               {p.pointCloud.surface === 'tin' && (
                 <div className="flex items-center gap-2">

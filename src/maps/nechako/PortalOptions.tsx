@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
@@ -48,7 +49,7 @@ export function PortalOptions({
           placeholder="Search tools, source menus or workflows"
           className="min-w-0 flex-1"
         />
-        <select
+        <NativeSelect
           aria-label="Option category"
           value={group}
           onChange={(event) => setGroup(event.target.value)}
@@ -57,8 +58,8 @@ export function PortalOptions({
           {groups.map((value) => (
             <option key={value}>{value}</option>
           ))}
-        </select>
-        <select
+        </NativeSelect>
+        <NativeSelect
           aria-label="Option availability"
           value={support}
           onChange={(event) => setSupport(event.target.value as typeof support)}
@@ -70,7 +71,7 @@ export function PortalOptions({
               {label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <p className="text-sm" aria-live="polite">
         {options.length} of {PORTAL_CAPABILITIES.length} options

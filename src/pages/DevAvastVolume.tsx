@@ -1,3 +1,4 @@
+import { writeClipboardText, copyTextWithSelection } from '@/hooks/useClipboardText'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TreePine } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -45,25 +46,6 @@ const geometryOf = (settings: AvastSettings): GeometrySettings => ({
   slopeCellMeters: settings.slopeCellMeters,
   minPieceHa: settings.minPieceHa,
 })
-
-/** Clipboard API first; the selection-copy fallback covers browsers that refuse it. */
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    return
-  } catch {
-    const area = document.createElement('textarea')
-    area.value = text
-    area.setAttribute('readonly', '')
-    area.style.position = 'fixed'
-    area.style.opacity = '0'
-    document.body.appendChild(area)
-    area.select()
-    const copied = document.execCommand('copy')
-    area.remove()
-    if (!copied) throw new Error('This browser blocked clipboard access. Download the rows as .tsv instead and copy them from there.')
-  }
-}
 
 /** Re-projects each piece once; later renders reuse the converted feature. */
 function useProjected<T extends object>(items: readonly T[], version: number, toFeature: (item: T) => GeoJSON.Feature | null) {
@@ -310,7 +292,10 @@ export default function DevAvastVolume() {
   }
   const onCopyRows = async ({ startRow, formulas }: { startRow: number; formulas: boolean }) => {
     const { rows, text } = pasteRows(startRow, formulas)
-    await copyText(text)
+    await writeClipboardText(text, { fallback: (value) => {
+      if (!copyTextWithSelection(value))
+        throw new Error('This browser blocked clipboard access. Download the rows as .tsv instead and copy them from there.')
+    } })
     return rows.length
   }
   const onDownloadTsv = async ({ startRow, formulas }: { startRow: number; formulas: boolean }) => {

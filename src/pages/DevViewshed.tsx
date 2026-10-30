@@ -1,3 +1,5 @@
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { NativeSelect } from '@/components/ui/form-field'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { useMemo, useRef, useState } from 'react'
 import type { StyleSpecification } from 'maplibre-gl'
@@ -60,43 +62,6 @@ const SUN_LABELS = {
 }
 const timeLabel = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-
-function RangeControl({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-  display,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  onChange: (value: number) => void
-  display: string
-}) {
-  return (
-    <label className="block space-y-2 text-sm">
-      <span className="flex justify-between gap-3">
-        <span>{label}</span>
-        <span className="font-mono text-xs tabular-nums">{display}</span>
-      </span>
-      <input
-        aria-label={label}
-        type="range"
-        className="w-full accent-rose-600"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
-  )
-}
 
 export default function DevViewshed() {
   const mapRef = useRef<MapRef>(null)
@@ -303,7 +268,10 @@ export default function DevViewshed() {
           </Button>
         </form>
         {coordinateError && <InlineAlert tone="warning">{coordinateError}</InlineAlert>}
-        <RangeControl
+        <NumericRangeField
+          className="text-sm"
+          inputClassName="h-auto accent-rose-600"
+          valueClassName="font-mono text-xs tabular-nums"
           label="Analysis radius"
           value={radius}
           min={500}
@@ -336,7 +304,10 @@ export default function DevViewshed() {
       </SidebarSection>
       <SidebarSection className="space-y-3" title="View height" icon={Eye}>
         <SegmentedControl options={MODES} value={mode} onChange={setMode} label="Observer height view" />
-        <RangeControl
+        <NumericRangeField
+          className="text-sm"
+          inputClassName="h-auto accent-rose-600"
+          valueClassName="font-mono text-xs tabular-nums"
           label="Seated eye height"
           value={heightA}
           min={0.5}
@@ -345,7 +316,10 @@ export default function DevViewshed() {
           display={`${heightA.toFixed(1)} m`}
           onChange={setHeightA}
         />
-        <RangeControl
+        <NumericRangeField
+          className="text-sm"
+          inputClassName="h-auto accent-rose-600"
+          valueClassName="font-mono text-xs tabular-nums"
           label="Standing eye height"
           value={heightB}
           min={0.5}
@@ -384,7 +358,7 @@ export default function DevViewshed() {
           </label>
           <label>
             Time zone
-            <select
+            <NativeSelect
               aria-label="Sun time zone"
               value={zone}
               onChange={(event) => setZone(event.target.value)}
@@ -394,10 +368,13 @@ export default function DevViewshed() {
               <option value="UTC">UTC</option>
               <option value="America/Toronto">Toronto</option>
               <option value="Europe/London">London</option>
-            </select>
+            </NativeSelect>
           </label>
         </div>
-        <RangeControl
+        <NumericRangeField
+          className="text-sm"
+          inputClassName="h-auto accent-rose-600"
+          valueClassName="font-mono text-xs tabular-nums"
           label="Sun time"
           value={minutes}
           min={0}
@@ -466,7 +443,10 @@ export default function DevViewshed() {
           }}
         />
         {terrain && (
-          <RangeControl
+          <NumericRangeField
+            className="text-sm"
+            inputClassName="h-auto accent-rose-600"
+            valueClassName="font-mono text-xs tabular-nums"
             label="Map tilt"
             value={pitch}
             min={0}
@@ -484,7 +464,10 @@ export default function DevViewshed() {
         </p>
         <ToggleRow label="Satellite imagery" active={satellite} onClick={() => setSatellite(!satellite)} />
         <ToggleRow label="Show hidden terrain" active={showHidden} onClick={() => setShowHidden(!showHidden)} />
-        <RangeControl
+        <NumericRangeField
+          className="text-sm"
+          inputClassName="h-auto accent-rose-600"
+          valueClassName="font-mono text-xs tabular-nums"
           label="Overlay opacity"
           value={opacity}
           min={0.1}

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
+import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
@@ -776,15 +777,9 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
   const { map, isLoaded } = useMap()
   const [hexZoom, setHexZoom] = useState(9.4)
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-    const updateZoom = () => setHexZoom(map.getZoom())
-    updateZoom()
-    map.on('zoomend', updateZoom)
-    return () => {
-      map.off('zoomend', updateZoom)
-    }
-  }, [isLoaded, map])
+  useObserveMapViewport(map, ({ zoom }) => setHexZoom(zoom), {
+    enabled: isLoaded, events: ['zoomend'], initial: 'always',
+  })
 
   const collectionsByCategory = useMemo(() => {
     const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, OpenLitterPointProperties>>()

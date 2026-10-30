@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -58,7 +59,7 @@ export function LidarComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           Source plot
-          <select
+          <NativeSelect
             aria-label="Comparison LiDAR plot"
             className="ml-1 max-w-[170px] rounded border bg-background p-1.5"
             value={plot.id}
@@ -67,7 +68,7 @@ export function LidarComparison({
             {data.benchmark.plots.map((p) => (
               <option key={p.id}>{p.id}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {[
           [a, setAId, 'A'],
@@ -75,7 +76,7 @@ export function LidarComparison({
         ].map(([method, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               aria-label={`LiDAR model ${label}`}
               className="ml-1 max-w-[190px] rounded border bg-background p-1.5"
               value={(method as typeof a).id}
@@ -86,7 +87,7 @@ export function LidarComparison({
                   {m.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
         <SegmentedControl

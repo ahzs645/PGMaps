@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
@@ -32,7 +33,7 @@ export function FullCostSetupEditor({
         charged as a newly excavated road.
       </InlineAlert>
       <Field label="Active connector road attachment">
-        <select
+        <NativeSelect
           className={roadFieldClass}
           value={w.alignment.networkEntryRoadId ?? w.alignment.fsrConnection?.targetFeatureId ?? ''}
           onChange={(event) =>
@@ -57,7 +58,7 @@ export function FullCostSetupEditor({
                 {road.name}
               </option>
             ))}
-        </select>
+        </NativeSelect>
       </Field>
       <p className="text-[11px] text-muted-foreground">
         The connector's end must meet this section within the entered tie-in tolerance. This choice distinguishes
@@ -83,7 +84,7 @@ export function FullCostSetupEditor({
         onChange={(outlet) => onChange({ ...planning, outlet })}
       />
       <Field label="Outlet road attachment">
-        <select
+        <NativeSelect
           className={roadFieldClass}
           value={planning.outletRoadId ?? ''}
           onChange={(event) => onChange({ ...planning, outletRoadId: event.target.value || null })}
@@ -96,7 +97,7 @@ export function FullCostSetupEditor({
                 {road.name}
               </option>
             ))}
-        </select>
+        </NativeSelect>
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -228,7 +229,7 @@ export function FullCostSetupEditor({
       <fieldset className="space-y-3 rounded border p-3">
         <legend className="px-1 text-xs font-semibold">Final fitted connector checks</legend>
         <Field label="Loaded timber travel direction">
-          <select
+          <NativeSelect
             className={roadFieldClass}
             value={planning.connectorChecks.loadedDirection ?? ''}
             onChange={(event) =>
@@ -238,7 +239,7 @@ export function FullCostSetupEditor({
             <option value="">Unknown — cannot adopt</option>
             <option value="start-to-end">Road start to end</option>
             <option value="end-to-start">Road end to start</option>
-          </select>
+          </NativeSelect>
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <OptionalNumberField
@@ -304,7 +305,7 @@ export function FullCostSetupEditor({
         {planning.connectorChecks.approvedCrossings.map((window, index) => (
           <div key={index} className="space-y-2 rounded border p-2">
             <Field label={`Crossing ${index + 1} stream`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={window.featureId}
                 onChange={(event) =>
@@ -320,10 +321,10 @@ export function FullCostSetupEditor({
                     {stream.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field label={`Crossing ${index + 1} entered structure`}>
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value={window.structureId}
                 onChange={(event) =>
@@ -339,7 +340,7 @@ export function FullCostSetupEditor({
                     {structure.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <NumberField

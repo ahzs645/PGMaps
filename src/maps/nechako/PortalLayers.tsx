@@ -1,3 +1,5 @@
+import { useObserveMapViewport } from '@/components/ui/map-viewport'
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapMouseEvent } from 'maplibre-gl'
 import { Button } from '@/components/ui/button'
@@ -440,7 +442,7 @@ export function PortalLayers({
       </Button>
       <label className="block text-sm font-medium">
         Map service
-        <select
+        <NativeSelect
           aria-label="Map service"
           className="mt-1 w-full rounded-md border bg-background p-2 text-base"
           value={sourceUrl}
@@ -458,7 +460,7 @@ export function PortalLayers({
               {item.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <p className="text-xs text-muted-foreground">
         {sources.filter(isWmsSource).length} WMS services in the current catalogue. HTTPS basemaps remain available in
@@ -474,7 +476,7 @@ export function PortalLayers({
         <>
           <label className="block text-sm font-medium">
             Named layer or group ({caps.layers.length})
-            <select
+            <NativeSelect
               aria-label="Named layer or group"
               className="mt-1 w-full rounded-md border bg-background p-2 text-base"
               value={layerName}
@@ -488,12 +490,12 @@ export function PortalLayers({
                   {item.title}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           {(layer?.styles.length ?? 0) > 0 && (
             <label className="block text-sm font-medium">
               Layer style
-              <select
+              <NativeSelect
                 aria-label="Layer style"
                 className="mt-1 w-full rounded-md border bg-background p-2 text-base"
                 value={style}
@@ -505,7 +507,7 @@ export function PortalLayers({
                     {item.title}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           )}
           {!canRender && (
@@ -691,7 +693,7 @@ export function PortalLayers({
           {item.layer.styles.length > 0 && (
             <label className="block text-xs">
               Advertised WMS style
-              <select
+              <NativeSelect
                 aria-label={`WMS style for ${wmsDisplayName(item)}`}
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={item.style}
@@ -710,7 +712,7 @@ export function PortalLayers({
                     {style.title}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           )}
           <details className="text-xs">
@@ -1029,7 +1031,7 @@ export function PortalLayers({
       )}
       <label className="block text-sm font-medium">
         Inspect on map click
-        <select
+        <NativeSelect
           aria-label="Inspect on map click"
           className="mt-1 w-full rounded-md border bg-background p-2 text-base"
           value={identifyId}
@@ -1046,7 +1048,7 @@ export function PortalLayers({
                 {item.source.name} — {wmsDisplayName(item)}
               </option>
             ))}
-        </select>
+        </NativeSelect>
       </label>
       {inspection && (
         <div className="rounded-lg border p-4" aria-live="polite">
@@ -1270,24 +1272,15 @@ function CameraObserver({
   onBounds: (bounds: [number, number, number, number]) => void
 }) {
   const { map, isLoaded } = useMap()
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const update = () => {
-      const center = map.getCenter(),
-        bounds = map.getBounds()
-      onCamera({
-        center: [center.lng, center.lat],
-        zoom: map.getZoom(),
-        bearing: map.getBearing(),
-        pitch: map.getPitch(),
-      })
-      onBounds([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()])
-    }
-    update()
-    map.on('moveend', update)
-    return () => {
-      map.off('moveend', update)
-    }
-  }, [map, isLoaded, onCamera, onBounds])
+  useObserveMapViewport(
+    map,
+    ({ bounds, zoom }) => {
+      if (!map) return
+      const center = map.getCenter()
+      onCamera({ center: [center.lng, center.lat], zoom, bearing: map.getBearing(), pitch: map.getPitch() })
+      onBounds(bounds)
+    },
+    { enabled: isLoaded, events: ['moveend'], initial: 'always' },
+  )
   return null
 }

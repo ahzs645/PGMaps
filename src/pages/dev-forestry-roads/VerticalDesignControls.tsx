@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -262,7 +263,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Objective
-          <select
+          <NativeSelect
             aria-label="Profile optimization objective"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.objective}
@@ -270,7 +271,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           >
             <option value="earthwork">Cut and fill</option>
             <option value="total">Total cost incl. haul, borrow, waste</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="mt-2 flex items-center gap-2 text-xs">
           <input

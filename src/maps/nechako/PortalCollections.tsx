@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -167,7 +168,7 @@ export function PortalCollections({
         <h3 className="font-semibold">Import portal exports</h3>
         <label className="block text-sm">
           Interpret records as
-          <select
+          <NativeSelect
             aria-label="Collection import type"
             value={kind}
             onChange={(event) => setKind(event.target.value as CollectionImportKind)}
@@ -179,7 +180,7 @@ export function PortalCollections({
             <option value="submission">Submissions</option>
             <option value="story">Stories</option>
             <option value="document">Documents</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="block text-sm">
           JSON exports or a saved browser collection (20 MiB per file, 50 MiB of original JSON total)

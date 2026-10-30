@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, LegendItem, MapGradientLegendItem } from '@/components/ui/map-panels'
@@ -262,7 +263,7 @@ export function PortalVectorStyleEditor({
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="text-xs">
           Field
-          <select
+          <NativeSelect
             aria-label={'Rule ' + (index + 1) + ' field for ' + vector.name}
             className={inputClass}
             value={current.property}
@@ -273,11 +274,11 @@ export function PortalVectorStyleEditor({
             {fields.map((field) => (
               <option key={field}>{field}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-xs">
           Comparison
-          <select
+          <NativeSelect
             aria-label={'Rule ' + (index + 1) + ' operator for ' + vector.name}
             className={inputClass}
             value={current.operator}
@@ -300,11 +301,11 @@ export function PortalVectorStyleEditor({
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-xs">
           Value type
-          <select
+          <NativeSelect
             aria-label={'Rule ' + (index + 1) + ' type for ' + vector.name}
             className={inputClass}
             value={type}
@@ -322,13 +323,13 @@ export function PortalVectorStyleEditor({
                 <option value="null">Missing / null</option>
               </>
             )}
-          </select>
+          </NativeSelect>
         </label>
         {type !== 'null' && (
           <label className="text-xs">
             Value
             {type === 'boolean' ? (
-              <select
+              <NativeSelect
                 aria-label={'Rule ' + (index + 1) + ' value for ' + vector.name}
                 className={inputClass}
                 value={String(current.value)}
@@ -336,7 +337,7 @@ export function PortalVectorStyleEditor({
               >
                 <option value="false">false</option>
                 <option value="true">true</option>
-              </select>
+              </NativeSelect>
             ) : (
               <input
                 aria-label={'Rule ' + (index + 1) + ' value for ' + vector.name}
@@ -379,7 +380,7 @@ export function PortalVectorStyleEditor({
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs">
           Style mode
-          <select
+          <NativeSelect
             aria-label={'Style mode for ' + vector.name}
             className={inputClass}
             value={draft.mode}
@@ -388,11 +389,11 @@ export function PortalVectorStyleEditor({
             <option value="single">Single symbol</option>
             <option value="rules">Ordered comparison rules</option>
             <option value="gradient">Numeric color gradient</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-xs">
           Geometry
-          <select
+          <NativeSelect
             aria-label={'Style geometry for ' + vector.name}
             className={inputClass}
             value={draft.geometry}
@@ -402,7 +403,7 @@ export function PortalVectorStyleEditor({
             <option value="point">Points only</option>
             <option value="line">Lines only</option>
             <option value="polygon">Polygons only</option>
-          </select>
+          </NativeSelect>
         </label>
       </div>
       {draft.geometry !== 'any' && (
@@ -423,7 +424,7 @@ export function PortalVectorStyleEditor({
           <div className="flex flex-wrap items-end gap-2">
             <label className="min-w-0 flex-1 text-xs">
               Create typed categories from field
-              <select
+              <NativeSelect
                 aria-label={'Rule categories field for ' + vector.name}
                 className={inputClass}
                 value={categoryField}
@@ -433,7 +434,7 @@ export function PortalVectorStyleEditor({
                 {fields.map((field) => (
                   <option key={field}>{field}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <Button
               size="sm"
@@ -557,7 +558,7 @@ export function PortalVectorStyleEditor({
         <>
           <label className="block text-xs">
             Numeric field
-            <select
+            <NativeSelect
               aria-label={'Gradient field for ' + vector.name}
               className={inputClass}
               value={draft.property}
@@ -568,11 +569,11 @@ export function PortalVectorStyleEditor({
               {fields.map((field) => (
                 <option key={field}>{field}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label className="block text-xs">
             Color channel
-            <select
+            <NativeSelect
               aria-label={'Gradient channel for ' + vector.name}
               className={inputClass}
               value={draft.channel}
@@ -581,7 +582,7 @@ export function PortalVectorStyleEditor({
               <option value="both">Fill and stroke</option>
               <option value="fill">Fill only</option>
               <option value="stroke">Stroke only</option>
-            </select>
+            </NativeSelect>
           </label>
           <Button
             size="sm"
@@ -746,7 +747,7 @@ export function PortalVectorStyleEditor({
       </div>
       <label className="block text-xs">
         SLD export geometry
-        <select
+        <NativeSelect
           aria-label={'SLD export geometry for ' + vector.name}
           className={inputClass}
           value={exportGeometry}
@@ -755,7 +756,7 @@ export function PortalVectorStyleEditor({
           <option value="point">Point</option>
           <option value="line">Line</option>
           <option value="polygon">Polygon</option>
-        </select>
+        </NativeSelect>
       </label>
       <Button
         size="sm"

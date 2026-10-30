@@ -1,3 +1,4 @@
+import { NativeSelect, NullableNumberField } from '@/components/ui/form-field'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
 import { Badge } from '@/components/ui/badge'
 import { SPECIES_NAMES } from './allometry'
@@ -85,7 +86,7 @@ export function InventoryDetail({
         <div className="space-y-2 text-xs">
           <label className="block">
             Decision
-            <select
+            <NativeSelect
               aria-label="Inventory review status"
               className="mt-1 w-full rounded border bg-background p-1.5"
               value={row.review.status}
@@ -96,11 +97,11 @@ export function InventoryDetail({
               <option value="excluded">Exclude from summaries</option>
               <option value="split">Suspected split</option>
               <option value="merged">Suspected merged crowns</option>
-            </select>
+            </NativeSelect>
           </label>
           <label className="block">
             Species assignment
-            <select
+            <NativeSelect
               aria-label="Inventory reviewed species"
               className="mt-1 w-full rounded border bg-background p-1.5"
               value={row.review.species}
@@ -112,25 +113,22 @@ export function InventoryDetail({
                   {code} · {name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
-          <label className="block">
-            User-entered DBH (cm)
-            <input
-              aria-label="Inventory entered DBH"
-              className="mt-1 w-full rounded border bg-background p-1.5"
-              type="number"
-              min="0.1"
-              max="500"
-              step="0.1"
-              value={row.review.dbh_cm ?? ''}
-              onChange={(e) => {
-                const n = Number(e.target.value)
-                if (!e.target.value) onReview({ dbh_cm: null })
-                else if (Number.isFinite(n) && n > 0 && n <= 500) onReview({ dbh_cm: n })
-              }}
-            />
-          </label>
+          <NullableNumberField
+            label="User-entered DBH (cm)"
+            aria-label="Inventory entered DBH"
+            min={0.1}
+            max={500}
+            step={0.1}
+            clampOn="never"
+            value={row.review.dbh_cm ?? null}
+            contentClassName="text-xs"
+            inputClassName="mt-1 w-full rounded border bg-background p-1.5"
+            onValueChange={(value) => {
+              if (value === null || (value > 0 && value <= 500)) onReview({ dbh_cm: value })
+            }}
+          />
           <label className="block">
             Review note
             <textarea

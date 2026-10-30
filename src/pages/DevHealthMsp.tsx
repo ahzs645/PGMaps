@@ -15,6 +15,9 @@ import {
   StatGrid,
 } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { useFetchData } from '@/hooks/useFetchData'
 import { cn } from '@/lib/utils'
 import { formatCompactCurrency, formatPercent as formatPercentFraction } from '@/lib/format'
 
@@ -95,36 +98,22 @@ const TYPE_META: Record<PayeeType, { label: string; color: string; swatch: strin
 }
 
 function DevHealthMsp() {
-  const [facilities, setFacilities] = useState<MspFacility[]>([])
-  const [metadata, setMetadata] = useState<MspFacilityCollection['metadata']>()
+  const { data: source, loading, error } = useFetchData<MspFacilityCollection>(MSP_FACILITIES_URL, {
+    transform: (json) => {
+      const collection = json as MspFacilityCollection
+      if (!Array.isArray(collection?.features)) throw new Error('The MSP facility layer has no feature collection.')
+      return collection
+    },
+  })
+  const facilities = useMemo(() => source?.features.filter((feature) => feature.geometry?.type === 'Point') ?? [], [source])
+  const metadata = source?.metadata
   const [selected, setSelected] = useState<MspFacility | null>(null)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [showTimeline, setShowTimeline] = useState(false)
-  const [timelineDate, setTimelineDate] = useState(() => new Date(2024, 0, 1))
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    async function loadFacilities() {
-      setLoading(true)
-      try {
-        const response = await fetch(MSP_FACILITIES_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json() as MspFacilityCollection
-        setFacilities(data.features.filter((feature) => feature.geometry?.type === 'Point'))
-        setMetadata(data.metadata)
-        const maxYear = data.metadata?.fiscalStartYearRange?.max
-        if (Number.isFinite(maxYear)) setTimelineDate(new Date(Number(maxYear), 0, 1))
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') console.error('Failed to load MSP facility layer.', err)
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-    loadFacilities()
-    return () => controller.abort()
-  }, [])
+  const [timelineSelection, setTimelineDate] = useState<Date | null>(null)
+  const maxFiscalYear = metadata?.fiscalStartYearRange?.max
+  const timelineDate = useMemo(() => timelineSelection ?? new Date(Number.isFinite(maxFiscalYear) ? Number(maxFiscalYear) : 2024, 0, 1), [timelineSelection, maxFiscalYear])
 
   const fiscalYearRange = useMemo(() => {
     const metadataRange = metadata?.fiscalStartYearRange
@@ -251,8 +240,11 @@ function DevHealthMsp() {
       <SidebarSection title="Search">
         <SearchInput
           id="msp-search"
+          aria-label="Search MSP facilities"
+          icon
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
           placeholder="Facility, city, address"
         />
       </SidebarSection>
@@ -281,17 +273,19 @@ function DevHealthMsp() {
       >
         <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">{timelinePeriodLabel}</p>
-          <div className="space-y-1.5">
-            {filteredFacilities.slice(0, 80).map((feature) => (
-              <FacilityListButton
-                key={feature.properties.id}
-                feature={feature}
-                amount={periodAmount(feature, selectedFiscalYears)}
-                selected={selected?.properties.id === feature.properties.id}
-                onSelect={setSelected}
-              />
-            ))}
-          </div>
+          <ListHeader count={filteredFacilities.length} noun={['facility', 'facilities']} sticky={false} />
+          <ListState loading={loading} error={error} empty={!filteredFacilities.length} emptyLabel="No matching facilities." onReset={() => { setQuery(''); setTypeFilter('all') }}>
+            <VirtualResultList items={filteredFacilities} getKey={(feature) => feature.properties.id} estimateSize={65} label="MSP facilities">
+              {(feature) => (
+                <FacilityListButton
+                  feature={feature}
+                  amount={periodAmount(feature, selectedFiscalYears)}
+                  selected={selected?.properties.id === feature.properties.id}
+                  onSelect={setSelected}
+                />
+              )}
+            </VirtualResultList>
+          </ListState>
         </div>
       </SidebarSection>
     </MapSidebarShell>
@@ -469,24 +463,19 @@ function FacilityListButton({
   const props = feature.properties
   const Icon = TYPE_META[props.payeeType].icon
   return (
-    <button
-      type="button"
+    <ResultRow
       onClick={() => onSelect(feature)}
-      className={cn(
-        'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors',
-        selected ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background hover:bg-muted',
-      )}
-    >
-      <span className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-white', TYPE_META[props.payeeType].swatch)}>
-        <Icon className="size-3.5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{props.payeeName}</span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-          {[props.matchedLocality, formatCurrency(amount)].filter(Boolean).join(' · ')}
+      selected={selected}
+      accent="sky"
+      className="rounded-md border border-border"
+      title={props.payeeName}
+      subtitle={[props.matchedLocality, formatCurrency(amount)].filter(Boolean).join(' · ')}
+      leading={(
+        <span className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-white', TYPE_META[props.payeeType].swatch)}>
+          <Icon className="size-3.5" />
         </span>
-      </span>
-    </button>
+      )}
+    />
   )
 }
 

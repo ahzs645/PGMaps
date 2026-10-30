@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
@@ -62,7 +63,7 @@ export function RgbComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           RGB sample
-          <select
+          <NativeSelect
             aria-label="RGB comparison sample"
             className="ml-1 rounded border bg-background p-1.5"
             value={sample.id}
@@ -76,7 +77,7 @@ export function RgbComparison({
                 {s.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         {[
           [a, setA, 'A'],
@@ -84,7 +85,7 @@ export function RgbComparison({
         ].map(([id, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <select
+            <NativeSelect
               aria-label={`RGB model ${label}`}
               className="ml-1 max-w-[185px] rounded border bg-background p-1.5"
               value={String(id)}
@@ -95,7 +96,7 @@ export function RgbComparison({
                   {modelById(id)?.name ?? id}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
         <label>

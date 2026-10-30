@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -2462,7 +2463,7 @@ export default function DevForestryRoads() {
                                     <InlineAlert tone="error">{cableResult.error}</InlineAlert>
                                   ) : cableAnalysis ? (
                                     <div className="flex h-full min-h-0 flex-col">
-                                      <select
+                                      <NativeSelect
                                         aria-label="Active D-line"
                                         className="mb-1 rounded border bg-background text-xs"
                                         value={cableLine.id}
@@ -2473,7 +2474,7 @@ export default function DevForestryRoads() {
                                             {c.name}
                                           </option>
                                         ))}
-                                      </select>
+                                      </NativeSelect>
                                       {cableResult.summary && (
                                         <details
                                           className="mb-1 rounded border px-2 py-1 text-[11px]"
