@@ -42,6 +42,10 @@ The specialist sidebar's remaining first-80 cap was removed with the shared
 virtual list. Searches now examine every specialist and procedure. Its original
 P50/P90/case metrics, filters, sorting and intentional popup summaries remain.
 
+JSON results retain their original combined record-count/page readout through
+the shared pager's opt-in `summary-first` layout. The default pager layout stays
+unchanged; grouped actions wrap on small screens.
+
 Upstream road-workflow commit `922873ac` was integrated during preparation. All
 nine overlapping files were checked after reversing the NativeSelect adapter
 and applying repository formatting: the upstream behavior was retained exactly.
@@ -73,6 +77,11 @@ controls. One Save-readiness assertion allows 60 seconds for SwiftShader to
 prepare a full 150,000-stem stand. A complete regional-scenario calculation test
 allows 15 seconds on shared CI runners. All feature assertions and production
 timeouts, terrain limits and source budgets remain intact.
+
+The complete 108-case road browser workflow is split into three isolated CI
+shards, each retaining one Chromium worker and the existing job/test budgets.
+This keeps the expanded upstream suite within runner limits without dropping
+scenarios. Artifacts are named per shard and all shards report their results.
 
 LiDAR generated snapshots and scraper-owned datasets were not changed. Source
 snapshots used for verification were assembled through the existing sync scripts.
