@@ -61,6 +61,21 @@ their tooltips. Editing displays numbered controls and centred **+** insertion b
 The editing hint can be closed with its X and reopened with the question-mark button. This
 hint preference is remembered in the browser.
 
+### High or steep roads in the 3D view
+
+The 3D camera fits the terrain and the visible road's design elevations together in both
+**Orbit** and **Follow station**. A grade above the screening limit remains drawable. Raising
+a PVI can put the road so far above the terrain that its fill batter cannot meet the ground
+within the sampled section reach; deep cuts have the same issue.
+
+The preview shows each side's supported geometry independently, stopping at its first missing
+terrain sample or the section reach. Dashed red edges mark unfinished batters, and the selected
+station's message explains whether more reach or more terrain coverage is needed. In **Review**,
+increase **Section reach each side (m)** (up to 100 m), or revise the profile if the cut/fill is
+too large. Increasing reach cannot repair missing terrain. Incomplete sections remain excluded
+from earthwork quantities and costs; drawing a partial batter does not complete the section.
+The **Batters** switch hides both batter surfaces and their unfinished-edge markers.
+
 ### The scenario library
 
 **Projects → Browse example scenarios** opens nine editable examples. Prince George uses the verified
@@ -120,6 +135,7 @@ use a bounded orientation screen and terrain-sampled starting profiles; they sti
 | Plan terrain preview                  | 192 samples on the longer side (helper allows 32–384)                           | `PlanView.tsx`; `terrainDisplay.ts`, `buildTerrainDisplay`                             | Display only; calculations are unaffected                                                                                                      |
 | Contour segments                      | 60,000                                                                          | `terrainDisplay.ts`, `MAX_CONTOUR_SEGMENTS`                                            | Interval doubles from 1 m (2, 4, 8 m…) and the overlay shows it                                                                                |
 | 3D preview mesh                       | At most 128 cells on the longer side, 129² samples; follow window 240 m         | `terrainMesh.ts`, `MAX_TERRAIN_MESH_SIDE`; `TerrainPreview.tsx`                        | Display only; known missing analysis samples identify unsupported cells                                                                        |
+| 3D batter display                     | 6 strips per side between display stations; intermediate analysis stations retained | `previewEarthwork.ts`, `PREVIEW_BATTER_STRIPS`; `TerrainPreview.tsx`                  | Stops at the first unsupported sample on each side; unfinished edges remain marked and quantities stay incomplete                               |
 | 3D display gap infill                 | Enclosed components at most 80 m in width and height; 128 relaxation iterations | `terrainMesh.ts`, `MAX_DISPLAY_GAP_M`, `DISPLAY_GAP_ITERATIONS`                        | Larger and boundary-connected gaps stay open; estimated patches are labelled and can be switched off; analysis and exports retain missing data |
 | 3D vertex cache                       | 65,536 finite or missing samples                                                | `terrainMesh.ts`, `MAX_CACHED_TERRAIN_VERTICES`                                        | Oldest samples evicted; fixed-grid overlaps reuse samples                                                                                      |
 | Section half-width                    | 5–100 m, default 35 m                                                           | `project.ts`; `terrain.ts`, `DEFAULT_ROAD_SETTINGS`                                    | Sections that daylight beyond the terrain stay incomplete                                                                                      |

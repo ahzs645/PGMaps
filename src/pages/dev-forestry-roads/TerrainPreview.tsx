@@ -9,6 +9,9 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
+import { previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
+import { previewCamera } from './previewCamera'
+import { isBeyondReachFlag } from './engine'
 import type { Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
 
 const NO_FACES: Face[] = []
@@ -233,6 +236,7 @@ export function TerrainPreview({
     const selected = analysis.stations.filter((_, i) => i % step === 0 || i === analysis.stations.length - 1)
     const road: Face[] = []
     const earthwork: Face[] = []
+    const unfinishedEdges: PreviewBatterEdge[] = []
     const line: Array<{ vertex: Vertex | null; chainage: number; connected: boolean }> = []
     for (let i = 0; i < selected.length; i++) {
       const s = selected[i]
@@ -252,7 +256,7 @@ export function TerrainPreview({
         b = selected[i]
       if (!finite(a.designElevation) || !finite(b.designElevation)) continue
       // A known design surface does not depend on ground coverage. Only unknown design
-      // levels break the formation; batters below still require complete terrain sections.
+      // levels break the formation; batters below use each side's supported samples.
       if (analysis.stations.slice(a.index, b.index + 1).some((s) => !finite(s.designElevation))) continue
       const leftA = sideways(a, -a.leftWidth, frame),
         rightA = sideways(a, a.rightWidth, frame)
@@ -268,37 +272,18 @@ export function TerrainPreview({
             terrainGap: analysis.stations.slice(a.index, b.index + 1).some((s) => !finite(s.groundElevation)),
           })
       }
-      if (analysis.stations.slice(a.index, b.index + 1).every((sample) => sample.complete)) {
-        for (const side of [-1, 1]) {
-          const edgeA = side < 0 ? -a.leftWidth : a.rightWidth
-          const edgeB = side < 0 ? -b.leftWidth : b.rightWidth
-          const daylightA = side < 0 ? (a.leftDaylightM === null ? null : -Math.abs(a.leftDaylightM)) : a.rightDaylightM
-          const daylightB = side < 0 ? (b.leftDaylightM === null ? null : -Math.abs(b.leftDaylightM)) : b.rightDaylightM
-          if (!finite(daylightA) || !finite(daylightB)) continue
-          for (let part = 0; part < 6; part++) {
-            const t0 = part / 6,
-              t1 = (part + 1) / 6
-            const face = [
-              sideways(a, edgeA + (daylightA - edgeA) * t0, frame),
-              sideways(a, edgeA + (daylightA - edgeA) * t1, frame),
-              sideways(b, edgeB + (daylightB - edgeB) * t1, frame),
-              sideways(b, edgeB + (daylightB - edgeB) * t0, frame),
-            ]
-            if (!face.every((vertex): vertex is Vertex => vertex !== null)) continue
-            const vertices = clipFace(face, bounds)
-            const midpoint = edgeA + ((daylightA - edgeA) * (t0 + t1)) / 2
-            const sample = a.section.reduce(
-              (best, value) => (Math.abs(value.offset - midpoint) < Math.abs(best.offset - midpoint) ? value : best),
-              a.section[0],
-            )
-            if (vertices.length >= 3 && sample && finite(sample.ground) && finite(sample.design))
-              earthwork.push({
-                vertices,
-                fill: sample.ground >= sample.design ? '#dca365' : '#79a9d9',
-                station: (a.chainage + b.chainage) / 2,
-              })
-          }
-        }
+      const batters = previewEarthwork(analysis.stations.slice(a.index, b.index + 1), (s, offset, z) => {
+        const [x, y] = frame.point(s.coordinate)
+        const bearing = s.bearing * radians
+        return { x: x + Math.cos(bearing) * offset, y: y - Math.sin(bearing) * offset, z }
+      })
+      for (const face of batters.faces) {
+        const vertices = clipFace(face.vertices, bounds)
+        if (vertices.length >= 3) earthwork.push({ ...face, vertices })
+      }
+      for (const edge of batters.edges) {
+        const clipped = clipLine(edge.a, edge.b, bounds)
+        if (clipped) unfinishedEdges.push({ ...edge, a: clipped[0], b: clipped[1] })
       }
     }
     const zValues = mesh.elevations
@@ -321,17 +306,33 @@ export function TerrainPreview({
       })
     })
     const medianZ = zValues.length ? [...zValues].sort((a, b) => a - b)[Math.floor(zValues.length / 2)] : 0
+    // Fit elevations actually inside this display window; a high PVI outside the
+    // follow window must not shrink the current view, and a visible one must fit.
+    let low = zValues.length ? Math.min(...zValues) : Infinity
+    let high = zValues.length ? Math.max(...zValues) : -Infinity
+    const include = (vertex: Vertex) => {
+      low = Math.min(low, vertex.z)
+      high = Math.max(high, vertex.z)
+    }
+    for (const face of [...road, ...earthwork]) for (const vertex of face.vertices) include(vertex)
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1],
+        b = line[i]
+      const clipped = a.vertex && b.vertex && b.connected ? clipLine(a.vertex, b.vertex, bounds) : null
+      if (clipped) clipped.forEach(include)
+    }
     return {
       frame,
       bounds,
       ground,
       road,
       earthwork,
+      unfinishedEdges,
       ditches,
       line,
       medianZ,
-      low: zValues.length ? Math.min(...zValues) : 0,
-      high: zValues.length ? Math.max(...zValues) : 0,
+      low: Number.isFinite(low) ? low : 0,
+      high: Number.isFinite(high) ? high : 0,
       meshSpacing: mesh.spacing,
       cells: ground.length,
       infilledCells: mesh.infilledCells,
@@ -348,6 +349,7 @@ export function TerrainPreview({
       data-zoom={zoom}
       data-infilled-cells={sourceGeometry?.infilledCells ?? 0}
       data-open-gap-cells={sourceGeometry?.openGapCells ?? 0}
+      data-batter-face-count={sourceGeometry?.earthwork.length ?? 0}
       aria-label={`${sourceLabel} 3D preview`}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto border-b px-2 py-1.5 [&>*]:shrink-0">
@@ -499,32 +501,23 @@ export function TerrainPreview({
               const activeElevation = terrainOnly
                 ? active?.groundElevation
                 : (active?.designElevation ?? active?.groundElevation)
-              const targetZ = following ? (activeElevation ?? medianZ) : medianZ
+              const targetZ = following ? (activeElevation ?? medianZ) : (sourceGeometry.low + sourceGeometry.high) / 2
               const angle = (following ? active.bearing + yaw - 28 : yaw) * radians
               const tilt = (following ? clamp(pitch - 10, 15, 80) : pitch) * radians
-              const span = Math.max(bounds[2] - bounds[0], bounds[3] - bounds[1], 30)
-              const scale =
-                zoom *
-                Math.min(
-                  (width - 20) / (span * 1.35),
-                  (height - 24) / (span * 0.85 + (sourceGeometry.high - sourceGeometry.low) * exaggeration * 0.4),
-                )
-              const cameraDistance = span * 2.5
-              const project = (vertex: Vertex) => {
-                const x = vertex.x - target[0],
-                  y = vertex.y - target[1],
-                  z = (vertex.z - targetZ) * exaggeration
-                const across = x * Math.cos(angle) - y * Math.sin(angle)
-                const ahead = x * Math.sin(angle) + y * Math.cos(angle)
-                const depth = ahead * Math.cos(tilt) - z * Math.sin(tilt)
-                const vertical = ahead * Math.sin(tilt) + z * Math.cos(tilt)
-                const perspective = cameraDistance / Math.max(cameraDistance * 0.15, cameraDistance + depth)
-                return {
-                  x: width / 2 + pan.x + across * scale * perspective,
-                  y: height * 0.57 + pan.y - vertical * scale * perspective,
-                  depth,
-                }
-              }
+              const { scale, cameraDistance, project } = previewCamera({
+                bounds,
+                low: sourceGeometry.low,
+                high: sourceGeometry.high,
+                target,
+                targetZ,
+                angle,
+                tilt,
+                exaggeration,
+                width,
+                height,
+                zoom,
+                pan,
+              })
               const faces = (items: Face[]) =>
                 items
                   .map((face) => {
@@ -775,6 +768,31 @@ export function TerrainPreview({
                       </g>
                     ))}
                   {showEarthwork &&
+                    sourceGeometry.unfinishedEdges.map((edge, index) => {
+                      const a = project(edge.a),
+                        b = project(edge.b)
+                      return (
+                        <line
+                          key={`unfinished-${index}`}
+                          data-unfinished-batter={edge.reason}
+                          x1={a.x}
+                          y1={a.y}
+                          x2={b.x}
+                          y2={b.y}
+                          stroke="#e11d48"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 3"
+                          pointerEvents="none"
+                        >
+                          <title>
+                            {edge.reason === 'reach'
+                              ? 'Batter continues beyond the sampled section reach; it has not met the ground.'
+                              : 'Batter stops at missing terrain; its connection to the ground is unknown.'}
+                          </title>
+                        </line>
+                      )
+                    })}
+                  {showEarthwork &&
                     sourceGeometry.ditches.map((segment, index) => {
                       const a = project(segment.a),
                         b = project(segment.b)
@@ -875,6 +893,22 @@ export function TerrainPreview({
         )}
       </ChartViewport>
       <div className="shrink-0 text-[10px]">
+        {!terrainOnly && active && !active.complete && (
+          <p
+            role="status"
+            data-testid="road-3d-incomplete-section"
+            className="border-t px-2 py-1 text-amber-800 dark:text-amber-200"
+          >
+            {formatRoadStation(active.chainage)} ·{' '}
+            {active.flags.some(isBeyondReachFlag)
+              ? 'Batter extends beyond the sampled section reach. Increase “Section reach each side (m)” in Review, or revise the PVI elevations.'
+              : !finite(active.designElevation)
+                ? 'Formation elevation is unavailable. Set a vertical profile to show the road.'
+                : 'Terrain is missing before the section meets the ground. Load terrain covering the full road footprint.'}{' '}
+            {finite(active.designElevation) &&
+              'Supported geometry remains visible; dashed red edges mark unfinished batters. Earthwork quantities remain incomplete.'}
+          </p>
+        )}
         {selectedCulvert && (
           <p className="text-rose-700 dark:text-rose-300" data-testid="road-3d-selected-culvert">
             Selected: {selectedCulvert.name} · {formatRoadStation(selectedCulvert.chainage)} · cover{' '}
