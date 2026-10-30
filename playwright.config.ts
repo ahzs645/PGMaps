@@ -40,7 +40,14 @@ export default defineConfig({
       args: [
         ...(browserExecutablePath
           ? []
-          : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox']),
+          : [
+              '--use-angle=swiftshader',
+              '--enable-unsafe-swiftshader',
+              '--disable-gpu-sandbox',
+              // SwiftShader still renders WebGL; software compositing avoids
+              // GPU readback stalls when dialogs blur the live map beneath them.
+              ...(process.env.CI ? ['--disable-gpu-compositing'] : []),
+            ]),
         ...proxyArgs,
       ],
     },

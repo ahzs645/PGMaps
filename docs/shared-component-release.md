@@ -54,23 +54,23 @@ control without changing their props, handlers or options.
 
 ## Validation
 
-The merged application passed **2,757 unit/interaction tests** in GitHub Checks,
+The merged application passed **2,759 unit/interaction tests** in GitHub Checks,
 with one existing test skipped. TypeScript, zero-warning ESLint, global formatting
 and the production build passed. The standalone toolkit suite passed 127 tests.
 The PR's live checks are the source of truth for its latest commit.
 
 Follow-up browser coverage exercises these real desktop/mobile workflows:
 
-| Area | Cases and assertions |
-| --- | --- |
-| LiDAR rendering | Six cases use production roof/tree builders and shaders in WebGL2 and real MapLibre callbacks. Pixel colors, point sizing/clipping, projection paths, layer removal, GPU resource deletion, replacement contexts and shader failures are checked. |
-| Shared map controls | Fifteen cases cover wait clusters/reveal/filtering, MSP virtualization and fiscal payments, boundary source/opacity/camera, uploaded-data visibility, interaction layers, local DEM height/terrain/observer controls and phone viewshed/sun controls. |
-| Climate and early learning | Four cases cover exact quantile labels, null/suppressed values, unmapped rows, scrolling past row 80, wave/source changes, immutable releases, stale-loading isolation and mobile width. |
-| Water temperature | Two existing cases cover date/aggregation/CSV controls and mobile retries, fullscreen, resizing and retained station selection. |
-| Forestry preview | Four cases cover inventory suggestions, actual eye-level terrain/stand rendering, frozen updates during playback, pause/retry behavior, source-cache reuse and saved previews. |
-| Specialist results | Two cases scroll a real 115-facility list to item 114, retain list/map/popup selection and metrics, and exercise patient/procedure filters and sorting. |
-| Transit and Flatten | Five existing cases cover routing, walking comparison, sharing, held-drag heat, missing-data recovery, route buffers, endpoint dragging, elevation and city switching. |
-| Toolkit virtualizer | Two cases cover subpixel offset stability, fast scrolling, changing headers, keyboard navigation and filtering. |
+| Area                       | Cases and assertions                                                                                                                                                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LiDAR rendering            | Six cases use production roof/tree builders and shaders in WebGL2 and real MapLibre callbacks. Pixel colors, point sizing/clipping, projection paths, layer removal, GPU resource deletion, replacement contexts and shader failures are checked.     |
+| Shared map controls        | Fifteen cases cover wait clusters/reveal/filtering, MSP virtualization and fiscal payments, boundary source/opacity/camera, uploaded-data visibility, interaction layers, local DEM height/terrain/observer controls and phone viewshed/sun controls. |
+| Climate and early learning | Four cases cover exact quantile labels, null/suppressed values, unmapped rows, scrolling past row 80, wave/source changes, immutable releases, stale-loading isolation and mobile width.                                                              |
+| Water temperature          | Two existing cases cover date/aggregation/CSV controls and mobile retries, fullscreen, resizing and retained station selection.                                                                                                                       |
+| Forestry preview           | Four cases cover inventory suggestions, actual eye-level terrain/stand rendering, frozen updates during playback, pause/retry behavior, source-cache reuse and saved previews.                                                                        |
+| Specialist results         | Two cases scroll a real 115-facility list to item 114, retain list/map/popup selection and metrics, and exercise patient/procedure filters and sorting.                                                                                               |
+| Transit and Flatten        | Five existing cases cover routing, walking comparison, sharing, held-drag heat, missing-data recovery, route buffers, endpoint dragging, elevation and city switching.                                                                                |
+| Toolkit virtualizer        | Two cases cover subpixel offset stability, fast scrolling, changing headers, keyboard navigation and filtering.                                                                                                                                       |
 
 The forestry browser helper now opens enclosing disclosures before their child
 controls. One Save-readiness assertion allows 60 seconds for SwiftShader to
@@ -82,6 +82,23 @@ The complete 108-case road browser workflow is split into three isolated CI
 shards, each retaining one Chromium worker and the existing job/test budgets.
 This keeps the expanded upstream suite within runner limits without dropping
 scenarios. Artifacts are named per shard and all shards report their results.
+
+CI's SwiftShader browser uses software compositing while retaining WebGL. This
+avoids screenshot readback stalls when dialogs blur a live map: the unchanged
+cost-dialog test passed in 11.3 seconds, with a 365 ms screenshot instead of
+9,790 ms. Production blur and browser settings remain unchanged.
+
+Map PDF export reads the WebGL map once, preserves its markers and legends in
+the cloned document, and composes the captured image on a CPU-backed canvas.
+It honors workspace cancellation and releases its render callbacks, clone and
+output canvas after completion, cancellation or a bounded stage failure. The
+original map/report PDF browser case passed with real downloads and its content
+assertions intact.
+
+Road import helpers wait for the actual loading lifecycle and enabled Save
+control within the existing overall test budgets. They also verify the selected
+road and absence of errors. All three original import/material-flow cases passed;
+their calculations, saved-project comparisons and action limits are unchanged.
 
 LiDAR generated snapshots and scraper-owned datasets were not changed. Source
 snapshots used for verification were assembled through the existing sync scripts.

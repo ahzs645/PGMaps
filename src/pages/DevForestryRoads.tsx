@@ -1111,7 +1111,7 @@ export default function DevForestryRoads() {
         throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
       const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
       if (kind === 'map-pdf' || kind === 'report-pdf') {
-        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async () => {
+        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
           if (kind === 'map-pdf') {
             if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
@@ -1125,6 +1125,7 @@ export default function DevForestryRoads() {
               project.terrain.name,
               project.terrain.verticalReference,
               `${basename}-map.pdf`,
+              signal,
             )
           } else
             await exportReportPdf(
