@@ -559,11 +559,11 @@ export function EngineeringControls({
                             label={field.label}
                             value={
                               (candidate[field.key] ??
-                              candidate[
-                                field.key
-                                  .replace(/^(left|right)/, '')
-                                  .replace(/^./, (c) => c.toLowerCase()) as keyof RoadTemplate
-                              ] ??
+                                candidate[
+                                  field.key
+                                    .replace(/^(left|right)/, '')
+                                    .replace(/^./, (c) => c.toLowerCase()) as keyof RoadTemplate
+                                ] ??
                                 0) as number
                             }
                             onChange={(value) => updateTemplate({ [field.key]: value })}
@@ -1227,7 +1227,7 @@ export function EngineeringControls({
                     onChange={(p) => patch('sites', s.id, p)}
                   />
                   <Field label={`Site ${index + 1} material`}>
-                    <select
+                    <NativeSelect
                       className={roadFieldClass}
                       value={s.materialId ?? ''}
                       onChange={(event) => patch('sites', s.id, { materialId: event.target.value || undefined })}
@@ -1242,7 +1242,7 @@ export function EngineeringControls({
                             {m.name}
                           </option>
                         ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
                   <label className="flex items-center gap-1 text-xs">
                     <input

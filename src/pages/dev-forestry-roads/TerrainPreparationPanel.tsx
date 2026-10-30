@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from './Controls'
@@ -166,14 +167,14 @@ export function TerrainPreparationPanel({
       >
         <fieldset disabled={working || !!w.busy} className="min-w-0 space-y-2" data-testid="road-terrain-preparation">
           <Field label="Overlapping ground grids">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={overlap}
               onChange={(e) => setOverlap(e.target.value as typeof overlap)}
             >
               <option value="last">New files take precedence</option>
               <option value="first">Current ground takes precedence</option>
-            </select>
+            </NativeSelect>
           </Field>
           <input
             ref={file}
@@ -472,14 +473,14 @@ export function TerrainPreparationPanel({
       >
         <fieldset disabled={working || !!w.busy} className="space-y-2" data-testid="road-terrain-backgrounds">
           <Field label="Background GeoTIFF type">
-            <select
+            <NativeSelect
               className={roadFieldClass}
               value={backgroundKind}
               onChange={(e) => setBackgroundKind(e.target.value as typeof backgroundKind)}
             >
               <option value="canopy">Canopy height (0–40 m ramp)</option>
               <option value="ortho">RGB orthophoto</option>
-            </select>
+            </NativeSelect>
           </Field>
           <input
             type="file"
@@ -701,7 +702,7 @@ export function TerrainPreparationPanel({
           </Button>
           {!!project.surveyBooks?.length && (
             <Field label="Saved survey field books">
-              <select
+              <NativeSelect
                 className={roadFieldClass}
                 value=""
                 onChange={(e) => {
@@ -739,7 +740,7 @@ export function TerrainPreparationPanel({
                     {b.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           {survey && (

@@ -154,7 +154,8 @@ export function parseTotalCostPlanning(raw: unknown): TotalCostPlanning {
       throw Error('Source uses must be surfacing/fill or a separate bank-volume waste site.')
     let materialIds: string[] | undefined
     if (s.materialIds !== undefined) {
-      if (!Array.isArray(s.materialIds) || s.materialIds.length > 32) throw Error('A source supports at most 32 material classes.')
+      if (!Array.isArray(s.materialIds) || s.materialIds.length > 32)
+        throw Error('A source supports at most 32 material classes.')
       materialIds = s.materialIds.map((value) => {
         const materialId = text(value, 'Source material ID', 100)
         if (!/^[a-zA-Z0-9_.:-]+$/.test(materialId)) throw Error('Source material ID contains unsupported characters.')
@@ -162,7 +163,10 @@ export function parseTotalCostPlanning(raw: unknown): TotalCostPlanning {
       })
       if (new Set(materialIds).size !== materialIds.length) throw Error('Source material classes must be unique.')
     }
-    if (s.quality !== undefined && (typeof s.quality !== 'number' || !Number.isFinite(s.quality) || s.quality < 0 || s.quality > 100))
+    if (
+      s.quality !== undefined &&
+      (typeof s.quality !== 'number' || !Number.isFinite(s.quality) || s.quality < 0 || s.quality > 100)
+    )
       throw Error('Source material quality must be between 0 and 100.')
     return {
       id,

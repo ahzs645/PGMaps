@@ -59,10 +59,10 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             )
           : structuredClone(alignment)
       if (resultTarget === 'road') {
-      candidate.id = uid()
-      candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
-      candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
-      candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
+        candidate.id = uid()
+        candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
+        candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
+        candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
       }
       candidate.vertical = result.vertical.map((point) => ({ ...point, id: uid() }))
       candidate = snapshotActiveVerticalAlternative(candidate)
@@ -388,7 +388,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Search band centre
-          <select
+          <NativeSelect
             aria-label="Profile search band centre"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.bandCenter}
@@ -398,7 +398,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             <option value="design" disabled={!designed}>
               Current fitted design
             </option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Objective
@@ -422,7 +422,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </label>
         <label className="mt-2 block text-xs">
           Save optimized result as
-          <select
+          <NativeSelect
             aria-label="Profile optimization result target"
             className="mt-1 w-full rounded border bg-background p-1 text-base md:text-xs"
             value={resultTarget}
@@ -430,7 +430,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           >
             <option value="road">Separate road alternative</option>
             <option value="vertical">Named vertical profile on this road</option>
-          </select>
+          </NativeSelect>
         </label>
         <Button
           className="mt-2 w-full"

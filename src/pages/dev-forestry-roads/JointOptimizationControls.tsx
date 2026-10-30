@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NumberField, roadFieldClass } from './Controls'
@@ -146,7 +147,7 @@ export function JointOptimizationControls({
       </div>
       <label className="mt-2 block text-xs">
         Refinement objective
-        <select
+        <NativeSelect
           className={roadFieldClass}
           aria-label="Joint refinement objective"
           value={objective}
@@ -156,7 +157,7 @@ export function JointOptimizationControls({
           <option value="complete-access" disabled={!workspace.project.totalCostPlanning}>
             Complete access including network/supply
           </option>
-        </select>
+        </NativeSelect>
       </label>
       <Button
         className="mt-2 w-full"

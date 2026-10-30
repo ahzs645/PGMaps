@@ -1903,10 +1903,10 @@ export default function DevForestryRoads() {
                       ? 'Complete access cost'
                       : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
                         ? 'Incomplete estimate'
-                      : summaryLabel(
-                          'Base engineering estimate',
-                          hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                        ),
+                        : summaryLabel(
+                            'Base engineering estimate',
+                            hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                          ),
                   value: costPreview
                     ? costPreview.totalCost === null
                       ? costPreview.status === 'infeasible'
@@ -1919,12 +1919,12 @@ export default function DevForestryRoads() {
                         : 'Recalculate'
                       : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
                         ? 'Material plan infeasible'
-                      : displayedAnalysis.stations.length
-                        ? summaryValue(
-                            `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                            `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                          )
-                        : 'Unavailable',
+                        : displayedAnalysis.stations.length
+                          ? summaryValue(
+                              `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                              `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                            )
+                          : 'Unavailable',
                   // Opens the calculation: quantities × editable rates.
                   onToggle:
                     costPreview || completeCostRecord

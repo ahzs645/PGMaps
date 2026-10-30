@@ -397,7 +397,8 @@ function parseTerrain(raw: unknown): TerrainMetadata {
   }
   if (r.preparation !== undefined) result.preparation = parseTerrainPreparation(r.preparation)
   if (r.backgrounds !== undefined) result.backgrounds = parseTerrainBackgrounds(r.backgrounds)
-  if (r.referenceSurfaces !== undefined) result.referenceSurfaces = parseTerrainReferenceSurfaces(r.referenceSurfaces, result.verticalReference)
+  if (r.referenceSurfaces !== undefined)
+    result.referenceSurfaces = parseTerrainReferenceSurfaces(r.referenceSurfaces, result.verticalReference)
   if (r.epsg !== undefined) {
     const epsg = number(r.epsg, 'EPSG code', 1, 100000)
     if (!Number.isInteger(epsg)) throw Error('EPSG code must be an integer.')
@@ -1192,7 +1193,17 @@ export function engineeringCsv(analysis: RoadAnalysis, metadata: TerrainMetadata
     '\r\n' +
     rows
       .map((row) =>
-        [...row.slice(0, 12), metadata.name, metadata.resolutionM, metadata.verticalReference, metadata.sha256, row[12], row[13], row[14], row[15]]
+        [
+          ...row.slice(0, 12),
+          metadata.name,
+          metadata.resolutionM,
+          metadata.verticalReference,
+          metadata.sha256,
+          row[12],
+          row[13],
+          row[14],
+          row[15],
+        ]
           .map(csvValue)
           .join(','),
       )

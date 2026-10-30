@@ -514,14 +514,12 @@ function* search(
       },
     }
   }
-  const baselinePieces: Piece[] = sketch
-    .slice(1)
-    .map((p, i) => ({
-      a: sketch[i],
-      heading: Math.atan2(p[1] - sketch[i][1], p[0] - sketch[i][0]),
-      length: norm(delta(p, sketch[i])),
-      curvature: 0,
-    }))
+  const baselinePieces: Piece[] = sketch.slice(1).map((p, i) => ({
+    a: sketch[i],
+    heading: Math.atan2(p[1] - sketch[i][1], p[0] - sketch[i][0]),
+    length: norm(delta(p, sketch[i])),
+    curvature: 0,
+  }))
   const baseline = evaluate(baselinePieces, false)!.metrics
   const keyOf = (p: XY, heading: number) => {
     const col = Math.round((p[0] - box[0]) / cell),
