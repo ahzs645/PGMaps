@@ -13,6 +13,8 @@ are not production code or a performance benchmark.
   cubic-out-style easing. Small popover and tooltip feedback uses 150 ms.
 - A new action interrupts an old one. Grabbing a snapping sheet starts at its
   rendered position. Reopening or changing selection cancels pending removal.
+- Filtering away the keyboard-focused result cancels its pending scroll jump
+  and resets the results viewport, so the older jump cannot undo that action.
 - Collapsed, rear, or closing bodies are inert immediately. Exposed stack
   controls and keyboard resize handles remain available.
 - Full/compact/collapsed card detents support Arrow keys, Home/End, Space and
