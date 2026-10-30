@@ -8,6 +8,8 @@ import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { FilterChipGroup, InlineAlert, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader, ListState } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -279,19 +281,27 @@ function DevWaitSpecialist() {
       </SidebarSection>
 
       <SidebarSection title="Facilities">
-        {filteredFacilities.length === 0 ? (
-          <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-            No facilities match the current filters.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {filteredFacilities.slice(0, 80).map((facility) => (
+        <ListHeader count={filteredFacilities.length} noun={['facility', 'facilities']} sticky={false} />
+        <ListState
+          loading={loading}
+          loadingLabel="Loading specialist facilities…"
+          error={error}
+          empty={filteredFacilities.length === 0}
+          emptyLabel="No facilities match the current filters."
+        >
+          <VirtualResultList
+            items={filteredFacilities}
+            getKey={facilityId}
+            estimateSize={105}
+            label="Specialist facilities"
+          >
+            {(facility) => (
               <button
-                key={facility.id}
                 type="button"
                 onClick={() => setSelected(facility)}
+                aria-pressed={selected?.id === facility.id}
                 className={cn(
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
+                  'mb-2 w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
                   selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
                 )}
               >
@@ -306,9 +316,9 @@ function DevWaitSpecialist() {
                 </div>
                 <FacilityListMetrics facility={facility} filter={filter} />
               </button>
-            ))}
-          </div>
-        )}
+            )}
+          </VirtualResultList>
+        </ListState>
       </SidebarSection>
     </MapSidebarShell>
   )
