@@ -58,6 +58,8 @@ describe('road scenario library', () => {
     expect(roads.every((road) => road.roadEvidence?.constructionYear === undefined)).toBe(true)
   })
 
+  // This samples both alignments for every regional scenario; shared CI
+  // runners can need more than the default five seconds for the complete set.
   it('builds each regional example around its own place with its own sampled profile', () => {
     const source = { elevationAt: (_lon: number, lat: number) => 100 + lat * 10 }
     for (const scenario of ROAD_SCENARIOS) {
@@ -74,7 +76,7 @@ describe('road scenario library', () => {
       expect(alignments[0].points[0].coordinate).toEqual(alignments[1].points[0].coordinate)
       expect(alignments[0].points.at(-1)?.coordinate).toEqual(alignments[1].points.at(-1)?.coordinate)
     }
-  })
+  }, 15_000)
 
   it('retains public context failures in a portable project without substituting invented roads', async () => {
     const fixture = terrain.createDemoProject()

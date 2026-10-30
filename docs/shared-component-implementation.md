@@ -4,6 +4,11 @@ The [component audit](shared-component-audit.md) is implemented in the working
 tree. The changes share presentation and interaction mechanics while preserving
 each app's data, calculation, editing and navigation policies.
 
+The implementation and follow-up cleanup are now committed on
+`codex/shared-components`. See the [release record](shared-component-release.md)
+for the published toolkit pin, current validation and pull requests. The original
+verification record below describes the initial extraction before that cleanup.
+
 ## Completed work
 
 | Area | Implementation and retained behavior |

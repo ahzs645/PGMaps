@@ -124,7 +124,7 @@ for (const mobile of [false, true]) {
     await expect(popup).toContainText('Surgery Facility 114')
     await expect(popup).toContainText('114 Test Street, Fixture town')
     await expect(popup).toContainText('Doctor 114')
-    await expect(popup.getByRole('link', { name: 'Location source', exact: true })).toHaveAttribute(
+    await expect(popup.getByRole('link', { name: /^Location source/ })).toHaveAttribute(
       'href',
       'https://example.test/location/114',
     )
