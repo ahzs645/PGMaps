@@ -178,6 +178,65 @@ test.describe('/dev/data on desktop', () => {
 test.describe('/dev/data on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
+  test('stacks the feature card, table and controls sheet and swaps them with a tap', async ({ page }) => {
+    const errors = await openDevData(page)
+    // A docked card is aria-hidden, so find cards by their panel header rather than role.
+    const card = (name: string) =>
+      page
+        .locator('[data-map-feature-card-panel="true"]')
+        .filter({ has: page.locator(':scope > header').getByText(name, { exact: true }) })
+    const rect = (locator: ReturnType<typeof card>) =>
+      locator.evaluate(async (node) => {
+        for (let frame = 0; frame < 120; frame++) {
+          await new Promise(requestAnimationFrame)
+          if (!document.getAnimations().some((animation) => animation.playState === 'running')) break
+        }
+        const box = node.getBoundingClientRect()
+        return { top: box.top, height: box.height }
+      })
+    const tapStrip = async (locator: ReturnType<typeof card>) => {
+      const box = (await locator.boundingBox())!
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + 4)
+    }
+    const civic = sidebar(page).locator('[data-layer-item="Civic facilities"]')
+    await expect(civic).toContainText('62 rows')
+    await civic.getByRole('button', { name: 'Civic facilities options' }).click()
+    await page.getByRole('menuitem', { name: 'Open table' }).click()
+    const table = card('Table')
+    await table.getByRole('row').nth(1).click()
+    const feature = card('Fire Hall 3')
+    await expect(feature).toHaveAttribute('data-stack-role', 'primary')
+    await expect(table).toHaveAttribute('data-stack-role', 'secondary')
+
+    // Bring the controls forward, then open another layer's table from them.
+    await tapStrip(page.locator('[data-map-mobile-sheet="true"]') as ReturnType<typeof card>)
+    await expect(feature).toHaveAttribute('data-stack-role', 'docked')
+    await page.getByRole('separator', { name: 'Drag to resize sheet' }).press('End')
+    const boundaries = sidebar(page).locator('[data-layer-item="Community boundaries"]')
+    await boundaries.getByRole('button', { name: 'Community boundaries options' }).click()
+    await page.getByRole('menuitem', { name: 'Open table' }).click()
+
+    // The table comes forward; the feature card is the card behind it at the
+    // same height, not left sized to the controls sheet with an empty body.
+    await expect(table).toHaveAttribute('data-stack-role', 'primary')
+    await expect(feature).toHaveAttribute('data-stack-role', 'secondary')
+    // The rear card follows the front card's reported height a frame behind.
+    await expect
+      .poll(async () => {
+        const front = await rect(table)
+        const rear = await rect(feature)
+        return { heightGap: Math.round(rear.height - front.height), peek: Math.round(front.top - rear.top) }
+      })
+      .toEqual({ heightGap: 0, peek: 10 })
+
+    await tapStrip(feature)
+    await expect(feature).toHaveAttribute('data-stack-role', 'primary')
+    await expect(table).toHaveAttribute('data-stack-role', 'secondary')
+    await tapStrip(table)
+    await expect(table).toHaveAttribute('data-stack-role', 'primary')
+    expect(errors).toEqual([])
+  })
+
   test('keeps the layer list and library reachable from the sheet', async ({ page }) => {
     const errors = await openDevData(page)
     await expect(page.getByRole('button', { name: 'Add data' })).toBeVisible()
