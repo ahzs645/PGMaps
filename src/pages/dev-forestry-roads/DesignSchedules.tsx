@@ -5,7 +5,19 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { NumberField } from './Controls'
 import { nearestStation, verticalCurveSummary } from './engine'
 import { CurveReviewPanel } from './CurveReviewPanel'
-import type { Alignment, RoadAnalysis, TerrainMetadata, VerticalPoint } from './types'
+import { SweptPathPanel } from './SweptPathPanel'
+import type { SweptManeuver, SweptPathResult } from './sweptPath'
+import type { Alignment, RoadAnalysis, TerrainMetadata, VehicleCheck, VerticalPoint } from './types'
+
+export interface SweptPathProps {
+  result: SweptPathResult | null
+  error: string
+  onChange?: (check: VehicleCheck | undefined) => void
+  showOnPlan: boolean
+  onShowOnPlan: (show: boolean) => void
+  /** Frame a turn on the plan and select its governing station. */
+  onFocus?: (turn: SweptManeuver) => void
+}
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
 export function DesignSchedules({
@@ -17,6 +29,7 @@ export function DesignSchedules({
   children,
   terrainOnly = false,
   terrain,
+  swept,
 }: {
   alignment: Alignment
   analysis: RoadAnalysis
@@ -26,8 +39,10 @@ export function DesignSchedules({
   children: ReactNode
   terrainOnly?: boolean
   terrain?: TerrainMetadata
+  swept?: SweptPathProps
 }) {
-  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical'>('sampled')
+  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'swept'>('sampled')
+  const failingTurns = new Set(swept?.result?.maneuvers.filter((t) => !t.fits).map((t) => t.id)).size
   let vertical: ReturnType<typeof verticalCurveSummary> = []
   try {
     vertical = verticalCurveSummary(alignment)
@@ -43,12 +58,29 @@ export function DesignSchedules({
     <div className="flex h-full min-h-0 flex-col gap-2">
       <TabBar
         label="Road data schedule"
+        stretch
         value={terrainOnly ? 'sampled' : tab}
         onChange={setTab}
+        // Short labels keep all four tabs on one row at phone widths; names stay descriptive.
         options={[
           { value: 'sampled', label: 'Samples' },
-          { value: 'horizontal', label: 'Horizontal curves', disabled: terrainOnly },
-          { value: 'vertical', label: 'Vertical controls', disabled: terrainOnly },
+          { value: 'horizontal', label: 'Curves', ariaLabel: 'Horizontal curves', disabled: terrainOnly },
+          { value: 'vertical', label: 'Vertical', ariaLabel: 'Vertical controls', disabled: terrainOnly },
+          ...(swept
+            ? [
+                {
+                  value: 'swept' as const,
+                  label: 'Swept path',
+                  ariaLabel: failingTurns
+                    ? `Swept path, ${failingTurns} turn${failingTurns === 1 ? ' needs' : 's need'} widening`
+                    : 'Swept path',
+                  badge: failingTurns ? (
+                    <span className="rounded-full bg-red-600 px-1.5 text-[10px] text-white">{failingTurns}</span>
+                  ) : undefined,
+                  disabled: terrainOnly,
+                },
+              ]
+            : []),
         ]}
       />
       <div className="min-h-0 flex-1">
@@ -60,7 +92,23 @@ export function DesignSchedules({
             station={station}
             onStation={onStation}
             terrain={terrain}
+            swept={swept?.result ?? null}
+            onOpenSwept={swept ? () => setTab('swept') : undefined}
           />
+        )}
+        {tab === 'swept' && swept && !terrainOnly && (
+          <div className="h-full overflow-auto overscroll-contain">
+            <SweptPathPanel
+              check={alignment.vehicleCheck}
+              result={swept.result}
+              error={swept.error}
+              onChange={swept.onChange}
+              onStation={onStation}
+              showOnPlan={swept.showOnPlan}
+              onShowOnPlan={swept.onShowOnPlan}
+              onFocus={swept.onFocus}
+            />
+          </div>
         )}
         {tab === 'vertical' && !terrainOnly && (
           <div className="flex h-full min-h-0 flex-col gap-2">

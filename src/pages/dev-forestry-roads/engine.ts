@@ -558,6 +558,24 @@ export function horizontalGeometry(alignment: Alignment): Array<
           },
   )
 }
+/**
+ * The fitted centreline, spirals and arcs included, sampled every `stepM` in the alignment's local
+ * metric frame (x east, y north). For geometric checks that need many positions at once.
+ */
+export function centrelineSamples(alignment: Alignment, stepM: number) {
+  const path = compiledPath(alignment)
+  const count = Math.max(1, Math.ceil(path.length / Math.max(0.01, stepM)))
+  const samples = Array.from({ length: count + 1 }, (_, i) => {
+    const s = Math.min(path.length, (i * path.length) / count)
+    const p = location(path, s)
+    return { s, x: p.xy[0], y: p.xy[1] }
+  })
+  return {
+    length: path.length,
+    samples,
+    toCoordinate: (x: number, y: number): Coordinate => path.frame.fromXY([x, y]),
+  }
+}
 export function positionAt(alignment: Alignment, chainage: number): { coordinate: Coordinate; bearing: number } {
   const p = location(compile(alignment), chainage)
   return { coordinate: p.coordinate, bearing: p.bearing }

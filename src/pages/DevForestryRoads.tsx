@@ -47,7 +47,9 @@ import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
-import { DesignSchedules } from './dev-forestry-roads/DesignSchedules'
+import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
+import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
+import { SweptPathPanel } from './dev-forestry-roads/SweptPathPanel'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
@@ -179,7 +181,17 @@ export default function DevForestryRoads() {
   const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
   const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
   const [detail, setDetail] = useState<
-    'section' | 'terrain' | 'mass' | 'table' | 'compare' | 'cable' | 'pegs' | 'engineering' | 'landing' | 'drainage'
+    | 'section'
+    | 'terrain'
+    | 'mass'
+    | 'table'
+    | 'compare'
+    | 'cable'
+    | 'pegs'
+    | 'engineering'
+    | 'landing'
+    | 'drainage'
+    | 'swept'
   >('section')
   const [fallbackDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
   const drainageSettings = project.drainage?.settings ?? fallbackDrainageSettings
@@ -1557,6 +1569,48 @@ export default function DevForestryRoads() {
   const profileAnalysis = terrainProfile
     ? { ...displayedAnalysis, stations: displayedAnalysis.stations.map((s) => ({ ...s, designElevation: null })) }
     : displayedAnalysis
+  // The vehicle check follows the displayed road; deferring it keeps drags and typing responsive.
+  const sweptAlignment = useDeferredValue(displayedAlignment)
+  const [showSwept, setShowSwept] = useState(true)
+  const sweptState = useMemo(() => {
+    const check = sweptAlignment.vehicleCheck
+    if (!check || terrainProfile) return { result: null, error: '' }
+    try {
+      return { result: analyzeSweptPath(sweptAlignment, check), error: '' }
+    } catch (cause) {
+      return { result: null, error: cause instanceof Error ? cause.message : 'The swept path could not be calculated.' }
+    }
+  }, [sweptAlignment, terrainProfile])
+  const swept: SweptPathProps = {
+    ...sweptState,
+    showOnPlan: showSwept,
+    onShowOnPlan: setShowSwept,
+    onFocus: (turn) => {
+      setShowSwept(true)
+      w.setFeatureSelection({
+        alignmentId: alignment.id,
+        kind: 'range',
+        id: `swept-${turn.id}`,
+        start: turn.start,
+        end: turn.end,
+        label: `${turn.id} swept path`,
+      })
+      setStation(turn.worstChainage)
+    },
+    onChange:
+      busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
+        ? undefined
+        : (vehicleCheck) =>
+            commitValidated({
+              ...project,
+              alignments: project.alignments.map((a) => {
+                if (a.id !== alignment.id) return a
+                const { vehicleCheck: _old, ...rest } = a
+                void _old
+                return vehicleCheck ? { ...rest, vehicleCheck } : rest
+              }),
+            }),
+  }
   // One schedule element serves the detail pane's Stations view and the four-pane data region,
   // so curve review and vertical controls are reachable beside plan, profile and section.
   const designSchedules = (
@@ -1567,6 +1621,7 @@ export default function DevForestryRoads() {
       station={station}
       onStation={setStation}
       terrainOnly={!!terrainProfile}
+      swept={swept}
       onVerticalChange={
         busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
           ? undefined
@@ -2290,6 +2345,7 @@ export default function DevForestryRoads() {
                             onCableDistance={setCableDistance}
                             overlay={planOverlay}
                             drainage={drainageOnPlan}
+                            swept={showSwept ? sweptState.result?.overlay : undefined}
                             pourPointPicking={!!drainagePicking}
                             onPourPoint={
                               drainagePicking
@@ -2378,7 +2434,9 @@ export default function DevForestryRoads() {
                                             ? 'Landing deflection explorer'
                                             : detail === 'drainage'
                                               ? 'Drainage · existing vs design surface'
-                                              : 'D-line clearance'
+                                              : detail === 'swept'
+                                                ? 'Design vehicle swept path'
+                                                : 'D-line clearance'
                           }
                           actions={
                             <>
@@ -2397,6 +2455,7 @@ export default function DevForestryRoads() {
                                   { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
                                   { value: 'landing', label: 'Landing' },
                                   { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
+                                  { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
                                 ]}
                                 triggerAriaLabel="Road detail view"
                                 triggerClassName="h-8 w-32 max-w-full text-xs"
@@ -2602,6 +2661,20 @@ export default function DevForestryRoads() {
                                     }}
                                   />
                                 )}
+                                {detail === 'swept' && !terrainProfile && (
+                                  <div className="h-full overflow-auto overscroll-contain">
+                                    <SweptPathPanel
+                                      check={displayedAlignment.vehicleCheck}
+                                      result={sweptState.result}
+                                      error={sweptState.error}
+                                      onChange={swept.onChange}
+                                      onStation={setStation}
+                                      showOnPlan={showSwept}
+                                      onShowOnPlan={setShowSwept}
+                                      onFocus={swept.onFocus}
+                                    />
+                                  </div>
+                                )}
                                 {detail === 'compare' && (
                                   <CompareAlternatives
                                     alignments={project.alignments}
@@ -2727,7 +2800,7 @@ export default function DevForestryRoads() {
                   }
                 />
                 <div
-                  className="road-station-controller flex shrink-0 flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2"
+                  className="road-station-controller flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-2 sm:gap-2"
                   data-testid="road-station-controller"
                 >
                   <Button
@@ -2743,7 +2816,7 @@ export default function DevForestryRoads() {
                     {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
                   </Button>
                   <button
-                    className="rounded border px-2 py-1 text-xs"
+                    className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                     aria-label="Previous road station"
                     onClick={() =>
                       w.setStation(
@@ -2755,14 +2828,15 @@ export default function DevForestryRoads() {
                     ‹
                   </button>
                   <label className="flex items-center gap-1 text-xs">
-                    Station{' '}
+                    {/* Narrow phones keep the slider on the same row; the input stays named. */}
+                    <span className="max-[399px]:sr-only">Station</span>{' '}
                     <input
                       aria-label="Selected station metres"
                       type="number"
                       min={0}
                       max={Math.ceil(displayedAnalysis.length * 10) / 10}
                       step="any"
-                      className="w-20 rounded border bg-background px-1 py-1 font-mono"
+                      className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
                       title="Updates the linked views as you type. Arrow keys select the next or previous calculated station."
                       value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
                       onChange={(e) => {
@@ -2795,7 +2869,7 @@ export default function DevForestryRoads() {
                     />
                   </label>
                   <button
-                    className="rounded border px-2 py-1 text-xs"
+                    className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                     aria-label="Next road station"
                     onClick={() =>
                       w.setStation(
@@ -2813,7 +2887,7 @@ export default function DevForestryRoads() {
                     max={Math.max(1, displayedAnalysis.length)}
                     step={1}
                     value={station}
-                    className="min-w-24 flex-1 accent-rose-600"
+                    className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
                     onChange={(e) => w.setStation(Number(e.target.value))}
                   />
                   <output className="font-mono text-xs" data-testid="road-selected-station">

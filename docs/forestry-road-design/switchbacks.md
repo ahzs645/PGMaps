@@ -97,13 +97,91 @@ design breakpoints. See [Final connector checks](final-connector-checks.md).
 The descriptive curve schedule uses the active analysis samples; it does not
 replace that denser adoption check.
 
+## Design vehicle swept path
+
+**Swept path** (a tab beside **Curves** in the four-pane data pane, and a view in
+the detail picker on phones) tracks a design vehicle through every fitted curve
+and compares its outer wheel paths with the formation.
+
+**Vehicle.** One to three rigid units. Each unit has a wheelbase (steer axle or
+hitch to the axle-group centre), front and rear overhang, and, for all but the
+last unit, a hitch offset from its axle group to the next unit's hitch. Width is
+out-to-out. Three starting configurations are provided:
+
+| Starting configuration                | Units                                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Loaded log truck + pole trailer       | Truck 5.8 m wheelbase; logs pivot on the truck bunk, 9.5 m to the trailer bunk, 5 m overhang     |
+| Empty log truck, trailer carried      | One unit, 5.8 m wheelbase, 3 m rear overhang                                                     |
+| Tractor–semitrailer, WB-19 class      | Tractor 6.6 m, fifth wheel 0.3 m ahead of the tandem; semitrailer 12.5 m kingpin to axles        |
+
+**These are example dimensions, not certified design vehicles.** Replace them with
+the fleet's truck, bunk spacing, log length and overhang, or with the design
+vehicle in your criteria source. Editing a starting configuration renames it
+"(edited)" and the source field records where the dimensions came from.
+
+**Direction and clearance.** Choose up-station, down-station or both. With both,
+each turn reports the direction that needs the most widening. The wheel clearance
+is the margin kept between the outer wheel path and the formation edge; take it
+from your road class or criteria, since PGMaps does not infer one.
+
+**Calculation.** The steer-axle centre follows the fitted centreline (a single-lane
+resource road) at 0.25 m steps. Each axle group trails its front pivot without
+slip, the tractrix model behind offtracking templates, starting straight on the
+first tangent. On a circular curve of radius R the rear axle of a unit with
+wheelbase L settles on radius:
+
+$$
+R_{rear}=\sqrt{R^{2}-L^{2}}
+$$
+
+With a hitch over the rear axle, a semitrailer of wheelbase L₂ settles on
+√(R² − L₁² − L₂²). The unit tests check the simulation against both. For R40,
+these give about 1.6 m offtracking for the example pole trailer and 2.6 m for the
+example semitrailer.
+
+Wheel and body points are located against the centreline and kept as the widest
+offset at each metre. A **turn** spans a curve plus one vehicle length either side;
+turns that overlap merge, so a switchback's two curves are judged as **one 180°
+turn**, with the trailer's state carried between them. For each turn and direction:
+
+- Offtracking: the widest gap between the steer path and the last axle group.
+- Articulation: the largest angle between units (above 80° is flagged).
+- Wheel extent against the narrowest formation half-width on each side.
+- Widening needed = wheel extent + clearance − formation half-width, per side.
+- Body and load beyond the formation edge, reported separately because overhang
+  may pass over a fill shoulder but strike a cut batter, tree or barrier.
+
+**On the plan,** orange lines are the outer wheel paths, dashed purple lines the
+body and load, and red where the wheels come within the clearance of the
+formation edge. **Worst station** frames the whole turn on the plan and selects
+its most critical station. Each curve's review in **Curves** names the turn it
+belongs to and its result.
+
+**While sizing a switchback,** **Add a switchback** shows the result for the staged
+turn before it is created. **Find smallest radius that fits** searches 0.5 m steps
+(5–200 m) for the smallest radius whose turn keeps the wheels on the formation
+with the entered clearance; **Use R…** applies it. The search assumes offtracking
+falls as the radius grows, which holds for this constant-width construction. If
+no radius up to 200 m fits, the formation is too narrow for the vehicle and must
+be widened instead.
+
+For the supplied example with the loaded pole-trailer starting configuration and
+0.3 m clearance, the left R40 return needs 0.22 m more formation on the inside.
+Staging a left switchback (50 m entry, 5 m middle, 80 m exit) at the end of the
+training road, whose formation is 3 m each side, the tool finds R46.5 m as the
+smallest fitting radius; at R20 the wheels need 1.87 m more.
+
+**Not modelled:** tandem scrub, tyre and suspension compliance, driver line, speed,
+grade, traction and braking, reversing, mirrors and vertical clearance. The check
+compares against formation half-widths, not cut batters, clearing limits or the
+opposite leg.
+
 ## What is still separate
 
-**Vehicle swept paths:** centreline radius, width and inside-edge grade do not
-establish tractor/trailer clearance, articulation limits, log overhang, offtracking
-or traction. A complete return-bend review needs a chosen vehicle and operating
-conditions. Two separate 90° widening lookups do not automatically represent one
-180° maneuver. No automatic BC-standard switchback preset is supplied here.
+**Vehicle beyond the wheel check:** the swept path checks wheels against the
+formation. It does not establish traction or braking on grade, reversing, tandem
+scrub, or whether the body and load clear cut batters, trees and the opposite leg.
+No automatic BC-standard switchback preset or road-class clearance is supplied.
 
 **Terrain and earthworks:** positive local inside radii do not prove that opposing
 legs, cut/fill batters or clearing areas are disjoint. Existing average-end-area

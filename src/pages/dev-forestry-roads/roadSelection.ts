@@ -1,11 +1,21 @@
 import type { Alignment } from './types'
 
-export type RoadFeatureSelection = {
-  alignmentId: string
-  kind: 'widening' | 'site' | 'assignment' | 'stratum'
-  id: string
+export type RoadFeatureSelection =
+  | {
+      alignmentId: string
+      kind: 'widening' | 'site' | 'assignment' | 'stratum'
+      id: string
+    }
+  /** A station range to frame on the plan, such as a vehicle turn; drawn without a highlight. */
+  | { alignmentId: string; kind: 'range'; id: string; start: number; end: number; label: string }
+export type RoadSelectionRange = {
+  start: number
+  end: number
+  label: string
+  /** False frames the range without drawing over the road's detail. */
+  highlight?: boolean
+  maxZoom?: number
 }
-export type RoadSelectionRange = { start: number; end: number; label: string }
 
 export function roadSelectionRange(
   alignment: Alignment,
@@ -13,6 +23,8 @@ export function roadSelectionRange(
 ): RoadSelectionRange | undefined {
   if (!selection || selection.alignmentId !== alignment.id) return
   const engineering = alignment.engineering
+  if (selection.kind === 'range')
+    return { start: selection.start, end: selection.end, label: selection.label, highlight: false, maxZoom: 19 }
   if (selection.kind === 'widening') {
     const item = alignment.overrides.find((x) => x.id === selection.id)
     if (item) return { start: item.start, end: item.end, label: item.name }

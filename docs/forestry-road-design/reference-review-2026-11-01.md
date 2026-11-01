@@ -156,7 +156,7 @@ validate representative articulated vehicles independently.
 
 | Priority | Remaining work                                                       | What would close it                                                                                                                                                                                    |
 | -------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1        | Whole-switchback vehicle clearance, grade and footprint verification | Explicit vehicle geometry; articulated forward/reverse paths; overhang and clearance margins; variable-width/crossfall edge profiles; self-intersection and leg/prism overlap checks                   |
+| 1        | Whole-switchback footprint and grade beyond the wheel check          | Forward wheel and body paths are now checked against the formation (see the switchback guide). Still open: reversing; body clearance to cut batters and clearing; leg/prism overlap; traction on grade |
 | 1        | Sourced design-class application                                     | Vehicle/class selection with source edition, loaded travel direction, sustained/short-pitch distinctions, curve-grade compensation and transition rules; preserve user overrides and report deviations |
 | 1        | Tight-curve earthwork fidelity                                       | Curvature-aware volume integration or a validated 3D comparison; convergence checks over curved asymmetric cut/fill sections; no double-counting overlapping prism areas                               |
 | 2        | Reference-style radial maximum reach                                 | Search tailhold distance along each bearing with the same documented geometry assumptions; preserve sampled uncertainty; mechanical skyline calculations remain a separate model                       |
@@ -186,3 +186,14 @@ printed slide numbers, recorded below.
 The source-version check is reproducible by downloading S5 and comparing its cover,
 page 132 and checksum. Recheck the live document before updating criteria: its URL
 does not encode an edition.
+
+## Follow-up: design vehicle swept path (1 November 2026)
+
+Added a kinematic design-vehicle check with editable units and labelled example
+starting configurations. Loaded travel direction and a wheel clearance margin are
+user inputs; no road class is inferred. A switchback's two curves are judged as one
+turn. The staged switchback reports its result and can search for the smallest
+fitting radius. Unit tests compare steady offtracking with the closed forms for one
+and two units. Browser tests cover desktop and 390×844 and 320×568 touch use. The
+mobile audit fixed undersized touch targets, a clipped tab row, an overflowing
+comparison picker and a two-row station bar at 320 px.

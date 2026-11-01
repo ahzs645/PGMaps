@@ -5,7 +5,8 @@
  */
 import { alignmentLength, distance, horizontalCurveSummary, offsetCoordinate } from './engine'
 import { pegBearing } from './pegging'
-import type { Alignment, Coordinate, VerticalPoint } from './types'
+import { analyzeSweptPath } from './sweptPath'
+import type { Alignment, Coordinate, VehicleCheck, VerticalPoint } from './types'
 
 export const SWITCHBACK_LIMITS = {
   minRadiusM: 5,
@@ -176,4 +177,44 @@ export function createSwitchbackAlternative(road: Alignment, options: Switchback
     curveEnd: curves[1].end,
     sketch,
   }
+}
+
+/** The swept-path result for a staged switchback's own turn (its two curves together). */
+export function switchbackSweptTurn(sketch: SwitchbackSketch, check: VehicleCheck) {
+  const curveCount = horizontalCurveSummary(sketch.alignment).length
+  const runs = analyzeSweptPath(sketch.alignment, check).maneuvers.filter((t) => t.curveIds.includes(`H${curveCount}`))
+  const widen = (t: (typeof runs)[number]) => Math.max(t.requiredLeftWideningM, t.requiredRightWideningM)
+  return {
+    runs,
+    fits: runs.every((t) => t.fits),
+    requiredWideningM: Math.max(0, ...runs.map(widen)),
+    maxOfftrackingM: Math.max(0, ...runs.map((t) => t.maxOfftrackingM)),
+  }
+}
+
+/**
+ * Smallest switchback radius, to `toleranceM`, whose turn keeps the vehicle's wheels on the
+ * formation with the entered clearance. Assumes offtracking falls as the radius grows, which holds
+ * for the constant-width two-curve construction. Null when even `maxRadiusM` needs widening.
+ */
+export function smallestFittingSwitchbackRadius(
+  road: Alignment,
+  options: SwitchbackOptions,
+  check: VehicleCheck,
+  maxRadiusM = 200,
+  toleranceM = 0.5,
+): number | null {
+  const fits = (radiusM: number) =>
+    switchbackSweptTurn(createSwitchbackAlternative(road, { ...options, radiusM }), check).fits
+  // Search whole steps of the tolerance, so the answer is the smallest step that fits.
+  let lo = Math.ceil(SWITCHBACK_LIMITS.minRadiusM / toleranceM),
+    hi = Math.floor(Math.min(SWITCHBACK_LIMITS.maxRadiusM, maxRadiusM) / toleranceM)
+  if (!fits(hi * toleranceM)) return null
+  if (fits(lo * toleranceM)) return lo * toleranceM
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (fits(mid * toleranceM)) hi = mid
+    else lo = mid
+  }
+  return hi * toleranceM
 }

@@ -74,11 +74,11 @@ export function CompareAlternatives({
   )
   return (
     <div className="h-full space-y-2 overflow-auto" data-testid="road-compare">
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         Compared with
         <NativeSelect
           aria-label="Comparison baseline"
-          className="rounded border bg-background px-1 text-base md:text-xs"
+          className="min-w-0 max-w-full rounded border bg-background px-1 text-base md:text-xs"
           value={baselineAlignment.id}
           onChange={(e) => setBaselineId(e.target.value)}
         >

@@ -108,6 +108,9 @@ export function InfoTip({
         className={cn(
           'inline-flex shrink-0 items-center gap-1 rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           showLabel ? 'px-1 py-1 text-xs' : 'size-5 justify-center',
+          // A 40 px touch target without moving the 20 px icon or its neighbours.
+          "touch:after:absolute touch:after:-inset-2.5 touch:after:content-['']",
+          !className?.includes('absolute') && 'relative',
           pinned && 'text-foreground',
         )}
         onFocus={() => {

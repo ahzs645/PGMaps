@@ -657,7 +657,7 @@ function VerticalAlignment(p: SidebarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-5"
+                  className="size-5 touch:size-9"
                   aria-label={`Remove PVI ${i + 1}`}
                   onClick={() => updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))}
                 >

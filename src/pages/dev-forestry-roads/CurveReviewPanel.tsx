@@ -10,6 +10,7 @@ import {
   INNER_EDGE_GRADE_BASIS,
   type CurveReviewRange,
 } from './curveReview'
+import type { SweptPathResult } from './sweptPath'
 import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
 
 const number = (value: number | null | undefined, digits = 2) =>
@@ -26,12 +27,16 @@ export function CurveReviewPanel({
   station,
   onStation,
   terrain,
+  swept = null,
+  onOpenSwept,
 }: {
   alignment: Alignment
   analysis: RoadAnalysis
   station: number
   onStation: (chainage: number) => void
   terrain?: TerrainMetadata
+  swept?: SweptPathResult | null
+  onOpenSwept?: () => void
 }) {
   const [selectedId, setSelectedId] = useState<string>()
   const [expanded, setExpanded] = useState(true)
@@ -230,9 +235,35 @@ export function CurveReviewPanel({
                   {alignment.curveDesign?.criteriaSource || 'No source recorded'}.
                 </p>
               </details>
-              <p className="text-[11px] text-muted-foreground">
-                Vehicle swept path and the complete switchback maneuver remain unchecked.
-              </p>
+              {(() => {
+                // The turn this curve belongs to; a switchback's two curves share one.
+                const runs = swept?.maneuvers.filter((t) => t.curveIds.includes(active.id)) ?? []
+                const widen = Math.max(
+                  0,
+                  ...runs.map((t) => Math.max(t.requiredLeftWideningM, t.requiredRightWideningM)),
+                )
+                return (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <p
+                      className={runs.length && widen > 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}
+                      data-testid="road-curve-swept-status"
+                    >
+                      {!runs.length
+                        ? 'Vehicle swept path not checked.'
+                        : `${runs[0].id} with ${swept!.check.vehicle.name}: ${
+                            widen > 0
+                              ? `wheels need ${widen.toFixed(2)} m more formation.`
+                              : 'wheels stay on the formation.'
+                          }`}
+                    </p>
+                    {onOpenSwept && (
+                      <Button size="sm" variant="outline" onClick={onOpenSwept}>
+                        {runs.length ? 'Swept path' : 'Check a vehicle'}
+                      </Button>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
         </section>

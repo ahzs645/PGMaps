@@ -155,7 +155,7 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
   await expect(review).toBeVisible()
   await expect(review).toContainText('BC/EC bound the circular curve. No spirals are fitted.')
   await expect(review).toContainText('Inside formation radius')
-  await expect(review).toContainText('Vehicle swept path and the complete switchback maneuver remain unchecked.')
+  await expect(review).toContainText('Vehicle swept path not checked.')
   const ec = review.getByRole('button', { name: `${lastId} EC station`, exact: true })
   await ec.click()
   const profile = page.getByTestId('road-profile-chart')
@@ -186,6 +186,83 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
   await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
   await expect(roads(page)).toHaveCount(roadCount)
   expect(await saveProject(page)).toEqual(initial)
+  expect(errors).toEqual([])
+})
+
+async function openExample(page: Page) {
+  await press(page.getByRole('button', { name: 'Open', exact: true }))
+  await page.getByTestId('road-file-input').setInputFiles({
+    name: 'switchback-review.json',
+    mimeType: 'application/json',
+    buffer: readFileSync(EXAMPLE),
+  })
+  await expect(page.locator('dl').filter({ hasText: 'Coverage' }).first()).toContainText('1,695 m')
+}
+
+test('a design vehicle swept path checks the switchback as one turn, frames it, and saves', async ({ page }) => {
+  const errors = await prepare(page)
+  await openExample(page)
+  await chooseLayout(page, 'Plan · profile · section · data')
+  const data = page.getByRole('region', { name: 'Station data · connected selection', exact: true })
+  await data.getByRole('tab', { name: 'Swept path', exact: true }).click()
+  await data.getByRole('button', { name: 'Check a design vehicle', exact: true }).click()
+  // Example loaded log truck + pole trailer, both directions, 0.3 m wheel clearance.
+  const summary = data.getByTestId('road-swept-summary')
+  await expect(summary).toContainText('1 of 6 turns need wider formation')
+  await expect(data.getByRole('tab', { name: 'Swept path, 1 turn needs widening', exact: true })).toBeVisible()
+  const turn = data.getByTestId('road-swept-turn').first()
+  await expect(turn).toHaveAttribute('data-fits', 'false')
+  await expect(turn).toContainText('H6+H7 · L 180° · switchback')
+  await expect(turn).toContainText('Widen 0.22 m')
+  await expect(turn).toContainText('1.62 m')
+  await turn.getByRole('button', { name: 'Show H6+H7 worst station', exact: true }).click()
+  await expect(page.getByTestId('road-feature-selection')).toContainText('H6+H7 swept path')
+  await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', /^1[56]\d\d/)
+  // The plan legend lists the swept-path layers that are drawn.
+  await page.getByRole('button', { name: 'Legend', exact: true }).click()
+  await expect(page.getByText('Outer wheel paths', { exact: true })).toBeVisible()
+  await expect(page.getByText('Wheels outside formation less clearance', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Legend', exact: true }).click()
+
+  // The curve review reports the turn a curve belongs to.
+  await data.getByRole('tab', { name: 'Horizontal curves', exact: true }).click()
+  await data.getByRole('button', { name: 'Review curve H7', exact: true }).click()
+  await expect(data.getByTestId('road-curve-swept-status')).toContainText('H6+H7')
+  await expect(data.getByTestId('road-curve-swept-status')).toContainText('wheels need 0.22 m more formation')
+  await data.getByRole('button', { name: 'Swept path', exact: true }).click()
+
+  // Without the clearance margin the wheels stay on the 3 m formation.
+  await data.getByText('Vehicle, direction & clearance', { exact: true }).click()
+  const clearance = data.getByRole('spinbutton', { name: 'Wheel clearance (m)', exact: true })
+  await clearance.fill('0')
+  await clearance.press('Tab')
+  await expect(summary).toContainText('Wheels stay on the formation in all 6 turns')
+  const truck = data.getByRole('spinbutton', { name: 'Truck wheelbase (m)', exact: true })
+  await truck.fill('7')
+  await truck.press('Tab')
+  await expect(data.getByRole('combobox', { name: 'Design vehicle preset', exact: true })).toHaveValue('custom')
+  // A longer truck tracks further inside: the switchback needs widening again at zero clearance.
+  await expect(summary).toContainText('1 of 6 turns need wider formation')
+  await expect(summary).toContainText('Loaded log truck + pole trailer (edited)')
+  const beforeSave = (await summary.textContent())!
+
+  const saved = await saveProject(page)
+  const road = saved.alignments.find((a) => a.id === saved.activeAlignmentId)!
+  expect(road.vehicleCheck).toMatchObject({ direction: 'both', clearanceM: 0 })
+  expect(road.vehicleCheck!.vehicle.units[0].wheelbaseM).toBe(7)
+  // Reopening the saved file restores the check and its result.
+  await press(page.getByRole('button', { name: 'Open', exact: true }))
+  await page.getByTestId('road-file-input').setInputFiles({
+    name: 'saved.road.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(saved)),
+  })
+  await data.getByRole('tab', { name: /^Swept path/ }).click()
+  await expect(summary).toHaveText(beforeSave)
+  const remove = data.getByRole('button', { name: 'Remove vehicle check', exact: true })
+  if (!(await remove.isVisible())) await data.getByText('Vehicle, direction & clearance', { exact: true }).click()
+  await remove.click()
+  await expect(data.getByRole('button', { name: 'Check a design vehicle', exact: true })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -254,6 +331,47 @@ for (const viewport of [
       await press(page.getByRole('button', { name: 'Show road controls', exact: true }))
       await expect(roads(page)).toHaveCount(roadCount + 1)
       await expect(activeRoad(page)).toContainText('right switchback R40')
+      expect(errors).toEqual([])
+    })
+
+    test('the switchback tool sizes the radius for a vehicle, and the swept path view frames it', async ({
+      page,
+    }, info) => {
+      const errors = await prepare(page)
+      const tools = await openSwitchbackTools(page)
+      await setNumber(tools, 'Switchback radius (m)', 20)
+      const swept = tools.getByTestId('road-switchback-swept')
+      await swept.scrollIntoViewIfNeeded()
+      await expect(swept.getByRole('status')).toContainText('Wheels need 1.87 m more formation')
+      await expect(swept).toContainText('Example vehicle')
+      await press(swept.getByRole('button', { name: 'Find smallest radius that fits', exact: true }))
+      await expect(swept.getByTestId('road-switchback-fit')).toContainText('Smallest fitting radius: 46.5 m', {
+        timeout: 60_000,
+      })
+      await press(swept.getByRole('button', { name: 'Use R46.5', exact: true }))
+      await expect(tools.getByRole('spinbutton', { name: 'Switchback radius (m)', exact: true })).toHaveValue('46.5')
+      await expect(swept.getByRole('status')).toContainText('Wheels stay on the formation')
+      await swept.screenshot({ path: info.outputPath('switchback-swept.png') })
+      const create = tools.getByRole('button', { name: 'Create switchback alternative', exact: true })
+      await create.scrollIntoViewIfNeeded()
+      await press(create)
+      await expect(page.getByRole('button', { name: 'Show road controls', exact: true })).toBeVisible()
+
+      // Phones reach the check directly from the detail view picker.
+      await press(
+        page.getByRole('tablist', { name: 'Visible road pane', exact: true }).getByRole('tab', { name: 'Detail' }),
+      )
+      await press(page.getByRole('combobox', { name: 'Road detail view', exact: true }))
+      await press(page.getByRole('option', { name: 'Swept path', exact: true }))
+      const panel = page.getByTestId('road-swept-path')
+      await press(panel.getByRole('button', { name: 'Check a design vehicle', exact: true }))
+      const turn = panel.getByTestId('road-swept-turn').filter({ hasText: 'switchback' })
+      await expect(turn).toHaveAttribute('data-fits', 'true')
+      await expect(turn).toContainText('L 180° · switchback')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1)
+      await page.screenshot({ path: info.outputPath('swept-path-view.png') })
+      await press(turn.getByRole('button', { name: /^Show H\d+\+H\d+ tightest station$/ }))
+      await expect(page.getByTestId('road-feature-selection')).toContainText('swept path')
       expect(errors).toEqual([])
     })
   })

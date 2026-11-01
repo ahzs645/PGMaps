@@ -28,6 +28,7 @@ export interface PlanLegendSources {
   ticks: GeoJSON.FeatureCollection
   overlay?: GeoJSON.FeatureCollection
   drainage?: GeoJSON.FeatureCollection
+  swept?: GeoJSON.FeatureCollection
 }
 
 export const PLAN_CONTEXT_STYLES: Record<ContextFeature['kind'], { label: string; color: string }> = {
@@ -237,6 +238,20 @@ export function buildPlanLegend({
     drainage.add({ id: `drainage-${role}-${shape}`, ...style })
   }
   drainage.finish()
+  const swept = section('swept', 'Design vehicle swept path')
+  const roles = new Set((sources.swept?.features ?? []).map((f) => String(f.properties?.role)))
+  if (roles.has('swept-wheels'))
+    swept.add({ id: 'swept-wheels', label: 'Outer wheel paths', color: '#ea580c', shape: 'line' })
+  if (roles.has('swept-body'))
+    swept.add({ id: 'swept-body', label: 'Body and load overhang', color: '#7c3aed', shape: 'dashed-line' })
+  if (roles.has('swept-deficit'))
+    swept.add({
+      id: 'swept-deficit',
+      label: 'Wheels outside formation less clearance',
+      color: '#dc2626',
+      shape: 'line',
+    })
+  swept.finish()
   const overlays = section('overlays', 'Planning overlays')
   for (const feature of sources.overlay?.features ?? []) {
     const shape = geometryShape(feature)
