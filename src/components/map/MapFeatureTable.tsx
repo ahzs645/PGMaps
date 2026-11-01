@@ -42,7 +42,7 @@ const VIRTUALIZE_THRESHOLD = 60
  */
 export const DEFAULT_TABLE_PANE_HEIGHT = 320
 const MIN_PANEL_HEIGHT = 160
-/** Map kept visible above the pane when it is expanded or dragged to the top. */
+/** Map kept visible above the pane when it is dragged to the top. Full screen covers it all. */
 const MIN_MAP_HEIGHT = 120
 
 export type MapFeatureTableColumnType = 'text' | 'numeric' | 'datetime'
@@ -335,7 +335,9 @@ export interface TablePaneActions {
 /**
  * Bottom split-view pane, docked across the full width of the layout root — so it
  * sits under the sidebars too, not just the map. The root reserves its height via
- * padding-bottom, so everything above is shortened rather than covered.
+ * padding-bottom, so the sidebars and the map's controls are shortened, while the
+ * map's canvas extends underneath and is covered rather than resized (as in
+ * Felt). Full screen covers the whole layout and restores the previous height.
  */
 function DesktopTablePanel({
   title,
@@ -359,6 +361,8 @@ function DesktopTablePanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [containerHeight, setContainerHeight] = useState(0)
+  /** Height to return to when leaving full screen; null while not full screen. */
+  const [restoreHeight, setRestoreHeight] = useState<number | null>(null)
   const reducedMotion = useReducedMotion()
 
   // Measured rather than read from the ref during render, so `expanded` is correct
@@ -377,7 +381,13 @@ function DesktopTablePanel({
 
   const clamp = useCallback((next: number) => Math.min(maxHeight, Math.max(MIN_PANEL_HEIGHT, next)), [maxHeight])
 
-  const expanded = containerHeight > 0 && height >= maxHeight - 1
+  const fullScreen = restoreHeight !== null
+  const expanded = fullScreen || (containerHeight > 0 && height >= containerHeight - 1)
+
+  // Full screen follows the layout's height, e.g. when the window is resized.
+  useEffect(() => {
+    if (fullScreen && containerHeight > 0 && Math.abs(height - containerHeight) >= 1) onHeightChange(containerHeight)
+  }, [containerHeight, fullScreen, height, onHeightChange])
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -387,6 +397,7 @@ function DesktopTablePanel({
       event.preventDefault()
       const parentBottom = parent.getBoundingClientRect().bottom
       setDragging(true)
+      setRestoreHeight(null)
       onResizeStart?.()
 
       const move = (moveEvent: PointerEvent) => onHeightChange(clamp(parentBottom - moveEvent.clientY))
@@ -410,9 +421,11 @@ function DesktopTablePanel({
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'ArrowUp') {
         event.preventDefault()
+        setRestoreHeight(null)
         onHeightChange(clamp(height + 32))
       } else if (event.key === 'ArrowDown') {
         event.preventDefault()
+        setRestoreHeight(null)
         onHeightChange(clamp(height - 32))
       }
     },
@@ -453,7 +466,15 @@ function DesktopTablePanel({
       {children({
         expandable: resizable,
         expanded,
-        onToggleExpanded: () => onHeightChange(expanded ? DEFAULT_TABLE_PANE_HEIGHT : clamp(maxHeight)),
+        onToggleExpanded: () => {
+          if (expanded) {
+            setRestoreHeight(null)
+            onHeightChange(clamp(restoreHeight ?? DEFAULT_TABLE_PANE_HEIGHT))
+          } else if (containerHeight > 0) {
+            setRestoreHeight(height)
+            onHeightChange(containerHeight)
+          }
+        },
         onClose,
       })}
     </div>
