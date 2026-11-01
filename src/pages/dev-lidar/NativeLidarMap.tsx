@@ -41,6 +41,7 @@ import {
   VECTOR_STYLE_URL,
   type Basemap,
 } from './basemaps'
+import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 
 interface Props {
   inspectionView?: 'top' | '3d'
@@ -397,7 +398,7 @@ export function NativeLidarMap(props: Props) {
     }
     reportCamera()
     instance.on('moveend', reportCamera)
-    const observer = new ResizeObserver(() => instance.resize())
+    const observer = new ResizeObserver(() => resizeMap(instance))
     observer.observe(container.current)
     return () => {
       active = false

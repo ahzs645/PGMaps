@@ -27,6 +27,23 @@ are not production code or a performance benchmark.
   retains its last content through exit, then unmounts. Pass
   `bottomPaneResizing` while directly dragging its divider; the map's
   `deferResize` avoids reallocating its drawing buffer for every drag frame.
+- The docked bottom pane (the feature table) covers the map, as Felt's data
+  table does, instead of shrinking it. The main map's canvas extends under the
+  pane and keeps its size and picture while the pane opens, closes, goes full
+  screen or is dragged; its controls stay above the pane and its camera padding
+  moves with the pane, so selections and `fitBounds` land in the visible part.
+  The table's full-screen button covers the whole workspace and restores the
+  previous height.
+
+## Map resizing
+
+Changing a MapLibre canvas's size clears its WebGL buffer, and `map.resize()`
+only repaints on the next animation frame, so a bare resize presents one blank
+frame — on every frame of a sidebar transition. Resize through `resizeMap(map)`
+(`@pgmaps/geo-toolkit/map/map-resize`), which redraws in the same frame, and call
+it synchronously from the `ResizeObserver` callback, not from a later
+`requestAnimationFrame`. The toolkit `Map` and `PersistentMapHost` already do;
+raw MapLibre maps in pages (LiDAR, comparison, road design) use it directly.
 - Normal and reduced motion reach the same final state. Reduced motion removes
   spatial travel and the wait before an exit callback.
 
