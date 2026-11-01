@@ -53,7 +53,7 @@ existing workspace; this record does not claim that they are deployed.
 
 | Addition                                     | Implemented result                                                                                                                             | Verification and qualification                                                                                                                                              |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deliberate switchback construction           | Preview and append two fitted 90° curves to a separate editable alternative using entered radius, direction, tangent lengths and initial grade | Analytic geometry, both directions, original plan/profile preservation, antimeridian, save/reopen and component adoption guards tested; browser/mobile preview not verified |
+| Deliberate switchback construction           | Preview and append two fitted 90° curves to a separate editable alternative using entered radius, direction, tangent lengths and initial grade | Analytic geometry, both directions, original plan/profile preservation, antimeridian, save/reopen and component adoption guards tested; browser creation, linked review, save/undo and 390/320 px touch creation verified |
 | Detailed horizontal-curve review             | Direction, full/circular lengths and deflection, spiral events, widths, inside radii, grade and required/capped/actual crossfall               | Numeric fixtures, unavailable values, exact station callbacks and CSV provenance tested; one PVI correctly means constant formation                                         |
 | Horizontal profile band and plan annotations | Show each fitted turn's direction/radius/full deflection, distinguish circular and spiral portions, and share named events                     | Simple/spiralled left/right geometry, missing DEM, terrain-only suppression, profile range and station interaction tested                                                   |
 | Spiral centreline correction                 | Use actual clothoid positions for centreline display/export and context crossing samples                                                       | Mirrored left/right regressions against the analytic path; a narrow stream crossing the real transition is detected without inventing a crossing on its old straight chord  |
@@ -84,9 +84,22 @@ equations, saved-state behavior and input limits.
   browser undo/save/download round trip.
 - The existing public workspace was inspected in the connected browser. Both the
   connected browser and cloud browser could not reach this environment's local
-  Vite port (`ERR_CONNECTION_REFUSED`), so **new desktop/mobile visual and browser
-  interaction verification remains outstanding**. No new-interface screenshot or
-  browser proof is claimed.
+  Vite port (`ERR_CONNECTION_REFUSED`) during the first pass.
+- **Follow-up browser verification (1 November 2026).** Playwright Chromium was
+  run against a local Vite server. `forestry-road-switchbacks.spec.ts` covers
+  desktop creation, linked curve-event selection, CSV, bands, save/undo and the
+  example file, plus touch creation at 390×844 and 320×568. Desktop and phone
+  screenshots of the switchback panel, four-pane curve review and profile band
+  were inspected. This pass found and fixed three problems. The four-pane data
+  region showed only samples, so the curve review was unreachable beside the
+  section. The curve table's sticky header scrolled away. And at 320 px the
+  Section CSV button covered the detail view picker.
+- The full `forestry-road-*` browser suite was run against both `main` and this
+  branch. Seven cases failed identically on both before this branch's changes. A
+  closing modal keeps the page `aria-hidden` and blocks pointer events until its
+  exit animation ends. Tests that acted immediately after a close failed, along
+  with the 320 px picker overlap. The affected tests now wait for the modal lock
+  to clear (`tests/e2e/road-dialogs.ts`); no assertion was removed or relaxed.
 - `npx vite build` passed after the sparse checkout was supplied with its existing
   pinned climate-adapter source. The build reported dependency compatibility and
   large-chunk warnings. This checkout omits large generated data snapshots; the

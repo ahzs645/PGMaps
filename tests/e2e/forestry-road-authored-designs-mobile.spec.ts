@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { dialogsClosed } from './road-dialogs'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15000 })
 test.setTimeout(240000)
@@ -17,6 +18,7 @@ async function closeFiles(page: Page) {
     .getByRole('dialog', { name: 'Save & export', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .tap()
+  await dialogsClosed(page)
 }
 async function save(page: Page): Promise<RoadProject> {
   await page.getByRole('button', { name: 'Save', exact: true }).tap()
@@ -114,6 +116,7 @@ for (const viewport of [
       .getByRole('dialog', { name: 'Haul & cost settings', exact: true })
       .getByRole('button', { name: 'Done', exact: true })
       .tap()
+    await dialogsClosed(page)
     await showCompare(page)
     await choose(
       page,

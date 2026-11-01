@@ -125,7 +125,7 @@ The API accepts a lower geometry-operation budget; it cannot raise the 15,000,00
 
 ### Curve and switchback review
 
-**Data → Horizontal curves** reviews the geometry actually fitted. Simple curves have BC/EC
+**Horizontal curves** (the four-pane data pane, or **Stations** in the detail view) reviews the geometry actually fitted. Simple curves have BC/EC
 events; spiralled curves have TS/SC/CS/ST, with full deflection and length including both spirals.
 Each event selects the shared plan/profile/section station. The compact table expands to show
 inside/outside formation widths, inside formation radius, inside daylight radius, profile grade,

@@ -26,9 +26,12 @@ dimensions and inherited rates are explicitly labelled training assumptions.
    formation elevation. Select **Create switchback alternative** to add and select
    a separate road through the normal project update/undo path.
 4. Use a layout showing **Plan, Profile and Section**. The selected station is
-   shared. **Data → Horizontal curves** lists each fitted curve and selectable
-   BC/EC or TS/SC/CS/ST events; expand its review for widths, inside radii, grades,
-   crossfall, completeness and conflicts. The profile's horizontal-curve band
+   shared. In **Plan · profile · section · data**, the data pane's **Horizontal
+   curves** tab (beside **Samples** and **Vertical controls**) lists each fitted
+   curve with selectable BC/EC or TS/SC/CS/ST events. On a phone, or in other
+   layouts, choose **Stations** in the detail view picker for the same tabs.
+   Expand a curve's review for widths, inside radii, grades, crossfall,
+   completeness and conflicts. The profile's horizontal-curve band
    shows the full turn, with its circular part distinguished from transitions.
 5. Move the new horizontal controls to suit the actual terrain. Set width and
    template ranges, verify drainage and inspect cut/fill limits. Round the join
@@ -151,8 +154,14 @@ These are computational construction limits; project review criteria may be tigh
 original position/profile preservation, high-latitude antimeridian behavior,
 metadata reset, save/reopen and rejection paths. `SwitchbackTools.test.tsx` checks
 staging, one-time adoption, shared-station selection, no terrain calls, and disabled
-or stale states. It verifies the normal update API rather than claiming a browser
-undo round trip. The reference review records the separately verified source and
+or stale states. `tests/e2e/forestry-road-switchbacks.spec.ts` drives the
+rendered workspace: it stages the reference construction (265.7 m added, 90 m
+spacing), checks commit-time clamping of an out-of-range radius, creates the
+alternative, saves it and compares the untouched original, selects the new
+curves' event stations and checks plan/profile/section agree, downloads the
+curve CSV, finds the horizontal-curve band, undoes, and opens the example file.
+It also creates a switchback by touch at 390×844 and 320×568 without horizontal
+overflow. The reference review records the separately verified source and
 UI limitations for this delivery.
 
 See [the supplied-reference review](reference-review-2026-11-01.md) for the screenshot

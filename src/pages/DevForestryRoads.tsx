@@ -1557,6 +1557,34 @@ export default function DevForestryRoads() {
   const profileAnalysis = terrainProfile
     ? { ...displayedAnalysis, stations: displayedAnalysis.stations.map((s) => ({ ...s, designElevation: null })) }
     : displayedAnalysis
+  // One schedule element serves the detail pane's Stations view and the four-pane data region,
+  // so curve review and vertical controls are reachable beside plan, profile and section.
+  const designSchedules = (
+    <DesignSchedules
+      alignment={displayedAlignment}
+      analysis={displayedAnalysis}
+      terrain={project.terrain}
+      station={station}
+      onStation={setStation}
+      terrainOnly={!!terrainProfile}
+      onVerticalChange={
+        busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
+          ? undefined
+          : (vertical) =>
+              commitValidated({
+                ...project,
+                alignments: project.alignments.map((a) => (a.id === alignment.id ? { ...a, vertical } : a)),
+              })
+      }
+    >
+      <StationTable
+        terrainOnly={!!terrainProfile}
+        analysis={displayedAnalysis}
+        station={station}
+        onStation={w.setStation}
+      />
+    </DesignSchedules>
+  )
   return (
     <div
       ref={ref}
@@ -2375,8 +2403,18 @@ export default function DevForestryRoads() {
                                 contentClassName="z-[1500] text-xs"
                               />
                               {detail === 'section' && !terrainProfile && (
-                                <Button size="sm" variant="outline" disabled={!at || !!busy} onClick={saveSection}>
-                                  Section CSV
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="shrink-0 px-2 min-[420px]:px-3"
+                                  aria-label="Section CSV"
+                                  title="Download section CSV"
+                                  disabled={!at || !!busy}
+                                  onClick={saveSection}
+                                >
+                                  {/* Phones keep room for the detail-view picker beside the chart controls. */}
+                                  <Download className="size-3.5 min-[420px]:hidden" aria-hidden />
+                                  <span className="sr-only min-[420px]:not-sr-only">Section CSV</span>
                                 </Button>
                               )}
                               {chartSlot}
@@ -2453,39 +2491,7 @@ export default function DevForestryRoads() {
                                     onStation={w.setStation}
                                   />
                                 )}
-                                {detail === 'table' && (
-                                  <DesignSchedules
-                                    alignment={displayedAlignment}
-                                    analysis={displayedAnalysis}
-                                    terrain={project.terrain}
-                                    station={station}
-                                    onStation={setStation}
-                                    terrainOnly={!!terrainProfile}
-                                    onVerticalChange={
-                                      busy ||
-                                      draftAlignment ||
-                                      numericPegAlignment ||
-                                      terrainProfile ||
-                                      templatePreview ||
-                                      costPreview
-                                        ? undefined
-                                        : (vertical) =>
-                                            commitValidated({
-                                              ...project,
-                                              alignments: project.alignments.map((a) =>
-                                                a.id === alignment.id ? { ...a, vertical } : a,
-                                              ),
-                                            })
-                                    }
-                                  >
-                                    <StationTable
-                                      terrainOnly={!!terrainProfile}
-                                      analysis={displayedAnalysis}
-                                      station={station}
-                                      onStation={w.setStation}
-                                    />
-                                  </DesignSchedules>
-                                )}
+                                {detail === 'table' && designSchedules}
                                 {detail === 'pegs' && !terrainProfile && (
                                   <PeggingEditor
                                     alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
@@ -2712,12 +2718,7 @@ export default function DevForestryRoads() {
                                 }
                               />
                             ) : (
-                              <StationTable
-                                terrainOnly={!!terrainProfile}
-                                analysis={displayedAnalysis}
-                                station={station}
-                                onStation={w.setStation}
-                              />
+                              designSchedules
                             )}
                           </div>
                         )}

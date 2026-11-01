@@ -1038,7 +1038,7 @@ The [switchback guide](forestry-road-design/switchbacks.md) specifies formulas,
 metadata preservation/reset, numerical limits and the remaining vehicle/footprint
 checks. This is not an automatic terrain siting or road-standard solver.
 
-**Data → Horizontal curves** expands each fitted curve into a section-based review
+**Horizontal curves** (the four-pane data pane, or **Stations** in the detail view) expands each fitted curve into a section-based review
 and CSV via `curveReview.ts`. Inside formation/daylight radii, qualified inner-edge
 grades, required/capped/actual crossfall and incomplete-data status remain distinct.
 The [alignment guide](forestry-road-design/alignment-and-optimization.md) describes

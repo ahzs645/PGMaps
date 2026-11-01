@@ -63,7 +63,8 @@ export function CurveReviewPanel({
           Curve CSV
         </Button>
       </div>
-      <div className="overflow-x-auto">
+      {/* The table scrolls in its own box so its sticky header stays visible above the review. */}
+      <div className="max-h-48 overflow-auto rounded-md border" data-testid="road-curve-table-scroll">
         <EngineeringTable data-testid="road-horizontal-curve-table">
           <thead className="sticky top-0 z-10">
             <tr>
@@ -110,7 +111,9 @@ export function CurveReviewPanel({
                   </button>
                 </td>
                 <td className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
-                  {c.warnings.length ? `${c.warnings.length} review flags` : 'Screen only'}
+                  {c.warnings.length
+                    ? `${c.warnings.length} review flag${c.warnings.length === 1 ? '' : 's'}`
+                    : 'Screen only'}
                 </td>
               </tr>
             ))}
