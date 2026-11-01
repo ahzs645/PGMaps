@@ -14,6 +14,7 @@ import {
   verticalCurveSummary,
 } from './engine'
 import { parseConnectorCheckOptions, type ConnectorCheckOptions } from './connectorCheckOptions'
+import { sectionCrossfall, templateAt } from './templates'
 import type {
   Alignment,
   ContextFeature,
@@ -465,10 +466,50 @@ export function checkConnector({
         }
       })
     const fullSections: RoadStation[] = []
+    let circularIndex = 0
     for (const s of chainages) {
       const station = sampler.at(s)
       metrics.checkedStations++
       fullSections.push(station)
+      // Check actual resolved sections across every circular arc, including short template
+      // and widening ranges. A midpoint-only check can miss a locally folded or overbanked
+      // section. Curve direction comes from fitted geometry even without speed criteria.
+      while (circularIndex < curves.length && curves[circularIndex].end < s - EPS) circularIndex++
+      const curve = curves[circularIndex]
+      if (curve && s >= curve.start - EPS && s <= curve.end + EPS) {
+        const inside = curve.direction
+        const width = inside === 'left' ? station.leftWidth : station.rightWidth
+        const daylight = inside === 'left' ? station.leftDaylightM : station.rightDaylightM
+        if (Number.isFinite(width) && curve.radius - width <= EPS)
+          add(
+            'failure',
+            'inner-formation-fold',
+            `The ${inside} inside formation width ${width.toFixed(3)} m reaches or crosses the ${curve.radius.toFixed(3)} m curve centre. The local swept formation folds.`,
+            s,
+          )
+        if (daylight !== null && Number.isFinite(daylight) && curve.radius - Math.abs(daylight) <= EPS)
+          add(
+            'failure',
+            'inner-daylight-fold',
+            `The ${inside} inside daylight offset ${Math.abs(daylight).toFixed(3)} m reaches or crosses the ${curve.radius.toFixed(3)} m curve centre. The local swept footprint folds.`,
+            s,
+          )
+        const curveDesign = alignment.curveDesign ? curveDesignAt(alignment, s) : null
+        // A zero bank leaves the normal crown; its drainage crossfall is not an applied e.
+        // When rotation is active, sectionCrossfall retains at least the inside crown,
+        // which can exceed e-max even while the speed/radius formula passes.
+        if (alignment.curveDesign && curveDesign && curveDesign.superPercent > 0) {
+          const actual = sectionCrossfall(templateAt(alignment, s).template, inside, curveDesign)
+          const maximum = alignment.curveDesign.maxSuperelevationPercent
+          if (actual > maximum + EPS)
+            add(
+              'failure',
+              'actual-superelevation-limit',
+              `Actual ${inside} inside crossfall ${actual.toFixed(3)}% exceeds the entered ${maximum}% maximum while banking. Review the retained template crown and superelevation criteria.`,
+              s,
+            )
+        }
+      }
       if (station.curveRadiusM === 0)
         add('failure', 'sharp-final-corner', 'A sharp horizontal corner remains after curve fitting.', s)
       if (

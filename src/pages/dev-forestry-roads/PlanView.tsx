@@ -16,7 +16,14 @@ import {
   offsetCoordinate,
   positionAt,
 } from './engine'
-import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
+import {
+  horizontalCurveEvents,
+  labelChainages,
+  labelOffset,
+  metresPerPixel,
+  stationLabelInterval,
+  tickChainages,
+} from './planAnnotations'
 import { terrainBounds } from './terrain'
 import { roadPlanFitCoordinates } from './planFit'
 import { buildTerrainDisplay } from './terrainDisplay'
@@ -295,7 +302,21 @@ function Layers(
         // A curve label appears once its arc is long enough on screen to belong to it.
         if (curve.length / pixelMetres < 28) return []
         const at = placeOn(props.alignment, (curve.start + curve.end) / 2)
-        return at ? [{ id: `curve-${index}`, label: `C${index + 1} R=${curve.radius.toFixed(1)}`, at, curve }] : []
+        const name = `C${index + 1}`
+        const events = horizontalCurveEvents(curve)
+          .map((event) => `${event.label} ${formatRoadStation(event.chainage)}`)
+          .join('; ')
+        return at
+          ? [
+              {
+                id: `curve-${index}`,
+                label: `${name} ${curve.direction === 'left' ? 'L' : 'R'} R=${curve.radius.toFixed(1)}`,
+                title: `Horizontal curve ${name}: ${curve.direction} turn, radius ${curve.radius.toFixed(1)} m, full deflection ${curve.deflectionDegrees.toFixed(1)}°, circular arc ${curve.length.toFixed(1)} m, full curve ${curve.fullLength.toFixed(1)} m; ${events}`,
+                at,
+                curve,
+              },
+            ]
+          : []
       })
     } catch {
       return []
@@ -1058,7 +1079,7 @@ function Layers(
             )
           })}
       {props.showLabels &&
-        radiusLabels.map(({ id, label, at, curve }) => {
+        radiusLabels.map(({ id, label, title, at, curve }) => {
           const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
           return (
             <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
@@ -1066,7 +1087,7 @@ function Layers(
                 <button
                   style={{ transform: `translate(${dx}px, ${dy}px)` }}
                   className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-[10px] font-medium leading-4 text-violet-800"
-                  title={`Horizontal curve ${id.replace('curve-', 'C')}: radius ${curve.radius.toFixed(1)} m, arc ${curve.length.toFixed(1)} m, ${formatRoadStation(curve.start)}–${formatRoadStation(curve.end)}`}
+                  title={title}
                   aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
                   onClick={() => props.onStation((curve.start + curve.end) / 2)}
                 >

@@ -497,9 +497,14 @@ arc for exported centreline display and context-intersection searches. Those
 intersection stations are geometric approximations at that chord tolerance.
 The selected-road map can additionally join adjacent analysis stations for
 grade colouring; its drawn chords are not a replacement for the curve model.
-`horizontalCurveSummary()` lists only fitted arcs, with start/end chainages,
-arc length and radius. A rejected requested radius must not appear as a fitted
-curve in the schedule.
+Clothoids use their actual integrated positions with the same 5 m / 2 degree
+maximum step criteria, rather than a single chord between their endpoints.
+`horizontalCurveSummary()` lists only fitted arcs. Its existing start/end/length
+fields describe the circular portion; fullStart/fullEnd/fullLength include the
+adjacent spirals. It also supplies direction, full/circular deflection and spiral
+lengths. A rejected requested radius must not appear as a fitted curve in the
+schedule. `planAnnotations.ts` shares BC/EC or TS/SC/CS/ST event stations between
+the map, curve schedule and profile band.
 
 Imported GeoJSON keeps the input vertices and initially assigns zero radii.
 A third GeoJSON coordinate is not taken as a ground observation or invented
@@ -1024,6 +1029,21 @@ the entered runoff. Spirals export to LandXML as `<Spiral spiType="clothoid">`,
 and the bulk radius fit accounts for their longer tangents.
 
 ### Horizontal curve tools
+
+**Design → Add a switchback** uses `switchback.ts` to extend a separate road
+alternative with two fitted 90-degree circular arcs, entered radius and tangent
+lengths, and an initial constant formation grade. Staging does not mutate the road;
+creation goes through the normal project update/undo path and selects the new turn.
+The [switchback guide](forestry-road-design/switchbacks.md) specifies formulas,
+metadata preservation/reset, numerical limits and the remaining vehicle/footprint
+checks. This is not an automatic terrain siting or road-standard solver.
+
+**Data → Horizontal curves** expands each fitted curve into a section-based review
+and CSV via `curveReview.ts`. Inside formation/daylight radii, qualified inner-edge
+grades, required/capped/actual crossfall and incomplete-data status remain distinct.
+The [alignment guide](forestry-road-design/alignment-and-optimization.md) describes
+the sampling assumptions; [final connector checks](forestry-road-design/final-connector-checks.md)
+add denser adoption gates for local folds and excessive actual bank.
 
 `fitHorizontalRadii` (`horizontalTools.ts`), under Design → Horizontal points, has two modes:
 

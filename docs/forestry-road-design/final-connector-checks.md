@@ -51,6 +51,15 @@ vertical curves and disconnected compiled pieces block adoption. Optional expect
 and end coordinates must meet within 0.05 m; compiled-piece joins must meet within 1 mm and their tangent directions within 0.05°. Formation controls beyond the fitted road end
 must be rebuilt rather than silently carried from an old alignment.
 
+Speed/radius consistency is checked against the entered maximum superelevation. The
+checker also compares the **actual rotating section** with that maximum at every dense
+circular-arc station (`actual-superelevation-limit`). It resolves assigned templates and
+their transitions through the same `templateAt`/`sectionCrossfall` functions as the road
+engine. Retaining a higher inside crown can therefore block adoption even when the speed
+formula requests less than the maximum. The geometry is left unchanged for review; the
+checker does not silently flatten the crown. A zero requested bank retains the ordinary
+normal crown and is not treated as applied superelevation.
+
 ## Entire prism and clearing footprint
 
 The checker uses the same engine cross-section calculation as quantities. It samples at
@@ -60,6 +69,20 @@ complete daylight and known ground beneath every designed section point. An unre
 batter beyond the configured section reach is a failure; missing terrain is unknown.
 `createRoadStationSampler` compiles once and does not alter the existing 3,000-station
 quantity-analysis budget.
+
+On each circular arc, the inside formation width and any known inside daylight offset
+must stay strictly below the fitted radius (within the existing 1e-6 m numerical tolerance).
+`inner-formation-fold` and `inner-daylight-fold` reject a section that reaches or passes
+the curve centre, where the local swept section folds. The check uses actual widened and
+assigned sections, including their range boundaries; it does not rely on a representative
+midpoint or on speed criteria being enabled. A known fold remains a failure when another
+part of the section lacks terrain. Missing daylight still follows the existing incomplete
+section rules.
+
+These are **local circular-arc checks**, not a complete road self-intersection or vehicle
+swept-path check. They do not establish clearance between separate switchback legs, prove
+spiral-footprint topology, or correct average-end-area earthworks for curvature. Those
+limitations remain even when this gate passes.
 
 Consecutive left/right daylight edges, including formation width and an entered additional
 clearing allowance, form continuous conservative polygon strips. JSTS tests the **whole
@@ -115,3 +138,6 @@ a fitted radius below minimum, uphill/downhill reversal using formation on flat 
 a narrow exclusion between stations inside a daylight/clearing footprint, polygon holes,
 a fitted arc entering an area the original grid legs avoided, no-data, missing criteria,
 coarse terrain, complete/incomplete culvert review windows, and endpoint registration.
+Additional regressions cover a short assigned crown that exceeds e-max away from the curve
+midpoint, a zero-bank normal crown, inside versus outside widening on left/right turns,
+and an assigned batter with complete terrain whose daylight passes the curvature centre.

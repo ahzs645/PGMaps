@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { evaluateCurveCriteria, parseWideningTableCsv } from './roadCriteria'
-import { horizontalCurveSummary } from './engine'
+import { curveDesignAt, horizontalCurveSummary } from './engine'
 import { fitHorizontalRadii, type RadiusFitMode } from './horizontalTools'
+import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 /** Bulk curve tools for the horizontal points: one default radius, or a best fit within a tolerance. */
@@ -88,8 +89,9 @@ const CURVE_DESIGN_START = {
 }
 
 export const CURVE_DESIGN_HELP =
-  'e = V²/(127 R) − f, between the crown and the maximum, rotated about the centreline; inside widening L²/(2R). ' +
-  'Both run in over the runoff before each curve. Leave the speed empty for none. The values are entries, not a ' +
+  'Required e = V²/(127 R) − f; the rotation target is capped at the entered maximum. The section retains its ' +
+  'template crown, so actual crossfall can differ. Inside widening uses L²/(2R) unless a table is entered. ' +
+  'Transitions run in before the circular arc. Leave the speed empty for none. The values are entries, not a ' +
   'road-class standard. Name the criteria and record its source. Conflicting speed/radius/e-max is flagged; widening tables are radius, deflection, inside, outside.'
 
 /** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
@@ -259,17 +261,28 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                   <tr>
                     <th className="text-left">Radius</th>
                     <th>Required e</th>
-                    <th>Applied e</th>
+                    <th>Capped target</th>
+                    <th>Actual I / O</th>
                   </tr>
                 </thead>
                 <tbody>
                   {curveRows.map((r, i) => {
-                    const c = evaluateCurveCriteria(design, r.radius)
+                    const c = evaluateCurveCriteria(design, r.radius, r.deflectionDegrees)
+                    const midpoint = (r.start + r.end) / 2
+                    const resolved = templateAt(alignment, midpoint).template
+                    const fitted = curveDesignAt(alignment, midpoint)
+                    const inside = sectionCrossfall(resolved, r.direction, fitted)
+                    const outside = sectionCrossfall(resolved, r.direction === 'left' ? 'right' : 'left', fitted)
                     return (
                       <tr key={i} className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : ''}>
-                        <td>{r.radius.toFixed(1)} m</td>
+                        <td title={`Full deflection ${r.deflectionDegrees.toFixed(1)}° including spirals`}>
+                          {r.radius.toFixed(1)} m
+                        </td>
                         <td className="text-center">{c.requiredSuperelevationPercent.toFixed(2)}%</td>
                         <td className="text-center">{c.appliedSuperelevationPercent.toFixed(2)}%</td>
+                        <td className="text-center">
+                          {inside.toFixed(2)} / {outside.toFixed(2)}%
+                        </td>
                       </tr>
                     )
                   })}
@@ -278,6 +291,12 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
               <p className="mt-1 text-muted-foreground">
                 Speed requires radius ≥ {evaluateCurveCriteria(design, 100).minimumSpeedRadiusM.toFixed(1)} m. Criteria
                 are entered assumptions until supported by the recorded source.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Actual I/O is inside/outside crossfall at the circular-arc midpoint; positive falls away from the
+                centreline. Template crown and runoff determine the actual section. Widening is evaluated per fitted
+                curve, using full deflection including spirals; a compound switchback still needs a complete vehicle
+                maneuver and swept-path review. Data → Horizontal curves shows the full station review.
               </p>
             </div>
           )}

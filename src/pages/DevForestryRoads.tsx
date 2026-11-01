@@ -2456,6 +2456,7 @@ export default function DevForestryRoads() {
                                   <DesignSchedules
                                     alignment={displayedAlignment}
                                     analysis={displayedAnalysis}
+                                    terrain={project.terrain}
                                     station={station}
                                     onStation={setStation}
                                     terrainOnly={!!terrainProfile}

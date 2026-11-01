@@ -470,20 +470,35 @@ export function curveDesignAt(
     radius,
   }
 }
-/** Only actual fitted circular arcs; rejected radii remain sharp PIs and are absent. */
+/**
+ * Actual fitted curves; rejected radii remain sharp PIs and are absent. `start`, `end` and
+ * `length` retain their circular-arc meaning (SC/CS when spiralled, BC/EC otherwise).
+ * `fullStart`/`fullEnd` include the entry/exit spirals so schedules can show TS through ST.
+ */
 export function horizontalCurveSummary(alignment: Alignment) {
-  return compile(alignment).pieces.flatMap((p) =>
-    p.radius === null
-      ? []
-      : [
-          {
-            start: p.station,
-            end: p.station + p.length,
-            length: p.length,
-            radius: p.radius,
-          },
-        ],
-  )
+  const pieces = compile(alignment).pieces
+  return pieces.flatMap((p, i) => {
+    if (p.radius === null) return []
+    const spiralInLengthM = pieces[i - 1]?.spiral?.kappa0 === 0 ? pieces[i - 1].length : 0
+    const spiralOutLengthM = pieces[i + 1]?.spiral?.kappa1 === 0 ? pieces[i + 1].length : 0
+    const circularDeflectionDegrees = Math.abs(p.sweep ?? 0) / RAD
+    return [
+      {
+        start: p.station,
+        end: p.station + p.length,
+        length: p.length,
+        radius: p.radius,
+        fullStart: p.station - spiralInLengthM,
+        fullEnd: p.station + p.length + spiralOutLengthM,
+        spiralInLengthM,
+        spiralOutLengthM,
+        fullLength: spiralInLengthM + p.length + spiralOutLengthM,
+        direction: (p.sweep ?? 0) > 0 ? ('left' as const) : ('right' as const),
+        circularDeflectionDegrees,
+        deflectionDegrees: circularDeflectionDegrees + (spiralInLengthM + spiralOutLengthM) / (2 * p.radius * RAD),
+      },
+    ]
+  })
 }
 /** The fitted horizontal geometry as lines and arcs in longitude/latitude, for exports. */
 export function horizontalGeometry(alignment: Alignment): Array<
@@ -1047,13 +1062,41 @@ function legacySectionAt(
 function flattened(path: Path): { xy: XY; chainage: number }[] {
   const out: { xy: XY; chainage: number }[] = []
   for (const p of path.pieces) {
-    const n = p.radius === null ? 1 : Math.max(1, Math.ceil(Math.abs(p.sweep!) / (2 * RAD)), Math.ceil(p.length / 5))
+    // Spirals also have radius=null, but are curved. Bound every curved chord to 5 m and
+    // 2° of heading change; use maximum curvature for a spiral, not its mean curvature.
+    const maximumTurn = p.spiral
+      ? Math.max(Math.abs(p.spiral.kappa0), Math.abs(p.spiral.kappa1)) * p.length
+      : Math.abs(p.sweep ?? 0)
+    const n =
+      p.spiral || p.radius !== null ? Math.max(1, Math.ceil(maximumTurn / (2 * RAD)), Math.ceil(p.length / 5)) : 1
     if (out.length + n > 30_000)
       throw new Error('The alignment has too many curve segments; reduce control points or radius complexity.')
     if (!out.length) out.push({ xy: p.start, chainage: p.station })
     for (let i = 1; i <= n; i++) {
-      const a = (p.angle ?? 0) + ((p.sweep ?? 0) * i) / n
-      const xy = p.radius === null ? p.end : add(p.center!, [p.radius * Math.cos(a), p.radius * Math.sin(a)])
+      let xy: XY
+      if (i === n) xy = p.end
+      else if (p.spiral) {
+        // Integrate only this short step. Reintegrating from TS for every vertex makes
+        // long spirals quadratic in their sampled length. Carry the exact heading and
+        // curvature into the step, then close the last vertex on the compiled endpoint.
+        const from = (p.length * (i - 1)) / n,
+          to = (p.length * i) / n,
+          rate = (p.spiral.kappa1 - p.spiral.kappa0) / p.length
+        xy = spiralAt(
+          out[out.length - 1].xy,
+          to - from,
+          {
+            psi0: p.spiral.psi0 + p.spiral.kappa0 * from + (rate * from * from) / 2,
+            kappa0: p.spiral.kappa0 + rate * from,
+            kappa1: p.spiral.kappa0 + rate * to,
+            radius: p.spiral.radius,
+          },
+          to - from,
+        ).xy
+      } else {
+        const a = (p.angle ?? 0) + ((p.sweep ?? 0) * i) / n
+        xy = add(p.center!, [p.radius! * Math.cos(a), p.radius! * Math.sin(a)])
+      }
       out.push({ xy, chainage: p.station + (p.length * i) / n })
     }
   }

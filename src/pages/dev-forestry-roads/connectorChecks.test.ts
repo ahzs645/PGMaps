@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkConnector, parseConnectorCheckOptions, type ConnectorCheckOptions } from './connectorChecks'
-import { alignmentLength } from './engine'
+import { alignmentLength, horizontalCurveSummary } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -63,6 +63,16 @@ function road(height = 800): Alignment {
     overrides: [],
   }
 }
+function curvedRoad(radiusM = 30, direction: 'left' | 'right' = 'right', height = 800): Alignment {
+  const alignment = road(height)
+  alignment.points = [
+    { id: 'a', coordinate: point(0, 0), radiusM: 0 },
+    { id: 'pi', coordinate: point(0, 150), radiusM },
+    { id: 'b', coordinate: point(direction === 'right' ? 150 : -150, 150), radiusM: 0 },
+  ]
+  alignment.vertical.at(-1)!.chainage = alignmentLength(alignment)
+  return alignment
+}
 const rectangle = (x0: number, y0: number, x1: number, y1: number): Coordinate[] => [
   point(x0, y0),
   point(x1, y0),
@@ -86,6 +96,97 @@ const run = (
 const codes = (result: ReturnType<typeof run>) => result.failures.map((issue) => issue.code)
 
 describe('final fitted connector gates', () => {
+  it('checks actual crown-retaining bank at assigned arc stations, beyond the speed formula and midpoint', () => {
+    const a = curvedRoad()
+    a.template.crossfallPercent = 1
+    a.curveDesign = {
+      designSpeedKmh: 25,
+      maxSuperelevationPercent: 2,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 0,
+      wideningVehicleLengthM: null,
+    }
+    expect(run(a).status).toBe('pass')
+    const [curve] = horizontalCurveSummary(a)
+    const start = curve.start + 2.25,
+      end = curve.start + 5.75
+    a.engineering = createEngineeringDesign()
+    a.engineering.templates = [{ id: 'crown', name: 'High crown', template: { ...a.template, crossfallPercent: 4 } }]
+    a.engineering.assignments = [{ id: 'short', start, end, templateId: 'crown', side: 'right', transitionM: 0.5 }]
+    const before = JSON.stringify(a)
+    const result = run(a)
+    expect(codes(result)).not.toContain('road-class-criteria')
+    expect(codes(result)).toContain('actual-superelevation-limit')
+    const issue = result.failures.find((failure) => failure.code === 'actual-superelevation-limit')!
+    expect(issue.chainage).toBeGreaterThanOrEqual(start)
+    expect(issue.chainage).toBeLessThanOrEqual(end)
+    expect(issue.chainage).toBeLessThan((curve.start + curve.end) / 2)
+    expect(result.adoptable).toBe(false)
+    expect(JSON.stringify(a)).toBe(before)
+  })
+
+  it('keeps a normal crown distinct from superelevation when the requested bank is zero', () => {
+    const a = curvedRoad()
+    a.template.crossfallPercent = 4
+    a.curveDesign = {
+      designSpeedKmh: 1,
+      maxSuperelevationPercent: 0,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 0,
+      wideningVehicleLengthM: null,
+    }
+    expect(run(a).status).toBe('pass')
+  })
+
+  it('blocks local inner formation folding on either turn from a narrow widening range, without speed criteria', () => {
+    for (const direction of ['left', 'right'] as const) {
+      const a = curvedRoad(25, direction)
+      const [curve] = horizontalCurveSummary(a)
+      const start = curve.start + 2.25,
+        end = curve.start + 5.75
+      a.overrides = [
+        {
+          id: 'wide',
+          name: 'Short widening',
+          kind: 'turnout',
+          start,
+          end,
+          taper: 0.5,
+          side: direction,
+          extraWidth: 22,
+        },
+      ]
+      const result = run(a)
+      expect(codes(result)).toContain('inner-formation-fold')
+      const issue = result.failures.find((failure) => failure.code === 'inner-formation-fold')!
+      expect(issue.chainage).toBeGreaterThanOrEqual(start)
+      expect(issue.chainage).toBeLessThanOrEqual(end)
+      expect(result.adoptable).toBe(false)
+      // Changing only the outer edge does not reduce the inner formation radius.
+      a.overrides[0].side = direction === 'left' ? 'right' : 'left'
+      expect(run(a).status).toBe('pass')
+    }
+  })
+
+  it('blocks a locally folded inside batter even though the formation fits and the sampled sections are complete', () => {
+    const a = curvedRoad(25, 'right', 803)
+    const [curve] = horizontalCurveSummary(a)
+    const start = curve.start + 2.25,
+      end = curve.start + 5.75
+    expect(run(a).status).toBe('pass')
+    a.engineering = createEngineeringDesign()
+    a.engineering.templates = [{ id: 'batter', name: 'Flat batter', template: { ...a.template, fillSlope: 8 } }]
+    a.engineering.assignments = [{ id: 'short', start, end, templateId: 'batter', side: 'right', transitionM: 0.5 }]
+    const result = run(a)
+    expect(result.analysis!.coveragePercent).toBeCloseTo(100, 5)
+    expect(codes(result)).not.toContain('inner-formation-fold')
+    expect(codes(result)).toContain('inner-daylight-fold')
+    const issue = result.failures.find((failure) => failure.code === 'inner-daylight-fold')!
+    expect(issue.chainage).toBeGreaterThanOrEqual(start)
+    expect(issue.chainage).toBeLessThanOrEqual(end)
+    expect(result.adoptable).toBe(false)
+  })
+
   it('screens explicit stripping margins as part of the actual disturbed footprint', () => {
     const a = road(802)
     a.engineering = createEngineeringDesign()

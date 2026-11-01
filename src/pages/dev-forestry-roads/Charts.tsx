@@ -2119,7 +2119,7 @@ export function MassHaulChart({
           />
           <p className="text-[10px]" data-testid="road-mass-cursor">
             {formatRoadStation(selected?.x ?? station)} · balance {format(selected?.ground)} m³
-            {finite(selected?.ground) ? '' : ' · unknown beyond terrain gap'}
+            {finite(selected?.ground) ? '' : ' · unknown after an incomplete section'}
           </p>
           <p className="text-[10px] text-muted-foreground">
             {engineering

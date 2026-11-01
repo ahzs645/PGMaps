@@ -5,7 +5,9 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { isFullCostRecordCurrent } from './fullCostRecord'
 import { VerticalAlternativesEditor } from './VerticalAlternativesEditor'
 import { terrainReferenceSurfaces } from './terrain'
-import { alternativeCostLabel, alternativeCostStatus } from './alternativeCosts'
+import { alternativeCostLabel } from './alternativeCosts'
+import { alternativeMetricComparison } from './alternativeComparison'
+import { hasCompleteCoverage } from './analysisResult'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
 
 const number = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -20,13 +22,21 @@ const METRICS: Metric[] = [
   { id: 'cost', label: 'Base engineering', unit: 'CAD', value: (r) => r.estimatedCost },
 ]
 
-export function compareMetric(base: RoadAnalysis, other: RoadAnalysis, id: string) {
+export function compareMetric(
+  base: RoadAnalysis,
+  other: RoadAnalysis,
+  id: string,
+  profiles?: { baseHasProfile: boolean; otherHasProfile: boolean },
+) {
   const metric = METRICS.find((m) => m.id === id)!
   const a = metric.value(base),
     b = metric.value(other)
-  const comparable =
-    id !== 'cost' || (alternativeCostStatus(base) === 'complete' && alternativeCostStatus(other) === 'complete')
-  return { value: b, change: comparable && a !== 0 ? ((b - a) / Math.abs(a)) * 100 : null }
+  const eligibility = alternativeMetricComparison(base, other, id, profiles)
+  return {
+    value: b,
+    change: eligibility.comparable && a !== 0 ? ((b - a) / Math.abs(a)) * 100 : null,
+    reason: eligibility.reason,
+  }
 }
 
 export function CompareAlternatives({
@@ -51,7 +61,8 @@ export function CompareAlternatives({
   const [baselineId, setBaselineId] = useState(alignments[0]?.id ?? '')
   const metadata = project?.terrain
   const referenceSurfaces = useMemo(() => (metadata ? terrainReferenceSurfaces(metadata) : undefined), [metadata])
-  const baseline = analyses.get(alignments.some((a) => a.id === baselineId) ? baselineId : alignments[0].id)!
+  const baselineAlignment = alignments.find((a) => a.id === baselineId) ?? alignments[0]
+  const baseline = analyses.get(baselineAlignment.id)!
   const completeCosts = useMemo(
     () =>
       new Map(
@@ -68,7 +79,7 @@ export function CompareAlternatives({
         <NativeSelect
           aria-label="Comparison baseline"
           className="rounded border bg-background px-1 text-base md:text-xs"
-          value={baselineId}
+          value={baselineAlignment.id}
           onChange={(e) => setBaselineId(e.target.value)}
         >
           {alignments.map((a) => (
@@ -112,12 +123,23 @@ export function CompareAlternatives({
                         {alternativeCostLabel(result)}
                       </td>
                     )
-                  const { value, change } = compareMetric(baseline, result, m.id)
+                  const { value, change, reason } = compareMetric(baseline, result, m.id, {
+                    baseHasProfile: baselineAlignment.vertical.length > 0,
+                    otherHasProfile: a.vertical.length > 0,
+                  })
                   const better = change !== null && change < -0.05,
                     worse = change !== null && change > 0.05
                   return (
-                    <td key={m.id} data-metric={m.id}>
+                    <td key={m.id} data-metric={m.id} title={reason ?? undefined}>
                       {m.id === 'cost' ? `$${number(value)}` : number(value, m.digits ?? 0)}
+                      {(m.id === 'earthworks' || m.id === 'disturbance') && !hasCompleteCoverage(result) && (
+                        <span className="ml-1 text-[10px] text-amber-700 dark:text-amber-400">covered</span>
+                      )}
+                      {m.id === 'grade' && (
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          {a.vertical.length ? 'design' : 'ground'}
+                        </span>
+                      )}
                       {result !== baseline && change !== null && (
                         <span
                           className={`ml-1 text-[10px] ${better ? 'text-emerald-700 dark:text-emerald-400' : worse ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
@@ -146,8 +168,9 @@ export function CompareAlternatives({
       </EngineeringTable>
       <p className="text-[11px] text-muted-foreground">
         Changes are against the baseline on the same terrain and rates. Disturbance is the area between catch points.
-        Partial quantities are not directly comparable with complete ones. Base engineering estimates exclude the
-        complete connected-access and delivered-supply comparison.
+        Partial earthwork and disturbance subtotals show no percentage ranking. Ground and design grades are labelled
+        separately; percentages require the same basis and known grades. Base engineering estimates exclude the complete
+        connected-access and delivered-supply comparison.
       </p>
       {onCompareCompleteCosts && (
         <Button size="sm" variant="outline" onClick={onCompareCompleteCosts}>
