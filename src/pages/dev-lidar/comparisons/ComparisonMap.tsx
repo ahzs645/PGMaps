@@ -13,6 +13,7 @@ import {
 import { treePointLayer } from '../treePointLayer'
 import type { TreeCrop } from '../treeIsolation'
 import { EMPTY_FEATURES } from './data'
+import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 
 /** Relative centres let cameras stay linked even for two different crown locations. */
 export interface ComparisonCamera {
@@ -211,7 +212,7 @@ export function ComparisonMap(props: Props) {
         pitch: instance.getPitch(),
       })
     })
-    const resize = new ResizeObserver(() => instance.resize())
+    const resize = new ResizeObserver(() => resizeMap(instance))
     resize.observe(container.current)
     return () => {
       active = false

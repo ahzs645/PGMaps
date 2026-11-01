@@ -6,6 +6,7 @@ import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { ResolvedLayer } from './storyScene'
 import { storySourceKey, type StorySourceState } from './storySources'
+import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 
 export type StoryComparisonProps = {
   enabled: boolean
@@ -68,7 +69,7 @@ function ComparisonSurface({
       setSynchronizedMap(secondary)
     }
     const resize = () => {
-      secondary.resize()
+      resizeMap(secondary)
       mirror()
     }
     const connect = () => {

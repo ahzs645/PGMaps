@@ -104,6 +104,7 @@ import type {
   RoadTemplate,
   TerrainSource,
 } from './dev-forestry-roads/types'
+import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
@@ -127,7 +128,7 @@ const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
 function fitContextRoad(map: MapLibreMap, road: ContextFeature) {
   if (road.geometry.type !== 'LineString') return
   const points = road.geometry.coordinates
-  map.resize()
+  resizeMap(map)
   map.fitBounds(
     [
       [Math.min(...points.map((point) => point[0])), Math.min(...points.map((point) => point[1]))],
@@ -1118,7 +1119,7 @@ export default function DevForestryRoads() {
             await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
             const map = planMap.current
             if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
-            map.resize()
+            resizeMap(map)
             await exportMapPdf(
               map,
               safe.name,
