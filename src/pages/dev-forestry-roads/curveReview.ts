@@ -53,8 +53,8 @@ export const INNER_EDGE_GRADE_BASIS =
   'wheel tracks, vehicle offtracking and swept paths; this is a geometric screen, not a vehicle grade limit.'
 
 export const CURVE_REVIEW_BASIS =
-  'Fitted curves are reviewed independently. A switchback assembled from several curves needs a whole-vehicle ' +
-  'maneuver review; per-curve widening does not establish swept-path clearance. Sampled section checks do not ' +
+  'Fitted curves are reviewed independently; per-curve widening does not establish swept-path clearance. The ' +
+  'Swept path check judges a switchback assembled from several curves as one vehicle turn. Sampled section checks do not ' +
   'prove continuous footprint clearance or curvature-corrected earthwork volumes.'
 
 export function buildCurveReview(alignment: Alignment, analysis: RoadAnalysis): CurveReview[] {

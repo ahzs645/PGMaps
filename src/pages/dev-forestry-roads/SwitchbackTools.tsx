@@ -341,9 +341,9 @@ export function SwitchbackTools({
           <p className="text-xs text-muted-foreground">The project already has 20 road alternatives.</p>
         )}
         <p className="text-[11px] text-muted-foreground">
-          Inspect the new road in plan, profile and section. Radius and centreline spacing do not verify truck swept
-          paths or overlapping earthworks. Widening tables apply per curve; the full 180° maneuver needs a separate
-          vehicle review.
+          Inspect the new road in plan, profile and section. The swept-path check covers wheels against the formation
+          for the whole 180° turn; body clearance to cut batters and trees, overlapping earthworks between the legs, and
+          traction on grade still need review.
         </p>
         <details className="text-[11px] text-muted-foreground">
           <summary className="cursor-pointer">Profile and engineering inputs</summary>
