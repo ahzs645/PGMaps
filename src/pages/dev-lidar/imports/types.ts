@@ -1,6 +1,8 @@
 import type { FeatureCollection } from 'geojson'
+// A session is only accepted while its saved project (base64 of every original file) fits LIMITS.project,
+// so anything that loads can also be saved and restored. 71 MiB of bytes is ~94.7 MiB of base64.
 export const LIMITS = {
-  file: 128 * 1024 ** 2,
+  file: 71 * 1024 ** 2,
   decoded: 96 * 1024 ** 2,
   cells: 16_000_000,
   features: 200_000,
@@ -25,6 +27,8 @@ export interface LayerBase {
   bounds: Bounds
   source: ImportSource
   original: ArrayBuffer
+  /** Import-time notice (e.g. an embedded CRS overriding the picker); not saved. */
+  note?: string
 }
 export interface VectorLayer extends LayerBase {
   kind: 'vector'
@@ -63,3 +67,5 @@ export interface ImportFile {
   arrayBuffer(): Promise<ArrayBuffer>
   slice(start?: number, end?: number): Blob
 }
+/** User-facing text of a thrown value, without the "Error: " prefix String(error) adds. */
+export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))

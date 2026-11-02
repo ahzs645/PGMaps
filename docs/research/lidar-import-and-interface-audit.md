@@ -6,17 +6,17 @@ Verified 22 October 2026 against main `3ac9ff1b055b42ca62c359d9649f4e86b3dbf5fc`
 
 Before this change, GeoLibre offered a general point-cloud loader, but the inventory's “Import GeoJSON” meant only an area-selection polygon. Processed layers could not be restored as a project. The new **Import & data** workspace is `/dev/lidar/data/`, accessible through the tool selector, library and upload icon. Inventory now labels its separate control **Import boundary**.
 
-| Input | Browser behavior | Limits |
-|---|---|---|
-| Ordinary LAS/LAZ | Header inspected before GeoLibre full-file loading | 2 million returns and 64 MiB, embedded CRS required |
-| Local COPC LAZ | GeoLibre range-based streaming from the selected File | 750,000-point display budget; source is not embedded in a saved project |
-| HTTPS COPC / EPT URL | Native streaming APIs; no ordinary LAZ fallback | CORS required; COPC server needs byte ranges; URLs are not saved |
-| Single-band GeoTIFF, optionally gzip | Native samples retained; colored map preview and native-cell inspection | North-up pixel-is-area grid, 16 million cells/file, 20 million cells/project; preview ≤1024 px |
-| GeoJSON, optionally gzip | Points, lines, polygons, multi-geometries and geometry collections; ID search and attributes | 200,000 features/file, 300,000/project; 2 million vertices/file |
-| PGMaps project JSON | Revalidates SHA-256 and restores original processed bytes, CRS and layer controls atomically | 96 MiB saved JSON; cloud files/URLs must be reattached |
-| Archive `.part`, NPY/NPZ, CityJSON, CSV, review JSON | Not general layer imports | Restore split archives first; use the archived processing scripts for array/source-row mappings. Existing workspace-specific review imports remain separate. |
+| Input                                                | Browser behavior                                                                             | Limits                                                                                                                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ordinary LAS/LAZ                                     | Header inspected before GeoLibre full-file loading                                           | 2 million returns and 64 MiB, embedded CRS required                                                                                                          |
+| Local COPC LAZ                                       | GeoLibre range-based streaming from the selected File                                        | 750,000-point display budget; source is not embedded in a saved project                                                                                      |
+| HTTPS COPC / EPT URL                                 | Native streaming APIs; no ordinary LAZ fallback                                              | CORS required; COPC server needs byte ranges; URLs are not saved                                                                                             |
+| Single-band GeoTIFF, optionally gzip                 | Native samples retained; colored map preview and native-cell inspection                      | North-up pixel-is-area grid, 16 million cells/file, 20 million cells/project; preview ≤1024 px                                                               |
+| GeoJSON, optionally gzip                             | Points, lines, polygons, multi-geometries and geometry collections; ID search and attributes | 200,000 features/file, 300,000/project; 2 million vertices/file                                                                                              |
+| PGMaps project JSON                                  | Revalidates SHA-256 and restores original processed bytes, CRS and layer controls atomically | 96 MiB saved JSON; cloud files/URLs must be reattached                                                                                                       |
+| Archive `.part`, NPY/NPZ, CityJSON, CSV, review JSON | Not general layer imports                                                                    | Restore split archives first; use the archived processing scripts for array/source-row mappings. Existing workspace-specific review imports remain separate. |
 
-Up to 10 processed layers and 128 MiB of retained original processed files fit one session. Gzip decoding stops at 96 MiB. Supported source CRSs are EPSG:3157, 4326, 3857 and WGS84 UTM zones north/south. Explicit CRS selection applies to GeoJSON/GeoTIFF, never silently changes a point cloud. Unknown CRS and malformed geometries produce actionable errors. Raster units remain those of the source file; DTM elevation is not canopy height.
+Up to 10 processed layers fit one session, and a layer is refused once the session's saved project (base64 of every original file) would exceed 96 MiB, so anything that loads can be saved; single files are limited to 71 MiB. Gzip decoding stops at 96 MiB. Supported source CRSs come from the shared `src/lib/geo/projectedCrs.ts`: EPSG:3005 (BC Albers), NAD83(CSRS) UTM 7–16N (3154–3157, 2955–2957, 3158–3160), NAD83 UTM (26901–26923), WGS84 UTM north/south, 4326 and 3857. An embedded GeoTIFF or declared GeoJSON EPSG code always wins; the Layer CRS picker only fills in files without one (the status message says when the picker was ignored), and it never changes a point cloud. Unknown CRS and malformed geometries produce actionable errors. Raster units remain those of the source file; DTM elevation is not canopy height.
 
 **Viewing and processing have distinct scopes.** Imported layers and point clouds appear in this workspace. The canopy, forestry, species, tree inventory, comparison, building and volume tools still use the bundled examples. They do not rerun on a newly imported tile. R/ForestTools, neural inference, terrain processing and building reconstruction remain the archived Python/R/native processing pipeline. No browser inference or complete-census accuracy is implied.
 
@@ -24,15 +24,15 @@ Files remain in the tab's memory; switching tools retains the session. Closing/r
 
 ## Checks with the actual archived files
 
-| File | Result |
-|---|---|
-| `source.laz` | Header: 84,608,005 returns, 550,572,701 bytes, LAS 1.4 format 6, CRS present. Ordinary LAZ gate rejects before a full read. Original sample remains viewable via its existing EPT hierarchy. |
-| `source-with-model-labels.laz` | Header: 84,608,005 returns, 625,994,944 bytes, ordinary LAZ, CRS present. Same gate; convert to COPC/EPT before browser streaming. |
-| `sat-candidate-centroids.geojson.gz` | All 93,771 features loaded; candidate `0`, method, assigned returns and reviewed flag retained. SHA-256 `82c2e8ec87cc317b0d0301965c499516bf7fe410fe6e3afdce5081f54fa9cea1`. |
-| `forainet-candidate-centroids.geojson.gz` | All 52,272 features loaded; candidate `0` and attributes retained. SHA-256 `2a9ecc526550420f7ed2d714bc97e87f3d14cd8e4da5d972aca1dcc0a575b5a5`. |
-| `height-1m.tif` | 1,648 × 1,396 cells, 1 m EPSG:3157, 2,279,933 valid samples, NoData −9999, range 0–59.987976 m. SHA-256 `53258048d1d72e706120adb05487e04652cb2d3394666d97b20c20fd04af1898`. |
-| `dtm-1m.tif` | Same footprint/resolution/valid count; elevation 601.804016–808.239990 m. SHA-256 `9e6326b8863c853fd449173a32908a2d67f9a5c32f2804b0c4dc001fce804181`. |
-| Four-layer project | 17,811,128-byte project saved/restored; all four original checksums match. |
+| File                                      | Result                                                                                                                                                                                       |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source.laz`                              | Header: 84,608,005 returns, 550,572,701 bytes, LAS 1.4 format 6, CRS present. Ordinary LAZ gate rejects before a full read. Original sample remains viewable via its existing EPT hierarchy. |
+| `source-with-model-labels.laz`            | Header: 84,608,005 returns, 625,994,944 bytes, ordinary LAZ, CRS present. Same gate; convert to COPC/EPT before browser streaming.                                                           |
+| `sat-candidate-centroids.geojson.gz`      | All 93,771 features loaded; candidate `0`, method, assigned returns and reviewed flag retained. SHA-256 `82c2e8ec87cc317b0d0301965c499516bf7fe410fe6e3afdce5081f54fa9cea1`.                  |
+| `forainet-candidate-centroids.geojson.gz` | All 52,272 features loaded; candidate `0` and attributes retained. SHA-256 `2a9ecc526550420f7ed2d714bc97e87f3d14cd8e4da5d972aca1dcc0a575b5a5`.                                               |
+| `height-1m.tif`                           | 1,648 × 1,396 cells, 1 m EPSG:3157, 2,279,933 valid samples, NoData −9999, range 0–59.987976 m. SHA-256 `53258048d1d72e706120adb05487e04652cb2d3394666d97b20c20fd04af1898`.                  |
+| `dtm-1m.tif`                              | Same footprint/resolution/valid count; elevation 601.804016–808.239990 m. SHA-256 `9e6326b8863c853fd449173a32908a2d67f9a5c32f2804b0c4dc001fce804181`.                                        |
+| Four-layer project                        | 17,811,128-byte project saved/restored; all four original checksums match.                                                                                                                   |
 
 The two centroid layers are candidate summaries, not crown polygons or verified stem locations. Their IDs/colors are scoped to each source file. Matching numeric IDs across methods do not establish tree correspondence. Neither candidate count is a validated tree census.
 

@@ -1,14 +1,16 @@
 import proj4 from 'proj4'
-import { METRIC_CRS } from '../sourceGrids'
+import { crsDefinition, epsgCode } from '@/lib/geo/projectedCrs'
 import type { Bounds } from './types'
 export function definition(crs: string) {
-  if (crs === 'EPSG:3157') return METRIC_CRS
-  const code = Number(crs.replace('EPSG:', ''))
-  if (code >= 32601 && code <= 32660) return '+proj=utm +zone=' + (code - 32600) + ' +datum=WGS84 +units=m +no_defs'
-  if (code >= 32701 && code <= 32760)
-    return '+proj=utm +zone=' + (code - 32700) + ' +south +datum=WGS84 +units=m +no_defs'
-  if (crs === 'EPSG:4326' || crs === 'EPSG:3857') return crs
-  throw Error('Unsupported CRS ' + crs + '. Select the file’s CRS or reproject to WGS84 / UTM before importing.')
+  const code = epsgCode(crs),
+    resolved = code === null ? null : crsDefinition(code)
+  if (!resolved)
+    throw Error(
+      'Unsupported CRS ' +
+        crs +
+        '. Select the file’s CRS or reproject to BC Albers, a NAD83/NAD83(CSRS)/WGS84 UTM zone or WGS84 before importing.',
+    )
+  return resolved
 }
 export function geographic(position: number[], crs: string): number[] {
   if (position.length < 2 || !position.every(Number.isFinite)) throw Error('Invalid coordinate')

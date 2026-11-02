@@ -132,6 +132,18 @@ describe('import workspace interface', () => {
     await act(async () => button('Connect stream').props.onClick())
     expect(mapProps().session.point).toBeNull()
     expect(JSON.stringify(renderer.toJSON())).toContain('ordinary remote LAZ needs conversion')
+    const status = () => root().findByProps({ role: 'status' }).children.join('')
+    expect(status()).toMatch(/^URL streaming accepts/)
+    expect(status()).not.toContain('Error:')
+  })
+  it('offers every shared CRS in the picker', async () => {
+    await mount()
+    const options = root()
+      .findByProps({ 'aria-label': 'Imported layer CRS' })
+      .findAllByType('option')
+      .map((o) => o.props.value)
+    for (const code of ['auto', 'EPSG:3005', 'EPSG:2955', 'EPSG:3156', 'EPSG:3158', 'EPSG:26910', 'EPSG:32610'])
+      expect(options).toContain(code)
   })
   it('does not resurrect a cleared session when an asynchronous import finishes', async () => {
     await mount()

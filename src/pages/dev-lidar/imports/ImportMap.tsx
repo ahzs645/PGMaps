@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import maplibregl, { type GeoJSONSource, type LayerSpecification } from 'maplibre-gl'
 import { LidarControl } from 'maplibre-gl-lidar'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -16,7 +16,7 @@ import { featureName } from './vector'
 import { hideNativeLoadSection } from './las'
 import { loadPointSource, POINT_BUDGET } from './pointSource'
 import { unionBounds } from './coordinates'
-import type { ImportedLayer, ImportSession } from './types'
+import { errorText, type ImportedLayer, type ImportSession } from './types'
 const EMPTY = { type: 'FeatureCollection' as const, features: [] }
 const colour = (value: string) => {
   let hash = 0
@@ -40,12 +40,16 @@ export function ImportMap(props: Props) {
     latest = useRef(props),
     context = useRef<LayerSpecification[]>([]),
     installed = useRef(new Map<string, ImportedLayer>())
+  const pointId = props.session.point?.id
   const [ready, setReady] = useState(false),
     [error, setError] = useState(''),
     [contextError, setContextError] = useState('')
-  latest.current = props
+  useLayoutEffect(() => {
+    latest.current = props
+  })
   useEffect(() => {
     if (!container.current) return
+    const installedLayers = installed.current
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 20000)
@@ -60,7 +64,8 @@ export function ImportMap(props: Props) {
         attributionControl: { compact: true },
       })
     } catch (e) {
-      setError(String(e))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- MapLibre failed to start (e.g. no WebGL); show it once.
+      setError(errorText(e))
       return () => {
         clearTimeout(timer)
         abort.abort()
@@ -146,7 +151,7 @@ export function ImportMap(props: Props) {
       abort.abort()
       instance.remove()
       map.current = null
-      installed.current.clear()
+      installedLayers.clear()
     }
   }, [])
   useEffect(() => {
@@ -262,13 +267,15 @@ export function ImportMap(props: Props) {
           }
       }
     } catch (e) {
-      setError(String(e))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- A layer MapLibre rejected; report it rather than throw.
+      setError(errorText(e))
     }
   }, [ready, props.session.layers])
   useEffect(() => {
     const m = map.current
     if (!ready || !m) return
-    const bounds = unionBounds(props.session.layers.filter((l) => l.visible).map((l) => l.bounds))
+    // Fit only when asked (props.fit changes), using the layers current at that moment.
+    const bounds = unionBounds(latest.current.session.layers.filter((l) => l.visible).map((l) => l.bounds))
     if (bounds) m.fitBounds(bounds, { padding: 45, maxZoom: 20, duration: 0 })
   }, [ready, props.fit])
   useEffect(() => {
@@ -300,9 +307,9 @@ export function ImportMap(props: Props) {
       shareUrl: false,
     })
     m.addControl(control, 'top-left')
-    hideNativeLoadSection(control.getContainer())
+    hideNativeLoadSection(m.getContainer())
     control.on('loaderror', (event) => {
-      if (active) latest.current.onPointStatus(String(event.error ?? 'Point-cloud load failed'))
+      if (active) latest.current.onPointStatus(errorText(event.error ?? 'Point-cloud load failed'))
     })
     control.on('streamingprogress', () => {
       const progress = control.getStreamingProgress()
@@ -315,7 +322,8 @@ export function ImportMap(props: Props) {
       if (active && event.point)
         latest.current.onPointStatus('Picked point: ' + JSON.stringify(event.point).slice(0, 1800))
     })
-    const point = props.session.point
+    // Reload only when the point source identity changes, not on every session update.
+    const point = latest.current.session.point
     latest.current.onPointStatus(
       point
         ? 'Loading ' + point.name + '…'
@@ -336,13 +344,13 @@ export function ImportMap(props: Props) {
           }
         })
         .catch((e) => {
-          if (active) latest.current.onPointStatus(String(e))
+          if (active) latest.current.onPointStatus(errorText(e))
         })
     return () => {
       active = false
       m.removeControl(control)
     }
-  }, [ready, props.session.point?.id])
+  }, [ready, pointId])
   return (
     <div className="relative h-full min-h-0" aria-label="Imported data map">
       <div ref={container} className="absolute inset-0" />

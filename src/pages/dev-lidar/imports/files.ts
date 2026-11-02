@@ -13,13 +13,18 @@ export function base64(bytes: ArrayBuffer) {
   for (let i = 0; i < data.length; i += 32768) result += String.fromCharCode(...data.subarray(i, i + 32768))
   return btoa(result)
 }
-function decode64(value: unknown) {
+export function decode64(value: unknown) {
   if (typeof value !== 'string' || value.length > LIMITS.file * 1.4) throw Error('Invalid or oversized project payload')
+  let binary: string
   try {
-    return Uint8Array.from(atob(value), (c) => c.charCodeAt(0)).buffer
+    binary = atob(value)
   } catch {
     throw Error('Project contains invalid base64 bytes')
   }
+  // A preallocated loop; Uint8Array.from(string, mapper) iterates code points and froze the tab for seconds.
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer
 }
 export async function unpack(bytes: ArrayBuffer, name: string) {
   if (!name.toLowerCase().endsWith('.gz')) return bytes
@@ -49,7 +54,8 @@ export async function unpack(bytes: ArrayBuffer, name: string) {
   return result.buffer
 }
 export async function fileLayer(file: ImportFile, crs = 'auto'): Promise<ImportedLayer> {
-  if (file.size > LIMITS.file) throw Error('Processed layers are limited to 128 MiB per file')
+  if (file.size > LIMITS.file)
+    throw Error('Processed layers are limited to 71 MiB per file so the project stays within the 96 MiB save limit')
   const original = await file.arrayBuffer(),
     name = file.name.replace(/\.gz$/i, '').toLowerCase()
   const common = {
@@ -62,7 +68,8 @@ export async function fileLayer(file: ImportFile, crs = 'auto'): Promise<Importe
   }
   if (/\.(tif|tiff)$/.test(name)) {
     const raster = await rasterData(await unpack(original, file.name), crs)
-    return { ...common, ...raster, source: { ...common.source, crs: raster.crs } }
+    const { crs: rasterCrs, ...rest } = raster
+    return { ...common, ...rest, source: { ...common.source, crs: rasterCrs } }
   }
   if (!/\.(geojson|json)$/.test(name))
     throw Error(
@@ -76,8 +83,8 @@ export async function fileLayer(file: ImportFile, crs = 'auto'): Promise<Importe
   } catch {
     throw Error('Invalid UTF-8 JSON file')
   }
-  const vector = vectorData(raw, crs)
-  return { ...common, ...vector, kind: 'vector', source: { ...common.source, crs: vector.crs } }
+  const { crs: vectorCrs, ...vector } = vectorData(raw, crs)
+  return { ...common, ...vector, kind: 'vector', source: { ...common.source, crs: vectorCrs } }
 }
 export function checkSession(session: ImportSession) {
   if (
@@ -85,10 +92,19 @@ export function checkSession(session: ImportSession) {
   )
     throw Error('Project exceeds 20 million raster cells; split it into separate projects')
   if (session.layers.length > LIMITS.layers) throw Error('A project supports up to 10 processed layers')
-  if (session.layers.reduce((n, layer) => n + layer.original.byteLength, 0) > LIMITS.file)
-    throw Error('Project exceeds the 128 MiB processed-file budget')
+  if (projectSizeBound(session) > LIMITS.project)
+    throw Error('This would exceed the 96 MiB saved-project limit; remove a layer or save fewer layers together')
   if (session.layers.reduce((n, layer) => n + (layer.kind === 'vector' ? layer.data.features.length : 0), 0) > 300000)
     throw Error('Project exceeds 300,000 vector features; split it into separate projects')
+}
+/** Upper bound on exportProject's UTF-8 size: base64 payloads plus worst-case JSON escaping of strings. */
+export function projectSizeBound(session: ImportSession) {
+  const text = (value: string) => 6 * value.length + 2
+  const points = [...session.missingPoints, ...(session.point ? [session.point.name] : [])]
+  return session.layers.reduce(
+    (n, l) => n + 4 * Math.ceil(l.original.byteLength / 3) + 512 + text(l.source.name) + text(l.source.crs),
+    1024 + points.reduce((n, p) => n + text(p) + 1, 0),
+  )
 }
 export function exportProject(session: ImportSession) {
   const output = {
@@ -113,9 +129,24 @@ export function exportProject(session: ImportSession) {
     throw Error('Saved project exceeds 96 MiB; export fewer layers together')
   return text
 }
+interface ProjectJson {
+  schema?: unknown
+  version?: unknown
+  missingPoints?: unknown
+  layers?: Array<{
+    name?: unknown
+    kind?: unknown
+    crs?: unknown
+    visible?: unknown
+    opacity?: unknown
+    bytes?: unknown
+    sha256?: unknown
+    data?: unknown
+  } | null>
+}
 export async function restoreProject(file: ImportFile): Promise<ImportSession> {
   if (file.size > LIMITS.project) throw Error('Project JSON exceeds 96 MiB')
-  let value: any
+  let value: ProjectJson
   try {
     value = JSON.parse(decoder.decode(await file.arrayBuffer()))
   } catch {
@@ -136,6 +167,7 @@ export async function restoreProject(file: ImportFile): Promise<ImportSession> {
     !value.missingPoints.every((s: unknown) => typeof s === 'string' && s.length < 512)
   )
     throw Error('Invalid project point-cloud references')
+  const missingPoints = value.missingPoints as string[]
   const result = emptySession()
   for (const layer of value.layers) {
     if (
@@ -143,9 +175,10 @@ export async function restoreProject(file: ImportFile): Promise<ImportSession> {
       typeof layer.name !== 'string' ||
       !layer.name.length ||
       layer.name.length > 512 ||
-      !['vector', 'raster'].includes(layer.kind) ||
+      (layer.kind !== 'vector' && layer.kind !== 'raster') ||
       typeof layer.crs !== 'string' ||
       typeof layer.visible !== 'boolean' ||
+      typeof layer.opacity !== 'number' ||
       !Number.isFinite(layer.opacity) ||
       layer.opacity < 0 ||
       layer.opacity > 1
@@ -169,6 +202,6 @@ export async function restoreProject(file: ImportFile): Promise<ImportSession> {
     result.layers.push(restored)
     checkSession(result)
   }
-  result.missingPoints = value.missingPoints
+  result.missingPoints = missingPoints
   return result
 }

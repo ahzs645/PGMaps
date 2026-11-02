@@ -1,7 +1,7 @@
 import type { LazPerf } from 'laz-perf'
 import { readPointCloudHeader, type PointCloudHeader } from '@/lib/lidar/lasHeader'
 import { openPointReader } from './reader'
-import { csrsUtmZone } from './outputs'
+import { isMetricCrs } from '@/lib/geo/projectedCrs'
 import { pemStructureAccumulator } from './pemStructure'
 import {
   groundAccumulator,
@@ -32,15 +32,7 @@ export function boundsOverlapShare(
   const smaller = Math.min(area(a), area(b))
   return smaller > 0 ? (dx * dy) / smaller : 1
 }
-export function isMetricCrs(epsg: number) {
-  return (
-    epsg === 3005 ||
-    csrsUtmZone(epsg) !== null ||
-    (epsg >= 26901 && epsg <= 26923) ||
-    (epsg >= 32601 && epsg <= 32660) ||
-    (epsg >= 32701 && epsg <= 32760)
-  )
-}
+export { isMetricCrs }
 
 export async function runRestoration(
   files: PointFile[],

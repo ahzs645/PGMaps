@@ -1,3 +1,4 @@
+import { pointCloudRecords, readPointCloudHeader, recordsCrs, type Vlr } from '@/lib/lidar/lasHeader'
 import { LIMITS, type ImportFile } from './types'
 export interface LasHeader {
   version: string
@@ -6,69 +7,63 @@ export interface LasHeader {
   compressed: boolean
   format: number
   hasCRS: boolean
+  epsg: number | null
 }
+const MAX_METADATA = 16 * 1024 * 1024
+const isCrsRecord = (v: Vlr) => v.user === 'LASF_Projection' && (v.record === 34735 || v.record === 2112)
+/** Header, VLRs and LAS 1.4 extended VLRs read in bounded slices, parsed by the shared LAS reader. */
 export async function inspectLas(file: ImportFile): Promise<LasHeader> {
-  const bytes = new Uint8Array(await file.slice(0, Math.min(file.size, 1024 * 1024)).arrayBuffer())
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  const text = (at: number, length: number) =>
-    new TextDecoder()
-      .decode(bytes.slice(at, at + length))
-      .replace(/\0/g, '')
-      .trim()
-  if (bytes.length < 227 || text(0, 4) !== 'LASF')
+  const prefix = new Uint8Array(await file.slice(0, 375).arrayBuffer())
+  if (prefix.length < 227 || new TextDecoder().decode(prefix.subarray(0, 4)) !== 'LASF')
     throw Error('This is not a complete LAS/LAZ file. Restore archive parts before importing.')
-  const major = bytes[24],
-    minor = bytes[25],
-    format = bytes[104] & 63
-  if (major !== 1 || minor > 4 || format > 10) throw Error('Unsupported LAS version or point format')
+  const view = new DataView(prefix.buffer, prefix.byteOffset, prefix.byteLength)
   const headerSize = view.getUint16(94, true),
-    offset = view.getUint32(96, true),
-    records = view.getUint32(100, true)
-  if (headerSize < 227 || offset < headerSize || offset > file.size || records > 100000)
+    offset = view.getUint32(96, true)
+  if (headerSize < 227 || offset < headerSize || offset > file.size || offset > MAX_METADATA)
     throw Error('Invalid LAS header or truncated point data')
-  let points = view.getUint32(107, true)
-  if (minor >= 4) {
-    if (bytes.length < 375 || headerSize < 375) throw Error('Truncated LAS 1.4 header')
-    const extended = Number(view.getBigUint64(247, true))
-    if (extended) points = extended
-  }
-  if (!Number.isSafeInteger(points) || points <= 0) throw Error('LAS file has no usable point records')
-  let at = headerSize,
-    copc = false,
-    hasCRS = false
-  for (let i = 0; i < records && at + 54 <= Math.min(offset, bytes.length); i++) {
-    const user = text(at + 2, 16),
-      record = view.getUint16(at + 18, true),
-      size = view.getUint16(at + 20, true)
-    if (user === 'copc' && record === 1) copc = true
-    if (user === 'LASF_Projection' && [34735, 2112].includes(record)) hasCRS = true
-    at += 54 + size
-    if (at > offset) throw Error('Invalid LAS variable-length records')
-  }
-  if (!hasCRS && minor >= 4) {
-    let evlrAt = Number(view.getBigUint64(235, true))
-    const count = view.getUint32(243, true)
+  const metadata = new Uint8Array(await file.slice(0, offset).arrayBuffer())
+  const header = readPointCloudHeader(metadata, { headerOnly: true })
+  if (header.points <= 0) throw Error('LAS file has no usable point records')
+  const records = pointCloudRecords(metadata)
+  if (header.version === '1.4') {
+    const meta = new DataView(metadata.buffer, metadata.byteOffset, metadata.byteLength)
+    let evlrAt = Number(meta.getBigUint64(235, true))
+    const count = meta.getUint32(243, true)
     if (!Number.isSafeInteger(evlrAt) || count > 64)
       throw Error('Unsupported LAS extended metadata; normalize it with PDAL before importing')
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < count && !records.some(isCrsRecord); i++) {
       if (!evlrAt || evlrAt + 60 > file.size) throw Error('Truncated LAS extended metadata')
-      const record = new Uint8Array(await file.slice(evlrAt, evlrAt + 60).arrayBuffer())
-      if (record.length < 60) throw Error('Truncated LAS extended metadata')
-      const header = new DataView(record.buffer, record.byteOffset, record.byteLength)
-      const size = Number(header.getBigUint64(20, true))
+      const head = new Uint8Array(await file.slice(evlrAt, evlrAt + 60).arrayBuffer())
+      if (head.length < 60) throw Error('Truncated LAS extended metadata')
+      const evlr = new DataView(head.buffer, head.byteOffset, head.byteLength)
+      const size = Number(evlr.getBigUint64(20, true))
       if (!Number.isSafeInteger(size) || evlrAt + 60 + size > file.size)
         throw Error('Invalid LAS extended metadata length')
-      const user = new TextDecoder().decode(record.slice(2, 18)).replace(/\0/g, '').trim()
-      if (user === 'LASF_Projection' && header.getUint16(18, true) === 2112 && size > 0) {
-        hasCRS = true
-        break
+      const record: Vlr = {
+        user: new TextDecoder().decode(head.subarray(2, 18)).replace(/\0.*$/s, ''),
+        record: evlr.getUint16(18, true),
+        data: new Uint8Array(),
       }
+      if (isCrsRecord(record) && size > 0 && size <= MAX_METADATA)
+        record.data = new Uint8Array(await file.slice(evlrAt + 60, evlrAt + 60 + size).arrayBuffer())
+      records.push(record)
       evlrAt += 60 + size
     }
   }
-  const compressed = (bytes[104] & 192) !== 0
-  if (!compressed && offset + points * view.getUint16(105, true) > file.size) throw Error('Truncated LAS point records')
-  return { version: major + '.' + minor, points, copc, hasCRS, format, compressed }
+  const copc = records.some((v) => v.user === 'copc' && v.record === 1)
+  const crs = recordsCrs(records)
+  const hasCRS = crs.epsg !== null || records.some((v) => isCrsRecord(v) && v.data.byteLength > 0)
+  if (!header.compressed && offset + header.points * header.pointLength > file.size)
+    throw Error('Truncated LAS point records')
+  return {
+    version: header.version,
+    points: header.points,
+    copc,
+    hasCRS,
+    format: header.pointFormat,
+    compressed: header.compressed,
+    epsg: crs.epsg,
+  }
 }
 export function checkLasBudget(header: LasHeader, size: number) {
   if (!header.copc && (size > LIMITS.plainBytes || header.points > LIMITS.plainPoints))
@@ -95,8 +90,19 @@ export function streamingUrl(value: string) {
     throw Error('URL streaming accepts ept.json or a .copc.laz file; ordinary remote LAZ needs conversion first')
   return { url: url.href, kind: ept ? ('ept' as const) : ('copc' as const) }
 }
-/** Keep the GeoLibre styling/profile controls; all loading goes through the guarded workspace. */
-export function hideNativeLoadSection(container?: HTMLElement) {
-  const section = container?.querySelector('.lidar-file-input-wrapper')?.closest<HTMLElement>('.lidar-control-section')
-  if (section) section.hidden = true
+/**
+ * Keep the GeoLibre styling/profile controls; all loading goes through the guarded workspace.
+ * LidarControl appends its panel to the map container (not control.getContainer()), so pass
+ * map.getContainer(). Its file section holds the file input, sample list and URL loader.
+ */
+export function hideNativeLoadSection(root?: ParentNode | null) {
+  let hidden = 0
+  root?.querySelectorAll<HTMLElement>('.lidar-control-panel .lidar-file-input-wrapper').forEach((wrapper) => {
+    const section = wrapper.closest<HTMLElement>('.lidar-control-section') ?? wrapper
+    section.hidden = true
+    section.style.display = 'none'
+    section.querySelectorAll<HTMLInputElement>('input, select, button').forEach((control) => (control.disabled = true))
+    hidden++
+  })
+  return hidden
 }

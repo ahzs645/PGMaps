@@ -2,9 +2,12 @@ import { fromArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
 import { definition, geographic } from './coordinates'
 import { LIMITS, type RasterLayer } from './types'
+/** A real EPSG code from GeoTIFF keys; 32767 means user-defined, which PGMaps cannot interpret. */
+const epsgKey = (value: unknown) =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0 && value !== 32767 ? value : undefined
 export async function rasterData(original: ArrayBuffer, override = 'auto') {
   const image = await (await fromArrayBuffer(original)).getImage(),
-    keys = image.getGeoKeys()
+    keys: Record<string, unknown> = image.getGeoKeys() ?? {}
   const width = image.getWidth(),
     height = image.getHeight(),
     matrix = image.getFileDirectory().ModelTransformation
@@ -15,8 +18,20 @@ export async function rasterData(original: ArrayBuffer, override = 'auto') {
   if (matrix && (matrix[1] !== 0 || matrix[4] !== 0))
     throw Error('Reproject rotated GeoTIFFs to a north-up grid before importing')
   if (keys.GTRasterTypeGeoKey === 2) throw Error('Convert pixel-is-point GeoTIFFs to pixel-is-area before importing')
-  const epsg = keys.ProjectedCSTypeGeoKey ?? keys.GeographicTypeGeoKey
-  const crs = override === 'auto' ? 'EPSG:' + epsg : override
+  // An embedded EPSG code wins over the picker; the picker only fills in files without one.
+  // GTModelTypeGeoKey 1 = projected, 2 = geographic. A projected file with a user-defined projection must not
+  // fall back to its geographic base CRS, or projected metres would be read as degrees.
+  const model = keys.GTModelTypeGeoKey,
+    projected = epsgKey(keys.ProjectedCSTypeGeoKey),
+    geographicCode = epsgKey(keys.GeographicTypeGeoKey)
+  const embedded = model === 1 ? projected : model === 2 ? geographicCode : (projected ?? geographicCode)
+  if (embedded === undefined && override === 'auto')
+    throw Error('This GeoTIFF has no embedded EPSG CRS. Select its CRS in Layer CRS before importing.')
+  const crs = embedded !== undefined ? 'EPSG:' + embedded : override
+  const note =
+    embedded !== undefined && override !== 'auto' && override !== crs
+      ? `Used the embedded ${crs}; the selected ${override} was ignored.`
+      : undefined
   definition(crs)
   const resolution = image.getResolution(),
     bounds = image.getBoundingBox()
@@ -38,7 +53,12 @@ export async function rasterData(original: ArrayBuffer, override = 'auto') {
     throw Error('Crop large-extent rasters before display; this viewer uses an image footprint, not a global warp')
   const raw = await image.readRasters({ samples: [0], interleave: true })
   const values = Float64Array.from(raw as ArrayLike<number>),
-    noData = image.getGDALNoData()
+    declaredNoData = image.getGDALNoData()
+  // GDAL_NODATA is decimal text; float32 cells hold its float32 rounding (e.g. -9999.9 → -9999.900390625).
+  const noData =
+    declaredNoData !== null && image.getSampleFormat(0) === 3 && image.getBitsPerSample(0) === 32
+      ? Math.fround(declaredNoData)
+      : declaredNoData
   let minimum = Infinity,
     maximum = -Infinity,
     valid = 0
@@ -62,6 +82,7 @@ export async function rasterData(original: ArrayBuffer, override = 'auto') {
     maximum,
     valid,
     bounds: geographicBounds,
+    note,
   }
 }
 export function rasterValue(layer: RasterLayer, lon: number, lat: number) {

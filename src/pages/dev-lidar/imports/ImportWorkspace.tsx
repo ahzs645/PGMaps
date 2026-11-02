@@ -8,7 +8,8 @@ import { ImportSidebar } from './ImportSidebar'
 import { checkLasBudget, inspectLas, streamingUrl } from './las'
 import { fileLayer, restoreProject, exportProject } from './files'
 import { getImportSession, resetImportSession, setImportSession, useImportSession } from './session'
-import type { PointSource } from './types'
+import { errorText, type PointSource } from './types'
+import { CRS_OPTION_GROUPS } from '@/lib/geo/projectedCrs'
 export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; cloudBase: string }) {
   const session = useImportSession(),
     epoch = useRef(0)
@@ -89,10 +90,10 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             setImportSession({ ...old, layers: [...old.layers, parsed] })
             choose(parsed.id)
             setFit((n) => n + 1)
-            results.push(file.name + ': imported.')
+            results.push(file.name + ': imported.' + (parsed.note ? ' ' + parsed.note : ''))
           }
         } catch (e) {
-          results.push(file.name + ': ' + (e instanceof Error ? e.message : String(e)))
+          results.push(file.name + ': ' + errorText(e))
         }
       }
     } finally {
@@ -114,7 +115,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
         'Connecting with a 750,000-point display budget. URL servers must support CORS and byte ranges for COPC.',
       )
     } catch (e) {
-      setMessage(String(e))
+      setMessage(errorText(e))
     }
   }
   function save() {
@@ -122,7 +123,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
       downloadText(exportProject(getImportSession()), 'lidar-project.pgmaps.json', 'application/json')
       setMessage('Project saved with original processed-layer bytes. Reattach point sources after restore.')
     } catch (e) {
-      setMessage(String(e))
+      setMessage(errorText(e))
     }
   }
   function sourceDownload() {
@@ -186,7 +187,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
           <Button size="sm" variant="outline" onClick={() => setPanel((v) => !v)}>
             {panel ? 'Hide' : 'Show'} layers
           </Button>
-          <label>
+          <label title="Used for files without an embedded CRS; an embedded EPSG code always wins.">
             Layer CRS{' '}
             <select
               aria-label="Imported layer CRS"
@@ -195,10 +196,15 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               className="max-w-[150px] rounded border bg-background p-1"
             >
               <option value="auto">From file / WGS84 GeoJSON</option>
-              <option value="EPSG:3157">EPSG:3157 · BC tile</option>
-              <option value="EPSG:32610">EPSG:32610 · UTM 10N</option>
-              <option value="EPSG:4326">EPSG:4326 · lon/lat</option>
-              <option value="EPSG:3857">EPSG:3857 · Web Mercator</option>
+              {CRS_OPTION_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </label>
           <Button

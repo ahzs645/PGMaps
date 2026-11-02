@@ -285,7 +285,7 @@ export function NativeLidarMap(props: Props) {
         colorScheme: latest.current.color,
       })
       instance.addControl(control, 'top-left')
-      hideNativeLoadSection(control.getContainer())
+      hideNativeLoadSection(instance.getContainer())
       lidar.current = control
       control.on('expand', () => {
         if (active) latest.current.onToolsOpenChange(true)

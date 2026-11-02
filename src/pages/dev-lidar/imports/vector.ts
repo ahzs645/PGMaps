@@ -1,20 +1,31 @@
-import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { geographic } from './coordinates'
 import { LIMITS, type Bounds } from './types'
+type Json = Record<string, unknown>
+const isObject = (value: unknown): value is Json => !!value && typeof value === 'object' && !Array.isArray(value)
+const crsName = (value: unknown) => {
+  const crs = isObject(value) ? value.crs : undefined
+  const properties = isObject(crs) ? crs.properties : undefined
+  return isObject(properties) && typeof properties.name === 'string' ? properties.name : undefined
+}
 export function vectorData(
   input: unknown,
   override = 'auto',
-): { data: FeatureCollection; bounds: Bounds; crs: string } {
-  if (!input || typeof input !== 'object') throw Error('Expected GeoJSON')
-  const raw = input as Record<string, any>
-  if (raw.schema_version && raw.crowns && raw.support) input = raw.crowns
-  const object = input as Record<string, any>
-  const declared = raw.crs?.properties?.name as string | undefined
+): { data: FeatureCollection; bounds: Bounds; crs: string; note?: string } {
+  if (!isObject(input)) throw Error('Expected GeoJSON')
+  const raw = input
+  const object = raw.schema_version && isObject(raw.crowns) && raw.support ? raw.crowns : raw
+  // A declared EPSG code wins over the picker; the picker applies to files without one.
+  const declared = crsName(raw) ?? crsName(object)
   const match = declared?.match(/EPSG(?::|::|\/0\/)(\d+)$/i)
-  if (override === 'auto' && declared && !match && !/CRS84$/i.test(declared))
-    throw Error('Unrecognized GeoJSON CRS; select its source CRS')
-  const crs = override === 'auto' ? (match ? 'EPSG:' + match[1] : 'EPSG:4326') : override
-  const rows =
+  const embedded = match ? 'EPSG:' + match[1] : declared && /CRS84$/i.test(declared) ? 'EPSG:4326' : undefined
+  if (override === 'auto' && declared && !embedded) throw Error('Unrecognized GeoJSON CRS; select its source CRS')
+  const crs = embedded ?? (override === 'auto' ? 'EPSG:4326' : override)
+  const note =
+    embedded && override !== 'auto' && override !== embedded
+      ? `Used the declared ${embedded}; the selected ${override} was ignored.`
+      : undefined
+  const rows: unknown =
     object.type === 'FeatureCollection'
       ? object.features
       : object.type === 'Feature'
@@ -24,7 +35,7 @@ export function vectorData(
     throw Error('Import 1–200,000 GeoJSON features at a time')
   const bounds: Bounds = [Infinity, Infinity, -Infinity, -Infinity]
   let vertices = 0
-  const point = (p: unknown) => {
+  const point = (p: unknown): Position => {
     if (!Array.isArray(p) || ++vertices > LIMITS.vertices)
       throw Error('Invalid coordinate or more than 2 million vertices')
     const q = geographic(p, crs)
@@ -46,8 +57,8 @@ export function vectorData(
       return ring
     })
   }
-  const geometry = (g: any, depth = 0): Geometry => {
-    if (!g || depth > 6) throw Error('Missing or nested geometry')
+  const geometry = (g: unknown, depth = 0): Geometry => {
+    if (!isObject(g) || depth > 6) throw Error('Missing or nested geometry')
     switch (g.type) {
       case 'Point':
         return { type: 'Point', coordinates: point(g.coordinates) }
@@ -65,27 +76,24 @@ export function vectorData(
         return { type: 'MultiPolygon', coordinates: g.coordinates.map(polygon) }
       case 'GeometryCollection':
         if (!Array.isArray(g.geometries) || !g.geometries.length) throw Error('Empty geometry collection')
-        return { type: 'GeometryCollection', geometries: g.geometries.map((v: any) => geometry(v, depth + 1)) }
+        return { type: 'GeometryCollection', geometries: g.geometries.map((v: unknown) => geometry(v, depth + 1)) }
       default:
         throw Error('Unsupported GeoJSON geometry')
     }
   }
-  const features: Feature[] = rows.map((f: any) => {
-    if (
-      f.type !== 'Feature' ||
-      (f.properties !== null && (typeof f.properties !== 'object' || Array.isArray(f.properties)))
-    )
+  const features: Feature[] = rows.map((f: unknown) => {
+    if (!isObject(f) || f.type !== 'Feature' || (f.properties !== null && !isObject(f.properties)))
       throw Error('Invalid GeoJSON feature attributes')
     return {
       type: 'Feature',
       ...(typeof f.id === 'string' || typeof f.id === 'number' ? { id: f.id } : {}),
-      properties: f.properties ?? {},
+      properties: (f.properties as Json | null) ?? {},
       geometry: geometry(f.geometry),
     }
   })
   if (!bounds.every(Number.isFinite) || bounds[2] - bounds[0] > 180)
     throw Error('Invalid or antimeridian-spanning extent; split the dataset before importing')
-  return { data: { type: 'FeatureCollection', features }, bounds, crs }
+  return { data: { type: 'FeatureCollection', features }, bounds, crs, note }
 }
 export const featureName = (f: Feature, i: number) =>
   String(
