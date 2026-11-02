@@ -290,6 +290,8 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
           <MobileFeatureCard
             stackId="map-feature-table"
             title={title}
+            /* Opening another layer's table from the controls brings this card forward. */
+            focusKey={selectedLayer}
             /* No subtitle: the layer picker in the toolbar below already names the layer. */
             contentClassName="px-0 py-0"
             collapseOnMapInteraction={false}
