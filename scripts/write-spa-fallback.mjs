@@ -19,9 +19,19 @@ const spaRoutes = [
   'projects',
   'dev',
   'dev/lidar',
-  ...['canopy', 'trees', 'forestry', 'species', 'buildings', 'transects', 'restoration'].map(
-    (tool) => `dev/lidar/${tool}`,
-  ),
+  ...[
+    'canopy',
+    'trees',
+    'forestry',
+    'species',
+    'buildings',
+    'transects',
+    'compare',
+    'volume',
+    'inventory',
+    'data',
+    'restoration',
+  ].map((tool) => `dev/lidar/${tool}`),
   'dev/forestry',
   ...[
     'road-design',
