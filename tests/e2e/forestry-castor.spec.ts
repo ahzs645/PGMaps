@@ -228,7 +228,7 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
   // The original database contains no demand table. Supply an explicit scenario
   // through the real editor instead of silently assigning a source default.
   await page.getByRole('tab', { name: 'Scenario', exact: true }).click()
-  await page.getByRole('spinbutton', { name: 'Target per compartment per period', exact: true }).fill('220000')
+  await page.getByRole('spinbutton', { name: 'Target per compartment per period m³', exact: true }).fill('220000')
   await page.getByRole('button', { name: /^Apply targets to all \d+ periods$/ }).click()
   await expect(page.getByText('No active harvest-flow targets', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Run forest scenario', exact: true }).click()
