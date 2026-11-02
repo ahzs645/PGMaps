@@ -11,10 +11,12 @@ on:
       - 'src/features/forest-drought/**'
       - 'src/components/ui/**'
       - 'src/lib/download.ts'
+      - 'src/main.tsx'
       - 'src/index.css'
       - 'packages/geo-toolkit'
       - 'vendor/json-url'
       - 'public/data/forest-drought/**'
+      - 'public/sw.js'
       - 'scripts/forest-drought/**'
       - 'scripts/sync-bcdatamapper-data.mjs'
       - 'tests/e2e/forest-drought.spec.ts'
@@ -31,6 +33,8 @@ on:
       - 'src/pages/forest-drought/**'
       - 'src/features/forest-drought/**'
       - 'public/data/forest-drought/**'
+      - 'public/sw.js'
+      - 'src/main.tsx'
       - 'tests/e2e/forest-drought.spec.ts'
       - '.github/workflows/forest-drought.yml'
   workflow_dispatch:
@@ -65,11 +69,11 @@ jobs:
         run: npx vite build
       - name: Install the standard Chromium test browser
         run: npx playwright install --with-deps chromium
-      # Drought data is a committed application-owned snapshot. This route does
-      # not need the broad scraper/data preparation in npm run dev's predev hook.
-      - name: Check published results and local custom calculations
+      # Serve the built artifact so the service worker, copied data and compiled
+      # calculation worker are exercised together, without broad data preparation.
+      - name: Check production delivery, published results and local calculations
         run: |
-          npx vite --host 127.0.0.1 --port 42173 --strictPort > forest-drought-vite.log 2>&1 &
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > forest-drought-vite.log 2>&1 &
           drought_vite_pid=$!
           trap 'kill "$drought_vite_pid" 2>/dev/null || true' EXIT
           for attempt in {1..60}; do
@@ -81,7 +85,7 @@ jobs:
             sleep 1
           done
           curl --silent --show-error --fail http://127.0.0.1:42173/ > /dev/null
-          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forest-drought.spec.ts --project=chromium --workers=1 --reporter=line,html
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PGMAPS_E2E_PRODUCTION=1 npx playwright test tests/e2e/forest-drought.spec.ts --project=chromium --workers=1 --reporter=line,html
       - name: Keep browser acceptance evidence
         uses: actions/upload-artifact@v4
         if: always()

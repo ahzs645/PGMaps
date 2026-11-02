@@ -129,16 +129,22 @@ kernel, all at scaled tolerance 1e-10. Maximum scaled difference was about
 prediction or equivalence of every older wrapper. The fork's CI runs R and the
 compiled TypeScript implementation again on changes.
 
-PGMaps' focused workflow verifies the pinned source and snapshots, builds the
-actual worker/application, and exercises published selection/exports, corrupt
-data recovery, the real worker, local input errors and phone layout. Unit tests
-cover the data grid, calculations, runtime input validation and linked selection.
+PGMaps' focused workflow verifies the pinned source and snapshots and serves
+the actual production build. An unmocked delivery case checks the CSV's response
+and checksum, production service-worker reload and the compiled worker; the
+remaining cases exercise published selection/exports, corrupt-data recovery,
+local input errors and phone layout. The CSV cache key includes its source hash
+so an older snapshot cannot shadow a new pin. See the
+[loading and deployment audit](forest-drought-loading-audit.md) for HTTP/CORS
+observations and deployment constraints. Unit tests cover the data grid,
+calculations, runtime input validation and linked selection.
 
 ```sh
 npx vitest run src/features/forest-drought src/pages/forest-drought/query.test.ts
 npx tsc --noEmit -p tsconfig.json
 npx vite build
-PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forest-drought.spec.ts
+# In another terminal, serve dist/: npx vite preview --host 127.0.0.1 --port 42173
+PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PGMAPS_E2E_PRODUCTION=1 npx playwright test tests/e2e/forest-drought.spec.ts
 ```
 
 The measured ten-year, nine-scenario synthetic calculation took 274 ms under
