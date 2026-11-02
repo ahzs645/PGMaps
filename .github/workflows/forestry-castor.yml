@@ -1,0 +1,120 @@
+name: Verify forestry Castor workbench
+
+on:
+  pull_request:
+    paths:
+      - 'src/App.tsx'
+      - 'src/pages/DevForestry.tsx'
+      - 'src/pages/DevLibrary.tsx'
+      - 'src/pages/DevForestryCastor.tsx'
+      - 'src/pages/forestry-castor/**'
+      - 'src/features/forestry-castor/**'
+      - 'src/components/ui/**'
+      - 'src/lib/download.ts'
+      - 'src/main.tsx'
+      - 'src/index.css'
+      - 'packages/geo-toolkit'
+      - 'vendor/json-url'
+      - 'public/data/forestry-castor/**'
+      - 'public/sw.js'
+      - 'scripts/forestry-castor/**'
+      - 'scripts/sync-bcdatamapper-data.mjs'
+      - 'standalone/forestry-castor/**'
+      - 'tests/e2e/forestry-castor.spec.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'vite.config.ts'
+      - 'vite.castor.config.ts'
+      - 'tailwind.config.*'
+      - '.github/workflows/forestry-castor.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/pages/DevForestryCastor.tsx'
+      - 'src/pages/forestry-castor/**'
+      - 'src/features/forestry-castor/**'
+      - 'public/data/forestry-castor/**'
+      - 'scripts/forestry-castor/**'
+      - 'standalone/forestry-castor/**'
+      - 'tests/e2e/forestry-castor.spec.ts'
+      - 'vite.castor.config.ts'
+      - '.github/workflows/forestry-castor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forestry-castor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Verify upstream sample, source checksums and independent SQL fixtures
+        run: python scripts/forestry-castor/reference/generate.py --check
+      - name: Validate the browser engine, input contracts and spatial exports
+        run: npx vitest run src/features/forestry-castor
+      - name: Build production application and compiled workers
+        run: npx vite build
+      - name: Install the standard Chromium test browser
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the real production data, Wasm, maps, workers and downloads
+        run: |
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > forestry-castor-vite.log 2>&1 &
+          castor_vite_pid=$!
+          trap 'kill "$castor_vite_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
+            if ! kill -0 "$castor_vite_pid" 2>/dev/null; then cat forestry-castor-vite.log; exit 1; fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:42173/ > /dev/null
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PGMAPS_E2E_PRODUCTION=1 npx playwright test tests/e2e/forestry-castor.spec.ts --project=chromium --workers=1 --reporter=line,html
+      - name: Keep application browser evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forestry-castor-browser-results
+          path: |
+            test-results
+            playwright-report
+            forestry-castor-vite.log
+          retention-days: 14
+      - name: Build standalone browser fork
+        run: npx vite build --config vite.castor.config.ts --base /forestryCastor/
+      - name: Verify subpath hosting with the same browser suite
+        run: |
+          npx vite preview --config vite.castor.config.ts --base /forestryCastor/ --host 127.0.0.1 --port 42174 --strictPort > forestry-castor-standalone.log 2>&1 &
+          castor_standalone_pid=$!
+          trap 'kill "$castor_standalone_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:42174/forestryCastor/ > /dev/null; then break; fi
+            if ! kill -0 "$castor_standalone_pid" 2>/dev/null; then cat forestry-castor-standalone.log; exit 1; fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:42174/forestryCastor/ > /dev/null
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42174 PGMAPS_E2E_PRODUCTION=1 PGMAPS_CASTOR_STANDALONE=1 npx playwright test tests/e2e/forestry-castor.spec.ts --project=chromium --workers=1 --reporter=line,html
+      - name: Keep standalone browser evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forestry-castor-standalone-results
+          path: |
+            test-results
+            playwright-report
+            forestry-castor-standalone.log
+          retention-days: 14

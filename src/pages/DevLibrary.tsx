@@ -213,12 +213,13 @@ const devEntries: DevEntry[] = [
   {
     title: 'Forestry tools',
     description:
-      'Forest drought risk, visual quality viewsheds, AVAST block volume, CCISS suitability and LiDAR forestry views, gathered on one page.',
+      'Castor forest scenarios, drought risk, visual quality viewsheds, AVAST block volume, CCISS suitability and LiDAR forestry views, gathered on one page.',
     href: '/dev/forestry',
     icon: TreePine,
     color: 'bg-emerald-700',
     label: '/dev/forestry',
     subpages: [
+      { label: 'Castor scenarios', href: '/dev/forestry/castor' },
       { label: 'Drought risk', href: '/dev/forestry/drought-risk' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },

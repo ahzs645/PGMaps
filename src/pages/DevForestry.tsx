@@ -6,6 +6,15 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
   {
+    title: 'Castor forest scenarios',
+    description:
+      'Explore harvest flows, forest growth and management constraints. Run local landscape scenarios, compare outcomes, and export harvest maps, reports and candidate landings.',
+    href: '/dev/forestry/castor',
+    icon: Trees,
+    color: 'bg-teal-700',
+    label: '/dev/forestry/castor',
+  },
+  {
     title: 'Drought risk',
     description:
       'Compare published BC drought risk across BGC units, soil regimes, tree species and climate periods. Run a separate soil-water calculation from your daily climate CSV, directly in the browser.',
@@ -96,7 +105,7 @@ export default function DevForestry() {
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Forestry tools</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
             Planning utilities for forest roads, cutblocks and stands: terrain, volume, visual quality, climate
-            suitability and LiDAR structure.
+            suitability, landscape scenarios and LiDAR structure.
           </p>
         </div>
 

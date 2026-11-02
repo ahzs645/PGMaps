@@ -18,6 +18,8 @@ const appOwnedDataPaths = [
   'projects',
   // Versioned forDRAT reference data owned by the forestry browser tool.
   'forest-drought',
+  // Upstream illustrative Castor database and attribution, owned by the browser model.
+  'forestry-castor',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
   'story-documents',
