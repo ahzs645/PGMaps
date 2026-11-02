@@ -223,6 +223,7 @@ const devEntries: DevEntry[] = [
       { label: 'Road restoration', href: '/dev/forestry/road-restoration' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },
+      { label: 'THLB impact', href: '/dev/forestry/thlb-impact' },
       { label: 'CCISS suitability', href: '/dev/forestry/cciss-suitability' },
       { label: 'LiDAR forestry', href: '/dev/lidar/forestry/' },
     ],
