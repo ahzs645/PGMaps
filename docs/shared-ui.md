@@ -296,7 +296,28 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   for a controlled legend: `useState(isMobileViewport)`), `LegendItem`,
   `MapGradientLegendItem`, `MapSteppedLegend`, `MapSizeLegend`.
   Keep a layer's colour ramp in one constant that both the layer and its
-  legend read.
+  legend read. Size the panel with its `width` prop (`sm`, `md`, `lg`, `fit`),
+  not a `className` width, `100vw` or `md:` breakpoint: the widths follow the
+  map rather than the viewport, and a collapsed panel shrinks to its title. Don't
+  fix a width on the content either (`md:w-56`); it overflows the panel's
+  padding. The panel takes the bottom-right corner and MapLibre's attribution
+  sits on top of it (the panel publishes its footprint as
+  `--map-legend-panel-visible-height`, the map publishes the attribution's
+  height as `--map-bottom-right-controls-height`); anything else in a bottom
+  corner stacks above both. Zoom and compass stay top right on phones too,
+  below the floating toolbar. The legend clears a mounted timeline by itself;
+  `elevated` is deprecated and does nothing.
+- Timelines: `Timeline` (`src/components/ui/timeline.tsx`) adapts the
+  toolkit's `MapTimeline` to the date props pages already pass. New pages can
+  use `MapTimeline` with `buildTimelineBuckets`, `timelineBucketKey` and
+  `timelineWindow` from `@pgmaps/geo-toolkit/calculations` directly, and filter
+  their records with the same window the timeline highlights. It sizes itself
+  from its own width, so don't wrap it in viewport breakpoints.
+- Our Tailwind utilities inside a map workspace: `postcss.config.js` gives each
+  generated utility a second `.geo-toolkit`-prefixed selector
+  (`scripts/postcss/workspace-utilities.js`). Without it the toolkit's scoped
+  `.geo-toolkit .hidden` outweighs our `md:block` on our own markup inside a
+  workspace, and responsive classes there silently stop working.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
   `KeyValueRows` inside.
 - Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;

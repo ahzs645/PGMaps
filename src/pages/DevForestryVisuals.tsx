@@ -1802,13 +1802,7 @@ function DevForestryVisuals() {
             : 'Choose a road and cutblock',
       }}
     >
-      <Map
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={9}
-        maxPitch={85}
-        controls={<MapControls position="top-right" mobilePosition="bottom-right" />}
-      >
+      <Map ref={mapRef} center={PG_CENTER} zoom={9} maxPitch={85} controls={<MapControls position="top-right" />}>
         <TerrainSupport
           terrain={drive.active}
           exaggeration={1}

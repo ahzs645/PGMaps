@@ -1285,7 +1285,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 
 export function WarsLegend({ wars }: { wars: WarsState }) {
   return (
-    <div className="w-full space-y-1.5 text-xs text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
+    <div className="w-full space-y-1.5 text-xs text-muted-foreground">
       {wars.showPoints && (
         <>
           {wars.speciesLegendBreakdown.length === 0 ? (

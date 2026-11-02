@@ -58,7 +58,7 @@ export function ProjectExplorerMap({
       zoom={config.map.zoom}
       minZoom={config.map.minZoom}
       maxZoom={config.map.maxZoom}
-      controls={<MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass showFullscreen />}
+      controls={<MapControls position="top-right" showZoom showCompass showFullscreen />}
     >
       <LocationCameraFocus location={selectedLocation} />
       <MapScaleBar position="bottom-left" />

@@ -100,6 +100,12 @@ const TYPE_META: Record<
   },
 }
 
+/** Year buckets read as the fiscal years they start, e.g. "2024/25". */
+function formatFiscalYearBucket(bucket: { start: Date }): string {
+  const year = bucket.start.getFullYear()
+  return `${year}/${String((year + 1) % 100).padStart(2, '0')}`
+}
+
 function DevHealthMsp() {
   const {
     data: source,
@@ -422,8 +428,10 @@ function DevHealthMsp() {
             bucketValueFormatter={formatCurrency}
             bucketValueLabel="MSP payments"
             granularity="year"
+            formatBucketLabel={formatFiscalYearBucket}
             percentChangeMode={{ enabled: true, label: 'YoY' }}
             statsLabel={timelineStatsLabel}
+            onClose={() => setShowTimeline(false)}
           />
         )}
       </Map>

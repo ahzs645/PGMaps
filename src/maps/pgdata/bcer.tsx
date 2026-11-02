@@ -465,7 +465,7 @@ export function MobileBcerFeatureCard({ bcer }: { bcer: BcerState }) {
 
 export function BcerLegend({ bcer }: { bcer: BcerState }) {
   return (
-    <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+    <div className="w-full space-y-1 text-xs text-muted-foreground">
       {BCER_ORIENTATION_BUCKETS.map((bucket) => (
         <LegendItem
           key={bucket.id}
