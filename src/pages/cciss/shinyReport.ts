@@ -93,6 +93,38 @@ export function rRound(x: number): number {
 export const voteScore = (v: Votes) => v[0] + 2 * v[1] + 3 * v[2] + 5 * v[3]
 export const ESTABLISHMENT_PERIODS = ['1961', '1991', '2021']
 export const MATURATION_PERIODS = ['2021', '2041', '2061', '2081']
+/** Session defaults in bcgov/CCISS_ShinyApp app/server.R (gcm_weight, rcp_weight, show_novelty, nov_c). */
+export const SHINY_GCM_WEIGHTS: Readonly<Record<string, number>> = {
+  'ACCESS-ESM1-5': 1,
+  'BCC-CSM2-MR': 0,
+  CanESM5: 0,
+  'CNRM-ESM2-1': 1,
+  'EC-Earth3': 1,
+  'GFDL-ESM4': 1,
+  'GISS-E2-1-G': 1,
+  'INM-CM5-0': 0,
+  'IPSL-CM6A-LR': 0,
+  MIROC6: 1,
+  'MPI-ESM1-2-HR': 1,
+  'MRI-ESM2-0': 1,
+  'UKESM1-0-LL': 0,
+}
+export const SHINY_SCENARIO_WEIGHTS: Readonly<Record<string, number>> = {
+  ssp126: 0.8,
+  ssp245: 1,
+  ssp370: 0.8,
+  ssp585: 0,
+}
+export const SHINY_NOVELTY_CUTOFF = 5
+/** Seed weights from Shiny's defaults where labels match exactly; unmatched labels default to 1.
+ * If nothing matched would carry weight, every option gets 1 so a default run is never empty. */
+export function shinyDefaultWeights(names: string[], defaults: Readonly<Record<string, number>>) {
+  const unmatched = names.filter((name) => !(name in defaults))
+  const seeded = Object.fromEntries(names.map((name) => [name, defaults[name] ?? 1]))
+  if (!Object.values(seeded).some((w) => w > 0))
+    return { weights: Object.fromEntries(names.map((name) => [name, 1])), unmatched, fallback: true }
+  return { weights: seeded, unmatched, fallback: false }
+}
 export const DEFAULT_ESTABLISHMENT = [0.25, 0.25, 0.5]
 export const DEFAULT_MATURATION = [0.1, 0.3, 0.3, 0.3]
 export interface ReportSummaryPolicy {

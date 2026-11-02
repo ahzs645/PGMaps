@@ -11,10 +11,21 @@ test.beforeEach(async ({ page }) => {
   )
   await page.route('https://tileserver.thebeczone.ca/**', (route) => route.fulfill({ status: 404, body: '' }))
 })
+/** The synthetic references assume no novelty filtering; Shiny's default (and the browser's) applies cutoff 5. */
+async function withoutNovelty(dialog: Locator) {
+  const options = dialog.getByText('Model weights and calculation options', { exact: true })
+  await options.click()
+  const novelty = dialog.getByLabel('Apply novelty cutoff', { exact: true })
+  await expect(novelty).toBeChecked() // Shiny's default, applied because the fixture's novelty data are complete.
+  await novelty.uncheck()
+  await options.click()
+}
+
 async function openReference(page: Page) {
   await page.goto('/dev/forestry/cciss-suitability?lng=0.5&lat=0.5&analysis=current', { waitUntil: 'domcontentloaded' })
   const dialog = page.getByRole('dialog')
   await dialog.getByLabel('Import current CCISS JSON').setInputFiles(fixtures + 'synthetic-current-analysis.json')
+  await withoutNovelty(dialog)
   await dialog.getByRole('tab', { name: 'Compare with Shiny', exact: true }).click()
   return dialog
 }

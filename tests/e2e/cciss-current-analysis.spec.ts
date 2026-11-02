@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
 // Hand-constructed sites/model votes only; this verifies browser behavior, not
@@ -22,6 +22,16 @@ async function openCurrent(page: Page) {
   return dialog
 }
 
+/** The synthetic references assume no novelty filtering; Shiny's default (and the browser's) applies cutoff 5. */
+async function withoutNovelty(dialog: Locator) {
+  const options = dialog.getByText('Model weights and calculation options', { exact: true })
+  await options.click()
+  const novelty = dialog.getByLabel('Apply novelty cutoff', { exact: true })
+  await expect(novelty).toBeChecked() // Shiny's default, applied because the fixture's novelty data are complete.
+  await novelty.uncheck()
+  await options.click()
+}
+
 test('synthetic member import derives options, weights predictions and species, and exports explicit provenance', async ({
   page,
 }) => {
@@ -33,6 +43,7 @@ test('synthetic member import derives options, weights predictions and species, 
   await expect(
     dialog.getByText('Synthetic verification data. These results have no geographic or planning meaning.'),
   ).toBeVisible()
+  await withoutNovelty(dialog)
   await expect(dialog.getByLabel('Assessment site')).toHaveValue('990000001')
   await expect(dialog.getByLabel('Current site series')).toHaveValue('TESTalpha/01')
   await expect(dialog.getByLabel('Climate models').getByRole('option')).toHaveText([

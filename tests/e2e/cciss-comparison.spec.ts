@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { ComparisonSnapshot } from '../../src/pages/cciss/comparison'
 
@@ -52,6 +52,16 @@ function snapshot(id: string, high: number, rating: number): ComparisonSnapshot 
       },
     ],
   }
+}
+
+/** The synthetic references assume no novelty filtering; Shiny's default (and the browser's) applies cutoff 5. */
+async function withoutNovelty(dialog: Locator) {
+  const options = dialog.getByText('Model weights and calculation options', { exact: true })
+  await options.click()
+  const novelty = dialog.getByLabel('Apply novelty cutoff', { exact: true })
+  await expect(novelty).toBeChecked() // Shiny's default, applied because the fixture's novelty data are complete.
+  await novelty.uncheck()
+  await options.click()
 }
 
 test('saved-result imports compare probabilities, categories and missing fields with reusable filters and exports', async ({
@@ -129,6 +139,7 @@ test('captures freeze model settings and preserve results after another live ana
   await dialog
     .getByLabel('Import current CCISS JSON')
     .setInputFiles('vendor/bcdatamapper/datascrapers/bc/cciss/fixtures/synthetic-current-analysis.json')
+  await withoutNovelty(dialog)
   await dialog.getByLabel('Climate models').selectOption('TESTmodel1')
   await dialog.getByLabel('Comparison name').fill('Model one capture')
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()

@@ -135,7 +135,7 @@ export const ratingLabel = (value: number | null) =>
         ? 'Moderate'
         : value === 3
           ? 'Low'
-          : value === 4
+          : value === 4 || value === 5 // The source app maps every rating above 3.5 to non-suitable.
             ? 'Unsuitable'
             : `Rating ${value}`
 

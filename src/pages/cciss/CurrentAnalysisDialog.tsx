@@ -31,6 +31,10 @@ import {
   DEFAULT_MATURATION,
   ESTABLISHMENT_PERIODS,
   MATURATION_PERIODS,
+  SHINY_GCM_WEIGHTS,
+  SHINY_NOVELTY_CUTOFF,
+  SHINY_SCENARIO_WEIGHTS,
+  shinyDefaultWeights,
   summarizeVotes,
   type SpeciesReport,
 } from './shinyReport'
@@ -39,7 +43,6 @@ import { Silvics } from './Silvics'
 type Point = [number, number]
 type Page = 'species' | 'bgc' | 'overlap' | 'silvics' | 'inputs' | 'reference'
 const percent = (value: number | null | undefined) => (value == null ? 'No data' : `${(value * 100).toFixed(1)}%`)
-const equalWeights = (names: string[]) => Object.fromEntries(names.map((name) => [name, 1]))
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 interface LoadedBundle {
@@ -181,9 +184,19 @@ function CurrentWorkspace({
   const options = useMemo(() => currentOptions(bundle, site?.id), [bundle, site?.id])
   const [seriesChoice, setSeriesChoice] = useState('')
   const series = options.series.includes(seriesChoice) ? seriesChoice : (options.series[0] ?? '')
-  const [modelWeights, setModelWeights] = useState(() => equalWeights(allOptions.models))
-  const [scenarioWeights, setScenarioWeights] = useState(() => equalWeights(allOptions.scenarios))
-  const [noveltyCutoff, setNoveltyCutoff] = useState<number | null>(null)
+  // Start from the Shiny app's defaults so a default run is comparable with a default Shiny export.
+  const modelDefaults = useMemo(() => shinyDefaultWeights(allOptions.models, SHINY_GCM_WEIGHTS), [allOptions.models])
+  const scenarioDefaults = useMemo(
+    () => shinyDefaultWeights(allOptions.scenarios, SHINY_SCENARIO_WEIGHTS),
+    [allOptions.scenarios],
+  )
+  const [modelWeights, setModelWeights] = useState(() => modelDefaults.weights)
+  const [scenarioWeights, setScenarioWeights] = useState(() => scenarioDefaults.weights)
+  // Shiny applies novelty by default; do so only when the bundle has every novelty value, so a default run cannot fail.
+  const completeNovelty = bundle.pilot.novelty.every((site) => site.novelty.every((value) => value !== null))
+  const [noveltyCutoff, setNoveltyCutoff] = useState<number | null>(() =>
+    completeNovelty ? SHINY_NOVELTY_CUTOFF : null,
+  )
   const [includeOutOfRange, setIncludeOutOfRange] = useState(true)
   const [establishmentWeights, setEstablishmentWeights] = useState([...DEFAULT_ESTABLISHMENT])
   const [maturationWeights, setMaturationWeights] = useState([...DEFAULT_MATURATION])
@@ -327,7 +340,13 @@ function CurrentWorkspace({
         <div className="mt-4 space-y-4">
           <p className="text-xs text-muted-foreground">
             Weights are relative within each group. Zero excludes an option. Available runs contribute equally within
-            their model and scenario.
+            their model and scenario. Defaults follow the CCISS Shiny app
+            {completeNovelty ? ', including its novelty cutoff of 5' : ''}.
+            {[...modelDefaults.unmatched, ...scenarioDefaults.unmatched].length > 0 &&
+              ` Not in Shiny's defaults, so weighted 1: ${[...modelDefaults.unmatched, ...scenarioDefaults.unmatched].join(', ')}.`}
+            {(modelDefaults.fallback || scenarioDefaults.fallback) &&
+              ' Shiny weights every available option in a group at zero, so all of them start at 1.'}
+            {!completeNovelty && ' Novelty filtering starts off because this bundle has missing novelty values.'}
           </p>
           {allOptions.runs.length > 0 && (
             <p className="text-xs text-muted-foreground">Available runs: {allOptions.runs.join(', ')}.</p>
@@ -357,7 +376,7 @@ function CurrentWorkspace({
               label="Novelty cutoff"
               value={noveltyCutoff}
               onValueChange={setNoveltyCutoff}
-              min={1}
+              min={2}
               max={8}
               step={0.1}
               unit="sigma"

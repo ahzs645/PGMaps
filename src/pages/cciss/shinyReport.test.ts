@@ -10,6 +10,9 @@ import {
   rRound,
   SHINY_SUMMARY_POLICIES,
   summarizeVotes,
+  shinyDefaultWeights,
+  SHINY_GCM_WEIGHTS,
+  SHINY_SCENARIO_WEIGHTS,
   supportedSummaryPolicies,
   type Votes,
 } from './shinyReport'
@@ -110,6 +113,26 @@ describe('Shiny report summary stage', () => {
     expect([1.5, 2.5, 3.5, 4.5].map(rRound)).toEqual([2, 2, 4, 4])
     expect(summarizeVotes(row(), [0, 0, 1], [0, 1, 0, 0])).toMatchObject({ establishment: 3, maturation: 4 })
   })
+  it('seeds model and scenario weights from the Shiny defaults where labels match', () => {
+    const models = shinyDefaultWeights(['ACCESS-ESM1-5', 'CanESM5', 'my-model'], SHINY_GCM_WEIGHTS)
+    expect(models).toEqual({
+      weights: { 'ACCESS-ESM1-5': 1, CanESM5: 0, 'my-model': 1 },
+      unmatched: ['my-model'],
+      fallback: false,
+    })
+    expect(shinyDefaultWeights(['ssp126', 'ssp245', 'ssp585'], SHINY_SCENARIO_WEIGHTS).weights).toEqual({
+      ssp126: 0.8,
+      ssp245: 1,
+      ssp585: 0,
+    })
+    // A bundle offering only options Shiny weights at zero still gets a usable default run.
+    expect(shinyDefaultWeights(['ssp585'], SHINY_SCENARIO_WEIGHTS)).toEqual({
+      weights: { ssp585: 1 },
+      unmatched: [],
+      fallback: true,
+    })
+  })
+
   it('follows feasibility.R for browser votes in periods where a species has no rating', () => {
     const ALL_PERIODS = new Set(['1961', '1991', '2021', '2041', '2061', '2081'])
     // A species arriving only in later periods: R has no vote rows for 1961/1991/2021.

@@ -33,9 +33,11 @@ zero only when an explicitly complete probability group establishes that zero
 within the same scope. Different workflow families, methods, units, class scales
 or period meanings retain side-by-side values with an incompatibility reason.
 
-Legacy rating codes outside the documented 1–4 scale remain unclassified source
-categories. For example, the real Victoria lookup contains code 5; its ordinal
-rating is unknown rather than being silently relabelled unsuitable.
+Legacy rating code 5 compares as unsuitable (class 4), and its raw code is kept
+as a separate source-code metric. The original app maps every rating above 3.5
+to non-suitable (`spatial_app/app.R` lines 716–724), and ccissr folds classes 4
+and 5 into X. The real Victoria lookup contains code 5. Any other code outside
+1–5 remains an unclassified source category with unknown ordinal rating.
 
 The current source uses observed period token `1991` inconsistently: its report
 display calls it 2001–2020 observed while the parameter UI calls it 1991–2020.

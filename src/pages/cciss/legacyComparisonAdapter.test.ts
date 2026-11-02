@@ -189,6 +189,16 @@ describe('real-data legacy comparison snapshots', () => {
     expect(() => capture(source)).toThrow('do not match')
     source.regional.trends[0].SSP = 'ssp245'
     source.comparison.species[0].baseline = 5
+    // Code 5 is non-suitable in the source app, so it compares as class 4 and keeps its raw code.
+    const five = capture(source)
+    const baselineMetric = (snapshot: typeof five, measure: string) =>
+      snapshot.metrics.find(
+        (metric) => metric.measure === measure && metric.entity === 'Pl' && metric.dimensions.stage === 'baseline',
+      )
+    expect(baselineMetric(five, 'species-suitability')?.value).toBe(4)
+    expect(baselineMetric(five, 'species-source-code')).toMatchObject({ value: '5', unit: 'category' })
+    expect(five.provenance.limitations?.join(' ') ?? '').not.toContain('outside the defined 1–4')
+    source.comparison.species[0].baseline = 6
     const unclassified = capture(source)
     expect(
       unclassified.metrics.find(
@@ -201,7 +211,7 @@ describe('real-data legacy comparison snapshots', () => {
         (metric) =>
           metric.measure === 'species-source-code' && metric.entity === 'Pl' && metric.dimensions.stage === 'baseline',
       ),
-    ).toMatchObject({ value: '5', unit: 'category' })
+    ).toMatchObject({ value: '6', unit: 'category' })
     expect(unclassified.provenance.limitations?.join(' ')).toContain('outside the defined 1–4')
   })
 })

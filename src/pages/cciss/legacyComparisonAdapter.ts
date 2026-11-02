@@ -70,14 +70,28 @@ export function legacyComparisonSnapshot(
       },
     )
     for (const species of comparison.species) {
-      const value =
+      const raw =
         stage === 'baseline'
           ? species.baseline
           : stage === 'observed'
             ? species.observed
             : (species.projections.find((row) => row.member === member.key && row.period === raster.period)?.rating ??
               null)
+      // The source app treats every rating above 3.5 as non-suitable (spatial_app/app.R:716-724) and ccissr
+      // folds classes 4 and 5 into X, so code 5 is Unsuitable. Its raw code is still recorded below.
+      const value = raw === 5 ? 4 : raw
       const classified = value === null || [1, 2, 3, 4].includes(value)
+      if (raw === 5)
+        metrics.push({
+          measure: 'species-source-code',
+          entity: species.species,
+          label: 'Source rating 5 (non-suitable)',
+          dimensions,
+          period: raster.period,
+          value: '5',
+          unit: 'category',
+          direction: 'neutral',
+        })
       if (!classified) {
         unclassifiedRatings++
         metrics.push({

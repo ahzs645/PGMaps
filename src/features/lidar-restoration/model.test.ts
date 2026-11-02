@@ -174,11 +174,14 @@ describe('complete local-file run and reusable GIS products', () => {
     expect(r.counts.accepted).toBe(80)
   })
   it('accepts lat/long-sheet neighbours whose boxes overlap slightly but rejects duplicate tiles', async () => {
-    const tile = { min: [0, 0], max: [1500, 1500] },
-      neighbour = { min: [1495, 0], max: [2995, 1500] }
-    expect(boundsOverlapShare(tile, neighbour)).toBeCloseTo(5 / 1500)
+    const box = (x0: number, y0: number, x1: number, y1: number) => ({
+      min: [x0, y0, 0] as [number, number, number],
+      max: [x1, y1, 0] as [number, number, number],
+    })
+    const tile = box(0, 0, 1500, 1500)
+    expect(boundsOverlapShare(tile, box(1495, 0, 2995, 1500))).toBeCloseTo(5 / 1500)
     expect(boundsOverlapShare(tile, tile)).toBe(1)
-    expect(boundsOverlapShare(tile, { min: [1600, 0], max: [3000, 1500] })).toBe(0)
+    expect(boundsOverlapShare(tile, box(1600, 0, 3000, 1500))).toBe(0)
     const r = await runRestoration([file(), file(restorationLas({ shiftX: 2.9 }), 'next.las')], DEFAULT_OPTIONS, noLaz)
     expect(r.counts.read).toBe(160)
     await expect(runRestoration([file(), file(restorationLas(), 'copy.las')], DEFAULT_OPTIONS, noLaz)).rejects.toThrow(

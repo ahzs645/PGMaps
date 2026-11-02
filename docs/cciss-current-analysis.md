@@ -55,6 +55,16 @@ Import the resulting file through **Open current data analysis**. Choose a site
 and site series, then select models/scenarios or set their relative weights.
 Advanced options include novelty cutoff, out-of-range inclusion and current
 establishment/maturation period weights. Available controls come from the bundle.
+Defaults follow the CCISS Shiny app (`app/server.R`): its GCM weights (five
+models at zero) and SSP weights (0.8/1/0.8/0 for SSP1-2.6/2-4.5/3-7.0/5-8.5) where
+labels match exactly, weight 1 for unmatched labels, and a novelty cutoff of 5
+when the bundle's novelty values are complete. A default run is therefore
+comparable with a default Shiny export.
+
+For a species with no rating in some assessed periods, summaries follow
+`feasibility.R`: absent establishment periods count as unsuitable, and
+maturation and improve/decline use the periods present. A period whose input
+data are missing still withholds the summary.
 Outputs include BGC probabilities, overlap and species tables, capability status,
 provenance, and printable HTML/JSON assessments. Missing inputs withhold their
 dependent outputs; they are not filled from the visible map.
@@ -96,7 +106,8 @@ labelled generalized and the independently sampled GeoTIFF cell stays exact.
 - Published image tiles, numeric downloads and legacy rasters are different
   products. A matching map colour does not prove a matching numeric/model input.
 - The legacy raster codebook disagrees with its bundled summaries. Reconciled
-  labels remain provisional, and undocumented rating code 5 remains unclassified.
+  labels remain provisional. Rating code 5 is shown as unsuitable, as the source
+  app treats every rating above 3.5 as non-suitable.
 - Current species voting uses Shiny's `NoPhase` overlap. Phase display has a
   different join and preserves row multiplicities; using it for species votes
   changes results incorrectly. Novelty display scaling follows summary calculation.
