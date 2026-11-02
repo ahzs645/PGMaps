@@ -62,7 +62,13 @@ export function PublishedExplorer({ active }: { active: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 30_000)
+    const timeout = window.setTimeout(
+      () =>
+        controller.abort(
+          new Error('Published data took longer than 30 seconds to load. Check your connection and retry.'),
+        ),
+      30_000,
+    )
     let alive = true
     void fetch(publishedCsvUrl, { signal: controller.signal })
       .then(async (response) => {
@@ -72,10 +78,17 @@ export function PublishedExplorer({ active }: { active: boolean }) {
         const bytes = await response.arrayBuffer()
         const digest = await crypto.subtle.digest('SHA-256', bytes)
         const hash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
-        if (hash !== PUBLISHED_SOURCE.sha256)
+        if (hash !== PUBLISHED_SOURCE.sha256) {
+          // The service worker caches any 200 response for this URL. Drop a corrupt copy so the
+          // retry fetches the network instead of waiting for background revalidation.
+          await globalThis.caches
+            ?.open('pgmaps-data-v1')
+            .then((cache) => cache.delete(publishedCsvUrl))
+            .catch(() => undefined)
           throw new Error(
             'The published table does not match its pinned source checksum. Results have been withheld; reload or report this data-version mismatch.',
           )
+        }
         const parsed = parsePublishedCsv(new TextDecoder().decode(bytes))
         if (alive) {
           setDataset(parsed)

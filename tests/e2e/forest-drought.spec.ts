@@ -117,6 +117,19 @@ test('withholds a changed source table and recovers on retry', async ({ page }) 
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
+test('explains a published-data timeout instead of showing a bare abort', async ({ page }) => {
+  await page.clock.install()
+  // Never answer, so only the 30 s timeout can end the request.
+  await page.route(
+    (url) => url.pathname === PUBLISHED_SOURCE.csvPath,
+    () => undefined,
+  )
+  await openDrought(page)
+  await page.clock.runFor(31_000)
+  await expect(page.getByRole('alert')).toContainText('took longer than 30 seconds')
+  await expect(page.getByRole('alert')).not.toContainText('without reason')
+})
+
 test('runs the real browser worker, invalidates edited inputs, and recovers from invalid climate', async ({ page }) => {
   await publishedFixture(page)
   const uploads: string[] = []
