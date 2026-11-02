@@ -4,6 +4,8 @@ import type { DataLayer, WorkspaceAction } from '../dev-data/model'
 import { workspaceReducer } from '../dev-data/model'
 import { layerFromUpload } from '../dev-data/layerFactory'
 import { haversineMeters } from '../dev-forestry/visibility'
+import { identifyFeatures } from './featureIdentity'
+import { editVertex, geometryHandles } from './geometryEditing'
 
 export type Coordinate = [number, number]
 export type Tool = 'inspect' | 'point' | 'line' | 'polygon' | 'measure' | 'viewshed'
@@ -12,6 +14,7 @@ export interface MissionLayer extends DataLayer {
   data: FeatureCollection
   timeProperty: string
   editable: boolean
+  hiddenFeatures?: string[]
 }
 export interface TileOverlay {
   id: string
@@ -33,6 +36,11 @@ export interface Bookmark {
   id: string
   name: string
   camera: Camera
+  layers?: Array<Pick<MissionLayer, 'id' | 'visible' | 'opacity' | 'style' | 'filter'>>
+  tiles?: Array<Pick<TileOverlay, 'id' | 'visible' | 'opacity'>>
+  time?: Mission['time']
+  view?: Mission['view']
+  terrain?: boolean
 }
 export interface Mission {
   schema: 'pgmaps-mission-v1'
@@ -51,6 +59,7 @@ export const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [
 export const uid = () => crypto.randomUUID()
 export const coordinate = (p: Position): Coordinate => [p[0], p[1]]
 export function makeLayer(name: string, data: FeatureCollection, group = 'Your layers'): MissionLayer {
+  data = identifyFeatures(data)
   return {
     ...layerFromUpload(uid(), name, { name, collection: data, skipped: 0 }),
     group,
@@ -134,20 +143,10 @@ export function measurement(points: Coordinate[], isArea: boolean) {
   }
 }
 export function geometryVertices(geometry: Geometry | null): Coordinate[] {
-  if (geometry?.type === 'Point') return [coordinate(geometry.coordinates)]
-  if (geometry?.type === 'LineString') return geometry.coordinates.map(coordinate)
-  if (geometry?.type === 'Polygon') return geometry.coordinates[0].slice(0, -1).map(coordinate)
-  return []
+  return geometry ? geometryHandles(geometry).vertices.map((v) => v.point) : []
 }
 /** Preserve interior rings and untouched ordinates when moving a vertex. */
 export function moveVertex(geometry: Geometry, index: number, point: Coordinate): Geometry {
-  const next = structuredClone(geometry)
-  const replace = (old: Position) => [...point, ...old.slice(2)]
-  if (next.type === 'Point') next.coordinates = replace(next.coordinates)
-  if (next.type === 'LineString') next.coordinates[index] = replace(next.coordinates[index])
-  if (next.type === 'Polygon') {
-    next.coordinates[0][index] = replace(next.coordinates[0][index])
-    if (index === 0) next.coordinates[0][next.coordinates[0].length - 1] = [...next.coordinates[0][0]]
-  }
-  return next
+  const vertex = geometryHandles(geometry).vertices[index]
+  return vertex ? editVertex(geometry, vertex.address, point) : geometry
 }

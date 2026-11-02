@@ -5,7 +5,7 @@ import {
   type Bounds,
   type ElevationSource,
 } from '@/pages/dev-forestry/terrain'
-import { earthCurvatureDropMeters, testSightline, type GeoPoint } from '@/pages/dev-forestry/visibility'
+import { earthCurvatureDropMeters, testSightline, bearingDegrees, type GeoPoint } from '@/pages/dev-forestry/visibility'
 export type { GeoPoint } from '@/pages/dev-forestry/visibility'
 
 export type ViewshedSettings = {
@@ -13,6 +13,8 @@ export type ViewshedSettings = {
   radiusMeters: number
   heightA: number
   heightB: number
+  targetOffsetMeters?: number
+  fieldOfView?: { bearing: number; width: number }
 }
 export const HORIZON_DIRECTIONS = 720
 export const VIEWSHED_SIZE = 192
@@ -82,6 +84,21 @@ export function computeViewshed(
 ): ViewshedResult {
   if (![settings.heightA, settings.heightB].every((h) => Number.isFinite(h) && h >= 0 && h <= 100))
     throw new Error('Observer heights must be between 0 and 100 m.')
+  if (
+    settings.targetOffsetMeters !== undefined &&
+    (!Number.isFinite(settings.targetOffsetMeters) ||
+      settings.targetOffsetMeters < 0 ||
+      settings.targetOffsetMeters > 1000)
+  )
+    throw Error('Target height must be between 0 and 1000 m.')
+  if (
+    settings.fieldOfView &&
+    (!Number.isFinite(settings.fieldOfView.bearing) ||
+      !Number.isFinite(settings.fieldOfView.width) ||
+      settings.fieldOfView.width <= 0 ||
+      settings.fieldOfView.width > 360)
+  )
+    throw Error('Field of view must be greater than 0° and at most 360°.')
   const bounds = footprint?.bounds ?? viewshedBounds(settings)
   const nw = lngLatToMercator(bounds[0], bounds[3]),
     se = lngLatToMercator(bounds[2], bounds[1])
@@ -90,7 +107,7 @@ export function computeViewshed(
   const cells = new Uint8Array(size * size)
   const counts = { total: 0, visibleA: 0, visibleB: 0, unknown: 0 }
   const options = {
-    targetOffsetMeters: 0,
+    targetOffsetMeters: settings.targetOffsetMeters ?? 0,
     stepMeters: Math.max(sourceResolutionMeters, 15),
     maxDistanceMeters: settings.radiusMeters,
     refractionCoefficient: 0.13,
@@ -103,6 +120,11 @@ export function computeViewshed(
       const y = nw[1] + ((row + 0.5) / size) * (se[1] - nw[1])
       const [lng, lat] = mercatorToLngLat(x, y)
       const target = { lng, lat, groundElevationMeters: source.elevationAt(lng, lat) }
+      if (settings.fieldOfView) {
+        const direction = bearingDegrees(settings.observer, target),
+          difference = Math.abs(((((direction - settings.fieldOfView.bearing) % 360) + 540) % 360) - 180)
+        if (difference > settings.fieldOfView.width / 2) continue
+      }
       const a = testSightline(source, observer, target, { ...options, observerHeightMeters: settings.heightA })
       if (a.status === 'out-of-range') continue
       const b =

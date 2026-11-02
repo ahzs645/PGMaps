@@ -9,7 +9,13 @@ test.use({
   serviceWorkers: 'block',
   launchOptions: {
     executablePath: process.env.PGMAPS_PLAYWRIGHT_EXECUTABLE_PATH,
-    args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--disable-gpu-sandbox',
+      ...(process.env.CI ? ['--disable-gpu-compositing'] : []),
+    ],
   },
 })
 test.describe('mission workbench desktop', () => {
@@ -42,7 +48,7 @@ test.describe('mission workbench desktop', () => {
     await page.getByLabel('Feature name').fill('New observation')
     await page.getByRole('button', { name: 'Point', exact: true }).click()
     const plan = page.getByTestId('mission-plan')
-    await plan.locator('canvas').click({ position: { x: 280, y: 290 } })
+    await plan.locator('canvas.maplibregl-canvas').click({ position: { x: 280, y: 290 } })
     await expect.poll(async () => (await read(page)).layers.length).toBe(4)
     await expect(page.getByRole('heading', { name: 'New observation', exact: true })).toBeVisible()
     await page.getByLabel('Feature properties (JSON)').fill('{"name":"Reviewed observation","samples":0}')
@@ -115,7 +121,7 @@ test.describe('mission workbench desktop', () => {
       (await read(page)).map.dataSources.some((s) => s.features === 1 && s.geometryTypes.includes('LineString')),
     ).toBe(true)
     await page.getByRole('button', { name: 'Split', exact: true }).click()
-    await expect(page.getByTestId('mission-scene').locator('canvas')).toBeVisible()
+    await expect(page.getByTestId('mission-scene').locator('canvas.maplibregl-canvas')).toBeVisible()
     expect((await read(page)).view).toBe('split')
     await page.getByRole('button', { name: 'Globe', exact: true }).click()
     await expect(page.getByTestId('mission-scene')).toBeHidden()
@@ -134,7 +140,7 @@ test.describe('mission workbench desktop', () => {
     const errors = await open(page)
     await nav(page, 'Draw')
     await page.getByRole('button', { name: 'Measure', exact: true }).click()
-    const canvas = page.getByTestId('mission-plan').locator('canvas')
+    const canvas = page.getByTestId('mission-plan').locator('canvas.maplibregl-canvas')
     await canvas.click({ position: { x: 250, y: 250 } })
     await page.waitForTimeout(250)
     await canvas.click({ position: { x: 350, y: 320 } })

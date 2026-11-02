@@ -15,6 +15,7 @@ import {
   type Tool,
 } from './model'
 import type { Geometry } from 'geojson'
+import { geometryHandles, insertVertex, removeVertex } from './geometryEditing'
 
 const VectorLayer = memo(function VectorLayer({
   layer,
@@ -28,7 +29,7 @@ const VectorLayer = memo(function VectorLayer({
   loaded: LoadedLayer
   order: number
   selected: string | null
-  onSelect: (layer: string, id: string) => void
+  onSelect?: (layer: string, id: string) => void
   interactive: boolean
 }) {
   const style = effectiveStyle(layer, loaded),
@@ -39,7 +40,7 @@ const VectorLayer = memo(function VectorLayer({
       mapTooltipHtml({ title: String(p.name ?? p.title ?? layer.label), subtitle: layer.label }),
     [layer.label],
   )
-  const click = useCallback((id: string) => onSelect(layer.id, id), [layer.id, onSelect])
+  const click = useCallback((id: string) => onSelect?.(layer.id, id), [layer.id, onSelect])
   const selectedId = selected?.startsWith(`${layer.id}:`) ? selected : null
   // Draw each geometry family from mixed uploads instead of dropping minority geometries.
   const geometries = {
@@ -53,7 +54,7 @@ const VectorLayer = memo(function VectorLayer({
     selectedId,
     layerOrder: order,
     hoverHtml: interactive ? hover : undefined,
-    onFeatureClick: interactive ? click : undefined,
+    onFeatureClick: interactive && onSelect ? click : undefined,
   }
   return (
     <>
@@ -96,7 +97,7 @@ export function MissionLayers({
   mission: Mission
   getLayer: (id: string) => LoadedLayer
   selected: string | null
-  onSelect: (layer: string, id: string) => void
+  onSelect?: (layer: string, id: string) => void
   interactive: boolean
 }) {
   return (
@@ -196,6 +197,7 @@ export function DrawingOverlay({
   )
 }
 export function VertexEditor({ geometry, onChange }: { geometry: Geometry; onChange: (g: Geometry) => void }) {
+  const handles = geometryHandles(geometry)
   return (
     <>
       {geometryVertices(geometry).map((p, i) => (
@@ -213,6 +215,12 @@ export function VertexEditor({ geometry, onChange }: { geometry: Geometry; onCha
               aria-label={`Move vertex ${i + 1}`}
               title="Drag, or use arrow keys (Shift for larger steps)"
               onKeyDown={(e) => {
+                if ((e.key === 'Delete' || e.key === 'Backspace') && handles.vertices[i].removable) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onChange(removeVertex(geometry, handles.vertices[i].address))
+                  return
+                }
                 if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
                 e.preventDefault()
                 e.stopPropagation()
@@ -225,6 +233,23 @@ export function VertexEditor({ geometry, onChange }: { geometry: Geometry; onCha
                 )
               }}
             />
+          </MarkerContent>
+        </MapMarker>
+      ))}
+      {handles.edges.map((edge, i) => (
+        <MapMarker key={`insert-${i}`} longitude={edge.point[0]} latitude={edge.point[1]}>
+          <MarkerContent>
+            <button
+              className="mm-vertex mm-midpoint"
+              aria-label={`Insert vertex ${i + 1}`}
+              title="Insert a vertex on this edge"
+              onClick={(e) => {
+                e.stopPropagation()
+                onChange(insertVertex(geometry, edge.after))
+              }}
+            >
+              +
+            </button>
           </MarkerContent>
         </MapMarker>
       ))}

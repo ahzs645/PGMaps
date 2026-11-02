@@ -455,6 +455,34 @@
 .mm-profile-status {
   min-height: 36px;
 }
+.mm-property-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 11px;
+}
+.mm-property-row dt {
+  color: hsl(var(--muted-foreground));
+}
+.mm-property-row dd {
+  overflow-wrap: anywhere;
+}
+.mm-property-children {
+  padding-left: 12px;
+  border-left: 1px solid hsl(var(--border));
+}
+.mm-properties summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 7px 0;
+}
+.mm-midpoint {
+  font-size: 10px;
+  color: #b97720;
+  border-radius: 50%;
+}
 .mm-profile-cursor {
   width: 12px;
   height: 12px;

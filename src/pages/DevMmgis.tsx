@@ -38,7 +38,6 @@ import {
   featureCenter,
   FEATURE_ID_KEY,
   filteredCollection,
-  prepareLayer as prepare,
   type DataFeature,
   type LoadedLayer,
   type ViewportBounds,
@@ -72,6 +71,8 @@ import {
 import { httpUrl, validateCollection } from './dev-mmgis/missionCodec'
 import { useWebMCPTools } from '@/lib/webmcp'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { featureIndex, sourceFeatureKey, prepareMissionLayer } from './dev-mmgis/featureIdentity'
+import { snapCoordinate } from './dev-mmgis/geometryEditing'
 import './dev-mmgis/workbench.css'
 
 const PANELS = [
@@ -106,6 +107,13 @@ export default function DevMmgis() {
   const [profilePoint, setProfilePoint] = useState<Coordinate | null>(null)
   const [selected, setSelected] = useState<{ layer: string; id: string } | null>(null),
     [editing, setEditing] = useState(false)
+  const [candidates, setCandidates] = useState<Array<{ layer: string; id: string }>>([])
+  const candidateRef = useRef(candidates)
+  const setCandidateList = useCallback((value: typeof candidates) => {
+    candidateRef.current = value
+    setCandidates(value)
+  }, [])
+  const [snapping, setSnapping] = useState(false)
   const [detail, setDetail] = useState<string | null>(null),
     [table, setTable] = useState<string | null>(null)
   const [tableHeight, setTableHeight] = useState(260),
@@ -127,6 +135,9 @@ export default function DevMmgis() {
   const [observer, setObserver] = useState<Coordinate>(mission.camera.center),
     [radius, setRadius] = useState(1500),
     [height, setHeight] = useState(1.6)
+  const [targetHeight, setTargetHeight] = useState(0),
+    [azimuth, setAzimuth] = useState(0),
+    [fov, setFov] = useState(360)
   const [viewshedOn, setViewshedOn] = useState(false),
     [retry, setRetry] = useState(0),
     [fallback, setFallback] = useState(false)
@@ -137,16 +148,22 @@ export default function DevMmgis() {
       radiusMeters: radius,
       heightA: height,
       heightB: height,
+      targetOffsetMeters: targetHeight,
+      fieldOfView: { bearing: azimuth, width: fov },
     }),
-    [observer, radius, height],
+    [observer, radius, height, targetHeight, azimuth, fov],
   )
   const viewshed = useViewshed(viewshedSettings, retry, false, {
     enabled: viewshedOn,
     horizon: false,
     detailSize: 128,
     demZoom: 13,
+    localRaster: raster,
   })
-  const raw = useMemo(() => new globalThis.Map(mission.layers.map((l) => [l.id, prepare(l, l.data)])), [mission.layers])
+  const raw = useMemo(
+    () => new globalThis.Map(mission.layers.map((l) => [l.id, prepareMissionLayer(l)])),
+    [mission.layers],
+  )
   const loaded = useMemo(
     () =>
       new globalThis.Map(
@@ -159,7 +176,10 @@ export default function DevMmgis() {
               collection: {
                 ...data.collection,
                 features: data.collection.features.filter(
-                  (f) => inTime(f, l.timeProperty, mission.time) && (!filter || matchesSearch(f, query)),
+                  (f) =>
+                    !l.hiddenFeatures?.includes(String(f.id)) &&
+                    inTime(f, l.timeProperty, mission.time) &&
+                    (!filter || matchesSearch(f, query)),
                 ),
               },
             },
@@ -212,6 +232,14 @@ export default function DevMmgis() {
           draftVertices: points.length,
           pointer,
           editing,
+          visibility: {
+            current: Boolean(viewshed.result),
+            source: raster?.name ?? 'AWS Terrain Tiles overview',
+            settings: viewshedSettings,
+            groundMeters: viewshed.result?.groundMeters ?? null,
+            counts: viewshed.result?.counts ?? null,
+            sourceResolutionMeters: viewshed.result?.sourceResolutionMeters ?? null,
+          },
           bookmarks: mission.bookmarks.map((b) => ({ name: b.name, camera: b.camera })),
           layers: mission.layers.map((l) => ({
             id: l.id,
@@ -347,13 +375,14 @@ export default function DevMmgis() {
       layer.editable = true
       layer.style = { type: 'simple', color: '#d49138' }
       change((m) => ({ ...m, layers: [...m.layers, layer] }))
-      setSelected({ layer: layer.id, id: `${layer.id}:0` })
+      setSelected({ layer: layer.id, id: sourceFeatureKey(layer, 0) })
+      setCandidateList([{ layer: layer.id, id: sourceFeatureKey(layer, 0) }])
       setTool('inspect')
       setName('')
       setPoints([])
       showPanel('full')
     },
-    [tool, name, mission.layers.length, change, setPoints, showPanel],
+    [tool, name, mission.layers.length, change, setPoints, showPanel, setCandidateList],
   )
   const finish = useCallback(() => {
     if (tool === 'measure') {
@@ -364,6 +393,26 @@ export default function DevMmgis() {
   }, [tool, saveDrawing])
   const click = useCallback(
     (p: Coordinate) => {
+      if (snapping && map)
+        p = snapCoordinate(
+          p,
+          mission.layers
+            .filter((l) => l.visible)
+            .flatMap((l) =>
+              filteredCollection(getLayer(l.id).collection, l, effectiveStyle(l, getLayer(l.id))).features.map(
+                (f) => f.geometry,
+              ),
+            ),
+          (point) => map.project(point),
+        )
+      if (tool === 'polygon' && draft.current.length >= 3 && map) {
+        const first = map.project(draft.current[0]),
+          current = map.project(p)
+        if (Math.hypot(first.x - current.x, first.y - current.y) <= 12) {
+          saveDrawing()
+          return
+        }
+      }
       if (tool === 'viewshed') {
         setObserver(p)
         setViewshedOn(true)
@@ -386,7 +435,8 @@ export default function DevMmgis() {
         )
         layer.editable = true
         change((m) => ({ ...m, layers: [...m.layers, layer] }))
-        setSelected({ layer: layer.id, id: `${layer.id}:0` })
+        setSelected({ layer: layer.id, id: sourceFeatureKey(layer, 0) })
+        setCandidateList([{ layer: layer.id, id: sourceFeatureKey(layer, 0) }])
         setTool('inspect')
         setName('')
         showPanel('full')
@@ -399,7 +449,7 @@ export default function DevMmgis() {
           : [...previous, p]
       })
     },
-    [tool, name, change, setPoints, showPanel],
+    [tool, name, change, setPoints, showPanel, snapping, map, mission.layers, getLayer, saveDrawing, setCandidateList],
   )
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -419,21 +469,36 @@ export default function DevMmgis() {
     return () => window.removeEventListener('keydown', key)
   }, [undo, redo, points.length, setPoints])
   const select = useCallback(
-    (layer: string, id: string) => {
+    (layer: string, id: string, preserveCandidates = false) => {
       if (tool !== 'inspect') return
       setSelected({ layer, id })
+      if (!preserveCandidates || !candidateRef.current.some((c) => c.layer === layer && c.id === id))
+        setCandidateList([{ layer, id }])
       setEditing(false)
       showPanel('full')
       const feature = getLayer(layer).collection.features.find((f) => f.properties[FEATURE_ID_KEY] === id)
       const center = feature ? featureCenter(feature) : null
       if (center) map?.easeTo({ center, duration: 400 })
     },
-    [tool, getLayer, map, showPanel],
+    [tool, getLayer, map, showPanel, setCandidateList],
+  )
+  const inspect = useCallback(
+    (ids: string[]) => {
+      const lookup = new globalThis.Map<string, { layer: string; id: string }>()
+      for (const l of mission.layers.filter((l) => l.visible))
+        for (const f of filteredCollection(getLayer(l.id).collection, l, effectiveStyle(l, getLayer(l.id))).features)
+          lookup.set(f.properties[FEATURE_ID_KEY], { layer: l.id, id: f.properties[FEATURE_ID_KEY] })
+      const matches = ids.flatMap((id) => (lookup.has(id) ? [lookup.get(id)!] : []))
+      setCandidateList(matches)
+      if (matches[0]) select(matches[0].layer, matches[0].id, true)
+      else setSelected(null)
+    },
+    [mission.layers, getLayer, setCandidateList, select],
   )
   const editFeature = useCallback(
     (patch: { geometry?: Geometry; properties?: Record<string, unknown> }, remove = false) => {
       if (!selected || !selectedLayer?.editable) return
-      const index = Number(selected.id.slice(selected.id.lastIndexOf(':') + 1))
+      const index = featureIndex(selectedLayer, selected.id)
       change((m) => ({
         ...m,
         layers: m.layers.map((l) =>
@@ -621,6 +686,29 @@ export default function DevMmgis() {
         onTable={() => setTable(selectedLayer.id)}
         onProperties={(properties) => editFeature({ properties })}
         onDelete={() => editFeature({}, true)}
+        onGeometry={(geometry) => editFeature({ geometry })}
+        onLocate={() => {
+          const center = featureCenter(selectedFeature)
+          if (center) map?.easeTo({ center, zoom: Math.max(map.getZoom(), 15), duration: 400 })
+        }}
+        onHide={() => {
+          const id = String(selectedFeature.id)
+          change((m) => ({
+            ...m,
+            layers: m.layers.map((l) =>
+              l.id === selectedLayer.id ? { ...l, hiddenFeatures: [...new Set([...(l.hiddenFeatures ?? []), id])] } : l,
+            ),
+          }))
+          setSelected(null)
+          setEditing(false)
+        }}
+        candidateCount={candidates.length}
+        candidateIndex={candidates.findIndex((c) => c.id === selected?.id && c.layer === selected?.layer)}
+        onCandidate={(offset) => {
+          const index = candidates.findIndex((c) => c.id === selected?.id && c.layer === selected?.layer),
+            next = candidates[(index + offset + candidates.length) % candidates.length]
+          if (next) select(next.layer, next.id, true)
+        }}
         editing={editing}
         onEditing={(value) => {
           setEditing(value)
@@ -693,6 +781,8 @@ export default function DevMmgis() {
           onName={setName}
           onFinish={finish}
           onSave={() => saveDrawing(true)}
+          snapping={snapping}
+          onSnapping={setSnapping}
         />
       )}
       {panel === 'terrain' && (
@@ -711,6 +801,12 @@ export default function DevMmgis() {
           height={height}
           onRadius={setRadius}
           onHeight={setHeight}
+          targetHeight={targetHeight}
+          onTargetHeight={setTargetHeight}
+          azimuth={azimuth}
+          onAzimuth={setAzimuth}
+          fov={fov}
+          onFov={setFov}
           onRetry={() => setRetry((v) => v + 1)}
           viewshedStatus={viewshed.message}
           viewshedCurrent={Boolean(viewshed.result)}
@@ -749,7 +845,6 @@ export default function DevMmgis() {
         mission={mission}
         getLayer={getLayer}
         selected={selectedFeature ? (selected?.id ?? null) : null}
-        onSelect={select}
         interactive={tool === 'inspect' && !editing}
       />
       {raster && <RasterOverlay raster={raster} />}
@@ -816,6 +911,7 @@ export default function DevMmgis() {
         onCamera={recordCamera}
         onPointer={setPointer}
         onClick={click}
+        onInspect={editing ? undefined : inspect}
         onFinish={finish}
         tool={tool}
         terrain={mission.terrain}
@@ -833,13 +929,12 @@ export default function DevMmgis() {
       fallbackStyles={{ light: FALLBACK, dark: FALLBACK }}
       controls={<MapControls position="top-right" />}
     >
-      <WorkbenchMapEvents tool="inspect" terrain={mission.terrain} />
+      <WorkbenchMapEvents tool="inspect" terrain={mission.terrain} onInspect={editing ? undefined : inspect} />
       <SyncScene source={map} />
       <MissionLayers
         mission={mission}
         getLayer={getLayer}
         selected={selected?.id ?? null}
-        onSelect={select}
         interactive={tool === 'inspect'}
       />
       {raster && <RasterOverlay raster={raster} />}

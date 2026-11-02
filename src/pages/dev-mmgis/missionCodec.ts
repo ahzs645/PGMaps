@@ -1,6 +1,7 @@
 import type { FeatureCollection, Geometry } from 'geojson'
 import { RAMPS, type LayerStyle } from '@/lib/layerStyle'
 import { makeLayer, type Camera, type Mission, type MissionLayer } from './model'
+import { identifyFeatures } from './featureIdentity'
 
 export const STORAGE_KEY = 'pgmaps:mmgis:mission:v1'
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
@@ -131,7 +132,7 @@ export function parseMission(value: unknown): Mission {
   const layers: MissionLayer[] = list(m.layers, 100).map((v) => {
     const l = object(v),
       id = text(l.id),
-      data = validateCollection(l.data)
+      data = identifyFeatures(validateCollection(l.data))
     if (!id || ids.has(id)) throw new Error('Layer IDs must be unique.')
     ids.add(id)
     const base = makeLayer(text(l.label), data, text(l.group))
@@ -146,6 +147,7 @@ export function parseMission(value: unknown): Mission {
       visible: l.visible === true,
       showInLegend: l.showInLegend === true,
       editable: l.editable === true,
+      hiddenFeatures: l.hiddenFeatures === undefined ? [] : list(l.hiddenFeatures, 100000).map((v) => text(v, 4096)),
       timeProperty: text(l.timeProperty ?? ''),
       nameKey: typeof l.nameKey === 'string' ? text(l.nameKey) : undefined,
       description: typeof l.description === 'string' ? text(l.description, 10000) : undefined,
@@ -197,7 +199,38 @@ export function parseMission(value: unknown): Mission {
     }),
     bookmarks: list(m.bookmarks, 100).map((v) => {
       const b = object(v)
-      return { id: text(b.id), name: text(b.name), camera: camera(b.camera) }
+      const preset: Partial<Mission['bookmarks'][number]> = {}
+      if (b.layers !== undefined)
+        preset.layers = list(b.layers, 100).map((v) => {
+          const l = object(v),
+            f = l.filter == null ? null : object(l.filter)
+          return {
+            id: text(l.id),
+            visible: l.visible === true,
+            opacity: finite(l.opacity, 0, 1),
+            style: style(l.style),
+            filter: f ? { column: text(f.column), values: list(f.values, 10000).map((v) => text(v, 4096)) } : null,
+          }
+        })
+      if (b.tiles !== undefined)
+        preset.tiles = list(b.tiles, 20).map((v) => {
+          const t = object(v)
+          return { id: text(t.id), visible: t.visible === true, opacity: finite(t.opacity, 0, 1) }
+        })
+      if (b.time !== undefined) {
+        const t = object(b.time),
+          start = text(t.start, 10),
+          end = text(t.end, 10)
+        if (![start, end].every((v) => /^\d{4}-\d\d-\d\d$/.test(v) && Number.isFinite(Date.parse(v))) || start > end)
+          throw Error('Invalid saved site date range.')
+        preset.time = { enabled: t.enabled === true, start, end }
+      }
+      if (b.view !== undefined) {
+        if (!['map', 'split', 'globe'].includes(String(b.view))) throw Error('Invalid saved site view.')
+        preset.view = b.view as Mission['view']
+      }
+      if (b.terrain !== undefined) preset.terrain = b.terrain === true
+      return { ...preset, id: text(b.id), name: text(b.name), camera: camera(b.camera) }
     }),
   }
 }

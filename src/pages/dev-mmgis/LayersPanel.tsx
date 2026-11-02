@@ -201,6 +201,20 @@ export function LayersPanel({
               {l.data.features.length.toLocaleString()} features{l.timeProperty ? ' · temporal' : ''}
               {l.editable ? ' · editable' : ''}
             </p>
+            {!!l.hiddenFeatures?.length && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  change((m) => ({
+                    ...m,
+                    layers: m.layers.map((v) => (v.id === l.id ? { ...v, hiddenFeatures: [] } : v)),
+                  }))
+                }
+              >
+                Show hidden features ({l.hiddenFeatures.length})
+              </Button>
+            )}
             {l.visible && (
               <LayerLegend
                 layer={l}

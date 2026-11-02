@@ -9,6 +9,7 @@ export function WorkbenchMapEvents({
   onCamera,
   onPointer,
   onClick,
+  onInspect,
   tool,
   onFinish,
   terrain,
@@ -17,14 +18,15 @@ export function WorkbenchMapEvents({
   onCamera?: (c: Camera) => void
   onPointer?: (p: Coordinate) => void
   onClick?: (p: Coordinate) => void
+  onInspect?: (ids: string[]) => void
   tool: Tool
   onFinish?: () => void
   terrain: boolean
 }) {
   const { map, isLoaded } = useMap()
-  const latest = useRef({ onCamera, onPointer, onClick, onFinish, tool })
+  const latest = useRef({ onCamera, onPointer, onClick, onFinish, onInspect, tool })
   useEffect(() => {
-    latest.current = { onCamera, onPointer, onClick, onFinish, tool }
+    latest.current = { onCamera, onPointer, onClick, onFinish, onInspect, tool }
   })
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -42,7 +44,23 @@ export function WorkbenchMapEvents({
     const click = (e: MapLibreGL.MapMouseEvent) => {
       // Touch devices have no hover. A tap must also establish the inspection coordinate.
       pointer(e)
-      if (latest.current.tool === 'inspect') return
+      if (latest.current.tool === 'inspect') {
+        if (latest.current.onInspect) {
+          const box: [[number, number], [number, number]] = [
+            [e.point.x - 6, e.point.y - 6],
+            [e.point.x + 6, e.point.y + 6],
+          ]
+          latest.current.onInspect([
+            ...new Set(
+              map
+                .queryRenderedFeatures(box)
+                .map((f) => f.properties?.__devDataId)
+                .filter((id): id is string => typeof id === 'string'),
+            ),
+          ])
+        }
+        return
+      }
       const p: Coordinate = [e.lngLat.wrap().lng, e.lngLat.lat]
       latest.current.onClick?.(p)
     }

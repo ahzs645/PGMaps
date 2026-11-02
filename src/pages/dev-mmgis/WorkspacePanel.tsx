@@ -6,6 +6,7 @@ import { downloadText } from '@pgmaps/geo-toolkit/export'
 import { demoMission } from './demo'
 import { MAX_PROJECT_BYTES, missionLink, readMissionJson } from './missionCodec'
 import { uid, type Camera, type Mission } from './model'
+import { captureSite, restoreSite } from './sites'
 
 export function WorkspacePanel({
   mission,
@@ -28,7 +29,8 @@ export function WorkspacePanel({
 }) {
   const file = useRef<HTMLInputElement>(null),
     [bookmark, setBookmark] = useState(''),
-    [link, setLink] = useState('')
+    [link, setLink] = useState(''),
+    [includeLayers, setIncludeLayers] = useState(true)
   return (
     <>
       <SidebarSection title="Mission configuration">
@@ -170,6 +172,10 @@ export function WorkspacePanel({
         )}
       </SidebarSection>
       <SidebarSection title="Saved sites">
+        <label className="mm-check">
+          <input type="checkbox" checked={includeLayers} onChange={(e) => setIncludeLayers(e.target.checked)} />
+          Include layer, time and view settings
+        </label>
         <label className="mm-field">
           Site name
           <input value={bookmark} onChange={(e) => setBookmark(e.target.value)} placeholder="e.g. North lookout" />
@@ -181,7 +187,7 @@ export function WorkspacePanel({
           onClick={() => {
             change((m) => ({
               ...m,
-              bookmarks: [...m.bookmarks, { id: uid(), name: bookmark.trim().slice(0, 200), camera }],
+              bookmarks: [...m.bookmarks, captureSite(m, bookmark, camera, includeLayers)],
             }))
             setBookmark('')
           }}
@@ -191,7 +197,14 @@ export function WorkspacePanel({
         </Button>
         {mission.bookmarks.map((b) => (
           <div className="mm-source-row" key={b.id}>
-            <button onClick={() => onFly(b.camera)}>{b.name}</button>
+            <button
+              onClick={() => {
+                change((m) => restoreSite(m, b))
+                onFly(b.camera)
+              }}
+            >
+              {b.name}
+            </button>
             <button
               aria-label={`Delete site ${b.name}`}
               onClick={() => change((m) => ({ ...m, bookmarks: m.bookmarks.filter((v) => v.id !== b.id) }))}

@@ -11,6 +11,14 @@ declare global {
       draftVertices: number
       pointer: [number, number] | null
       editing: boolean
+      visibility: {
+        current: boolean
+        source: string
+        groundMeters: number | null
+        counts: { total: number; visibleA: number; visibleB: number; unknown: number } | null
+        sourceResolutionMeters: number | null
+        settings: { targetOffsetMeters: number; fieldOfView: { bearing: number; width: number } }
+      }
       localRaster: { name: string; width: number; height: number; epsg: number } | null
       selectedFeature: { geometry: Geometry; properties: Record<string, unknown> } | null
       bookmarks: Array<{ name: string; camera: { center: [number, number]; zoom: number } }>
@@ -70,11 +78,12 @@ export const readMission = async (page: Page) => {
   return page.evaluate(() => window.missionRead())
 }
 export async function press(page: Page, target: Locator) {
-  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await target.tap()
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches))
+    await target.tap()
   else await target.click()
 }
 export async function dragInput(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
-  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) {
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches)) {
     const session = await page.context().newCDPSession(page)
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...from, id: 1 }] })
     for (let i = 1; i <= 12; i++) {
@@ -127,7 +136,7 @@ export async function panel(page: Page, name: string) {
 export async function mapTap(page: Page, x = 0.35, y = 0.45) {
   const canvas = page.getByTestId('mission-plan').locator('canvas.maplibregl-canvas')
   const box = (await canvas.boundingBox())!
-  if (await page.evaluate(() => navigator.maxTouchPoints > 0))
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches))
     await canvas.tap({ position: { x: box.width * x, y: box.height * y } })
   else await canvas.click({ position: { x: box.width * x, y: box.height * y } })
 }

@@ -1,0 +1,33 @@
+# Remaining full MMGIS parity work
+
+Full parity remains the target across frontend, services and planetary workflows.
+The `/dev/mmgis` route currently implements a useful Earth subset. The
+[59-entry source comparison](mmgis-interaction-comparison.md) is the inventory;
+it is not a percentage-complete or interaction-coverage score.
+
+The 2026-11-02 continuation rebases on main `cc511eea`, uses its GeoToolkit pin
+`750accff`, and adds overlap/nested inspection, feature hide/restore, stable IDs,
+multipart/interior-ring/collection vertex operations, optional vertex snapping,
+polygon click-to-close, site settings, imported-DEM visibility, target heights,
+directional FOV and a Chromium/WebKit regression matrix. These features live in
+the application; they have not yet become independent GeoToolkit contracts.
+
+| Remaining family                    | Concrete acceptance required                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GeoToolkit ownership                | Extract independently usable mission, editing, source and interaction contracts; verify a consumer outside PG Maps. Keep host catalogs/defaults in PG Maps.                                                                                                                                                                                                          |
+| Draw                                | New-hole drawing, multi-feature selection, merge/split/clip, annotations/symbols, templates/validation, editable files, history/publish and permissions; compare native mouse/touch/keyboard journeys. Retain native snapping/click-to-close checks already passing on desktop/touch in both engines.                                                                |
+| Layer stack and attachments         | Arbitrary header hierarchy and drag ordering; all eight configurable attachments, their picking/cleanup and per-view lifecycle.                                                                                                                                                                                                                                      |
+| Sources and scientific rasters      | WMS/TMS/custom tile matrices, vector tiles, georeferenced images/video, multiband metadata/scales/units, formulas/shaders/color controls, STAC assets and cancellation/retry. Relief must use the selected DEM too; currently imported DEM drives inspection/profile/visibility only.                                                                                |
+| Measure and viewshed                | Profile sightlines/heights/modes, automatic profiles, multi-analysis manager, reverse/color/resolution modes and numerical comparison against matched DEMs. Test ridges, curvature, no-data, resolution limits and coordinates outside coverage.                                                                                                                     |
+| Interaction contracts               | Configured phased precedence, InfoSilent, external URL actions, linked datasets and viewer/waypoint/media updates. Current React callbacks do not implement the upstream plugin runner.                                                                                                                                                                              |
+| Time and animation                  | Sub-day and relative windows, source availability, per-layer temporal parameters, refresh/cancellation, request-ready frames and forward/reverse/swing GIF/MP4 export.                                                                                                                                                                                               |
+| Viewer and globe                    | Georeferenced OBJ/GLTF/3D Tiles, photospheres/deep zoom/video/PDF, media pose/camera synchronization, radar curtains and subsurface controls. MapLibre Earth views do not satisfy these.                                                                                                                                                                             |
+| Planetary and SPICE                 | Custom bodies/ellipsoids/projections/tile matrices, primary-CRS clipboard/export, SPICE kernels/clock/orbiter geometry and matched planetary fixtures.                                                                                                                                                                                                               |
+| All 14 backend APIs                 | Accounts, Broadcast, Config, Datasets, Draw, GeneralOptions, Geodatasets, LongTermToken, Shortener, Sightline, Stac, Users, Utils and Webhooks. Deliver deployed contracts, migrations, client integration, permission-denial/reconnect/conflict tests and durable publish/restore. No backend API is implemented by local JSON or by running the comparison server. |
+| Administration and optional plugins | Versioned mission administration and permission management; declare and test optional Chemistry/Isochrone dependencies separately. Experimental plugins need their own scope and services.                                                                                                                                                                           |
+| Reference/device coverage           | Extend the local pinned reference beyond the current overlap fixture, including server state/failures and larger datasets. Run physical iOS/Android and macOS Safari, soft keyboard, file/download/share/GPS permissions and real GPU scenarios. Linux WebKit emulation is additional engine coverage.                                                               |
+
+A family closes only when the behavior, its deployed dependencies, failure
+semantics and matching reference journeys have evidence. Retain partial/missing
+labels until then. The local Reference Mission/PostGIS setup makes that comparison
+possible; it does not supply those services to the PG Maps workbench.

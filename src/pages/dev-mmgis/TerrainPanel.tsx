@@ -188,6 +188,12 @@ export function TerrainPanel({
   onViewshedChange,
   viewshedOn,
   onProfilePoint,
+  targetHeight,
+  onTargetHeight,
+  azimuth,
+  onAzimuth,
+  fov,
+  onFov,
 }: {
   mission: Mission
   change: (fn: (m: Mission) => Mission) => void
@@ -206,6 +212,12 @@ export function TerrainPanel({
   viewshedOn: boolean
   onViewshedChange: (v: boolean) => void
   onProfilePoint: (p: Coordinate | null) => void
+  targetHeight: number
+  onTargetHeight: (v: number) => void
+  azimuth: number
+  onAzimuth: (v: number) => void
+  fov: number
+  onFov: (v: number) => void
 }) {
   return (
     <>
@@ -219,8 +231,8 @@ export function TerrainPanel({
           Show 3D terrain · 1× elevation
         </label>
         <p className="mm-help">
-          Relief uses the AWS Terrain Tiles overview. A local DEM supplies profiles and pixel inspection; the scene
-          relief and viewshed continue to use overview tiles.
+          Relief uses AWS Terrain Tiles. Profiles, pixel inspection and visibility analysis use your imported DEM when
+          present; otherwise they use overview terrain.
         </p>
         <Button variant="outline" size="sm" onClick={() => setTool('measure')}>
           Draw a profile path
@@ -231,6 +243,39 @@ export function TerrainPanel({
         <Profile points={points} raster={raster} onProfilePoint={onProfilePoint} />
       </SidebarSection>
       <SidebarSection title="Terrain viewshed">
+        <p className="mm-help">
+          Elevation source: {raster ? raster.name : 'AWS Terrain Tiles overview'}. Source gaps remain unknown.
+        </p>
+        <label className="mm-field">
+          Target height above terrain (m)
+          <input
+            type="number"
+            min={0}
+            max={1000}
+            value={targetHeight}
+            onChange={(e) => onTargetHeight(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+          />
+        </label>
+        <label className="mm-field">
+          Viewshed bearing (° from north)
+          <input
+            type="number"
+            min={0}
+            max={360}
+            value={azimuth}
+            onChange={(e) => onAzimuth((((Number(e.target.value) || 0) % 360) + 360) % 360)}
+          />
+        </label>
+        <label className="mm-field">
+          Horizontal field of view (°)
+          <input
+            type="number"
+            min={1}
+            max={360}
+            value={fov}
+            onChange={(e) => onFov(Math.max(1, Math.min(360, Number(e.target.value) || 360)))}
+          />
+        </label>
         <Button
           size="sm"
           variant={tool === 'viewshed' ? 'default' : 'outline'}

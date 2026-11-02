@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "first",
+      "properties": {
+        "name": "First overlap",
+        "date": "2026-06-01",
+        "nested": { "zero": 0, "flag": false, "items": ["a", "b"] }
+      },
+      "geometry": { "type": "Point", "coordinates": [0, 0] }
+    },
+    {
+      "type": "Feature",
+      "id": "second",
+      "properties": {
+        "name": "Second overlap",
+        "date": "2026-06-02",
+        "nested": { "zero": 0, "flag": false, "items": ["a", "b"] }
+      },
+      "geometry": { "type": "Point", "coordinates": [0, 0] }
+    }
+  ]
+}

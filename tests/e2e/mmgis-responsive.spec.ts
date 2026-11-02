@@ -21,7 +21,13 @@ test.use({
   serviceWorkers: 'block',
   launchOptions: {
     executablePath: process.env.PGMAPS_PLAYWRIGHT_EXECUTABLE_PATH,
-    args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--disable-gpu-sandbox',
+      ...(process.env.CI ? ['--disable-gpu-compositing'] : []),
+    ],
   },
 })
 

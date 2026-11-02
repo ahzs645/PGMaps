@@ -1,7 +1,6 @@
 import type { LocalRaster } from '../dev-forestry/types'
 import { rasterProjection } from '../dev-forestry/localRaster'
 import type { Coordinate } from './model'
-
 /** Report an original cell, without interpolation or deriving values from a color. */
 export function rasterCellSampler(raster: LocalRaster) {
   const projection = rasterProjection(raster.epsg)

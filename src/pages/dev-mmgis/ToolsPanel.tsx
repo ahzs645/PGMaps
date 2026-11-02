@@ -15,6 +15,8 @@ export function ToolsPanel({
   onName,
   onFinish,
   onSave,
+  snapping,
+  onSnapping,
 }: {
   tool: Tool
   onTool: (v: Tool) => void
@@ -25,6 +27,8 @@ export function ToolsPanel({
   onName: (v: string) => void
   onFinish: () => void
   onSave: () => void
+  snapping: boolean
+  onSnapping: (value: boolean) => void
 }) {
   const stats = measurement(points, tool === 'polygon')
   const last = points.at(-1)
@@ -57,6 +61,10 @@ export function ToolsPanel({
           Click the map to place vertices. Double-click or choose Finish to complete a line or polygon. Escape returns
           to inspection. Drag a saved feature’s handles to edit it.
         </p>
+        <label className="mm-check">
+          <input type="checkbox" checked={snapping} onChange={(e) => onSnapping(e.target.checked)} />
+          Snap to visible vertices within 12 pixels
+        </label>
         <label className="mm-field">
           Feature name
           <input
