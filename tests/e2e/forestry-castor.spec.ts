@@ -214,13 +214,30 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
   expect(new URL(response.url()).searchParams.get('v')).toBe(expectedHash)
   expect(bytes.byteLength).toBe(696320)
   await expect(page.getByRole('button', { name: 'Run forest scenario', exact: true })).toBeEnabled({ timeout: 60_000 })
+  await expect(page.getByText('No active harvest-flow targets', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Run forest scenario', exact: true }).click()
   await expect(page.getByTestId('castor-run-status')).toContainText('Scenario complete', { timeout: 60_000 })
   const session = JSON.parse((await download(page, 'Save session JSON')).bytes.toString())
   expect(session.project.pixels).toHaveLength(10000)
   expect(session.project.yieldCurves.length).toBeGreaterThan(0)
+  expect(session.project.harvestFlows).toEqual([])
   expect(session.result.summary.initialStockM3).toBeGreaterThan(0)
-  expect(session.result.harvestReport.length).toBeGreaterThan(0)
+  expect(session.result.harvestReport).toEqual([])
+  expect(session.result.summary.harvestedM3).toBe(0)
+  expect(session.result.growingStockReport.length).toBeGreaterThan(0)
+  // The original database contains no demand table. Supply an explicit scenario
+  // through the real editor instead of silently assigning a source default.
+  await page.getByRole('tab', { name: 'Scenario', exact: true }).click()
+  await page.getByRole('spinbutton', { name: 'Target per compartment per period', exact: true }).fill('220000')
+  await page.getByRole('button', { name: /^Apply targets to all \d+ periods$/ }).click()
+  await expect(page.getByText('No active harvest-flow targets', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Run forest scenario', exact: true }).click()
+  await expect(page.getByTestId('castor-run-status')).toContainText('Scenario complete', { timeout: 60_000 })
+  const harvestSession = JSON.parse((await download(page, 'Save session JSON')).bytes.toString())
+  expect(harvestSession.project.harvestFlows.length).toBeGreaterThan(0)
+  expect(harvestSession.project.harvestFlows.every((flow: { targetM3: number }) => flow.targetM3 === 220000)).toBe(true)
+  expect(harvestSession.result.harvestReport.length).toBeGreaterThan(0)
+  expect(harvestSession.result.summary.harvestedM3).toBeGreaterThan(0)
   expect(requests.filter((url) => new URL(url).origin !== new URL(page.url()).origin)).toEqual([])
   await info.attach('upstream-production-loading.json', {
     body: JSON.stringify(
@@ -230,7 +247,9 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
         sha256: expectedHash,
         fromServiceWorker: response.fromServiceWorker(),
         pixelCount: session.project.pixels.length,
-        summary: session.result.summary,
+        growthOnlySummary: session.result.summary,
+        explicitTargetM3PerPeriod: 220000,
+        harvestSummary: harvestSession.result.summary,
       },
       null,
       2,

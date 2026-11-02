@@ -356,6 +356,15 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
                 )}
               </div>
               <p className="text-sm text-muted-foreground">{project.description}</p>
+              {config.mode === 'queue' &&
+                !project.harvestFlows.some(
+                  (flow) => flow.period <= config.periods && flow.targetM3 * config.targetMultiplier > 0,
+                ) && (
+                  <InlineAlert title="No active harvest-flow targets">
+                    Set live or salvage targets in the Scenario tab to run a harvest queue. Growth and any committed
+                    partial-cut treatments can still run without queue targets.
+                  </InlineAlert>
+                )}
               <StatGroup
                 variant="tiles"
                 size="sm"
