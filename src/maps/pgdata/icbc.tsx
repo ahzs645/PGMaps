@@ -538,7 +538,7 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
 
 export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+    <div className="w-full space-y-2 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
       {icbc.showPoints && (
         <div className="space-y-2">

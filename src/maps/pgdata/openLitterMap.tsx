@@ -982,7 +982,7 @@ export function MobileOpenLitterMapFeatureCard({ litter }: { litter: OpenLitterM
 
 export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) {
   return (
-    <div className="w-full space-y-1.5 text-xs text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
+    <div className="w-full space-y-1.5 text-xs text-muted-foreground">
       {litter.showHeatmap && (
         <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2">
           <MapGradientLegendItem colors={HEATMAP_RAMP} minLabel="Low" maxLabel="High" />

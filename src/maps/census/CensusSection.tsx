@@ -198,7 +198,7 @@ export default function CensusSection() {
         />
 
         <MapLegendPanel
-          className="max-w-[220px]"
+          width="sm"
           title={selectedHierarchyLabel}
           description={selectedMetricLabel}
           collapsible

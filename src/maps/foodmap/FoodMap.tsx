@@ -512,7 +512,7 @@ export default function FoodMap() {
 
           {showLegend && (
             <MapLegendPanel
-              className="max-w-[220px]"
+              width="sm"
               title={visualizationMode === 'violations' ? 'Violations' : 'Hazard rating'}
               collapsible
               collapsed={legendCollapsed}

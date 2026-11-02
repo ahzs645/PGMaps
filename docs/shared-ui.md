@@ -296,7 +296,15 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   for a controlled legend: `useState(isMobileViewport)`), `LegendItem`,
   `MapGradientLegendItem`, `MapSteppedLegend`, `MapSizeLegend`.
   Keep a layer's colour ramp in one constant that both the layer and its
-  legend read.
+  legend read. Size the panel with its `width` prop (`sm`, `md`, `lg`, `fit`),
+  not a `className` width, `100vw` or `md:` breakpoint: the widths follow the
+  map rather than the viewport, and a collapsed panel shrinks to its title. Don't
+  fix a width on the content either (`md:w-56`); it overflows the panel's
+  padding. The panel stacks above MapLibre's attribution, whose height the map
+  publishes as `--map-bottom-right-controls-height`; zoom controls and
+  `MapFloatingPanel`s in a bottom corner stack above the legend's footprint
+  (`--map-legend-panel-visible-height`) in turn. Pass `elevated` when a timeline
+  is shown under the map.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
   `KeyValueRows` inside.
 - Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;

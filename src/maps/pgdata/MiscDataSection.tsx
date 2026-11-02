@@ -21,7 +21,6 @@ import {
   type StudyAreaRegion,
 } from '@/lib/studyArea'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
-import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
@@ -189,7 +188,7 @@ function EvChargingLegend({
   showBoundaries: boolean
 }) {
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+    <div className="w-full space-y-2 text-xs text-muted-foreground">
       {showPoints && (
         <div className="space-y-1">
           <LegendItem color="#0ea5e9" label="Stations and small clusters" active />
@@ -1588,10 +1587,9 @@ export default function MiscDataSection() {
                   (activeTab === 'canue' && canueTimelineActive)
                 }
                 width="sm"
-                className={cn('w-[min(16.5rem,calc(100vw-2rem))] md:w-auto')}
               >
                 {activeTab === 'heatShade' && (
-                  <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                  <div className="w-full space-y-1 text-xs text-muted-foreground">
                     {MISC_LAYERS.map((layer) => (
                       <LegendItem
                         key={layer.id}
@@ -1605,7 +1603,7 @@ export default function MiscDataSection() {
                   </div>
                 )}
                 {activeTab === 'canue' && (
-                  <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+                  <div className="w-full space-y-2 text-xs text-muted-foreground">
                     <div>
                       <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
                         <span className="truncate text-foreground">
@@ -1635,7 +1633,7 @@ export default function MiscDataSection() {
                   </div>
                 )}
                 {activeTab === 'network' && (
-                  <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                  <div className="w-full space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
                       <span className="truncate text-foreground">
                         {networkAvailabilityLayer.data
