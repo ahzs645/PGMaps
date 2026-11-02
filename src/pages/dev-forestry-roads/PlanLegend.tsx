@@ -31,7 +31,7 @@ export function PlanLegend({
         collapsible
         defaultCollapsed
         width="sm"
-        className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
+        className="road-map-legend bottom-2 right-2 flex p-2 max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
         contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-contain text-[11px]"
       >
         <div className="mt-1 space-y-3 border-t pt-1.5" data-testid="road-plan-legend-content">

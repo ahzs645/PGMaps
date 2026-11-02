@@ -577,13 +577,7 @@ export default function AirQualitySection() {
         />
 
         {showLegend && (
-          <MapLegendPanel
-            className="max-w-[240px]"
-            title="Legend"
-            collapsible
-            defaultCollapsed="mobile"
-            contentClassName="space-y-3"
-          >
+          <MapLegendPanel width="sm" title="Legend" collapsible defaultCollapsed="mobile" contentClassName="space-y-3">
             <div className="space-y-3">
               {boundaryLegendStats && (
                 <MapLegendSection

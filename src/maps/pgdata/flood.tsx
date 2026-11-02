@@ -546,7 +546,7 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
 
 export function FloodLegend({ flood }: { flood: FloodState }) {
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+    <div className="w-full space-y-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-2 font-medium text-foreground">
         <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
         RFC flood context

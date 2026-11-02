@@ -44,7 +44,7 @@ export function WaterLegend({ water }: { water: WaterState }) {
   }
 
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+    <div className="w-full space-y-2 text-xs text-muted-foreground">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-foreground">Drinking water</span>
       </div>

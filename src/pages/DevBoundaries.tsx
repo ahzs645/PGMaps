@@ -3299,7 +3299,7 @@ function DevBoundaries() {
         loading={activeLoading}
         boxZoom={false}
         doubleClickZoom={false}
-        controls={<MapControls position="top-right" mobilePosition="bottom-right" />}
+        controls={<MapControls position="top-right" />}
       >
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToBoundarySearchTarget target={boundarySearchTarget} />
