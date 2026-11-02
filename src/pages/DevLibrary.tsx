@@ -15,6 +15,7 @@ import {
   Table2,
   TreePine,
   Wind,
+  Globe2,
 } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
@@ -30,6 +31,15 @@ const devEntries: DevEntry[] = [
     icon: Landmark,
     color: 'bg-sky-700',
     label: '/dev/gov',
+  },
+  {
+    title: 'Mission workbench',
+    description:
+      'MMGIS-inspired Earth GIS: layers, imports, editing, linked plan and globe views, terrain, time and portable local missions.',
+    href: '/dev/mmgis',
+    icon: Globe2,
+    color: 'bg-teal-700',
+    label: '/dev/mmgis',
   },
   {
     title: 'LiDAR explorer',

@@ -40,6 +40,35 @@ describe('terrain viewshed', () => {
     expect(sunVisibility(result, { azimuth: 90, altitude: 10 }, 'B').status).toBe('unknown')
   })
 
+  it('clips a north-facing sector and accepts equivalent wrapped bearings', () => {
+    const sector = computeViewshed(FLAT, { ...SETTINGS, fieldOfView: { bearing: 0, width: 90 } }, 20, 24, false)
+    const all = computeViewshed(FLAT, SETTINGS, 20, 24, false)
+    expect(sector.counts.total).toBeGreaterThan(all.counts.total / 5)
+    expect(sector.counts.total).toBeLessThan(all.counts.total / 3)
+    expect(Array.from(sector.cells.slice(12 * 24))).toEqual(Array(12 * 24).fill(0))
+    expect(
+      computeViewshed(FLAT, { ...SETTINGS, fieldOfView: { bearing: -1080, width: 90 } }, 20, 24, false).cells,
+    ).toEqual(sector.cells)
+  })
+
+  it('uses target height to see over a ridge without treating no-data as visible', () => {
+    const source = { elevationAt: (lng: number) => (lng > 0.0008 && lng < 0.0016 ? 110 : 100) }
+    const ground = computeViewshed(source, SETTINGS, 10, 32, false)
+    const raised = computeViewshed(source, { ...SETTINGS, targetOffsetMeters: 50 }, 10, 32, false)
+    expect(raised.counts.visibleA).toBeGreaterThan(ground.counts.visibleA)
+    const unknown = computeViewshed({ elevationAt: () => NaN }, { ...SETTINGS, targetOffsetMeters: 50 }, 20, 16, false)
+    expect(unknown.counts.unknown).toBe(unknown.counts.total)
+  })
+
+  it('rejects invalid target heights and field-of-view settings', () => {
+    for (const targetOffsetMeters of [-1, 1001, Infinity])
+      expect(() => computeViewshed(FLAT, { ...SETTINGS, targetOffsetMeters }, 20, 16, false)).toThrow('Target height')
+    for (const width of [0, -1, 361, NaN])
+      expect(() => computeViewshed(FLAT, { ...SETTINGS, fieldOfView: { bearing: 0, width } }, 20, 16, false)).toThrow(
+        'Field of view',
+      )
+  })
+
   it('unknown terrain beyond a known ridge cannot erase that obstruction', () => {
     const result = computeViewshed(
       { elevationAt: (lng: number) => (lng > 0.002 ? NaN : lng > 0.0008 ? 140 : 100) },
