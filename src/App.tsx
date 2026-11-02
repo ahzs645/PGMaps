@@ -21,6 +21,7 @@ const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
 const DevLidar = lazy(() => import('@/pages/DevLidar'))
+const DevLidarRestoration = lazy(() => import('@/pages/DevLidarRestoration'))
 const DevNechako = lazy(() => import('@/pages/DevNechako'))
 const DevNechakoPortal = lazy(() => import('@/pages/DevNechakoPortal'))
 const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
@@ -131,6 +132,7 @@ function App() {
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
             <Route path="/dev/lidar/*" element={<DevLidar />} />
+            <Route path="/dev/lidar/restoration" element={<DevLidarRestoration />} />
             <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/nechako/portal" element={<DevNechakoPortal />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />
@@ -150,6 +152,7 @@ function App() {
             <Route path="/dev/fallout" element={<DevFallout />} />
             <Route path="/dev/forestry" element={<DevForestry />} />
             <Route path="/dev/forestry/drought-risk" element={<DevForestDrought />} />
+            <Route path="/dev/forestry/road-restoration" element={<DevLidarRestoration />} />
             <Route path="/dev/forestry/road-design" element={<DevForestryRoads />} />
             <Route path="/dev/forestry/roads" element={<LegacyRedirect to="/dev/forestry/road-design" />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />

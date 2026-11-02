@@ -33,6 +33,7 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
             <Link to={toolPath('canopy')}>BC canopy map</Link>
             <Link to={toolPath('compare')}>Tree model results & 3D</Link>
             <Link to={toolPath('volume')}>BC inventory volume & harvest scenarios</Link>
+            <Link to="/dev/lidar/restoration">Local LiDAR road restoration</Link>
           </div>
         </section>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -220,6 +220,7 @@ const devEntries: DevEntry[] = [
     label: '/dev/forestry',
     subpages: [
       { label: 'Drought risk', href: '/dev/forestry/drought-risk' },
+      { label: 'Road restoration', href: '/dev/forestry/road-restoration' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },
       { label: 'CCISS suitability', href: '/dev/forestry/cciss-suitability' },
