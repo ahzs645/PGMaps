@@ -59,7 +59,9 @@ importing it.
 Every report is available in the interface and as a complete CSV; table previews
 may show fewer rows. Display limits never truncate the downloaded CSV or event
 ledger. The final report bundle includes a printable HTML report; browser printing
-can save that report as PDF without a server.
+can save that report as PDF without a server. The bundle is built in its own
+worker (`castorReport.worker.ts`), which reports progress and can be cancelled;
+the page stays responsive while it serialises, rasterises and compresses.
 
 | Upstream object / requested output | Web equivalent |
 | --- | --- |
@@ -358,10 +360,25 @@ Limits are enforced by `CASTOR_LIMITS` in `validation.ts` and the import adapter
 | Regular grid | 2,000,000 cells |
 | Raster import | 100 bands and 2,000,000 cell-band combinations |
 
-These are workload guards, not a measured promise that every allowed combination
-will be comfortable on every phone. Province-wide rasters should be prepared as
-bounded study areas. Large source preprocessing is distinct from browser scenario
-calculation.
+Measured at the cell × period limit (headless Chrome for Testing 153 on a 4-vCPU
+2.1 GHz Xeon Linux container, standalone production build, synthetic regular-grid
+projects with three constraints and two compartments; numbers are single runs):
+
+| Scenario | Run (worker) | Report export | Longest main-thread task, run / export | Peak JS heap, page / workers | Peak renderer RSS |
+| --- | --- | --- | --- | --- | --- |
+| 50,000 cells × 40 periods, 112,646 harvested-cell events | 5.4–6.0 s | 21 s, 31 MB ZIP | 0.20 / 0.10 s | 0.32 / 0.76 GB | 1.6–1.9 GB |
+| 20,000 cells × 100 periods, 105,135 events | 4.8 s | 12 s, 15 MB ZIP | 0.24 / 0.06 s | 0.24 / 0.47 GB | 1.1 GB |
+| Upstream SQLite example, default settings | 0.65 s | 4 s, 6 MB ZIP | 0.09 / <0.05 s | 0.05 / 0.11 GB | 0.5 GB |
+
+Before the export moved to a worker and results crossed the worker boundary in
+small messages with transferred snapshot buffers, the 50,000 × 40 case blocked
+the page for up to 2.8 s after the run and 2.0 s during export, and an
+un-memoised whole-project JSON editor froze the page for about 15 s after import
+(renderer RSS 5.8 GB). The limits are unchanged: every measured run completed
+without a freeze or memory failure on this desktop. Phones and low-memory devices
+were not measured; a run near the limit needs roughly 2 GB of browser memory
+while exporting. Province-wide rasters should be prepared as bounded study areas.
+Large source preprocessing is distinct from browser scenario calculation.
 
 Run the relevant checks from PGMaps:
 

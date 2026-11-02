@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormField, NumberField, SelectField } from '@/components/ui/form-field'
@@ -359,12 +359,19 @@ function FlowBuilder({
   config: CastorConfig
   onChange: (project: CastorProject) => void
 }) {
-  // Cells with a NULL compartid belong to no harvest compartment and cannot take a target.
-  const compartments = Array.from(
-    new Set(
-      project.pixels.filter((pixel) => !pixel.nullFields?.includes('compartment')).map((pixel) => pixel.compartment),
-    ),
-  ).sort()
+  // Cells with a NULL compartid belong to no harvest compartment and cannot take a target. Scanning
+  // 50,000 cells on every page update (for example, run progress) stalls the page; rescan only on new pixels.
+  const compartments = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          project.pixels
+            .filter((pixel) => !pixel.nullFields?.includes('compartment'))
+            .map((pixel) => pixel.compartment),
+        ),
+      ).sort(),
+    [project.pixels],
+  )
   const [compartment, setCompartment] = useState('*')
   const [type, setType] = useState<'live' | 'salvage'>('live')
   const [target, setTarget] = useState(10000)
@@ -439,10 +446,16 @@ function ConstraintBuilder({
   project: CastorProject
   onChange: (project: CastorProject) => void
 }) {
-  const zones = Array.from(new Set(project.pixels.flatMap((pixel) => Object.keys(pixel.zones)))).sort()
+  const zones = useMemo(
+    () => Array.from(new Set(project.pixels.flatMap((pixel) => Object.keys(pixel.zones)))).sort(),
+    [project.pixels],
+  )
   const [zone, setZone] = useState(zones[0] ?? '')
   const effectiveZone = zones.includes(zone) ? zone : (zones[0] ?? '')
-  const zoneIds = Array.from(new Set(project.pixels.map((pixel) => pixel.zones[effectiveZone]).filter(Boolean))).sort()
+  const zoneIds = useMemo(
+    () => Array.from(new Set(project.pixels.map((pixel) => pixel.zones[effectiveZone]).filter(Boolean))).sort(),
+    [project.pixels, effectiveZone],
+  )
   const [zoneId, setZoneId] = useState(zoneIds[0] ?? '')
   const effectiveZoneId = zoneIds.includes(zoneId) ? zoneId : (zoneIds[0] ?? '')
   const [type, setType] = useState<CastorConstraint['type']>('ge')

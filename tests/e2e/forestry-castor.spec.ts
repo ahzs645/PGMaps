@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import JSZip from 'jszip'
 import { fromArrayBuffer } from 'geotiff'
+import { runCastor } from '../../src/features/forestry-castor/engine'
+import { castorReportBundle } from '../../src/features/forestry-castor/outputs'
 
 test.use({ serviceWorkers: 'allow', screenshot: 'only-on-failure' })
 const standalone = process.env.PGMAPS_CASTOR_STANDALONE === '1'
@@ -88,6 +90,14 @@ test('runs the compiled forest worker and exports every report and reproducible 
 
   const { archive, zip, result } = await bundledResult(page)
   expect(archive.name).toBe('castor-report-bundle.zip')
+  // The archive is built off the main thread, and matches the in-process builder for the same inputs.
+  expect(workers.some((url) => url.includes('castorReport.worker'))).toBe(true)
+  const direct = await JSZip.loadAsync(
+    await (await castorReportBundle(session.project, runCastor(session.project, session.config))).arrayBuffer(),
+  )
+  const names = (archive: JSZip) => Object.keys(archive.files).filter((name) => !archive.files[name].dir)
+  expect(names(zip).sort()).toEqual(names(direct).sort())
+  expect(await zip.file('result.json')!.async('string')).toBe(await direct.file('result.json')!.async('string'))
   expect(result.summary.harvestedM3).toBeGreaterThan(0)
   expect(result.summary.harvestedM3).toBeLessThanOrEqual(result.summary.targetM3)
   const pixelTotal = result.harvestPixelList.reduce((sum: number, row: { volumeM3: number }) => sum + row.volumeM3, 0)

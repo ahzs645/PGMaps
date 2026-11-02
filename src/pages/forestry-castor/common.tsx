@@ -1,10 +1,18 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
 
-export const number = (value: number, digits = 0) =>
-  new Intl.NumberFormat('en-CA', { maximumFractionDigits: digits }).format(value)
+const numberFormats = new Map<number, Intl.NumberFormat>()
+/** Formatters are cached: constructing one per table cell dominated result-table renders. */
+export const number = (value: number, digits = 0) => {
+  let format = numberFormats.get(digits)
+  if (!format) {
+    format = new Intl.NumberFormat('en-CA', { maximumFractionDigits: digits })
+    numberFormats.set(digits, format)
+  }
+  return format.format(value)
+}
 
 export function Section({
   title,
@@ -116,7 +124,12 @@ export function ResultTable<T>({
   )
 }
 
-/** Apply is explicit so a partly typed JSON document never mutates the active scenario. */
+/**
+ * Apply is explicit so a partly typed JSON document never mutates the active scenario.
+ * A 50,000-cell project is tens of megabytes of JSON, so it is serialised only
+ * while the editor is open, once per value, and the textarea is not re-rendered
+ * on unrelated page updates such as run progress.
+ */
 export function JsonEditor({
   label,
   value,
@@ -129,47 +142,56 @@ export function JsonEditor({
   description?: ReactNode
 }) {
   const id = useId()
-  const serialized = JSON.stringify(value, null, 2)
-  const [text, setText] = useState(serialized)
+  const [open, setOpen] = useState(false)
+  const serialized = useMemo(() => (open ? JSON.stringify(value, null, 2) : null), [open, value])
+  const [text, setText] = useState('')
   const [error, setError] = useState('')
-  const [previousValue, setPreviousValue] = useState(serialized)
-  if (previousValue !== serialized) {
+  const [previousValue, setPreviousValue] = useState<string | null>(null)
+  if (serialized !== null && previousValue !== serialized) {
     setPreviousValue(serialized)
     setText(serialized)
     setError('')
   }
+  const field = useMemo(
+    () => (
+      <textarea
+        id={id}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        spellCheck={false}
+        rows={12}
+        className="w-full resize-y rounded-md border bg-background p-3 font-mono text-xs"
+      />
+    ),
+    [id, text],
+  )
   return (
-    <details className="rounded-lg border p-3">
+    <details className="rounded-lg border p-3" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="cursor-pointer text-sm font-medium">{label}</summary>
-      <div className="mt-3 space-y-3">
-        {description && <p className="text-xs leading-5 text-muted-foreground">{description}</p>}
-        <label htmlFor={id} className="sr-only">
-          {label} JSON
-        </label>
-        <textarea
-          id={id}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          spellCheck={false}
-          rows={12}
-          className="w-full resize-y rounded-md border bg-background p-3 font-mono text-xs"
-        />
-        {error && <InlineAlert tone="error">{error}</InlineAlert>}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            try {
-              onApply(JSON.parse(text))
-              setError('')
-            } catch (cause: unknown) {
-              setError(cause instanceof Error ? cause.message : 'This JSON could not be applied.')
-            }
-          }}
-        >
-          Apply {label.toLowerCase()}
-        </Button>
-      </div>
+      {open && (
+        <div className="mt-3 space-y-3">
+          {description && <p className="text-xs leading-5 text-muted-foreground">{description}</p>}
+          <label htmlFor={id} className="sr-only">
+            {label} JSON
+          </label>
+          {field}
+          {error && <InlineAlert tone="error">{error}</InlineAlert>}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              try {
+                onApply(JSON.parse(text))
+                setError('')
+              } catch (cause: unknown) {
+                setError(cause instanceof Error ? cause.message : 'This JSON could not be applied.')
+              }
+            }}
+          >
+            Apply {label.toLowerCase()}
+          </Button>
+        </div>
+      )}
     </details>
   )
 }

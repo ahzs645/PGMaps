@@ -315,20 +315,51 @@ export function castorHtmlReport(project: CastorProject, result: CastorResult): 
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(result.scenario)} — Castor report</title><style>body{font:15px system-ui;color:#17352b;max-width:1200px;margin:40px auto;padding:0 24px}h1,h2{color:#164f3b}table{border-collapse:collapse;font-size:12px;width:100%}th,td{padding:8px;border:1px solid #d6e2dc;text-align:left;white-space:nowrap}.table{overflow:auto}li{margin:.5em 0}@media print{body{margin:0;max-width:none}.table{overflow:visible}h2{break-after:avoid}tr{break-inside:avoid}}</style><h1>${escapeHtml(result.scenario)}</h1><p>${escapeHtml(project.name)} · ${escapeHtml(result.modelVersion)}</p><p>${escapeHtml(project.description)}</p><p>Source: ${escapeHtml(project.provenance.source)}${project.provenance.revision ? ` (${escapeHtml(project.provenance.revision)})` : ''}</p><h2>Run summary</h2><table>${summary}</table><h2>Assumptions and limitations</h2><ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>${sections}<h2>Reproducibility</h2><p>The bundle includes project/session JSON, complete CSV reports, spatial outputs and an inventory of files. This browser adaptation is not a complete numerical validation of the SpaDES module.</p></html>`
 }
 
-export async function castorReportBundle(project: CastorProject, result: CastorResult): Promise<Blob> {
+export interface CastorReportProgress {
+  message: string
+  /** 0–1 across file preparation and compression. */
+  fraction: number
+}
+const PREPARE_SHARE = 0.4
+
+/** Every report, input and final-period spatial output as one ZIP archive. */
+export async function castorReportBundle(
+  project: CastorProject,
+  result: CastorResult,
+  onProgress?: (progress: CastorReportProgress) => void,
+): Promise<Blob> {
+  return new Blob([await castorReportBundleBytes(project, result, onProgress)], { type: 'application/zip' })
+}
+
+/** The archive bytes; a worker transfers this buffer instead of copying a Blob's contents. */
+export async function castorReportBundleBytes(
+  project: CastorProject,
+  result: CastorResult,
+  onProgress?: (progress: CastorReportProgress) => void,
+): Promise<ArrayBuffer> {
+  const metrics = Object.keys(CASTOR_METRICS) as CastorMetric[]
+  const steps = 5 + metrics.length
+  let step = 0
+  const prepared = (message: string) => onProgress?.({ message, fraction: (step++ / steps) * PREPARE_SHARE })
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
+  prepared('Writing scenario inputs…')
   zip.file('session.json', serializeCastorSession(project, result.config))
   zip.file('project.json', JSON.stringify(project, null, 2))
+  prepared('Writing full result…')
   zip.file('result.json', JSON.stringify(result))
+  prepared('Writing HTML report…')
   zip.file('report.html', castorHtmlReport(project, result))
+  prepared('Writing CSV reports…')
   for (const key of Object.keys(reportKeys) as CastorReport[])
     zip.file(`reports/${key}.csv`, castorReportCsv(result, key))
+  prepared('Writing landing points…')
   zip.file('spatial/landings.geojson', JSON.stringify(castorLandingsGeoJson(project, result)))
   const last = result.snapshots[result.snapshots.length - 1]
   if (!last) throw new Error('Cannot export a run without snapshots.')
   const spatialNotes: string[] = []
-  for (const metric of Object.keys(CASTOR_METRICS) as CastorMetric[]) {
+  for (const metric of metrics) {
+    prepared(`Writing final ${CASTOR_METRICS[metric].label.toLowerCase()} map…`)
     const data = castorSpatialGeoJson(project, result, last.period, metric)
     if (data.features.length) zip.file(`spatial/final-${metric}.geojson`, JSON.stringify(data))
     else if (!spatialNotes.length)
@@ -368,5 +399,17 @@ export async function castorReportBundle(project: CastorProject, result: CastorR
     'PGMaps forestryCastor output bundle\n\nOpen report.html in a browser or print it to PDF. Reports/ CSVs contain every output row. session.json restores the exact inputs and settings; rerun to verify results. result.json retains all period snapshots. Spatial GeoJSON uses WGS84; Float64 GeoTIFFs preserve the input projected grid, with -9999 as NoData. Landings are planning candidates, not designed roads.\n\n' +
       spatialNotes.join('\n'),
   )
-  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+  let reported = -1
+  return zip.generateAsync(
+    { type: 'arraybuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    ({ percent }) => {
+      const whole = Math.floor(percent)
+      if (whole === reported) return
+      reported = whole
+      onProgress?.({
+        message: `Compressing archive… ${whole}%`,
+        fraction: PREPARE_SHARE + (whole / 100) * (1 - PREPARE_SHARE),
+      })
+    },
+  )
 }

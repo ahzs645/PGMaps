@@ -25,7 +25,7 @@ import { ExternalLink } from '@/components/ui/text-button'
 import { downloadBlob, downloadText } from '@/lib/download'
 import { castorConfig, createExampleProject, importCastorFiles } from '@/features/forestry-castor/inputs'
 import { CASTOR_IMPORT_LIMIT_BYTES } from '@/features/forestry-castor/inputTables'
-import { castorReportBundle } from '@/features/forestry-castor/outputs'
+import type { CastorReportProgress } from '@/features/forestry-castor/outputs'
 import { importCastorRaster } from '@/features/forestry-castor/rasterInputs'
 import {
   loadCastorDraft,
@@ -45,6 +45,7 @@ import { MethodsPanel } from './forestry-castor/MethodsPanel'
 import { ResultsPanel } from './forestry-castor/ResultsPanel'
 import { ScenarioSettings } from './forestry-castor/ScenarioSettings'
 import { SpatialPanel } from './forestry-castor/SpatialPanel'
+import { buildCastorReportInWorker } from './forestry-castor/reportClient'
 import { useCastorSimulation } from './forestry-castor/useCastorSimulation'
 
 type View = 'setup' | 'results' | 'map' | 'methods'
@@ -62,7 +63,9 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
   const [draftLoading, setDraftLoading] = useState(true)
   const [draftMessage, setDraftMessage] = useState('')
   const [draftError, setDraftError] = useState('')
-  const [exportBusy, setExportBusy] = useState(false)
+  const [exportProgress, setExportProgress] = useState<CastorReportProgress | null>(null)
+  const exportController = useRef<AbortController | null>(null)
+  const exportBusy = exportProgress !== null
   const [exportError, setExportError] = useState('')
   const [rasterRole, setRasterRole] = useState<RasterRole>('salvage')
   const [zoneName, setZoneName] = useState('imported-zone')
@@ -133,6 +136,43 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
   useEffect(() => {
     if (state.status === 'complete') setView('results')
   }, [state])
+  // A report belongs to one result: stop building it when the result changes or the page closes.
+  useEffect(
+    () => () => {
+      exportController.current?.abort()
+      exportController.current = null
+    },
+    [result],
+  )
+  const exportReport = useCallback(async () => {
+    if (!project || !result) return
+    exportController.current?.abort()
+    const controller = new AbortController()
+    exportController.current = controller
+    setExportProgress({ message: 'Preparing reports…', fraction: 0 })
+    setExportError('')
+    try {
+      const bundle = await buildCastorReportInWorker(project, result, {
+        signal: controller.signal,
+        onProgress: (progress) => {
+          if (!controller.signal.aborted) setExportProgress(progress)
+        },
+      })
+      if (!controller.signal.aborted) downloadBlob(bundle, 'castor-report-bundle.zip')
+    } catch (cause: unknown) {
+      if (!controller.signal.aborted)
+        setExportError(cause instanceof Error ? cause.message : 'The report bundle could not be created.')
+    } finally {
+      if (exportController.current === controller) exportController.current = null
+      // A newer export owns the progress display; otherwise this one (finished or cancelled) clears it.
+      if (exportController.current === null) setExportProgress(null)
+    }
+  }, [project, result])
+  const cancelExport = useCallback(() => {
+    exportController.current?.abort()
+    exportController.current = null
+    setExportProgress(null)
+  }, [])
 
   const stopImport = useCallback(() => {
     importGeneration.current += 1
@@ -472,24 +512,15 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
                 <Button variant="outline" disabled={!!validation?.errors.length} onClick={saveSession}>
                   <Save className="size-4" /> Save session JSON
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={!result || exportBusy}
-                  onClick={async () => {
-                    if (!result) return
-                    setExportBusy(true)
-                    setExportError('')
-                    try {
-                      downloadBlob(await castorReportBundle(project, result), 'castor-report-bundle.zip')
-                    } catch (cause: unknown) {
-                      setExportError(cause instanceof Error ? cause.message : 'The report bundle could not be created.')
-                    } finally {
-                      setExportBusy(false)
-                    }
-                  }}
-                >
-                  <Download className="size-4" /> {exportBusy ? 'Preparing reports…' : 'Download complete report'}
-                </Button>
+                {exportBusy ? (
+                  <Button variant="outline" onClick={cancelExport}>
+                    <Square className="size-4" /> Cancel report
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled={!result} onClick={() => void exportReport()}>
+                    <Download className="size-4" /> Download complete report
+                  </Button>
+                )}
               </div>
               <div
                 className="text-xs text-muted-foreground"
@@ -506,6 +537,19 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
                       : 'Scenario could not complete.'}
               </div>
             </div>
+            {exportProgress && (
+              <div className="mb-4 space-y-1" data-testid="castor-export-status">
+                <div className="text-xs text-muted-foreground" role="status" aria-live="polite">
+                  {exportProgress.message}
+                </div>
+                <progress
+                  className="h-2 w-full accent-teal-700"
+                  aria-label="Report export progress"
+                  value={exportProgress.fraction}
+                  max={1}
+                />
+              </div>
+            )}
             {running && (
               <progress
                 className="mb-4 h-2 w-full accent-teal-700"
