@@ -167,7 +167,7 @@ export function MethodsPanel({ project, result }: { project: CastorProject | nul
           </div>
         )}
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-          <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-castor.md">
+          <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/63cb0f7e1570d27292f0ae048adff4061c340f0d/docs/forestry-castor.md">
             Model and input documentation
           </ExternalLink>
           <ExternalLink href="https://github.com/bcgov/forestryCastor/blob/e2a580eb1fcc634780bb3599da7265a1e871484f/LICENSE">

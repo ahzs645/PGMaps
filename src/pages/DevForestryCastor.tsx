@@ -326,7 +326,7 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
             Accepts a scenario or saved-session JSON, a Castor SQLite database, or named CSV tables with optional
             spatial files.{' '}
-            <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-castor.md">
+            <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/63cb0f7e1570d27292f0ae048adff4061c340f0d/docs/forestry-castor.md">
               Input formats and model contract
             </ExternalLink>
           </p>
