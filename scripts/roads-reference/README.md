@@ -91,8 +91,21 @@ build, public data download, deployment or write access is required. First runs
 can take time to install the native spatial stack; subsequent runs can reuse the
 R package cache.
 
-At creation of this harness, native R was unavailable in the development
-workspace. The shared configuration and TypeScript comparator were checked
-locally, but an actual native reference result must come from a successful run
-of this workflow or the native commands above. A committed workflow is not itself
-evidence that its R comparison has passed.
+## Recorded native execution — 2 November 2026
+
+[Run 41410220228](https://github.com/ahzs645/PGMaps/actions/runs/41410220228)
+successfully executed this harness against implementation
+[`ce6b80e59b3c03b8596ead7cc42ca9ba8e585b83`](https://github.com/ahzs645/PGMaps/commit/ce6b80e59b3c03b8596ead7cc42ca9ba8e585b83),
+using **R 4.5.3**, **roads 1.2.2** at the pinned source revision,
+**terra 1.9-50** and **sf 1.1-3**.
+
+The native package executed all **25 scalar cases** and the CLUS **LCP, MST
+and snap** runs. The TypeScript comparison passed **all 40 acceptance gates**
+with no failures. All three informational diagnostics matched as well:
+one-shot ILCP, first-period ILCP and second-period ILCP.
+
+The [reference evidence artifact, 13124878746](https://github.com/ahzs645/PGMaps/actions/runs/41410220228/artifacts/13124878746),
+contains the actual native R output, comparison report and R session information.
+This establishes runtime agreement for these cases at that implementation
+revision. It does not establish universal geometry, sampling or R-object parity,
+nor construction or engineering validity for real road networks.

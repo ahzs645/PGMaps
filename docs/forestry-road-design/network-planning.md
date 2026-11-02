@@ -28,6 +28,9 @@ These examples use their own local coordinates. Their SVG preview, raster data,
 results and exports are usable without geographic terrain. They cannot be
 inserted into an unrelated geographic project or presented as surveyed sites.
 
+The [worked scenario comparison](network-scenarios.md) records actual results
+for all six examples, explains their differences and includes a reproduction command.
+
 ## Plan with project terrain
 
 1. Load the project's DEM or use a training project. Import existing roads and

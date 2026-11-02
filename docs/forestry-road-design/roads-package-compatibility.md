@@ -225,12 +225,23 @@ versions, spatial library versions, native outputs and comparisons are retained
 as workflow evidence. One-shot and staged ILCP results are visible informational
 comparisons because vector-versus-cell endpoint conventions can differ.
 
-Native R was unavailable in the development workspace when the harness was
-written. Its configuration and TypeScript comparator were checked locally;
-native execution is established only by a successful workflow run or an explicit
-local R run. A committed workflow alone is not a passing comparison. Running the
-upstream package with a representative real forestry dataset remains a separate
-reference-validation exercise. A matching fixture does not establish universal
+### Recorded native R result — 2 November 2026
+
+[Workflow run 41410220228](https://github.com/ahzs645/PGMaps/actions/runs/41410220228)
+executed the native comparison successfully against implementation
+[`ce6b80e59b3c03b8596ead7cc42ca9ba8e585b83`](https://github.com/ahzs645/PGMaps/commit/ce6b80e59b3c03b8596ead7cc42ca9ba8e585b83).
+It used **R 4.5.3**, the pinned **roads 1.2.2** source, **terra 1.9-50** and
+**sf 1.1-3**. All **40 acceptance gates passed**, including the **25 scalar
+formula cases**, exact CLUS fixture inputs, and CLUS **LCP, MST and snap**
+road-cell results. The three informational diagnostics also matched: one-shot
+ILCP and both periods of the two-stage ILCP continuation.
+
+[Artifact 13124878746](https://github.com/ahzs645/PGMaps/actions/runs/41410220228/artifacts/13124878746)
+contains `native-r.json`, `comparison.json` and `r-session.txt`. These are actual
+native execution results, independently of the source-derived unit fixtures.
+They validate the listed cases at the recorded implementation revision. Running
+the upstream package with representative real forestry datasets remains a
+separate reference-validation exercise; this result does not establish universal
 `terra`/`sf` parity, construction readiness, or suitability of a planning cost surface.
 
 ## Runtime choice
