@@ -14,6 +14,7 @@ import {
   Table2,
   TreePine,
   Wind,
+  Globe2,
 } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
@@ -21,6 +22,15 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
 
 const devEntries: DevEntry[] = [
+  {
+    title: 'Mission workbench',
+    description:
+      'MMGIS-inspired Earth GIS: layers, imports, editing, linked plan and globe views, terrain, time and portable local missions.',
+    href: '/dev/mmgis',
+    icon: Globe2,
+    color: 'bg-teal-700',
+    label: '/dev/mmgis',
+  },
   {
     title: 'LiDAR explorer',
     description:
