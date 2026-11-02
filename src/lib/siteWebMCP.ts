@@ -14,6 +14,14 @@ export interface MapExperience {
 
 export const MAP_EXPERIENCES: MapExperience[] = [
   {
+    id: 'government-map-catalog',
+    title: 'Government map catalog',
+    description: 'B.C. air-monitoring source maps, data-stream proposals, access findings and native recreation plans.',
+    path: '/dev/gov',
+    stage: 'lab',
+    tags: ['government', 'air monitoring', 'aqhi', 'pollutants', 'data streams', 'catalog'],
+  },
+  {
     id: 'flatten',
     title: 'Flatten',
     description:

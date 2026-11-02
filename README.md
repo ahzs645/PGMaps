@@ -82,6 +82,14 @@ Production builds publish their Git commit SHA for in-browser update detection, 
 
 ## Data source policy
 
+The [government map catalog](https://pgmaps.ahmadjalil.com/dev/gov) inventories all 12 maps and six related
+data views in B.C.'s air-monitoring visualization project. Each entry includes
+source links, data-stream fields and a proposed native recreation. The
+[air-monitoring integration guide](docs/bc-air-monitoring-integration.md)
+documents the CORS and legacy-parser tests, recovery results, source ownership
+and the recommended refresh pipeline. These are cataloged proposals; refreshed
+streams and native map recreations are not implemented by the catalog.
+
 See [BC Data Catalogue and ArcGIS Live Usage](docs/bc-data-live-usage.md) for guidance on using BC Data Catalogue records and BC-published ArcGIS REST services in PGMaps. In short: licences are often permissive with attribution, but live APIs have operational limits, so large or core datasets should usually be synced and cached instead of queried directly from the browser.
 
 ## Walkability generated assets

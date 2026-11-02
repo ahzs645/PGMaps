@@ -6,6 +6,7 @@ import {
   Compass,
   Handshake,
   Loader2,
+  Landmark,
   MapPinned,
   MousePointerClick,
   Palette,
@@ -21,6 +22,15 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
 
 const devEntries: DevEntry[] = [
+  {
+    title: 'Government map catalog',
+    description:
+      'B.C. air-monitoring maps, source data streams, tested access limits and options for native PGMaps recreations.',
+    href: '/dev/gov',
+    icon: Landmark,
+    color: 'bg-sky-700',
+    label: '/dev/gov',
+  },
   {
     title: 'LiDAR explorer',
     description:
