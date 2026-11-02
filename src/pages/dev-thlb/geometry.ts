@@ -20,7 +20,11 @@ export function union(parts: MultiPolygonCoords[]): MultiPolygonCoords {
   let result: MultiPolygonCoords = []
   for (const part of parts) {
     if (!part.length) continue
-    result = clipping.union(asClip(result.length ? result : part), asClip(part)) as MultiPolygonCoords
+    // A first part is normalised on its own. Passing it twice doubles the sweep events, which exceeds
+    // polygon-clipping's 1,000,000-event queue on real proxy features (~277,000 vertices near Prince George).
+    result = (
+      result.length ? clipping.union(asClip(result), asClip(part)) : clipping.union(asClip(part))
+    ) as MultiPolygonCoords
   }
   return result
 }

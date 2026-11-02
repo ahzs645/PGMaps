@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyze } from './analysis'
 import { exampleInput } from './example'
 import { breakdown, buildWorkbook, resultGeoJson } from './exports'
+import { union } from './geometry'
 import { guessFields, parsePolygons } from './inputs'
 import type { AnalysisInput, InputRole, Settings } from './types'
 
@@ -66,6 +67,36 @@ describe('THLB weighted overlay', () => {
     expect(row.proxyThlbHa).toBe(1)
     expect(row.unknownFactorHa).toBe(1)
     expect(row.uncoveredHa).toBe(0)
+  })
+
+  it('normalises a single feature with more vertices than a doubled union can queue', () => {
+    // Real proxy features near Prince George reach ~277,000 vertices. Unioning a part with itself doubled the
+    // sweep events past polygon-clipping's 1,000,000-entry queue limit.
+    const n = 300_000
+    const ring = Array.from({ length: n }, (_, i) => {
+      const a = (2 * Math.PI * i) / n
+      return [1000 * Math.cos(a), 1000 * Math.sin(a)] as [number, number]
+    })
+    ring.push(ring[0])
+    const result = union([[[ring]]])
+    expect(result).toHaveLength(1)
+    expect(result[0][0].length).toBeGreaterThan(n / 2)
+  }, 60_000)
+
+  it('warns only for genuine overlaps among many adjacent source features', () => {
+    const data = input()
+    // 200 adjacent 2 m strips: every feature touches its neighbours but none overlap.
+    data.proxy = polygons(
+      'proxy',
+      Array.from({ length: 200 }, (_, i): [number, number, Record<string, unknown>] => [i * 2, 2, { pthlb_fact: 0.5 }]),
+    )
+    const adjacent = analyze(data, SETTINGS)
+    expect(adjacent.combined.proxyThlbHa).toBeCloseTo(2, 9)
+    expect(adjacent.warnings.join(' ')).not.toContain('Overlapping proxy')
+    data.proxy.push(...polygons('proxy', [[10, 5, { pthlb_fact: 1 }]]))
+    const overlapping = analyze(data, SETTINGS)
+    expect(overlapping.combined.proxyThlbHa).toBeCloseTo(2, 9)
+    expect(overlapping.warnings.join(' ')).toContain('Overlapping proxy')
   })
 
   it('deduplicates overlaps within a source and notes which feature wins', () => {

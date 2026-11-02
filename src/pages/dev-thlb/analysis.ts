@@ -98,13 +98,15 @@ export function analyze(input: AnalysisInput, settings: Settings): AnalysisResul
     let remaining = geometry
     let claimedOfficial: MultiPolygonCoords = []
     for (const kind of ['official', 'proxy'] as const) {
-      let sourceClaimed: MultiPolygonCoords = []
+      // Track what this source has not yet claimed rather than unioning every claimed feature:
+      // the growing union made this warning-only check quadratic and failed on real proxy data.
+      let sourceRemaining = geometry
       for (const feature of searches[kind](geometry)) {
-        const relevant = intersect(geometry, feature.geometry)
-        if (areaHa(intersect(relevant, sourceClaimed)) > 1e-7)
+        const relevantHa = areaHa(intersect(geometry, feature.geometry))
+        if (relevantHa - areaHa(intersect(sourceRemaining, feature.geometry)) > 1e-7)
           warnings.add(`Overlapping ${kind} features: earlier imported features take precedence.`)
+        if (relevantHa > 0) sourceRemaining = difference(sourceRemaining, feature.geometry)
         const part = intersect(remaining, feature.geometry)
-        sourceClaimed = union([sourceClaimed, relevant])
         if (!part.length) continue
         remaining = difference(remaining, feature.geometry)
         let fragments: Fragment[] = [
