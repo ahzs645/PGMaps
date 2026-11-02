@@ -110,6 +110,52 @@ describe('Shiny report summary stage', () => {
     expect([1.5, 2.5, 3.5, 4.5].map(rRound)).toEqual([2, 2, 4, 4])
     expect(summarizeVotes(row(), [0, 0, 1], [0, 1, 0, 0])).toMatchObject({ establishment: 3, maturation: 4 })
   })
+  it('follows feasibility.R for browser votes in periods where a species has no rating', () => {
+    const ALL_PERIODS = new Set(['1961', '1991', '2021', '2041', '2061', '2081'])
+    // A species arriving only in later periods: R has no vote rows for 1961/1991/2021.
+    const arriving = {
+      ...row(),
+      current: 4,
+      votes: { '2041': [1, 0, 0, 0], '2061': [0, 1, 0, 0], '2081': [0, 0, 1, 0] } as Record<string, Votes>,
+      novelty: {},
+    }
+    // Imported exports may omit periods, so they stay withheld.
+    expect(summarizeVotes(arriving)).toBeNull()
+    // Establishment: X2 puts every absent period's weight in X (score 5 -> X). Maturation is the weighted mean of
+    // the present periods ((1 + 2 + 3) / 3); improve/decline average the present periods only.
+    expect(summarizeVotes(arriving, undefined, undefined, undefined, ALL_PERIODS)).toMatchObject({
+      establishment: 4,
+      establishmentScore: 5,
+      maturation: 2,
+      maturationScore: 2,
+      improve: 100,
+      decline: 0,
+    })
+    // Only 2021 rated: establishment = 0.5 x class 1 + 0.5 (absent 1961/1991) x X = 0.5 + 2.5 = 3.
+    const early = { ...arriving, votes: { '2021': [1, 0, 0, 0] } as Record<string, Votes> }
+    expect(summarizeVotes(early, undefined, undefined, undefined, ALL_PERIODS)).toMatchObject({
+      establishmentScore: 3,
+      establishment: 3,
+      maturation: 1,
+    })
+    // R's weighted.mean is NaN when the only present maturation periods carry no weight.
+    expect(summarizeVotes(early, undefined, [0, 1, 1, 1], undefined, ALL_PERIODS)).toBeNull()
+    // A period whose input data were unavailable (not assessed) still withholds the summary.
+    expect(
+      summarizeVotes(arriving, undefined, undefined, undefined, new Set(['1991', '2021', '2041', '2061', '2081'])),
+    ).toBeNull()
+    // Rounded or incomplete votes that are present are still never reweighted.
+    expect(
+      summarizeVotes(
+        { ...arriving, votes: { ...arriving.votes, '2041': [0.33, 0.33, 0.33, 0] } },
+        undefined,
+        undefined,
+        undefined,
+        ALL_PERIODS,
+      ),
+    ).toBeNull()
+  })
+
   it('does not invent summaries for absent, all-zero, rounded or novelty-scaled votes', () => {
     for (const v of [null, [0, 0, 0, 0], [0.33, 0.33, 0.33, 0]]) {
       const r = row()

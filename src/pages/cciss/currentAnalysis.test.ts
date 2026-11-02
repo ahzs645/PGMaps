@@ -226,7 +226,16 @@ describe('current CCISS owner-bundle calculations', () => {
     // The source same-BGC mainunit restriction is preserved, without inventing a
     // baseline match for a phase whose exact series differs from its mainunit.
     expect(phase.overlap.some((r) => r.period === '1961')).toBe(false)
-    expect(phase.capabilities.summaries).toBe(false)
+    // feasibility.R: 1961-2021 were assessed but gave Pine no rating for this phase, so their establishment
+    // weight is X (score 5). Maturation and trend use the present 2041-2081 votes [0.5, 0, 0, 0.5] (score 3).
+    expect(phase.capabilities.summaries).toBe(true)
+    expect(phase.summaries.find((r) => r.species === 'Pine')?.summary).toMatchObject({
+      establishment: 4,
+      establishmentScore: 5,
+      maturation: 3,
+      improve: 50,
+      decline: 50,
+    })
   })
   it('applies encoded novelty cutoff and keeps pre-display summaries separate', () => {
     const result = assessCurrentSite(parsed(), { siteId: 1, series: 'A/01', noveltyCutoff: 5 })

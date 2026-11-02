@@ -127,29 +127,48 @@ function complete(v: Votes | null | undefined): v is Votes {
 /** Port of feasibility.R's summary stage for complete current-period votes.
  * Does not perform BGC prediction, edatopic overlap, novelty or model reweighting.
  * Missing/rounded historical votes are not silently repaired or period-remapped.
+ *
+ * assessedPeriods:
+ * - omitted (imported reports): any missing period returns null, because an export may omit it.
+ * - provided (browser-computed votes): in a period that was assessed but gave the species no rating there is no
+ *   vote row, as in feasibility.R. Establishment's X2 residual then counts that period's weight as X, while
+ *   maturation (weighted.mean) and improve/decline (mean) use only the periods that exist. A period missing from
+ *   the set (its input data were unavailable) still withholds the summary rather than being treated as X.
  */
 export function summarizeVotes(
   row: SpeciesReport,
   establishment = DEFAULT_ESTABLISHMENT,
   maturation = DEFAULT_MATURATION,
   policy = SHINY_SUMMARY_POLICIES[0],
+  assessedPeriods?: ReadonlySet<string>,
 ) {
   const ew = normalize(establishment, policy.establishment.periods.length),
     mw = normalize(maturation, policy.maturation.periods.length)
-  const ep = policy.establishment.periods.map((p) => row.votes[p]),
-    mp = policy.maturation.periods.map((p) => row.votes[p])
-  if (!ep.every(complete) || !mp.every(complete) || row.current == null) return null
+  const ep = policy.establishment.periods.map((p) => row.votes[p] ?? null),
+    mp = policy.maturation.periods.map((p) => row.votes[p] ?? null)
+  if (row.current == null) return null
+  const usable = (v: Votes | null, period: string) => (v === null ? !!assessedPeriods?.has(period) : complete(v))
+  if (
+    !ep.every((v, i) => usable(v, policy.establishment.periods[i])) ||
+    !mp.every((v, i) => usable(v, policy.maturation.periods[i]))
+  )
+    return null
   if ([...policy.establishment.periods, ...policy.maturation.periods].some((p) => (row.novelty[p] ?? 0) > 0))
     return null
-  const weighted = [0, 1, 2, 3].map((c) => ep.reduce((sum, v, i) => sum + v[c] * ew[i], 0)) as Votes
+  const maturing = mp.flatMap((v, i) => (v ? [{ v, w: mw[i] }] : []))
+  if (!maturing.length) return null
+  const weighted = [0, 1, 2, 3].map((c) => ep.reduce((sum, v, i) => sum + (v ? v[c] * ew[i] : 0), 0)) as Votes
   const residual = 1 - weighted.reduce((a, b) => a + b, 0)
   weighted[3] += residual // feasibility.R's X2 correction, before establishment scoring.
   const est = voteScore(weighted)
-  const mat = mp.reduce((sum, v, i) => sum + voteScore(v) * mw[i], 0)
+  // R's weighted.mean is NaN when every present period has zero weight; report no summary then.
+  const maturingWeight = maturing.reduce((sum, { w }) => sum + w, 0)
+  if (!(maturingWeight > 0)) return null
+  const mat = maturing.reduce((sum, { v, w }) => sum + voteScore(v) * w, 0) / maturingWeight
   const current = Math.min(row.current, 4),
     cut = current === 4 ? 3 : current
-  const improve = mp.reduce((sum, v) => sum + v.slice(0, cut).reduce((a, b) => a + b, 0), 0) / mp.length
-  const decline = mp.reduce((sum, v) => sum + v.slice(cut).reduce((a, b) => a + b, 0), 0) / mp.length
+  const improve = maturing.reduce((sum, { v }) => sum + v.slice(0, cut).reduce((a, b) => a + b, 0), 0) / maturing.length
+  const decline = maturing.reduce((sum, { v }) => sum + v.slice(cut).reduce((a, b) => a + b, 0), 0) / maturing.length
   return {
     establishment: Math.min(4, rRound(est)),
     maturation: Math.min(4, rRound(mat)),

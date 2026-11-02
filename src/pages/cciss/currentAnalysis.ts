@@ -637,6 +637,8 @@ export function assessCurrentSite(bundle: CurrentBundle, settings: CurrentSettin
   const conditionalSpecies = new Map<string, SpeciesReport>()
   const allPeriods = [...new Set(bgcProbabilities.map((r) => r.period))]
   const novelByPeriod = new Map<string, number>()
+  // Periods with usable predictions. A species without a rating in one of these has no vote row, as in ccissr.
+  const assessedPeriods = new Set<string>()
   for (const period of allPeriods) {
     const periodBgcs = bgcProbabilities.filter((r) => r.period === period)
     novelByPeriod.set(period, periodBgcs.find((r) => r.bgc === 'novel')?.probability ?? 0)
@@ -646,6 +648,7 @@ export function assessCurrentSite(bundle: CurrentBundle, settings: CurrentSettin
       warnings.push(`No compatible ecological overlaps for period ${period}; no species votes are invented.`)
       continue
     }
+    assessedPeriods.add(period)
     const votes = new Map<string, Votes>()
     for (const prediction of usable) {
       for (const overlap of overlaps(selected, prediction.bgc, true))
@@ -686,7 +689,13 @@ export function assessCurrentSite(bundle: CurrentBundle, settings: CurrentSettin
   }
   result.capabilities.siteSeries = result.overlap.length > 0
   for (const row of [...conditionalSpecies.values()].sort((a, b) => a.species.localeCompare(b.species))) {
-    const summary = summarizeVotes(row, settings.establishmentWeights, settings.maturationWeights)
+    const summary = summarizeVotes(
+      row,
+      settings.establishmentWeights,
+      settings.maturationWeights,
+      undefined,
+      assessedPeriods,
+    )
     result.summaries.push({ species: row.species, summary })
     result.species.push({
       ...row,
