@@ -94,6 +94,8 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileSubmenu, setMobileSubmenu] = useState<'pgdata' | 'misc' | null>(null)
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
+  // Once the toolbar has been hidden (under a dialog, say), it fades back in rather than popping.
+  const [mobileToolbarReturns, setMobileToolbarReturns] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const primaryNavRef = useRef<HTMLElement>(null)
@@ -208,7 +210,10 @@ export function Navbar() {
     const handleToolbarVisibility = (event: Event) => {
       const hidden = event instanceof CustomEvent && event.detail?.hidden === true
       setMobileToolbarHidden(hidden)
-      if (hidden) closeMobileMenu()
+      if (hidden) {
+        setMobileToolbarReturns(true)
+        closeMobileMenu()
+      }
     }
 
     window.addEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
@@ -331,6 +336,7 @@ export function Navbar() {
         className={cn(
           'pointer-events-none flex h-[calc(env(safe-area-inset-top)+3.5rem)] items-center justify-between gap-2 px-[calc(env(safe-area-inset-left)+0.75rem)] pb-1 pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.25rem)] md:pointer-events-auto md:h-full md:px-4 md:py-0',
           mobileToolbarHidden && !isHomePage && 'hidden md:flex',
+          mobileToolbarReturns && 'pgmaps-mobile-toolbar-return',
         )}
         data-map-mobile-toolbar="true"
       >
