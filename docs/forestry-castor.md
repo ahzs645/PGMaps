@@ -27,10 +27,13 @@ define what has been compared independently with the original SQL.
    to compare another scenario, then export the report or a recoverable session.
 
 The browser saves the most recent valid inputs/settings in a dedicated IndexedDB
-store. A storage failure is visible. A downloaded session contains inputs,
-settings and any completed result. Import restores the inputs/settings and
-requires a fresh calculation; imported result JSON is not treated as a verified
-current run. An older model version is recorded in provenance when importing it.
+store. A storage failure is visible. A downloaded session contains the inputs
+and settings, written compactly; results are exported separately as
+`result.json` in the report bundle, so the session size does not grow with the
+number of periods. Import restores the inputs/settings and requires a fresh
+calculation; a result embedded by an older export is ignored rather than treated
+as a verified current run. An older model version is recorded in provenance when
+importing it.
 
 ## Implemented workflows
 

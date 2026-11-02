@@ -11,7 +11,7 @@ import {
 import { CASTOR_MODEL_VERSION } from './types'
 
 describe('Castor scenario and session recovery', () => {
-  it('round-trips the exact inputs and overridden settings, retaining outputs only in the file', () => {
+  it('round-trips the exact inputs and overridden settings without writing outputs', () => {
     const project = createExampleProject()
     project.provenance.notes.push('سيناريو توضيحي — reviewed locally')
     const config = castorConfig(project, {
@@ -24,16 +24,18 @@ describe('Castor scenario and session recovery', () => {
       uncertainty: { enabled: true, replicates: 25, coefficientOfVariation: 0.2, seed: 671 },
     })
     const result = runCastor(project, config)
-    const saved = serializeCastorSession(project, config, result)
+    const saved = serializeCastorSession(project, config)
     const serialized = JSON.parse(saved)
     expect(serialized.schema).toBe('pgmaps-castor-session-v1')
     expect(serialized.modelVersion).toBe(CASTOR_MODEL_VERSION)
-    expect(serialized.result.snapshots).toEqual(result.snapshots)
+    // The result is never restored, so it is not written: its size grew with periods past the import limit.
+    expect(serialized).not.toHaveProperty('result')
+    expect(saved).not.toContain('\n')
     const restored = parseCastorSession(saved)
     expect(restored.project).toEqual(JSON.parse(JSON.stringify(project)))
     expect(restored.config).toEqual(config)
     expect(restored.result).toBeUndefined()
-    expect(restored.resultOmitted).toBe(true)
+    expect(restored.resultOmitted).toBe(false)
     const rerun = runCastor(restored.project, restored.config)
     expect(rerun.summary).toEqual(result.summary)
     expect(rerun.snapshots).toEqual(result.snapshots)

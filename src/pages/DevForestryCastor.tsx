@@ -226,7 +226,7 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
   const saveSession = () => {
     if (!project) return
     try {
-      downloadText(serializeCastorSession(project, config, result), 'castor-session.json', 'application/json')
+      downloadText(serializeCastorSession(project, config), 'castor-session.json', 'application/json')
       setExportError('')
     } catch (cause: unknown) {
       setExportError(cause instanceof Error ? cause.message : 'The session could not be saved.')

@@ -28,6 +28,8 @@ import {
   castorReportCsv,
   castorSpatialGeoJson,
   type CastorMetric,
+  castorToLonLat,
+  csrsUtmZone,
 } from './outputs'
 import { CASTOR_MODEL_VERSION, type CastorProject, type CastorResult } from './types'
 import { runCastor } from './engine'
@@ -296,6 +298,18 @@ describe('Castor original SQLite and table import', () => {
     const project = createExampleProject()
     project.pixels[0].geometry = { type: 'Point', coordinates: [181, 53] }
     expect(() => parseCastorProject(JSON.stringify(project))).toThrow(/geometry|longitude|WGS84|coordinates/i)
+  })
+})
+
+describe('Castor map projection', () => {
+  it('maps NAD83(CSRS) UTM codes to their real zones', () => {
+    expect([2955, 2957, 3154, 3157, 3158, 3160].map(csrsUtmZone)).toEqual([11, 13, 7, 10, 14, 16])
+    expect(csrsUtmZone(3161)).toBeNull()
+    // Central meridians: zone 14 is -99°, zone 11 is -117° (3158 was previously placed at -117°).
+    const at = (crs: string) => castorToLonLat({ crs } as unknown as CastorProject)!([500000, 5500000])[0]
+    expect(at('EPSG:3158')).toBeCloseTo(-99, 3)
+    expect(at('EPSG:2955')).toBeCloseTo(-117, 3)
+    expect(at('EPSG:3157')).toBeCloseTo(-123, 3)
   })
 })
 

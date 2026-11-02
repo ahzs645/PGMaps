@@ -58,6 +58,13 @@ async function download(page: Page, button: string) {
   return { name: file.suggestedFilename(), bytes: await readFile((await file.path())!) }
 }
 
+/** The session file holds inputs and settings only; the run's result is exported as result.json in the bundle. */
+async function bundledResult(page: Page) {
+  const archive = await download(page, 'Download complete report')
+  const zip = await JSZip.loadAsync(archive.bytes)
+  return { archive, zip, result: JSON.parse(await zip.file('result.json')!.async('string')) }
+}
+
 test('runs the compiled forest worker and exports every report and reproducible input', async ({ page }, info) => {
   const requests = watchRuntimeRequests(page)
   const errors = await openCastor(page)
@@ -71,14 +78,7 @@ test('runs the compiled forest worker and exports every report and reproducible 
   expect(session.project.pixels).toHaveLength(96)
   expect(session.project.provenance.synthetic).toBe(true)
   expect(session.config.periods).toBe(4)
-  expect(session.result.summary.harvestedM3).toBeGreaterThan(0)
-  expect(session.result.summary.harvestedM3).toBeLessThanOrEqual(session.result.summary.targetM3)
-  const pixelTotal = session.result.harvestPixelList.reduce(
-    (sum: number, row: { volumeM3: number }) => sum + row.volumeM3,
-    0,
-  )
-  expect(pixelTotal).toBeCloseTo(session.result.summary.harvestedM3, 7)
-  expect(session.result.snapshots).toHaveLength(5)
+  expect(session).not.toHaveProperty('result')
   expect(workers.some((url) => url.includes('castor.worker'))).toBe(true)
   const calculationWorker = new URL(workers.find((url) => url.includes('castor.worker'))!)
   expect(calculationWorker.origin).toBe(new URL(page.url()).origin)
@@ -86,9 +86,13 @@ test('runs the compiled forest worker and exports every report and reproducible 
   if (process.env.PGMAPS_E2E_PRODUCTION === '1')
     expect(workers.some((url) => /\/assets\/castor\.worker-[\w-]+\.js/.test(url))).toBe(true)
 
-  const archive = await download(page, 'Download complete report')
+  const { archive, zip, result } = await bundledResult(page)
   expect(archive.name).toBe('castor-report-bundle.zip')
-  const zip = await JSZip.loadAsync(archive.bytes)
+  expect(result.summary.harvestedM3).toBeGreaterThan(0)
+  expect(result.summary.harvestedM3).toBeLessThanOrEqual(result.summary.targetM3)
+  const pixelTotal = result.harvestPixelList.reduce((sum: number, row: { volumeM3: number }) => sum + row.volumeM3, 0)
+  expect(pixelTotal).toBeCloseTo(result.summary.harvestedM3, 7)
+  expect(result.snapshots).toHaveLength(5)
   for (const name of ['harvest', 'stock', 'constraints', 'pixels', 'blocks', 'landings', 'salvage', 'uncertainty']) {
     expect(zip.file(`reports/${name}.csv`)).not.toBeNull()
     expect((await zip.file(`reports/${name}.csv`)!.async('string')).trim().length).toBeGreaterThan(0)
@@ -156,7 +160,7 @@ test('renders actual spatial features and downloads georeferenced GeoTIFF and Ge
   await expect(page.getByRole('tab', { name: 'Scenario', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('button', { name: 'Download complete report', exact: true })).toBeDisabled()
   const restored = JSON.parse((await download(page, 'Save session JSON')).bytes.toString())
-  expect(restored.result).toBeNull()
+  expect(restored).not.toHaveProperty('result')
   for (const pixel of restored.project.pixels)
     expect(pixel.zones['constraint-history']).toBe(String((bands[0] as Float64Array)[pixel.gridIndex]))
   expect(errors).toEqual([])
@@ -221,10 +225,11 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
   expect(session.project.pixels).toHaveLength(10000)
   expect(session.project.yieldCurves.length).toBeGreaterThan(0)
   expect(session.project.harvestFlows).toEqual([])
-  expect(session.result.summary.initialStockM3).toBeGreaterThan(0)
-  expect(session.result.harvestReport).toEqual([])
-  expect(session.result.summary.harvestedM3).toBe(0)
-  expect(session.result.growingStockReport.length).toBeGreaterThan(0)
+  const { result: firstRun } = await bundledResult(page)
+  expect(firstRun.summary.initialStockM3).toBeGreaterThan(0)
+  expect(firstRun.harvestReport).toEqual([])
+  expect(firstRun.summary.harvestedM3).toBe(0)
+  expect(firstRun.growingStockReport.length).toBeGreaterThan(0)
   // The original database contains no demand table. Supply an explicit scenario
   // through the real editor instead of silently assigning a source default.
   await page.getByRole('tab', { name: 'Scenario', exact: true }).click()
@@ -236,8 +241,9 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
   const harvestSession = JSON.parse((await download(page, 'Save session JSON')).bytes.toString())
   expect(harvestSession.project.harvestFlows.length).toBeGreaterThan(0)
   expect(harvestSession.project.harvestFlows.every((flow: { targetM3: number }) => flow.targetM3 === 220000)).toBe(true)
-  expect(harvestSession.result.harvestReport.length).toBeGreaterThan(0)
-  expect(harvestSession.result.summary.harvestedM3).toBeGreaterThan(0)
+  const { result: harvestRun } = await bundledResult(page)
+  expect(harvestRun.harvestReport.length).toBeGreaterThan(0)
+  expect(harvestRun.summary.harvestedM3).toBeGreaterThan(0)
   expect(requests.filter((url) => new URL(url).origin !== new URL(page.url()).origin)).toEqual([])
   await info.attach('upstream-production-loading.json', {
     body: JSON.stringify(
@@ -247,9 +253,9 @@ test('loads the real same-origin SQLite example and runs it without mocked data 
         sha256: expectedHash,
         fromServiceWorker: response.fromServiceWorker(),
         pixelCount: session.project.pixels.length,
-        growthOnlySummary: session.result.summary,
+        growthOnlySummary: firstRun.summary,
         explicitTargetM3PerPeriod: 220000,
-        harvestSummary: harvestSession.result.summary,
+        harvestSummary: harvestRun.summary,
       },
       null,
       2,

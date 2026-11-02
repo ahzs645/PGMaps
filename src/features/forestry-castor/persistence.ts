@@ -11,17 +11,12 @@ export interface CastorRestoredSession {
   resultOmitted?: boolean
 }
 
-export function serializeCastorSession(
-  project: CastorProject,
-  config: CastorConfig,
-  result: CastorResult | null,
-): string {
+/** Inputs and settings only, written compactly. Import always recalculates, so a saved result was never
+ * restored, and it made moderately long runs (about 40 periods of the bundled sample) exceed the import limit.
+ * Results are exported separately as result.json in the report bundle. */
+export function serializeCastorSession(project: CastorProject, config: CastorConfig): string {
   requireCastorProject(project, config)
-  return JSON.stringify(
-    { schema: 'pgmaps-castor-session-v1', modelVersion: CASTOR_MODEL_VERSION, project, config, result },
-    null,
-    2,
-  )
+  return JSON.stringify({ schema: 'pgmaps-castor-session-v1', modelVersion: CASTOR_MODEL_VERSION, project, config })
 }
 
 /** Saved outputs are retained in the file, but recalculated after import. */

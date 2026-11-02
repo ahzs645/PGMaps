@@ -118,6 +118,13 @@ export function castorMetricValues(result: CastorResult, period: number, metric:
 
 const BC_ALBERS =
   '+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs'
+/** NAD83(CSRS) / UTM zone N codes are not contiguous: 2955–2957 are 11–13N, 3154–3157 are 7–10N, 3158–3160 are 14–16N. */
+export function csrsUtmZone(epsg: number): number | null {
+  if (epsg >= 2955 && epsg <= 2957) return epsg - 2944
+  if (epsg >= 3154 && epsg <= 3157) return epsg - 3147
+  if (epsg >= 3158 && epsg <= 3160) return epsg - 3144
+  return null
+}
 export function castorToLonLat(project: CastorProject): ((coordinate: [number, number]) => [number, number]) | null {
   const crs = project.grid?.crs ?? project.crs
   if (!crs) return null
@@ -128,7 +135,8 @@ export function castorToLonLat(project: CastorProject): ((coordinate: [number, n
   else if (epsg >= 32601 && epsg <= 32660) definition = `+proj=utm +zone=${epsg - 32600} +datum=WGS84 +units=m +no_defs`
   else if (epsg >= 32701 && epsg <= 32760)
     definition = `+proj=utm +zone=${epsg - 32700} +south +datum=WGS84 +units=m +no_defs`
-  else if (epsg >= 3154 && epsg <= 3160) definition = `+proj=utm +zone=${epsg - 3147} +ellps=GRS80 +units=m +no_defs`
+  else if (csrsUtmZone(epsg) !== null)
+    definition = `+proj=utm +zone=${csrsUtmZone(epsg)} +ellps=GRS80 +units=m +no_defs`
   let converter: proj4.Converter
   try {
     const projection = new proj4.Proj(definition) as unknown as { units?: string; to_meter?: number; projName?: string }
@@ -310,7 +318,7 @@ export function castorHtmlReport(project: CastorProject, result: CastorResult): 
 export async function castorReportBundle(project: CastorProject, result: CastorResult): Promise<Blob> {
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
-  zip.file('session.json', serializeCastorSession(project, result.config, result))
+  zip.file('session.json', serializeCastorSession(project, result.config))
   zip.file('project.json', JSON.stringify(project, null, 2))
   zip.file('result.json', JSON.stringify(result))
   zip.file('report.html', castorHtmlReport(project, result))
