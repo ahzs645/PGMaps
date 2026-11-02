@@ -1,13 +1,8 @@
 name: Verify terrain viewshed
 
 on:
-  pull_request:
-    paths:
-      - 'src/pages/DevViewshed.tsx'
-      - 'src/pages/dev-viewshed/**'
-      - 'src/pages/dev-forestry/**'
-      - 'tests/e2e/viewshed.spec.ts'
-      - '.github/workflows/viewshed.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:

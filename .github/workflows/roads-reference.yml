@@ -1,21 +1,8 @@
 name: Compare road planner with native R roads
 
 on:
-  pull_request:
-    paths:
-      - 'src/pages/dev-forestry-roads/roads/**'
-      - 'scripts/roads-reference/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/roads-reference.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'src/pages/dev-forestry-roads/roads/**'
-      - 'scripts/roads-reference/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/roads-reference.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:

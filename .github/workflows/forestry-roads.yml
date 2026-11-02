@@ -1,16 +1,8 @@
 name: Verify forestry road design
 
 on:
-  pull_request:
-    paths:
-      - 'src/App.tsx'
-      - 'src/pages/DevForestry.tsx'
-      - 'src/pages/DevForestryRoads.tsx'
-      - 'src/pages/dev-forestry-roads/**'
-      - 'src/pages/dev-lidar/sourceGrids.ts'
-      - 'src/pages/dev-viewshed/analysis.ts'
-      - 'tests/e2e/forestry-road-*.spec.ts'
-      - '.github/workflows/forestry-roads.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:

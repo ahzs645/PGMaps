@@ -1,29 +1,8 @@
 name: Verify Nechako workbench
 
 on:
-  pull_request:
-    paths:
-      - 'src/maps/nechako/**'
-      - 'src/lib/nechakoPortal*'
-      - 'src/lib/nechakoConnection*'
-      - 'src/lib/mapImageCapture*'
-      - 'src/pages/DevNechako.tsx'
-      - 'src/pages/DevNechakoPortal.tsx'
-      - 'src/App.tsx'
-      - 'src/maps/project-explorer/ProjectMapExplorer.tsx'
-      - 'src/maps/project-explorer/ProjectExplorerSidebar.tsx'
-      - 'src/components/projects/ProjectBackButton.tsx'
-      - 'src/types/nechako-turf.d.ts'
-      - 'scripts/nechako-server/**'
-      - 'scripts/nechako-worker/**'
-      - 'public/data/nechako-showcase/**'
-      - 'scripts/sync-bcdatamapper-data.mjs'
-      - 'scripts/build-echoscreen-project-data.mjs'
-      - 'public/data/projects/echoscreen-climate-health.json'
-      - 'tests/e2e/nechako*.spec.ts'
-      - 'scripts/write-spa-fallback.mjs'
-      - 'vite.config.ts'
-      - '.github/workflows/nechako.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:

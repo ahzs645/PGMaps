@@ -1,42 +1,8 @@
 name: Verify forest drought explorer
 
 on:
-  pull_request:
-    paths:
-      - 'src/App.tsx'
-      - 'src/pages/DevForestry.tsx'
-      - 'src/pages/DevLibrary.tsx'
-      - 'src/pages/DevForestDrought.tsx'
-      - 'src/pages/forest-drought/**'
-      - 'src/features/forest-drought/**'
-      - 'src/components/ui/**'
-      - 'src/lib/download.ts'
-      - 'src/main.tsx'
-      - 'src/index.css'
-      - 'packages/geo-toolkit'
-      - 'vendor/json-url'
-      - 'public/data/forest-drought/**'
-      - 'public/sw.js'
-      - 'scripts/forest-drought/**'
-      - 'scripts/sync-bcdatamapper-data.mjs'
-      - 'tests/e2e/forest-drought.spec.ts'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'playwright.config.ts'
-      - 'vite.config.ts'
-      - 'tailwind.config.*'
-      - '.github/workflows/forest-drought.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'src/pages/DevForestDrought.tsx'
-      - 'src/pages/forest-drought/**'
-      - 'src/features/forest-drought/**'
-      - 'public/data/forest-drought/**'
-      - 'public/sw.js'
-      - 'src/main.tsx'
-      - 'tests/e2e/forest-drought.spec.ts'
-      - '.github/workflows/forest-drought.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:

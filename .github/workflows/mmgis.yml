@@ -1,21 +1,8 @@
 name: Verify mission workbench
 
 on:
-  pull_request:
-    paths:
-      - 'src/pages/DevMmgis.tsx'
-      - 'src/pages/dev-mmgis/**'
-      - 'src/pages/dev-data/**'
-      - 'src/lib/geoFileImport*'
-      - 'src/features/terrain-viewshed/**'
-      - 'src/pages/dev-forestry/**'
-      - 'packages/geo-toolkit'
-      - 'tests/e2e/mmgis*.ts'
-      - 'playwright.mmgis.config.ts'
-      - 'tests/fixtures/mmgis-overlap.geojson'
-      - 'scripts/mmgis-reference-observation.mjs'
-      - 'docs/mmgis-*.md'
-      - '.github/workflows/mmgis.yml'
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
 
 permissions:
