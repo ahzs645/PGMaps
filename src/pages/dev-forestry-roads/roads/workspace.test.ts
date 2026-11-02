@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoProject, demoTerrain, localMetricGrid } from '../terrain'
+import { cellCentre, cellIndexAt } from '../surfaceGrid'
 import { parseProject, serializeProject } from '../project'
 import type { ContextFeature } from '../types'
 import { normalizeRoadsOptions } from './graph'
 import { prepExData } from './examples'
 import { projectRoads } from './projectRoads'
-import { runNetworkStages } from './stages'
+import { runNetworkStages, summarizeRoadsResult } from './stages'
 import { createNetworkPlanning, networkSeedReason, parseNetworkPlanning, parseNetworkScenario } from './planning'
 import {
   networkOverlay,
@@ -233,5 +234,46 @@ describe('network workspace contracts', () => {
     expect(first.length).toBeGreaterThan(0)
     expect(await generateNetworkTargets(project, demoTerrain, planning)).toEqual(first)
     expect(first.every((t) => Number.isFinite(demoTerrain.elevationAt(...t.coordinate)))).toBe(true)
+    // Density sampling places several landings in one block; each needs a distinguishable name.
+    const dense = await generateNetworkTargets(project, demoTerrain, {
+      ...planning,
+      landingMethod: 'systematic',
+      landingDensity: 10,
+    })
+    expect(dense.length).toBeGreaterThan(1)
+    expect(new Set(dense.map((t) => t.name)).size).toBe(dense.length)
+    expect(dense.every((t) => t.name.startsWith('Test harvest · '))).toBe(true)
+  })
+
+  it('stations an adopted landing-to-road branch from its road junction', async () => {
+    const { project, planning } = projectFixture()
+    const prepared = await prepareNetworkScenario(project, demoTerrain, planning)
+    const result = runNetworkStages(prepared.input, prepared.stages)
+    const path = result.paths[0]
+    // LCP/ILCP paths run from the landing to the road.
+    expect(path.cells[0]).toBe(prepared.input.landings[0].cell)
+    const adopted = networkPathAlignment(prepared, path, project.alignments[0].template)
+    const landing = prepared.toLonLat!(cellCentre(prepared.input.grid, prepared.input.landings[0].cell))
+    expect(adopted.points.at(-1)!.coordinate).toEqual(landing)
+    expect(adopted.points[0].coordinate).not.toEqual(landing)
+    const seeds = new Set(prepared.input.roadCells)
+    const startCell = cellIndexAt(prepared.input.grid, ...projectionOf(prepared, adopted.points[0].coordinate))
+    expect(seeds.has(startCell)).toBe(true)
+  })
+
+  it('returns worker results without the routing graph', async () => {
+    const { project, planning } = projectFixture()
+    const prepared = await prepareNetworkScenario(project, demoTerrain, planning)
+    const full = runNetworkStages(prepared.input, prepared.stages)
+    const summary = summarizeRoadsResult(full)
+    expect('graph' in summary.simulation).toBe(false)
+    expect(summary.simulation.roadCells).toEqual(full.simulation.roadCells)
+    expect(summary.paths).toEqual(full.paths)
+    expect(JSON.parse(serializeNetworkScenario(prepared, [summary])).results[0].newLengthM).toBe(full.newLengthM)
   })
 })
+
+function projectionOf(prepared: Awaited<ReturnType<typeof prepareNetworkScenario>>, coordinate: [number, number]) {
+  const [x, y] = localMetricGrid(prepared.planning.targets[0].coordinate).toGrid(coordinate)
+  return [x, y] as const
+}

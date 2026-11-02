@@ -127,3 +127,11 @@ export interface RoadsResult {
   warnings: string[]
   simulation: RoadsSimulation
 }
+
+/**
+ * A result without its routing graph (~50 MB at the cell limit). Workers return this form so
+ * the main thread does not retain one graph per compared method; continue a simulation in the worker.
+ */
+export type RoadsResultSummary = Omit<RoadsResult, 'simulation'> & {
+  simulation: Omit<RoadsSimulation, 'graph'>
+}

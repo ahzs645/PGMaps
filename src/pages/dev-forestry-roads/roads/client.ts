@@ -1,5 +1,5 @@
 import type { NetworkWorkerRequest, NetworkWorkerResponse } from './network.worker'
-import type { RoadsInput, RoadsLanding, RoadsResult } from './types'
+import type { RoadsInput, RoadsLanding, RoadsResultSummary } from './types'
 
 /** One disposable worker per run. Cancellation terminates computation immediately. Inputs remain reusable. */
 export function runProjection(
@@ -13,7 +13,7 @@ export function runProjection(
     onProgress?: (message: string) => void
     stages?: RoadsLanding[][]
   } = {},
-): Promise<RoadsResult> {
+): Promise<RoadsResultSummary> {
   signal?.throwIfAborted()
   return new Promise((resolve, reject) => {
     let worker: Worker
@@ -24,7 +24,7 @@ export function runProjection(
       return
     }
     let settled = false
-    const finish = (error?: unknown, result?: RoadsResult) => {
+    const finish = (error?: unknown, result?: RoadsResultSummary) => {
       if (settled) return
       settled = true
       worker.terminate()

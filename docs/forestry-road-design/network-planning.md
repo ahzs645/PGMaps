@@ -97,6 +97,8 @@ influence route selection. Individual path objectives record the solver's cost
 at that stage; adding those path scores is not the unique construction total.
 
 When adopting a path, original seed-road-only prefixes/suffixes are removed.
+A landing-to-road branch is reversed so stationing starts at its road junction
+and ends at the landing.
 A path containing an existing-road run between two proposed branches must be
 split before construction quantities are assigned. Collinear-only simplification
 preserves the exact raster route; arbitrary smoothing could cut across an

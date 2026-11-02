@@ -1,7 +1,21 @@
 import { projectRoads, extendRoads } from './projectRoads'
 import { roadEdgeBetween } from './graph'
 import { MAX_NETWORK_STAGES, MAX_NETWORK_TARGETS } from './planning'
-import type { RoadsCallbacks, RoadsInput, RoadsLanding, RoadsResult } from './types'
+import type {
+  RoadsCallbacks,
+  RoadsInput,
+  RoadsLanding,
+  RoadsResult,
+  RoadsResultSummary,
+  RoadsSimulation,
+} from './types'
+
+/** Drop the routing graph; only the worker that built it can continue the simulation. */
+export function summarizeRoadsResult(result: RoadsResult): RoadsResultSummary {
+  const simulation: Partial<RoadsSimulation> = { ...result.simulation }
+  delete simulation.graph
+  return { ...result, simulation: simulation as RoadsResultSummary['simulation'] }
+}
 
 /** Stage transitions share the original graph and preserve each phase's actual path and status. */
 export function runNetworkStages(

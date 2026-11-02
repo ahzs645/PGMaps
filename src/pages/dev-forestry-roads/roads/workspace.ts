@@ -4,7 +4,7 @@ import { localMetricGrid } from '../terrain'
 import { cellCentre, cellIndexAt } from '../surfaceGrid'
 import { prepExData } from './examples'
 import { getDistFromSource, getLandingsFromTarget, rasterizeLine } from './utilities'
-import type { RoadsGrid, RoadsInput, RoadsLanding, RoadsPath, RoadsResult } from './types'
+import type { RoadsGrid, RoadsInput, RoadsLanding, RoadsPath, RoadsResultSummary } from './types'
 import {
   MAX_NETWORK_CELLS,
   MAX_NETWORK_TARGETS,
@@ -238,6 +238,8 @@ export async function generateNetworkTargets(
     seed: planning.randomSeed,
   })
   const result: NetworkTarget[] = []
+  const perBlock = new Map<string, number>()
+  for (const point of generated) perBlock.set(point.targetId, (perBlock.get(point.targetId) ?? 0) + 1)
   let missingTerrain = 0,
     blocked = 0
   for (const point of generated) {
@@ -260,7 +262,11 @@ export async function generateNetworkTargets(
     }
     result.push({
       id: `landing-${result.length + 1}`,
-      name: point.name ?? `Landing ${result.length + 1}`,
+      // Several density-sampled landings in one block would otherwise share the block's name.
+      name:
+        point.name && (perBlock.get(point.targetId) ?? 0) > 1
+          ? `${point.name} · ${point.id.slice(point.targetId.length + 1)}`
+          : (point.name ?? `Landing ${result.length + 1}`),
       coordinate,
       stage: 1,
     })
@@ -278,7 +284,7 @@ export async function generateNetworkTargets(
 
 export function networkOverlay(
   prepared: PreparedNetworkScenario,
-  result: RoadsResult,
+  result: RoadsResultSummary,
   selectedPathId?: string,
 ): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = []
@@ -329,6 +335,10 @@ export function networkPathAlignment(
   while (end > start && seeds.has(path.cells[end]) && seeds.has(path.cells[end - 1])) end--
   const branch = path.cells.slice(start, end + 1)
   if (branch.length < 2) throw Error('This path only reuses source roads; it has no new branch to design.')
+  // LCP/ILCP route from the landing to the road. Station a branch from its road junction outward,
+  // so 0+000 is the junction and the landing is at the far end, as with the designer's own roads.
+  const landingCells = new Set(prepared.input.landings.map((landing) => landing.cell))
+  if (landingCells.has(branch[0]) && !landingCells.has(branch[branch.length - 1])) branch.reverse()
   if (branch.some((cell, i) => i > 0 && seeds.has(cell) && seeds.has(branch[i - 1])))
     throw Error(
       'This path contains an existing-road section between new branches. Split those branches before designing their construction quantities.',
@@ -368,7 +378,7 @@ function csv(value: unknown): string {
   if (/^[=+\-@]/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
-export function networkResultsCsv(result: RoadsResult): string {
+export function networkResultsCsv(result: RoadsResultSummary): string {
   const rows: unknown[][] = [
     ['record', 'id', 'status', 'length_m', 'new_length_m', 'reused_length_m', 'relative_objective', 'target_ids'],
     [
@@ -397,7 +407,7 @@ export function networkResultsCsv(result: RoadsResult): string {
     rows.push(['target', target.id, target.status, '', '', '', '', target.pathIds.join(';')])
   return rows.map((row) => row.map(csv).join(',')).join('\r\n') + '\r\n'
 }
-export function networkGridCsv(prepared: PreparedNetworkScenario, result?: RoadsResult): string {
+export function networkGridCsv(prepared: PreparedNetworkScenario, result?: RoadsResultSummary): string {
   const grid = prepared.input.grid,
     seeds = new Set(prepared.input.roadCells),
     proposed = new Set(result?.paths.flatMap((p) => p.cells) ?? [])
@@ -425,7 +435,7 @@ export function networkDistanceCsv(prepared: PreparedNetworkScenario): string {
     rows.push([i, ...cellCentre(distance, i), distance.values[i]].map(csv).join(','))
   return rows.join('\r\n') + '\r\n'
 }
-export function serializeNetworkScenario(prepared: PreparedNetworkScenario, results: RoadsResult[]): string {
+export function serializeNetworkScenario(prepared: PreparedNetworkScenario, results: RoadsResultSummary[]): string {
   const { input } = prepared
   const array = (v: Float64Array) => Array.from(v, (n) => (Number.isFinite(n) ? n : null))
   return (

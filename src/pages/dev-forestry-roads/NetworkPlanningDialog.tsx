@@ -26,7 +26,7 @@ import {
   type NetworkPlanning,
   type PreparedNetworkScenario,
 } from './roads/workspace'
-import type { RoadsMethod, RoadsOptions, RoadsResult } from './roads/types'
+import type { RoadsMethod, RoadsOptions, RoadsResultSummary } from './roads/types'
 import type { Alignment, Coordinate, RoadProject, TerrainSource } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -79,7 +79,12 @@ function readScenarioText(file: File, signal: AbortSignal): Promise<string> {
       )
   })
 }
-type Review = { prepared: PreparedNetworkScenario; results: RoadsResult[]; project: RoadProject; source: TerrainSource }
+type Review = {
+  prepared: PreparedNetworkScenario
+  results: RoadsResultSummary[]
+  project: RoadProject
+  source: TerrainSource
+}
 
 /** Network candidates remain separate from detailed road geometry until a branch is explicitly adopted. */
 export function NetworkPlanningDialog({
@@ -167,7 +172,7 @@ export function NetworkPlanningDialog({
         onProgress: setProgress,
       })
       const methods = compare ? NETWORK_METHODS.map((method) => method.value) : [planning.options.method]
-      const results: RoadsResult[] = []
+      const results: RoadsResultSummary[] = []
       for (const method of methods) {
         controller.signal.throwIfAborted()
         const input = { ...prepared.input, options: { ...prepared.input.options, method } }
@@ -1209,7 +1214,7 @@ export function NetworkResultPreview({
   selectedPathId,
 }: {
   prepared: PreparedNetworkScenario
-  result: RoadsResult
+  result: RoadsResultSummary
   selectedPathId?: string
 }) {
   const grid = prepared.input.grid
