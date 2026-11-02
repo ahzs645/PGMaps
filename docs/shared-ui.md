@@ -193,6 +193,28 @@ Logic for these pages lives in `src/lib/` and has no DOM access:
   give ruled columns, banded rows, a tinted `aria-selected` row and two-line
   quantity / unit headers. Format numbers with fixed decimals so columns align.
 
+## Mobile sheets
+
+On phones every non-modal sheet over the map belongs to one stack: the layout's
+controls sheet plus each `MobileFeatureCard` (feature cards, the feature table,
+CANUE graphs). The toolkit's [Mobile sheet stack](../packages/geo-toolkit/API.md#mobile-sheet-stack)
+guide covers how a stack looks, how to add a card and how to test one; the
+behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-stack).
+
+- New map detail on phones is a `MobileFeatureCard`, normally through
+  `ResponsiveFeatureDetail`. Do not add a separate fixed bottom sheet: it sits
+  outside the stack and covers, or hides behind, the other sheets.
+- Give a card its own `stackId` when it should stack with others rather than
+  replace them (`map-feature-table` for the table, `dev-data-feature` for
+  `/dev/data` features). Cards that share an id are one sheet.
+- Pass `cardKey` for a new selection (front, compact detent) and `focusKey` to
+  bring an existing sheet forward without resetting it. `MapFeatureTablePanel`
+  passes its layer as `focusKey`, so opening another layer's table from the
+  controls brings the table forward.
+- e2e: find cards by `[data-map-feature-card-panel="true"]` and header text, check
+  `data-stack-role` (`primary`, `secondary`, `docked`), and tap a rear card's top
+  strip to swap it. See the phone tests in `tests/e2e/dev-data.spec.ts`.
+
 ## Map overlays
 
 - Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window
