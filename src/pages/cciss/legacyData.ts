@@ -1,7 +1,7 @@
 import { fromBlob } from 'geotiff'
 import { fetchBytes, fetchJson } from '@/lib/fetchJson'
 import { sampleCcissRaster } from './raster'
-import type { LegacyManifest, LegacyReference, LegacyRegion } from './legacyAnalysis'
+import { validateLegacyManifest, type LegacyManifest, type LegacyReference, type LegacyRegion } from './legacyAnalysis'
 import type { LegacyPointSample } from './legacyComparison'
 
 const BASE = '/data/cciss/legacy-analysis/'
@@ -21,8 +21,7 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
 export const loadLegacyManifest = () =>
   cached('manifest', async () => {
     const value = await fetchJson<LegacyManifest>(BASE + 'manifest.json')
-    if (value.schema !== 'cciss-legacy-analysis-v1') throw new Error('Unsupported legacy dataset')
-    return value
+    return validateLegacyManifest(value)
   })
 export const loadLegacyReference = (file: string) => cached(file, () => fetchJson<LegacyReference>(BASE + file))
 export const loadLegacyRegion = (file: string) => cached(file, () => fetchJson<LegacyRegion>(BASE + file))

@@ -80,6 +80,8 @@ test('location, six-model comparisons, regional results, references and complete
   await dialog.getByLabel('Latitude', { exact: true }).fill('10')
   await dialog.getByRole('button', { name: 'Analyse location' }).click()
   await expect(dialog.getByText('This location has no valid BGC', { exact: false })).toBeVisible()
+  // Location changes preserve valid selections and the active analysis page.
+  await dialog.getByRole('tab', { name: 'Species', exact: true }).click()
   await expect(
     dialog.getByRole('table', { name: 'Legacy species suitability' }).getByRole('row').filter({ hasText: 'Pl ·' }),
   ).toContainText('No rating')

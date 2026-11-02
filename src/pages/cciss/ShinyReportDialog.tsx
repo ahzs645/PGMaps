@@ -1,5 +1,9 @@
 import { NativeSelect } from '@/components/ui/form-field'
 import { Silvics } from './Silvics'
+import type { ComparisonSnapshot } from './comparison'
+import { shinySnapshot } from './comparisonAdapters'
+import { ComparisonCapture } from './ComparisonCapture'
+import { PublishedReferenceChecks } from './PublishedReferenceChecks'
 import { useEffect, useRef, useState } from 'react'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
@@ -8,12 +12,16 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { fetchGzipText } from '@/lib/fetchJson'
 import { downloadText } from '@/lib/download'
 import { ratingLabel } from './legacyAnalysis'
+import { openReportArchive, readReportCsv, REPORT_IMPORT_LIMITS, type ReportArchive } from './reportImport'
 import {
   DEFAULT_ESTABLISHMENT,
   DEFAULT_MATURATION,
-  ESTABLISHMENT_PERIODS,
-  MATURATION_PERIODS,
+  SHINY_SUMMARY_POLICIES,
+  createReportAnalysis,
   parseShinyReport,
+  reportAnalysisCsv,
+  reportSummaryStatus,
+  supportedSummaryPolicies,
   summarizeVotes,
   type ShinyReport,
   type Votes,
@@ -28,16 +36,29 @@ const escapeHtml = (s: unknown) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   )
 
-export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
+export function ShinyReportDialog({
+  onClose,
+  onCaptureComparison,
+  onOpenComparison,
+  comparisonCount,
+}: {
+  onClose: () => void
+  onCaptureComparison?: (snapshot: ComparisonSnapshot) => void
+  onOpenComparison?: () => void
+  comparisonCount?: number
+}) {
   const [report, setReport] = useState<ShinyReport | null>(null)
   const [source, setSource] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [place, setPlace] = useState('')
   const [species, setSpecies] = useState('')
-  const [tab, setTab] = useState<'report' | 'silvics' | 'inputs'>('report')
+  const [tab, setTab] = useState<'report' | 'silvics' | 'inputs' | 'checks'>('report')
   const [est, setEst] = useState(DEFAULT_ESTABLISHMENT)
   const [mat, setMat] = useState(DEFAULT_MATURATION)
+  const [policyId, setPolicyId] = useState(SHINY_SUMMARY_POLICIES[0].id)
+  const [archive, setArchive] = useState<ReportArchive | null>(null)
+  const [archiveEntry, setArchiveEntry] = useState('')
   const request = useRef(0)
   useEffect(
     () => () => {
@@ -45,37 +66,89 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
     },
     [],
   )
-  async function load(read: () => Promise<string>, name: string) {
+  function acceptReport(parsed: ShinyReport, name: string) {
+    const policy = supportedSummaryPolicies(parsed)[0] ?? SHINY_SUMMARY_POLICIES[0]
+    setReport(parsed)
+    setEst([...policy.establishment.weights])
+    setMat([...policy.maturation.weights])
+    setPolicyId(policy.id)
+    setSource(name)
+    setPlace(JSON.stringify([parsed.rows[0].site, parsed.rows[0].series]))
+    setSpecies(parsed.rows[0].species)
+  }
+  async function load(read: () => Promise<string>, name: string, keepArchive = false) {
     const id = ++request.current
     setLoading(true)
     setError('')
     try {
       const parsed = parseShinyReport(await read())
       if (id !== request.current) return
-      setReport(parsed)
-      setEst(DEFAULT_ESTABLISHMENT)
-      setMat(DEFAULT_MATURATION)
-      setSource(name)
-      setPlace(JSON.stringify([parsed.rows[0].site, parsed.rows[0].series]))
-      setSpecies(parsed.rows[0].species)
+      acceptReport(parsed, name)
+      if (!keepArchive) {
+        setArchive(null)
+        setArchiveEntry('')
+      }
     } catch (e) {
       if (id === request.current) setError(e instanceof Error ? e.message : String(e))
     } finally {
       if (id === request.current) setLoading(false)
     }
   }
+  async function importFile(file: File) {
+    const id = ++request.current
+    setLoading(true)
+    setError('')
+    try {
+      const isZip = /\.zip$/i.test(file.name)
+      const limit = isZip ? REPORT_IMPORT_LIMITS.zipBytes : REPORT_IMPORT_LIMITS.csvBytes
+      if (file.size > limit)
+        throw new Error(isZip ? 'Please select a ZIP smaller than 20 MB.' : 'Please select a CSV smaller than 5 MB.')
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      if (id !== request.current) return
+      if (isZip) {
+        const nextArchive = await openReportArchive(file.name, bytes)
+        if (id !== request.current) return
+        setArchive(nextArchive)
+        setArchiveEntry(nextArchive.preferred ?? '')
+        if (nextArchive.preferred) {
+          const parsed = parseShinyReport(await nextArchive.read(nextArchive.preferred))
+          if (id === request.current) acceptReport(parsed, `${file.name} / ${nextArchive.preferred}`)
+        }
+      } else {
+        const parsed = parseShinyReport(readReportCsv(bytes))
+        acceptReport(parsed, file.name)
+        setArchive(null)
+        setArchiveEntry('')
+      }
+    } catch (e) {
+      if (id === request.current) setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      if (id === request.current) setLoading(false)
+    }
+  }
+  const policies = report ? supportedSummaryPolicies(report) : []
+  const policy = policies.find((p) => p.id === policyId) ?? policies[0] ?? null
   const places = [...new Set(report?.rows.map((r) => JSON.stringify([r.site, r.series])) ?? [])]
   const rows = report?.rows.filter((r) => JSON.stringify([r.site, r.series]) === place) ?? []
   const selected = rows.find((r) => r.species === species) ?? rows[0]
   let weightError = ''
   const summaries = rows.map((r) => {
     try {
-      return summarizeVotes(r, est, mat)
+      return policy ? summarizeVotes(r, est, mat, policy) : null
     } catch (e) {
       weightError = String(e)
       return null
     }
   })
+  function downloadAnalysis(format: 'json' | 'csv') {
+    if (!report || weightError) return
+    const analysis = createReportAnalysis(report, source, est, mat, policy)
+    downloadText(
+      format === 'json' ? JSON.stringify(analysis, null, 2) : reportAnalysisCsv(analysis),
+      `cciss-species-analysis.${format}`,
+      format === 'json' ? 'application/json' : 'text/csv',
+    )
+  }
   function downloadReport() {
     if (!report) return
     const headings = [
@@ -152,26 +225,51 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
             Load published example
           </Button>
           <label className="text-sm">
-            Import Shiny CSV
+            Import Shiny CSV or ZIP
             <input
               className="mt-1 block max-w-xs text-sm"
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.zip,text/csv,application/zip"
               onChange={(e) => {
                 const f = e.target.files?.[0]
-                if (f) {
-                  if (f.size > 5_000_000) setError('Please select a CSV smaller than 5 MB.')
-                  else void load(() => f.text(), f.name)
-                }
+                if (f) void importFile(f)
                 e.target.value = ''
               }}
             />
           </label>
         </div>
         <p className="text-xs text-muted-foreground">
-          In Shiny: generate the site results → Export → CSV, then unzip and choose cciss_export.csv. Files stay in this
-          browser. RDS and ZIP imports are not supported here.
+          In Shiny: generate the site results → Export → CSV, then choose the downloaded ZIP or cciss_export.csv. Files
+          stay in this browser. CSV limit: 5 MB; ZIP limit: 20 MB. RDS imports are not supported.
         </p>
+        {archive && (
+          <SidebarSection title={`CSV files in ${archive.name}`}>
+            <label className="block text-sm">
+              Archived result CSV
+              <NativeSelect
+                className={selectClass}
+                value={archiveEntry}
+                disabled={loading}
+                onChange={(event) => {
+                  const entry = event.target.value
+                  setArchiveEntry(entry)
+                  if (entry) void load(() => archive.read(entry), `${archive.name} / ${entry}`, true)
+                }}
+              >
+                <option value="">Choose a suitability result CSV…</option>
+                {archive.entries.map((entry) => (
+                  <option key={entry} value={entry}>
+                    {entry}
+                  </option>
+                ))}
+              </NativeSelect>
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Select the result file when an archive contains several CSVs. The last valid report stays available if
+              another file cannot be read.
+            </p>
+          </SidebarSection>
+        )}
         {loading && <p role="status">Loading report…</p>}
         {error && (
           <p role="alert" className="text-destructive">
@@ -186,8 +284,10 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
             { value: 'report', label: 'Suitability report' },
             { value: 'silvics', label: 'Silvics' },
             { value: 'inputs', label: 'Calculation inputs' },
+            { value: 'checks', label: 'Reference checks' },
           ]}
         />
+        {tab === 'checks' && report && <PublishedReferenceChecks report={report} source={source} />}
         {tab === 'inputs' && (
           <SidebarSection title="Current site calculator">
             <p className="text-sm">
@@ -203,7 +303,7 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
             </p>
           </SidebarSection>
         )}
-        {report && tab !== 'inputs' && (
+        {report && tab !== 'inputs' && tab !== 'checks' && (
           <>
             <p className="text-sm font-medium">{source}</p>
             {report.format === 'historical-raw' && (
@@ -212,6 +312,36 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
                 calculations are unavailable. It is not a result for the selected map point.
               </InlineAlert>
             )}
+            <ComparisonCapture
+              onCapture={onCaptureComparison}
+              onOpen={onOpenComparison}
+              count={comparisonCount}
+              actions={[
+                {
+                  label: 'Save original Shiny for comparison',
+                  create: (label) => {
+                    const [site, series] = JSON.parse(place) as [string, string]
+                    return shinySnapshot(report, { site, series, source, label, summarySource: 'original' })
+                  },
+                },
+                {
+                  label: 'Save browser summary for comparison',
+                  disabled: Boolean(weightError) || !policy,
+                  create: (label) => {
+                    const [site, series] = JSON.parse(place) as [string, string]
+                    return shinySnapshot(report, {
+                      site,
+                      series,
+                      source,
+                      label,
+                      summarySource: 'browser',
+                      establishmentWeights: est,
+                      maturationWeights: mat,
+                    })
+                  },
+                },
+              ]}
+            />
             <div className="grid gap-3 sm:grid-cols-2">
               <label>
                 Site and site series
@@ -256,7 +386,7 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
                     ))}
                   </SidebarSection>
                 )}
-                {selected && report.format === 'current-export' && selected.original.EstabFeas && (
+                {selected && ['EstabFeas', 'ccissFeas', 'Improve', 'Decline'].some((key) => selected.original[key]) && (
                   <SidebarSection title={`Original Shiny summary · ${selected.species}`}>
                     <p className="text-sm">
                       Establishment: {selected.original.EstabFeas}; maturation: {selected.original.ccissFeas ?? '—'};
@@ -269,18 +399,45 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
                     </p>
                   </SidebarSection>
                 )}
-                {report.format === 'current-export' && (
+                {policy && (
                   <details>
                     <summary className="cursor-pointer text-sm font-medium">Recalculate with period weights</summary>
                     <p className="my-2 text-xs text-muted-foreground">
-                      Defaults come from the downloaded Shiny source. Each group is normalized to sum to one. Summaries
-                      require complete votes for all six required period IDs. Novelty-scaled exports can be viewed but
+                      {policy.label}. Defaults come from the Shiny source. Each group is normalized to sum to one.
+                      Summaries require complete votes for every policy period. Novelty-scaled exports can be viewed but
                       are not reweighted here.
                     </p>
-                    <Weights label="Establishment" periods={ESTABLISHMENT_PERIODS} values={est} onChange={setEst} />
-                    <Weights label="Maturation" periods={MATURATION_PERIODS} values={mat} onChange={setMat} />
+                    {policies.length > 1 && (
+                      <label className="block text-sm">
+                        Summary policy
+                        <NativeSelect
+                          className={selectClass}
+                          value={policy.id}
+                          onChange={(event) => {
+                            const next = policies.find((p) => p.id === event.target.value)!
+                            setPolicyId(next.id)
+                            setEst([...next.establishment.weights])
+                            setMat([...next.maturation.weights])
+                          }}
+                        >
+                          {policies.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </label>
+                    )}
+                    <Weights
+                      label="Establishment"
+                      periods={policy.establishment.periods}
+                      values={est}
+                      onChange={setEst}
+                    />
+                    <Weights label="Maturation" periods={policy.maturation.periods} values={mat} onChange={setMat} />
                   </details>
                 )}
+                {selected && <p className="text-xs text-muted-foreground">{reportSummaryStatus(selected, policy)}</p>}
                 {weightError && <p role="alert">{weightError}</p>}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
@@ -313,9 +470,22 @@ export function ShinyReportDialog({ onClose }: { onClose: () => void }) {
                   ¹ Calculated in this browser from the imported votes. — means required periods or complete votes are
                   missing, or the export includes novelty-scaled votes. It does not mean unsuitable.
                 </p>
-                <Button onClick={downloadReport} disabled={!!weightError}>
-                  Download printable HTML report
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={downloadReport} disabled={!!weightError}>
+                    Download printable HTML report
+                  </Button>
+                  <Button variant="outline" onClick={() => downloadAnalysis('json')} disabled={!!weightError}>
+                    Download analysis JSON
+                  </Button>
+                  <Button variant="outline" onClick={() => downloadAnalysis('csv')} disabled={!!weightError}>
+                    Download analysis CSV
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  HTML contains the selected site and site series. JSON and CSV include every imported site, series and
+                  species, original results, period weights and browser summaries. JSON also retains all original CSV
+                  rows.
+                </p>
               </>
             )}
           </>

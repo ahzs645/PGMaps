@@ -89,3 +89,58 @@ describe('legacy point comparisons', () => {
     expect(html).not.toContain('<script>')
   })
 })
+
+describe('additional manifest scenarios and member roles', () => {
+  it('keeps the same model/run/period in two scenarios separate, including missing projections and exports', () => {
+    const original = samples.find((r) => r.model === 'ACCESS-ESM1-5' && r.period === '2061_2080')!
+    const alternative = {
+      ...original,
+      scenario: 'ssp585',
+      file: 'synthetic-ssp585.tif',
+      sample: { status: 'nodata' as const },
+    }
+    const c = compareLegacyPoint(reference, [...samples, alternative], 'C4', ['Pl'])
+    expect(c.members).toHaveLength(7)
+    const pl = c.species[0].projections.filter((r) => r.model === original.model && r.period === original.period)
+    expect(pl).toMatchObject([
+      { scenario: 'ssp245', rating: 2 },
+      { scenario: 'ssp585', rating: null },
+    ])
+    const html = legacyComparisonHtml({
+      schema: 'cciss-legacy-comparison-v1',
+      method: LEGACY_LIMITATION,
+      source: 'Synthetic verification only',
+      dataset: manifest.schema,
+      longitude: -122.7497,
+      latitude: 53.9171,
+      edatope: 'C4',
+      comparison: c,
+      regional: {
+        region: 'BC',
+        species: 'Pl',
+        model: original.model,
+        scenario: 'ssp585',
+        run: original.run,
+        trends: [],
+      },
+    })
+    expect(html).toContain('SSP5-8.5')
+    expect(html).toContain('scenario: ssp585')
+    expect(html).toContain('No rating')
+  })
+  it('supports explicit historical roles and excludes aggregate rasters from individual-run comparisons', () => {
+    const changed = samples.map((r) =>
+      r.model === 'Reference'
+        ? { ...r, model: 'Mapped baseline', role: 'reference' as const, period: '1981_2010' }
+        : r.model === 'Observed'
+          ? { ...r, model: 'Monitoring', role: 'observed' as const }
+          : r,
+    )
+    const projection = samples.find((r) => r.scenario === 'ssp245')!
+    changed.push({ ...projection, model: 'Ensemble', run: 'ensembleMean' })
+    const c = compareLegacyPoint(reference, changed, 'C4', ['Pl'])
+    expect(c.baseline).toMatchObject({ model: 'Mapped baseline', period: '1981_2010', bgc: 'SBSmh' })
+    expect(c.observed?.model).toBe('Monitoring')
+    expect(c.members).toHaveLength(6)
+  })
+})

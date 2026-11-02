@@ -1,7 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { parseShinyReport, rRound, summarizeVotes, type Votes } from './shinyReport'
+import { csvParse } from 'd3'
+import {
+  createReportAnalysis,
+  parseShinyReport,
+  reportAnalysisCsv,
+  reportSummaryStatus,
+  rRound,
+  SHINY_SUMMARY_POLICIES,
+  summarizeVotes,
+  supportedSummaryPolicies,
+  type Votes,
+} from './shinyReport'
 
 // Deliberately synthetic votes with independently hand-calculated results.
 const periods = ['1961', '1991', '2021', '2041', '2061', '2081']
@@ -35,6 +46,48 @@ describe('Shiny report summary stage', () => {
     const ac = report.rows.find((r) => r.site === '4812311' && r.series === 'IDFxm/01' && r.species === 'Ac')!
     expect(ac.votes['2055']).toEqual([0, 0, 0.03, 0.97])
     expect(summarizeVotes(ac)).toBeNull()
+    expect(supportedSummaryPolicies(report)).toEqual([])
+    expect(report.input?.rows).toHaveLength(real.trim().split('\n').length - 1)
+    const analysis = createReportAnalysis(report, 'Published Williams Lake')
+    expect(analysis.policy).toBeNull()
+    expect(analysis.results.every((result) => result.summary === null)).toBe(true)
+    expect(analysis.report.input?.rows.some((r) => r.FuturePeriod === '2055')).toBe(true)
+  })
+  it('selects a source-backed period policy and explains unavailable summaries per species', () => {
+    const report = parseShinyReport(csv)
+    const policy = SHINY_SUMMARY_POLICIES[0]
+    expect(supportedSummaryPolicies(report)).toEqual([policy])
+    expect(reportSummaryStatus(row(), policy)).toContain('Complete exported votes')
+    const missing = row()
+    delete missing.votes['2041']
+    expect(reportSummaryStatus(missing, policy)).toContain('2041')
+    const novelty = row()
+    novelty.novelty['2041'] = 0.5
+    expect(reportSummaryStatus(novelty, policy)).toContain('Novelty-scaled')
+    expect(reportSummaryStatus({ ...row(), current: null }, policy)).toContain('baseline')
+  })
+  it('exports every site with exact original fields, separate browser summaries and both weight forms', () => {
+    const augmentedHeader = header + ',EstabFeas,ccissFeas,Improve,Decline,Comment'
+    const report = parseShinyReport(
+      augmentedHeader + '\n' + values + ',2,3,50,50,"A, B"\n' + values.replace('test,', 'other,') + ',2,3,50,50,other',
+    )
+    const analysis = createReportAnalysis(report, 'results.zip / nested/cciss_export.csv', [10, 0, 0], [0, 0, 1, 0])
+    expect(analysis.results).toHaveLength(2)
+    expect(analysis.policy?.establishmentWeights).toEqual([10, 0, 0])
+    expect(analysis.normalizedWeights.establishment).toEqual([1, 0, 0])
+    const exported = csvParse(reportAnalysisCsv(analysis))
+    expect(exported).toHaveLength(2)
+    expect(exported[0]).toMatchObject({
+      SiteRef: 'test',
+      Browser_EstabFeas: '1',
+      Original_EstabFeas: '2',
+      Original_Comment: 'A, B',
+      EstablishmentWeights: '[10,0,0]',
+      Source: 'results.zip / nested/cciss_export.csv',
+    })
+    expect(exported[1].SiteRef).toBe('other')
+    expect(parseShinyReport(reportAnalysisCsv(analysis)).rows[0].votes).toEqual(report.rows[0].votes)
+    expect(() => createReportAnalysis(report, 'test', [0, 0, 0])).toThrow('positive total')
   })
   it('matches hand calculations using the R source default weights and direction cuts', () => {
     expect(summarizeVotes(row())).toMatchObject({ establishment: 2, maturation: 3, improve: 50, decline: 50 })
@@ -51,6 +104,7 @@ describe('Shiny report summary stage', () => {
     })
     expect(() => summarizeVotes(row(), [0, 0, 0])).toThrow('positive total')
     expect(() => summarizeVotes(row(), [NaN, 0, 1])).toThrow()
+    expect(() => summarizeVotes(row(), [Number.MAX_VALUE, Number.MAX_VALUE, 0])).toThrow('positive total')
   })
   it('reproduces R ties-to-even and maps high scores to unsuitable', () => {
     expect([1.5, 2.5, 3.5, 4.5].map(rRound)).toEqual([2, 2, 4, 4])
