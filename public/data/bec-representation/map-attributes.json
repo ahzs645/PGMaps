@@ -347,7 +347,7 @@
       "protectedAreaKm2": null,
       "display": "CWHms2 · percentage unavailable (2023)",
       "title": "CWHms2 · 2023 study",
-      "details": "2023 protected share: unavailable.\n\nSource unit area: 1,744.217 km². Summed protected-area intersections: unavailable.\n\nNo recorded park intersection in the 2023 outputs. The blank protected area and percentage remain unavailable; they do not establish zero protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
+      "details": "2023 protected share: unavailable.\n\nSource unit area: 1,744.217 km². Summed protected-area intersections: unavailable.\n\nNo protected-area intersection recorded in the 2023 outputs; the source study labels this unit \"0: No PA\". The blank protected area and percentage are kept as published rather than converted to zero, and say nothing about protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
     },
     {
       "code": "CWHvh1",
@@ -1415,7 +1415,7 @@
       "protectedAreaKm2": null,
       "display": "ICHmc1a · percentage unavailable (2023)",
       "title": "ICHmc1a · 2023 study",
-      "details": "2023 protected share: unavailable.\n\nSource unit area: 216.797 km². Summed protected-area intersections: unavailable.\n\nNo recorded park intersection in the 2023 outputs. The blank protected area and percentage remain unavailable; they do not establish zero protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
+      "details": "2023 protected share: unavailable.\n\nSource unit area: 216.797 km². Summed protected-area intersections: unavailable.\n\nNo protected-area intersection recorded in the 2023 outputs; the source study labels this unit \"0: No PA\". The blank protected area and percentage are kept as published rather than converted to zero, and say nothing about protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
     },
     {
       "code": "ICHmc2",
@@ -2279,7 +2279,7 @@
       "protectedAreaKm2": null,
       "display": "SBPSmk · percentage unavailable (2023)",
       "title": "SBPSmk · 2023 study",
-      "details": "2023 protected share: unavailable.\n\nSource unit area: 4,081.546 km². Summed protected-area intersections: unavailable.\n\nNo recorded park intersection in the 2023 outputs. The blank protected area and percentage remain unavailable; they do not establish zero protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
+      "details": "2023 protected share: unavailable.\n\nSource unit area: 4,081.546 km². Summed protected-area intersections: unavailable.\n\nNo protected-area intersection recorded in the 2023 outputs; the source study labels this unit \"0: No PA\". The blank protected area and percentage are kept as published rather than converted to zero, and say nothing about protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
     },
     {
       "code": "SBPSxc",
@@ -2375,7 +2375,7 @@
       "protectedAreaKm2": null,
       "display": "SBSmc1 · percentage unavailable (2023)",
       "title": "SBSmc1 · 2023 study",
-      "details": "2023 protected share: unavailable.\n\nSource unit area: 516.714 km². Summed protected-area intersections: unavailable.\n\nNo recorded park intersection in the 2023 outputs. The blank protected area and percentage remain unavailable; they do not establish zero protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
+      "details": "2023 protected share: unavailable.\n\nSource unit area: 516.714 km². Summed protected-area intersections: unavailable.\n\nNo protected-area intersection recorded in the 2023 outputs; the source study labels this unit \"0: No PA\". The blank protected area and percentage are kept as published rather than converted to zero, and say nothing about protection today.\n\n2023 values on newer BEC v13.1 boundaries. These polygons are location context, not a recalculation or proof that the historical boundary is unchanged. The original summed intersections were not audited for overlapping protected-area groups."
     },
     {
       "code": "SBSmc2",

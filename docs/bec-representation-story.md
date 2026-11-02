@@ -152,7 +152,7 @@ numeric values and quality flags.
 | Source case | Normalized behavior |
 | --- | --- |
 | `CDFmm`: denominator `0`, protected area `187.006` km², ratio `Inf` | Keep the area and raw `Inf`; normalized ratio and percentage are `null`; classify as `invalid-denominator` with `zero-denominator` and `non-finite-source-ratio` flags. |
-| `CWHms2`, `ICHmc1a`, `SBPSmk`, `SBSmc1`: blank protected area and ratio | Keep normalized values `null` and an empty contributor list; classify as `no-recorded-intersection` and flag `missing-intersection`. This is not a present-day claim of zero protection. |
+| `CWHms2`, `ICHmc1a`, `SBPSmk`, `SBSmc1`: blank protected area and ratio | Keep normalized values `null` and an empty contributor list; classify as `no-recorded-intersection` and flag `missing-intersection`. The source labels these `0: No PA`; the story says so and reports 74 of 212 below 5% when they are counted that way. This is not a present-day claim of zero protection. |
 | `BWBSvk`, `ESSFmm2`, `SWBvks`: slightly greater than 100% | Retain the published finite ratio and percentage; flag `rounding-over-100`. Only `displayPercent`, intended for bounded visual marks, is capped at 100. |
 | Provincial park names | Keep the original name in `sourceParkName` and trim whitespace only in `parkName`. Do not undo upstream grouping by guessing names. |
 

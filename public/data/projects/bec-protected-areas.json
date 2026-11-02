@@ -191,7 +191,8 @@
       "text": "The smallest recorded shares are easy to miss in a province-wide protected-area total. These 14 BEC units each have less than one hundredth of their mapped area inside the protected-area intersections recorded by the study.",
       "paragraphs": [
         "A low share identifies a question for conservation planning: which ecological settings are poorly represented in this particular network? It does not measure habitat condition, legal vulnerability, or the feasibility of a new protected area.",
-        "One northern-interior example is SBSmw, at 0.43%. Select a polygon to see its source areas and the largest recorded park contributions."
+        "One northern-interior example is SBSmw, at 0.43%. Select a polygon to see its source areas and the largest recorded park contributions.",
+        "The largest unit in this class, CWHvh2 (0.48%), lies along the central and north coast, where conservancies cover much of the protected land. The study did not include conservancies, and this mapped unit also extends across open water, so its low share should not be read as a measure of current coastal protection."
       ],
       "focus": "2023 study results · BEC v13.1 context boundaries (2026)",
       "visibleLayerIds": [
@@ -469,7 +470,7 @@
       "title": "Unavailable percentages stay visible",
       "text": "CDFmm has a published mapped area of zero but 187.006 km² of recorded protected area. Dividing those values produces an infinite ratio. This story marks its percentage unavailable instead of treating it as a highly represented unit.",
       "paragraphs": [
-        "CWHms2, ICHmc1a, SBPSmk, and SBSmc1 have blank protected-area and ratio fields, with no corresponding intersection records. The original blanks are preserved. They do not prove there is no protection today.",
+        "CWHms2, ICHmc1a, SBPSmk, and SBSmc1 have blank protected-area and ratio fields, with no corresponding intersection records. The source study classifies these four as \"0: No PA\" (no protected-area overlap recorded). This story keeps their blank values and leaves them out of the finite-percentage counts; counted as the source does, 74 of 212 units would be below 5%. They say nothing about protection today.",
         "The join to the downloaded v13.1 context snapshot matches 198 of 213 study codes. Study codes without a current polygon match: BAFAunp, CMAunp, CWHdm, CWHms1, CWHms2, CWHxm1, CWHxm2, ESSFmw, ESSFun, IDFww1, IMAunp, MHun, MHwh1, SBSun, SWBun. Their results remain in the downloads.",
         "24 current map codes have no exact result in the 2023 table and appear in grey. No percentage is inferred from a similar code, renamed unit, or neighbouring polygon."
       ],
@@ -501,11 +502,11 @@
       "callout": {
         "label": "Study data quality",
         "value": "5 unavailable percentages",
-        "detail": "Four missing intersection results and one zero denominator; none silently becomes zero."
+        "detail": "Four units the source labels \"No PA\" (no intersection recorded) and one zero denominator; none silently becomes zero."
       },
       "legend": [
         {
-          "label": "No recorded intersection in 2023",
+          "label": "No PA overlap recorded in 2023 (source: \"No PA\")",
           "color": "#7f1d1d"
         },
         {
@@ -524,6 +525,7 @@
       "title": "A reproducible study snapshot, with a separate context map",
       "text": "The study intersects BEC polygons with national and provincial protected-area inputs. It rounds each park–BEC intersection to 0.001 km², sums those contributions by BEC unit, and divides by that unit’s mapped area.",
       "paragraphs": [
+        "Those inputs are the BC Data Catalogue layer BC Parks, Ecological Reserves, and Protected Areas (TA_PARK_ECORES_PA_SVW) and national parks. Conservancies are a separate provincial designation (TANTALIS Conservancy Areas) and were not included, so units where conservancies hold much of the protected land, especially on the central and north coast, show lower percentages than a network including them would.",
         "The map colours show those published percentages. The original CSVs, R Markdown methods, licence, normalized results, and provenance are available through Sources and downloads. The application does not run R or recalculate the historical intersections in your browser.",
         "Mapped BEC units extend across water and other cover types. The study does not apply a terrestrial-land mask to its denominators, so these percentages should not be presented as a land-only estimate of how much of British Columbia is protected.",
         "The source groups provincial park names before the first hyphen and does not union overlaps between different park groups before summing their intersections. Overlapping protection may therefore be counted more than once. Its 882 name groups are not a verified count of distinct legal parks. Protected representation also says nothing by itself about ecological condition or management effectiveness.",

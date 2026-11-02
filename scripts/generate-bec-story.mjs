@@ -40,7 +40,7 @@ const records = study.units.map((unit) => {
   }
   if (unit.qualityFlags.includes('missing-intersection')) {
     quality.push(
-      'No recorded park intersection in the 2023 outputs. The blank protected area and percentage remain unavailable; they do not establish zero protection today.',
+      'No protected-area intersection recorded in the 2023 outputs; the source study labels this unit "0: No PA". The blank protected area and percentage are kept as published rather than converted to zero, and say nothing about protection today.',
     )
   }
   if (unit.qualityFlags.includes('rounding-over-100')) {
@@ -85,6 +85,7 @@ const classScenes = [
     paragraphs: [
       'A low share identifies a question for conservation planning: which ecological settings are poorly represented in this particular network? It does not measure habitat condition, legal vulnerability, or the feasibility of a new protected area.',
       `One northern-interior example is SBSmw, at ${percent(unitByCode.get('SBSmw'))}. Select a polygon to see its source areas and the largest recorded park contributions.`,
+      `The largest unit in this class, CWHvh2 (${percent(unitByCode.get('CWHvh2'))}), lies along the central and north coast, where conservancies cover much of the protected land. The study did not include conservancies, and this mapped unit also extends across open water, so its low share should not be read as a measure of current coastal protection.`,
     ],
   },
   {
@@ -237,7 +238,7 @@ const scenes = [
     title: 'Unavailable percentages stay visible',
     text: 'CDFmm has a published mapped area of zero but 187.006 km² of recorded protected area. Dividing those values produces an infinite ratio. This story marks its percentage unavailable instead of treating it as a highly represented unit.',
     paragraphs: [
-      'CWHms2, ICHmc1a, SBPSmk, and SBSmc1 have blank protected-area and ratio fields, with no corresponding intersection records. The original blanks are preserved. They do not prove there is no protection today.',
+      'CWHms2, ICHmc1a, SBPSmk, and SBSmc1 have blank protected-area and ratio fields, with no corresponding intersection records. The source study classifies these four as "0: No PA" (no protected-area overlap recorded). This story keeps their blank values and leaves them out of the finite-percentage counts; counted as the source does, 74 of 212 units would be below 5%. They say nothing about protection today.',
       `The join to the downloaded v13.1 context snapshot matches ${matchedStudyCodes.length} of ${summary.unitCount} study codes. ${missingStudyCodes.length ? `Study codes without a current polygon match: ${missingStudyCodes.join(', ')}. Their results remain in the downloads.` : 'Every study code has a current polygon match.'}`,
       `${currentCodesWithoutStudy.length} current map codes have no exact result in the 2023 table and appear in grey. No percentage is inferred from a similar code, renamed unit, or neighbouring polygon.`,
     ],
@@ -261,10 +262,10 @@ const scenes = [
     callout: {
       label: 'Study data quality',
       value: '5 unavailable percentages',
-      detail: 'Four missing intersection results and one zero denominator; none silently becomes zero.',
+      detail: 'Four units the source labels "No PA" (no intersection recorded) and one zero denominator; none silently becomes zero.',
     },
     legend: [
-      { label: 'No recorded intersection in 2023', color: classColors['no-recorded-intersection'] },
+      { label: 'No PA overlap recorded in 2023 (source: "No PA")', color: classColors['no-recorded-intersection'] },
       { label: 'Invalid denominator', color: classColors['invalid-denominator'] },
       ...(currentCodesWithoutStudy.length
         ? [{ label: 'Current code absent from study', color: classColors['not-in-study'] }]
@@ -277,6 +278,7 @@ const scenes = [
     title: 'A reproducible study snapshot, with a separate context map',
     text: 'The study intersects BEC polygons with national and provincial protected-area inputs. It rounds each park–BEC intersection to 0.001 km², sums those contributions by BEC unit, and divides by that unit’s mapped area.',
     paragraphs: [
+      'Those inputs are the BC Data Catalogue layer BC Parks, Ecological Reserves, and Protected Areas (TA_PARK_ECORES_PA_SVW) and national parks. Conservancies are a separate provincial designation (TANTALIS Conservancy Areas) and were not included, so units where conservancies hold much of the protected land, especially on the central and north coast, show lower percentages than a network including them would.',
       'The map colours show those published percentages. The original CSVs, R Markdown methods, licence, normalized results, and provenance are available through Sources and downloads. The application does not run R or recalculate the historical intersections in your browser.',
       'Mapped BEC units extend across water and other cover types. The study does not apply a terrestrial-land mask to its denominators, so these percentages should not be presented as a land-only estimate of how much of British Columbia is protected.',
       'The source groups provincial park names before the first hyphen and does not union overlaps between different park groups before summing their intersections. Overlapping protection may therefore be counted more than once. Its 882 name groups are not a verified count of distinct legal parks. Protected representation also says nothing by itself about ecological condition or management effectiveness.',
