@@ -111,6 +111,13 @@ labelled generalized and the independently sampled GeoTIFF cell stays exact.
 - Current species voting uses Shiny's `NoPhase` overlap. Phase display has a
   different join and preserves row multiplicities; using it for species votes
   changes results incorrectly. Novelty display scaling follows summary calculation.
+- The NoPhase overlap is checked against ccissr's own `edatopicOverlap` (pinned
+  `eda_overlap.R`, run in R) on 120 generated cases with special site series and
+  phases; every probability matches within 1e-9
+  (`scripts/cciss/eda-reference`). As in ccissr, special codes are looked up in E1
+  only: a special phase pairs only with same-code special phases, a special E1
+  series only with same-code special E1 series, and once any same-code special
+  matched, that pair's ordinary overlaps are dropped.
 - The observed source token `1991` has conflicting calendar labels in the app.
   Exact IDs are retained and calendar-dependent comparisons require explicit
   period coverage. Visible vote columns alone do not establish summary coverage.

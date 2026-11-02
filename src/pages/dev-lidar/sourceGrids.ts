@@ -1,7 +1,7 @@
 import proj4 from 'proj4'
-// EPSG:1946 NAD83(CSRS)→WGS84(2), with coordinate-frame rotations converted to proj4 position-vector signs. Matches the pinned PROJ processing pipeline.
-export const METRIC_CRS =
-  '+proj=utm +zone=10 +ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,0.0257899075194932,0.0096500989602704,0.0116599432323421,0 +units=m +no_defs'
+import { projectionDefinition } from '@/lib/geo/projectedCrs'
+// NAD83(CSRS) / UTM 10N with the EPSG:1946 datum shift. Matches the pinned PROJ processing pipeline.
+export const METRIC_CRS = projectionDefinition(3157)
 export const toMetric = (lon: number, lat: number) => proj4('EPSG:4326', METRIC_CRS, [lon, lat])
 export interface SourceGrid {
   width: number

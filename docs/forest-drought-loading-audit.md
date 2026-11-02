@@ -15,6 +15,10 @@ Read-only GET requests used the request header
 | [Standalone published CSV](https://projects.ahmadjalil.com/forDRAT/data/forest-drought/fordrat.csv) | 200 | `text/csv; charset=utf-8` | `*` | 338,744 bytes; exact pinned SHA-256 |
 | [Production PGMaps CSV path](https://pgmaps.ahmadjalil.com/data/forest-drought/fordrat.csv) | 404 | `text/html; charset=utf-8` | `*` | HTML fallback containing production version `cc511ee` |
 
+After the integration was deployed to `main` (2026-11-02, commit `6a5ee97b`),
+the production PGMaps CSV path returns HTTP 200 with the same pinned SHA-256, and
+`/dev/forestry/drought-risk` has a real entry page.
+
 The standalone CSV's SHA-256 was
 `abdb1a26645d6d24e6d45380f55aa555a5f69ffdad79c5f7fb47627003f0d2df`.
 Its response had `Cache-Control: max-age=600` and ETag `"6ae83e54-52b38"`.
@@ -78,6 +82,9 @@ verified before results are shown. Static source/download paths also use
 Vite's configured base URL. This does not claim full application routing under
 an arbitrary subpath; the current production deployment is at the origin root.
 An unavailable Web Crypto API now produces an explicit HTTPS/localhost message.
+A load that does not finish within 30 seconds stops with a timeout message
+instead of a bare abort, and a cached copy that fails the checksum is removed
+from Cache Storage so the next Retry fetches the network copy.
 
 The focused workflow now serves the actual `dist/` build through Vite preview.
 Its production acceptance case does not intercept the CSV. It checks HTTP

@@ -29,10 +29,18 @@ export function isLaz(data: Uint8Array | ArrayBuffer): boolean {
   return vlrs(bytes).some((v) => v.user === 'laszip encoded' && v.record === 22204)
 }
 
-interface Vlr {
+export interface Vlr {
   user: string
   record: number
   data: Uint8Array
+}
+
+/** VLRs that lie inside `bytes`, plus LAS 1.4 extended VLRs when `bytes` reaches them. */
+export function pointCloudRecords(data: Uint8Array | ArrayBuffer): Vlr[] {
+  const bytes = asBytes(data)
+  if (bytes.byteLength < 227) return []
+  const headerSize = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint16(94, true)
+  return bytes.byteLength < headerSize ? [] : vlrs(bytes)
 }
 
 function vlrs(bytes: Uint8Array): Vlr[] {
@@ -165,7 +173,19 @@ export function readPointCloudHeader(data: Uint8Array | ArrayBuffer, { headerOnl
     header.pointLength < minimumLengths[header.pointFormat]
   )
     throw Error('Unsupported LAS point format, count or record length.')
-  const records = vlrs(bytes)
+  Object.assign(header, recordsCrs(vlrs(bytes)))
+  if (
+    !headerOnly &&
+    !header.compressed &&
+    (header.pointLength < 20 || header.pointOffset + points * header.pointLength > bytes.byteLength)
+  )
+    throw Error('The LAS point records are truncated or their length is not recognised.')
+  return header
+}
+
+/** Horizontal and vertical EPSG codes from GeoKeyDirectory (34735) records, then OGC WKT (2112) records. */
+export function recordsCrs(records: Vlr[]): { epsg: number | null; verticalEpsg: number | null } {
+  const crs: { epsg: number | null; verticalEpsg: number | null } = { epsg: null, verticalEpsg: null }
   for (const v of records) {
     if (v.user !== 'LASF_Projection' || v.record !== 34735 || v.data.byteLength < 8) continue
     // GeoKeyDirectory: ProjectedCSTypeGeoKey 3072, VerticalCSTypeGeoKey 4096.
@@ -176,21 +196,15 @@ export function readPointCloudHeader(data: Uint8Array | ArrayBuffer, { headerOnl
       if (keys.getUint16(base + 2, true) !== 0) continue
       const id = keys.getUint16(base, true),
         value = keys.getUint16(base + 6, true)
-      if (id === 3072 && value > 0 && value !== 32767) header.epsg = value
-      if (id === 4096 && value > 0 && value !== 32767) header.verticalEpsg = value
+      if (id === 3072 && value > 0 && value !== 32767) crs.epsg = value
+      if (id === 4096 && value > 0 && value !== 32767) crs.verticalEpsg = value
     }
   }
   for (const v of records) {
     if (v.user !== 'LASF_Projection' || v.record !== 2112) continue
     const wkt = decoder.decode(v.data).replace(/\0+$/, '')
-    header.epsg ??= wktEpsg(wkt, ['PROJCS', 'PROJCRS', 'PROJECTEDCRS'])
-    header.verticalEpsg ??= wktEpsg(wkt, ['VERT_CS', 'VERTCRS', 'VERTICALCRS'])
+    crs.epsg ??= wktEpsg(wkt, ['PROJCS', 'PROJCRS', 'PROJECTEDCRS'])
+    crs.verticalEpsg ??= wktEpsg(wkt, ['VERT_CS', 'VERTCRS', 'VERTICALCRS'])
   }
-  if (
-    !headerOnly &&
-    !header.compressed &&
-    (header.pointLength < 20 || header.pointOffset + points * header.pointLength > bytes.byteLength)
-  )
-    throw Error('The LAS point records are truncated or their length is not recognised.')
-  return header
+  return crs
 }

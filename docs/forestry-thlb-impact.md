@@ -61,6 +61,12 @@ multiply factors by 1000 and truncate them for this vector workflow.
 - `analysis.ts` is independent of the DOM and network. Polygon overlays run in
   `thlb.worker.ts`; Cancel terminates that worker and invalidates in-flight reads.
   GDAL reads share the AVAST queue and mount lifecycle.
+- Real proxy features can be very large: one zero-factor polygon near Prince
+  George has about 277,000 vertices and spans 420 × 290 km. Such features are
+  normalised without being doubled, and overlap checks track the area still
+  unclaimed rather than growing a union, so these runs complete. A ~20,000 ha area
+  with a few thousand proxy features still takes on the order of two minutes
+  (about 140 s measured in Node); crop inputs to the study area to keep runs short.
 - Every contributing piece is **area in square metres / 10,000 × factor**.
   Areas are planimetric. Analysis geometry is not simplified. No positive-area
   sliver is intentionally discarded, and rounding occurs only in presentation.

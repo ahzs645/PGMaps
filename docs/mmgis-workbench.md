@@ -63,6 +63,15 @@ data and source URLs, so sharing is explicit. Browser storage can fill; the save
 status then asks the user to export a mission. Imported DEM bytes remain in the
 current tab and are excluded from saved missions and links.
 
+Saved missions accept MapLibre's full zoom range (−2 to 24), and display text
+longer than 200 characters (labels from long file names or URLs, "copy" names) is
+shortened when it is created, so a workspace the app saved always reopens; older
+exports with longer names are shortened on import. If a stored workspace still
+cannot be read, its raw text is copied to `pgmaps:mmgis:mission:v1:unreadable`
+and nothing is autosaved over the original until you make a change. Vertex
+editing is limited to 1,500 vertices per feature so the map stays responsive;
+larger geometries keep their property, style and delete controls.
+
 Local DEM imports reuse the existing forestry reader: single-band metre-valued,
 north-up GeoTIFFs, up to 64 MB and 1,048,576 native cells; WGS84, Web Mercator, BC
 Albers and NAD83/WGS84 UTM zones 7–11. A vertical reference is required. The local
@@ -71,7 +80,11 @@ DEM drives original cell inspection, profile sampling and the shared visibility 
 Profiles use at most 200 stations and 64 overview tiles. Viewsheds use the shared
 terrain feature with a 128×128 display grid, a 100 m–5 km radius and 0.5–100 m eye
 height, 0–1000 m target height and a 1–360° horizontal field of view. Missing terrain stays unknown. Earth curvature and fixed 0.13 refraction
-are included; trees, buildings and RF quality are excluded. The underlying shared
+are included; trees, buildings and RF quality are excluded. Sightlines are
+sampled every half DEM cell, so a one-cell wall or ridge on a fine imported DEM
+cannot fall between samples; a ray that would need more than 4,096 samples
+reports its far cells as unknown rather than visible, and the ready message says
+from what distance. The underlying shared
 analysis has its documented latitude/date-line and tile-budget limits. A previous
 footprint may remain while a new observer is loading, and the UI identifies this.
 

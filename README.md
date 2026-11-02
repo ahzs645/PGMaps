@@ -104,6 +104,17 @@ shared views. See the [map guide](docs/dev-transit.md) and
 [pipeline and city-adaptation guide](docs/transit-pipeline.md) for source ownership,
 rebuilding, coverage checks and the configuration refactor needed for other cities.
 
+## Continuous integration
+
+`checks.yml` (typecheck, lint, formatting and unit tests) and `deploy.yml` (the
+Pages build on pull requests; build and deploy on `main`) run automatically.
+Feature suites with browser or R reference runs — forest drought, forestry roads,
+roads vs native R, forestry Castor, MMGIS, Nechako and viewshed — run only when
+started by hand: Actions → the workflow → Run workflow, choosing the branch (or
+`gh workflow run <file>.yml --ref <branch>`). Run the suite for the area a change
+touches before merging it. [AGENTS.md](AGENTS.md) records the same policy for
+coding agents.
+
 ## Terrain viewshed
 
 `/dev/viewshed` adds live terrain visibility from a movable observer to the Dev

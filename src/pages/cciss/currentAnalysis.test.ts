@@ -201,7 +201,7 @@ describe('current CCISS owner-bundle calculations', () => {
       { period: '2041', predictedBgc: 'B', predictedSeries: 'B/02', probability: 0.5 },
     ])
   })
-  it('retains special current phases in options and cross-series BGC normalization', () => {
+  it('keeps special current phases selectable but pairs them as ccissr eda_overlap.R does', () => {
     const bundle = parsed()
     bundle.ecology!.tables.E1_Phase.push({
       BGC: 'A',
@@ -215,27 +215,18 @@ describe('current CCISS owner-bundle calculations', () => {
     bundle.pilot.bgcCodes.push({ bgc_id: 4, bgc: 'D' })
     bundle.pilot.future[0].bgc_id = bundle.pilot.future[0].bgc_id.map((id) => (id === 3 ? 4 : id))
     expect(currentOptions(bundle, 1).series).toEqual(['A/01', 'A/02a'])
+    // Values from running ccissr edatopicOverlap(onlyRegular = TRUE) on this input (R 4.3.3, data.table 1.14.10).
+    // rmFlag looks special codes up in E1 only, so the special phase A/02a (wet) cannot pair with the special E1
+    // series D/01 (wet). D then has no overlap at all and leaves the BGC denominator, so B carries all of 2041.
     const regular = assessCurrentSite(bundle, { siteId: 1, series: 'A/01' })
-    // D remains in the source-wide denominator through the special current phase,
-    // even though A/01 itself has no D overlap. The missing half enters residual X.
     expect(regular.overlap.find((r) => r.period === '2041' && r.predictedSeries === 'B/01')?.probability).toBeCloseTo(
-      0.4,
+      0.8,
     )
+    expect(regular.species.find((r) => r.species === 'Pine')?.votes['2041']).toEqual([0, 0.8, 0.2, 0])
     const phase = assessCurrentSite(bundle, { siteId: 1, series: 'A/02a' })
-    expect(phase.overlap.find((r) => r.period === '2041' && r.predictedSeries === 'D/01')?.probability).toBeCloseTo(0.5)
-    // The source same-BGC mainunit restriction is preserved, without inventing a
-    // baseline match for a phase whose exact series differs from its mainunit.
-    expect(phase.overlap.some((r) => r.period === '1961')).toBe(false)
-    // feasibility.R: 1961-2021 were assessed but gave Pine no rating for this phase, so their establishment
-    // weight is X (score 5). Maturation and trend use the present 2041-2081 votes [0.5, 0, 0, 0.5] (score 3).
-    expect(phase.capabilities.summaries).toBe(true)
-    expect(phase.summaries.find((r) => r.species === 'Pine')?.summary).toMatchObject({
-      establishment: 4,
-      establishmentScore: 5,
-      maturation: 3,
-      improve: 50,
-      decline: 50,
-    })
+    expect(phase.overlap).toEqual([])
+    expect(phase.species).toEqual([])
+    expect(phase.capabilities.summaries).toBe(false)
   })
   it('applies encoded novelty cutoff and keeps pre-display summaries separate', () => {
     const result = assessCurrentSite(parsed(), { siteId: 1, series: 'A/01', noveltyCutoff: 5 })
