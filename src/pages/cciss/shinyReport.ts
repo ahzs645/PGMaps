@@ -1,4 +1,4 @@
-import { csvParse } from 'd3'
+import { csvFormatRows, csvParse } from 'd3'
 
 // Summary formulas adapted from bcgov/ccissr (Apache-2.0),
 // a6ab8ee3a714ebf4a3f41e16f04d9f58404de7ce/R/feasibility.R and src/ccissdev.cpp.
@@ -18,6 +18,8 @@ export interface ShinyReport {
   rows: SpeciesReport[]
   periods: string[]
   format: 'current-export' | 'historical-raw'
+  /** Original lexical values, including every long-form row and extra source columns. */
+  input?: { columns: string[]; rows: Record<string, string>[] }
 }
 const classes = ['1', '2', '3', 'X']
 function numeric(value: string | undefined): number | null {
@@ -75,7 +77,12 @@ export function parseShinyReport(text: string): ShinyReport {
     }
     grouped.set(key, result)
   }
-  return { rows: [...grouped.values()], periods: periods.sort(), format: long ? 'historical-raw' : 'current-export' }
+  return {
+    rows: [...grouped.values()],
+    periods: periods.sort(),
+    format: long ? 'historical-raw' : 'current-export',
+    input: { columns: csv.columns, rows: csv.map((row) => ({ ...row })) },
+  }
 }
 
 /** R round(x, 0) ties-to-even, unlike JavaScript Math.round. */
@@ -88,10 +95,30 @@ export const ESTABLISHMENT_PERIODS = ['1961', '1991', '2021']
 export const MATURATION_PERIODS = ['2021', '2041', '2061', '2081']
 export const DEFAULT_ESTABLISHMENT = [0.25, 0.25, 0.5]
 export const DEFAULT_MATURATION = [0.1, 0.3, 0.3, 0.3]
+export interface ReportSummaryPolicy {
+  id: string
+  label: string
+  establishment: { periods: string[]; weights: number[] }
+  maturation: { periods: string[]; weights: number[] }
+}
+/** Source-backed policies only. Historical IDs are never inferred to be modern periods. */
+export const SHINY_SUMMARY_POLICIES: ReportSummaryPolicy[] = [
+  {
+    id: 'cciss-current-1961-2100',
+    label: 'CCISS current periods (1961–2100)',
+    establishment: { periods: ESTABLISHMENT_PERIODS, weights: DEFAULT_ESTABLISHMENT },
+    maturation: { periods: MATURATION_PERIODS, weights: DEFAULT_MATURATION },
+  },
+]
+export function supportedSummaryPolicies(report: ShinyReport) {
+  return SHINY_SUMMARY_POLICIES.filter((policy) =>
+    [...policy.establishment.periods, ...policy.maturation.periods].every((period) => report.periods.includes(period)),
+  )
+}
 function normalize(w: number[], size: number) {
-  if (w.length !== size || w.some((n) => !Number.isFinite(n) || n < 0) || w.reduce((a, b) => a + b, 0) <= 0)
-    throw new Error('Weights must be nonnegative with a positive total.')
   const total = w.reduce((a, b) => a + b, 0)
+  if (w.length !== size || w.some((n) => !Number.isFinite(n) || n < 0) || !Number.isFinite(total) || total <= 0)
+    throw new Error('Weights must be nonnegative with a positive total.')
   return w.map((n) => n / total)
 }
 function complete(v: Votes | null | undefined): v is Votes {
@@ -105,13 +132,15 @@ export function summarizeVotes(
   row: SpeciesReport,
   establishment = DEFAULT_ESTABLISHMENT,
   maturation = DEFAULT_MATURATION,
+  policy = SHINY_SUMMARY_POLICIES[0],
 ) {
-  const ew = normalize(establishment, 3),
-    mw = normalize(maturation, 4)
-  const ep = ESTABLISHMENT_PERIODS.map((p) => row.votes[p]),
-    mp = MATURATION_PERIODS.map((p) => row.votes[p])
+  const ew = normalize(establishment, policy.establishment.periods.length),
+    mw = normalize(maturation, policy.maturation.periods.length)
+  const ep = policy.establishment.periods.map((p) => row.votes[p]),
+    mp = policy.maturation.periods.map((p) => row.votes[p])
   if (!ep.every(complete) || !mp.every(complete) || row.current == null) return null
-  if ([...ESTABLISHMENT_PERIODS, ...MATURATION_PERIODS].some((p) => (row.novelty[p] ?? 0) > 0)) return null
+  if ([...policy.establishment.periods, ...policy.maturation.periods].some((p) => (row.novelty[p] ?? 0) > 0))
+    return null
   const weighted = [0, 1, 2, 3].map((c) => ep.reduce((sum, v, i) => sum + v[c] * ew[i], 0)) as Votes
   const residual = 1 - weighted.reduce((a, b) => a + b, 0)
   weighted[3] += residual // feasibility.R's X2 correction, before establishment scoring.
@@ -129,4 +158,89 @@ export function summarizeVotes(
     improve: rRound(improve * 100),
     decline: rRound(decline * 100),
   }
+}
+
+export function reportSummaryStatus(row: SpeciesReport, policy: ReportSummaryPolicy | null): string {
+  if (!policy) return 'No source-backed summary policy matches the exported period IDs.'
+  const periods = [...new Set([...policy.establishment.periods, ...policy.maturation.periods])]
+  const missing = periods.filter((period) => !row.votes[period])
+  if (missing.length) return `Missing votes for periods: ${missing.join(', ')}.`
+  if (row.current == null) return 'The baseline rating is missing.'
+  if (periods.some((period) => (row.novelty[period] ?? 0) > 0))
+    return 'Novelty-scaled votes cannot reproduce the source summary stage.'
+  if (periods.some((period) => !complete(row.votes[period])))
+    return 'Rounded, zero or incomplete vote totals cannot be reweighted.'
+  return 'Complete exported votes support browser period reweighting.'
+}
+
+export function createReportAnalysis(
+  report: ShinyReport,
+  source: string,
+  establishment = DEFAULT_ESTABLISHMENT,
+  maturation = DEFAULT_MATURATION,
+  policy: ReportSummaryPolicy | null = supportedSummaryPolicies(report)[0] ?? null,
+) {
+  const normalizedEstablishment = policy ? normalize(establishment, policy.establishment.periods.length) : null
+  const normalizedMaturation = policy ? normalize(maturation, policy.maturation.periods.length) : null
+  return {
+    schema: 'cciss-imported-report-analysis-v1' as const,
+    source,
+    method:
+      'Imported Shiny results; browser summaries use exported votes only. No new climate predictions or model/scenario reweighting.',
+    policy: policy ? { ...policy, establishmentWeights: establishment, maturationWeights: maturation } : null,
+    normalizedWeights: { establishment: normalizedEstablishment, maturation: normalizedMaturation },
+    report,
+    results: report.rows.map((row) => ({
+      site: row.site,
+      series: row.series,
+      species: row.species,
+      status: reportSummaryStatus(row, policy),
+      summary: policy ? summarizeVotes(row, establishment, maturation, policy) : null,
+    })),
+  }
+}
+
+/** One row per imported site/series/species; source columns and browser results remain separate. */
+export function reportAnalysisCsv(analysis: ReturnType<typeof createReportAnalysis>): string {
+  const { report, results, source, policy } = analysis
+  const originals = [...new Set(report.rows.flatMap((row) => Object.keys(row.original)))]
+  const headings = [
+    'SiteRef',
+    'SS_NoSpace',
+    'Spp',
+    'Curr',
+    ...report.periods.flatMap((period) => ['1', '2', '3', 'X', 'NOV'].map((c) => `${c}_${period}`)),
+    'Browser_EstabFeas',
+    'Browser_ccissFeas',
+    'Browser_Improve',
+    'Browser_Decline',
+    'Browser_Status',
+    'Source',
+    'SummaryPolicy',
+    'EstablishmentWeights',
+    'MaturationWeights',
+    ...originals.map((column) => `Original_${column}`),
+  ]
+  return csvFormatRows([
+    headings,
+    ...report.rows.map((row, i) =>
+      [
+        row.site,
+        row.series,
+        row.species,
+        row.current ?? '',
+        ...report.periods.flatMap((period) => [...(row.votes[period] ?? ['', '', '', '']), row.novelty[period] ?? '']),
+        results[i].summary?.establishment ?? '',
+        results[i].summary?.maturation ?? '',
+        results[i].summary?.improve ?? '',
+        results[i].summary?.decline ?? '',
+        results[i].status,
+        source,
+        policy?.id ?? '',
+        policy ? JSON.stringify(policy.establishmentWeights) : '',
+        policy ? JSON.stringify(policy.maturationWeights) : '',
+        ...originals.map((column) => row.original[column] ?? ''),
+      ].map(String),
+    ),
+  ])
 }

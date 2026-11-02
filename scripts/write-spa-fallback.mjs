@@ -19,7 +19,10 @@ const spaRoutes = [
   'dev',
   'dev/lidar',
   ...['canopy', 'trees', 'forestry', 'species', 'buildings', 'transects'].map((tool) => `dev/lidar/${tool}`),
-  'dev/forestry/visual-quality',
+  'dev/forestry',
+  ...['road-design', 'roads', 'visual-quality', 'cciss-suitability', 'avast-volume'].map(
+    (tool) => `dev/forestry/${tool}`,
+  ),
   'dev/viewshed',
   'dev/viewshed/terrain',
   'dev/flatten',

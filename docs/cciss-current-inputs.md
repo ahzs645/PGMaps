@@ -1,5 +1,11 @@
 # Current CCISS inputs: acquisition results
 
+The [browser handoff workflow](cciss-current-analysis.md) now validates imported
+pilot bundles and can calculate weighted BGC predictions, overlap and species
+results when compatible, explicitly version-matched inputs are supplied. The
+data acquisition gaps documented below remain: no authentic current province-wide
+prediction export or independent deployed-site validation has been obtained.
+
 Checked 2026-09-27. This audit acquires public reference data; it does not claim
 that the live Shiny database has been exported or the current calculator is ready.
 

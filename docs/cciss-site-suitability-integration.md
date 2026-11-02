@@ -1,5 +1,10 @@
 # CCISS site suitability in PGMaps
 
+For the latest browser workflows, reusable map options and current-data bundle
+handoff, see [CCISS browser analysis](cciss-current-analysis.md). The source and
+numeric-map validation notes below remain relevant; the current-data importer
+adds a separate calculation path and does not change map product provenance.
+
 ## Scope
 
 Build a value-backed CCISS map and, separately, reproduce site-specific tree

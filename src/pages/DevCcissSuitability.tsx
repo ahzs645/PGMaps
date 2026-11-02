@@ -16,77 +16,49 @@ import { fetchBytes, FetchError } from '@/lib/fetchJson'
 import { feasibilityClass, sampleCcissRaster, suitabilityColor, type RasterSample } from './cciss/raster'
 import { ShinyReportDialog } from './cciss/ShinyReportDialog'
 import { LegacyAnalysisDialog } from './cciss/LegacyAnalysisDialog'
+import { CurrentAnalysisDialog } from './cciss/CurrentAnalysisDialog'
+import { ComparisonDialog } from './cciss/ComparisonDialog'
+import { useComparisonSnapshots } from './cciss/useComparisonSnapshots'
 import { Button } from '@/components/ui/button'
 import { NativeSuitabilityLayer } from './cciss/NativeSuitabilityLayer'
 import {
-  CCISS_GCMS,
-  CCISS_PERIODS,
-  CCISS_SPECIES,
+  DEFAULT_CCISS_SELECTION,
+  ccissMapOptions,
+  normalizeCcissSelection,
   ccissTileId,
   ccissTileUrl,
-  hasComparableNumericSuitability,
   type CcissLayerSelection,
 } from './cciss/layers'
+import { ccissPreparedMapProduct, ccissSourceOptions } from './cciss/mapSources'
+import {
+  readCcissWorkspace,
+  writeCcissWorkspace,
+  type CcissAnalysisMode,
+  type CcissRenderSource as RenderSource,
+} from './cciss/workspace'
 
-const POINT: [number, number] = [-122.7497, 53.9171]
-const query = new URLSearchParams(window.location.search)
-const queryLongitude = Number(query.get('lng'))
-const queryLatitude = Number(query.get('lat'))
-const queryZoom = Number(query.get('z'))
-const INITIAL_POINT: [number, number] =
-  query.has('lng') &&
-  query.has('lat') &&
-  Number.isFinite(queryLongitude) &&
-  Number.isFinite(queryLatitude) &&
-  queryLongitude >= -139 &&
-  queryLongitude <= -114 &&
-  queryLatitude >= 48 &&
-  queryLatitude <= 60
-    ? [queryLongitude, queryLatitude]
-    : POINT
-const INITIAL_ZOOM = query.has('z') && Number.isFinite(queryZoom) && queryZoom >= 4 && queryZoom <= 20 ? queryZoom : 5.5
-type RenderSource = 'tiles' | 'native' | 'vector' | 'trace'
-const INITIAL_RENDER_SOURCE: RenderSource =
-  query.get('render') === 'tiles'
-    ? 'tiles'
-    : query.get('render') === 'vector'
-      ? 'vector'
-      : query.get('render') === 'native'
-        ? 'native'
-        : 'trace'
+const INITIAL_WORKSPACE = readCcissWorkspace(window.location.search)
+const INITIAL_RENDER_SOURCE = INITIAL_WORKSPACE.renderSource
 const SOURCE = 'https://thebeczone.ca/shiny/cciss/'
 const selectClass = 'mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-sm'
 const REFERENCE_BGC = '/data/cciss/reference-bgc-1961-1990.tif'
-const REFERENCE_SUITABILITY = '/data/cciss/historical-download-1961-1990-C4-Pl.cog.tif'
-const REFERENCE_SUITABILITY_FALLBACK = '/data/cciss/historical-download-1961-1990-C4-Pl.tif'
-const GRID_TRACE_MANIFEST = '/data/cciss/province-grid-trace/overviews/manifest.json'
-const TRACE_MANIFEST = '/data/cciss/public-tile-trace/polygons/manifest.json'
 const traceLabel = (code: number) =>
   code === 99 ? 'Uncertain colour' : code === 40 ? 'EX · Unsuitable' : feasibilityClass(code)
 const traceColor = (code: number): [number, number, number, number] =>
   code === 99 ? [190, 40, 180, 255] : code === 40 ? [247, 247, 247, 255] : suitabilityColor(code)
-const VECTOR_MANIFEST = '/data/cciss/historical-Pl-C4-polygons/manifest.json'
-const DEFAULT_SELECTION: CcissLayerSelection = {
-  kind: 'suitability',
-  period: '1961_1990_ref',
-  edatope: 'C4',
-  species: 'Pl',
-  statistic: 'NewFeas',
-  gcm: 'Ensemble',
-  byZone: false,
-}
 
 type RasterLoad = { source: File | string; image: GeoTIFFImage; origin: 'hosted' | 'file' } | null
 type GeoTIFFImage = Awaited<ReturnType<GeoTIFF['getImage']>>
 type SampleState = { status: 'empty' | 'loading' | 'error'; message?: string } | RasterSample
 
-function useRasterSource(file: File | null, hostedUrl: string, fallbackHostedUrl?: string) {
+function useRasterSource(file: File | null, hostedUrl: string | null, fallbackHostedUrl?: string) {
   const [loaded, setLoaded] = useState<RasterLoad>(null)
   const [error, setError] = useState<{ source: File | string; message: string } | null>(null)
   const [missing, setMissing] = useState<File | string | null>(null)
   const source = file ?? hostedUrl
 
   useEffect(() => {
+    if (!source) return
     let current = true
     let tiff: GeoTIFF | undefined
     const controller = new AbortController()
@@ -109,7 +81,7 @@ function useRasterSource(file: File | null, hostedUrl: string, fallbackHostedUrl
           blob = file
         } else {
           try {
-            blob = await readHostedBlob(hostedUrl)
+            blob = await readHostedBlob(hostedUrl!)
           } catch (cause) {
             if (!fallbackHostedUrl || !(cause instanceof FetchError) || cause.status !== 404) throw cause
             blob = await readHostedBlob(fallbackHostedUrl)
@@ -196,16 +168,8 @@ function ClickToInspect({ onSelect }: { onSelect: (point: [number, number]) => v
   return null
 }
 
-function SyncMapUrl({ renderSource, traceMethod }: { renderSource: RenderSource; traceMethod: 'grid' | 'pixels' }) {
+function SyncMapUrl() {
   const { map, isLoaded } = useMap()
-
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('render', renderSource)
-    if (renderSource === 'trace') url.searchParams.set('traceMethod', traceMethod)
-    else url.searchParams.delete('traceMethod')
-    if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url)
-  }, [renderSource, traceMethod])
 
   useObserveMapViewport(
     map,
@@ -260,20 +224,19 @@ function SampleResult({
 }
 
 export default function DevCcissSuitability() {
-  const [reportOpen, setReportOpen] = useState(query.get('analysis') === 'report')
-  const [analysisOpen, setAnalysisOpen] = useState(query.get('analysis') === 'legacy')
-  const [point, setPoint] = useState<[number, number]>(INITIAL_POINT)
+  const [analysis, setAnalysis] = useState<CcissAnalysisMode>(INITIAL_WORKSPACE.analysis)
+  const comparisons = useComparisonSnapshots()
+  const openComparison = useCallback(() => setAnalysis('compare'), [])
+  const [point, setPoint] = useState<[number, number]>(INITIAL_WORKSPACE.point)
   const [bgcFile, setBgcFile] = useState<File | null>(null)
   const [suitabilityFile, setSuitabilityFile] = useState<File | null>(null)
-  const [selection, setSelection] = useState<CcissLayerSelection>(DEFAULT_SELECTION)
+  const [selection, setSelection] = useState<CcissLayerSelection>(INITIAL_WORKSPACE.selection)
   const [renderSource, setRenderSource] = useState<RenderSource>(INITIAL_RENDER_SOURCE)
   const [vectorStatus, setVectorStatus] = useState<CategoricalRasterStatus>({
     state: 'loading',
     message: 'Loading polygons…',
   })
-  const [traceMethod, setTraceMethod] = useState<'grid' | 'pixels'>(
-    query.get('traceMethod') === 'pixels' ? 'pixels' : 'grid',
-  )
+  const [traceMethod, setTraceMethod] = useState<'grid' | 'pixels'>(INITIAL_WORKSPACE.traceMethod)
   const [vectorPick, setVectorPick] = useState<CategoricalRasterPick | null>(null)
   const pickPolygon = useCallback((pick: CategoricalRasterPick) => {
     setPoint([pick.longitude, pick.latitude])
@@ -281,12 +244,35 @@ export default function DevCcissSuitability() {
   }, [])
   const tileId = ccissTileId(selection)
   const [tileStatus, setTileStatus] = useState<{ id: string; available: boolean } | null>(null)
+  const [tileAttempt, setTileAttempt] = useState(0)
+  const mapProduct = ccissPreparedMapProduct(selection)
+  const mapOptions = ccissMapOptions(selection)
   const bgcRaster = useRasterSource(bgcFile, REFERENCE_BGC)
-  const suitabilityRaster = useRasterSource(suitabilityFile, REFERENCE_SUITABILITY, REFERENCE_SUITABILITY_FALLBACK)
+  const suitabilityRaster = useRasterSource(
+    suitabilityFile,
+    mapProduct?.numeric.url ?? null,
+    mapProduct?.numeric.fallbackUrl,
+  )
   const bgc = useSample(bgcRaster.image, point)
   const suitability = useSample(suitabilityRaster.image, point)
-  const numericLayer = hasComparableNumericSuitability(selection)
-  const polygonLayer = numericLayer && (renderSource === 'vector' || renderSource === 'trace')
+  const numericLayer = mapProduct !== null
+  const sources = ccissSourceOptions(selection, {
+    localRaster: Boolean(suitabilityFile),
+    numericRasterLoaded: Boolean(suitabilityRaster.image),
+    publishedTilesAvailable: tileStatus?.id === tileId ? tileStatus.available : undefined,
+  })
+  const selectedSource = sources.find((source) => source.id === renderSource)!
+  const polygonLayer = selectedSource.available && (renderSource === 'vector' || renderSource === 'trace')
+  const updateSelection = (patch: Partial<CcissLayerSelection>) => {
+    setSelection((previous) => normalizeCcissSelection({ ...previous, ...patch }))
+    setVectorPick(null)
+  }
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    url.search = writeCcissWorkspace(url.search, { point, selection, renderSource, traceMethod, analysis }).toString()
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url)
+  }, [point, selection, renderSource, traceMethod, analysis])
 
   useEffect(() => {
     if (renderSource !== 'tiles') return
@@ -297,7 +283,7 @@ export default function DevCcissSuitability() {
         if (!controller.signal.aborted) setTileStatus({ id: tileId, available: false })
       })
     return () => controller.abort()
-  }, [tileId, renderSource])
+  }, [tileId, renderSource, tileAttempt])
 
   const tileAvailable = tileStatus?.id === tileId ? tileStatus.available : null
 
@@ -313,17 +299,64 @@ export default function DevCcissSuitability() {
           className={MAP_SIDEBAR_CLASS}
         >
           <SidebarSection title="Analysis">
-            <Button className="mb-2 mr-2" onClick={() => setReportOpen(true)}>
+            <Button className="mb-2 mr-2" onClick={() => setAnalysis('report')}>
               Open species report
             </Button>
-            {reportOpen && <ShinyReportDialog onClose={() => setReportOpen(false)} />}
-            <Button onClick={() => setAnalysisOpen(true)}>Open legacy analysis</Button>
+            {analysis === 'report' && (
+              <ShinyReportDialog
+                onClose={() => setAnalysis(null)}
+                onCaptureComparison={comparisons.save}
+                onOpenComparison={openComparison}
+                comparisonCount={comparisons.snapshots.length}
+              />
+            )}
+            <Button onClick={() => setAnalysis('legacy')}>Open legacy analysis</Button>
             <p className="mt-2 text-xs text-muted-foreground">
               Calculate species suitability at the selected point and explore regional trends using the older numeric
               dataset.
             </p>
-            {analysisOpen && (
-              <LegacyAnalysisDialog point={point} onPointChange={setPoint} onClose={() => setAnalysisOpen(false)} />
+            {analysis === 'legacy' && (
+              <LegacyAnalysisDialog
+                point={point}
+                onPointChange={setPoint}
+                onClose={() => setAnalysis(null)}
+                onCaptureComparison={comparisons.save}
+                onOpenComparison={openComparison}
+                comparisonCount={comparisons.snapshots.length}
+              />
+            )}
+            <Button className="mt-3" variant="outline" onClick={() => setAnalysis('current')}>
+              Open current data analysis
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Import a CCISS site-data bundle to explore its climate projections and run the calculations supported by
+              its matching reference tables. The file stays in this browser.
+            </p>
+            {analysis === 'current' && (
+              <CurrentAnalysisDialog
+                point={point}
+                onPointChange={setPoint}
+                onClose={() => setAnalysis(null)}
+                onCaptureComparison={comparisons.save}
+                onOpenComparison={openComparison}
+                comparisonCount={comparisons.snapshots.length}
+              />
+            )}
+            <Button className="mt-3" variant="outline" onClick={openComparison}>
+              Open comparisons ({comparisons.snapshots.length})
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Save analyses before changing a location or settings, then compare their results. Saved comparisons remain
+              available while this page is open and can be downloaded for later use.
+            </p>
+            {analysis === 'compare' && (
+              <ComparisonDialog
+                snapshots={comparisons.snapshots}
+                onImportSnapshot={comparisons.save}
+                onRemoveSnapshot={comparisons.remove}
+                onRenameSnapshot={comparisons.rename}
+                onClose={() => setAnalysis(null)}
+              />
             )}
           </SidebarSection>
           <SidebarSection title="Map layer">
@@ -332,12 +365,13 @@ export default function DevCcissSuitability() {
               <NativeSelect
                 className={selectClass}
                 value={selection.kind}
-                onChange={(event) =>
-                  setSelection((previous) => ({ ...previous, kind: event.target.value as CcissLayerSelection['kind'] }))
-                }
+                onChange={(event) => updateSelection({ kind: event.target.value as CcissLayerSelection['kind'] })}
               >
-                <option value="suitability">Tree species suitability</option>
-                <option value="bgc">BGC classification</option>
+                {mapOptions.kinds.map((kind) => (
+                  <option key={kind.id} value={kind.id}>
+                    {kind.label}
+                  </option>
+                ))}
               </NativeSelect>
             </label>
             <label className="mt-3 block text-sm">
@@ -345,14 +379,9 @@ export default function DevCcissSuitability() {
               <NativeSelect
                 className={selectClass}
                 value={selection.period}
-                onChange={(event) =>
-                  setSelection((previous) => ({
-                    ...previous,
-                    period: event.target.value as CcissLayerSelection['period'],
-                  }))
-                }
+                onChange={(event) => updateSelection({ period: event.target.value as CcissLayerSelection['period'] })}
               >
-                {CCISS_PERIODS.map((period) => (
+                {mapOptions.periods.map((period) => (
                   <option key={period.id} value={period.id}>
                     {period.label}
                   </option>
@@ -368,15 +397,12 @@ export default function DevCcissSuitability() {
                       className={selectClass}
                       value={selection.species}
                       onChange={(event) =>
-                        setSelection((previous) => ({
-                          ...previous,
-                          species: event.target.value as CcissLayerSelection['species'],
-                        }))
+                        updateSelection({ species: event.target.value as CcissLayerSelection['species'] })
                       }
                     >
-                      {CCISS_SPECIES.map((species) => (
-                        <option key={species} value={species}>
-                          {species}
+                      {mapOptions.species.map((species) => (
+                        <option key={species.id} value={species.id}>
+                          {species.label}
                         </option>
                       ))}
                     </NativeSelect>
@@ -387,65 +413,59 @@ export default function DevCcissSuitability() {
                       className={selectClass}
                       value={selection.edatope}
                       onChange={(event) =>
-                        setSelection((previous) => ({
-                          ...previous,
-                          edatope: event.target.value as CcissLayerSelection['edatope'],
-                        }))
+                        updateSelection({ edatope: event.target.value as CcissLayerSelection['edatope'] })
                       }
                     >
-                      {(['B2', 'C4', 'D6'] as const).map((edatope) => (
-                        <option key={edatope} value={edatope}>
-                          {edatope}
+                      {mapOptions.edatopes.map((edatope) => (
+                        <option key={edatope.id} value={edatope.id}>
+                          {edatope.label}
                         </option>
                       ))}
                     </NativeSelect>
                   </label>
                 </div>
-                {!selection.period.startsWith('1961_1990') && (
+                {mapOptions.statistics.length > 1 && (
                   <label className="mt-3 block text-sm">
                     Map type
                     <NativeSelect
                       className={selectClass}
                       value={selection.statistic}
                       onChange={(event) =>
-                        setSelection((previous) => ({
-                          ...previous,
-                          statistic: event.target.value as CcissLayerSelection['statistic'],
-                        }))
+                        updateSelection({ statistic: event.target.value as CcissLayerSelection['statistic'] })
                       }
                     >
-                      <option value="NewFeas">Projected suitability</option>
-                      <option value="MeanChange">Suitability change</option>
+                      {mapOptions.statistics.map((statistic) => (
+                        <option key={statistic.id} value={statistic.id}>
+                          {statistic.label}
+                        </option>
+                      ))}
                     </NativeSelect>
                   </label>
                 )}
               </>
             ) : (
               <>
-                <label className="mt-3 flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selection.byZone}
-                    onChange={(event) => setSelection((previous) => ({ ...previous, byZone: event.target.checked }))}
-                  />
-                  Group by zone
-                </label>
-                {selection.period.startsWith('20') && selection.period !== '2001_2020_obs' && (
+                {mapOptions.showZoneGrouping && (
+                  <label className="mt-3 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selection.byZone}
+                      onChange={(event) => updateSelection({ byZone: event.target.checked })}
+                    />
+                    Group by zone
+                  </label>
+                )}
+                {mapOptions.gcms.length > 0 && (
                   <label className="mt-3 block text-sm">
                     Climate model
                     <NativeSelect
                       className={selectClass}
                       value={selection.gcm}
-                      onChange={(event) =>
-                        setSelection((previous) => ({
-                          ...previous,
-                          gcm: event.target.value as CcissLayerSelection['gcm'],
-                        }))
-                      }
+                      onChange={(event) => updateSelection({ gcm: event.target.value as CcissLayerSelection['gcm'] })}
                     >
-                      {CCISS_GCMS.map((gcm) => (
-                        <option key={gcm} value={gcm}>
-                          {gcm}
+                      {mapOptions.gcms.map((gcm) => (
+                        <option key={gcm.id} value={gcm.id}>
+                          {gcm.label}
                         </option>
                       ))}
                     </NativeSelect>
@@ -463,24 +483,36 @@ export default function DevCcissSuitability() {
                   setVectorPick(null)
                 }}
                 variant="solid"
-                options={[
-                  { value: 'trace', label: 'Tile trace', disabled: !numericLayer },
-                  { value: 'vector', label: 'Numeric vector', disabled: !numericLayer || Boolean(suitabilityFile) },
-                ]}
+                options={sources
+                  .filter((source) => source.id === 'trace' || source.id === 'vector')
+                  .map((source) => ({
+                    value: source.id,
+                    label: source.label,
+                    disabled: !source.available,
+                  }))}
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Tile trace is the default. Numeric vector preserves the downloaded GeoTIFF’s cell boundaries and codes.
                 The location and zoom stay in place as you switch.
               </p>
             </div>
-            {!numericLayer && renderSource !== 'tiles' && (
+            {!selectedSource.available && renderSource !== 'tiles' && (
               <InlineAlert title="No prepared overlay for this selection">
-                Trace and numeric views currently cover mapped 1961–1990 Pl/C4 only. Choose original CCISS tiles under
-                Comparison options to view this selection, or{' '}
+                {selectedSource.reason}{' '}
+                {suitabilityFile ? (
+                  <button className="underline" onClick={() => setRenderSource('native')}>
+                    View the selected GeoTIFF
+                  </button>
+                ) : (
+                  <button className="underline" onClick={() => setRenderSource('tiles')}>
+                    View original CCISS tiles
+                  </button>
+                )}
+                , or{' '}
                 <button
                   className="underline"
                   onClick={() => {
-                    setSelection(DEFAULT_SELECTION)
+                    setSelection(DEFAULT_CCISS_SELECTION)
                     setVectorPick(null)
                   }}
                 >
@@ -502,10 +534,13 @@ export default function DevCcissSuitability() {
                   setRenderSource(value)
                   setVectorPick(null)
                 }}
-                options={[
-                  { value: 'tiles', label: 'Original CCISS tiles' },
-                  { value: 'native', label: 'Direct GeoTIFF', disabled: !numericLayer || !suitabilityRaster.image },
-                ]}
+                options={sources
+                  .filter((source) => source.id === 'tiles' || source.id === 'native')
+                  .map((source) => ({
+                    value: source.id,
+                    label: source.label,
+                    disabled: source.id !== 'tiles' && !source.available,
+                  }))}
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 Direct GeoTIFF draws the numeric raster and supports local uploads. Original tiles are only loaded when
@@ -514,6 +549,7 @@ export default function DevCcissSuitability() {
               <p className="mt-2 break-all text-xs text-muted-foreground">CCISS tile set: {tileId}</p>
             </CollapsibleSection>
             {renderSource === 'tiles' && <p className="mt-2 text-xs">Showing original CCISS tiles.</p>}
+            <p className="mt-2 text-xs text-muted-foreground">{selectedSource.description}</p>
             {suitabilityFile && (
               <p className="mt-2 text-xs text-muted-foreground">
                 A local GeoTIFF is selected. Use Direct GeoTIFF in Comparison options to render it; the prepared numeric
@@ -578,9 +614,19 @@ export default function DevCcissSuitability() {
               </p>
             )}
             {tileAvailable === false && renderSource === 'tiles' && (
-              <p role="alert" className="mt-2 text-sm text-destructive">
+              <InlineAlert tone="error">
                 This tile set is unavailable from the CCISS server.
-              </p>
+                <Button
+                  className="mt-2"
+                  variant="outline"
+                  onClick={() => {
+                    setTileStatus(null)
+                    setTileAttempt((attempt) => attempt + 1)
+                  }}
+                >
+                  Retry map tiles
+                </Button>
+              </InlineAlert>
             )}
           </SidebarSection>
           <SidebarSection title="Inspect a location">
@@ -592,15 +638,30 @@ export default function DevCcissSuitability() {
                   : 'Click the map to read the downloaded numeric GeoTIFF. Compare public CCISS tiles, numeric raster rendering, and vector polygons.'}
             </p>
             <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-              {point[1].toFixed(5)}° N, {Math.abs(point[0]).toFixed(5)}° W
+              {Math.abs(point[1]).toFixed(5)}° {point[1] < 0 ? 'S' : 'N'}, {Math.abs(point[0]).toFixed(5)}°{' '}
+              {point[0] < 0 ? 'W' : 'E'}
             </p>
-            {numericLayer ? (
+            {numericLayer || suitabilityFile ? (
               <div className="mt-3 space-y-2">
-                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
-                  Public CCISS tiles differ from the download used by Numeric GeoTIFF and Vector. For example, at
-                  53.96654° N, 122.85202° W, the download says Moderate while the public mapped tile is High.
-                </p>
-                <SampleResult result={suitability} label="Downloaded Pl/C4 GeoTIFF class" classValue />
+                {suitabilityFile ? (
+                  <p className="text-xs text-muted-foreground">
+                    Local file values are shown without assigning a suitability class. Confirm this file’s legend, grid
+                    and product; changing map options does not change the selected file.
+                  </p>
+                ) : (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+                    {mapProduct!.limits}
+                  </p>
+                )}
+                <SampleResult
+                  result={suitability}
+                  label={
+                    suitabilityFile
+                      ? `Local GeoTIFF value · ${suitabilityFile.name}`
+                      : `${mapProduct!.label} GeoTIFF class`
+                  }
+                  classValue={!suitabilityFile}
+                />
                 {polygonLayer && (
                   <InlineAlert
                     title={renderSource === 'trace' ? 'Inferred tile colour class' : 'Picked vector polygon'}
@@ -608,7 +669,7 @@ export default function DevCcissSuitability() {
                     {vectorPick
                       ? renderSource === 'trace'
                         ? `${traceLabel(vectorPick.value)} · ${vectorPick.overview ? 'generalized overview; zoom in for the full cell' : 'inferred from WebP colours, not a measured value'}`
-                        : `${feasibilityClass(vectorPick.value)} · numeric code ${vectorPick.value}`
+                        : `${feasibilityClass(vectorPick.value)} · numeric code ${vectorPick.value}${vectorPick.overview ? ' · generalized overview; exact GeoTIFF cell shown separately' : ''}`
                       : 'Click a polygon to inspect its class.'}
                   </InlineAlert>
                 )}
@@ -643,7 +704,7 @@ export default function DevCcissSuitability() {
             )}
           {selection.kind === 'suitability' &&
             selection.statistic === 'MeanChange' &&
-            !selection.period.startsWith('1961_1990') && (
+            mapOptions.statistics.length > 1 && (
               <SidebarSection title="Suitability change">
                 <p className="text-xs text-muted-foreground">
                   Red tones indicate decline; blue tones indicate improvement. See the CCISS Spatial legend for newly
@@ -653,8 +714,8 @@ export default function DevCcissSuitability() {
             )}
           <SidebarSection title="Read exact raster values">
             <p className="mb-3 text-sm">
-              The historical Pl/C4 download and reference BGC GeoTIFFs load automatically when PGMaps has a prepared
-              snapshot. You can also select your own downloads; selected files stay in this browser.
+              Matching prepared GeoTIFFs load automatically when available. You can also inspect a local download;
+              selected files stay in this browser.
             </p>
             <label className="block text-sm">
               Reference BGC GeoTIFF
@@ -662,7 +723,10 @@ export default function DevCcissSuitability() {
                 className={selectClass}
                 type="file"
                 accept=".tif,.tiff,image/tiff"
-                onChange={(event) => setBgcFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  setBgcFile(event.target.files?.[0] ?? null)
+                  event.target.value = ''
+                }}
               />
             </label>
             {bgcRaster.error && (
@@ -671,7 +735,7 @@ export default function DevCcissSuitability() {
               </p>
             )}
             <label className="mt-3 block text-sm">
-              Pl · C4 suitability GeoTIFF
+              Local suitability GeoTIFF
               <input
                 className={selectClass}
                 type="file"
@@ -680,9 +744,23 @@ export default function DevCcissSuitability() {
                   setSuitabilityFile(event.target.files?.[0] ?? null)
                   if (renderSource === 'vector') setRenderSource('native')
                   setVectorPick(null)
+                  event.target.value = ''
                 }}
               />
             </label>
+            {(bgcFile || suitabilityFile) && (
+              <Button
+                className="mt-2"
+                variant="outline"
+                onClick={() => {
+                  setSuitabilityFile(null)
+                  setBgcFile(null)
+                  setVectorPick(null)
+                }}
+              >
+                Use prepared data again
+              </Button>
+            )}
             {suitabilityRaster.error && (
               <p role="alert" className="mt-1 text-xs text-destructive">
                 {suitabilityRaster.error}
@@ -690,16 +768,14 @@ export default function DevCcissSuitability() {
             )}
             {(bgcRaster.origin || suitabilityRaster.origin) && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Numeric source:{' '}
-                {bgcRaster.origin === 'hosted' || suitabilityRaster.origin === 'hosted'
-                  ? 'PGMaps snapshot'
-                  : 'selected local files'}
-                .
+                BGC source: {bgcFile ? bgcFile.name : 'PGMaps reference snapshot'}.
+                {suitabilityRaster.origin && (
+                  <> Suitability source: {suitabilityFile ? suitabilityFile.name : mapProduct?.label}.</>
+                )}
               </p>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
-              The class label assumes the second file is the historical Pl/C4 suitability download. Check the selection
-              before interpreting a value.
+              Local file values retain their numeric codes. Use the file’s own legend to interpret them.
             </p>
             <a
               className="mt-3 inline-block text-sm underline"
@@ -717,8 +793,9 @@ export default function DevCcissSuitability() {
               prediction arrays are not included in the public map tiles or GeoTIFF downloads.
             </p>
             <p className="mt-2 text-sm">
-              The calculation can be connected when we have a version-matched data export or read-only CCISS calculation
-              service.
+              Open current data analysis to import a version-matched export. Its available sites, climate models and
+              site series determine the calculation options. Complete reference tables are required for species
+              suitability; a predictions-only export supports BGC probabilities.
             </p>
           </SidebarSection>
           <SidebarSection title="Other CCISS pages and reports">
@@ -752,16 +829,16 @@ export default function DevCcissSuitability() {
         </MapSidebarShell>
       }
     >
-      <Map center={INITIAL_POINT} zoom={INITIAL_ZOOM}>
-        <SyncMapUrl renderSource={renderSource} traceMethod={traceMethod} />
+      <Map center={INITIAL_WORKSPACE.camera.center} zoom={INITIAL_WORKSPACE.camera.zoom}>
+        <SyncMapUrl />
         {polygonLayer ? (
           <MapCategoricalRaster
             manifestUrl={
               renderSource === 'trace'
                 ? traceMethod === 'grid'
-                  ? GRID_TRACE_MANIFEST
-                  : TRACE_MANIFEST
-                : VECTOR_MANIFEST
+                  ? mapProduct!.gridTraceManifest!
+                  : mapProduct!.pixelTraceManifest!
+                : mapProduct!.vectorManifest!
             }
             colorForValue={renderSource === 'trace' ? traceColor : suitabilityColor}
             onPick={pickPolygon}
@@ -772,7 +849,7 @@ export default function DevCcissSuitability() {
                 : 'CCISS GeoTIFF download · BC Ministry of Forests'
             }
           />
-        ) : numericLayer && renderSource === 'native' ? (
+        ) : selectedSource.available && renderSource === 'native' ? (
           suitabilityRaster.image && <NativeSuitabilityLayer key={tileId} image={suitabilityRaster.image} />
         ) : (
           renderSource === 'tiles' &&
