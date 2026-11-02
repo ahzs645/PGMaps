@@ -1,0 +1,1122 @@
+{
+  "schema": "pgmaps-castor-sql-reference-v1",
+  "method": "Python standard-library SQLite executing resolved source SQL; no R/SpaDES execution or whole-model equivalence claimed.",
+  "upstream": {
+    "forestryCastor": "e2a580eb1fcc634780bb3599da7265a1e871484f",
+    "growingStockCastor": "8ea945a91b4ec71d0ddd28714641b6dcae229c5c",
+    "dataCastor": "884ce9d726942b3d2eae7b88120bd1b7ad863a19",
+    "sourceSha256": {
+      "upstream-forestryCastor.R": "a670ff8fc86ff88082bf1b6d7437760f4415439903c65da0f9e64e5459d034c8",
+      "upstream-growingStockCastor.R": "48d9cd4cf1e2134f834ec18bb02be208f3e0e10c8698f0dba5f8438d9c739e67"
+    },
+    "sampleSha256": "8d19a48acba51de568d6994b8b41c0d9b6d3533aa6ea8c7a0e3cd95afe23535d"
+  },
+  "constraintPixels": [
+    {
+      "pixelid": 1,
+      "own": 1,
+      "zone1": 1,
+      "age": 200,
+      "thlb": 1,
+      "dist": 500,
+      "eca": 0.1,
+      "crownclosure": 80,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 2,
+      "own": 1,
+      "zone1": 1,
+      "age": 160,
+      "thlb": 0,
+      "dist": 600,
+      "eca": 0.1,
+      "crownclosure": 20,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 3,
+      "own": 1,
+      "zone1": 1,
+      "age": 130,
+      "thlb": 1,
+      "dist": 400,
+      "eca": 0.2,
+      "crownclosure": 70,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 4,
+      "own": 1,
+      "zone1": 1,
+      "age": 90,
+      "thlb": 1,
+      "dist": 100,
+      "eca": 0.6,
+      "crownclosure": 65,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 5,
+      "own": 1,
+      "zone1": 1,
+      "age": 40,
+      "thlb": 1,
+      "dist": 40,
+      "eca": 1,
+      "crownclosure": 35,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 6,
+      "own": 1,
+      "zone1": 1,
+      "age": 15,
+      "thlb": 1,
+      "dist": 10,
+      "eca": 1,
+      "crownclosure": 25,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 7,
+      "own": 0,
+      "zone1": 1,
+      "age": 150,
+      "thlb": 1,
+      "dist": 800,
+      "eca": 0.05,
+      "crownclosure": 90,
+      "zone_const": 0
+    },
+    {
+      "pixelid": 8,
+      "own": 1,
+      "zone1": 2,
+      "age": 180,
+      "thlb": 1,
+      "dist": 900,
+      "eca": 0.1,
+      "crownclosure": 75,
+      "zone_const": 0
+    }
+  ],
+  "constraints": [
+    {
+      "id": "ge-age",
+      "type": "ge",
+      "variable": "age",
+      "threshold": 120,
+      "percentage": 50,
+      "order": "CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC",
+      "sourceLines": "302-319",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 4,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [
+        2,
+        1,
+        3,
+        4
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC LIMIT :limits"
+    },
+    {
+      "id": "le-age",
+      "type": "le",
+      "variable": "age",
+      "threshold": 50,
+      "percentage": 40,
+      "order": "CASE WHEN age <= :threshold THEN 1 ELSE 0 END, thlb, zone_const DESC, age",
+      "sourceLines": "398-415",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 4,
+      "actualPercent": 33.33333333333333,
+      "selectedPixelIds": [
+        2,
+        4,
+        3,
+        1
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age <= :threshold THEN 1 ELSE 0 END, thlb, zone_const DESC, age LIMIT :limits"
+    },
+    {
+      "id": "ge-distance",
+      "type": "ge",
+      "variable": "dist",
+      "threshold": 300,
+      "percentage": 50,
+      "order": "CASE WHEN dist >= :threshold THEN 0 ELSE 1 END, dist DESC, age DESC",
+      "sourceLines": "257-272",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 4,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [
+        2,
+        1,
+        3,
+        4
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN dist >= :threshold THEN 0 ELSE 1 END, dist DESC, age DESC LIMIT :limits"
+    },
+    {
+      "id": "le-distance",
+      "type": "le",
+      "variable": "dist",
+      "threshold": 100,
+      "percentage": 60,
+      "order": "CASE WHEN dist <= :threshold THEN 1 ELSE 0 END, thlb, zone_const DESC, dist DESC",
+      "sourceLines": "358-374",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 3,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [
+        2,
+        1,
+        3
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN dist <= :threshold THEN 1 ELSE 0 END, thlb, zone_const DESC, dist DESC LIMIT :limits"
+    },
+    {
+      "id": "ge-multi",
+      "type": "ge",
+      "variable": "multi",
+      "threshold": 0,
+      "percentage": 50,
+      "condition": "age >= 120 AND crownclosure >= 60",
+      "order": "CASE WHEN age >= 120 AND crownclosure >= 60 THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC",
+      "sourceLines": "276-298",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 4,
+      "actualPercent": 33.33333333333333,
+      "selectedPixelIds": [
+        1,
+        3,
+        2,
+        4
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age >= 120 AND crownclosure >= 60 THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC LIMIT :limits"
+    },
+    {
+      "id": "le-multi",
+      "type": "le",
+      "variable": "multi",
+      "threshold": 0,
+      "percentage": 60,
+      "condition": "age <= 50 OR crownclosure < 40",
+      "order": "CASE WHEN age <= 50 OR crownclosure < 40 THEN 1 ELSE 0 END, thlb, zone_const DESC, age",
+      "sourceLines": "377-394",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 3,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [
+        4,
+        3,
+        1
+      ],
+      "protectedPixelIds": [
+        1,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age <= 50 OR crownclosure < 40 THEN 1 ELSE 0 END, thlb, zone_const DESC, age LIMIT :limits"
+    },
+    {
+      "id": "ge-denominator",
+      "type": "ge",
+      "variable": "age",
+      "threshold": 120,
+      "percentage": 50,
+      "denominator": "thlb > 0",
+      "order": "CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC",
+      "sourceLines": "239-249,302-319",
+      "zoneId": 1,
+      "tAreaCells": 6,
+      "limitCells": 3,
+      "actualPercent": 40.0,
+      "selectedPixelIds": [
+        1,
+        3,
+        4
+      ],
+      "protectedPixelIds": [
+        1,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND thlb > 0 AND zone1 = 1 ORDER BY CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC LIMIT :limits"
+    },
+    {
+      "id": "le-eca",
+      "type": "le",
+      "variable": "eca",
+      "threshold": 65,
+      "percentage": 100,
+      "order": "thlb, zone_const DESC, eca DESC",
+      "sourceLines": "324-354",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 5,
+      "actualPercent": 42.142857142857146,
+      "selectedPixelIds": [
+        2,
+        5,
+        6,
+        4,
+        3
+      ],
+      "protectedPixelIds": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY thlb, zone_const DESC, eca DESC LIMIT :limits"
+    },
+    {
+      "id": "ge-zero",
+      "type": "ge",
+      "variable": "age",
+      "threshold": 120,
+      "percentage": 0,
+      "order": "CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC",
+      "sourceLines": "302-319",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 0,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [],
+      "protectedPixelIds": [],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC LIMIT :limits"
+    },
+    {
+      "id": "ge-existing-reservation",
+      "type": "ge",
+      "variable": "age",
+      "threshold": 120,
+      "percentage": 50,
+      "initialProtected": [
+        3
+      ],
+      "order": "CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC",
+      "sourceLines": "302-319",
+      "zoneId": 1,
+      "tAreaCells": 7,
+      "limitCells": 4,
+      "actualPercent": 50.0,
+      "selectedPixelIds": [
+        2,
+        3,
+        1,
+        4
+      ],
+      "protectedPixelIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "sql": "SELECT pixelid FROM pixels WHERE own = 1 AND 1 AND zone1 = 1 ORDER BY CASE WHEN age >= :threshold THEN 0 ELSE 1 END, thlb, zone_const DESC, age DESC LIMIT :limits"
+    }
+  ],
+  "sqliteRounding": [
+    {
+      "value": 0,
+      "rounded": 0
+    },
+    {
+      "value": 0.5,
+      "rounded": 1
+    },
+    {
+      "value": 1.5,
+      "rounded": 2
+    },
+    {
+      "value": 2.5,
+      "rounded": 3
+    },
+    {
+      "value": 3.5,
+      "rounded": 4
+    },
+    {
+      "value": 4.49,
+      "rounded": 4
+    },
+    {
+      "value": 4.5,
+      "rounded": 5
+    }
+  ],
+  "rMidpointRounding": [
+    {
+      "periodLength": 1,
+      "initialIncrement": 1
+    },
+    {
+      "periodLength": 2,
+      "initialIncrement": 1
+    },
+    {
+      "periodLength": 3,
+      "initialIncrement": 2
+    },
+    {
+      "periodLength": 4,
+      "initialIncrement": 2
+    },
+    {
+      "periodLength": 5,
+      "initialIncrement": 2
+    },
+    {
+      "periodLength": 6,
+      "initialIncrement": 3
+    },
+    {
+      "periodLength": 7,
+      "initialIncrement": 4
+    },
+    {
+      "periodLength": 8,
+      "initialIncrement": 4
+    },
+    {
+      "periodLength": 9,
+      "initialIncrement": 4
+    },
+    {
+      "periodLength": 10,
+      "initialIncrement": 5
+    }
+  ],
+  "growth": {
+    "sql": "WITH t as (select pixelid, yieldid, age, height, crownclosure, dec_pcnt, basalarea, qmd, eca, vol from pixels where age > 0 and age <= 350) \nSELECT pixelid,\ncase when k.tvol is null then t.vol else (((k.tvol - y.tvol*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.tvol end as vol,\ncase when k.height is null then t.height else (((k.height - y.height*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.height end as ht,\ncase when k.eca is null then t.eca else (((k.eca - y.eca*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.eca end as eca,\ncase when k.dec_pcnt is null then t.dec_pcnt else (((k.dec_pcnt - y.dec_pcnt*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.dec_pcnt end as dec_pcnt,\ncase when k.crownclosure is null then t.crownclosure else (((k.crownclosure - y.crownclosure*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.crownclosure end as crownclosure,\ncase when k.basalarea is null then t.basalarea else (((k.basalarea - y.basalarea*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.basalarea end as basalarea,\ncase when k.qmd is null then t.qmd else (((k.qmd - y.qmd*1.0)/10)*(t.age - CAST(t.age/10 AS INT)*10))+ y.qmd end as qmd\nFROM t\nLEFT JOIN yields y \nON t.yieldid = y.yieldid AND CAST(t.age/10 AS INT)*10 = y.age\nLEFT JOIN yields k \nON t.yieldid = k.yieldid AND round(t.age/10+0.5)*10 = k.age;",
+    "yieldRows": [
+      {
+        "id": 1,
+        "yieldid": 1,
+        "age": 0,
+        "tvol": 0,
+        "dec_pcnt": null,
+        "height": 0,
+        "qmd": 0,
+        "basalarea": 0,
+        "crownclosure": 0,
+        "eca": 1
+      },
+      {
+        "id": 2,
+        "yieldid": 1,
+        "age": 10,
+        "tvol": 0,
+        "dec_pcnt": null,
+        "height": 2.7,
+        "qmd": 0.5,
+        "basalarea": 0,
+        "crownclosure": 2.8,
+        "eca": 1
+      },
+      {
+        "id": 3,
+        "yieldid": 1,
+        "age": 20,
+        "tvol": 0,
+        "dec_pcnt": null,
+        "height": 7.1,
+        "qmd": 5.7,
+        "basalarea": 1.3,
+        "crownclosure": 25.6,
+        "eca": 0.25
+      },
+      {
+        "id": 4,
+        "yieldid": 1,
+        "age": 30,
+        "tvol": 24.2,
+        "dec_pcnt": null,
+        "height": 11.4,
+        "qmd": 14.1,
+        "basalarea": 8.1,
+        "crownclosure": 64.7,
+        "eca": 0.1
+      },
+      {
+        "id": 5,
+        "yieldid": 1,
+        "age": 40,
+        "tvol": 98.6,
+        "dec_pcnt": null,
+        "height": 15.4,
+        "qmd": 21.5,
+        "basalarea": 18.6,
+        "crownclosure": 79.6,
+        "eca": 0.1
+      },
+      {
+        "id": 6,
+        "yieldid": 1,
+        "age": 50,
+        "tvol": 192.9,
+        "dec_pcnt": null,
+        "height": 18.9,
+        "qmd": 26.8,
+        "basalarea": 28.6,
+        "crownclosure": 82.5,
+        "eca": 0.1
+      },
+      {
+        "id": 7,
+        "yieldid": 1,
+        "age": 60,
+        "tvol": 292.4,
+        "dec_pcnt": null,
+        "height": 22,
+        "qmd": 30.9,
+        "basalarea": 37.7,
+        "crownclosure": 82.5,
+        "eca": 0.1
+      },
+      {
+        "id": 8,
+        "yieldid": 1,
+        "age": 70,
+        "tvol": 382.1,
+        "dec_pcnt": null,
+        "height": 24.7,
+        "qmd": 34,
+        "basalarea": 45.1,
+        "crownclosure": 82,
+        "eca": 0.1
+      },
+      {
+        "id": 9,
+        "yieldid": 1,
+        "age": 80,
+        "tvol": 482.8,
+        "dec_pcnt": null,
+        "height": 27.1,
+        "qmd": 36.8,
+        "basalarea": 52.7,
+        "crownclosure": 81.6,
+        "eca": 0.1
+      },
+      {
+        "id": 10,
+        "yieldid": 1,
+        "age": 90,
+        "tvol": 574.5,
+        "dec_pcnt": null,
+        "height": 29.2,
+        "qmd": 39,
+        "basalarea": 58.9,
+        "crownclosure": 81.2,
+        "eca": 0.1
+      },
+      {
+        "id": 11,
+        "yieldid": 1,
+        "age": 100,
+        "tvol": 648,
+        "dec_pcnt": null,
+        "height": 31,
+        "qmd": 40.7,
+        "basalarea": 63.7,
+        "crownclosure": 80.8,
+        "eca": 0.1
+      },
+      {
+        "id": 12,
+        "yieldid": 1,
+        "age": 110,
+        "tvol": 706.6,
+        "dec_pcnt": null,
+        "height": 32.5,
+        "qmd": 42.1,
+        "basalarea": 67.4,
+        "crownclosure": 80.3,
+        "eca": 0.1
+      },
+      {
+        "id": 13,
+        "yieldid": 1,
+        "age": 120,
+        "tvol": 771.6,
+        "dec_pcnt": null,
+        "height": 33.9,
+        "qmd": 43.4,
+        "basalarea": 71.1,
+        "crownclosure": 79.9,
+        "eca": 0.1
+      },
+      {
+        "id": 14,
+        "yieldid": 1,
+        "age": 130,
+        "tvol": 833.7,
+        "dec_pcnt": null,
+        "height": 35,
+        "qmd": 44.7,
+        "basalarea": 74.6,
+        "crownclosure": 79.5,
+        "eca": 0.1
+      },
+      {
+        "id": 15,
+        "yieldid": 1,
+        "age": 140,
+        "tvol": 885.8,
+        "dec_pcnt": null,
+        "height": 36,
+        "qmd": 45.8,
+        "basalarea": 77.4,
+        "crownclosure": 79.1,
+        "eca": 0.1
+      },
+      {
+        "id": 16,
+        "yieldid": 1,
+        "age": 150,
+        "tvol": 924.2,
+        "dec_pcnt": null,
+        "height": 36.9,
+        "qmd": 46.5,
+        "basalarea": 79.3,
+        "crownclosure": 78.6,
+        "eca": 0.1
+      },
+      {
+        "id": 17,
+        "yieldid": 1,
+        "age": 160,
+        "tvol": 956.2,
+        "dec_pcnt": null,
+        "height": 37.7,
+        "qmd": 47.2,
+        "basalarea": 80.8,
+        "crownclosure": 78.2,
+        "eca": 0.1
+      },
+      {
+        "id": 18,
+        "yieldid": 1,
+        "age": 170,
+        "tvol": 982.6,
+        "dec_pcnt": null,
+        "height": 38.3,
+        "qmd": 47.8,
+        "basalarea": 82.1,
+        "crownclosure": 77.8,
+        "eca": 0.1
+      },
+      {
+        "id": 19,
+        "yieldid": 1,
+        "age": 180,
+        "tvol": 1004.2,
+        "dec_pcnt": null,
+        "height": 38.9,
+        "qmd": 48.3,
+        "basalarea": 83.1,
+        "crownclosure": 77.4,
+        "eca": 0.1
+      },
+      {
+        "id": 20,
+        "yieldid": 1,
+        "age": 190,
+        "tvol": 1023.1,
+        "dec_pcnt": null,
+        "height": 39.3,
+        "qmd": 48.7,
+        "basalarea": 83.9,
+        "crownclosure": 76.9,
+        "eca": 0.1
+      },
+      {
+        "id": 21,
+        "yieldid": 1,
+        "age": 200,
+        "tvol": 1038.7,
+        "dec_pcnt": null,
+        "height": 39.7,
+        "qmd": 49.1,
+        "basalarea": 84.5,
+        "crownclosure": 76.5,
+        "eca": 0.1
+      },
+      {
+        "id": 22,
+        "yieldid": 1,
+        "age": 210,
+        "tvol": 1051.1,
+        "dec_pcnt": null,
+        "height": 40.1,
+        "qmd": 49.4,
+        "basalarea": 84.9,
+        "crownclosure": 76.1,
+        "eca": 0.1
+      },
+      {
+        "id": 23,
+        "yieldid": 1,
+        "age": 220,
+        "tvol": 1060.5,
+        "dec_pcnt": null,
+        "height": 40.4,
+        "qmd": 49.7,
+        "basalarea": 85.2,
+        "crownclosure": 75.7,
+        "eca": 0.1
+      },
+      {
+        "id": 24,
+        "yieldid": 1,
+        "age": 230,
+        "tvol": 1067.6,
+        "dec_pcnt": null,
+        "height": 40.6,
+        "qmd": 49.9,
+        "basalarea": 85.3,
+        "crownclosure": 75.2,
+        "eca": 0.1
+      },
+      {
+        "id": 25,
+        "yieldid": 1,
+        "age": 240,
+        "tvol": 1072.5,
+        "dec_pcnt": null,
+        "height": 40.8,
+        "qmd": 50.1,
+        "basalarea": 85.4,
+        "crownclosure": 74.8,
+        "eca": 0.1
+      },
+      {
+        "id": 26,
+        "yieldid": 1,
+        "age": 250,
+        "tvol": 1075.6,
+        "dec_pcnt": null,
+        "height": 41,
+        "qmd": 50.3,
+        "basalarea": 85.4,
+        "crownclosure": 74.4,
+        "eca": 0.1
+      }
+    ],
+    "pixels": [
+      {
+        "pixelid": 1,
+        "yieldid": 1,
+        "age": 0,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 2,
+        "yieldid": 1,
+        "age": 5,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 3,
+        "yieldid": 1,
+        "age": 10,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 4,
+        "yieldid": 1,
+        "age": 15.5,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 5,
+        "yieldid": 1,
+        "age": 20,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 6,
+        "yieldid": 1,
+        "age": 25,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 7,
+        "yieldid": 1,
+        "age": 35,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 8,
+        "yieldid": 1,
+        "age": 95,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 9,
+        "yieldid": 1,
+        "age": 141,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 10,
+        "yieldid": 1,
+        "age": 245,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 11,
+        "yieldid": 1,
+        "age": 250,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 12,
+        "yieldid": 1,
+        "age": 255,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 13,
+        "yieldid": 1,
+        "age": 350,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      },
+      {
+        "pixelid": 14,
+        "yieldid": 1,
+        "age": 351,
+        "height": 10,
+        "crownclosure": 60,
+        "dec_pcnt": 0,
+        "basalarea": 0,
+        "qmd": 0,
+        "eca": 0.5,
+        "vol": null
+      }
+    ],
+    "expected": [
+      {
+        "pixelid": 2,
+        "vol": 0.0,
+        "ht": 1.35,
+        "eca": 1.0,
+        "dec_pcnt": 0,
+        "crownclosure": 1.4,
+        "basalarea": 0.0,
+        "qmd": 0.25
+      },
+      {
+        "pixelid": 3,
+        "vol": 0.0,
+        "ht": 2.7,
+        "eca": 1.0,
+        "dec_pcnt": 0,
+        "crownclosure": 2.8,
+        "basalarea": 0.0,
+        "qmd": 0.5
+      },
+      {
+        "pixelid": 4,
+        "vol": 0.0,
+        "ht": 5.12,
+        "eca": 0.5875,
+        "dec_pcnt": 0,
+        "crownclosure": 15.34,
+        "basalarea": 0.7150000000000001,
+        "qmd": 3.3600000000000003
+      },
+      {
+        "pixelid": 5,
+        "vol": 0.0,
+        "ht": 7.1,
+        "eca": 0.25,
+        "dec_pcnt": 0,
+        "crownclosure": 25.6,
+        "basalarea": 1.3,
+        "qmd": 5.7
+      },
+      {
+        "pixelid": 6,
+        "vol": 12.1,
+        "ht": 9.25,
+        "eca": 0.175,
+        "dec_pcnt": 0,
+        "crownclosure": 45.150000000000006,
+        "basalarea": 4.699999999999999,
+        "qmd": 9.899999999999999
+      },
+      {
+        "pixelid": 7,
+        "vol": 61.39999999999999,
+        "ht": 13.4,
+        "eca": 0.1,
+        "dec_pcnt": 0,
+        "crownclosure": 72.15,
+        "basalarea": 13.350000000000001,
+        "qmd": 17.8
+      },
+      {
+        "pixelid": 8,
+        "vol": 611.25,
+        "ht": 30.1,
+        "eca": 0.1,
+        "dec_pcnt": 0,
+        "crownclosure": 81.0,
+        "basalarea": 61.3,
+        "qmd": 39.85
+      },
+      {
+        "pixelid": 9,
+        "vol": 889.64,
+        "ht": 36.09,
+        "eca": 0.1,
+        "dec_pcnt": 0,
+        "crownclosure": 79.05,
+        "basalarea": 77.59,
+        "qmd": 45.87
+      },
+      {
+        "pixelid": 10,
+        "vol": 1074.05,
+        "ht": 40.9,
+        "eca": 0.1,
+        "dec_pcnt": 0,
+        "crownclosure": 74.6,
+        "basalarea": 85.4,
+        "qmd": 50.2
+      },
+      {
+        "pixelid": 11,
+        "vol": null,
+        "ht": 10,
+        "eca": 0.5,
+        "dec_pcnt": 0,
+        "crownclosure": 60,
+        "basalarea": 0,
+        "qmd": 0
+      },
+      {
+        "pixelid": 12,
+        "vol": null,
+        "ht": 10,
+        "eca": 0.5,
+        "dec_pcnt": 0,
+        "crownclosure": 60,
+        "basalarea": 0,
+        "qmd": 0
+      },
+      {
+        "pixelid": 13,
+        "vol": null,
+        "ht": 10,
+        "eca": 0.5,
+        "dec_pcnt": 0,
+        "crownclosure": 60,
+        "basalarea": 0,
+        "qmd": 0
+      }
+    ],
+    "deliberateBrowserCorrection": "At or beyond the last yield knot, browser interpolation holds the endpoint. Upstream keeps the pre-existing value when the upper knot is absent, including a NULL initial volume at age 250."
+  },
+  "queue": {
+    "rows": [
+      {
+        "pixelid": 1,
+        "seqid": 1,
+        "vol_h": 80,
+        "salvage_vol": 5
+      },
+      {
+        "pixelid": 2,
+        "seqid": 2,
+        "vol_h": 70,
+        "salvage_vol": 10
+      },
+      {
+        "pixelid": 3,
+        "seqid": 3,
+        "vol_h": 30,
+        "salvage_vol": 20
+      },
+      {
+        "pixelid": 4,
+        "seqid": 4,
+        "vol_h": 20,
+        "salvage_vol": 5
+      }
+    ],
+    "cases": [
+      {
+        "targetM3": 0,
+        "pixelIds": []
+      },
+      {
+        "targetM3": 49,
+        "pixelIds": []
+      },
+      {
+        "targetM3": 80,
+        "pixelIds": [
+          1
+        ]
+      },
+      {
+        "targetM3": 100,
+        "pixelIds": [
+          1
+        ]
+      },
+      {
+        "targetM3": 149,
+        "pixelIds": [
+          1
+        ]
+      },
+      {
+        "targetM3": 150,
+        "pixelIds": [
+          1,
+          2
+        ]
+      },
+      {
+        "targetM3": 180,
+        "pixelIds": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "targetM3": 200,
+        "pixelIds": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    ],
+    "sourceLines": "611-629",
+    "note": "Checks cumulative-prefix selection after candidate construction. The upstream target/50 candidate cap is separately documented, not reproduced here."
+  }
+}

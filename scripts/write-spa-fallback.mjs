@@ -32,6 +32,7 @@ const spaRoutes = [
     'drought-risk',
     'road-restoration',
     'thlb-impact',
+    'castor',
   ].map((tool) => `dev/forestry/${tool}`),
   'dev/gov',
   'dev/mmgis',

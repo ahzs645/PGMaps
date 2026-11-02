@@ -20,6 +20,8 @@ const appOwnedDataPaths = [
   'forest-drought',
   // Pinned published study tables and story assets, not scraper snapshots.
   'bec-representation',
+  // Upstream illustrative Castor database and attribution, owned by the browser model.
+  'forestry-castor',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
   'story-documents',
