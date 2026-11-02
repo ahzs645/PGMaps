@@ -1,0 +1,78 @@
+{
+  "sourceRepository": "https://github.com/bcgov/forestDroughtTool",
+  "sourceCommit": "e02ddcbf8203e65bada1a36655887e1d0c8fe2f5",
+  "files": [
+    {
+      "path": "R/asmrCalc.R",
+      "gitBlobSha": "df6c6f4bbe409f1085b314d0eae62455b1f01677",
+      "sha256": "ce7bf011ab80b92001843ab2f44f0cd30a43abb39142e5f6f35cbb5a286d7891",
+      "bytes": 5515
+    },
+    {
+      "path": "R/asmr.R",
+      "gitBlobSha": "3e337271ca71f136a18473f2166bf7bd47072b8a",
+      "sha256": "41b56d4504eb528d23a2bcab21b4cf5a762149d4d5f6ce946f55e125daeeb62b",
+      "bytes": 2430
+    },
+    {
+      "path": "R/asmrFuture.R",
+      "gitBlobSha": "84e4e169e1c81a706831fbb97d6c9a558aaddd1d",
+      "sha256": "94d1e7d235d510cd04e2932e6d7d170b7603ef80c587b246f2f190493aa3beb9",
+      "bytes": 3611
+    },
+    {
+      "path": "R/asmrRun.R",
+      "gitBlobSha": "5760700d60442c6072e0975672b92a19d3f9a0b0",
+      "sha256": "8bb49a9af1f2b1868b1eaa5c1ac2d7d99643bdcec5d2b8233b08847807fd5868",
+      "bytes": 1524
+    },
+    {
+      "path": "R/asmrSelect.R",
+      "gitBlobSha": "14b8ad0c0c2c5b4fcbf9fb00376d128631b198e6",
+      "sha256": "2061474727cbdcc3ab1f4f270310bcd83fe02276ee25b63035d13186410ff341",
+      "bytes": 2039
+    },
+    {
+      "path": "R/yearSelect.R",
+      "gitBlobSha": "746fabfa226e68a03ac82b8afde6f9256f41c5e9",
+      "sha256": "d8bb10ad6a11cde4023d37d34911a71c49b30fbca3a4935a9ae6bb8cab648f35",
+      "bytes": 1931
+    },
+    {
+      "path": "R/soilsData.R",
+      "gitBlobSha": "a56c60726f2531b0c123ab2bb785e3b9872f391a",
+      "sha256": "f70b40db8de625bf473352df96c143e33a6ae1e29f0c88ee0f2ae4fcacc3c908",
+      "bytes": 643
+    },
+    {
+      "path": "R/asmrClass.R",
+      "gitBlobSha": "1bd4147b477e30ba9204fdfd269b26117ff8c33c",
+      "sha256": "78164d5e2a321d554af6d82722757468c66933c0fb8b4947eb3b616bdc5a8d68",
+      "bytes": 323
+    },
+    {
+      "path": "R/treeRisk.R",
+      "gitBlobSha": "52897f1b135567964f11c0756a487e833de4ed5c",
+      "sha256": "9bfba1a7a7be6d033dbf20f3993e985f8b2b042cc4679a909dd9c90522123286",
+      "bytes": 627
+    },
+    {
+      "path": "data-raw/treeRiskRatings.csv",
+      "gitBlobSha": "1b19a5df7b49b6bb3068fab58a4003eb48fd1be3",
+      "sha256": "20e07f15d60f1e8d0fb36db5dd84845220718f786927882f12b4740d44adb21e",
+      "bytes": 242
+    },
+    {
+      "path": "data/soilsData.rda",
+      "gitBlobSha": "0397af11f297d3a6b5f69c16e8b220a93f14ee7b",
+      "sha256": "729913da056da57ef03b452757c9b23eb12e68baf00316edd03de32109551b9b",
+      "bytes": 447
+    },
+    {
+      "path": "data/asmrClass.rda",
+      "gitBlobSha": "f512737cefc7ed5d93681caa18e0884f4ee8924b",
+      "sha256": "4cb22d8e93cf4a5feffdfb6a0f535fd62b95adb916953f09a08737ddd8ccb535",
+      "bytes": 241
+    }
+  ]
+}

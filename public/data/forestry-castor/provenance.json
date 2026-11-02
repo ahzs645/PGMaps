@@ -1,0 +1,653 @@
+{
+  "schema": "pgmaps-castor-data-provenance-v1",
+  "name": "Original dataCastor illustrative SQLite sample",
+  "upstreamRepository": "https://github.com/bcgov/dataCastor",
+  "revision": "884ce9d726942b3d2eae7b88120bd1b7ad863a19",
+  "sourceUrl": "https://raw.githubusercontent.com/bcgov/dataCastor/884ce9d726942b3d2eae7b88120bd1b7ad863a19/simple_castordb.sqlite",
+  "path": "simple_castordb.sqlite",
+  "bytes": 696320,
+  "sha256": "8d19a48acba51de568d6994b8b41c0d9b6d3533aa6ea8c7a0e3cd95afe23535d",
+  "license": "Apache-2.0",
+  "copyright": "Province of British Columbia",
+  "retrieved": "2026-11-02",
+  "modified": false,
+  "purpose": "Illustrative model input for exercising the browser workflow; not a verified inventory or an operational harvest recommendation.",
+  "raster": {
+    "name": "ras",
+    "xmin": 1170000,
+    "xmax": 1180000,
+    "ymin": 834000,
+    "ymax": 844000,
+    "ncell": 10000,
+    "nrow": 100,
+    "crs": "3005"
+  },
+  "tables": {
+    "pixels": 10000,
+    "raster_info": 1,
+    "silvSystem": 5,
+    "transitions": 1,
+    "yields": 26,
+    "zone": 1,
+    "zoneConstraints": 1
+  },
+  "schemaDetails": {
+    "pixels": [
+      {
+        "cid": 0,
+        "name": "pixelid",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+      },
+      {
+        "cid": 1,
+        "name": "compartid",
+        "type": "character",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "own",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "yieldid",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "yieldid_trans",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 5,
+        "name": "zone_const",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 6,
+        "name": "treed",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 7,
+        "name": "thlb",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 8,
+        "name": "silvsystem",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 9,
+        "name": "elv",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 10,
+        "name": "age",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 11,
+        "name": "vol",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 12,
+        "name": "dist",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 13,
+        "name": "crownclosure",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 14,
+        "name": "height",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 15,
+        "name": "basalarea",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 16,
+        "name": "qmd",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 17,
+        "name": "siteindex",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 18,
+        "name": "dec_pcnt",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 19,
+        "name": "eca",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 20,
+        "name": "salvage_vol",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 21,
+        "name": "dual",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 22,
+        "name": "priority",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 23,
+        "name": "zone1",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ],
+    "raster_info": [
+      {
+        "cid": 0,
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 1,
+        "name": "xmin",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "xmax",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "ymin",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "ymax",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 5,
+        "name": "ncell",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 6,
+        "name": "nrow",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 7,
+        "name": "crs",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ],
+    "silvSystem": [
+      {
+        "cid": 0,
+        "name": "id",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+      },
+      {
+        "cid": 1,
+        "name": "silvsystem",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "entry_var",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "entry_req",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "transition_silv",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 5,
+        "name": "reset_age",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 6,
+        "name": "description",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 7,
+        "name": "start",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+      },
+      {
+        "cid": 8,
+        "name": "stop",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "500",
+        "pk": 0
+      }
+    ],
+    "transitions": [
+      {
+        "cid": 0,
+        "name": "id",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+      },
+      {
+        "cid": 1,
+        "name": "silvsystem_from",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "silvsystem_to",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "yieldid_from",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "yieldid_to",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ],
+    "yields": [
+      {
+        "cid": 0,
+        "name": "id",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+      },
+      {
+        "cid": 1,
+        "name": "yieldid",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "age",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "tvol",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "dec_pcnt",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 5,
+        "name": "height",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 6,
+        "name": "qmd",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0.0",
+        "pk": 0
+      },
+      {
+        "cid": 7,
+        "name": "basalarea",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0.0",
+        "pk": 0
+      },
+      {
+        "cid": 8,
+        "name": "crownclosure",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": "0.0",
+        "pk": 0
+      },
+      {
+        "cid": 9,
+        "name": "eca",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ],
+    "zone": [
+      {
+        "cid": 0,
+        "name": "zone_column",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 1,
+        "name": "reference_zone",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ],
+    "zoneConstraints": [
+      {
+        "cid": 0,
+        "name": "id",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+      },
+      {
+        "cid": 1,
+        "name": "zoneid",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 2,
+        "name": "reference_zone",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 3,
+        "name": "zone_column",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 4,
+        "name": "ndt",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 5,
+        "name": "variable",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 6,
+        "name": "threshold",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 7,
+        "name": "type",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 8,
+        "name": "percentage",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 9,
+        "name": "denom",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 10,
+        "name": "multi_condition",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 11,
+        "name": "t_area",
+        "type": "numeric",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 12,
+        "name": "start",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      },
+      {
+        "cid": 13,
+        "name": "stop",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+      }
+    ]
+  },
+  "observations": [
+    "The sample has 10,000 100m cells (one hectare per cell), one yield curve with 26 age knots from 0 through 250, and one management zone.",
+    "All initial pixel volumes are NULL; all initial heights are 10. Growth initialization must be an explicit part of preparation.",
+    "The sample has no blocks, adjacentBlocks, harvestFlow, or calibration model/data tables and no pixel blockid field.",
+    "The sample uses an older transitions schema (silvsystem_from/silvsystem_to) than current dataCastor.createCastorDB.",
+    "The single age>=140 constraint has percentage=0 and therefore reserves no cells by itself.",
+    "The supplied projected grid location is preserved. It does not establish that the illustrative ages/attributes represent that location."
+  ],
+  "browserPreparationDecisions": [
+    "Generate or import harvest units explicitly; per-cell units are a browser preparation choice, not upstream blocked results.",
+    "Specify harvest demand, period length and planning horizon; these are not in the source database.",
+    "Review the treatment and yield transitions; never infer a missing treatment intensity or calibration.",
+    "Record browser endpoint interpolation and other model changes in scenario provenance."
+  ],
+  "tutorialFlowExample": {
+    "source": "https://github.com/bcgov/forestryCastor/blob/e2a580eb1fcc634780bb3599da7265a1e871484f/forestryCastor.Rmd",
+    "compartment": "all",
+    "partition": "vol > 110",
+    "partition_type": "live",
+    "periods": [
+      1,
+      2
+    ],
+    "flowM3PerPeriod": 220000,
+    "periodYears": 5,
+    "note": "Example from the separate random-landscape tutorial, not a prescribed or validated flow for the SQLite sample."
+  }
+}

@@ -1,0 +1,18 @@
+Forestry Castor browser adaptation
+
+Includes the unmodified simple_castordb.sqlite example from bcgov/dataCastor
+revision 884ce9d726942b3d2eae7b88120bd1b7ad863a19.
+
+Reference sources and adapted algorithms originate in:
+- bcgov/forestryCastor, revision e2a580eb1fcc634780bb3599da7265a1e871484f
+- bcgov/growingStockCastor, revision 8ea945a91b4ec71d0ddd28714641b6dcae229c5c
+- bcgov/dataCastor, revision 884ce9d726942b3d2eae7b88120bd1b7ad863a19
+
+Copyright 2023 Province of British Columbia.
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+The PGMaps browser adaptation adds data validation, browser execution, outputs,
+and explicitly documented changes. It is not an official BC Government product
+or an assertion that a complete Castor/SpaDES simulation has been reproduced.
+The original example database is unchanged. Browser preparation and scenario
+assumptions are recorded separately; see provenance.json and the source audit.

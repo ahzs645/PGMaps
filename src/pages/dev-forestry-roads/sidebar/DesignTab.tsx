@@ -104,6 +104,23 @@ export function DesignTab(p: SidebarProps) {
           </div>
         </div>
       </RoadSection>
+      {p.onPlanNetwork && (
+        <div className="space-y-2 border-t p-3" data-testid="network-planning-controls">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={p.onPlanNetwork}
+            disabled={!!p.workspace.busy}
+          >
+            Plan road network
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Connect multiple landings to selected roads, compare network methods and stage future access. Review a
+            projected branch here before designing its curves, profile and sections.
+          </p>
+        </div>
+      )}
       <div className="space-y-2 border-y p-3" data-testid="full-cost-planning-controls">
         <Button size="sm" className="w-full" onClick={p.onCompareCompleteCosts} disabled={!!p.workspace.busy}>
           Compare complete route costs

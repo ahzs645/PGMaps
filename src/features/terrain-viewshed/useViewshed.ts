@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GeoPoint, ViewshedResult, ViewshedSettings } from './model'
 import type { Bounds } from '@/pages/dev-forestry/terrain'
+import type { LocalRaster } from '@/pages/dev-forestry/types'
 
 export type ViewshedOptions = {
   enabled?: boolean
@@ -9,6 +10,7 @@ export type ViewshedOptions = {
   demZoom?: number
   observers?: GeoPoint[]
   bounds?: Bounds
+  localRaster?: LocalRaster | null
 }
 type Job = { key: string; settings: ViewshedSettings; preview: boolean; retry: number } & Omit<
   ViewshedOptions,
@@ -34,6 +36,7 @@ export function useViewshed(
     demZoom: options.demZoom ?? 13,
     observers: options.observers,
     bounds: options.bounds,
+    localRaster: options.localRaster?.sha256,
   })
   const [state, setState] = useState<{
     key: string
@@ -81,7 +84,14 @@ export function useViewshed(
         setState({
           key: job.key,
           result: data.result,
-          message: job.observers ? 'Combined viewshed ready' : job.preview ? 'Updating visibility…' : 'Viewshed ready',
+          message:
+            job.preview && !job.observers
+              ? 'Updating visibility…'
+              : `${job.observers ? 'Combined viewshed ready' : 'Viewshed ready'}${
+                  data.result.sampledRangeMeters < job.settings.radiusMeters
+                    ? ` · beyond ${Math.floor(data.result.sampledRangeMeters)} m this DEM is too fine to sample every half cell, so sightlines there stay unknown`
+                    : ''
+                }`,
           error: false,
           cacheHit: Boolean(data.cacheHit),
         })
@@ -105,9 +115,9 @@ export function useViewshed(
 
   useEffect(() => {
     if (enabled && !started) setStarted(true)
-    desired.current = enabled ? { key, ...JSON.parse(key) } : null
+    desired.current = enabled ? { key, ...JSON.parse(key), localRaster: options.localRaster ?? null } : null
     pump.current()
-  }, [key, dragging, enabled, started])
+  }, [key, dragging, enabled, started, options.localRaster])
 
   const current = enabled && state.key === key && !dragging && !state.error
   return {

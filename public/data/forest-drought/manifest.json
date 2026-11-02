@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "id": "bcgov-fordrat-ac51aafe7b66",
+  "title": "BC forDRAT published drought risk",
+  "source": {
+    "repository": "https://github.com/bcgov/forDRAT",
+    "commit": "ac51aafe7b66d039c990964a9acd809a2ea73848",
+    "path": "data/forDrat.csv",
+    "url": "https://raw.githubusercontent.com/bcgov/forDRAT/ac51aafe7b66d039c990964a9acd809a2ea73848/data/forDrat.csv",
+    "gitBlobSha": "29fcf5e9207802e3516b809418bbbe73ab96ff12",
+    "sha256": "abdb1a26645d6d24e6d45380f55aa555a5f69ffdad79c5f7fb47627003f0d2df",
+    "bytes": 338744
+  },
+  "snapshot": {
+    "file": "fordrat.csv",
+    "rowCount": 6120,
+    "bgcCount": 204,
+    "speciesCount": 10,
+    "soilMoistureRegimeCount": 5,
+    "periodCount": 6,
+    "completeGrid": true,
+    "duplicateKeys": 0,
+    "blankFields": 0,
+    "aetPetRange": [
+      0.451720941,
+      1
+    ],
+    "columns": [
+      "BGC",
+      "Period",
+      "SMR_text",
+      "SMR",
+      "AET_PET",
+      "Pl",
+      "Sx",
+      "Fd",
+      "Bl",
+      "Cw",
+      "Hw",
+      "Lw",
+      "Py",
+      "Ac",
+      "At"
+    ]
+  },
+  "periods": [
+    {
+      "id": "1961-1990",
+      "kind": "historical",
+      "years": [
+        1961,
+        1990
+      ]
+    },
+    {
+      "id": "1971-2000",
+      "kind": "historical",
+      "years": [
+        1971,
+        2000
+      ]
+    },
+    {
+      "id": "1981-2010",
+      "kind": "historical",
+      "years": [
+        1981,
+        2010
+      ]
+    },
+    {
+      "id": "2020",
+      "kind": "projection",
+      "years": [
+        2011,
+        2040
+      ]
+    },
+    {
+      "id": "2050",
+      "kind": "projection",
+      "years": [
+        2041,
+        2070
+      ]
+    },
+    {
+      "id": "2080",
+      "kind": "projection",
+      "years": [
+        2071,
+        2100
+      ]
+    }
+  ],
+  "soilMoistureRegimes": [
+    {
+      "id": 1,
+      "label": "xeric"
+    },
+    {
+      "id": 2,
+      "label": "subxeric"
+    },
+    {
+      "id": 3,
+      "label": "submesic"
+    },
+    {
+      "id": 4,
+      "label": "mesic"
+    },
+    {
+      "id": 5,
+      "label": "subhygric"
+    }
+  ],
+  "species": [
+    {
+      "code": "Pl",
+      "name": "Lodgepole pine"
+    },
+    {
+      "code": "Sx",
+      "name": "Hybrid white spruce"
+    },
+    {
+      "code": "Fd",
+      "name": "Interior Douglas-fir"
+    },
+    {
+      "code": "Bl",
+      "name": "Subalpine fir"
+    },
+    {
+      "code": "Cw",
+      "name": "Western redcedar"
+    },
+    {
+      "code": "Hw",
+      "name": "Western hemlock"
+    },
+    {
+      "code": "Lw",
+      "name": "Western larch"
+    },
+    {
+      "code": "Py",
+      "name": "Ponderosa pine"
+    },
+    {
+      "code": "Ac",
+      "name": "Black cottonwood"
+    },
+    {
+      "code": "At",
+      "name": "Trembling aspen"
+    }
+  ],
+  "riskCodes": {
+    "L": "Low",
+    "M": "Moderate",
+    "H": "High",
+    "VH": "Very high"
+  },
+  "model": {
+    "publishedTableOnly": true,
+    "becVersion": 11,
+    "climateVersion": "ClimateBC 6.21",
+    "scenario": "RCP 4.5",
+    "ensembleModels": 15,
+    "dailyClimateSource": "PNWNAmet",
+    "scope": "Drought-related mortality in mature forest stands; interior tree species; relative soil moisture regimes xeric through subhygric.",
+    "reproducedByLegacyCalculator": false
+  },
+  "licensing": {
+    "sourceRepositoryLicense": "Apache-2.0",
+    "licenseFile": "LICENSE-fordrat.md",
+    "noticeFile": "NOTICE.md",
+    "copyright": "Copyright 2024 Province of British Columbia"
+  },
+  "references": [
+    {
+      "title": "Pinned upstream README",
+      "url": "https://github.com/bcgov/forDRAT/blob/ac51aafe7b66d039c990964a9acd809a2ea73848/README.md"
+    },
+    {
+      "title": "BC Data Catalogue: Forest Drought Risk Assessment Tool",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/forest-drought-risk-assessment-tool"
+    },
+    {
+      "title": "BC metadata syndicated to Canada's Open Government Portal",
+      "url": "https://open.canada.ca/data/en/dataset/ab4dea99-9827-46de-a240-5c22af506564"
+    },
+    {
+      "title": "Development of a drought risk assessment tool (2019), Technical Report 125",
+      "url": "https://www.for.gov.bc.ca/hfd/pubs/Docs/Tr/TR125.pdf"
+    }
+  ],
+  "notes": [
+    "The CSV is byte-for-byte unchanged from the pinned upstream Git blob. Values and risk ratings are published outputs, not calculations by PG Maps.",
+    "The upstream README omits the CSV's 1971-2000 historical period and inconsistently calls the final projection 2070; the CSV and catalogue use 2080 (2071-2100). All six CSV period identifiers are preserved.",
+    "All species columns are populated for every BGC unit. A risk rating does not establish occurrence, climatic suitability, regeneration success or a planting recommendation.",
+    "BGC identifiers are BEC v11. Identifier equality alone does not verify boundary agreement with later map versions; site soil moisture must be assessed independently.",
+    "The source is a climatological scenario table. Its 2020 projection covers 2011-2040 and is not a measurement of current drought conditions."
+  ]
+}

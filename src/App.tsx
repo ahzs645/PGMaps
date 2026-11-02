@@ -20,7 +20,9 @@ const PGDataSection = lazy(() => import('@/maps/pgdata').then((m) => ({ default:
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then((m) => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
+const DevGov = lazy(() => import('@/pages/DevGov'))
 const DevLidar = lazy(() => import('@/pages/DevLidar'))
+const DevLidarRestoration = lazy(() => import('@/pages/DevLidarRestoration'))
 const DevNechako = lazy(() => import('@/pages/DevNechako'))
 const DevNechakoPortal = lazy(() => import('@/pages/DevNechakoPortal'))
 const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
@@ -31,6 +33,7 @@ const DevBcerBoundaries = lazy(() => import('@/pages/DevBcerBoundaries'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevLoad = lazy(() => import('@/pages/DevLoad'))
 const DevData = lazy(() => import('@/pages/DevData'))
+const DevMmgis = lazy(() => import('@/pages/DevMmgis'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
 const DevWait = lazy(() => import('@/pages/DevWait'))
@@ -44,7 +47,10 @@ const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const DevViewshed = lazy(() => import('@/pages/DevViewshed'))
 const DevViewshedTerrain = lazy(() => import('@/pages/DevViewshedTerrain'))
 const DevAvastVolume = lazy(() => import('@/pages/DevAvastVolume'))
+const DevThlbImpact = lazy(() => import('@/pages/DevThlbImpact'))
 const DevForestry = lazy(() => import('@/pages/DevForestry'))
+const DevForestDrought = lazy(() => import('@/pages/DevForestDrought'))
+const DevForestryCastor = lazy(() => import('@/pages/DevForestryCastor'))
 const DevForestryRoads = lazy(() => import('@/pages/DevForestryRoads'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
@@ -129,7 +135,9 @@ function App() {
             <Route path="/misc" element={<MiscDataSection />} />
             <Route path="/bc-assessment" element={<BcAssessmentSection />} />
             <Route path="/dev" element={<DevLibrary />} />
+            <Route path="/dev/gov" element={<DevGov />} />
             <Route path="/dev/lidar/*" element={<DevLidar />} />
+            <Route path="/dev/lidar/restoration" element={<DevLidarRestoration />} />
             <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/nechako/portal" element={<DevNechakoPortal />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />
@@ -140,6 +148,7 @@ function App() {
             <Route path="/dev/design" element={<DevDesign />} />
             <Route path="/dev/load" element={<DevLoad />} />
             <Route path="/dev/data" element={<DevData />} />
+            <Route path="/dev/mmgis" element={<DevMmgis />} />
             <Route path="/dev/interact" element={<DevInteract />} />
             <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
             <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />
@@ -148,11 +157,15 @@ function App() {
             <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
             <Route path="/dev/fallout" element={<DevFallout />} />
             <Route path="/dev/forestry" element={<DevForestry />} />
+            <Route path="/dev/forestry/drought-risk" element={<DevForestDrought />} />
+            <Route path="/dev/forestry/road-restoration" element={<DevLidarRestoration />} />
+            <Route path="/dev/forestry/castor" element={<DevForestryCastor />} />
             <Route path="/dev/forestry/road-design" element={<DevForestryRoads />} />
             <Route path="/dev/forestry/roads" element={<LegacyRedirect to="/dev/forestry/road-design" />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
             <Route path="/dev/forestry/cciss-suitability" element={<DevCcissSuitability />} />
             <Route path="/dev/forestry/avast-volume" element={<DevAvastVolume />} />
+            <Route path="/dev/forestry/thlb-impact" element={<DevThlbImpact />} />
             <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
             <Route path="/dev/health/msp" element={<DevHealthMsp />} />
             <Route path="/dev/networks" element={<DevNetworks />} />

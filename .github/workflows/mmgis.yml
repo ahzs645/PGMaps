@@ -1,0 +1,50 @@
+name: Verify mission workbench
+
+on:
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mmgis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url vendor/bcdatamapper
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Check application types
+        run: npx tsc -b
+      - name: Check mission source
+        run: npx eslint src/pages/DevMmgis.tsx src/pages/dev-mmgis src/features/terrain-viewshed tests/e2e/mmgis-parity.spec.ts playwright.mmgis.config.ts scripts/mmgis-reference-observation.mjs
+      - name: Check missions, import and terrain
+        run: npx vitest run src/pages/dev-mmgis src/features/terrain-viewshed/model.test.ts src/features/terrain-viewshed/combined.test.ts src/features/terrain-viewshed/resultCache.test.ts src/lib/geoFileImport.test.ts src/pages/dev-data/model.test.ts src/pages/dev-forestry/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
+      - name: Build browser and worker bundles
+        run: npx vite build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Check workbench interactions
+        run: |
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > mmgis-vite.log 2>&1 &
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/mmgis-chromium npx playwright test tests/e2e/mmgis.spec.ts tests/e2e/mmgis-responsive.spec.ts --workers=1 --output=test-results/mmgis-chromium
+      - name: Check parity workflows in Chromium and WebKit
+        run: PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/mmgis-parity npx playwright test --config=playwright.mmgis.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mmgis-browser-results
+          path: |
+            test-results
+            playwright-report
+            mmgis-vite.log

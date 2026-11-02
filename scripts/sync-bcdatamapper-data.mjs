@@ -16,6 +16,12 @@ const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EAR
 
 const appOwnedDataPaths = [
   'projects',
+  // Versioned forDRAT reference data owned by the forestry browser tool.
+  'forest-drought',
+  // Pinned published study tables and story assets, not scraper snapshots.
+  'bec-representation',
+  // Upstream illustrative Castor database and attribution, owned by the browser model.
+  'forestry-castor',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
   'story-documents',

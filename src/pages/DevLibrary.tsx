@@ -6,6 +6,7 @@ import {
   Compass,
   Handshake,
   Loader2,
+  Landmark,
   MapPinned,
   MousePointerClick,
   Palette,
@@ -14,6 +15,7 @@ import {
   Table2,
   TreePine,
   Wind,
+  Globe2,
 } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
@@ -21,6 +23,24 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
 
 const devEntries: DevEntry[] = [
+  {
+    title: 'Government map catalog',
+    description:
+      'B.C. air-monitoring maps, source data streams, tested access limits and options for native PGMaps recreations.',
+    href: '/dev/gov',
+    icon: Landmark,
+    color: 'bg-sky-700',
+    label: '/dev/gov',
+  },
+  {
+    title: 'Mission workbench',
+    description:
+      'MMGIS-inspired Earth GIS: layers, imports, editing, linked plan and globe views, terrain, time and portable local missions.',
+    href: '/dev/mmgis',
+    icon: Globe2,
+    color: 'bg-teal-700',
+    label: '/dev/mmgis',
+  },
   {
     title: 'LiDAR explorer',
     description:
@@ -213,14 +233,18 @@ const devEntries: DevEntry[] = [
   {
     title: 'Forestry tools',
     description:
-      'Visual quality viewsheds, AVAST block volume with LiDAR and VRI options, CCISS suitability and the LiDAR forestry views, gathered on one page.',
+      'Castor forest scenarios, drought risk, visual quality viewsheds, AVAST block volume, CCISS suitability and LiDAR forestry views, gathered on one page.',
     href: '/dev/forestry',
     icon: TreePine,
     color: 'bg-emerald-700',
     label: '/dev/forestry',
     subpages: [
+      { label: 'Castor scenarios', href: '/dev/forestry/castor' },
+      { label: 'Drought risk', href: '/dev/forestry/drought-risk' },
+      { label: 'Road restoration', href: '/dev/forestry/road-restoration' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },
+      { label: 'THLB impact', href: '/dev/forestry/thlb-impact' },
       { label: 'CCISS suitability', href: '/dev/forestry/cciss-suitability' },
       { label: 'LiDAR forestry', href: '/dev/lidar/forestry/' },
     ],

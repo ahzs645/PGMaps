@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/whmacken/BEC_representation_PAS",
+    "commit": "0066648b02db082fded8ce9cf242c56d9a8ec22f",
+    "date": "2023-11-28",
+    "author": "Will MacKenzie",
+    "title": "Representation of BEC units in Protected Areas of BC",
+    "license": "Apache-2.0",
+    "boundaryVersionInMethod": "BEC v12",
+    "geometryIncludedUpstream": false
+  },
+  "sources": [
+    {
+      "path": "source/ConservationAreas.Rmd",
+      "upstreamPath": "ConservationAreas.Rmd",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/ConservationAreas.Rmd",
+      "gitBlobSha": "5fa8ba46d416224e922e768b012c7a726a2b6977",
+      "sha256": "64615b81ed0004897dc1e35c59dcbfb2c1940ba0fce5f6ac00792046b1ea454b",
+      "bytes": 2106
+    },
+    {
+      "path": "source/Import_Catalogue_Layers.Rmd",
+      "upstreamPath": "Import_Catalogue_Layers.Rmd",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/Import_Catalogue_Layers.Rmd",
+      "gitBlobSha": "b000f2d51f19f958c0cadd1f2e67aab02402e88b",
+      "sha256": "f49a2cd913eafe3fe999d7738eee9b08a47c25aaf681343e95f535d70fc31e23",
+      "bytes": 3660
+    },
+    {
+      "path": "source/LICENSE",
+      "upstreamPath": "LICENSE",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/LICENSE",
+      "gitBlobSha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "source/outputs/BGC_area.csv",
+      "upstreamPath": "outputs/BGC_area.csv",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/outputs/BGC_area.csv",
+      "gitBlobSha": "2dda56ce703b8a9cb46472ed17cab7e711f695d0",
+      "sha256": "e8751089cb99c838f4d6da305af220dcc2f70c1d9f1622eb1e90af136209ca8e",
+      "bytes": 5097
+    },
+    {
+      "path": "source/outputs/BGC_area_by_park.csv",
+      "upstreamPath": "outputs/BGC_area_by_park.csv",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/outputs/BGC_area_by_park.csv",
+      "gitBlobSha": "54a62dfead2f888af8313d52d8598d46150fc3f7",
+      "sha256": "6ebbb5e25492e39a63c891ad7bf2abe0b31ad2f39d2b3d940f4b2ca32801b9d2",
+      "bytes": 216274
+    },
+    {
+      "path": "source/outputs/PAS_representation_by_BGC.csv",
+      "upstreamPath": "outputs/PAS_representation_by_BGC.csv",
+      "upstreamUrl": "https://github.com/whmacken/BEC_representation_PAS/blob/0066648b02db082fded8ce9cf242c56d9a8ec22f/outputs/PAS_representation_by_BGC.csv",
+      "gitBlobSha": "75fcf88aa30296d4b54765e2178c0299386fb01e",
+      "sha256": "a7afef5bcd6efcaf078935dd4dcaf18f715bc6eb4c61a4f9909e110c97ab5c17",
+      "bytes": 10568
+    }
+  ],
+  "outputs": [
+    {
+      "path": "representation.json",
+      "sha256": "bcc24dcfb77ed16bd5a574b9f7ba3f56feca484fca68fb69be2a86022e20a08a",
+      "bytes": 984524
+    }
+  ],
+  "summary": {
+    "unitCount": 213,
+    "zoneCount": 16,
+    "intersectionCount": 2145,
+    "parkNameGroupCount": 882,
+    "finiteRatioCount": 208,
+    "missingIntersectionCount": 4,
+    "invalidRatioCount": 1,
+    "roundingExcessCount": 3,
+    "belowFivePercentCount": 70,
+    "atLeastThirtyPercentCount": 32
+  },
+  "regeneration": "node scripts/bec-representation.mjs",
+  "check": "node scripts/bec-representation.mjs --check",
+  "scope": "Pinned source tables and normalized story data only. Display geometry is documented separately."
+}

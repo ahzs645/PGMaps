@@ -40,6 +40,7 @@ import {
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import type { PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
+import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
 import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
@@ -262,6 +263,13 @@ export default function DevForestryRoads() {
     </Button>
   )
   const [overlay, setOverlay] = useState<GeoJSON.FeatureCollection>({ type: 'FeatureCollection', features: [] })
+  const [networkPreview, setNetworkPreview] = useState<{
+    project: RoadProject
+    source: TerrainSource
+    overlay: GeoJSON.FeatureCollection
+  } | null>(null)
+  const networkOverlay =
+    networkPreview?.project === project && networkPreview.source === source ? networkPreview.overlay : null
   const [completeCostPreview, setCompleteCostPreview] = useState<{
     project: RoadProject
     source: TerrainSource
@@ -369,6 +377,7 @@ export default function DevForestryRoads() {
       type: 'FeatureCollection',
       features: [
         ...overlay.features,
+        ...(networkOverlay?.features ?? []),
         ...(costPreview?.overlay.features ?? []),
         ...project.context
           .filter((road) =>
@@ -401,7 +410,7 @@ export default function DevForestryRoads() {
           : []),
       ],
     }),
-    [overlay, costPreview, routePreview, project.context, mapFsrTarget, reviewedRoad, source],
+    [overlay, networkOverlay, costPreview, routePreview, project.context, mapFsrTarget, reviewedRoad, source],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
   const [templatePreview, setTemplatePreview] = useState<{ template: RoadTemplate; name: string } | null>(null)
@@ -419,6 +428,7 @@ export default function DevForestryRoads() {
   const [filesOpen, setFilesOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [completeCostOpen, setCompleteCostOpen] = useState(false)
+  const [networkOpen, setNetworkOpen] = useState(false)
   const [workflowTab, setWorkflowTab] = useState<SidebarTab>('design')
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
   const openCompleteCosts = () => {
@@ -1816,6 +1826,43 @@ export default function DevForestryRoads() {
         onScenario={openScenario}
         portalContainer={ref.current}
       />
+      <NetworkPlanningDialog
+        workspace={w}
+        open={networkOpen}
+        onOpenChange={setNetworkOpen}
+        portalContainer={ref.current}
+        onPreview={(next) => {
+          setNetworkPreview(next ? { project, source, overlay: next } : null)
+          if (next) {
+            setMode('inspect')
+            setDraft([])
+            setFocusPane('plan')
+          }
+        }}
+        onAdopt={(candidate) => {
+          const next = parseProject({
+            ...project,
+            alignments: [...project.alignments, candidate],
+            activeAlignmentId: candidate.id,
+          })
+          update(() => next)
+          setNetworkPreview(null)
+          setCompleteCostPreview(null)
+          setTemplatePreview(null)
+          setPegPreview(null)
+          setActiveProfile(null)
+          setSelectedPoint(null)
+          setMode('inspect')
+          setDraft([])
+          setStation(0)
+          setNetworkOpen(false)
+          setWorkflowTab('design')
+          setFitRevision((revision) => revision + 1)
+          w.setNotice(
+            'Network branch added as an editable alignment. Review exact junctions, curves, switchbacks, vertical design and road footprint before using engineering quantities.',
+          )
+        }}
+      />
       <FullCostPlanningDialog
         workspace={w}
         open={completeCostOpen}
@@ -2054,6 +2101,7 @@ export default function DevForestryRoads() {
                 onWorkflowTabChange={setWorkflowTab}
                 roadReviewRequest={roadReviewRequest}
                 onCompareCompleteCosts={openCompleteCosts}
+                onPlanNetwork={() => setNetworkOpen(true)}
                 readOnlyPreview={!!costPreview}
                 mode={mode}
                 onMode={(next) => {

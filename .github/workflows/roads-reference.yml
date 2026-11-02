@@ -1,0 +1,57 @@
+name: Compare road planner with native R roads
+
+on:
+  # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roads-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      # These two local npm dependencies must exist, but neither needs building for the pure graph imports.
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/json-url
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Set up native R
+        uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: '4.5'
+          use-public-rspm: true
+      - name: Install pinned roads and its spatial dependencies
+        uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          # PGMaps is not an R package: do not use the default deps::. request.
+          packages: any::sessioninfo
+          dependencies: '"hard"'
+          extra-packages: |
+            any::jsonlite
+            github::LandSciTech/roads@08c462de51076b550473cb709da633314c32cd87
+          cache-version: roads-reference-1
+          install-pandoc: false
+          install-quarto: false
+      - name: Execute the original R functions and spatial fixture
+        run: Rscript scripts/roads-reference/generate-reference.R
+      - name: Compare TypeScript functions and graph results with native R
+        run: node --import tsx scripts/roads-reference/compare-reference.ts
+      - name: Preserve reference outputs and comparison evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: roads-native-r-reference
+          path: scripts/roads-reference/output/
+          if-no-files-found: warn

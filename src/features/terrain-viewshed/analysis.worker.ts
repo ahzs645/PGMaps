@@ -5,6 +5,8 @@ import { computeViewshed, viewshedBounds, type ViewshedSettings } from './model'
 import { combinedViewshedBounds, computeCombinedViewshed } from './combined'
 import type { GeoPoint, ViewshedResult } from './model'
 import type { Bounds } from '@/pages/dev-forestry/terrain'
+import type { LocalRaster } from '@/pages/dev-forestry/types'
+import { parseRasters, rasterSampler, localRasterResolution } from '@/pages/dev-forestry/localRaster'
 
 const results = new ViewshedResultCache()
 let lastRetry = 0
@@ -23,6 +25,7 @@ self.onmessage = async (
     demZoom?: number
     observers?: GeoPoint[]
     bounds?: Bounds
+    localRaster?: LocalRaster | null
   }>,
 ) => {
   controller?.abort()
@@ -38,6 +41,7 @@ self.onmessage = async (
     demZoom = 13,
     observers,
     bounds: footprint,
+    localRaster,
   } = event.data
   try {
     const refresh = retry !== lastRetry
@@ -47,7 +51,16 @@ self.onmessage = async (
       combined = null
       lastRetry = retry
     }
-    const resultKey = JSON.stringify([settings, preview, horizon, detailSize, demZoom, observers, footprint])
+    const resultKey = JSON.stringify([
+      settings,
+      preview,
+      horizon,
+      detailSize,
+      demZoom,
+      observers,
+      footprint,
+      localRaster?.sha256,
+    ])
     const hit = results.get(resultKey)
     if (hit) {
       self.postMessage(
@@ -64,13 +77,14 @@ self.onmessage = async (
     const required = demTileRange(bounds, zoom, 250)
     const old = cached?.grid.range
     if (
-      !old ||
-      old.zoom !== zoom ||
-      old.minX > required.minX ||
-      old.maxX < required.maxX ||
-      old.minY > required.minY ||
-      old.maxY < required.maxY ||
-      cached?.missingTileCount
+      !localRaster &&
+      (!old ||
+        old.zoom !== zoom ||
+        old.minX > required.minX ||
+        old.maxX < required.maxX ||
+        old.minY > required.minY ||
+        old.maxY < required.maxY ||
+        cached?.missingTileCount)
     ) {
       cached = await loadElevationGrid({
         range,
@@ -79,8 +93,13 @@ self.onmessage = async (
         onProgress: (completed, total) => self.postMessage({ type: 'progress', requestId, completed, total }),
       })
     }
-    if (active.signal.aborted || !cached) return
-    const combinedKey = JSON.stringify([settings, bounds, detailSize, demZoom])
+    if (active.signal.aborted || (!localRaster && !cached)) return
+    const imported = localRaster ? parseRasters([localRaster])[0] : null
+    const source = imported ? rasterSampler(imported) : cached!.grid
+    const resolution = imported
+      ? localRasterResolution(imported, settings.observer.lat)
+      : demResolutionMeters(settings.observer.lat, zoom)
+    const combinedKey = JSON.stringify([settings, bounds, detailSize, demZoom, localRaster?.sha256])
     const previous =
       observers &&
       combined?.key === combinedKey &&
@@ -92,23 +111,23 @@ self.onmessage = async (
         : undefined
     const result = observers
       ? computeCombinedViewshed(
-          cached.grid,
+          source,
           settings,
           observers,
-          demResolutionMeters(settings.observer.lat, zoom),
+          resolution,
           Math.max(16, Math.min(192, detailSize)),
           bounds,
           (completed, total) => self.postMessage({ type: 'progress', phase: 'combine', requestId, completed, total }),
           previous,
         )
       : computeViewshed(
-          cached.grid,
+          source,
           settings,
-          demResolutionMeters(settings.observer.lat, zoom),
+          resolution,
           preview ? 64 : Math.max(16, Math.min(192, detailSize)),
           !preview && horizon,
         )
-    result.missingTileCount = cached.missingTileCount
+    result.missingTileCount = imported ? 0 : cached!.missingTileCount
     if (observers) combined = { key: combinedKey, observers, result: structuredClone(result) }
     results.put(resultKey, result)
     self.postMessage(

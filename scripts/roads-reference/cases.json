@@ -1,0 +1,55 @@
+{
+  "schema": "pgmaps-roads-reference-cases-v1",
+  "repository": "LandSciTech/roads",
+  "version": "1.2.2",
+  "commit": "08c462de51076b550473cb709da633314c32cd87",
+  "methods": ["lcp", "mst", "snap"],
+  "formulaCases": [
+    { "id": "simple-mean", "function": "simpleCostFn", "x1": 0.5, "x2": 0.7, "distance": 1 },
+    { "id": "simple-diagonal", "function": "simpleCostFn", "x1": 7, "x2": 12, "distance": 1.4142135623730951 },
+    { "id": "simple-zero-road", "function": "simpleCostFn", "x1": 0, "x2": 18, "distance": 10 },
+    { "id": "simple-zero-pair", "function": "simpleCostFn", "x1": 0, "x2": 0, "distance": 20 },
+    { "id": "simple-missing-left", "function": "simpleCostFn", "x1": null, "x2": 18, "distance": 10 },
+    { "id": "simple-missing-right", "function": "simpleCostFn", "x1": 18, "x2": null, "distance": 10 },
+    { "id": "simple-negative-scalar", "function": "simpleCostFn", "x1": -3, "x2": 1, "distance": 2 },
+    { "id": "simple-large-weights", "function": "simpleCostFn", "x1": 1000000, "x2": 3000000, "distance": 100 },
+    { "id": "grade-flat", "function": "gradePenaltyFn", "x1": 500, "x2": 500, "distance": 10 },
+    { "id": "grade-five-percent", "function": "gradePenaltyFn", "x1": 500, "x2": 500.5, "distance": 10 },
+    { "id": "grade-reversed", "function": "gradePenaltyFn", "x1": 500.5, "x2": 500, "distance": 10 },
+    { "id": "grade-exact-limit", "function": "gradePenaltyFn", "x1": 500, "x2": 502, "distance": 10 },
+    { "id": "grade-over-limit", "function": "gradePenaltyFn", "x1": 500, "x2": 502.001, "distance": 10 },
+    {
+      "id": "grade-soft-limit",
+      "function": "gradePenaltyFn",
+      "x1": 500,
+      "x2": 503,
+      "distance": 10,
+      "options": { "limitWeight": 40000 }
+    },
+    { "id": "grade-negative-barrier", "function": "gradePenaltyFn", "x1": -70000, "x2": 500, "distance": 20 },
+    { "id": "grade-two-barriers", "function": "gradePenaltyFn", "x1": -70000, "x2": -90000, "distance": 20 },
+    { "id": "grade-barrier-reversed", "function": "gradePenaltyFn", "x1": 500, "x2": -70000, "distance": 20 },
+    { "id": "grade-zero-road-flat", "function": "gradePenaltyFn", "x1": 0, "x2": 0, "distance": 10 },
+    { "id": "grade-zero-road-small-rise", "function": "gradePenaltyFn", "x1": 0, "x2": 0.1, "distance": 1 },
+    { "id": "grade-zero-road-artificial-limit", "function": "gradePenaltyFn", "x1": 0, "x2": 500, "distance": 10 },
+    { "id": "grade-missing-left", "function": "gradePenaltyFn", "x1": null, "x2": 500, "distance": 10 },
+    { "id": "grade-missing-right", "function": "gradePenaltyFn", "x1": 500, "x2": null, "distance": 10 },
+    {
+      "id": "grade-custom-weights",
+      "function": "gradePenaltyFn",
+      "x1": 500,
+      "x2": 501,
+      "distance": 10,
+      "options": { "baseCost": 100, "penalty": 5, "limit": 12 }
+    },
+    {
+      "id": "grade-zero-surcharge",
+      "function": "gradePenaltyFn",
+      "x1": 500,
+      "x2": 501,
+      "distance": 10,
+      "options": { "baseCost": 100, "penalty": 0 }
+    },
+    { "id": "grade-diagonal", "function": "gradePenaltyFn", "x1": 500, "x2": 502, "distance": 14.142135623730951 }
+  ]
+}

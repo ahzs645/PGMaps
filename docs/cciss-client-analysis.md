@@ -1,5 +1,11 @@
 # CCISS client-side analysis: conversion and required data
 
+The browser now also accepts bounded current-data bundles and Shiny ZIP reports,
+with data-derived options and provenance-aware exports. See
+[the current workflow and handoff guide](cciss-current-analysis.md) for the latest
+implementation and remaining validation requirements. Historical validation and
+acquisition notes below describe the original packaged snapshots.
+
 ## Available implementation
 
 Open `/dev/forestry/cciss-suitability`, select a point, then **Open legacy analysis**.

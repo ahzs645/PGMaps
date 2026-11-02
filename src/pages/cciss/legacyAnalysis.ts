@@ -1,4 +1,5 @@
-export type Edatope = 'B2' | 'C4' | 'D6'
+// Site-condition keys are supplied by the dataset (B2/C4/D6 in the bundled snapshot).
+export type Edatope = string
 export interface LegacyReference {
   levels: (string | null)[]
   sites: Record<string, Record<Edatope, string>>
@@ -11,11 +12,12 @@ export interface LegacyRaster {
   scenario: string
   run: string | null
   file: string
+  role?: 'reference' | 'observed' | 'projection' | 'aggregate'
 }
 export interface LegacyManifest {
   schema: 'cciss-legacy-analysis-v1'
   reference: { file: string }
-  regions: { id: string; file: string }[]
+  regions: { id: string; file: string; label?: string }[]
   rasters: LegacyRaster[]
 }
 export interface SummaryTable {
@@ -24,6 +26,89 @@ export interface SummaryTable {
 }
 export interface LegacyRegion {
   tables: Record<string, SummaryTable>
+}
+
+export function legacyRasterRole(raster: LegacyRaster): NonNullable<LegacyRaster['role']> {
+  if (raster.role) return raster.role
+  if (raster.model === 'Reference') return 'reference'
+  if (raster.model === 'Observed') return 'observed'
+  if (/ensemble/i.test(raster.model) || /ensemble/i.test(raster.run ?? '')) return 'aggregate'
+  return 'projection'
+}
+
+/** Preserve dataset order; summary columns define the supported comparison roster. */
+export function legacySpecies(reference: LegacyReference, region: LegacyRegion | undefined, edatope: Edatope) {
+  return [...new Set(region?.tables[`PredSum.spp.${edatope}`]?.columns ?? Object.keys(reference.ratings))].filter(
+    (species) => species !== 'X',
+  )
+}
+
+export function legacySiteConditions(reference: LegacyReference, region?: LegacyRegion) {
+  return [
+    ...new Set([
+      ...Object.values(reference.sites).flatMap((site) => Object.keys(site)),
+      ...Object.keys(region?.tables ?? {}).flatMap((key) => /^PredSum\.spp\.(?!home\.)(.+)$/.exec(key)?.slice(1) ?? []),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+/** Human-readable names are optional; unfamiliar dataset codes stay visible verbatim. */
+export function legacyConditionLabel(edatope: Edatope) {
+  const known: Record<string, string> = { B2: 'Poor / subxeric', C4: 'Medium / mesic', D6: 'Rich / hygric' }
+  return known[edatope] ? `${edatope} · ${known[edatope]}` : edatope
+}
+export function legacyScenarioLabel(scenario: string) {
+  const ssp = /^ssp(\d)(\d)(\d)$/i.exec(scenario)
+  return ssp ? `SSP${ssp[1]}-${ssp[2]}.${ssp[3]}` : scenario
+}
+
+export function preferredLegacyOption(options: string[], preferred: string) {
+  return options.includes(preferred) ? preferred : (options[0] ?? '')
+}
+
+/** Validate resource identity before fetching; ambiguous members would silently mislabel results. */
+export function validateLegacyManifest(value: LegacyManifest): LegacyManifest {
+  const file = (path: unknown) =>
+    typeof path === 'string' &&
+    path.length > 0 &&
+    !path.startsWith('/') &&
+    !/^[a-z]+:|[\\?#%]/i.test(path) &&
+    !path.split('/').some((part) => part === '..' || part === '.' || !part)
+  if (!value || value.schema !== 'cciss-legacy-analysis-v1') throw new Error('Unsupported legacy dataset')
+  if (!value.reference || !file(value.reference.file) || !Array.isArray(value.regions) || !Array.isArray(value.rasters))
+    throw new Error('Legacy dataset needs reference, regions and raster definitions.')
+  const regions = new Set<string>(),
+    rasters = new Set<string>()
+  for (const region of value.regions) {
+    if (!region || typeof region.id !== 'string' || !region.id.trim() || !file(region.file) || regions.has(region.id))
+      throw new Error('Invalid or duplicate legacy region.')
+    regions.add(region.id)
+  }
+  for (const raster of value.rasters) {
+    if (
+      !raster ||
+      !file(raster.file) ||
+      !['model', 'period', 'scenario'].every(
+        (key) =>
+          typeof raster[key as keyof LegacyRaster] === 'string' && String(raster[key as keyof LegacyRaster]).trim(),
+      ) ||
+      (raster.run !== null && typeof raster.run !== 'string') ||
+      (raster.role !== undefined && !['reference', 'observed', 'projection', 'aggregate'].includes(raster.role))
+    )
+      throw new Error('Invalid legacy raster definition.')
+    const identity = JSON.stringify([
+      legacyRasterRole(raster),
+      raster.model,
+      raster.scenario,
+      raster.run,
+      raster.period,
+    ])
+    if (rasters.has(identity)) throw new Error('Duplicate legacy model/scenario/run/period.')
+    rasters.add(identity)
+  }
+  if (!value.rasters.some((raster) => legacyRasterRole(raster) === 'projection'))
+    throw new Error('Legacy dataset contains no model projections.')
+  return value
 }
 
 /** Shiny uses levels.bgc[code] (R's one-based indexing). */
@@ -50,7 +135,7 @@ export const ratingLabel = (value: number | null) =>
         ? 'Moderate'
         : value === 3
           ? 'Low'
-          : value === 4
+          : value === 4 || value === 5 // The source app maps every rating above 3.5 to non-suitable.
             ? 'Unsuitable'
             : `Rating ${value}`
 
@@ -59,18 +144,35 @@ const identity = (r: SummaryTable['rows'][number]) =>
 /** Port of persistence = home / baseline; expansion = (total-home) / baseline.
  * Raw values are grid-cell summaries, not hectares or site probabilities.
  */
-export function regionalOutlook(region: LegacyRegion, edatope: Edatope, species: string, model: string) {
+export function regionalOutlook(
+  region: LegacyRegion,
+  edatope: Edatope,
+  species: string,
+  model: string,
+  selection?: { scenario?: string; run?: string | null; baselinePeriod?: string },
+) {
   const total = region.tables[`PredSum.spp.${edatope}`]
   const home = region.tables[`PredSum.spp.home.${edatope}`]
   if (!total || !home) return []
   const column = total.columns.indexOf(species)
   const homeColumn = home.columns.indexOf(species)
   if (column < 0 || homeColumn < 0) return []
-  const baselineRows = total.rows.filter((r) => r.id.GCM === 'obs' && r.id.PERIOD === '1961_1990')
+  const baselinePeriod =
+    selection?.baselinePeriod ??
+    total.rows
+      .filter((r) => r.id.GCM === 'obs')
+      .map((r) => r.id.PERIOD)
+      .sort()[0]
+  const baselineRows = total.rows.filter((r) => r.id.GCM === 'obs' && r.id.PERIOD === baselinePeriod)
   const baseline = baselineRows.length === 1 ? baselineRows[0].values[column] : null
   const homes = new Map(home.rows.map((r) => [identity(r), r.values[homeColumn]]))
   return total.rows
-    .filter((r) => r.id.GCM === model)
+    .filter(
+      (r) =>
+        r.id.GCM === model &&
+        (selection?.scenario === undefined || r.id.SSP === selection.scenario) &&
+        (selection?.run === undefined || r.id.RUN === selection.run),
+    )
     .map((r) => {
       const count = r.values[column]
       const retained = homes.get(identity(r)) ?? null
@@ -82,6 +184,7 @@ export function regionalOutlook(region: LegacyRegion, edatope: Edatope, species:
         SSP: r.id.SSP,
         total: count,
         baseline,
+        baselinePeriod,
         persistence: valid ? retained / baseline : null,
         expansion: valid ? (count - retained) / baseline : null,
       }

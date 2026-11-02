@@ -24,7 +24,10 @@ test('trace is the default; numeric vector and original tiles are explicit choic
 
   await page.getByRole('button', { name: 'Numeric vector', exact: true }).click()
   await expect(page).toHaveURL(/render=vector/)
-  await expect.poll(() => local.some((url) => /historical-Pl-C4-polygons\/tiles\/.*\.gz/.test(url))).toBe(true)
+  await expect
+    .poll(() => local.some((url) => /historical-Pl-C4-overviews\/factor-8\/tiles\/.*\.gz/.test(url)))
+    .toBe(true)
+  expect(local.some((url) => /historical-Pl-C4-polygons\/tiles\/.*\.gz/.test(url))).toBe(false)
   await expect(page.getByText(/visible blocks? ready\./)).toBeVisible({ timeout: 30_000 })
   expect(remote).toEqual([])
   const url = new URL(page.url())

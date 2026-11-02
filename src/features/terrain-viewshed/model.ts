@@ -5,7 +5,14 @@ import {
   type Bounds,
   type ElevationSource,
 } from '@/pages/dev-forestry/terrain'
-import { earthCurvatureDropMeters, testSightline, type GeoPoint } from '@/pages/dev-forestry/visibility'
+import {
+  earthCurvatureDropMeters,
+  testSightline,
+  bearingDegrees,
+  type GeoPoint,
+  type GroundPoint,
+  type SightlineResult,
+} from '@/pages/dev-forestry/visibility'
 export type { GeoPoint } from '@/pages/dev-forestry/visibility'
 
 export type ViewshedSettings = {
@@ -13,6 +20,8 @@ export type ViewshedSettings = {
   radiusMeters: number
   heightA: number
   heightB: number
+  targetOffsetMeters?: number
+  fieldOfView?: { bearing: number; width: number }
 }
 export const HORIZON_DIRECTIONS = 720
 export const VIEWSHED_SIZE = 192
@@ -23,6 +32,18 @@ export const VIEWSHED_COLORS = {
   bOnly: '#f59e0b',
   hidden: '#64748b',
   unknown: '#a855f7',
+}
+/**
+ * Rays are sampled at half the DEM cell size, so every one-cell wall or ridge is sampled at three quarters or more of
+ * its interpolated height (the former fixed 15 m spacing could step over a 1–10 m cell entirely). The per-ray sample
+ * budget bounds the work; a ray too long to be sampled that finely is never reported as visible.
+ */
+export const MAX_SIGHTLINE_STEPS = 4096
+export function sightlineSampling(sourceResolutionMeters: number, radiusMeters: number) {
+  if (!Number.isFinite(sourceResolutionMeters) || sourceResolutionMeters <= 0)
+    throw new Error('Terrain resolution must be a positive number of metres.')
+  const stepMeters = sourceResolutionMeters / 2
+  return { stepMeters, sampledRangeMeters: Math.min(radiusMeters, stepMeters * MAX_SIGHTLINE_STEPS) }
 }
 export type ViewshedResult = {
   settings: ViewshedSettings
@@ -36,6 +57,8 @@ export type ViewshedResult = {
   horizonB: Float32Array
   horizonUnknown: Uint8Array
   sourceResolutionMeters: number
+  /** Distance to which rays are sampled at half the DEM cell size; beyond it visible verdicts become unknown. */
+  sampledRangeMeters: number
   missingTileCount: number
 }
 
@@ -82,6 +105,21 @@ export function computeViewshed(
 ): ViewshedResult {
   if (![settings.heightA, settings.heightB].every((h) => Number.isFinite(h) && h >= 0 && h <= 100))
     throw new Error('Observer heights must be between 0 and 100 m.')
+  if (
+    settings.targetOffsetMeters !== undefined &&
+    (!Number.isFinite(settings.targetOffsetMeters) ||
+      settings.targetOffsetMeters < 0 ||
+      settings.targetOffsetMeters > 1000)
+  )
+    throw Error('Target height must be between 0 and 1000 m.')
+  if (
+    settings.fieldOfView &&
+    (!Number.isFinite(settings.fieldOfView.bearing) ||
+      !Number.isFinite(settings.fieldOfView.width) ||
+      settings.fieldOfView.width <= 0 ||
+      settings.fieldOfView.width > 360)
+  )
+    throw Error('Field of view must be greater than 0° and at most 360°.')
   const bounds = footprint?.bounds ?? viewshedBounds(settings)
   const nw = lngLatToMercator(bounds[0], bounds[3]),
     se = lngLatToMercator(bounds[2], bounds[1])
@@ -89,12 +127,21 @@ export function computeViewshed(
   const observer = { ...settings.observer, groundElevationMeters: groundMeters }
   const cells = new Uint8Array(size * size)
   const counts = { total: 0, visibleA: 0, visibleB: 0, unknown: 0 }
+  const { stepMeters, sampledRangeMeters } = sightlineSampling(sourceResolutionMeters, settings.radiusMeters)
   const options = {
-    targetOffsetMeters: 0,
-    stepMeters: Math.max(sourceResolutionMeters, 15),
+    targetOffsetMeters: settings.targetOffsetMeters ?? 0,
+    stepMeters,
+    maxSteps: MAX_SIGHTLINE_STEPS,
     maxDistanceMeters: settings.radiusMeters,
     refractionCoefficient: 0.13,
     clearanceMeters: 0,
+  }
+  const sightline = (target: GroundPoint, observerHeightMeters: number): SightlineResult => {
+    const result = testSightline(source, observer, target, { ...options, observerHeightMeters })
+    // Coarser samples can only miss an obstacle, so an occluded verdict stands but a clear one is unverified.
+    return result.visible && result.distanceMeters > sampledRangeMeters
+      ? { ...result, visible: false, status: 'unknown' }
+      : result
   }
   for (let row = 0; row < size; row++)
     for (let col = 0; col < size; col++) {
@@ -103,12 +150,14 @@ export function computeViewshed(
       const y = nw[1] + ((row + 0.5) / size) * (se[1] - nw[1])
       const [lng, lat] = mercatorToLngLat(x, y)
       const target = { lng, lat, groundElevationMeters: source.elevationAt(lng, lat) }
-      const a = testSightline(source, observer, target, { ...options, observerHeightMeters: settings.heightA })
+      if (settings.fieldOfView) {
+        const direction = bearingDegrees(settings.observer, target),
+          difference = Math.abs(((((direction - settings.fieldOfView.bearing) % 360) + 540) % 360) - 180)
+        if (difference > settings.fieldOfView.width / 2) continue
+      }
+      const a = sightline(target, settings.heightA)
       if (a.status === 'out-of-range') continue
-      const b =
-        settings.heightA === settings.heightB
-          ? a
-          : testSightline(source, observer, target, { ...options, observerHeightMeters: settings.heightB })
+      const b = settings.heightA === settings.heightB ? a : sightline(target, settings.heightB)
       counts.total++
       if (a.visible) counts.visibleA++
       if (b.visible) counts.visibleB++
@@ -120,11 +169,11 @@ export function computeViewshed(
   const horizonB = new Float32Array(HORIZON_DIRECTIONS).fill(NaN)
   const horizonUnknown = new Uint8Array(HORIZON_DIRECTIONS).fill(1)
   // A fixed, bounded skyline lets the time slider update instantly without re-fetching terrain.
-  const steps = Math.min(1200, Math.ceil(settings.radiusMeters / Math.max(15, sourceResolutionMeters)))
+  const steps = Math.min(MAX_SIGHTLINE_STEPS, Math.ceil(settings.radiusMeters / stepMeters))
   for (let i = 0; includeHorizon && i < HORIZON_DIRECTIONS; i++) {
     let a = -90,
       b = -90
-    let missing = !Number.isFinite(groundMeters)
+    let missing = !Number.isFinite(groundMeters) || sampledRangeMeters < settings.radiusMeters
     for (let j = 1; j <= steps; j++) {
       const distance = (settings.radiusMeters * j) / steps
       const point = destination(settings.observer, (i * 360) / HORIZON_DIRECTIONS, distance)
@@ -152,6 +201,7 @@ export function computeViewshed(
     horizonB,
     horizonUnknown,
     sourceResolutionMeters,
+    sampledRangeMeters,
     missingTileCount: 0,
   }
 }

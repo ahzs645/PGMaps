@@ -96,7 +96,7 @@ export default defineConfig({
   },
   // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ import does
   // not hit a mid-session re-optimisation ("Failed to fetch dynamically imported module").
-  optimizeDeps: { include: ['whitebox-wasm', 'whitebox-wasm/tools'] },
+  optimizeDeps: { include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf'] },
   build: {
     rollupOptions: {
       output: {

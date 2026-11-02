@@ -23,6 +23,13 @@ previous footprint cannot be mistaken for the current observer's answer.
 Each mounted consumer owns its worker. Disabled consumers do not start a
 worker; a used consumer keeps it idle for reuse until unmount.
 
+Sightlines are sampled every half DEM cell (`sightlineSampling`), so a
+one-cell wall or ridge on a fine imported DEM cannot fall between samples; a
+one-cell spike is always sampled at no less than three quarters of its
+interpolated height. Each ray has at most 4,096 samples. A ray longer than that
+budget allows is never reported visible: the cell and the sun skyline become
+unknown, and `sampledRangeMeters` (shown in the ready message) says where.
+
 Movement uses 64×64 previews. Pausing requests the configured detail grid.
 The worker coalesces movement, caches a complete terrain mosaic, and keeps
 32 complete results in an LRU. Transferred buffers are cloned from the cache;

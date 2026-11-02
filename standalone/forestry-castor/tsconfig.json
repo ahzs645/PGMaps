@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "./main.tsx",
+    "../../vite.castor.config.ts",
+    "../../src/vite-env.d.ts",
+    "../../src/types/turf-compat.d.ts"
+  ],
+  "references": []
+}

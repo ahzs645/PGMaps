@@ -10,6 +10,8 @@ export type SightlineOptions = {
   maxDistanceMeters: number
   refractionCoefficient: number
   clearanceMeters: number
+  /** Upper bound on samples per ray (default 1200); longer rays are sampled more coarsely than stepMeters. */
+  maxSteps?: number
 }
 export const DEFAULT_SIGHTLINE_OPTIONS: SightlineOptions = {
   observerHeightMeters: 1.6,
@@ -73,7 +75,7 @@ export function testSightline(
   if (!Number.isFinite(eye) || !Number.isFinite(targetHeight)) return answer('unknown')
   if (distanceMeters < 1) return answer('visible')
   if (!(options.stepMeters > 0)) throw new Error('Sightline step must be positive.')
-  const steps = Math.min(1200, Math.max(2, Math.ceil(distanceMeters / options.stepMeters)))
+  const steps = Math.min(options.maxSteps ?? 1200, Math.max(2, Math.ceil(distanceMeters / options.stepMeters)))
   const start = lngLatToMercator(observer.lng, observer.lat),
     end = lngLatToMercator(target.lng, target.lat)
   const slope =

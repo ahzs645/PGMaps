@@ -1,5 +1,10 @@
 # PGMaps Agent Instructions
 
+## CI workflows
+
+- Only `checks.yml` (typecheck, lint, format, unit tests) and `deploy.yml` (Pages build; deploys on `main`) run automatically.
+- Feature-specific browser or reference suites (forest drought, forestry roads, roads vs native R, MMGIS, Nechako, viewshed and any new one) are `workflow_dispatch` only. Do not add `pull_request` or `push` triggers to them; run them by hand (Actions → Run workflow, choosing the PR branch) when a change needs that evidence.
+
 ## Scraper-owned data
 
 - `vendor/bcdatamapper` is the Git submodule and source of truth for scraper code, source archives, and deployable scraper snapshots.

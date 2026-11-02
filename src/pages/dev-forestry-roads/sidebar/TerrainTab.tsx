@@ -18,6 +18,7 @@ const CLASSIFY: Record<string, string> = {
 }
 
 const LIDAR_LINKS = [
+  ['/dev/forestry/road-restoration', 'Local LiDAR restoration metrics'],
   ['/dev/lidar/forestry/', 'Forest structure & plots'],
   ['/dev/lidar/canopy/', 'Canopy heights & density'],
   ['/dev/lidar/trees/', 'Individual-tree inspection'],

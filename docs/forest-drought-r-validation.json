@@ -1,0 +1,96 @@
+{
+  "schema": "forest-drought-r-parity-v1",
+  "passed": true,
+  "upstreamCommit": "e02ddcbf8203e65bada1a36655887e1d0c8fe2f5",
+  "tolerance": 1e-10,
+  "comparisons": 84501,
+  "dailyRows": 7680,
+  "maximumAbsoluteError": 5.542233338928781e-13,
+  "maximumRelativeError": 4.18554080283684e-14,
+  "maximumCase": "seasonal/55/2000-03-15/Rn",
+  "cases": [
+    {
+      "case": "seasonal",
+      "latitude": 50,
+      "dailyRows": 731
+    },
+    {
+      "case": "seasonal",
+      "latitude": 55,
+      "dailyRows": 731
+    },
+    {
+      "case": "seasonal",
+      "latitude": 60,
+      "dailyRows": 731
+    },
+    {
+      "case": "frozen",
+      "latitude": 50,
+      "dailyRows": 366
+    },
+    {
+      "case": "frozen",
+      "latitude": 55,
+      "dailyRows": 366
+    },
+    {
+      "case": "frozen",
+      "latitude": 60,
+      "dailyRows": 366
+    },
+    {
+      "case": "dry",
+      "latitude": 50,
+      "dailyRows": 366
+    },
+    {
+      "case": "dry",
+      "latitude": 55,
+      "dailyRows": 366
+    },
+    {
+      "case": "dry",
+      "latitude": 60,
+      "dailyRows": 366
+    },
+    {
+      "case": "wet",
+      "latitude": 50,
+      "dailyRows": 366
+    },
+    {
+      "case": "wet",
+      "latitude": 55,
+      "dailyRows": 366
+    },
+    {
+      "case": "wet",
+      "latitude": 60,
+      "dailyRows": 366
+    },
+    {
+      "case": "lateral",
+      "latitude": 50,
+      "dailyRows": 731
+    },
+    {
+      "case": "lateral",
+      "latitude": 55,
+      "dailyRows": 731
+    },
+    {
+      "case": "lateral",
+      "latitude": 60,
+      "dailyRows": 731
+    }
+  ],
+  "execution": {
+    "workflowRun": "https://github.com/ahzs645/forestDroughtTool/actions/runs/41406309038",
+    "jobId": 125148999259,
+    "portCommit": "86c529c82190d02d4b997a3b9e787206348e50f1",
+    "rVersion": "4.5.2",
+    "artifact": "https://github.com/ahzs645/forestDroughtTool/actions/runs/41406309038/artifacts/13123462806"
+  },
+  "scope": "Daily kernel and original soil/class tables on synthetic cases. Does not establish wrapper equivalence or ecological predictive validation."
+}

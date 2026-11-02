@@ -16,10 +16,26 @@ const spaRoutes = [
   'score-builder',
   'misc',
   'bc-assessment',
+  'projects',
   'dev',
   'dev/lidar',
-  ...['canopy', 'trees', 'forestry', 'species', 'buildings', 'transects'].map((tool) => `dev/lidar/${tool}`),
-  'dev/forestry/visual-quality',
+  ...['canopy', 'trees', 'forestry', 'species', 'buildings', 'transects', 'restoration'].map(
+    (tool) => `dev/lidar/${tool}`,
+  ),
+  'dev/forestry',
+  ...[
+    'road-design',
+    'roads',
+    'visual-quality',
+    'cciss-suitability',
+    'avast-volume',
+    'drought-risk',
+    'road-restoration',
+    'thlb-impact',
+    'castor',
+  ].map((tool) => `dev/forestry/${tool}`),
+  'dev/gov',
+  'dev/mmgis',
   'dev/viewshed',
   'dev/viewshed/terrain',
   'dev/flatten',
@@ -63,9 +79,12 @@ if (existsSync(projectsRoot)) {
     if (!filename.endsWith('.json') || filename === 'index.json') continue
     const slug = filename.slice(0, -5)
     if (!/^[a-z0-9-]+$/.test(slug)) continue
-    const entry = join(root, 'dist', 'dev', 'projects', slug, 'index.html')
-    mkdirSync(dirname(entry), { recursive: true })
-    copyFileSync(indexPath, entry)
+    // /projects/<slug> is the canonical story URL; /dev/projects/<slug> is kept for old links.
+    for (const base of [['projects'], ['dev', 'projects']]) {
+      const entry = join(root, 'dist', ...base, slug, 'index.html')
+      mkdirSync(dirname(entry), { recursive: true })
+      copyFileSync(indexPath, entry)
+    }
   }
 }
 console.log(`[spa] copied route and project entry points`)

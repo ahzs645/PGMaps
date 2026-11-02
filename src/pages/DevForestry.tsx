@@ -1,10 +1,46 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
+import { ArrowLeft, Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
+  {
+    title: 'Castor forest scenarios',
+    description:
+      'Explore harvest flows, forest growth and management constraints. Run local landscape scenarios, compare outcomes, and export harvest maps, reports and candidate landings.',
+    href: '/dev/forestry/castor',
+    icon: Trees,
+    color: 'bg-teal-700',
+    label: '/dev/forestry/castor',
+  },
+  {
+    title: 'Drought risk',
+    description:
+      'Compare published BC drought risk across BGC units, soil regimes, tree species and climate periods. Run a separate soil-water calculation from your daily climate CSV, directly in the browser.',
+    href: '/dev/forestry/drought-risk',
+    icon: Droplets,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/drought-risk',
+  },
+  {
+    title: 'Road restoration',
+    description:
+      'Process local LAS/LAZ tiles in your browser: slope, mean first-return height, vegetation strata and ground-return density. Export reusable GIS rasters and mean-height cells.',
+    href: '/dev/forestry/road-restoration',
+    icon: Sprout,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/road-restoration',
+  },
+  {
+    title: 'THLB impact',
+    description:
+      'Measure harvestable hectares within proposed WHAs or planning areas using official and proxy THLB. Review coverage, age and deferral breakdowns; export Excel and GIS layers.',
+    href: '/dev/forestry/thlb-impact',
+    icon: TreePine,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/thlb-impact',
+  },
   {
     title: 'Road design',
     description:
@@ -87,7 +123,7 @@ export default function DevForestry() {
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Forestry tools</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
             Planning utilities for forest roads, cutblocks and stands: terrain, volume, visual quality, climate
-            suitability and LiDAR structure.
+            suitability, landscape scenarios and LiDAR structure.
           </p>
         </div>
 

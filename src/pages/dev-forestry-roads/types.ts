@@ -291,6 +291,8 @@ export interface RoadProject {
   reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */
   routeSearch?: RouteSearchOptions
+  /** Browser road-network projection inputs; independent of reviewed haul-network evidence. */
+  networkPlanning?: import('./roads/planning').NetworkPlanning
   /** Explicit vehicle, network, evidence, supply and final-check inputs for complete route comparisons. */
   totalCostPlanning?: TotalCostPlanning
   /** Portable inputs and compact, fingerprinted drainage evidence; full grids are recomputed. */
