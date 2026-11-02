@@ -444,15 +444,24 @@ function overlapForSeries(
   expandPhases = false,
 ) {
   const targets = regular.filter((r) => r.bgc === targetBgc)
-  const special =
+  let output: { series: string; weight: number }[] = []
+  // eda_overlap.R joins special site series (E1 and E1_Phase rows with a SpecialCode) on their code, then
+  // removes pairs with rmFlag using codes looked up from E1 only (SppCode, SppCodePred). So a special phase
+  // keeps only special-phase targets, and a special E1 series keeps only special E1 targets. Flag is set
+  // before rmFlag: once any same-code special matched, the ordinary overlaps of that pair are dropped too,
+  // even when rmFlag then removes every special match. Checked against ccissr on generated cases
+  // (scripts/cciss/eda-reference).
+  const sameCode =
     current.special === null
       ? []
       : [...targets, ...phases.filter((r) => r.bgc === targetBgc)].filter((r) => r.special === current.special)
-  let output: { series: string; weight: number }[] = []
-  if (special.length) output = special.map((r) => ({ series: r.series, weight: 1 / special.length }))
-  // Special current phases participate through the source SpecialCode join;
-  // unlike ordinary current phases, they do not enter the regular E1 join.
-  else if (current.main && current.special !== null) return []
+  const currentIsPhase = current.main !== undefined
+  if (sameCode.length)
+    output = sameCode
+      .filter((r) => (currentIsPhase ? r.main !== undefined : r.main === undefined))
+      .map((r) => ({ series: r.series, weight: 1 }))
+  // Special current phases enter only through the SpecialCode join, never the regular E1 join.
+  else if (currentIsPhase && current.special !== null) return []
   else
     for (const target of targets) {
       if (target.special !== null && target.special !== current.special) continue
