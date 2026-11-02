@@ -1,0 +1,768 @@
+{
+  "session_date": "2026-11-02",
+  "date_timezone": "America/Vancouver",
+  "scope": "Point-in-time observations; counts are not future invariants. No upstream servers were modified.",
+  "archive": {
+    "filename": "air-monitoring-visualization-master.zip",
+    "sha256": "42c1b61e5d2dccdc744b0c9667e32ac0bb5626b26048862bd8362f7ff84fc78f",
+    "source_repository": "https://github.com/bcgov/air-monitoring-visualization",
+    "map_inventory": [
+      {
+        "path": "readings/map_aqhi.html",
+        "csv_sources": ["../aqo/csv/AQHIWebMap.csv"],
+        "renderer_fields": ["VALUE"]
+      },
+      {
+        "path": "readings/map_no2.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["NO2"]
+      },
+      {
+        "path": "readings/map_o3-8hr.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["O3_8"]
+      },
+      {
+        "path": "readings/map_o3.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["O3"]
+      },
+      {
+        "path": "readings/map_pm10-24hr.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["PM10_24"]
+      },
+      {
+        "path": "readings/map_pm10.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["PM10"]
+      },
+      {
+        "path": "readings/map_pm25-24hr.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["PM25_24"]
+      },
+      {
+        "path": "readings/map_pm25.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["PM25"]
+      },
+      {
+        "path": "readings/map_so2.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["SO2"]
+      },
+      {
+        "path": "readings/map_stations.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": []
+      },
+      {
+        "path": "readings/map_trs.html",
+        "csv_sources": ["../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["TRS"]
+      },
+      {
+        "path": "readings/ne-stations-map.html",
+        "csv_sources": ["../aqo/csv/AQHIWeb.csv", "../aqo/csv/bc_air_monitoring_stations.csv"],
+        "renderer_fields": ["VALUE"]
+      }
+    ]
+  },
+  "initial_direct_csv_checks": [
+    {
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/AQHIWeb.csv",
+      "exit_code": 0,
+      "headers": "HTTP/1.1 200 OK\nserver: envoy\nHTTP/2 200 \nserver: envoy\ncontent-type: text/csv"
+    },
+    {
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/AQHIWebMap.csv",
+      "exit_code": 0,
+      "headers": "HTTP/1.1 200 OK\nserver: envoy\nHTTP/2 200 \nserver: envoy\ncontent-type: text/csv"
+    },
+    {
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/Hourly_Raw_Air_Data/Station/E315110.csv",
+      "exit_code": 0,
+      "headers": "HTTP/1.1 200 OK\nserver: envoy\nHTTP/2 200 \nserver: envoy\ncontent-type: text/csv"
+    },
+    {
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/Hourly_Raw_Air_Data/Station/AQHI-Smithers.csv",
+      "exit_code": 0,
+      "headers": "HTTP/1.1 200 OK\nserver: envoy\nHTTP/2 404 \nserver: envoy\ncontent-type: text/html; charset=iso-8859-1"
+    },
+    {
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/bc_air_monitoring_stations.csv",
+      "exit_code": 0,
+      "headers": "HTTP/1.1 200 OK\nserver: envoy\nHTTP/2 200 \nserver: envoy\ncontent-type: text/csv"
+    }
+  ],
+  "continued_http_checks": [
+    {
+      "name": "widget-Smithers-0",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": null,
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Smithers",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Smithers-1",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Smithers",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Smithers-2",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": "https://example.com",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Smithers",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Smithers-3",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": "https://www.env.gov.bc.ca",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Smithers",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Kamloops-4",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+      "origin": null,
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Kamloops",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Kamloops-5",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Kamloops",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Kamloops-6",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+      "origin": "https://example.com",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Kamloops",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Kamloops-7",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+      "origin": "https://www.env.gov.bc.ca",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Kamloops",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Comox-Valley-8",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+      "origin": null,
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Comox Valley",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Comox-Valley-9",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Comox Valley",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Comox-Valley-10",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+      "origin": "https://example.com",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Comox Valley",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-Comox-Valley-11",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+      "origin": "https://www.env.gov.bc.ca",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "first_area": "Comox Valley",
+      "has_aqhi_columns": true,
+      "csv_rows": 1,
+      "headers": {
+        "content-type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "widget-preflight-12",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": "http://localhost:3000",
+      "method": "OPTIONS",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "headers": {}
+    },
+    {
+      "name": "widget-preflight-13",
+      "url": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "origin": "https://example.com",
+      "method": "OPTIONS",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "headers": {}
+    },
+    {
+      "name": "parser-legacy-ftp",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=ftp%3A%2F%2Fftp.env.gov.bc.ca%2Fpub%2Foutgoing%2FAIR%2FHourly_Raw_Air_Data%2FStation%2FE315110.csv&format=json",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 1,
+      "php_warnings": 2,
+      "bad_data_source": true,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "name": "parser-https-station",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fwww.env.gov.bc.ca%2Fepd%2Fbcairquality%2Faqo%2Fcsv%2FHourly_Raw_Air_Data%2FStation%2FE315110.csv&format=json",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 748,
+      "php_warnings": 0,
+      "bad_data_source": false,
+      "json_array_after_warnings": true,
+      "array_rows_after_warnings": 745,
+      "first_area": null,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "name": "parser-https-widget",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 5,
+      "php_warnings": 0,
+      "bad_data_source": false,
+      "json_array_after_warnings": true,
+      "array_rows_after_warnings": 2,
+      "first_area": "Smithers",
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "name": "parser-https-widget-header-row",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json&header_row=y",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 5,
+      "php_warnings": 0,
+      "bad_data_source": false,
+      "json_array_after_warnings": true,
+      "array_rows_after_warnings": 2,
+      "first_area": "Smithers",
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "name": "parser-https-widget-jsonp",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json&callback=aqhiTest",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 5,
+      "php_warnings": 0,
+      "bad_data_source": false,
+      "json_array_after_warnings": true,
+      "array_rows_after_warnings": 2,
+      "first_area": "Smithers",
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "name": "parser-https-widget-repeat",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json",
+      "origin": "http://localhost:3000",
+      "method": "GET",
+      "status": "HTTP/2 200 ",
+      "curl_exit_code": 0,
+      "valid_json": false,
+      "json_error": "Expecting value: line 1 column 1 (char 0)",
+      "php_deprecations": 5,
+      "php_warnings": 0,
+      "bad_data_source": false,
+      "json_array_after_warnings": true,
+      "array_rows_after_warnings": 2,
+      "first_area": "Smithers",
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "access-control-allow-origin": "*"
+      }
+    }
+  ],
+  "original_widget_browser_checks": {
+    "origin": "http://localhost:3000",
+    "browser": "154.0.8037.57",
+    "tls_verification": true,
+    "cors_enforcement": true,
+    "widgets": [
+      {
+        "station": "Smithers",
+        "table_text": "Air Quality Health Index data is not available at this moment. Please try again later or visit Environment Canada and Climate Change website for the latest AQHI values.",
+        "cors_errors": [
+          "Access to XMLHttpRequest at 'https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+        ]
+      },
+      {
+        "station": "Kamloops",
+        "table_text": "Air Quality Health Index data is not available at this moment. Please try again later or visit Environment Canada and Climate Change website for the latest AQHI values.",
+        "cors_errors": [
+          "Access to XMLHttpRequest at 'https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+        ]
+      },
+      {
+        "station": "Comox Valley",
+        "table_text": "Air Quality Health Index data is not available at this moment. Please try again later or visit Environment Canada and Climate Change website for the latest AQHI values.",
+        "cors_errors": [
+          "Access to XMLHttpRequest at 'https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+        ]
+      }
+    ]
+  },
+  "https_parser_browser_checks": {
+    "origin": "http://localhost:3000",
+    "browser": "154.0.8037.57",
+    "tls_verification": true,
+    "cors_enforcement": true,
+    "tests": [
+      {
+        "name": "Smithers",
+        "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+        "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json",
+        "status": 200,
+        "responseType": "cors",
+        "contentType": "text/html; charset=UTF-8",
+        "phpMessages": 5,
+        "responseJsonSucceeded": false,
+        "responseJsonError": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "prefixLength": 921,
+        "recoveredRows": 2,
+        "usableRows": 1,
+        "emptyRowsRemoved": 1,
+        "directCsvRows": 1,
+        "matchesDirectCsv": true
+      },
+      {
+        "name": "Kamloops",
+        "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+        "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Kamloops.csv&format=json",
+        "status": 200,
+        "responseType": "cors",
+        "contentType": "text/html; charset=UTF-8",
+        "phpMessages": 5,
+        "responseJsonSucceeded": false,
+        "responseJsonError": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "prefixLength": 921,
+        "recoveredRows": 2,
+        "usableRows": 1,
+        "emptyRowsRemoved": 1,
+        "directCsvRows": 1,
+        "matchesDirectCsv": true
+      },
+      {
+        "name": "Comox-Valley",
+        "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+        "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Comox-Valley.csv&format=json",
+        "status": 200,
+        "responseType": "cors",
+        "contentType": "text/html; charset=UTF-8",
+        "phpMessages": 5,
+        "responseJsonSucceeded": false,
+        "responseJsonError": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "prefixLength": 921,
+        "recoveredRows": 2,
+        "usableRows": 1,
+        "emptyRowsRemoved": 1,
+        "directCsvRows": 1,
+        "matchesDirectCsv": true
+      },
+      {
+        "name": "Station-E315110",
+        "source": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/Hourly_Raw_Air_Data/Station/E315110.csv",
+        "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fwww.env.gov.bc.ca%2Fepd%2Fbcairquality%2Faqo%2Fcsv%2FHourly_Raw_Air_Data%2FStation%2FE315110.csv&format=json",
+        "status": 200,
+        "responseType": "cors",
+        "contentType": "text/html; charset=UTF-8",
+        "phpMessages": 748,
+        "responseJsonSucceeded": false,
+        "responseJsonError": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "prefixLength": 144320,
+        "recoveredRows": 745,
+        "usableRows": 744,
+        "emptyRowsRemoved": 1,
+        "directCsvRows": 744,
+        "matchesDirectCsv": true
+      }
+    ]
+  },
+  "source_page_head_checks": [
+    {
+      "path": "readings/map_aqhi.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_aqhi.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_no2.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_no2.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_o3-8hr.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_o3-8hr.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_o3.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_o3.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_pm10-24hr.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_pm10-24hr.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_pm10.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_pm10.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_pm25-24hr.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_pm25-24hr.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_pm25.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_pm25.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_so2.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_so2.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_stations.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_stations.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/map_trs.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/map_trs.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "readings/ne-stations-map.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/readings/ne-stations-map.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "data/aqhi.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/data/aqhi.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "data/station.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/data/station.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "data/aqhi-table.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/data/aqhi-table.html",
+      "status": "200",
+      "error": null
+    },
+    {
+      "path": "aqhi-widget/smithers.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqhi-widget/smithers.html",
+      "status": "404",
+      "error": null
+    },
+    {
+      "path": "aqhi-widget/kamloops.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqhi-widget/kamloops.html",
+      "status": "404",
+      "error": null
+    },
+    {
+      "path": "aqhi-widget/comox-valley.html",
+      "url": "https://www.env.gov.bc.ca/epd/bcairquality/aqhi-widget/comox-valley.html",
+      "status": "404",
+      "error": null
+    }
+  ],
+  "pgmaps_route_before_change": {
+    "url": "http://pgmaps.ahmadjalil.com/dev/gov",
+    "status": 404,
+    "description": "Static fallback HTML; no matching route existed at the checked PGMaps commit."
+  },
+  "checked_repository_commits": {
+    "PGMaps": "cc511eea4fc4840113ac822e583680d625da5660",
+    "bcdatamapper": "0a90f2245258052f9348c24c308dd7cb406d908d"
+  },
+  "bundled_station_snapshot": {
+    "row_count": 106,
+    "first_date_pst": "2025-10-17 17:00",
+    "first_display_date": "Friday 17 October 2025 6PM (PDT)",
+    "all_columns": [
+      "SERIAL_CODE",
+      "EMS_ID",
+      "STATION_NAME",
+      "LOCATION",
+      "CITY",
+      "CATEGORY",
+      "STATION_ENVIRONMENT",
+      "STATION_OWNER",
+      "DATE_ESTABLISHED",
+      "NOTES",
+      "LATITUDE",
+      "LONGITUDE",
+      "HEIGHT(m)",
+      "STATUS",
+      "URL",
+      "URL2",
+      "PM25_INSTRUMENT",
+      "PM25",
+      "PM25_UNIT",
+      "NO",
+      "NO_UNIT",
+      "NO2",
+      "NO2_UNIT",
+      "NOX",
+      "NOX_UNIT",
+      "O3",
+      "O3_UNIT",
+      "PM10",
+      "PM10_UNIT",
+      "SO2",
+      "SO2_UNIT",
+      "TRS",
+      "TRS_UNIT",
+      "H2S",
+      "H2S_UNIT",
+      "WDIR_VEC",
+      "WDIR_UNIT",
+      "WSPD_SCLR",
+      "WSPD_UNIT",
+      "TEMP",
+      "TEMP_UNIT",
+      "HUMIDITY",
+      "HUMIDITY_UNIT",
+      "PRECIPITATION",
+      "PRECIPITATION_UNIT",
+      "BAR_PRESSURE",
+      "PRESSURE_UNIT",
+      "SNOWDEPTH",
+      "SNOWDEPTH_UNIT",
+      "CO",
+      "CO_UNIT",
+      "PM25_24",
+      "NO_24",
+      "NO2_24",
+      "NOX_24",
+      "O3_8",
+      "PM10_24",
+      "SO2_24",
+      "TRS_24",
+      "H2S_24",
+      "DATE",
+      "DATE_PST",
+      "URL_Station"
+    ]
+  },
+  "live_station_csv": {
+    "row_count": 104,
+    "first_date_pst": "2026-11-01 23:00",
+    "first_display_date": "Monday 02 November 2026 12AM (PCT)",
+    "all_columns": [
+      "SERIAL_CODE",
+      "EMS_ID",
+      "STATION_NAME",
+      "LOCATION",
+      "CITY",
+      "CATEGORY",
+      "STATION_ENVIRONMENT",
+      "STATION_OWNER",
+      "DATE_ESTABLISHED",
+      "NOTES",
+      "LATITUDE",
+      "LONGITUDE",
+      "HEIGHT(m)",
+      "STATUS",
+      "URL",
+      "URL2",
+      "PM25_INSTRUMENT",
+      "PM25",
+      "PM25_UNIT",
+      "NO",
+      "NO_UNIT",
+      "NO2",
+      "NO2_UNIT",
+      "NOX",
+      "NOX_UNIT",
+      "O3",
+      "O3_UNIT",
+      "PM10",
+      "PM10_UNIT",
+      "SO2",
+      "SO2_UNIT",
+      "TRS",
+      "TRS_UNIT",
+      "H2S",
+      "H2S_UNIT",
+      "WDIR_VEC",
+      "WDIR_UNIT",
+      "WSPD_SCLR",
+      "WSPD_UNIT",
+      "TEMP",
+      "TEMP_UNIT",
+      "HUMIDITY",
+      "HUMIDITY_UNIT",
+      "PRECIPITATION",
+      "PRECIPITATION_UNIT",
+      "BAR_PRESSURE",
+      "PRESSURE_UNIT",
+      "SNOWDEPTH",
+      "SNOWDEPTH_UNIT",
+      "CO",
+      "CO_UNIT",
+      "PM25_24",
+      "NO_24",
+      "NO2_24",
+      "NOX_24",
+      "O3_8",
+      "PM10_24",
+      "SO2_24",
+      "TRS_24",
+      "H2S_24",
+      "DATE",
+      "DATE_PST",
+      "URL_Station"
+    ]
+  }
+}

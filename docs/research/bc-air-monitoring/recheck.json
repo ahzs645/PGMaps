@@ -1,0 +1,158 @@
+{
+  "checked_at_utc": "2026-11-02T08:28:19.069100+00:00",
+  "http_origin": "http://localhost:3000",
+  "http_tests": [
+    {
+      "name": "Smithers",
+      "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Smithers.csv",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Smithers.csv&format=json",
+      "source_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "application/octet-stream",
+        "allow_origin": null
+      },
+      "parser_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "text/html; charset=UTF-8",
+        "allow_origin": "*"
+      },
+      "php_deprecations": 5,
+      "response_prefix": "<br />\n<b>Deprecated</b>:  Creation of dynamic property CSV_To_API::$header_row is deprecated in <b>/usr/src/app/csv-to-api/class.csv-to-api.php</b> on line <b>37</b><br />\n<br />\n",
+      "strict_json_succeeded": false,
+      "strict_json_error": "Expecting value: line 1 column 1 (char 0)",
+      "recovered_rows": 2,
+      "usable_rows": 1,
+      "empty_rows_removed": 1,
+      "direct_csv_rows": 1,
+      "matches_direct_csv": true
+    },
+    {
+      "name": "Kamloops",
+      "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Kamloops.csv",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Kamloops.csv&format=json",
+      "source_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "application/octet-stream",
+        "allow_origin": null
+      },
+      "parser_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "text/html; charset=UTF-8",
+        "allow_origin": "*"
+      },
+      "php_deprecations": 5,
+      "response_prefix": "<br />\n<b>Deprecated</b>:  Creation of dynamic property CSV_To_API::$header_row is deprecated in <b>/usr/src/app/csv-to-api/class.csv-to-api.php</b> on line <b>37</b><br />\n<br />\n",
+      "strict_json_succeeded": false,
+      "strict_json_error": "Expecting value: line 1 column 1 (char 0)",
+      "recovered_rows": 2,
+      "usable_rows": 1,
+      "empty_rows_removed": 1,
+      "direct_csv_rows": 1,
+      "matches_direct_csv": true
+    },
+    {
+      "name": "Comox-Valley",
+      "source": "https://envistaweb.env.gov.bc.ca/aqo/csv/AQHIWeb-Comox-Valley.csv",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fenvistaweb.env.gov.bc.ca%2Faqo%2Fcsv%2FAQHIWeb-Comox-Valley.csv&format=json",
+      "source_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "application/octet-stream",
+        "allow_origin": null
+      },
+      "parser_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "text/html; charset=UTF-8",
+        "allow_origin": "*"
+      },
+      "php_deprecations": 5,
+      "response_prefix": "<br />\n<b>Deprecated</b>:  Creation of dynamic property CSV_To_API::$header_row is deprecated in <b>/usr/src/app/csv-to-api/class.csv-to-api.php</b> on line <b>37</b><br />\n<br />\n",
+      "strict_json_succeeded": false,
+      "strict_json_error": "Expecting value: line 1 column 1 (char 0)",
+      "recovered_rows": 2,
+      "usable_rows": 1,
+      "empty_rows_removed": 1,
+      "direct_csv_rows": 1,
+      "matches_direct_csv": true
+    },
+    {
+      "name": "Station-E315110",
+      "source": "https://www.env.gov.bc.ca/epd/bcairquality/aqo/csv/Hourly_Raw_Air_Data/Station/E315110.csv",
+      "url": "https://csv-parser.api.gov.bc.ca/?source=https%3A%2F%2Fwww.env.gov.bc.ca%2Fepd%2Fbcairquality%2Faqo%2Fcsv%2FHourly_Raw_Air_Data%2FStation%2FE315110.csv&format=json",
+      "source_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "text/csv",
+        "allow_origin": null
+      },
+      "parser_http": {
+        "status": "HTTP/2 200 ",
+        "content_type": "text/html; charset=UTF-8",
+        "allow_origin": "*"
+      },
+      "php_deprecations": 725,
+      "response_prefix": "<br />\n<b>Deprecated</b>:  Creation of dynamic property CSV_To_API::$header_row is deprecated in <b>/usr/src/app/csv-to-api/class.csv-to-api.php</b> on line <b>37</b><br />\n<br />\n",
+      "strict_json_succeeded": false,
+      "strict_json_error": "Expecting value: line 1 column 1 (char 0)",
+      "recovered_rows": 722,
+      "usable_rows": 721,
+      "empty_rows_removed": 1,
+      "direct_csv_rows": 721,
+      "matches_direct_csv": true
+    }
+  ],
+  "browser": {
+    "origin": "http://localhost:34665",
+    "browser": "154.0.8037.57",
+    "tls_verified": true,
+    "cors_enforced": true,
+    "tests": [
+      {
+        "name": "Smithers",
+        "status": 200,
+        "response_type": "cors",
+        "response_json_succeeded": false,
+        "response_json_error": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "recovered_rows": 2,
+        "usable_rows": 1,
+        "empty_rows_removed": 1,
+        "direct_csv_rows": 1,
+        "matches_direct_csv": true
+      },
+      {
+        "name": "Kamloops",
+        "status": 200,
+        "response_type": "cors",
+        "response_json_succeeded": false,
+        "response_json_error": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "recovered_rows": 2,
+        "usable_rows": 1,
+        "empty_rows_removed": 1,
+        "direct_csv_rows": 1,
+        "matches_direct_csv": true
+      },
+      {
+        "name": "Comox-Valley",
+        "status": 200,
+        "response_type": "cors",
+        "response_json_succeeded": false,
+        "response_json_error": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "recovered_rows": 2,
+        "usable_rows": 1,
+        "empty_rows_removed": 1,
+        "direct_csv_rows": 1,
+        "matches_direct_csv": true
+      },
+      {
+        "name": "Station-E315110",
+        "status": 200,
+        "response_type": "cors",
+        "response_json_succeeded": false,
+        "response_json_error": "Failed to execute 'json' on 'Response': Unexpected token '<', \"<br />\n<b>\"... is not valid JSON",
+        "recovered_rows": 722,
+        "usable_rows": 721,
+        "empty_rows_removed": 1,
+        "direct_csv_rows": 721,
+        "matches_direct_csv": true
+      }
+    ]
+  }
+}
