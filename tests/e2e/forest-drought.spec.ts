@@ -92,17 +92,19 @@ test('requires explicit soil selection, preserves published results, and downloa
 
 test('withholds a changed source table and recovers on retry', async ({ page }) => {
   const source = await readFile('public/data/forest-drought/fordrat.csv')
-  let requests = 0
+  // StrictMode starts and cancels an initial effect fetch in development.
+  // Keep the source invalid until the user retries, independent of fetch count.
+  let serveCorruptSource = true
   await page.route(`**${PUBLISHED_SOURCE.csvPath}`, (route) => {
-    requests += 1
     return route.fulfill({
-      body: requests === 1 ? Buffer.concat([source, Buffer.from('\n')]) : source,
+      body: serveCorruptSource ? Buffer.concat([source, Buffer.from('\n')]) : source,
       contentType: 'text/csv',
     })
   })
   await openDrought(page)
   await expect(page.getByRole('alert')).toContainText('does not match its pinned source checksum')
   await expect(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true })).toHaveCount(0)
+  serveCorruptSource = false
   await page.getByRole('button', { name: 'Retry data load' }).click()
   await expect(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
