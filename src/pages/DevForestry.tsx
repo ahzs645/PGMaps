@@ -6,6 +6,15 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
   {
+    title: 'Road restoration',
+    description:
+      'Process local LAS/LAZ tiles in your browser: slope, mean first-return height, vegetation strata and ground-return density. Export reusable GIS rasters and mean-height cells.',
+    href: '/dev/forestry/road-restoration',
+    icon: Sprout,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/road-restoration',
+  },
+  {
     title: 'Road design',
     description:
       'Peg road alternatives on LiDAR terrain. Link plan, profile, cross-section and 3D views; design grades, landings and turnouts, compare earthworks and export a road project.',

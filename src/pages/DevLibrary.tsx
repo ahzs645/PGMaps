@@ -219,6 +219,7 @@ const devEntries: DevEntry[] = [
     color: 'bg-emerald-700',
     label: '/dev/forestry',
     subpages: [
+      { label: 'Road restoration', href: '/dev/forestry/road-restoration' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },
       { label: 'CCISS suitability', href: '/dev/forestry/cciss-suitability' },

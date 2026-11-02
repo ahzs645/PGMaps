@@ -183,6 +183,7 @@
     "jspdf": "^4.2.1",
     "jsts": "^2.12.1",
     "jszip": "^3.10.2",
+    "laz-perf": "0.0.7",
     "lucide-react": "^0.562.0",
     "maplibre-gl": "^5.15.0",
     "maplibre-gl-lidar": "^0.21.0",
