@@ -1,0 +1,276 @@
+{
+  "schema": "pgmaps-forest-drought-forks-v1",
+  "purpose": "Exact browser-source snapshots; development tests and PGMaps UI remain host-owned.",
+  "files": [
+    {
+      "local": "src/features/forest-drought/published.ts",
+      "repository": "ahzs645/forDRAT",
+      "commit": "1d552fe748573493fbb5baf965928cd60d53dff6",
+      "source": "web/src/published.ts",
+      "bytes": 9227,
+      "sha256": "c091d1acb9dac36397f7d9e726ad556161015c85dfb019096919c19120fe84c5",
+      "gitBlobSha": "378cfe2068cb5b5035e6748cd0330d7b2f8debfc"
+    },
+    {
+      "local": "public/data/forest-drought/fordrat.csv",
+      "repository": "ahzs645/forDRAT",
+      "commit": "1d552fe748573493fbb5baf965928cd60d53dff6",
+      "source": "data/forDrat.csv",
+      "bytes": 338744,
+      "sha256": "abdb1a26645d6d24e6d45380f55aa555a5f69ffdad79c5f7fb47627003f0d2df",
+      "gitBlobSha": "29fcf5e9207802e3516b809418bbbe73ab96ff12"
+    },
+    {
+      "local": "src/features/forest-drought/model/LICENSE",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/LICENSE",
+      "bytes": 11324,
+      "sha256": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
+      "gitBlobSha": "5c304d1a4a7b439f767990bf1360d3283e45d0ee"
+    },
+    {
+      "local": "src/features/forest-drought/model/NOTICE.md",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/NOTICE.md",
+      "bytes": 822,
+      "sha256": "5120ba3a8e4fef51977826238c825cb345944d8d4934fe62bdabe96bad5f5786",
+      "gitBlobSha": "a336088d9dba6c82262414fadff1cb9d3577a91c"
+    },
+    {
+      "local": "src/features/forest-drought/model/constants.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/constants.ts",
+      "bytes": 2289,
+      "sha256": "2f71cbc490a15c4d98aa6822c18b8b5772ac3650260f6dbb3b5bdca35dd63481",
+      "gitBlobSha": "17a73f200f6a67d21e9baf88a85979d06d475951"
+    },
+    {
+      "local": "src/features/forest-drought/model/engine.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/engine.ts",
+      "bytes": 12379,
+      "sha256": "b216decd26dedee438149e9ff6614e98947c28f212cae39e2fd9dc8d2893f530",
+      "gitBlobSha": "0e65f9f4339e15f7f5db07316713a33e3e639bcd"
+    },
+    {
+      "local": "src/features/forest-drought/model/exports.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/exports.ts",
+      "bytes": 4080,
+      "sha256": "39e6eb3c0bcd15edefe46ed1f5edef0886a757c0a28567684308cfeeda7e120b",
+      "gitBlobSha": "bd22b6ea6eb9e230d94925e688b211426d2ca890"
+    },
+    {
+      "local": "src/features/forest-drought/model/index.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/index.ts",
+      "bytes": 195,
+      "sha256": "44dbe1bbf2a5b5db85ed7a136b99affb842d745150077e10820433adb335e14b",
+      "gitBlobSha": "663948fba237af6b015244f944e518f9e9b42e0f"
+    },
+    {
+      "local": "src/features/forest-drought/model/inputs.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/inputs.ts",
+      "bytes": 10207,
+      "sha256": "96af9532bd3883dfe243a2c1a4a8b36486943a4bff7cee692452fb275e62d5b3",
+      "gitBlobSha": "aead95033c13ec098ca98fa106ceefdb72bd452c"
+    },
+    {
+      "local": "src/features/forest-drought/model/scenarios.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/scenarios.ts",
+      "bytes": 4860,
+      "sha256": "73874dadd5cf65600e3f09ea50c034471eddad4ad9647bbee2101a23aeee8470",
+      "gitBlobSha": "12655e6cc8015da11125fbdd44df0058f2730839"
+    },
+    {
+      "local": "src/features/forest-drought/model/types.ts",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/src/model/types.ts",
+      "bytes": 2124,
+      "sha256": "cc2b24101816976420cf74a699236d623cc9bfd7c8e63e89fb419876bf371f32",
+      "gitBlobSha": "aef7f127b1a649431cd128817e35169f83e93e04"
+    },
+    {
+      "local": "scripts/forest-drought/reference/.gitignore",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/.gitignore",
+      "bytes": 18,
+      "sha256": "b9406ac7cc77d166028d10ce3664b2c407c8a15d4e0bf6807f00bc94846aa153",
+      "gitBlobSha": "4fae7671d8820ff110ed7a4a1c11d82d4c4f3ca7"
+    },
+    {
+      "local": "scripts/forest-drought/reference/README.md",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/README.md",
+      "bytes": 1593,
+      "sha256": "37339381ae8ceb96aa7b6e2aab937ead3d43f67ed634c99ac395375ab6468baf",
+      "gitBlobSha": "41b834d35c2ad221f0c3f73aa151faeb90956729"
+    },
+    {
+      "local": "scripts/forest-drought/reference/compare-reference.mjs",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/compare-reference.mjs",
+      "bytes": 4126,
+      "sha256": "f6baeab26b214e37029758d7edba5517c0b6de3c260161fdd67ad70f080a0428",
+      "gitBlobSha": "4dcd1bbb960310fd2ada84cce6a92bd971a68735"
+    },
+    {
+      "local": "scripts/forest-drought/reference/create-inputs.mjs",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/create-inputs.mjs",
+      "bytes": 1590,
+      "sha256": "fd92dc3800f24df7f393b4fdd3beadedfccb6f8ffe3de7ec4e4fbde8a4e9b6cf",
+      "gitBlobSha": "1e18263478a6cbfd42b0a5feb262a3181394ab31"
+    },
+    {
+      "local": "scripts/forest-drought/reference/generate-reference.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/generate-reference.R",
+      "bytes": 2430,
+      "sha256": "d7753291e5ce79f9a9b1bfca1f1d146fd17beea0ce1f4fca3b20db6484fa0f89",
+      "gitBlobSha": "889c839b68c01221c3457c96eaae5d3612f6054f"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmr.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmr.R",
+      "bytes": 2430,
+      "sha256": "41b56d4504eb528d23a2bcab21b4cf5a762149d4d5f6ce946f55e125daeeb62b",
+      "gitBlobSha": "3e337271ca71f136a18473f2166bf7bd47072b8a"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmrCalc.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmrCalc.R",
+      "bytes": 5515,
+      "sha256": "ce7bf011ab80b92001843ab2f44f0cd30a43abb39142e5f6f35cbb5a286d7891",
+      "gitBlobSha": "df6c6f4bbe409f1085b314d0eae62455b1f01677"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmrClass.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmrClass.R",
+      "bytes": 323,
+      "sha256": "78164d5e2a321d554af6d82722757468c66933c0fb8b4947eb3b616bdc5a8d68",
+      "gitBlobSha": "1bd4147b477e30ba9204fdfd269b26117ff8c33c"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmrFuture.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmrFuture.R",
+      "bytes": 3611,
+      "sha256": "94d1e7d235d510cd04e2932e6d7d170b7603ef80c587b246f2f190493aa3beb9",
+      "gitBlobSha": "84e4e169e1c81a706831fbb97d6c9a558aaddd1d"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmrRun.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmrRun.R",
+      "bytes": 1524,
+      "sha256": "8bb49a9af1f2b1868b1eaa5c1ac2d7d99643bdcec5d2b8233b08847807fd5868",
+      "gitBlobSha": "5760700d60442c6072e0975672b92a19d3f9a0b0"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/asmrSelect.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/asmrSelect.R",
+      "bytes": 2039,
+      "sha256": "2061474727cbdcc3ab1f4f270310bcd83fe02276ee25b63035d13186410ff341",
+      "gitBlobSha": "14b8ad0c0c2c5b4fcbf9fb00376d128631b198e6"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/soilsData.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/soilsData.R",
+      "bytes": 643,
+      "sha256": "f70b40db8de625bf473352df96c143e33a6ae1e29f0c88ee0f2ae4fcacc3c908",
+      "gitBlobSha": "a56c60726f2531b0c123ab2bb785e3b9872f391a"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/treeRisk.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/treeRisk.R",
+      "bytes": 627,
+      "sha256": "9bfba1a7a7be6d033dbf20f3993e985f8b2b042cc4679a909dd9c90522123286",
+      "gitBlobSha": "52897f1b135567964f11c0756a487e833de4ed5c"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/R/yearSelect.R",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/R/yearSelect.R",
+      "bytes": 1931,
+      "sha256": "d8bb10ad6a11cde4023d37d34911a71c49b30fbca3a4935a9ae6bb8cab648f35",
+      "gitBlobSha": "746fabfa226e68a03ac82b8afde6f9256f41c5e9"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/data/asmrClass.rda",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/data/asmrClass.rda",
+      "bytes": 241,
+      "sha256": "4cb22d8e93cf4a5feffdfb6a0f535fd62b95adb916953f09a08737ddd8ccb535",
+      "gitBlobSha": "f512737cefc7ed5d93681caa18e0884f4ee8924b"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/data/soilsData.rda",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/data/soilsData.rda",
+      "bytes": 447,
+      "sha256": "729913da056da57ef03b452757c9b23eb12e68baf00316edd03de32109551b9b",
+      "gitBlobSha": "0397af11f297d3a6b5f69c16e8b220a93f14ee7b"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/data-raw/treeRiskRatings.csv",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/data-raw/treeRiskRatings.csv",
+      "bytes": 242,
+      "sha256": "20e07f15d60f1e8d0fb36db5dd84845220718f786927882f12b4740d44adb21e",
+      "gitBlobSha": "1b19a5df7b49b6bb3068fab58a4003eb48fd1be3"
+    },
+    {
+      "local": "scripts/forest-drought/reference/upstream/manifest.json",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/upstream/manifest.json",
+      "bytes": 2707,
+      "sha256": "96729b342e43e55717de1dd9f2415253c9e09c6ccde2e5d20482162654673286",
+      "gitBlobSha": "3f1b43440dd03c6ebe3f4673afc287a5240a269e"
+    },
+    {
+      "local": "scripts/forest-drought/reference/verify-upstream.mjs",
+      "repository": "ahzs645/forestDroughtTool",
+      "commit": "f3bc400826bce337d5e6edf0047fa5c5e0ccffb1",
+      "source": "web/scripts/reference/verify-upstream.mjs",
+      "bytes": 1228,
+      "sha256": "7659b9ada2bf68ec6d72634234ea3d90a1e91640053abf4b97db1dc4138b42e2",
+      "gitBlobSha": "56511c66f19c0f93ad6194ba24351dd0bc1ae4c3"
+    }
+  ]
+}

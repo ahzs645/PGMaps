@@ -1,0 +1,94 @@
+name: Verify forest drought explorer
+
+on:
+  pull_request:
+    paths:
+      - 'src/App.tsx'
+      - 'src/pages/DevForestry.tsx'
+      - 'src/pages/DevLibrary.tsx'
+      - 'src/pages/DevForestDrought.tsx'
+      - 'src/pages/forest-drought/**'
+      - 'src/features/forest-drought/**'
+      - 'src/components/ui/**'
+      - 'src/lib/download.ts'
+      - 'src/index.css'
+      - 'packages/geo-toolkit'
+      - 'vendor/json-url'
+      - 'public/data/forest-drought/**'
+      - 'scripts/forest-drought/**'
+      - 'scripts/sync-bcdatamapper-data.mjs'
+      - 'tests/e2e/forest-drought.spec.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'vite.config.ts'
+      - 'tailwind.config.*'
+      - '.github/workflows/forest-drought.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/pages/DevForestDrought.tsx'
+      - 'src/pages/forest-drought/**'
+      - 'src/features/forest-drought/**'
+      - 'public/data/forest-drought/**'
+      - 'tests/e2e/forest-drought.spec.ts'
+      - '.github/workflows/forest-drought.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forest-drought-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Verify the pinned published dataset and attribution
+        run: |
+          node scripts/forest-drought/prepare-published.mjs --check
+          node scripts/forest-drought/verify-fork-snapshots.mjs
+      - name: Build the application and browser worker
+        run: npx vite build
+      - name: Install the standard Chromium test browser
+        run: npx playwright install --with-deps chromium
+      # Drought data is a committed application-owned snapshot. This route does
+      # not need the broad scraper/data preparation in npm run dev's predev hook.
+      - name: Check published results and local custom calculations
+        run: |
+          npx vite --host 127.0.0.1 --port 42173 --strictPort > forest-drought-vite.log 2>&1 &
+          drought_vite_pid=$!
+          trap 'kill "$drought_vite_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
+            if ! kill -0 "$drought_vite_pid" 2>/dev/null; then
+              cat forest-drought-vite.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:42173/ > /dev/null
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/forest-drought.spec.ts --project=chromium --workers=1 --reporter=line,html
+      - name: Keep browser acceptance evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forest-drought-browser-results
+          path: |
+            test-results
+            playwright-report
+            forest-drought-vite.log
+          retention-days: 14

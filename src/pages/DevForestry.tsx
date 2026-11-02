@@ -1,10 +1,19 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
+import { ArrowLeft, Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
+  {
+    title: 'Drought risk',
+    description:
+      'Compare published BC drought risk across BGC units, soil regimes, tree species and climate periods. Run a separate soil-water calculation from your daily climate CSV, directly in the browser.',
+    href: '/dev/forestry/drought-risk',
+    icon: Droplets,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/drought-risk',
+  },
   {
     title: 'Road design',
     description:

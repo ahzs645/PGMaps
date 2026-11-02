@@ -213,12 +213,13 @@ const devEntries: DevEntry[] = [
   {
     title: 'Forestry tools',
     description:
-      'Visual quality viewsheds, AVAST block volume with LiDAR and VRI options, CCISS suitability and the LiDAR forestry views, gathered on one page.',
+      'Forest drought risk, visual quality viewsheds, AVAST block volume, CCISS suitability and LiDAR forestry views, gathered on one page.',
     href: '/dev/forestry',
     icon: TreePine,
     color: 'bg-emerald-700',
     label: '/dev/forestry',
     subpages: [
+      { label: 'Drought risk', href: '/dev/forestry/drought-risk' },
       { label: 'Visual quality', href: '/dev/forestry/visual-quality' },
       { label: 'AVAST volume', href: '/dev/forestry/avast-volume' },
       { label: 'CCISS suitability', href: '/dev/forestry/cciss-suitability' },
