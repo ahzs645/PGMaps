@@ -6,6 +6,15 @@ import { DevCard, type DevEntry } from '@/components/dev/DevCard'
 
 const forestryTools: DevEntry[] = [
   {
+    title: 'THLB impact',
+    description:
+      'Measure harvestable hectares within proposed WHAs or planning areas using official and proxy THLB. Review coverage, age and deferral breakdowns; export Excel and GIS layers.',
+    href: '/dev/forestry/thlb-impact',
+    icon: TreePine,
+    color: 'bg-emerald-700',
+    label: '/dev/forestry/thlb-impact',
+  },
+  {
     title: 'Road design',
     description:
       'Peg road alternatives on LiDAR terrain. Link plan, profile, cross-section and 3D views; design grades, landings and turnouts, compare earthworks and export a road project.',
