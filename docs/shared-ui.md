@@ -300,11 +300,13 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   not a `className` width, `100vw` or `md:` breakpoint: the widths follow the
   map rather than the viewport, and a collapsed panel shrinks to its title. Don't
   fix a width on the content either (`md:w-56`); it overflows the panel's
-  padding. The panel stacks above MapLibre's attribution, whose height the map
-  publishes as `--map-bottom-right-controls-height`; zoom controls and
-  `MapFloatingPanel`s in a bottom corner stack above the legend's footprint
-  (`--map-legend-panel-visible-height`) in turn. Pass `elevated` when a timeline
-  is shown under the map.
+  padding. The panel takes the bottom-right corner and MapLibre's attribution
+  sits on top of it (the panel publishes its footprint as
+  `--map-legend-panel-visible-height`, the map publishes the attribution's
+  height as `--map-bottom-right-controls-height`); anything else in a bottom
+  corner stacks above both. Zoom and compass stay top right on phones too,
+  below the floating toolbar. Pass `elevated` when a timeline is shown under
+  the map.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
   `KeyValueRows` inside.
 - Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;

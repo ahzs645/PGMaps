@@ -539,7 +539,7 @@ export default function DevViewshed() {
         pitch={55}
         maxPitch={75}
         onViewportChange={(viewport) => setPitch(Math.round(viewport.pitch))}
-        controls={<MapControls position="top-right" mobilePosition="bottom-right" />}
+        controls={<MapControls position="top-right" />}
       >
         <TerrainSupport terrain={terrain} exaggeration={1} hillshade />
         <ViewshedOverlay result={analysis.overlayResult} mode={mode} opacity={opacity} showHidden={showHidden} />

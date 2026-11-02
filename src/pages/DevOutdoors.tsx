@@ -1214,7 +1214,7 @@ function DevOutdoors() {
         center={plan.viewport?.center ?? BC_CENTER}
         zoom={plan.viewport?.zoom ?? 5}
         onViewportChange={handleViewportChange}
-        controls={<MapControls position="top-right" mobilePosition="bottom-right" />}
+        controls={<MapControls position="top-right" />}
       >
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
         {wmuLayer && (

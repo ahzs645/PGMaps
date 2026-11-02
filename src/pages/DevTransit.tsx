@@ -573,9 +573,7 @@ export default function DevTransit() {
           zoom={hasView && initialZoom >= 9 && initialZoom <= 18 ? initialZoom : 11.1}
           minZoom={9}
           maxZoom={18}
-          controls={
-            <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass showFullscreen />
-          }
+          controls={<MapControls position="top-right" showZoom showCompass showFullscreen />}
         >
           <MapPicking onPick={pick} originMode={pickMode === 'from'} />
           {data && <MapHeatViewport study={data.meta.bbox} onChange={setViewportGrid} />}
