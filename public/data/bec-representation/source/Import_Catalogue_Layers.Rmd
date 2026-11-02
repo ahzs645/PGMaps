@@ -1,0 +1,85 @@
+---
+title: "Conservation Areas by BGC"
+author: "Will MacKenzie"
+date: "2023-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(tidyverse)
+require(bcdata)
+require(bcmaps)
+require(terra)
+```
+
+## R Markdown
+
+```{r import from data catalogue}
+ epsg = 3005
+ bc_boundary <- bcdc_get_data('30aeb5c1-4285-46c8-b60b-15b1a6f4258b', resource = '3d72cf36-ab53-4a2a-9988-a883d7488384')
+st_write(bc_boundary, "./spatial_layers/prov_boundary.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+
+  bgcs <- bcdc_query_geodata("f358a53b-ffde-4830-a325-a5a03ff672c3", crs = epsg) %>%  collect() %>% aggregate(by="MAP_LABEL", dissolve = TRUE)
+  st_write(bgcs, "./spatial_layers/bgcv12.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+
+  wateratlas <- bcdc_query_geodata("freshwater-atlas-assessment-watersheds", crs = epsg) %>% collect()## "97d8ef37-b8d2-4c3b-b772-6b25c1db13d0"
+    st_write(wateratlas, "./spatial_layers/watersheds.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+    watersheds <- vect("./spatial_layers/watersheds.gpkg")
+    watershed_group <- aggregate(watersheds, by="WATERSHED_GROUP_CODE", dissolve = TRUE)
+    st_write(watershed_group , "./spatial_layers/watershed_groups.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+    terra::plot(watershed_group, y="WATERSHED_GROUP_CODE")
+
+  # BC parks
+    parks <- bcdc_query_geodata("1130248f-f1a3-4956-8b2e-38d29d3e4af7", crs = epsg) %>%  collect()
+  st_write(parks , "./spatial_layers/bcparks.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+  # National parks (if an option)
+  national_parks <- bcdc_query_geodata("88e61a14-19a0-46ab-bdae-f68401d3d0fb", crs = epsg) %>% collect()
+    st_write(national_parks , "./spatial_layers/natparks.gpkg", delete_dsn = TRUE, delete_layer = TRUE)
+
+#
+bcparks <- vect("./spatial_layers/bcparks.gpkg")
+bcparks$parkname <- str_extract(bcparks$PROTECTED_LANDS_NAME, "[^-]+")
+bcparks <- bcparks %>%  aggregate(by="parkname", dissolve = TRUE) %>% mutate(park_type = PROTECTED_LANDS_DESIGNATION, park_class = PARK_CLASS) %>% select(parkname, park_type, park_class)
+#
+# xx = as.data.frame(bcparks)
+#     plot(bcparks)
+#
+    natparks <- vect("./spatial_layers/natparks.gpkg") %>% aggregate(by="CLAB_ID", dissolve = TRUE) %>% mutate(parkname = ENGLISH_NAME, park_type = "national", park_class = "national") %>% select(parkname, park_type, park_class)
+xx = as.data.frame(natparks)
+#
+#
+#     plot(natparks)
+#
+#         ## combine parks layers
+#
+    parks <- rbind(natparks, bcparks)
+#
+#     plot(parks)
+#
+    writeVector(parks , "./spatial_layers/all_parks.gpkg")
+
+```
+
+```{r import saved spatial download files and create summaries}
+ prov <- vect("./spatial_layers/prov_boundary.gpkg")
+  bgcs <- vect("./spatial_layers/bgcv12.gpkg")
+  parks <- vect("./spatial_layers/all_parks.gpkg")
+  xx <- as.data.frame(parks)
+
+  park_bgcs <- intersect(parks,bgcs)
+writeVector(park_bgcs, "./spatial_layers/parks_bgc.gpkg")
+park_bgcs <- vect("./spatial_layers/parks_bgc.gpkg")
+#plot(park_bgcs)
+park_bgcs_df <- as.data.frame(park_bgcs)
+park_bgcs_df$area = terra::expanse(park_bgcs)
+#
+park_bgcs_df2 <- park_bgcs_df %>% mutate(park_bgc_km2 = area/1000000,BGC = MAP_LABEL) %>% select(parkname, park_type, park_class, BGC, park_bgc_km2) %>% group_by(parkname) %>% mutate(park_area_tot = sum(park_bgc_km2 )) %>% ungroup() %>% mutate(park_bgc_ratio = park_bgc_km2/park_area_tot)
+fwrite(park_bgcs_df2, "./outputs/BGC_area_by_park.csv")
+
+    bgc_area <- as.data.frame(bgcs)
+bgc_area$bgc_area <- terra::expanse(bgcs)
+bgc_area <- bgc_area %>%  mutate(BGC_km2 = bgc_area/1000000, BGC = MAP_LABEL) %>% select(BGC, BGC_km2)
+fwrite(bgc_area, "./outputs/BGC_area.csv")
+  
+```

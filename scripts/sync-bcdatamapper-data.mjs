@@ -16,6 +16,8 @@ const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EAR
 
 const appOwnedDataPaths = [
   'projects',
+  // Pinned published study tables and story assets, not scraper snapshots.
+  'bec-representation',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
   'story-documents',
