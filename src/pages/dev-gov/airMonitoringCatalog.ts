@@ -151,7 +151,18 @@ export const AIR_DATA_VIEWS: AirCatalogEntry[] = [
     sourcePath: 'data/aqhi.html',
     sourceQuery: '?id=AQHI-SMITHERS',
     streams: ['history', 'aqhiMap'],
-    fields: ['DATE_LOCAL', 'DATE_PST', 'AQHI_PLUS', 'AQHI_RP', 'AQHI_GP'],
+    // AQHI_PLUS/RP/GP are variables in upstream graph-aqhi.js, not CSV columns. History supplies the plotted
+    // AQHI_INT series; the AQHIWebMap stream supplies the latest-observation and forecast text.
+    fields: [
+      'DATE_LOCAL',
+      'DATE_PST',
+      'AQHI',
+      'AQHI_INT',
+      'AQHI_CHAR',
+      'AQHIPLUS_Text',
+      'AQHICURRENT_Text2',
+      'AQHICURRENT_Text3',
+    ],
     period: 'Source-provided AQHI history',
     recreation:
       'Use the history panel with a case-sensitive AQHI-area ID discovered from source links and available columns.',
