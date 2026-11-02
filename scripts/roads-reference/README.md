@@ -79,8 +79,9 @@ the differential comparison.
 
 ## Continuous integration
 
-`.github/workflows/roads-reference.yml` runs on relevant pull requests, pushes
-to `main` and manual dispatch. It installs R 4.5, the pinned `roads` source and
+`.github/workflows/roads-reference.yml` runs only when started by hand (Actions →
+"Compare road planner with native R roads" → Run workflow, choosing the branch);
+like the other feature suites it no longer runs on pull requests or pushes. It installs R 4.5, the pinned `roads` source and
 its required dependencies with `r-lib/actions`, runs both scripts and preserves
 the output directory as `roads-native-r-reference`. The R action revision is
 pinned; the installed package/spatial dependency versions are recorded in each
