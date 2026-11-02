@@ -4,15 +4,24 @@ import {
   DEFAULT_OPTIONS,
   groundAccumulator,
   groundAt,
+  indexAt,
   makeGrid,
   metricsAccumulator,
   slopeRaster,
   type Raster,
   type ReturnPoint,
 } from './model'
-import { runRestoration } from './run'
+import { boundsOverlapShare, isMetricCrs, runRestoration } from './run'
 import { openPointReader } from './reader'
-import { meanHeightPolygons, rasterGeoTiff, rasterStats, restorationManifest, restorationZip, toWgs84 } from './outputs'
+import {
+  csrsUtmZone,
+  meanHeightPolygons,
+  rasterGeoTiff,
+  rasterStats,
+  restorationManifest,
+  restorationZip,
+  toWgs84,
+} from './outputs'
 import { fromArrayBuffer } from 'geotiff'
 import JSZip from 'jszip'
 import { restorationLas } from '../../../tests/fixtures/restoration'
@@ -110,6 +119,20 @@ describe('restoration metric definitions', () => {
     g.values[11] = NaN
     expect(Number.isNaN(slopeRaster(g).values[12])).toBe(true)
   })
+  it('gives every point inside the declared bounds a cell, including a minimum on a grid line', () => {
+    const extents: [number, number, number, number][] = [
+      [512000.5, 5971000.5, 512003.5, 5971003.5],
+      [512000, 5971000, 513000, 5972000],
+      [0, 0, 20, 20],
+      [500000.25, 5500000, 500001.75, 5500010],
+    ]
+    for (const cell of [0.5, 1, 1.1, 2, 2.5, 10])
+      for (const [x0, y0, x1, y1] of extents) {
+        const grid = makeGrid([x0, y0, x1, y1], cell)
+        for (const x of [x0, x1])
+          for (const y of [y0, y1]) expect(indexAt(grid, x, y), `${cell} m ${x},${y}`).toBeGreaterThanOrEqual(0)
+      }
+  })
   it('enforces cell budgets without silently coarsening the requested resolution', () => {
     expect(() => makeGrid([0, 0, 100000, 100000], 1)).toThrow(/exceeds/)
     for (const cell of [0, -1, NaN, Infinity]) expect(() => makeGrid([0, 0, 1, 1], cell)).toThrow()
@@ -143,6 +166,33 @@ describe('complete local-file run and reusable GIS products', () => {
     expect([...r.rasters.pemMean.values]).toEqual([10.5])
     expect([...r.rasters.pemCover.values]).toEqual([100])
     expect(restorationManifest(r).method).toBe('ground-cell-mean-bilinear-v1')
+  })
+  it('processes a cloud whose minimum Y lies on a density grid line', async () => {
+    // The fixture's minimum Y (5971000.5) is a 0.5 m grid line.
+    const r = await runRestoration([file()], { ...DEFAULT_OPTIONS, densityCellM: 0.5 }, noLaz)
+    expect(r.counts.read).toBe(80)
+    expect(r.counts.accepted).toBe(80)
+  })
+  it('accepts lat/long-sheet neighbours whose boxes overlap slightly but rejects duplicate tiles', async () => {
+    const tile = { min: [0, 0], max: [1500, 1500] },
+      neighbour = { min: [1495, 0], max: [2995, 1500] }
+    expect(boundsOverlapShare(tile, neighbour)).toBeCloseTo(5 / 1500)
+    expect(boundsOverlapShare(tile, tile)).toBe(1)
+    expect(boundsOverlapShare(tile, { min: [1600, 0], max: [3000, 1500] })).toBe(0)
+    const r = await runRestoration([file(), file(restorationLas({ shiftX: 2.9 }), 'next.las')], DEFAULT_OPTIONS, noLaz)
+    expect(r.counts.read).toBe(160)
+    await expect(runRestoration([file(), file(restorationLas(), 'copy.las')], DEFAULT_OPTIONS, noLaz)).rejects.toThrow(
+      /overlap/,
+    )
+  })
+  it('maps every accepted NAD83(CSRS) UTM code to its real zone', () => {
+    expect([2955, 2956, 2957, 3154, 3157, 3158, 3160].map(csrsUtmZone)).toEqual([11, 12, 13, 7, 10, 14, 16])
+    expect(csrsUtmZone(3161)).toBeNull()
+    expect(isMetricCrs(2955)).toBe(true)
+    expect(isMetricCrs(3161)).toBe(false)
+    // Central meridians: zone 11 is -117°, zone 14 is -99°.
+    expect(toWgs84(2955, [500000, 5500000])[0]).toBeCloseTo(-117, 3)
+    expect(toWgs84(3158, [500000, 5500000])[0]).toBeCloseTo(-99, 3)
   })
   it('merges adjacent tiles by accumulating returns on one aligned grid', async () => {
     const r = await runRestoration([file(), file(restorationLas({ shiftX: 4 }), 'next.las')], DEFAULT_OPTIONS, noLaz)

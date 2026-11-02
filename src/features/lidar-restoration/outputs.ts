@@ -3,12 +3,20 @@ import { SCRIP_SOURCE, type Raster, type RestorationResult } from './model'
 import { ALL_PRODUCTS as PRODUCTS, type AnalysisProduct as Product } from './products'
 import { PEM_STRUCTURE_METHOD } from './pemStructure'
 
+/** NAD83(CSRS) / UTM zone N codes are not contiguous: 2955–2957 are 11–13N, 3154–3157 are 7–10N, 3158–3160 are 14–16N. */
+export function csrsUtmZone(epsg: number): number | null {
+  if (epsg >= 2955 && epsg <= 2957) return epsg - 2944
+  if (epsg >= 3154 && epsg <= 3157) return epsg - 3147
+  if (epsg >= 3158 && epsg <= 3160) return epsg - 3144
+  return null
+}
+
 /** Projection for display/export only; all analysis remains in the source's projected metres. */
 export function projectionDefinition(epsg: number): string {
   let definition: string
   if (epsg === 3005) definition = '+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +datum=NAD83 +units=m +no_defs'
-  else if (epsg >= 3154 && epsg <= 3161)
-    definition = `+proj=utm +zone=${epsg - 3147} +ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,0.0257899075194932,0.0096500989602704,0.0116599432323421,0 +units=m +no_defs`
+  else if (csrsUtmZone(epsg) !== null)
+    definition = `+proj=utm +zone=${csrsUtmZone(epsg)} +ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,0.0257899075194932,0.0096500989602704,0.0116599432323421,0 +units=m +no_defs`
   else if (epsg >= 26901 && epsg <= 26923) definition = `+proj=utm +zone=${epsg - 26900} +datum=NAD83 +units=m +no_defs`
   else definition = `+proj=utm +zone=${epsg % 100} ${epsg >= 32700 ? '+south' : ''} +datum=WGS84 +units=m +no_defs`
   return definition

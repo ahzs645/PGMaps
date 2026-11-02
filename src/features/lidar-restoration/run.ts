@@ -1,6 +1,7 @@
 import type { LazPerf } from 'laz-perf'
 import { readPointCloudHeader, type PointCloudHeader } from '@/lib/lidar/lasHeader'
 import { openPointReader } from './reader'
+import { csrsUtmZone } from './outputs'
 import { pemStructureAccumulator } from './pemStructure'
 import {
   groundAccumulator,
@@ -18,10 +19,23 @@ export interface PointFile extends Blob {
   name: string
 }
 export type Progress = { stage: 'ground' | 'terrain' | 'metrics'; file: string; done: number; total: number }
+const MAX_TILE_BOUNDS_OVERLAP = 0.1
+/** Overlapping bounding-box area as a share of the smaller tile's box. */
+export function boundsOverlapShare(
+  a: Pick<PointCloudHeader, 'min' | 'max'>,
+  b: Pick<PointCloudHeader, 'min' | 'max'>,
+): number {
+  const dx = Math.min(a.max[0], b.max[0]) - Math.max(a.min[0], b.min[0]),
+    dy = Math.min(a.max[1], b.max[1]) - Math.max(a.min[1], b.min[1])
+  if (dx <= 0 || dy <= 0) return 0
+  const area = (h: Pick<PointCloudHeader, 'min' | 'max'>) => (h.max[0] - h.min[0]) * (h.max[1] - h.min[1])
+  const smaller = Math.min(area(a), area(b))
+  return smaller > 0 ? (dx * dy) / smaller : 1
+}
 export function isMetricCrs(epsg: number) {
   return (
     epsg === 3005 ||
-    (epsg >= 3154 && epsg <= 3161) ||
+    csrsUtmZone(epsg) !== null ||
     (epsg >= 26901 && epsg <= 26923) ||
     (epsg >= 32601 && epsg <= 32660) ||
     (epsg >= 32701 && epsg <= 32760)
@@ -73,13 +87,10 @@ export async function runRestoration(
       throw Error(`${file.name}: truncated LAS point records.`)
     if (headers.some((other) => other.epsg !== h.epsg || other.verticalEpsg !== h.verticalEpsg))
       throw Error('All tiles must have the same horizontal and vertical CRS. Reproject in GIS before mosaicking.')
-    if (
-      headers.some(
-        (other) =>
-          Math.min(other.max[0], h.max[0]) > Math.max(other.min[0], h.min[0]) &&
-          Math.min(other.max[1], h.max[1]) > Math.max(other.min[1], h.min[1]),
-      )
-    )
+    // BC tiles follow a latitude/longitude sheet grid, so neighbouring tiles' projected bounding
+    // boxes overlap by metres to tens of metres. Reject only substantial overlap (duplicate or
+    // heavily overlapping tiles), which would double-count return densities.
+    if (headers.some((other) => boundsOverlapShare(other, h) > MAX_TILE_BOUNDS_OVERLAP))
       throw Error('Tile bounds overlap. Clip overlaps in GIS first so return densities are not double-counted.')
     headers.push(h)
   }

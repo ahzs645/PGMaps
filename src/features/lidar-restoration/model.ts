@@ -95,10 +95,15 @@ export function makeGrid(bounds: [number, number, number, number], cellM: number
   if (!Number.isFinite(cellM) || cellM < 0.5 || cellM > 100) throw Error('Cell sizes must be between 0.5 and 100 m.')
   const [x0, y0, x1, y1] = bounds
   if (!bounds.every(Number.isFinite) || x1 <= x0 || y1 <= y0) throw Error('The cloud needs a finite horizontal extent.')
-  const west = Math.floor(x0 / cellM) * cellM
-  const north = (Math.floor(y1 / cellM) + 1) * cellM
-  const width = Math.floor(x1 / cellM) - Math.floor(x0 / cellM) + 1
-  const height = Math.floor(y1 / cellM) - Math.floor(y0 / cellM) + 1
+  let west = Math.floor(x0 / cellM) * cellM
+  let north = (Math.floor(y1 / cellM) + 1) * cellM
+  // Floating-point products can land a hair past the extent for sizes such as 1.1 m.
+  if (west > x0) west -= cellM
+  if (north < y1) north += cellM
+  // Size the grid with the same expressions indexAt uses, so every point inside the declared bounds
+  // has a cell. A minimum Y exactly on a grid line belongs to the row below the line's upper cell.
+  const width = Math.floor((x1 - west) / cellM) + 1
+  const height = Math.floor((north - y0) / cellM) + 1
   if (width * height > MAX_GRID_CELLS)
     throw Error(`Grid exceeds ${MAX_GRID_CELLS.toLocaleString()} cells. Increase cell size or crop the source in GIS.`)
   return { west, north, cellM, width, height }

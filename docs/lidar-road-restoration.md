@@ -97,16 +97,16 @@ HTTP-range LAZ streaming.
 
 ## Limits and budgets
 
-| Limit                                                          | Enforcing code                                                            |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 768 MiB total input, 150 million total source returns          | `MAX_INPUT_BYTES`, `MAX_SOURCE_POINTS` in `model.ts`, checked by `run.ts` |
-| 4,194,304 cells per grid; 0.5–100 m cell sizes                 | `MAX_GRID_CELLS`, `makeGrid` in `model.ts`                                |
-| No silent resolution change                                    | `makeGrid` throws when over budget                                        |
-| Metre UTM / BC Albers with explicit supported EPSG             | `isMetricCrs` in `run.ts`                                                 |
-| Identical horizontal/vertical CRS across files                 | `runRestoration` header preflight                                         |
-| No overlapping tile bounds                                     | `runRestoration` preflight; clip overlaps in GIS to avoid double-counting |
-| Mean-height polygons: at most 50,000 finite cells              | `meanHeightPolygons` in `outputs.ts`                                      |
-| LAS metadata prefix ≤16 MiB; extended CRS metadata read ≤1 MiB | `runRestoration` preflight                                                |
+| Limit                                                                                                       | Enforcing code                                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 768 MiB total input, 150 million total source returns                                                       | `MAX_INPUT_BYTES`, `MAX_SOURCE_POINTS` in `model.ts`, checked by `run.ts`                           |
+| 4,194,304 cells per grid; 0.5–100 m cell sizes                                                              | `MAX_GRID_CELLS`, `makeGrid` in `model.ts`                                                          |
+| No silent resolution change                                                                                 | `makeGrid` throws when over budget                                                                  |
+| Metre UTM / BC Albers with explicit supported EPSG (NAD83(CSRS) UTM 7–16N, NAD83 and WGS 84 UTM, EPSG:3005) | `isMetricCrs` in `run.ts`                                                                           |
+| Identical horizontal/vertical CRS across files                                                              | `runRestoration` header preflight                                                                   |
+| No substantially overlapping tile bounds (>10% of the smaller tile)                                         | `runRestoration` preflight; small lat/long-sheet edge overlaps are allowed, duplicates are rejected |
+| Mean-height polygons: at most 50,000 finite cells                                                           | `meanHeightPolygons` in `outputs.ts`                                                                |
+| LAS metadata prefix ≤16 MiB; extended CRS metadata read ≤1 MiB                                              | `runRestoration` preflight                                                                          |
 
 Adjacent files accumulate on one source-aligned grid before statistics are
 calculated, so averaging already-computed tile means is avoided. This does not
