@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
 import { expandRoadSection } from './road-sidebar'
+import { dialogsClosed } from './road-dialogs'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -36,6 +37,7 @@ async function estimate(page: Page) {
   expect(Number.isFinite(value)).toBe(true)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(dialog).not.toBeVisible()
+  await dialogsClosed(page)
   return value
 }
 const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')
@@ -159,6 +161,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
     .getByRole('dialog', { name: 'Save & export', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .click()
+  await dialogsClosed(page)
   await workflow.getByRole('tab', { name: 'Terrain' }).click()
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()

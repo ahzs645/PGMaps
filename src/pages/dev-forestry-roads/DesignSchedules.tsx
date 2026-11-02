@@ -3,9 +3,21 @@ import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { TabBar } from '@/components/ui/tab-bar'
 import { NumberField } from './Controls'
-import { formatRoadStation } from './Charts'
-import { horizontalCurveSummary, nearestStation, verticalCurveSummary } from './engine'
-import type { Alignment, RoadAnalysis, VerticalPoint } from './types'
+import { nearestStation, verticalCurveSummary } from './engine'
+import { CurveReviewPanel } from './CurveReviewPanel'
+import { SweptPathPanel } from './SweptPathPanel'
+import type { SweptManeuver, SweptPathResult } from './sweptPath'
+import type { Alignment, RoadAnalysis, TerrainMetadata, VehicleCheck, VerticalPoint } from './types'
+
+export interface SweptPathProps {
+  result: SweptPathResult | null
+  error: string
+  onChange?: (check: VehicleCheck | undefined) => void
+  showOnPlan: boolean
+  onShowOnPlan: (show: boolean) => void
+  /** Frame a turn on the plan and select its governing station. */
+  onFocus?: (turn: SweptManeuver) => void
+}
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
 export function DesignSchedules({
@@ -16,6 +28,8 @@ export function DesignSchedules({
   onVerticalChange,
   children,
   terrainOnly = false,
+  terrain,
+  swept,
 }: {
   alignment: Alignment
   analysis: RoadAnalysis
@@ -24,12 +38,13 @@ export function DesignSchedules({
   onVerticalChange?: (points: VerticalPoint[]) => void
   children: ReactNode
   terrainOnly?: boolean
+  terrain?: TerrainMetadata
+  swept?: SweptPathProps
 }) {
-  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical'>('sampled')
-  let horizontal: ReturnType<typeof horizontalCurveSummary> = [],
-    vertical: ReturnType<typeof verticalCurveSummary> = []
+  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'swept'>('sampled')
+  const failingTurns = new Set(swept?.result?.maneuvers.filter((t) => !t.fits).map((t) => t.id)).size
+  let vertical: ReturnType<typeof verticalCurveSummary> = []
   try {
-    horizontal = horizontalCurveSummary(alignment)
     vertical = verticalCurveSummary(alignment)
   } catch {
     /* Invalid intermediate geometry is reported by the workspace. */
@@ -43,69 +58,56 @@ export function DesignSchedules({
     <div className="flex h-full min-h-0 flex-col gap-2">
       <TabBar
         label="Road data schedule"
+        stretch
         value={terrainOnly ? 'sampled' : tab}
         onChange={setTab}
+        // Short labels keep all four tabs on one row at phone widths; names stay descriptive.
         options={[
           { value: 'sampled', label: 'Samples' },
-          { value: 'horizontal', label: 'Horizontal curves', disabled: terrainOnly },
-          { value: 'vertical', label: 'Vertical controls', disabled: terrainOnly },
+          { value: 'horizontal', label: 'Curves', ariaLabel: 'Horizontal curves', disabled: terrainOnly },
+          { value: 'vertical', label: 'Vertical', ariaLabel: 'Vertical controls', disabled: terrainOnly },
+          ...(swept
+            ? [
+                {
+                  value: 'swept' as const,
+                  label: 'Swept path',
+                  ariaLabel: failingTurns
+                    ? `Swept path, ${failingTurns} turn${failingTurns === 1 ? ' needs' : 's need'} widening`
+                    : 'Swept path',
+                  badge: failingTurns ? (
+                    <span className="rounded-full bg-red-600 px-1.5 text-[10px] text-white">{failingTurns}</span>
+                  ) : undefined,
+                  disabled: terrainOnly,
+                },
+              ]
+            : []),
         ]}
       />
       <div className="min-h-0 flex-1">
         {(tab === 'sampled' || terrainOnly) && children}
         {tab === 'horizontal' && !terrainOnly && (
-          <div className="h-full overflow-auto">
-            <EngineeringTable data-testid="road-horizontal-curve-table">
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  {[
-                    ['Curve', ''],
-                    ['BC', 'L-Stn'],
-                    ['EC', 'L-Stn'],
-                    ['Radius', 'm'],
-                    ['Arc length', 'm'],
-                  ].map(([label, unit]) => (
-                    <ColumnHeader key={label} label={label} unit={unit} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {horizontal.map((c, index) => (
-                  <tr key={c.start}>
-                    <td>
-                      <button className="underline" onClick={() => onStation((c.start + c.end) / 2)}>
-                        H{index + 1}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="underline" onClick={() => onStation(c.start)}>
-                        {formatRoadStation(c.start)}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="underline" onClick={() => onStation(c.end)}>
-                        {formatRoadStation(c.end)}
-                      </button>
-                    </td>
-                    <td>{fmt(c.radius)}</td>
-                    <td>{fmt(c.length)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </EngineeringTable>
-            {!horizontal.length && (
-              <p className="p-3 text-xs text-muted-foreground">
-                No fitted horizontal curves. Add an interior PI radius in Design; the requested radius must fit its
-                neighboring tangents.
-              </p>
-            )}
-            {analysis.warnings
-              .filter((w) => /curve|radius|horizontal PI/i.test(w))
-              .map((w) => (
-                <p key={w} className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                  {w}
-                </p>
-              ))}
+          <CurveReviewPanel
+            alignment={alignment}
+            analysis={analysis}
+            station={station}
+            onStation={onStation}
+            terrain={terrain}
+            swept={swept?.result ?? null}
+            onOpenSwept={swept ? () => setTab('swept') : undefined}
+          />
+        )}
+        {tab === 'swept' && swept && !terrainOnly && (
+          <div className="h-full overflow-auto overscroll-contain">
+            <SweptPathPanel
+              check={alignment.vehicleCheck}
+              result={swept.result}
+              error={swept.error}
+              onChange={swept.onChange}
+              onStation={onStation}
+              showOnPlan={swept.showOnPlan}
+              onShowOnPlan={swept.onShowOnPlan}
+              onFocus={swept.onFocus}
+            />
           </div>
         )}
         {tab === 'vertical' && !terrainOnly && (

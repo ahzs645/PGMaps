@@ -123,6 +123,44 @@ The API accepts a lower geometry-operation budget; it cannot raise the 15,000,00
 
 ## Built-in assumptions
 
+### Curve and switchback review
+
+**Horizontal curves** (the four-pane data pane, or **Stations** in the detail view) reviews the geometry actually fitted. Simple curves have BC/EC
+events; spiralled curves have TS/SC/CS/ST, with full deflection and length including both spirals.
+Each event selects the shared plan/profile/section station. The compact table expands to show
+inside/outside formation widths, inside formation radius, inside daylight radius, profile grade,
+curve widening and required/capped/actual crossfall. **Curve CSV** exports these same values,
+criteria, source provenance, missing-data status and screening assumptions.
+
+The detailed width, radius, grade and crossfall ranges use calculated sections on the **circular
+arc**. They are sampled ranges, not continuous extrema. Full-curve completeness is the count
+of complete calculated sections, not a certified coverage or safety result. A missing daylight
+keeps its radius unknown; it does not suppress a known folding warning at another section.
+
+The optional inner-edge grade screen is `g_inner = g_centreline × R / (R − w_inside)`. It is
+available only with an independent formation profile, known grades, positive inner formation
+radius, and constant sampled inside width/crossfall over the arc. Variable widths or crossfalls
+make the screen unavailable. Spirals, runoff, wheel tracks and vehicle offtracking are excluded;
+this is not an allowable truck grade. The actual edge profile requires additional terms when
+offset or crossfall changes.
+
+An inside formation or daylight reaching the curve centre receives a folding/overlap review
+flag. This screen does not detect every contact between separate switchback legs, correct the
+average-end-area volume model for curvature, or establish a vehicle swept envelope. Successive
+arcs are still reviewed separately; a multi-curve switchback requires a complete vehicle
+maneuver review. No automatic BC vehicle/table preset is implied by these calculations.
+
+Required superelevation follows the speed/friction equation. **Capped rotation target** is
+its nonnegative, capped value; **actual inside/outside crossfall** comes from the resolved
+section, including its template crown. Positive crossfall falls away from the centreline.
+Retaining a crown can make actual crossfall exceed the entered maximum even when the target is
+smaller. When the requested bank is positive, the curve review flags this for correction and
+the final connector checker rejects that exceedance at its dense circular-arc stations. A zero
+requested bank retains ordinary normal crown and is not treated as applied superelevation.
+Neither check silently changes the entered section. The final connector checker also rejects
+known local formation/daylight folding; see [Final connector checks](final-connector-checks.md)
+for its sampling limits and the separate-leg overlap and vehicle checks it does not perform.
+
 **Curve design.** Superelevation is e = V²/(127R) − f, held between the normal crown and the
 maximum (`curveDesignAt` in `engine.ts`). f is one entered value, not a speed-dependent table.
 The workspace starts curve design at 40 km/h, 8 %, f 0.15 and 30 m runoff
@@ -258,13 +296,15 @@ including its engineering design, curve design, standards and controls. Route an
 results copy only the template. Their cost has no haul, structures, mobilization or contingency,
 no superelevation or widening, no vertical design and no checks.
 
-**Compare alternatives** shows each metric against the chosen baseline as (other − baseline) ÷
+**Compare alternatives** shows eligible metrics against the chosen baseline as (other − baseline) ÷
 |baseline|, rounded to whole percent. Within ±0.05 % it is grey; lower is green and higher is
-amber for every metric, even where lower is not better. No percentage is shown when the baseline
-value is 0. A road whose analysis failed shows dashes. **Max grade** is formation grade on a
-designed road but ground grade on one without PVIs. Covered cost and earthworks only count the
-covered length. Compare two roads only when both have a vertical design, the same engineering
-inputs and similar coverage.
+amber. These colours describe the numeric change, not overall design quality. No percentage is
+shown when the baseline value is 0 or either analysis is unavailable. Partial earthwork and
+disturbance totals are labelled **covered** and receive no percentage ranking if either road has
+incomplete sections. Costs require complete engineering and a feasible material plan. **Max grade**
+is labelled **design** or **ground**; a comparison requires matching bases and all sampled grades
+known. Covered totals still count only the supported length. Compare roads with consistent terrain,
+engineering assumptions and sampling, and review the geometric and material flags independently.
 
 ## How problems show up
 

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
-import { verticalCurveSummary } from './engine'
+import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { horizontalCurveEvents } from './planAnnotations'
 import type { Alignment, RoadAnalysis } from './types'
 
 interface BandSpan {
@@ -11,6 +12,8 @@ interface BandSpan {
   detail: string
   color: string
   invalid?: boolean
+  /** Stronger inner span distinguishes the circular arc from its spiral transitions. */
+  circularSpan?: { start: number; end: number }
 }
 interface BandRow {
   name: string
@@ -19,25 +22,27 @@ interface BandRow {
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const number = (value: number, digits = 1) => value.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
-/** Explicit design ranges and sampled terrain spans share the profile's horizontal scale. */
-function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: boolean): BandRow[] {
+export function profileGradeSpans(analysis: RoadAnalysis, alignment: Alignment, terrainOnly = false): BandSpan[] {
   const length = analysis.length
   const vertical = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
-  const designGrades = !terrainOnly && vertical.length > 1
+  const designGrades = !terrainOnly && vertical.length > 0
   const cuts = designGrades
-    ? [0, ...vertical.map((p) => p.chainage).filter((s) => s > 0 && s < length), length]
+    ? [0, ...(vertical.length > 1 ? vertical.map((p) => p.chainage).filter((s) => s > 0 && s < length) : []), length]
     : Array.from({ length: 9 }, (_, i) => (length * i) / 8)
   const gradeSpans: BandSpan[] = cuts.slice(1).flatMap((end, i) => {
     const start = cuts[i]
     if (end - start < 0.001) return []
     let grade: number | null = null
     if (designGrades) {
-      const midpoint = (start + end) / 2
-      let index = 0
-      while (index < vertical.length - 2 && vertical[index + 1].chainage <= midpoint) index++
-      const a = vertical[index],
-        b = vertical[index + 1]
-      if (b.chainage > a.chainage) grade = (100 * (b.elevation - a.elevation)) / (b.chainage - a.chainage)
+      if (vertical.length === 1) grade = 0
+      else {
+        const midpoint = (start + end) / 2
+        let index = 0
+        while (index < vertical.length - 2 && vertical[index + 1].chainage <= midpoint) index++
+        const a = vertical[index],
+          b = vertical[index + 1]
+        if (b.chainage > a.chainage) grade = (100 * (b.elevation - a.elevation)) / (b.chainage - a.chainage)
+      }
     } else {
       const candidates = analysis.stations.filter((s) => s.chainage >= start - 0.001 && s.chainage <= end + 0.001)
       const groundAt = (target: number): number | null => {
@@ -66,13 +71,57 @@ function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: bool
         start,
         end,
         label,
-        detail: `${designGrades ? 'Design tangent' : 'Mean sampled ground grade'} ${label}; station ${number(start)}–${number(end)} m${designGrades ? '. Vertical curves vary the grade near PVIs.' : '. Terrain gaps remain unknown.'}`,
+        detail: `${designGrades ? 'Design tangent' : 'Mean sampled ground grade'} ${label}; station ${number(start)}–${number(end)} m${designGrades ? (vertical.length === 1 ? '. A single vertical control defines constant formation.' : '. Vertical curves vary the grade near PVIs.') : '. Terrain gaps remain unknown.'}`,
         color: grade === null ? '#94a3b8' : '#0d9488',
       },
     ]
   })
-  const rows: BandRow[] = [{ name: designGrades ? 'Tangent' : 'Ground', spans: gradeSpans }]
+  return gradeSpans
+}
+
+/** Known horizontal geometry remains inspectable when terrain is missing. */
+export function profileHorizontalCurveSpans(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  terrainOnly = false,
+): BandSpan[] {
+  if (terrainOnly || !finite(analysis.length) || analysis.length <= 0) return []
+  try {
+    return horizontalCurveSummary(alignment)
+      .map((curve, index) => {
+        const events = horizontalCurveEvents(curve)
+          .map((event) => `${event.label} ${number(event.chainage)} m`)
+          .join('; ')
+        const spiralled = curve.spiralInLengthM > 0 || curve.spiralOutLengthM > 0
+        return {
+          id: `horizontal-${index}`,
+          start: Math.max(0, curve.fullStart),
+          end: Math.min(analysis.length, curve.fullEnd),
+          label: `H${index + 1} ${curve.direction === 'left' ? 'L' : 'R'} · R ${number(curve.radius)} · Δ ${number(curve.deflectionDegrees)}°`,
+          detail: `H${index + 1}: ${curve.direction} turn; radius ${number(curve.radius)} m; full deflection ${number(curve.deflectionDegrees)}°; circular arc ${number(curve.length)} m; full curve ${number(curve.fullLength)} m. ${events}.${spiralled ? ` Entry/exit spirals ${number(curve.spiralInLengthM)}/${number(curve.spiralOutLengthM)} m; the darker span is the circular arc.` : ''}`,
+          color: '#0369a1',
+          ...(spiralled ? { circularSpan: { start: curve.start, end: curve.end } } : {}),
+        }
+      })
+      .filter((span) => span.end > span.start)
+  } catch {
+    // Invalid intermediate geometry is reported by the workspace, not drawn as a fitted curve.
+    return []
+  }
+}
+
+/** Explicit design ranges and sampled terrain spans share the profile's horizontal scale. */
+function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: boolean): BandRow[] {
+  const length = analysis.length
+  const rows: BandRow[] = [
+    {
+      name: !terrainOnly && alignment.vertical.length > 0 ? 'Tangent' : 'Ground',
+      spans: profileGradeSpans(analysis, alignment, terrainOnly),
+    },
+  ]
   if (terrainOnly) return rows
+  const horizontal = profileHorizontalCurveSpans(analysis, alignment)
+  if (horizontal.length) rows.push({ name: 'H curve', spans: horizontal })
   const curves = (() => {
     try {
       return verticalCurveSummary(alignment)
@@ -179,10 +228,6 @@ function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: bool
     })
   return rows
 }
-export function profileGradeSpans(analysis: RoadAnalysis, alignment: Alignment, terrainOnly = false) {
-  return rowsFor(analysis, alignment, terrainOnly)[0]?.spans ?? []
-}
-
 export function EngineeringBands({
   analysis,
   alignment,
@@ -226,14 +271,14 @@ export function EngineeringBands({
       ),
     )
   }
-  const rows = rowsFor(analysis, alignment, terrainOnly)
+  const rows = useMemo(() => rowsFor(analysis, alignment, terrainOnly), [analysis, alignment, terrainOnly])
   const start = range?.[0] ?? 0,
     end = range?.[1] ?? Math.max(1, analysis.length)
   if (analysis.length <= 0) return null
   return (
     <div className="-mx-3 border-t" data-testid="road-engineering-bands" data-range-start={start} data-range-end={end}>
       <button
-        className="flex w-full items-center justify-between px-3 py-1 text-[10px] text-muted-foreground hover:bg-muted"
+        className="flex w-full items-center justify-between px-3 py-1 text-[10px] text-muted-foreground hover:bg-muted touch:py-2.5"
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
       >
@@ -335,6 +380,18 @@ export function EngineeringBands({
                                 stroke={span.invalid ? span.color : 'hsl(var(--background))'}
                                 strokeDasharray={span.invalid ? '3 2' : undefined}
                               />
+                              {span.circularSpan &&
+                                span.circularSpan.end >= start &&
+                                span.circularSpan.start <= end && (
+                                  <rect
+                                    x={x(span.circularSpan.start)}
+                                    y={index * 22 + 2}
+                                    width={Math.max(0, x(span.circularSpan.end) - x(span.circularSpan.start))}
+                                    height={18}
+                                    fill={span.color}
+                                    opacity={selected ? 0.3 : 0.18}
+                                  />
+                                )}
                               {spanWidth > span.label.length * 5 + 8 && (
                                 <text
                                   x={x(span.start) + spanWidth / 2}

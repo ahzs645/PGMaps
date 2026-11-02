@@ -118,6 +118,37 @@ export interface CurveDesign {
   insideWideningM?: number
   outsideWideningM?: number
 }
+/**
+ * One rigid unit of a design vehicle. The front pivot is the steer axle for the first unit and the
+ * hitch (kingpin, bunk or pin) for trailing units; the rear axle is the axle-group centre.
+ */
+export interface VehicleUnit {
+  name: string
+  /** Front pivot to rear axle-group centre. */
+  wheelbaseM: number
+  /** Body or load ahead of the front pivot. */
+  frontOverhangM: number
+  /** Body or load behind the rear axle-group centre. */
+  rearOverhangM: number
+  /** Rear axle-group centre to the next unit's hitch; positive is behind the axles. */
+  hitchOffsetM: number
+}
+export interface DesignVehicle {
+  name: string
+  /** Where the dimensions came from; presets are examples, not certified design vehicles. */
+  source?: string
+  /** Out-to-out width of body and tyres. */
+  widthM: number
+  units: VehicleUnit[]
+}
+/** User-entered swept-path check for one road; never inferred from a road class. */
+export interface VehicleCheck {
+  vehicle: DesignVehicle
+  /** Direction travelled with the design vehicle. */
+  direction: 'up' | 'down' | 'both'
+  /** Wheel-path clearance required inside each formation edge. */
+  clearanceM: number
+}
 export interface Alignment {
   id: string
   name: string
@@ -136,6 +167,7 @@ export interface Alignment {
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
   curveDesign?: CurveDesign
+  vehicleCheck?: VehicleCheck
   fullCostRecord?: FullCostReviewRecord
   /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */
   networkEntryRoadId?: string

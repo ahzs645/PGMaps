@@ -3,6 +3,28 @@
  * shows a few stations and zooming in adds more instead of stacking boxes over the road.
  * Pure: no DOM or map access.
  */
+import type { horizontalCurveSummary } from './engine'
+
+/** Name actual fitted events: BC/EC on simple curves, TS/SC/CS/ST with transitions. */
+export function horizontalCurveEvents(
+  curve: ReturnType<typeof horizontalCurveSummary>[number],
+): Array<{ label: 'BC' | 'EC' | 'TS' | 'SC' | 'CS' | 'ST'; chainage: number }> {
+  return [
+    ...(curve.spiralInLengthM > 0
+      ? [
+          { label: 'TS' as const, chainage: curve.fullStart },
+          { label: 'SC' as const, chainage: curve.start },
+        ]
+      : [{ label: 'BC' as const, chainage: curve.start }]),
+    ...(curve.spiralOutLengthM > 0
+      ? [
+          { label: 'CS' as const, chainage: curve.end },
+          { label: 'ST' as const, chainage: curve.fullEnd },
+        ]
+      : [{ label: 'EC' as const, chainage: curve.end }]),
+  ]
+}
+
 export const STATION_LABEL_INTERVALS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]
 
 /** Ground metres per CSS pixel at a MapLibre zoom (512 px tiles) and latitude. */

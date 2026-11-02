@@ -4,6 +4,7 @@ import {
   analyzeRoad,
   curveDesignAt,
   distance,
+  horizontalCurveSummary,
   horizontalGeometry,
   offsetCoordinate,
   positionAt,
@@ -12,7 +13,7 @@ import {
 import { landXml } from './designExports'
 import { fitHorizontalRadii } from './horizontalTools'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid } from './terrain'
-import type { Alignment, Coordinate } from './types'
+import type { Alignment, ContextFeature, Coordinate } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
 const ip = offsetCoordinate(origin, 0, 300)
@@ -32,6 +33,65 @@ const road = (spiralM: number, radiusM = 80): Alignment => ({
 })
 
 describe('clothoid transitions', () => {
+  it('keeps circular stationing while reporting the complete curve and its turn direction', () => {
+    for (const direction of ['left', 'right'] as const) {
+      for (const spiralM of [0, 40]) {
+        const a = road(spiralM)
+        if (direction === 'left') a.points[2].coordinate = offsetCoordinate(ip, 270, 300)
+        const pieces = horizontalGeometry(a)
+        const arc = pieces.find((piece) => piece.kind === 'arc')!
+        const summary = horizontalCurveSummary(a)[0]
+        expect(summary.direction).toBe(direction)
+        expect(summary.start).toBe(arc.station)
+        expect(summary.end).toBe(arc.station + arc.length)
+        expect(summary.length).toBe(arc.length)
+        expect(summary.fullStart).toBeCloseTo(arc.station - spiralM, 8)
+        expect(summary.fullEnd).toBeCloseTo(arc.station + arc.length + spiralM, 8)
+        expect(summary.spiralInLengthM).toBe(spiralM)
+        expect(summary.spiralOutLengthM).toBe(spiralM)
+        expect(summary.fullLength).toBeCloseTo(arc.length + 2 * spiralM, 8)
+        expect(summary.deflectionDegrees).toBeCloseTo(90, 6)
+        expect(summary.circularDeflectionDegrees).toBeCloseTo((arc.length / 80 / Math.PI) * 180, 8)
+      }
+    }
+  })
+
+  it('finds a stream on the actual spiral and excludes a stream on its old straight chord', () => {
+    for (const turnBearing of [90, 270]) {
+      const a = road(40)
+      a.points[2].coordinate = offsetCoordinate(ip, turnBearing, 300)
+      for (const spiral of horizontalGeometry(a).filter((piece) => piece.kind === 'spiral')) {
+        const station = spiral.station + spiral.length / 2
+        const actual = positionAt(a, station)
+        const chordMiddle: Coordinate = [(spiral.start[0] + spiral.end[0]) / 2, (spiral.start[1] + spiral.end[1]) / 2]
+        // This 40 m spiral bows more than 1 m away from its endpoint chord at mid-span.
+        expect(distance(actual.coordinate, chordMiddle)).toBeGreaterThan(1)
+        const stream = (id: string, center: Coordinate): ContextFeature => ({
+          id,
+          name: id,
+          kind: 'stream',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              offsetCoordinate(center, actual.bearing - 90, 0.5),
+              offsetCoordinate(center, actual.bearing + 90, 0.5),
+            ],
+          },
+        })
+        const analysis = analyzeRoad(a, { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS, [
+          stream('actual-spiral', actual.coordinate),
+          stream('old-chord', chordMiddle),
+        ])
+        expect(analysis.crossings.map((crossing) => crossing.featureId)).toEqual(['actual-spiral'])
+        expect(analysis.crossings[0].chainage).toBeCloseTo(station, 2)
+        expect(distance(analysis.crossings[0].coordinate, actual.coordinate)).toBeLessThan(0.02)
+        // Rendering/export centerline vertices now follow the same clothoid as station sampling.
+        const renderedNearMidpoint = analysis.centerline.filter((point) => distance(point, actual.coordinate) < 3)
+        expect(renderedNearMidpoint.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
   it('joins tangent, spiral, arc, spiral and tangent without gaps or heading jumps', () => {
     const pieces = horizontalGeometry(road(40))
     expect(pieces.map((p) => p.kind)).toEqual(['line', 'spiral', 'arc', 'spiral', 'line'])

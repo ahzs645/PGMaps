@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { DrainageEvidence } from '../../src/pages/dev-forestry-roads/drainageEvidence'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { dialogsClosed } from './road-dialogs'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)
@@ -178,6 +179,8 @@ for (const viewport of [
     await (
       await chooser
     ).setFiles({ name: 'mobile-drainage.road.json', mimeType: 'application/json', buffer: saved.bytes })
+    // Opening from the Save & export sheet closes it; wait for its exit before using the page.
+    await dialogsClosed(page)
     await showDrainage(page)
     await expect(panel.getByRole('region', { name: 'Saved drainage evidence', exact: true })).toBeVisible()
     await expect(panel.getByLabel('Upslope buffer (m)', { exact: true })).toHaveValue('50')

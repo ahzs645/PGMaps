@@ -12,6 +12,7 @@ import { parseTotalCostPlanning } from './fullCostPlanning'
 import { parseFullCostRecord } from './fullCostRecord'
 import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports'
 import { validateCurveCriteria } from './roadCriteria'
+import { validateVehicleCheck } from './sweptPath'
 import { parseRoadReportSettings } from './reportSettings'
 import { parseVerticalAlternativeFields, snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import { parseDrainageProjectState, drainageReportHtml, drainageInputFingerprint } from './drainageEvidence'
@@ -33,6 +34,7 @@ import type {
   RoadTemplate,
   TerrainMetadata,
   CurveDesign,
+  VehicleCheck,
   VerticalControl,
   VerticalStandards,
   WidthOverride,
@@ -249,6 +251,32 @@ function parseVerticalControl(raw: unknown): VerticalControl {
     throw Error('A vertical control point needs an elevation, a grade or both.')
   return control
 }
+function parseVehicleCheck(raw: unknown): VehicleCheck {
+  const r = object(raw, 'Vehicle check')
+  const v = object(r.vehicle, 'Design vehicle')
+  const result: VehicleCheck = {
+    direction: r.direction === 'up' || r.direction === 'down' || r.direction === 'both' ? r.direction : 'both',
+    clearanceM: number(r.clearanceM, 'Wheel clearance', 0, 5),
+    vehicle: {
+      name: typeof v.name === 'string' ? v.name.slice(0, 200) : 'Design vehicle',
+      // An emptied source field is simply absent, not an invalid file.
+      ...(typeof v.source === 'string' && v.source.trim() ? { source: v.source.slice(0, 2000) } : {}),
+      widthM: number(v.widthM, 'Vehicle width', 1.5, 4),
+      units: list(v.units, 'Vehicle units', 3, 1).map((rawUnit) => {
+        const u = object(rawUnit, 'Vehicle unit')
+        return {
+          name: typeof u.name === 'string' ? u.name.slice(0, 100) : 'Unit',
+          wheelbaseM: number(u.wheelbaseM, 'Unit wheelbase', 1, 25),
+          frontOverhangM: number(u.frontOverhangM, 'Unit front overhang', 0, 15),
+          rearOverhangM: number(u.rearOverhangM, 'Unit rear overhang', 0, 15),
+          hitchOffsetM: number(u.hitchOffsetM, 'Unit hitch offset', -5, 10),
+        }
+      }),
+    },
+  }
+  validateVehicleCheck(result)
+  return result
+}
 function parseCurveDesign(raw: unknown): CurveDesign {
   const r = object(raw, 'Curve design')
   const result: CurveDesign = {
@@ -345,6 +373,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.engineering === undefined ? {} : { engineering: parseEngineering(r.engineering, parseTemplate) }),
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
+    ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
     ...(r.fsrConnection === undefined ? {} : { fsrConnection: parseFsrConnection(r.fsrConnection) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
     ...(r.networkEntryRoadId === undefined

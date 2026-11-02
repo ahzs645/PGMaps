@@ -3,6 +3,7 @@ import { alignmentLength, analyzeRoad, offsetCoordinate } from '../../src/pages/
 import { parseProject } from '../../src/pages/dev-forestry-roads/project'
 import { createDemoProject, demoTerrain, DEMO_ORIGIN } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { dialogsClosed } from './road-dialogs'
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -90,6 +91,7 @@ async function save(page: Page): Promise<RoadProject> {
     .getByRole('dialog', { name: 'Save & export', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .tap()
+  await dialogsClosed(page)
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 

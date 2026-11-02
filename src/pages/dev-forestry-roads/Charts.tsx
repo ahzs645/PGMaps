@@ -688,7 +688,8 @@ export function ProfileChart({
     (analysis.verticalChecks ?? []).some(
       (check) => (check.kind === 'k' || check.kind === 'curve-length') && Math.abs(check.chainage - chainage) < 0.01,
     )
-  const control = 'h-5 min-w-5 rounded px-1 text-[10px] leading-none'
+  // Grow to a tappable size on touch screens; the mouse layout stays compact.
+  const control = 'h-5 min-w-5 rounded px-1 text-[10px] leading-none touch:h-8 touch:min-w-8 touch:text-xs'
   // Pan, zoom and vertical scale float over the chart's top edge instead of taking a row under it.
   const toolbar = (exaggeration: number, width: number) => (
     <div className="pointer-events-none absolute inset-x-1 top-0.5 flex items-start justify-between gap-2">
@@ -745,7 +746,7 @@ export function ProfileChart({
         <NativeSelect
           aria-label="Profile vertical exaggeration"
           title="Vertical exaggeration · display only"
-          className="h-5 rounded border-0 bg-transparent px-0.5 text-[10px] text-foreground"
+          className="h-5 rounded border-0 bg-transparent px-0.5 text-[10px] text-foreground touch:h-8 touch:text-xs"
           value={verticalScale}
           onChange={(event) => setVerticalScale(event.target.value)}
         >
@@ -2119,7 +2120,7 @@ export function MassHaulChart({
           />
           <p className="text-[10px]" data-testid="road-mass-cursor">
             {formatRoadStation(selected?.x ?? station)} · balance {format(selected?.ground)} m³
-            {finite(selected?.ground) ? '' : ' · unknown beyond terrain gap'}
+            {finite(selected?.ground) ? '' : ' · unknown after an incomplete section'}
           </p>
           <p className="text-[10px] text-muted-foreground">
             {engineering

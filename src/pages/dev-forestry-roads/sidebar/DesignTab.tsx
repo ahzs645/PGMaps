@@ -7,6 +7,7 @@ import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
+import { SwitchbackTools } from '../SwitchbackTools'
 import { VerticalDesignControls } from '../VerticalDesignControls'
 import { distance } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
@@ -134,6 +135,16 @@ export function DesignTab(p: SidebarProps) {
       <RouteFinding {...p} full={full} />
       <CrossingCostControls workspace={p.workspace} />
       <HorizontalPoints {...p} />
+      <SwitchbackTools
+        key={alignment.id}
+        workspace={p.workspace}
+        readOnly={p.readOnlyPreview}
+        onCreated={() => {
+          p.onPoint(null)
+          p.onProfile('')
+          p.onMode('inspect')
+        }}
+      />
       <VerticalAlignment {...p} />
       <VerticalDesignControls workspace={p.workspace} />
     </>
@@ -646,7 +657,7 @@ function VerticalAlignment(p: SidebarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-5"
+                  className="size-5 touch:size-9"
                   aria-label={`Remove PVI ${i + 1}`}
                   onClick={() => updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))}
                 >

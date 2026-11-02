@@ -16,7 +16,14 @@ import {
   offsetCoordinate,
   positionAt,
 } from './engine'
-import { labelChainages, labelOffset, metresPerPixel, stationLabelInterval, tickChainages } from './planAnnotations'
+import {
+  horizontalCurveEvents,
+  labelChainages,
+  labelOffset,
+  metresPerPixel,
+  stationLabelInterval,
+  tickChainages,
+} from './planAnnotations'
 import { terrainBounds } from './terrain'
 import { roadPlanFitCoordinates } from './planFit'
 import { buildTerrainDisplay } from './terrainDisplay'
@@ -73,6 +80,8 @@ interface PlanProps {
   overlay?: GeoJSON.FeatureCollection
   /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
+  /** Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit'). */
+  swept?: GeoJSON.FeatureCollection
   /** Consume a plan click as a drain-to-point selection rather than changing road chainage. */
   pourPointPicking?: boolean
   onPourPoint?: (coordinate: Coordinate) => void
@@ -174,7 +183,7 @@ function Layers(
     const end = range ? placeOn(props.alignment, range.end)?.coordinate : null
     const coordinates = start && end ? [start, ...samples, end] : []
     const data = fc(
-      coordinates.length
+      coordinates.length && range?.highlight !== false
         ? [
             line(coordinates, { label: range?.label }),
             ...(range?.start === range?.end && start
@@ -226,7 +235,7 @@ function Layers(
             Math.max(start[1], end[1], ...samples.map((p) => p[1])),
           ],
         ],
-        { padding: 70, maxZoom: 17, duration: 350 },
+        { padding: 70, maxZoom: range.maxZoom ?? 17, duration: 350 },
       )
   }, [map, isLoaded, analysis, props.alignment, props.selectedRange])
 
@@ -295,7 +304,21 @@ function Layers(
         // A curve label appears once its arc is long enough on screen to belong to it.
         if (curve.length / pixelMetres < 28) return []
         const at = placeOn(props.alignment, (curve.start + curve.end) / 2)
-        return at ? [{ id: `curve-${index}`, label: `C${index + 1} R=${curve.radius.toFixed(1)}`, at, curve }] : []
+        const name = `C${index + 1}`
+        const events = horizontalCurveEvents(curve)
+          .map((event) => `${event.label} ${formatRoadStation(event.chainage)}`)
+          .join('; ')
+        return at
+          ? [
+              {
+                id: `curve-${index}`,
+                label: `${name} ${curve.direction === 'left' ? 'L' : 'R'} R=${curve.radius.toFixed(1)}`,
+                title: `Horizontal curve ${name}: ${curve.direction} turn, radius ${curve.radius.toFixed(1)} m, full deflection ${curve.deflectionDegrees.toFixed(1)}°, circular arc ${curve.length.toFixed(1)} m, full curve ${curve.fullLength.toFixed(1)} m; ${events}`,
+                at,
+                curve,
+              },
+            ]
+          : []
       })
     } catch {
       return []
@@ -573,6 +596,7 @@ function Layers(
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
       drainage: props.drainage ?? fc([]),
+      swept: props.swept ?? fc([]),
     }
     for (const [name, data] of Object.entries(inputs)) {
       const id = `road-${name}`
@@ -804,6 +828,28 @@ function Layers(
         'circle-stroke-color': '#ffffff',
       },
     })
+    // Swept path: body and load dashed under the solid wheel paths; red where wheels leave the formation.
+    add({
+      id: 'road-swept-body',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'swept-body'],
+      paint: { 'line-color': '#7c3aed', 'line-width': 1.5, 'line-dasharray': [2, 1.5] },
+    })
+    add({
+      id: 'road-swept-wheels',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'swept-wheels'],
+      paint: { 'line-color': '#ea580c', 'line-width': 2 },
+    })
+    add({
+      id: 'road-swept-deficit',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'swept-deficit'],
+      paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 },
+    })
     add({
       id: 'road-exploration-line',
       type: 'line',
@@ -855,6 +901,9 @@ function Layers(
       'road-drainage-catchment-outline',
       'road-drainage-line',
       'road-drainage-point',
+      'road-swept-body',
+      'road-swept-wheels',
+      'road-swept-deficit',
       'road-exploration-line',
       'road-exploration-point',
     ])
@@ -881,6 +930,7 @@ function Layers(
     props.terrainOnly,
     props.overlay,
     props.drainage,
+    props.swept,
   ])
 
   useEffect(() => {
@@ -1058,7 +1108,7 @@ function Layers(
             )
           })}
       {props.showLabels &&
-        radiusLabels.map(({ id, label, at, curve }) => {
+        radiusLabels.map(({ id, label, title, at, curve }) => {
           const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
           return (
             <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
@@ -1066,7 +1116,7 @@ function Layers(
                 <button
                   style={{ transform: `translate(${dx}px, ${dy}px)` }}
                   className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-[10px] font-medium leading-4 text-violet-800"
-                  title={`Horizontal curve ${id.replace('curve-', 'C')}: radius ${curve.radius.toFixed(1)} m, arc ${curve.length.toFixed(1)} m, ${formatRoadStation(curve.start)}–${formatRoadStation(curve.end)}`}
+                  title={title}
                   aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
                   onClick={() => props.onStation((curve.start + curve.end) / 2)}
                 >
@@ -1232,6 +1282,7 @@ function Layers(
             ticks,
             overlay: props.overlay,
             drainage: props.drainage,
+            swept: props.swept,
           },
           alignments: props.project.alignments,
           maxGradePercent: props.project.settings.maxGradePercent,
