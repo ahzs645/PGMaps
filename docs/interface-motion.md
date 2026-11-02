@@ -35,6 +35,16 @@ are not production code or a performance benchmark.
   The table's full-screen button covers the whole workspace and restores the
   previous height.
 
+## Mobile sheet stack
+
+On phones the layout's controls sheet and every `MobileFeatureCard` (feature
+cards, the feature table, CANUE graphs) form one stack in the workspace's sheet
+store, so front and back can never disagree between sheets. Sheets behind the
+front card match its height, peek 10 px per step, inset and darker; from the
+third step back they are hidden, as in Felt. Tap any visible strip to swap that
+sheet to the front. The feature table passes its layer as `focusKey`, so opening
+another layer's table brings it forward.
+
 ## Map resizing
 
 Changing a MapLibre canvas's size clears its WebGL buffer, and `map.resize()`
