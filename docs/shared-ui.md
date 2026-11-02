@@ -305,8 +305,19 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   `--map-legend-panel-visible-height`, the map publishes the attribution's
   height as `--map-bottom-right-controls-height`); anything else in a bottom
   corner stacks above both. Zoom and compass stay top right on phones too,
-  below the floating toolbar. Pass `elevated` when a timeline is shown under
-  the map.
+  below the floating toolbar. The legend clears a mounted timeline by itself;
+  `elevated` is deprecated and does nothing.
+- Timelines: `Timeline` (`src/components/ui/timeline.tsx`) adapts the
+  toolkit's `MapTimeline` to the date props pages already pass. New pages can
+  use `MapTimeline` with `buildTimelineBuckets`, `timelineBucketKey` and
+  `timelineWindow` from `@pgmaps/geo-toolkit/calculations` directly, and filter
+  their records with the same window the timeline highlights. It sizes itself
+  from its own width, so don't wrap it in viewport breakpoints.
+- Our Tailwind utilities inside a map workspace: `postcss.config.js` gives each
+  generated utility a second `.geo-toolkit`-prefixed selector
+  (`scripts/postcss/workspace-utilities.js`). Without it the toolkit's scoped
+  `.geo-toolkit .hidden` outweighs our `md:block` on our own markup inside a
+  workspace, and responsive classes there silently stop working.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
   `KeyValueRows` inside.
 - Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;
