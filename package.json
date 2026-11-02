@@ -127,6 +127,8 @@
     "projects:build": "tsx scripts/generate-scorebuilder-projects.ts && npm run projects:index",
     "projects:echoscreen-data": "node scripts/build-echoscreen-project-data.mjs",
     "projects:climate-stories": "node scripts/generate-climate-stories.mjs && npm run projects:index",
+    "projects:bec-representation": "node scripts/bec-representation.mjs && node scripts/generate-bec-story.mjs && npm run projects:index",
+    "projects:bec-representation:check": "node scripts/bec-representation.mjs --check && node scripts/generate-bec-story.mjs --check && node scripts/bec-representation.test.mjs",
     "bcforestmap:inaturalist-species-at-risk:import": "npm --prefix vendor/bcdatamapper run bcforestmap:inaturalist-species-at-risk:import --",
     "bcforestmap:inaturalist-species-at-risk:sync": "npm --prefix vendor/bcdatamapper run bcforestmap:inaturalist-species-at-risk:sync --",
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",

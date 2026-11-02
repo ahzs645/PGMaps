@@ -18,6 +18,8 @@ const appOwnedDataPaths = [
   'projects',
   // Versioned forDRAT reference data owned by the forestry browser tool.
   'forest-drought',
+  // Pinned published study tables and story assets, not scraper snapshots.
+  'bec-representation',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
   'story-documents',

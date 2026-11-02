@@ -1,0 +1,61 @@
+---
+title: "Conservation Areas by BGC"
+author: "Will MacKenzie"
+date: "2023-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+require(tidyverse)
+require(bcdata)
+require(bcmaps)
+require(terra)
+require(tidyterra)
+require(dplyr)
+require(data.table)
+require(knitr)
+```
+
+## Protected Areas Strategy
+Reviewing the existing protected areas network for representation by BGC
+
+
+
+
+## Intersect BGC with overlays of watershed and conservation areas
+for conservation use terra::intersect to show only 
+terra::union or cover
+
+```{r BGCs of conservation areas}
+options(scipen = 999)
+
+park_bgcs <- fread("./outputs/BGC_area_by_park.csv")
+park_bgcs_sum <- park_bgcs %>%  group_by(BGC) %>% mutate(bgc_area_tot = sum(park_bgc_km2)) %>% mutate(across(where(is.numeric), round, 3))
+bgc_sum <- fread("./outputs/BGC_area.csv")
+
+bgc_protected_sum <- park_bgcs_sum %>% group_by(BGC) %>% mutate(bgc_protected = sum(park_bgc_km2)) %>% select(BGC, bgc_protected)
+
+bgc_represented <- left_join(bgc_sum, bgc_protected_sum) %>% distinct %>% mutate(bgc_protected_ratio = bgc_protected/BGC_km2)
+fwrite(bgc_represented, "./outputs/PAS_representation_by_BGC.csv")
+
+kable(bgc_represented)
+```
+
+```{r BGC map shaded by % conserved}
+  bgcs <- vect("D:/CommonTables/BGC_maps/BC_BGCv12_Published_clipped_simplified_dissolved_vis2.gpkg") %>% terra::merge(bgc_represented) %>% 
+  mutate(status = ifelse(is.na(bgc_protected_ratio), "0: No PA",
+                  ifelse(bgc_protected_ratio >= .3, "5: >30%", 
+                         ifelse(bgc_protected_ratio >= .15, "4: 15-30%", 
+                         ifelse(bgc_protected_ratio >= .05, "3: 5-15%",
+                         ifelse(bgc_protected_ratio >= .01, "2: 1-5%", "1: <1%"
+                                ))))))
+
+  parks <- vect("./spatial_layers/all_parks.gpkg")
+ggplot(bgcs)+
+  geom_spatvector(aes(fill = status), color = NA )+
+  geom_spatvector(data = parks,  fill = NA)+
+ # scale_fill_brewer(palette = "Spectral")
+  scale_fill_manual(values = alpha(c('darkred', 'red', 'orange', 'yellow', 'green', 'darkgreen')))
+```
+

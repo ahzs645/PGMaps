@@ -8930,6 +8930,109 @@
         "layerCount": 1,
         "sceneCount": 7
       }
+    },
+    {
+      "file": "bec-protected-areas.json",
+      "revision": "bf3844f4a647",
+      "catalog": {
+        "slug": "bec-protected-areas",
+        "title": "Ecosystems in B.C.’s Protected Areas",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps · study by Will MacKenzie",
+        "updated": "Study: 28 November 2023",
+        "region": "British Columbia",
+        "status": "Historical study · context map",
+        "summary": "How evenly are B.C.’s ecosystems represented in protected areas? Explore 213 BEC study units, the gaps in the published results, and a northern-interior example on a clearly labelled context map.",
+        "sourceNote": "Adapted from Will MacKenzie’s Representation of BEC units in Protected Areas of BC (28 November 2023), pinned at 0066648b02db082fded8ce9cf242c56d9a8ec22f. The study provides 213 unit results and 2,145 park–unit intersection records. The polygons use the Province’s newer BEC v13.1 mapping, generalized for this story. Matching a code locates a study unit; it does not prove its boundary is unchanged since the study’s v12 input. The 2023 percentages have not been recalculated on these polygons.",
+        "details": [
+          "208 percentages are usable. Four units have no recorded intersection in the source outputs, and CDFmm has a zero denominator. Missing and invalid results remain unavailable.",
+          "198 study codes match the context polygons; 15 study codes have no current polygon match; 24 current map codes have no study result. Matching codes do not establish unchanged boundaries.",
+          "The percentages use mapped BEC area, including non-terrestrial cover where the source polygons extend across it. They are not an estimate of the terrestrial share of B.C. that is protected.",
+          "Study data and code: Apache-2.0, with original licence retained. Province of British Columbia map data: Open Government Licence – British Columbia. The story is a PGMaps adaptation, not an official update of the source analysis.",
+          "All study values and context polygons load from the same application origin. External basemap availability is separate from the study data."
+        ],
+        "links": [
+          {
+            "label": "Original study and analysis code",
+            "href": "https://github.com/whmacken/BEC_representation_PAS/tree/0066648b02db082fded8ce9cf242c56d9a8ec22f"
+          },
+          {
+            "label": "Download original BEC representation CSV",
+            "href": "/data/bec-representation/source/outputs/PAS_representation_by_BGC.csv"
+          },
+          {
+            "label": "Download original park–BEC intersections CSV",
+            "href": "/data/bec-representation/source/outputs/BGC_area_by_park.csv"
+          },
+          {
+            "label": "Download original BEC areas CSV",
+            "href": "/data/bec-representation/source/outputs/BGC_area.csv"
+          },
+          {
+            "label": "Normalized results and park contributions (JSON)",
+            "href": "/data/bec-representation/representation.json"
+          },
+          {
+            "label": "Study provenance and checksums",
+            "href": "/data/bec-representation/manifest.json"
+          },
+          {
+            "label": "Context-map provenance and code coverage",
+            "href": "/data/bec-representation/geometry-provenance.json"
+          },
+          {
+            "label": "Download context polygons (GeoJSON gzip)",
+            "href": "/data/bec-representation/bec-units.geojson.gz"
+          },
+          {
+            "label": "Official BEC map catalogue",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/bec-map"
+          },
+          {
+            "label": "Original study licence",
+            "href": "/data/bec-representation/source/LICENSE"
+          },
+          {
+            "label": "Map data licence",
+            "href": "https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Study units",
+            "value": "213"
+          },
+          {
+            "label": "Finite percentages",
+            "value": "208"
+          },
+          {
+            "label": "Below 5%",
+            "value": "70 units"
+          }
+        ],
+        "files": [
+          {
+            "label": "Original study tables",
+            "detail": "Three byte-exact CSVs from the pinned 2023 source commit"
+          },
+          {
+            "label": "Normalized study results",
+            "detail": "All 213 units, original values, data-quality flags, and park-name contributions"
+          },
+          {
+            "label": "Context-map polygons",
+            "detail": "Generalized BEC v13.1 geography; 198 exact study-code matches"
+          },
+          {
+            "label": "Methods and attribution",
+            "detail": "Original R Markdown notebooks, source hashes, Apache-2.0 licence, and geometry provenance"
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 9
+      }
     }
   ]
 }
