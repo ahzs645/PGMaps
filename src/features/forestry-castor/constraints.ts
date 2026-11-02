@@ -1,7 +1,19 @@
-import type { CastorConfig, CastorConstraint, CastorConstraintRow, CastorPixel, CastorPredicate } from './types'
+import type {
+  CastorConfig,
+  CastorConstraint,
+  CastorConstraintRow,
+  CastorNullField,
+  CastorPixel,
+  CastorPredicate,
+} from './types'
 
 type Scalar = number | string | boolean | null | undefined
+/** True when the source value was SQL NULL (see CastorPixel.nullFields). */
+export function isNullField(pixel: CastorPixel, field: CastorNullField | string): boolean {
+  return pixel.nullFields?.includes(field as CastorNullField) ?? false
+}
 export function pixelValue(pixel: CastorPixel, field: string): Scalar {
+  if (isNullField(pixel, field)) return null
   if (Object.prototype.hasOwnProperty.call(pixel, field)) {
     const value = (pixel as unknown as Record<string, unknown>)[field]
     return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean' || value === null
@@ -62,6 +74,22 @@ export function activeConstraint(constraint: CastorConstraint, elapsedYears: num
   return elapsedYears >= (constraint.startYear ?? 0) && elapsedYears <= (constraint.stopYear ?? Infinity)
 }
 
+/**
+ * dataCastor's t_area: every cell in the zone that satisfies the optional denominator predicate, owned or
+ * not (count() FROM pixels WHERE denom AND zone = id). Reservations draw only from owned cells
+ * (inConstraint), so non-owned land enlarges the area that owned land must retain, as in forestryCastor.
+ */
+export function inZoneArea(pixel: CastorPixel, constraint: CastorConstraint): boolean {
+  return (
+    pixel.zones[constraint.zone] === constraint.zoneId &&
+    (!constraint.denominator || matchesPredicate(pixel, constraint.denominator))
+  )
+}
+/** forestryCastor's eca_current sums eca*thlb over every cell in the zone (no ownership or denominator filter). */
+function inEcaZone(pixel: CastorPixel, constraint: CastorConstraint): boolean {
+  return pixel.zones[constraint.zone] === constraint.zoneId
+}
+
 export function inConstraint(pixel: CastorPixel, constraint: CastorConstraint): boolean {
   return (
     pixel.owned &&
@@ -102,8 +130,11 @@ export function rankConstraintIndices(
       if (matchA !== matchB) return constraint.type === 'ge' ? (matchA ? -1 : 1) : matchA ? 1 : -1
     }
     if (variable === 'distance' && constraint.type === 'ge')
-      return compareNumeric(b.distance, a.distance) || compareNumeric(b.age, a.age) || a.id - b.id
-    const landBase = compareNumeric(a.thlbHa, b.thlbHa) || protectedMask[bi] - protectedMask[ai]
+      return (
+        compareNumeric(b.distance, a.distance) || compareNumeric(numeric(b, 'age'), numeric(a, 'age')) || a.id - b.id
+      )
+    // ORDER BY thlb ASC: SQLite sorts NULL before every number, so non-forest cells are reserved first.
+    const landBase = compareNumeric(numeric(a, 'thlbHa'), numeric(b, 'thlbHa')) || protectedMask[bi] - protectedMask[ai]
     if (landBase) return landBase
     if (variable === 'eca') return compareNumeric(b.eca, a.eca) || a.id - b.id
     if (variable === 'distance') return compareNumeric(b.distance, a.distance) || a.id - b.id
@@ -142,11 +173,9 @@ export function evaluateConstraints(
     let denominatorHa = 0
     let currentEca = 0
     pixels.forEach((pixel, i) => {
-      if (inConstraint(pixel, constraint)) {
-        candidates.push(i)
-        denominatorHa += pixel.areaHa
-        currentEca += pixel.eca * pixel.thlbHa
-      }
+      if (inConstraint(pixel, constraint)) candidates.push(i)
+      if (inZoneArea(pixel, constraint)) denominatorHa += pixel.areaHa
+      if (inEcaZone(pixel, constraint)) currentEca += pixel.eca * pixel.thlbHa
     })
     const retainedFraction =
       constraint.type === 'ge' ? (constraint.percentage ?? 0) / 100 : 1 - (constraint.percentage ?? 0) / 100
@@ -188,8 +217,9 @@ export function constraintReports(
       let protectedHa = 0
       const protectedIndices = evaluation.protectedByConstraint.get(constraint.id)
       pixels.forEach((pixel, i) => {
+        // zoneManagement: owned numerators over the zone's full t_area.
+        if (inZoneArea(pixel, constraint)) denominatorHa += pixel.areaHa
         if (!inConstraint(pixel, constraint)) return
-        denominatorHa += pixel.areaHa
         if (conditionMet(pixel, constraint)) qualifyingHa += pixel.areaHa
         ecaHa += pixel.eca * pixel.thlbHa
         if (protectedIndices?.has(i)) protectedHa += pixel.areaHa
@@ -251,9 +281,9 @@ export function createEcaBudgets(
       let area = 0
       let current = 0
       pixels.forEach((pixel, index) => {
-        if (inConstraint(pixel, constraint)) {
+        if (inZoneArea(pixel, constraint)) area += pixel.areaHa
+        if (inEcaZone(pixel, constraint)) {
           indices.add(index)
-          area += pixel.areaHa
           current += pixel.eca * pixel.thlbHa
         }
       })

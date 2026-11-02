@@ -359,7 +359,12 @@ function FlowBuilder({
   config: CastorConfig
   onChange: (project: CastorProject) => void
 }) {
-  const compartments = Array.from(new Set(project.pixels.map((pixel) => pixel.compartment))).sort()
+  // Cells with a NULL compartid belong to no harvest compartment and cannot take a target.
+  const compartments = Array.from(
+    new Set(
+      project.pixels.filter((pixel) => !pixel.nullFields?.includes('compartment')).map((pixel) => pixel.compartment),
+    ),
+  ).sort()
   const [compartment, setCompartment] = useState('*')
   const [type, setType] = useState<'live' | 'salvage'>('live')
   const [target, setTarget] = useState(10000)

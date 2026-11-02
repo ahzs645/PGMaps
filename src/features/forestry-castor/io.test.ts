@@ -31,7 +31,7 @@ import {
   castorToLonLat,
   csrsUtmZone,
 } from './outputs'
-import { CASTOR_MODEL_VERSION, type CastorProject, type CastorResult } from './types'
+import { CASTOR_MODEL_VERSION, CASTOR_NO_COMPARTMENT, type CastorProject, type CastorResult } from './types'
 import { runCastor } from './engine'
 
 const sample = readFileSync(new URL('../../../public/data/forestry-castor/simple_castordb.sqlite', import.meta.url))
@@ -181,6 +181,40 @@ describe('Castor original SQLite and table import', () => {
     expect(project.provenance.notes.join(' ')).toMatch(/not operational harvest blocks/)
     expect(project.provenance.source).toBe('Local SQLite castordb')
     expect(project.provenance.url).toBeUndefined()
+  })
+
+  it('imports dataCastor NULL cells and runs them with forestryCastor SQL semantics', () => {
+    // dataCastor writes every raster cell; cells outside the area of interest keep NULL compartid, thlb,
+    // age, yieldid and height. Some are also unowned (NULL own).
+    const db = new sqlite.Database(new Uint8Array(sampleBuffer()))
+    let project: CastorProject
+    try {
+      db.run(
+        'UPDATE pixels SET compartid = NULL, thlb = NULL, age = NULL, yieldid = NULL, yieldid_trans = NULL, height = NULL WHERE pixelid > 9000',
+      )
+      db.run('UPDATE pixels SET own = NULL WHERE pixelid > 9900')
+      db.run('UPDATE zoneConstraints SET percentage = 95')
+      project = projectFromCastorDatabase(db, 'NULL outside the area of interest')
+    } finally {
+      db.close()
+    }
+    expect(project.pixels).toHaveLength(10000)
+    const outside = project.pixels[9500]
+    expect(outside.nullFields).toEqual(expect.arrayContaining(['compartment', 'thlbHa', 'age', 'volume', 'height']))
+    expect(outside).toMatchObject({ thlbHa: 0, owned: true })
+    expect(project.pixels[9950].owned).toBe(false)
+    expect(project.pixels[0].nullFields).toBeUndefined()
+    expect(project.provenance.notes.join(' ')).toMatch(/1000 cells have NULL compartment/)
+    expect(project.provenance.notes.join(' ')).toMatch(/100 cells are not owned/)
+    project.harvestFlows = [{ id: 'flow', compartment: 'all', period: 1, targetM3: 10_000_000, type: 'live' }]
+    const result = runCastor(project, castorConfig(project, { periods: 1 }))
+    expect(result.harvestPixelList.length).toBeGreaterThan(0)
+    expect(result.harvestPixelList.every((row) => row.pixelId <= 9000)).toBe(true)
+    expect(result.snapshots[1].age[9500]).toBeNull()
+    expect(result.growingStockReport.map((row) => row.compartment)).not.toContain(CASTOR_NO_COMPARTMENT)
+    // dataCastor's t_area counts every in-zone cell, owned or not; only reservations are limited to own = 1.
+    const zoneRow = result.zoneManagement.find((row) => row.phase === 'before-harvest')!
+    expect(zoneRow.denominatorHa).toBe(10000)
   })
 
   it('rejects a false header, damaged SQLite body, and changed legacy cell scale', async () => {

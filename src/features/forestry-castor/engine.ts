@@ -21,6 +21,7 @@ import {
   evaluateConstraints,
   matchesPredicate,
   pixelValue,
+  isNullField,
 } from './constraints'
 import { applyYield, culminationVolume, growthYears } from './growth'
 import { yieldSensitivity } from './uncertainty'
@@ -155,18 +156,23 @@ function stockRows(
 ): CastorStockRow[] {
   const byCompartment = new Map<
     string,
-    { stockM3: number; salvageM3: number; thlbHa: number; availableThlbHa: number; ageHa: number }
+    { stockM3: number; salvageM3: number; thlbHa: number; availableThlbHa: number; ageHa: number; agedHa: number }
   >()
   pixels.forEach((pixel, i) => {
+    // forestryCastor reports growing stock per named compartment; a NULL compartid belongs to none.
+    if (isNullField(pixel, 'compartment')) return
     let row = byCompartment.get(pixel.compartment)
     if (!row) {
-      row = { stockM3: 0, salvageM3: 0, thlbHa: 0, availableThlbHa: 0, ageHa: 0 }
+      row = { stockM3: 0, salvageM3: 0, thlbHa: 0, availableThlbHa: 0, ageHa: 0, agedHa: 0 }
       byCompartment.set(pixel.compartment, row)
     }
     row.stockM3 += pixel.volume * pixel.thlbHa
     row.salvageM3 += pixel.salvageVolume * pixel.thlbHa
     row.thlbHa += pixel.thlbHa
-    row.ageHa += pixel.age * pixel.thlbHa
+    if (!isNullField(pixel, 'age')) {
+      row.ageHa += pixel.age * pixel.thlbHa
+      row.agedHa += pixel.thlbHa
+    }
     if (pixel.owned && !protectedMask?.[i] && !pixel.treatmentId) row.availableThlbHa += pixel.thlbHa
   })
   const elapsedYears = period * config.stepYears
@@ -181,7 +187,7 @@ function stockRows(
     salvageM3: values.salvageM3,
     thlbHa: values.thlbHa,
     availableThlbHa: values.availableThlbHa,
-    meanAge: values.thlbHa > 0 ? values.ageHa / values.thlbHa : null,
+    meanAge: values.agedHa > 0 ? values.ageHa / values.agedHa : null,
   }))
 }
 
@@ -198,10 +204,10 @@ function makeSnapshot(
     period,
     year: config.startYear + period * config.stepYears,
     elapsedYears: period * config.stepYears,
-    age: pixels.map((pixel) => pixel.age),
-    volume: pixels.map((pixel) => pixel.volume),
-    height: pixels.map((pixel) => pixel.height),
-    eca: pixels.map((pixel) => pixel.eca),
+    age: pixels.map((pixel) => (isNullField(pixel, 'age') ? null : pixel.age)),
+    volume: pixels.map((pixel) => (isNullField(pixel, 'volume') ? null : pixel.volume)),
+    height: pixels.map((pixel) => (isNullField(pixel, 'height') ? null : pixel.height)),
+    eca: pixels.map((pixel) => (isNullField(pixel, 'eca') ? null : pixel.eca)),
     harvestedYear: [...harvestedYear],
     harvestedVolumeM3: [...harvestedVolume],
     constrained: Array.from(protectedMask),
@@ -367,7 +373,8 @@ export function runCastor(
     const year = config.startYear + elapsedYears
     const increment = growthYears(config, period)
     pixels.forEach((pixel, index) => {
-      if (pixel.age < config.maxYieldAge) pixel.age = Math.min(config.maxYieldAge, pixel.age + increment)
+      if (!isNullField(pixel, 'age') && pixel.age < config.maxYieldAge)
+        pixel.age = Math.min(config.maxYieldAge, pixel.age + increment)
       const curve = curves.get(pixel.curveId ?? '')
       if (curve) applyYield(pixel, curve, volumeScales[index])
       synchronizeLegacyAttributes(pixel, culmination, 0)
@@ -380,6 +387,7 @@ export function runCastor(
         let height = 0
         let area = 0
         for (const index of indices) {
+          if (isNullField(pixels[index], 'height')) continue
           height += pixels[index].height * pixels[index].areaHa
           area += pixels[index].areaHa
         }
@@ -419,7 +427,9 @@ export function runCastor(
         !protectedMask[index] &&
         !selected[index] &&
         !newBlockedBlocks.has(pixel.blockId) &&
-        pixel.age >= config.minimumHarvestAge
+        pixel.age >= config.minimumHarvestAge &&
+        !isNullField(pixel, 'age') &&
+        !isNullField(pixel, 'compartment')
       )
     }
     const flowMatches = (pixel: CastorPixel, flow: CastorHarvestFlow) =>

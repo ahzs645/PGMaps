@@ -570,3 +570,90 @@ describe('constraints, reproducibility, and input integrity', () => {
     ).toThrow(/overflows area-weighted averaging/)
   })
 })
+
+describe('NULL source fields from real castordb cells (forestryCastor SQL semantics)', () => {
+  const offBase = (id: number, values: Partial<CastorPixel> = {}): CastorPixel =>
+    pixel(id, {
+      thlbHa: 0,
+      age: 0,
+      volume: 0,
+      height: 0,
+      eca: 0,
+      nullFields: ['thlbHa', 'age', 'volume', 'height', 'eca'],
+      ...values,
+    })
+
+  it('reserves NULL-THLB cells before genuine zero-THLB cells, after cells meeting the condition', () => {
+    // ORDER BY (age >= 140) first, thlb ASC (SQLite: NULL before 0), zone_const DESC, age DESC.
+    const cells = [pixel(1, { age: 150 }), pixel(2, { thlbHa: 0, age: 50 }), offBase(3), pixel(4, { age: 60 })]
+    const ge: CastorConstraint = {
+      id: 'old',
+      zone: 'zone1',
+      zoneId: '1',
+      type: 'ge',
+      variable: 'age',
+      threshold: 140,
+      percentage: 50,
+    }
+    expect(rankConstraintIndices(cells, [0, 1, 2, 3], ge, new Uint8Array(4))).toEqual([0, 2, 1, 3])
+    // 50% of the 4 ha zone, NULL cell included in the denominator: the meeting cell, then the NULL cell.
+    expect([...evaluateConstraints(cells, [ge], 0).protectedByConstraint.get('old')!]).toEqual([0, 2])
+  })
+
+  it('never counts a NULL age as meeting an le condition', () => {
+    const young: CastorConstraint = {
+      id: 'young',
+      zone: 'zone1',
+      zoneId: '1',
+      type: 'le',
+      variable: 'age',
+      threshold: 40,
+      percentage: 50,
+    }
+    // le ranks cells that do not meet the condition first. A NULL age does not meet age <= 40 (an age of 0 would),
+    // so it ranks with the old cell, ahead of it because NULL THLB sorts first; the young cell meets and goes last.
+    const cells = [pixel(1, { age: 20, thlbHa: 0 }), offBase(2), pixel(3, { age: 100, thlbHa: 0 })]
+    expect(rankConstraintIndices(cells, [0, 1, 2], young, new Uint8Array(3))).toEqual([1, 2, 0])
+  })
+
+  it('neither harvests nor ages a NULL-age THLB cell, and keeps it out of mean age', () => {
+    const input = project([pixel(1, { age: 150 }), pixel(2, { age: 0, nullFields: ['age'] })], {
+      harvestFlows: [{ id: 'flow', compartment: 'A', period: 1, targetM3: 1000, type: 'live' }],
+    })
+    const result = runCastor(input, config({ minimumHarvestAge: 0, periods: 2 }))
+    expect(result.harvestPixelList.map((row) => row.pixelId)).toEqual([1])
+    expect(result.snapshots.map((state) => state.age[1])).toEqual([null, null, null])
+    expect(result.growingStockReport[0].meanAge).toBe(150)
+  })
+
+  it('leaves NULL-height blocks without an average height, so neighbours are not blocked', () => {
+    // avg(height) skips NULL; a block with no known height has no average and blocks nothing.
+    const input = project([offBase(1, { nullFields: ['height'] }), pixel(2)], {
+      adjacency: [['1', '2']],
+      harvestFlows: [{ id: 'flow', compartment: 'A', period: 1, targetM3: 100, type: 'live' }],
+    })
+    const result = runCastor(input, config({ adjacencyHeight: 3 }))
+    expect(result.harvestPixelList.map((row) => row.pixelId)).toEqual([2])
+  })
+
+  it('sizes reservations from the whole zone area but draws them from owned cells only', () => {
+    // t_area = 4 ha (two owned, two not); 50% must be retained, all of it from the owned cells.
+    const cells = [pixel(1, { age: 50 }), pixel(2, { age: 60 }), pixel(3, { owned: false }), pixel(4, { owned: false })]
+    const ge: CastorConstraint = {
+      id: 'old',
+      zone: 'zone1',
+      zoneId: '1',
+      type: 'ge',
+      variable: 'age',
+      threshold: 140,
+      percentage: 50,
+    }
+    expect([...evaluateConstraints(cells, [ge], 0).protectedByConstraint.get('old')!].sort()).toEqual([0, 1])
+  })
+
+  it('accepts nullFields in saved projects and rejects unknown names', () => {
+    expect(validateCastorProject(project([offBase(1)]), config()).errors).toEqual([])
+    const bad = project([pixel(1, { nullFields: ['blockId' as never] })])
+    expect(validateCastorProject(bad, config()).errors.map((error) => error.path)).toContain('pixels[0].nullFields')
+  })
+})

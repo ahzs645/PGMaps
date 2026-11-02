@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { CASTOR_COLUMN_FIELDS, parseLegacyPredicate } from './legacyPredicates'
 import { interpolateYield } from './growth'
-import { DEFAULT_CASTOR_CONFIG } from './types'
+import { CASTOR_NO_COMPARTMENT, DEFAULT_CASTOR_CONFIG } from './types'
 import type {
   CastorConstraint,
   CastorGrid,
@@ -10,6 +10,7 @@ import type {
   CastorProject,
   CastorTreatment,
   CastorYieldCurve,
+  CastorNullField,
 } from './types'
 
 export type CastorInputRow = Record<string, unknown>
@@ -155,6 +156,8 @@ export function castorProjectFromTables(
   }
   let missingBlocks = 0
   let missingVolume = 0
+  let nullRows = 0
+  let unownedRows = 0
   const pixels: CastorPixel[] = inventory.map((row, index) => {
     const id = inputNumber(inputValue(row, 'id', 'pixelid'), `Inventory row ${index + 1} ID`)
     const label = `Pixel ${id}`
@@ -167,21 +170,43 @@ export function castorProjectFromTables(
       optionalNumber(inputValue(row, 'gridIndex', 'grid_index'), `${label} gridIndex`) ?? (legacy ? id - 1 : undefined)
     const cellArea = grid ? grid.cellSize ** 2 / 10000 : undefined
     const areaHa = inputNumber(inputValue(row, 'areaHa', 'area_ha'), `${label} areaHa`, cellArea)
-    const thlbHa = inputNumber(inputValue(row, 'thlbHa', 'thlb_ha', 'thlb'), `${label} thlbHa`)
+    // dataCastor writes every raster cell. Cells outside the area of interest or off the forest
+    // land base keep NULL compartid/thlb/age/yieldid. A column that exists but is NULL follows
+    // forestryCastor's SQL (see CastorPixel.nullFields); a missing column is still an error.
+    const blank = (value: unknown) => value === null || value === ''
+    const nullFields: CastorNullField[] = []
+    const rawThlb = inputValue(row, 'thlbHa', 'thlb_ha', 'thlb')
+    const rawAge = inputValue(row, 'age')
+    const rawCompartment = inputValue(row, 'compartment', 'compartid')
+    if (blank(rawCompartment)) nullFields.push('compartment')
+    if (blank(rawThlb)) nullFields.push('thlbHa')
+    if (blank(rawAge)) nullFields.push('age')
+    const thlbHa = blank(rawThlb) ? 0 : inputNumber(rawThlb, `${label} thlbHa`)
+    const age = blank(rawAge) ? 0 : inputNumber(rawAge, `${label} age`)
+    // Off the timber land base: NULL forest fields are allowed and never harvested or grown.
+    const offLandBase = nullFields.length > 0 || thlbHa === 0
     const curveId = inputValue(row, 'curveId', 'yieldid')
     const rawVolume = inputValue(row, 'volume', 'vol')
     const rawHeight = inputValue(row, 'height')
-    const age = inputNumber(inputValue(row, 'age'), `${label} age`)
+    const rawEca = inputValue(row, 'eca')
     const missingInitialVolume = rawVolume === null || rawVolume === undefined || rawVolume === ''
-    if (
-      (rawVolume === null || rawVolume === undefined || rawVolume === '') &&
-      (curveId === null || curveId === undefined || !curves.has(String(curveId)))
-    ) {
+    const curve = curves.get(String(curveId))
+    if (missingInitialVolume && !curve && !offLandBase) {
       throw new Error(`${label} needs observed volume or a valid yield curve for initialization.`)
     }
-    if (missingInitialVolume) missingVolume++
-    const curve = curves.get(String(curveId))
-    const derived = curve ? interpolateYield(curve, age) : undefined
+    // A yield lookup joins on age; with a NULL age the source volume stays NULL.
+    const derived = curve && !blank(rawAge) ? interpolateYield(curve, age) : undefined
+    if (missingInitialVolume && derived) missingVolume++
+    const unresolved = (raw: unknown, fallback: number | undefined) =>
+      (raw === null || raw === undefined || raw === '') && fallback === undefined && offLandBase
+    if (unresolved(rawVolume, derived?.volume)) nullFields.push('volume')
+    if (unresolved(rawHeight, derived?.height)) nullFields.push('height')
+    if (unresolved(rawEca, derived?.eca)) nullFields.push('eca')
+    if (nullFields.length) nullRows++
+    const rawOwned = inputValue(row, 'owned', 'own')
+    // forestryCastor reserves only own = 1; a NULL own fails that test. A missing column defaults to owned.
+    const owned = blank(rawOwned) ? false : flag(rawOwned, `${label} owned`, true)
+    if (!owned) unownedRows++
     const managedCurve = inputValue(row, 'managedCurveId', 'yieldid_trans')
     const blockId = inputValue(row, 'blockId', 'blockid')
     if (blockId === null || blockId === undefined || blockId === '') missingBlocks++
@@ -240,14 +265,14 @@ export function castorProjectFromTables(
     return {
       id,
       blockId: text(blockId, `${label} blockId`, `pixel-${id}`),
-      compartment: text(inputValue(row, 'compartment', 'compartid'), `${label} compartment`, 'all'),
+      compartment: blank(rawCompartment) ? CASTOR_NO_COMPARTMENT : text(rawCompartment, `${label} compartment`, 'all'),
       areaHa,
       thlbHa,
-      owned: flag(inputValue(row, 'owned', 'own'), `${label} owned`, true),
+      owned,
       age,
-      volume: inputNumber(rawVolume, `${label} volume`, derived?.volume),
-      height: inputNumber(rawHeight, `${label} height`, derived?.height),
-      eca: inputNumber(inputValue(row, 'eca'), `${label} ECA`, derived?.eca),
+      volume: nullFields.includes('volume') ? 0 : inputNumber(rawVolume, `${label} volume`, derived?.volume),
+      height: nullFields.includes('height') ? 0 : inputNumber(rawHeight, `${label} height`, derived?.height),
+      eca: nullFields.includes('eca') ? 0 : inputNumber(rawEca, `${label} ECA`, derived?.eca),
       distance: inputNumber(inputValue(row, 'distance', 'dist'), `${label} distance`),
       salvageVolume: inputNumber(inputValue(row, 'salvageVolume', 'salvage_vol'), `${label} salvageVolume`, 0),
       ...(curveId === undefined || curveId === null || curveId === '' ? {} : { curveId: String(curveId) }),
@@ -262,8 +287,17 @@ export function castorProjectFromTables(
       gridIndex,
       zones,
       attributes,
+      ...(nullFields.length ? { nullFields } : {}),
     }
   })
+  if (nullRows)
+    notes.push(
+      `${nullRows} cells have NULL compartment, THLB, age or yield fields, as dataCastor writes for cells outside the area of interest or off the forest land base. As in forestryCastor's SQL they are never harvested, grown or counted as meeting an age or height condition, add nothing to growing stock, and still count toward their zone's area; when a reservation is filled they are taken before THLB cells (NULL sorts first).`,
+    )
+  if (unownedRows)
+    notes.push(
+      `${unownedRows} cells are not owned (own is 0 or NULL); forestryCastor only reserves and harvests own = 1.`,
+    )
   if (missingBlocks)
     notes.push(
       `${missingBlocks} pixels had no block ID. Separate pixel planning units were assigned; these are not operational harvest blocks. Supply real blocks and adjacency before block-level planning.`,

@@ -173,6 +173,36 @@ Each inventory pixel has:
 | `distance` | Metres from the imported disturbance basis. |
 | `curveId`, `managedCurveId` | Existing and post-clearcut yield curves where supplied. |
 | `zones` | Zone-name → string zone-ID mapping. |
+| `nullFields` | Optional. Source fields that were SQL NULL (`compartment`, `thlbHa`, `age`, `volume`, `height`, `eca`); the numeric field holds 0. |
+
+### Real castordb files: NULL cells and ownership
+
+`dataCastor` writes every raster cell into `pixels`. Cells outside the area of
+interest or off the forest land base keep NULL `compartid`, `thlb`, `age`,
+`yieldid` and often `height`; the ownership raster can leave `own` NULL. The
+importer keeps these cells, because they belong to their zones, and records the
+NULL fields in `nullFields`. The engine then follows forestryCastor's SQL:
+
+- A NULL compartment, THLB or age is never harvested, and a NULL age is never
+  grown (`NULL + n` stays NULL) and never meets an age or height condition
+  (`ge` or `le`).
+- Sums skip NULL (growing stock, ECA), mean age uses only known ages, and a
+  block whose heights are all NULL has no average height for the adjacency rule.
+- When a reservation is filled, cells meeting the condition come first; among
+  the rest, `ORDER BY thlb` puts NULL before every number, so non-forest cells
+  are reserved before timber cells.
+- A zone's area (`t_area`) counts every in-zone cell that satisfies the optional
+  denominator predicate, owned or not, as `dataCastor` computes it. Reservations
+  draw only from `own = 1` cells, and reported percentages use owned numerators
+  over that full area. A NULL `own` is not owned; a table with no `own` column
+  defaults to owned.
+- Snapshots and `result.json` report NULL source values as `null`; cells with a
+  NULL compartment belong to no compartment and cannot take a harvest target.
+
+A missing column (rather than a NULL value) is still an error, and a forested
+THLB cell with no volume and no yield curve is still rejected. The bundled
+tutorial database has no NULL compartment, THLB, age or ownership, so its
+results are unchanged.
 | `x`, `y`, `gridIndex`, `geometry` | Optional explicit spatial placement; geometry is WGS84. |
 | `attributes` | Extra scalar attributes; cannot shadow normalized model fields. |
 

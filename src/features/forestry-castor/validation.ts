@@ -1,4 +1,4 @@
-import { DEFAULT_CASTOR_CONFIG, type CastorValidation, type CastorValidationIssue } from './types'
+import { CASTOR_NULL_FIELDS, DEFAULT_CASTOR_CONFIG, type CastorValidation, type CastorValidationIssue } from './types'
 
 export const CASTOR_LIMITS = {
   pixels: 50_000,
@@ -45,6 +45,7 @@ const baseFields = new Set([
   'y',
   'gridIndex',
   'culminationVolume',
+  'nullFields',
 ])
 const unsafeKeys = new Set(['__proto__', 'constructor', 'prototype'])
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -262,6 +263,13 @@ export function validateCastorProject(project: unknown, config: unknown = DEFAUL
         gridIndices.add(entry.gridIndex)
       }
     }
+    if (
+      entry.nullFields !== undefined &&
+      (!Array.isArray(entry.nullFields) ||
+        entry.nullFields.some((field) => !(CASTOR_NULL_FIELDS as readonly unknown[]).includes(field)) ||
+        new Set(entry.nullFields).size !== entry.nullFields.length)
+    )
+      fail(`${path}.nullFields`, `Expected unique names from: ${CASTOR_NULL_FIELDS.join(', ')}.`)
     if (!record(entry.zones) || Object.entries(entry.zones).some(([key, val]) => unsafeKeys.has(key) || !string(val)))
       fail(`${path}.zones`, 'Expected a map of safe zone names to string identifiers.')
     if (entry.attributes !== undefined) {

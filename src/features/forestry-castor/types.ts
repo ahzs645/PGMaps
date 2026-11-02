@@ -17,6 +17,19 @@ export interface CastorYieldCurve {
   points: CastorYieldPoint[]
 }
 
+/** Source fields that were SQL NULL in a castordb (non-forest or outside the area of interest). */
+export type CastorNullField = 'compartment' | 'thlbHa' | 'age' | 'volume' | 'height' | 'eca'
+export const CASTOR_NULL_FIELDS: readonly CastorNullField[] = [
+  'compartment',
+  'thlbHa',
+  'age',
+  'volume',
+  'height',
+  'eca',
+]
+/** Placeholder compartment for a NULL compartid; such cells belong to no harvest compartment. */
+export const CASTOR_NO_COMPARTMENT = '(no compartment)'
+
 export interface CastorPixel {
   id: number
   blockId: string
@@ -45,6 +58,13 @@ export interface CastorPixel {
   geometry?: import('geojson').Polygon | import('geojson').MultiPolygon | import('geojson').Point // WGS84
   zones: Record<string, string>
   attributes?: Record<string, number | string | boolean | null>
+  /**
+   * Fields that were NULL in the source. The numeric field holds 0 so sums skip it, as SQL sum() does, while
+   * every rule-based read (constraint conditions and ordering, harvest eligibility, averages, outputs) sees
+   * null, as forestryCastor's SQL does: such a cell is never harvested and never meets an age/height test,
+   * but still counts in its zone and sorts first by THLB when reservations are filled.
+   */
+  nullFields?: CastorNullField[]
 }
 
 export interface CastorGrid {
@@ -283,10 +303,10 @@ export interface CastorSnapshot {
   year: number
   elapsedYears: number
   /** Arrays follow project.pixels order. No-data cells are handled by exporters. */
-  age: number[]
-  volume: number[]
-  height: number[]
-  eca: number[]
+  age: Array<number | null>
+  volume: Array<number | null>
+  height: Array<number | null>
+  eca: Array<number | null>
   harvestedYear: Array<number | null>
   harvestedVolumeM3: number[]
   constrained: number[]
