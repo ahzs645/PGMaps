@@ -226,7 +226,15 @@ export default function DevMmgis() {
           })),
           visibleFeatures: visibleCount,
           map: {
-            loaded: map?.isStyleLoaded() ?? false,
+            loaded: map?.loaded() ?? false,
+            renderedFeatures: map?.loaded()
+              ? new Set(
+                  map
+                    .queryRenderedFeatures()
+                    .map((f) => f.properties?.[FEATURE_ID_KEY])
+                    .filter((id) => typeof id === 'string'),
+                ).size
+              : 0,
             terrain: map?.getTerrain() ?? null,
             layerCount: map?.getStyle()?.layers?.length ?? 0,
             sources: map ? Object.keys(map.getStyle()?.sources ?? {}) : [],

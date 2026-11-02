@@ -27,6 +27,7 @@ declare global {
       }>
       map: {
         loaded: boolean
+        renderedFeatures: number
         layerCount: number
         sources: string[]
         terrain: unknown
@@ -131,6 +132,9 @@ export async function mapTap(page: Page, x = 0.35, y = 0.45) {
   else await canvas.click({ position: { x: box.width * x, y: box.height * y } })
 }
 export async function expectFits(page: Page) {
+  await expect.poll(async () => (await readMission(page)).map.loaded).toBe(true)
+  if ((await readMission(page)).visibleFeatures > 0)
+    await expect.poll(async () => (await readMission(page)).map.renderedFeatures).toBeGreaterThan(0)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   const canvas = page.getByTestId('mission-plan').locator('canvas.maplibregl-canvas')
   // MapLibre resizes its canvas on the next animation frame after a layout/rotation change.
