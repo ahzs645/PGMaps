@@ -140,12 +140,16 @@ function Profile({
               onProfilePoint(null)
             }}
           />
-          {sample && (
-            <p className="mm-help" role="status">
-              Profile cursor · {(sample.distance / 1000).toFixed(3)} km ·{' '}
-              {sample.elevation === null ? 'No data' : `${sample.elevation.toFixed(2)} m`}
-            </p>
-          )}
+          <p className="mm-help mm-profile-status" role="status">
+            {sample ? (
+              <>
+                Profile cursor · {(sample.distance / 1000).toFixed(3)} km ·{' '}
+                {sample.elevation === null ? 'No data' : `${sample.elevation.toFixed(2)} m`}
+              </>
+            ) : (
+              'Hover or choose a sample to inspect its elevation.'
+            )}
+          </p>
           <div className="mm-readout">
             <span>
               {min.toFixed(1)}–{max.toFixed(1)} m
