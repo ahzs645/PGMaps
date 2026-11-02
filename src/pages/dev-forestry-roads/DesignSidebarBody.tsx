@@ -23,6 +23,7 @@ export interface PointCloudChoice {
 export interface SidebarProps {
   workspace: RoadWorkspace
   onCompareCompleteCosts?: () => void
+  onPlanNetwork?: () => void
   readOnlyPreview?: boolean
   workflowTab?: SidebarTab
   onWorkflowTabChange?: (tab: SidebarTab) => void

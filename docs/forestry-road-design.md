@@ -11,6 +11,12 @@ Before relying on a result, read the [limits and checks guides](forestry-road-de
 They cover terrain and point clouds, alignment and optimization, quantities and costs,
 drainage, and exports, and say what each assumes and how problems show up.
 
+The **Design → Plan road network** workflow adds browser-native multi-landing
+network projection and raster utilities adapted from LandSciTech/roads. See the
+[network planning guide](forestry-road-design/network-planning.md) and
+[package compatibility inventory](forestry-road-design/roads-package-compatibility.md)
+for its scenarios, four algorithms, source attribution and differences from R.
+
 See the [reference matrix](forestry-road-reference-matrix.md) for the functional
 comparison and completed checks, and the [workspace gallery](forestry-road-gallery.md)
 for actual native-terrain views with their entered engineering assumptions.

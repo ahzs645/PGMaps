@@ -8,6 +8,7 @@ import { createEngineeringDesign } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseRouteSearchOptions } from './routing'
+import { parseNetworkPlanning } from './roads/planning'
 import { parseTotalCostPlanning } from './fullCostPlanning'
 import { parseFullCostRecord } from './fullCostRecord'
 import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports'
@@ -631,6 +632,7 @@ export function parseProject(raw: unknown): RoadProject {
     terrain: parseTerrain(r.terrain),
     settings: parseSettings(r.settings),
     ...(r.routeSearch !== undefined ? { routeSearch: parseRouteSearchOptions(r.routeSearch) } : {}),
+    ...(r.networkPlanning === undefined ? {} : { networkPlanning: parseNetworkPlanning(r.networkPlanning) }),
     ...(r.totalCostPlanning !== undefined ? { totalCostPlanning: parseTotalCostPlanning(r.totalCostPlanning) } : {}),
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),

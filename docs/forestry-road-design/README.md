@@ -20,6 +20,8 @@ problem shows up on screen. The calculations themselves are specified in the
 | [Gravel and aggregate sources](gravel-sources.md)                                        | compare local or zero-acquisition aggregate, delivered costs, source capacities and nearby BC pit records        |
 | [Full-cost horizontal alternatives](full-cost-alternatives.md)                           | choose a new connector using checked geometry, connected loaded/return haul, finite supply and reused-road costs |
 | [Connected road network](connected-network.md)                                           | review real junctions, access restrictions, rehabilitation and dated bridge load ratings                         |
+| [Browser network planning](network-planning.md) | connect multiple landings, compare LCP/ILCP/MST/snap, run stages or adopt a proposed branch |
+| [LandSciTech roads compatibility](roads-package-compatibility.md) | reproduce package formulas, use raster utilities or assess differences from the upstream R implementation |
 | [Final connector checks](final-connector-checks.md)                                      | assess fitted curves, loaded grades, crossings and the full cut/fill footprint before adopting a comparison      |
 | [Connected-access training scenario](full-cost-training-scenario.md)                     | try the offline road-network, gravel-haul, rehabilitation, bridge-closure and dated-evidence comparisons         |
 | [Sections, quantities and costs](sections-quantities-and-costs.md)                       | quote cut, fill, haul, disturbance or a cost, or compare alternatives on them                                    |
