@@ -1,4 +1,4 @@
-import { LIMITS, type ImportedLayer, type ImportFile, type ImportSession, emptySession } from './types'
+import { LIMITS, checkAborted, type ImportedLayer, type ImportFile, type ImportSession, emptySession } from './types'
 import { vectorData } from './vector'
 import { rasterData } from './raster'
 const decoder = new TextDecoder('utf-8', { fatal: true })
@@ -26,7 +26,8 @@ export function decode64(value: unknown) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
   return bytes.buffer
 }
-export async function unpack(bytes: ArrayBuffer, name: string) {
+export async function unpack(bytes: ArrayBuffer, name: string, signal?: AbortSignal) {
+  checkAborted(signal)
   if (!name.toLowerCase().endsWith('.gz')) return bytes
   if (typeof DecompressionStream === 'undefined')
     throw Error('Gzip needs a browser with DecompressionStream support; unzip the GeoJSON first')
@@ -35,6 +36,7 @@ export async function unpack(bytes: ArrayBuffer, name: string) {
   let total = 0
   try {
     while (true) {
+      checkAborted(signal)
       const { value, done } = await reader.read()
       if (done) break
       total += value.byteLength
@@ -53,21 +55,25 @@ export async function unpack(bytes: ArrayBuffer, name: string) {
   }
   return result.buffer
 }
-export async function fileLayer(file: ImportFile, crs = 'auto'): Promise<ImportedLayer> {
+export async function fileLayer(file: ImportFile, crs = 'auto', signal?: AbortSignal): Promise<ImportedLayer> {
+  checkAborted(signal)
   if (file.size > LIMITS.file)
     throw Error('Processed layers are limited to 71 MiB per file so the project stays within the 96 MiB save limit')
   const original = await file.arrayBuffer(),
     name = file.name.replace(/\.gz$/i, '').toLowerCase()
+  checkAborted(signal)
+  const hash = await sha256(original)
+  checkAborted(signal)
   const common = {
     id: crypto.randomUUID(),
     name: file.name,
     visible: true,
     opacity: 0.8,
     original,
-    source: { name: file.name, bytes: original.byteLength, sha256: await sha256(original), crs: '' },
+    source: { name: file.name, bytes: original.byteLength, sha256: hash, crs: '' },
   }
   if (/\.(tif|tiff)$/.test(name)) {
-    const raster = await rasterData(await unpack(original, file.name), crs)
+    const raster = await rasterData(await unpack(original, file.name, signal), crs, signal)
     const { crs: rasterCrs, ...rest } = raster
     return { ...common, ...rest, source: { ...common.source, crs: rasterCrs } }
   }
@@ -75,14 +81,17 @@ export async function fileLayer(file: ImportFile, crs = 'auto'): Promise<Importe
     throw Error(
       'Use LAS/LAZ/COPC, single-band GeoTIFF, GeoJSON or a PGMaps project JSON. Restore .part files with the archive guide first.',
     )
-  const bytes = await unpack(original, file.name)
+  const bytes = await unpack(original, file.name, signal)
   if (bytes.byteLength > LIMITS.decoded) throw Error('JSON layer exceeds 96 MiB')
   let raw: unknown
+  // JSON.parse cannot be interrupted; check either side of it.
+  checkAborted(signal)
   try {
     raw = JSON.parse(decoder.decode(bytes))
   } catch {
     throw Error('Invalid UTF-8 JSON file')
   }
+  checkAborted(signal)
   const { crs: vectorCrs, ...vector } = vectorData(raw, crs)
   return { ...common, ...vector, kind: 'vector', source: { ...common.source, crs: vectorCrs } }
 }
@@ -144,14 +153,18 @@ interface ProjectJson {
     data?: unknown
   } | null>
 }
-export async function restoreProject(file: ImportFile): Promise<ImportSession> {
+export async function restoreProject(file: ImportFile, signal?: AbortSignal): Promise<ImportSession> {
+  checkAborted(signal)
   if (file.size > LIMITS.project) throw Error('Project JSON exceeds 96 MiB')
+  const text = decoder.decode(await file.arrayBuffer())
+  checkAborted(signal)
   let value: ProjectJson
   try {
-    value = JSON.parse(decoder.decode(await file.arrayBuffer()))
+    value = JSON.parse(text)
   } catch {
     throw Error('Invalid project JSON')
   }
+  checkAborted(signal)
   if (
     !value ||
     typeof value !== 'object' ||
@@ -184,7 +197,9 @@ export async function restoreProject(file: ImportFile): Promise<ImportSession> {
       layer.opacity > 1
     )
       throw Error('Invalid project layer settings')
+    checkAborted(signal)
     const bytes = decode64(layer.data)
+    checkAborted(signal)
     if (bytes.byteLength !== layer.bytes || (await sha256(bytes)) !== layer.sha256)
       throw Error('Project layer checksum mismatch: ' + layer.name)
     const restored = await fileLayer(
@@ -195,6 +210,7 @@ export async function restoreProject(file: ImportFile): Promise<ImportSession> {
         slice: (start, end) => new Blob([bytes]).slice(start, end),
       },
       layer.crs,
+      signal,
     )
     if (restored.kind !== layer.kind) throw Error('Project layer type mismatch')
     restored.visible = layer.visible

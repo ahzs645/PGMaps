@@ -1,5 +1,5 @@
 import { pointCloudRecords, readPointCloudHeader, recordsCrs, type Vlr } from '@/lib/lidar/lasHeader'
-import { LIMITS, type ImportFile } from './types'
+import { LIMITS, checkAborted, type ImportFile } from './types'
 export interface LasHeader {
   version: string
   points: number
@@ -12,7 +12,8 @@ export interface LasHeader {
 const MAX_METADATA = 16 * 1024 * 1024
 const isCrsRecord = (v: Vlr) => v.user === 'LASF_Projection' && (v.record === 34735 || v.record === 2112)
 /** Header, VLRs and LAS 1.4 extended VLRs read in bounded slices, parsed by the shared LAS reader. */
-export async function inspectLas(file: ImportFile): Promise<LasHeader> {
+export async function inspectLas(file: ImportFile, signal?: AbortSignal): Promise<LasHeader> {
+  checkAborted(signal)
   const prefix = new Uint8Array(await file.slice(0, 375).arrayBuffer())
   if (prefix.length < 227 || new TextDecoder().decode(prefix.subarray(0, 4)) !== 'LASF')
     throw Error('This is not a complete LAS/LAZ file. Restore archive parts before importing.')
@@ -21,7 +22,9 @@ export async function inspectLas(file: ImportFile): Promise<LasHeader> {
     offset = view.getUint32(96, true)
   if (headerSize < 227 || offset < headerSize || offset > file.size || offset > MAX_METADATA)
     throw Error('Invalid LAS header or truncated point data')
+  checkAborted(signal)
   const metadata = new Uint8Array(await file.slice(0, offset).arrayBuffer())
+  checkAborted(signal)
   const header = readPointCloudHeader(metadata, { headerOnly: true })
   if (header.points <= 0) throw Error('LAS file has no usable point records')
   const records = pointCloudRecords(metadata)
@@ -32,6 +35,7 @@ export async function inspectLas(file: ImportFile): Promise<LasHeader> {
     if (!Number.isSafeInteger(evlrAt) || count > 64)
       throw Error('Unsupported LAS extended metadata; normalize it with PDAL before importing')
     for (let i = 0; i < count && !records.some(isCrsRecord); i++) {
+      checkAborted(signal)
       if (!evlrAt || evlrAt + 60 > file.size) throw Error('Truncated LAS extended metadata')
       const head = new Uint8Array(await file.slice(evlrAt, evlrAt + 60).arrayBuffer())
       if (head.length < 60) throw Error('Truncated LAS extended metadata')

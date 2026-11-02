@@ -1,12 +1,13 @@
 import { fromArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
 import { definition, geographic } from './coordinates'
-import { LIMITS, type RasterLayer } from './types'
+import { LIMITS, checkAborted, type RasterLayer } from './types'
 /** A real EPSG code from GeoTIFF keys; 32767 means user-defined, which PGMaps cannot interpret. */
 const epsgKey = (value: unknown) =>
   typeof value === 'number' && Number.isInteger(value) && value > 0 && value !== 32767 ? value : undefined
-export async function rasterData(original: ArrayBuffer, override = 'auto') {
-  const image = await (await fromArrayBuffer(original)).getImage(),
+export async function rasterData(original: ArrayBuffer, override = 'auto', signal?: AbortSignal) {
+  checkAborted(signal)
+  const image = await (await fromArrayBuffer(original, signal)).getImage(),
     keys: Record<string, unknown> = image.getGeoKeys() ?? {}
   const width = image.getWidth(),
     height = image.getHeight(),
@@ -51,7 +52,10 @@ export async function rasterData(original: ArrayBuffer, override = 'auto') {
   ]
   if (geographicBounds[2] - geographicBounds[0] > 5 || geographicBounds[3] - geographicBounds[1] > 5)
     throw Error('Crop large-extent rasters before display; this viewer uses an image footprint, not a global warp')
-  const raw = await image.readRasters({ samples: [0], interleave: true })
+  checkAborted(signal)
+  // geotiff.js checks the signal between tiles, so a large decode stops instead of running to completion.
+  const raw = await image.readRasters({ samples: [0], interleave: true, signal })
+  checkAborted(signal)
   const values = Float64Array.from(raw as ArrayLike<number>),
     declaredNoData = image.getGDALNoData()
   // GDAL_NODATA is decimal text; float32 cells hold its float32 rounding (e.g. -9999.9 → -9999.900390625).
