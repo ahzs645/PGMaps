@@ -4,8 +4,6 @@ on:
   # Heavy feature suite: runs only when started by hand (Actions -> Run workflow,
   # choosing the branch). Checks and the Pages build still run on every PR.
   workflow_dispatch:
-  # TEMPORARY: run once on the verification PR; removed before merge (see AGENTS.md CI policy).
-  pull_request:
 
 permissions:
   contents: read
