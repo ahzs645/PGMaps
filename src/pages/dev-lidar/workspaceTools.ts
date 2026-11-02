@@ -11,6 +11,7 @@ export type LidarToolId =
   | 'compare'
   | 'volume'
   | 'inventory'
+  | 'data'
 export interface LidarTool {
   id: LidarToolId
   title: string
@@ -20,6 +21,14 @@ export interface LidarTool {
   defaultMode: AnalysisMode | null
 }
 export const LIDAR_TOOLS: LidarTool[] = [
+  {
+    id: 'data',
+    title: 'Import & data',
+    description: 'View your point clouds, processed grids and candidate layers in a saved project.',
+    outputs: 'LAS/LAZ · COPC/EPT · GeoTIFF · GeoJSON · project restore',
+    modes: [],
+    defaultMode: null,
+  },
   {
     id: 'inventory',
     title: 'Tree inventory',

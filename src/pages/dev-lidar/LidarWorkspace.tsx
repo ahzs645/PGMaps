@@ -15,7 +15,10 @@ import { LidarToolLibrary } from './LidarToolLibrary'
 import { useLidarWorkspace } from './useLidarWorkspace'
 import { ModelComparisonWorkspace } from './comparisons/ModelComparisonWorkspace'
 import { InventoryWorkspace } from './inventory/InventoryWorkspace'
+import { lazy, Suspense } from 'react'
 import { VolumeWorkspace } from './volume/VolumeWorkspace'
+
+const ImportWorkspace = lazy(() => import('./imports/ImportWorkspace').then((m) => ({ default: m.ImportWorkspace })))
 
 export function LidarWorkspace(props: { analysisBase: string; cloudBase: string }) {
   const controller = useLidarWorkspace(props)
@@ -72,6 +75,21 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     navigation,
     isLibrary,
   } = controller
+  if (tool?.id === 'data')
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
+        <LidarHeader controller={controller} />
+        <Suspense
+          fallback={
+            <p role="status" className="p-4 text-sm">
+              Opening import workspace…
+            </p>
+          }
+        >
+          <ImportWorkspace basemap={basemap} cloudBase={cloudBase} />
+        </Suspense>
+      </div>
+    )
   if (tool?.id === 'inventory')
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -97,7 +115,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
       <LidarHeader controller={controller} />
       {isLibrary && <LidarToolLibrary valid={navigation.valid} />}
-      {!summary ? (
+      {isLibrary ? null : !summary ? (
         !isLibrary && (
           <div
             className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center"
