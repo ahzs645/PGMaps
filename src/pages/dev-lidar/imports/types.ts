@@ -69,3 +69,8 @@ export interface ImportFile {
 }
 /** User-facing text of a thrown value, without the "Error: " prefix String(error) adds. */
 export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** Stops an import between steps once the user cancels; an aborted signal throws its reason. */
+export function checkAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Import cancelled', 'AbortError')
+}

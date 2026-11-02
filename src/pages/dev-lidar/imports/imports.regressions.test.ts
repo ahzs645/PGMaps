@@ -1,12 +1,12 @@
 import proj4 from 'proj4'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { projectionDefinition } from '@/lib/geo/projectedCrs'
 import { rasterGeoTiff } from '@/features/lidar-restoration/outputs'
 import type { RestorationResult } from '@/features/lidar-restoration/model'
 import { restorationLas } from '../../../../tests/fixtures/restoration'
-import { checkSession, decode64, exportProject, fileLayer, restoreProject } from './files'
+import { checkSession, decode64, exportProject, fileLayer, restoreProject, unpack } from './files'
 import { inspectLas } from './las'
-import { rasterValue } from './raster'
+import { rasterData, rasterValue } from './raster'
 import { vectorData } from './vector'
 import { emptySession, type ImportSession, type RasterLayer, type VectorLayer } from './types'
 
@@ -208,5 +208,51 @@ describe('project save and restore', () => {
     expect([raster.opacity, raster.visible]).toEqual([0.35, false])
     expect(Array.from(raster.values)).toEqual([1, 2, 3, NaN])
     expect(back.missingPoints).toEqual(['a.laz'])
+  })
+})
+
+describe('cancelling an import stops the work, not just its result', () => {
+  const aborted = () => {
+    const controller = new AbortController()
+    controller.abort(new DOMException('Import cancelled', 'AbortError'))
+    return controller.signal
+  }
+
+  it('stops a file layer between reading and hashing when cancelled mid-read', async () => {
+    const controller = new AbortController()
+    let finish: (value: ArrayBuffer) => void = () => {}
+    const reading = new Promise<ArrayBuffer>((resolve) => (finish = resolve))
+    const digest = vi.spyOn(crypto.subtle, 'digest')
+    const layer = fileLayer(
+      { name: 'big.geojson', size: 10, slice: () => new Blob(), arrayBuffer: () => reading },
+      'auto',
+      controller.signal,
+    )
+    controller.abort(new DOMException('Import cancelled', 'AbortError'))
+    finish(new TextEncoder().encode('{"type":"FeatureCollection","features":[]}').buffer)
+    await expect(layer).rejects.toMatchObject({ name: 'AbortError' })
+    expect(digest).not.toHaveBeenCalled()
+    digest.mockRestore()
+  })
+
+  it('aborts a GeoTIFF decode instead of running it to completion', async () => {
+    const original = rasterGeoTiff(restoration(3157, 500_000, 5_985_000), 'slope')
+    const controller = new AbortController()
+    const decoding = rasterData(original, 'auto', controller.signal)
+    controller.abort(new DOMException('Import cancelled', 'AbortError'))
+    await expect(decoding).rejects.toMatchObject({ name: 'AbortError' })
+    // The same bytes decode normally without a cancel.
+    await expect(rasterData(original, 'auto')).resolves.toMatchObject({ width: 2, height: 2 })
+  })
+
+  it('stops gzip decompression, LAS inspection and project restore before reading', async () => {
+    const read = vi.fn(async () => new ArrayBuffer(8))
+    const file = (name: string) => ({ name, size: 8, slice: () => new Blob([new Uint8Array(8)]), arrayBuffer: read })
+    await expect(unpack(new ArrayBuffer(8), 'layer.geojson.gz', aborted())).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    await expect(inspectLas(file('tile.laz'), aborted())).rejects.toMatchObject({ name: 'AbortError' })
+    await expect(restoreProject(file('saved.pgmaps.json'), aborted())).rejects.toMatchObject({ name: 'AbortError' })
+    expect(read).not.toHaveBeenCalled()
   })
 })

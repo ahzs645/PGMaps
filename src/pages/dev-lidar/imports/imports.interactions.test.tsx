@@ -145,6 +145,33 @@ describe('import workspace interface', () => {
     for (const code of ['auto', 'EPSG:3005', 'EPSG:2955', 'EPSG:3156', 'EPSG:3158', 'EPSG:26910', 'EPSG:32610'])
       expect(options).toContain(code)
   })
+  it('cancelling aborts the pending import instead of letting it run to the end', async () => {
+    await mount()
+    let finish: (value: ArrayBuffer) => void = () => {}
+    const pending = new Promise<ArrayBuffer>((resolve) => {
+      finish = resolve
+    })
+    const delayed = { name: 'delayed.geojson', size: 100, slice: () => new Blob(), arrayBuffer: () => pending }
+    const abort = vi.spyOn(AbortController.prototype, 'abort')
+    const digest = vi.spyOn(crypto.subtle, 'digest')
+    await act(async () =>
+      root()
+        .findByProps({ 'aria-label': 'Import LiDAR or processed layers' })
+        .props.onChange({ target: { files: [delayed], value: '' } }),
+    )
+    await act(async () => button('Cancel import').props.onClick())
+    expect(abort).toHaveBeenCalled()
+    await act(async () => {
+      finish(new TextEncoder().encode(JSON.stringify(features)).buffer)
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    })
+    // The read finished after the cancel, but hashing and parsing never ran.
+    expect(digest).not.toHaveBeenCalled()
+    expect(mapProps().session.layers).toHaveLength(0)
+    abort.mockRestore()
+    digest.mockRestore()
+  })
+
   it('does not resurrect a cleared session when an asynchronous import finishes', async () => {
     await mount()
     let finish: (value: ArrayBuffer) => void = () => {}

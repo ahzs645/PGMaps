@@ -12,7 +12,15 @@ import { errorText, type PointSource } from './types'
 import { CRS_OPTION_GROUPS } from '@/lib/geo/projectedCrs'
 export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; cloudBase: string }) {
   const session = useImportSession(),
-    epoch = useRef(0)
+    epoch = useRef(0),
+    pending = useRef<AbortController | null>(null)
+  // Cancelling aborts the work itself (reads, checksums, gzip, GeoTIFF decoding, project layers),
+  // not just its result; the epoch still discards anything that completes after a cancel.
+  const stopPending = () => {
+    epoch.current++
+    pending.current?.abort(new DOMException('Import cancelled', 'AbortError'))
+    pending.current = null
+  }
   const [selected, setSelected] = useState(session.layers[0]?.id ?? ''),
     [feature, setFeature] = useState<number | null>(null),
     [fit, setFit] = useState(0),
@@ -24,12 +32,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
     [url, setUrl] = useState(''),
     [view3d, setView3d] = useState(false),
     [panel, setPanel] = useState(() => !isMobileViewport())
-  useEffect(
-    () => () => {
-      epoch.current++
-    },
-    [],
-  )
+  useEffect(() => stopPending, [])
   const choose = (id: string) => {
     setSelected(id)
     setFeature(null)
@@ -42,7 +45,11 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
     setView3d(true)
   }
   async function files(files: File[], projectOnly = false) {
-    const run = ++epoch.current
+    stopPending()
+    const run = epoch.current,
+      controller = new AbortController(),
+      signal = controller.signal
+    pending.current = controller
     setBusy(true)
     const results: string[] = []
     try {
@@ -56,7 +63,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             (/\.json$/i.test(file.name) &&
               /"schema"\s*:\s*"pgmaps-lidar-project"/.test(await file.slice(0, 2048).text()))
           if (project) {
-            const restored = await restoreProject(file)
+            const restored = await restoreProject(file, signal)
             if (run !== epoch.current) return
             setImportSession(restored)
             choose(restored.layers[0]?.id ?? '')
@@ -65,7 +72,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               'Restored ' + restored.layers.length + ' processed layers; point sources require reattachment.',
             )
           } else if (/\.(las|laz)$/i.test(file.name)) {
-            const header = await inspectLas(file)
+            const header = await inspectLas(file, signal)
             checkLasBudget(header, file.size)
             if (run !== epoch.current) return
             point({
@@ -84,7 +91,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
                 '.',
             )
           } else {
-            const parsed = await fileLayer(file, crs)
+            const parsed = await fileLayer(file, crs, signal)
             if (run !== epoch.current) return
             const old = getImportSession()
             setImportSession({ ...old, layers: [...old.layers, parsed] })
@@ -93,10 +100,12 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             results.push(file.name + ': imported.' + (parsed.note ? ' ' + parsed.note : ''))
           }
         } catch (e) {
+          if (signal.aborted) return
           results.push(file.name + ': ' + errorText(e))
         }
       }
     } finally {
+      if (pending.current === controller) pending.current = null
       if (run === epoch.current) {
         setBusy(false)
         setMessage(results.join(' '))
@@ -211,7 +220,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             size="sm"
             variant="outline"
             onClick={() => {
-              epoch.current++
+              stopPending()
               setBusy(false)
               resetImportSession()
               choose('')
@@ -226,7 +235,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               size="sm"
               variant="outline"
               onClick={() => {
-                epoch.current++
+                stopPending()
                 setBusy(false)
                 setMessage('Pending import cancelled. Earlier completed imports remain.')
               }}
