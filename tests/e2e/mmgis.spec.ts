@@ -194,6 +194,87 @@ test.describe('mission workbench desktop', () => {
     expect((await read(page)).visibleFeatures).toBe(8)
     expect(errors).toEqual([])
   })
+  test('reopens a zoomed-out workspace and keeps an unreadable one until the user edits', async ({ page }) => {
+    const errors = await open(page)
+    const key = 'pgmaps:mmgis:mission:v1'
+    // Leave the workbench (its pagehide save runs) before rewriting storage from another same-origin page.
+    const reopenWith = async (edit: (saved: string | null) => string) => {
+      await page.goto('/favicon.svg')
+      const saved = await page.evaluate((k) => localStorage.getItem(k), key)
+      await page.evaluate(([k, v]) => localStorage.setItem(k, v), [key, edit(saved)])
+      await page.goto('/dev/mmgis')
+    }
+    // Wheel-zooming out on a phone saves cameras below zoom 0 (MapLibre's minimum is −2).
+    await reopenWith((saved) => {
+      const mission = JSON.parse(saved!)
+      mission.name = 'Zoomed-out survey'
+      mission.camera.zoom = -0.39
+      mission.layers[0].label = `${'very-long-file-name-'.repeat(12)}.geojson`
+      return JSON.stringify(mission)
+    })
+    await expect.poll(async () => (await read(page)).name).toBe('Zoomed-out survey')
+    await expect(page.getByText('could not be read')).toHaveCount(0)
+    const unreadable = JSON.stringify({ schema: 'pgmaps-mission-v1', name: 'Survey from a newer version' })
+    await reopenWith(() => unreadable)
+    await expect(page.getByText('The saved workspace could not be read')).toBeVisible()
+    await page.waitForTimeout(1200) // Past the 500 ms autosave.
+    expect(await page.evaluate((k) => localStorage.getItem(k), key)).toBe(unreadable)
+    expect(await page.evaluate((k) => localStorage.getItem(`${k}:unreadable`), key)).toBe(unreadable)
+    await page.getByRole('button', { name: 'Hide Field stations', exact: true }).click()
+    await expect
+      .poll(() => page.evaluate((k) => JSON.parse(localStorage.getItem(k)!).layers?.length ?? 0, key))
+      .toBeGreaterThan(0)
+    expect(await page.evaluate((k) => localStorage.getItem(`${k}:unreadable`), key)).toBe(unreadable)
+    expect(errors).toEqual([])
+  })
+  test('a 20,000-vertex polygon from a long file name stays usable and reopens', async ({ page }) => {
+    const errors = await open(page)
+    const ring = Array.from({ length: 20000 }, (_, i) => {
+      const a = (2 * Math.PI * i) / 20000
+      return [-122.75 + 0.02 * Math.cos(a), 53.92 + 0.012 * Math.sin(a)]
+    })
+    ring.push(ring[0])
+    await page.getByRole('button', { name: 'Add data', exact: true }).first().click()
+    await page.getByLabel('Choose files to upload').setInputFiles({
+      name: `${'detailed-survey-boundary-'.repeat(10)}final.geojson`,
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              properties: { name: 'Detailed boundary' },
+              geometry: { type: 'Polygon', coordinates: [ring] },
+            },
+          ],
+        }),
+      ),
+    })
+    await expect.poll(async () => (await read(page)).layers.length).toBe(4)
+    await expect
+      .poll(async () => {
+        const [lng, lat] = (await read(page)).map.camera.center
+        return Math.abs(lng + 122.75) < 0.002 && Math.abs(lat - 53.92) < 0.002
+      })
+      .toBe(true)
+    const box = (await page.getByTestId('mission-plan').boundingBox())!
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page.getByRole('heading', { name: 'Detailed boundary', exact: true })).toBeVisible()
+    const edit = page.getByLabel('Edit geometry · drag vertex handles')
+    await expect(edit).toBeDisabled()
+    await expect(page.getByText('This geometry has 20,000 vertices.')).toBeVisible()
+    expect(await page.locator('.mm-vertex').count()).toBe(0)
+    expect((await read(page)).layers.at(-1)!.name.length).toBeLessThanOrEqual(200)
+    await page.getByLabel('Feature properties (JSON)').fill('{"name":"Reviewed boundary"}')
+    await page.getByRole('button', { name: 'Save properties' }).click()
+    await expect(page.getByRole('heading', { name: 'Reviewed boundary', exact: true })).toBeVisible()
+    await page.waitForTimeout(700)
+    await page.reload()
+    await expect.poll(async () => (await read(page)).layers.length).toBe(4)
+    await expect(page.getByText('could not be read')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
   test('double-click completes a line once and Escape stops further drawing', async ({ page }) => {
     const errors = await open(page)
     await nav(page, 'Draw')

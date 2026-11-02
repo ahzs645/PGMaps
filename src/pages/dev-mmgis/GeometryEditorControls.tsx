@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import type { Geometry } from 'geojson'
 import { Button } from '@/components/ui/button'
-import { geometryHandles, insertVertex, removeVertex } from './geometryEditing'
+import {
+  geometryHandles,
+  insertVertex,
+  MAX_EDITABLE_VERTICES,
+  removeVertex,
+  tooManyVerticesMessage,
+  vertexCount,
+} from './geometryEditing'
 export function GeometryEditorControls({
   geometry,
   onChange,
@@ -9,6 +16,16 @@ export function GeometryEditorControls({
   geometry: Geometry
   onChange: (g: Geometry) => void
 }) {
+  const count = vertexCount(geometry)
+  if (count > MAX_EDITABLE_VERTICES)
+    return (
+      <p className="mm-help" role="status">
+        {tooManyVerticesMessage(count)}
+      </p>
+    )
+  return <VertexControls geometry={geometry} onChange={onChange} />
+}
+function VertexControls({ geometry, onChange }: { geometry: Geometry; onChange: (g: Geometry) => void }) {
   const [index, setIndex] = useState(0),
     handles = geometryHandles(geometry)
   const current = handles.vertices[Math.min(index, handles.vertices.length - 1)]

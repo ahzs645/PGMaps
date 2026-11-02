@@ -58,11 +58,25 @@ export interface Mission {
 export const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export const uid = () => crypto.randomUUID()
 export const coordinate = (p: Position): Coordinate => [p[0], p[1]]
+/** Names and labels; attribute names that layers refer to may be longer. */
+export const MAX_TEXT = 200
+export const MAX_KEY_TEXT = 4096
+/** Shorten text to a stored limit without splitting a UTF-16 surrogate pair. */
+export function clampText(value: string, max = MAX_TEXT): string {
+  if (value.length <= max) return value
+  const cut = value.slice(0, max),
+    last = cut.charCodeAt(max - 1)
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut
+}
+/** “<name> copy”, keeping the suffix within the label limit. */
+export const copyLabel = (name: string) => `${clampText(name, MAX_TEXT - 5)} copy`
+/** File names, URL paths and typed names can exceed what a saved mission accepts; shorten them here. */
 export function makeLayer(name: string, data: FeatureCollection, group = 'Your layers'): MissionLayer {
   data = identifyFeatures(data)
+  name = clampText(name)
   return {
     ...layerFromUpload(uid(), name, { name, collection: data, skipped: 0 }),
-    group,
+    group: clampText(group),
     data,
     timeProperty: '',
     editable: false,

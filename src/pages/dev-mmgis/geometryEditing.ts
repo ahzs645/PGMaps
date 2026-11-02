@@ -34,6 +34,34 @@ function coordinateList(geometry: ReturnType<typeof leaf>, path: number[]): Posi
 function isRing(geometry: ReturnType<typeof leaf>) {
   return geometry.type === 'Polygon' || geometry.type === 'MultiPolygon'
 }
+/**
+ * Each editable vertex and edge midpoint is a DOM map marker, so a feature with thousands of vertices would freeze
+ * the tab. Larger geometries stay viewable, selectable, restylable and deletable, but not vertex-editable.
+ */
+export const MAX_EDITABLE_VERTICES = 1500
+/** Vertex handles a geometry would get (closing ring positions excluded), counted without building them. */
+export function vertexCount(geometry: Geometry): number {
+  switch (geometry.type) {
+    case 'Point':
+      return 1
+    case 'MultiPoint':
+    case 'LineString':
+      return geometry.coordinates.length
+    case 'MultiLineString':
+      return geometry.coordinates.reduce((n, line) => n + line.length, 0)
+    case 'Polygon':
+      return geometry.coordinates.reduce((n, ring) => n + Math.max(0, ring.length - 1), 0)
+    case 'MultiPolygon':
+      return geometry.coordinates.reduce(
+        (n, polygon) => n + polygon.reduce((m, ring) => m + Math.max(0, ring.length - 1), 0),
+        0,
+      )
+    case 'GeometryCollection':
+      return geometry.geometries.reduce((n, child) => n + vertexCount(child), 0)
+  }
+}
+export const tooManyVerticesMessage = (count: number) =>
+  `This geometry has ${count.toLocaleString()} vertices. Vertex editing is limited to ${MAX_EDITABLE_VERTICES.toLocaleString()} so the map stays responsive; simplify or split it in a desktop GIS, then import it again. Its properties can still be edited here.`
 export function geometryHandles(geometry: Geometry): { vertices: GeometryVertex[]; edges: GeometryEdge[] } {
   const vertices: GeometryVertex[] = [],
     edges: GeometryEdge[] = []
@@ -43,13 +71,9 @@ export function geometryHandles(geometry: Geometry): { vertices: GeometryVertex[
       const address = { collections, coordinates: [...prefix, i] }
       vertices.push({ address, point: [points[i][0], points[i][1]], removable: count > (ring ? 3 : edge ? 2 : 1) })
       const next = points[i + 1]
-      if (edge && next) {
-        const delta = ((next[0] - points[i][0] + 540) % 360) - 180
-        edges.push({
-          after: address,
-          point: [((points[i][0] + delta / 2 + 540) % 360) - 180, (points[i][1] + next[1]) / 2],
-        })
-      }
+      // MapLibre draws GeoJSON edges in plain longitude space (−100 → 100 passes through 0), so the midpoint does too.
+      if (edge && next)
+        edges.push({ after: address, point: [(points[i][0] + next[0]) / 2, (points[i][1] + next[1]) / 2] })
     }
   }
   const visit = (g: Geometry, collections: number[]) => {
@@ -96,11 +120,12 @@ export function insertVertex(geometry: Geometry, address: VertexAddress): Geomet
   const a = points[index],
     b = points[index + 1]
   if (!a || !b) throw new Error('Choose an edge between two vertices.')
-  const delta = ((b[0] - a[0] + 540) % 360) - 180
-  points.splice(index + 1, 0, [
-    ((a[0] + delta / 2 + 540) % 360) - 180,
-    ...a.slice(1).map((value, i) => (i + 1 < b.length ? (value + b[i + 1]) / 2 : value)),
-  ])
+  // The arithmetic midpoint lies on the edge as drawn; wrapping it would jump across the antimeridian.
+  points.splice(
+    index + 1,
+    0,
+    a.map((value, i) => (i < b.length ? (value + b[i]) / 2 : value)),
+  )
   return next
 }
 export function removeVertex(geometry: Geometry, address: VertexAddress): Geometry {

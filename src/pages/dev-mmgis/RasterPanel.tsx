@@ -3,7 +3,7 @@ import { Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { httpUrl } from './missionCodec'
-import { uid, type Mission, type Coordinate } from './model'
+import { clampText, uid, type Mission, type Coordinate } from './model'
 import type { LocalRaster } from '../dev-forestry/types'
 import { importLocalRaster } from '../dev-forestry/toolImports'
 import { sampleRaster } from './raster'
@@ -61,11 +61,11 @@ export function RasterPanel({
           ...m.tiles,
           {
             id: uid(),
-            name: name.trim() || 'Raster overlay',
+            name: clampText(name.trim()) || 'Raster overlay',
             tiles,
             visible: true,
             opacity: 0.75,
-            attribution,
+            attribution: clampText(attribution, 2000),
             ...(kind === 'cog' ? { cog: { url, service: base, band } } : {}),
           },
         ],

@@ -84,7 +84,14 @@ export function useViewshed(
         setState({
           key: job.key,
           result: data.result,
-          message: job.observers ? 'Combined viewshed ready' : job.preview ? 'Updating visibility…' : 'Viewshed ready',
+          message:
+            job.preview && !job.observers
+              ? 'Updating visibility…'
+              : `${job.observers ? 'Combined viewshed ready' : 'Viewshed ready'}${
+                  data.result.sampledRangeMeters < job.settings.radiusMeters
+                    ? ` · beyond ${Math.floor(data.result.sampledRangeMeters)} m this DEM is too fine to sample every half cell, so sightlines there stay unknown`
+                    : ''
+                }`,
           error: false,
           cacheHit: Boolean(data.cacheHit),
         })

@@ -49,7 +49,7 @@ describe('editing every geometry part', () => {
     expect(removed.coordinates[0]).toHaveLength(4)
     expect(() => removeVertex(removed, geometryHandles(removed).vertices[0].address)).toThrow('at least')
   })
-  it('inserts across the date line along the short arc', () => {
+  it('inserts on the edge as MapLibre draws it, which spans longitudes rather than wrapping the date line', () => {
     const g: Geometry = {
       type: 'LineString',
       coordinates: [
@@ -58,7 +58,7 @@ describe('editing every geometry part', () => {
       ],
     }
     const result = insertVertex(g, geometryHandles(g).edges[0].after)
-    expect(result.type === 'LineString' && result.coordinates[1]).toEqual([-180, 1, 20])
+    expect(result.type === 'LineString' && result.coordinates[1]).toEqual([0, 1, 20])
   })
   it('preserves minimum sizes for lines, multipoints and all rings', () => {
     for (const g of [

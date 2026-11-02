@@ -1,20 +1,55 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { demoMission } from './demo'
-import { readMissionJson, readMissionLink, STORAGE_KEY } from './missionCodec'
+import { readMissionJson, readMissionLink, STORAGE_KEY, UNREADABLE_BACKUP_KEY } from './missionCodec'
 import type { Mission } from './model'
+
+type MissionStorage = Pick<Storage, 'getItem' | 'setItem'>
+/**
+ * Open the saved workspace. One this version cannot read is copied to a backup key and left in place: the example
+ * opens, and `preserveStored` keeps autosave from overwriting the saved copy until the user changes something.
+ */
+export function loadStoredMission(storage: MissionStorage): {
+  mission: Mission
+  error: string
+  preserveStored: boolean
+} {
+  let saved: string | null = null
+  try {
+    saved = storage.getItem(STORAGE_KEY)
+  } catch {
+    return { mission: demoMission(), error: '', preserveStored: false }
+  }
+  if (!saved) return { mission: demoMission(), error: '', preserveStored: false }
+  try {
+    return { mission: readMissionJson(saved), error: '', preserveStored: false }
+  } catch (e) {
+    let backedUp = false
+    try {
+      storage.setItem(UNREADABLE_BACKUP_KEY, saved)
+      backedUp = true
+    } catch {
+      /* The saved copy is still kept in place until the user changes something. */
+    }
+    return {
+      mission: demoMission(),
+      preserveStored: true,
+      error: `The saved workspace could not be read${e instanceof Error ? ` (${e.message})` : ''}. The example mission is open; your saved workspace is kept on this device until you make a change${
+        backedUp ? `, and a copy stays in browser storage under “${UNREADABLE_BACKUP_KEY}”` : ''
+      }. You can import a mission file.`,
+    }
+  }
+}
 
 export function useMission() {
   const [initial] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return { mission: saved ? readMissionJson(saved) : demoMission(), error: '' }
+      return loadStoredMission(localStorage)
     } catch {
-      return {
-        mission: demoMission(),
-        error: 'The saved workspace could not be read. The example mission is open; you can import a mission file.',
-      }
+      return { mission: demoMission(), error: '', preserveStored: false } // Storage access itself is blocked.
     }
   })
+  /** Until the user edits, autosave must not replace a saved workspace that could not be read. */
+  const preserveStored = useRef(initial.preserveStored)
   const [snapshot, setSnapshot] = useState<{ mission: Mission; past: Mission[]; future: Mission[] }>({
     mission: initial.mission,
     past: [],
@@ -22,7 +57,11 @@ export function useMission() {
   })
   const mission = snapshot.mission
   const [error, setError] = useState(initial.error)
-  const [status, setStatus] = useState('Saved on this device')
+  const [status, setStatus] = useState(
+    initial.preserveStored
+      ? 'Not saved · the unreadable saved workspace is kept until you edit'
+      : 'Saved on this device',
+  )
   const current = useRef(snapshot)
   const change = useCallback((update: Mission | ((m: Mission) => Mission), record = true) => {
     const previous = current.current.mission
@@ -39,6 +78,7 @@ export function useMission() {
       future: record ? [] : latest.future,
     }
     current.current = value
+    preserveStored.current = false
     setSnapshot(value)
     setStatus('Saving on this device…')
   }, [])
@@ -79,6 +119,7 @@ export function useMission() {
   }, [change])
   useEffect(() => {
     const save = () => {
+      if (preserveStored.current) return
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(current.current.mission))
       } catch {
@@ -90,6 +131,7 @@ export function useMission() {
   }, [])
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (preserveStored.current) return
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(mission))
         setStatus('Saved on this device')

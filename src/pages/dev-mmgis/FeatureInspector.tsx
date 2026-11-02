@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Pencil, Table2, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
@@ -8,6 +8,7 @@ import type { MissionLayer } from './model'
 import type { Geometry } from 'geojson'
 import { PropertyTree } from './PropertyTree'
 import { GeometryEditorControls } from './GeometryEditorControls'
+import { MAX_EDITABLE_VERTICES, tooManyVerticesMessage, vertexCount } from './geometryEditing'
 
 export function FeatureInspector({
   feature,
@@ -50,6 +51,8 @@ export function FeatureInspector({
     ),
   )
   const [error, setError] = useState('')
+  const vertices = useMemo(() => (feature.geometry ? vertexCount(feature.geometry) : 0), [feature.geometry]),
+    tooManyVertices = vertices > MAX_EDITABLE_VERTICES
   return (
     <SidebarSection
       title="Selected feature"
@@ -103,10 +106,22 @@ export function FeatureInspector({
       {layer.editable && (
         <>
           <label className="mm-check">
-            <input type="checkbox" checked={editing} onChange={(e) => onEditing(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={editing && !tooManyVertices}
+              disabled={tooManyVertices}
+              aria-describedby={tooManyVertices ? 'mm-vertex-limit' : undefined}
+              onChange={(e) => onEditing(e.target.checked)}
+            />
             Edit geometry · drag vertex handles
           </label>
-          {editing && <GeometryEditorControls geometry={feature.geometry} onChange={onGeometry} />}
+          {tooManyVertices ? (
+            <p className="mm-help" id="mm-vertex-limit" role="status">
+              {tooManyVerticesMessage(vertices)}
+            </p>
+          ) : (
+            editing && <GeometryEditorControls geometry={feature.geometry} onChange={onGeometry} />
+          )}
           <label className="mm-field">
             Feature properties (JSON)
             <textarea rows={7} value={properties} onChange={(e) => setProperties(e.target.value)} />

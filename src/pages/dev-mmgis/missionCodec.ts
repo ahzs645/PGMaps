@@ -1,18 +1,30 @@
 import type { FeatureCollection, Geometry } from 'geojson'
 import { RAMPS, type LayerStyle } from '@/lib/layerStyle'
-import { makeLayer, type Camera, type Mission, type MissionLayer } from './model'
+import { clampText, makeLayer, MAX_KEY_TEXT, MAX_TEXT, type Camera, type Mission, type MissionLayer } from './model'
+export { clampText, MAX_KEY_TEXT, MAX_TEXT } from './model'
 import { identifyFeatures } from './featureIdentity'
 
 export const STORAGE_KEY = 'pgmaps:mmgis:mission:v1'
+/** Raw copy of a saved workspace this version could not read; never overwritten by autosave. */
+export const UNREADABLE_BACKUP_KEY = `${STORAGE_KEY}:unreadable`
+/** MapLibre's zoom bounds: the map's default minimum is −2 and its largest allowed maximum is 24. */
+export const MIN_ZOOM = -2
+export const MAX_ZOOM = 24
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
 const object = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Expected a mission object.')
   return v as Record<string, unknown>
 }
-const text = (v: unknown, max = 200) => {
+const text = (v: unknown, max = MAX_TEXT) => {
   if (typeof v !== 'string' || v.length > max) throw new Error('A mission text field is missing or too long.')
   return v
 }
+/** Display text is shortened rather than rejected, so files saved with longer names still open. */
+const label = (v: unknown, max = MAX_TEXT) => {
+  if (typeof v !== 'string') throw new Error('A mission text field is missing.')
+  return clampText(v, max)
+}
+const key = (v: unknown) => text(v, MAX_KEY_TEXT)
 const finite = (v: unknown, min: number, max: number) => {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
     throw new Error('A mission number is outside its allowed range.')
@@ -39,7 +51,7 @@ function camera(v: unknown): Camera {
   if (p.length !== 2) throw new Error('A camera needs longitude and latitude.')
   return {
     center: [finite(p[0], -180, 180), finite(p[1], -90, 90)],
-    zoom: finite(c.zoom, 0, 22),
+    zoom: finite(c.zoom, MIN_ZOOM, MAX_ZOOM),
     bearing: finite(c.bearing, -360, 360),
     pitch: finite(c.pitch, 0, 80),
   }
@@ -48,7 +60,7 @@ function style(v: unknown): LayerStyle | null {
   if (v === null || v === undefined) return null
   const s = object(v)
   if (s.type === 'simple') return { type: 'simple', color: color(s.color) }
-  const column = text(s.column)
+  const column = key(s.column)
   if (s.type === 'categories')
     return {
       type: 'categories',
@@ -135,7 +147,7 @@ export function parseMission(value: unknown): Mission {
       data = identifyFeatures(validateCollection(l.data))
     if (!id || ids.has(id)) throw new Error('Layer IDs must be unique.')
     ids.add(id)
-    const base = makeLayer(text(l.label), data, text(l.group))
+    const base = makeLayer(label(l.label), data, label(l.group))
     if (!['point', 'line', 'fill'].includes(String(l.geometry))) throw new Error('Unsupported layer geometry.')
     const filter = l.filter === null ? null : object(l.filter)
     return {
@@ -148,11 +160,11 @@ export function parseMission(value: unknown): Mission {
       showInLegend: l.showInLegend === true,
       editable: l.editable === true,
       hiddenFeatures: l.hiddenFeatures === undefined ? [] : list(l.hiddenFeatures, 100000).map((v) => text(v, 4096)),
-      timeProperty: text(l.timeProperty ?? ''),
-      nameKey: typeof l.nameKey === 'string' ? text(l.nameKey) : undefined,
-      description: typeof l.description === 'string' ? text(l.description, 10000) : undefined,
+      timeProperty: key(l.timeProperty ?? ''),
+      nameKey: typeof l.nameKey === 'string' ? key(l.nameKey) : undefined,
+      description: typeof l.description === 'string' ? label(l.description, 10000) : undefined,
       filter: filter
-        ? { column: text(filter.column), values: list(filter.values, 10000).map((v) => text(v, 4096)) }
+        ? { column: key(filter.column), values: list(filter.values, 10000).map((v) => text(v, 4096)) }
         : null,
     }
   })
@@ -165,8 +177,8 @@ export function parseMission(value: unknown): Mission {
   return {
     schema: 'pgmaps-mission-v1',
     id: text(m.id),
-    name: text(m.name),
-    description: text(m.description, 10000),
+    name: label(m.name),
+    description: label(m.description, 10000),
     layers,
     camera: camera(m.camera),
     view: m.view as Mission['view'],
@@ -177,7 +189,7 @@ export function parseMission(value: unknown): Mission {
         cog = t.cog ? object(t.cog) : null
       return {
         id: text(t.id),
-        name: text(t.name),
+        name: label(t.name),
         tiles: list(t.tiles, 8).map((v) => {
           const url = text(v, 4096)
           httpUrl(url)
@@ -185,7 +197,7 @@ export function parseMission(value: unknown): Mission {
         }),
         visible: t.visible === true,
         opacity: finite(t.opacity, 0, 1),
-        attribution: text(t.attribution, 2000),
+        attribution: label(t.attribution, 2000),
         ...(cog
           ? {
               cog: {
@@ -209,7 +221,7 @@ export function parseMission(value: unknown): Mission {
             visible: l.visible === true,
             opacity: finite(l.opacity, 0, 1),
             style: style(l.style),
-            filter: f ? { column: text(f.column), values: list(f.values, 10000).map((v) => text(v, 4096)) } : null,
+            filter: f ? { column: key(f.column), values: list(f.values, 10000).map((v) => text(v, 4096)) } : null,
           }
         })
       if (b.tiles !== undefined)
@@ -230,7 +242,7 @@ export function parseMission(value: unknown): Mission {
         preset.view = b.view as Mission['view']
       }
       if (b.terrain !== undefined) preset.terrain = b.terrain === true
-      return { ...preset, id: text(b.id), name: text(b.name), camera: camera(b.camera) }
+      return { ...preset, id: text(b.id), name: label(b.name), camera: camera(b.camera) }
     }),
   }
 }

@@ -7,7 +7,7 @@ import { primaryColor } from '@/lib/layerStyle'
 import { LayerDetail } from '../dev-data/LayerDetail'
 import { LayerLegend } from '../dev-data/LayerLegend'
 import { effectiveStyle, type LoadedLayer, type ViewportBounds } from '../dev-data/layerData'
-import { moveLayer, updateLayers, uid, type Mission } from './model'
+import { clampText, copyLabel, MAX_KEY_TEXT, moveLayer, updateLayers, uid, type Mission } from './model'
 
 export function LayersPanel({
   mission,
@@ -79,7 +79,9 @@ export function LayersPanel({
               onChange={(e) =>
                 change((m) => ({
                   ...m,
-                  layers: m.layers.map((l) => (l.id === active.id ? { ...l, timeProperty: e.target.value } : l)),
+                  layers: m.layers.map((l) =>
+                    l.id === active.id ? { ...l, timeProperty: clampText(e.target.value, MAX_KEY_TEXT) } : l,
+                  ),
                 }))
               }
             >
@@ -183,7 +185,7 @@ export function LayersPanel({
                     onSelect: () =>
                       change((m) => ({
                         ...m,
-                        layers: [...m.layers, { ...l, id: uid(), label: `${l.label} copy`, editable: true }],
+                        layers: [...m.layers, { ...l, id: uid(), label: copyLabel(l.label), editable: true }],
                       })),
                   },
                   {

@@ -5,7 +5,7 @@ import { SidebarSection } from '@/components/ui/map-panels'
 import { downloadText } from '@pgmaps/geo-toolkit/export'
 import { demoMission } from './demo'
 import { MAX_PROJECT_BYTES, missionLink, readMissionJson } from './missionCodec'
-import { uid, type Camera, type Mission } from './model'
+import { copyLabel, uid, type Camera, type Mission } from './model'
 import { captureSite, restoreSite } from './sites'
 
 export function WorkspacePanel({
@@ -74,7 +74,7 @@ export function WorkspacePanel({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => change((m) => ({ ...m, id: uid(), name: `${m.name} copy` }))}
+            onClick={() => change((m) => ({ ...m, id: uid(), name: copyLabel(m.name) }))}
           >
             <Copy size={14} />
             Duplicate

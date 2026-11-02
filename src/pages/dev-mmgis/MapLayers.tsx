@@ -15,7 +15,7 @@ import {
   type Tool,
 } from './model'
 import type { Geometry } from 'geojson'
-import { geometryHandles, insertVertex, removeVertex } from './geometryEditing'
+import { geometryHandles, insertVertex, MAX_EDITABLE_VERTICES, removeVertex, vertexCount } from './geometryEditing'
 
 const VectorLayer = memo(function VectorLayer({
   layer,
@@ -197,6 +197,11 @@ export function DrawingOverlay({
   )
 }
 export function VertexEditor({ geometry, onChange }: { geometry: Geometry; onChange: (g: Geometry) => void }) {
+  // The inspector explains the limit; one DOM marker per vertex and midpoint would freeze the tab.
+  if (vertexCount(geometry) > MAX_EDITABLE_VERTICES) return null
+  return <VertexHandles geometry={geometry} onChange={onChange} />
+}
+function VertexHandles({ geometry, onChange }: { geometry: Geometry; onChange: (g: Geometry) => void }) {
   const handles = geometryHandles(geometry)
   return (
     <>
