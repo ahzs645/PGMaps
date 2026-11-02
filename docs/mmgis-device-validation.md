@@ -119,6 +119,8 @@ outside the implemented subset on both desktop and mobile.
 - Send the actual raster cells to the visibility worker while using their hash
   for cache identity. The imported-DEM case rejects remote elevation access and
   checks worker output, rather than just the presence of controls.
+- Wait for ResizeObserver/render frames after toolbar or sheet layout changes before placing native map input. The snapping/closure journey was repeated three times per engine/device profile (12 runs).
+- The wider rebase validation also fixes an existing Nechako browser reload check: wait for DialogShell’s exit callback to clear the panel URL before reload. All four local style/persistence cases pass on desktop/phone.
 - Preserve feature IDs through deletion, transport and hidden-state restoration;
   distinguish numeric zero and boolean false from missing data.
 - New-hole drawing, profile line of sight and matched upstream analysis numerics are still pending.

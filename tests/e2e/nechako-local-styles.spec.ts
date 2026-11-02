@@ -60,6 +60,10 @@ async function exportWorkspace(page: Page, save = false) {
   const result = JSON.parse(readFileSync((await (await downloading).path())!, 'utf8'))
   if (save) await dialog.getByRole('button', { name: 'Save workspace in browser', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  // DialogShell calls onClose after its exit completes. Wait for the URL too:
+  // reloading earlier reopens Projects and hides navigation behind the modal.
+  await expect(dialog).toBeHidden()
+  await expect.poll(() => new URL(page.url()).searchParams.get('panel')).toBeNull()
   return result
 }
 async function countMapColors(page: Page, colors: number[][]) {

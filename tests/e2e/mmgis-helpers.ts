@@ -134,6 +134,11 @@ export async function panel(page: Page, name: string) {
   )
 }
 export async function mapTap(page: Page, x = 0.35, y = 0.45) {
+  // Toolbar and sheet changes resize the map through ResizeObserver. Let that
+  // observer and the renderer finish before deriving a canvas-relative input.
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  )
   const canvas = page.getByTestId('mission-plan').locator('canvas.maplibregl-canvas')
   const box = (await canvas.boundingBox())!
   if (await page.evaluate(() => navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches))
