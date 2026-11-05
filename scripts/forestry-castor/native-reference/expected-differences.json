@@ -1,0 +1,2991 @@
+{
+  "schema": "castor-expected-differences-v1",
+  "reasons": {
+    "post-harvest-reset": "Upstream clears age, volume and salvage volume but retains height, ECA, crown closure, basal area and QMD until subsequent growth (upstream-forestryCastor.R:644,685,703). The browser immediately resets the harvested stand attributes (engine.ts:466-475).",
+    "salvage-raster-volume": "Upstream harvestBlocksVolume writes live vol_h even for dead harvest (upstream-forestryCastor.R:720-722); native dead-harvest reporting uses salvage volume at lines 691-697. The browser raster records actual harvested dead volume (engine.ts:462,570,591).",
+    "candidate-cap": "Upstream LIMIT trunc(target/50) excludes all candidates in this low-volume fixture (upstream-forestryCastor.R:585-593). The browser traverses the full eligible queue, affecting harvest and subsequent state/reports (engine.ts:665-708).",
+    "final-yield-endpoint": "Without an upper interpolation knot upstream retains previous/input attributes (upstream-growingStockCastor.R:94-107,165-178). The browser holds the last supplied endpoint (growth.ts:16-20,45-51).",
+    "maximum-age-clamp": "Upstream increments 349 to 351 and then excludes the cell from growth interpolation (upstream-growingStockCastor.R:159-165). The browser clamps age to 350 and updates yield (engine.ts:376-379).",
+    "scheduled-constraint-enforcement": "Upstream followSchedule bypasses setConstraints (upstream-forestryCastor.R:93-100). The browser evaluates and enforces constraints, affecting selection, later state and reports (engine.ts:382-383,535-546,770)."
+  },
+  "cases": [
+    {
+      "id": "growth",
+      "differences": []
+    },
+    {
+      "id": "live-harvest",
+      "differences": [
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 20.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.eca",
+          "native": 0,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 34,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 25.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.height",
+          "native": 19.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.eca",
+          "native": 0.03,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.basalArea",
+          "native": 32.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.qmd",
+          "native": 24.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.3.height",
+          "native": 18.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.3.eca",
+          "native": 0.08,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.3.basalArea",
+          "native": 30.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.3.qmd",
+          "native": 23,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "cover-ge",
+      "differences": [
+        {
+          "path": "period.1.pixel.3.height",
+          "native": 16.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.eca",
+          "native": 0.18,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.basalArea",
+          "native": 27.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.qmd",
+          "native": 20.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.height",
+          "native": 11.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.eca",
+          "native": 0.43,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.crownClosure",
+          "native": 57,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.basalArea",
+          "native": 19,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.qmd",
+          "native": 14.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.height",
+          "native": 9.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.eca",
+          "native": 0.53,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.crownClosure",
+          "native": 47,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.basalArea",
+          "native": 15.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.qmd",
+          "native": 11.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.height",
+          "native": 7.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.eca",
+          "native": 0.63,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.crownClosure",
+          "native": 37,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.basalArea",
+          "native": 12.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.qmd",
+          "native": 9.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "cover-le",
+      "differences": [
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 20.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.eca",
+          "native": 0,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 34,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 25.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.height",
+          "native": 19.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.eca",
+          "native": 0.03,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.basalArea",
+          "native": 32.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.qmd",
+          "native": 24.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.height",
+          "native": 9.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.eca",
+          "native": 0.53,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.crownClosure",
+          "native": 47,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.basalArea",
+          "native": 15.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.qmd",
+          "native": 11.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.height",
+          "native": 8.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.eca",
+          "native": 0.58,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.crownClosure",
+          "native": 42,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.basalArea",
+          "native": 14,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.qmd",
+          "native": 10.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "temporal-no-harvest",
+      "differences": [
+        {
+          "path": "period.1.pixel.3.height",
+          "native": 16.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.eca",
+          "native": 0.18,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.basalArea",
+          "native": 27.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.qmd",
+          "native": 20.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.height",
+          "native": 21.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.eca",
+          "native": 0,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.basalArea",
+          "native": 35.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.qmd",
+          "native": 26.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.height",
+          "native": 19.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.eca",
+          "native": 0.03,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.basalArea",
+          "native": 32.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.2.qmd",
+          "native": 24.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.7.height",
+          "native": 10.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.7.eca",
+          "native": 0.48,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.7.crownClosure",
+          "native": 52,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.7.basalArea",
+          "native": 17.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.7.qmd",
+          "native": 13,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.height",
+          "native": 8.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.eca",
+          "native": 0.58,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.crownClosure",
+          "native": 42,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.basalArea",
+          "native": 14,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.8.qmd",
+          "native": 10.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "distance-ge",
+      "differences": [
+        {
+          "path": "period.1.pixel.3.height",
+          "native": 16.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.eca",
+          "native": 0.18,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.basalArea",
+          "native": 27.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.qmd",
+          "native": 20.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.height",
+          "native": 11.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.eca",
+          "native": 0.43,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.crownClosure",
+          "native": 57,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.basalArea",
+          "native": 19,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.qmd",
+          "native": 14.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.height",
+          "native": 9.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.eca",
+          "native": 0.53,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.crownClosure",
+          "native": 47,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.basalArea",
+          "native": 15.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.qmd",
+          "native": 11.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.height",
+          "native": 7.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.eca",
+          "native": 0.63,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.crownClosure",
+          "native": 37,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.basalArea",
+          "native": 12.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.qmd",
+          "native": 9.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "multi-condition",
+      "differences": [
+        {
+          "path": "period.1.pixel.3.height",
+          "native": 16.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.eca",
+          "native": 0.18,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.basalArea",
+          "native": 27.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.3.qmd",
+          "native": 20.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.4.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.5.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.height",
+          "native": 11.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.eca",
+          "native": 0.43,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.crownClosure",
+          "native": 57,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.basalArea",
+          "native": 19,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.6.qmd",
+          "native": 14.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.height",
+          "native": 9.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.eca",
+          "native": 0.53,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.crownClosure",
+          "native": 47,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.basalArea",
+          "native": 15.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.7.qmd",
+          "native": 11.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.height",
+          "native": 7.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.eca",
+          "native": 0.63,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.crownClosure",
+          "native": 37,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.basalArea",
+          "native": 12.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.8.qmd",
+          "native": 9.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "denominator",
+      "differences": [
+        {
+          "path": "period.1.pixel.6.height",
+          "native": 10.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.6.eca",
+          "native": 0.48,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.6.crownClosure",
+          "native": 52,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.6.basalArea",
+          "native": 17.3333333333333,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.6.qmd",
+          "native": 13,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.7.height",
+          "native": 8.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.7.eca",
+          "native": 0.58,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.7.crownClosure",
+          "native": 42,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.7.basalArea",
+          "native": 14,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.7.qmd",
+          "native": 10.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.8.height",
+          "native": 6.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.8.eca",
+          "native": 0.68,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.8.crownClosure",
+          "native": 32,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.8.basalArea",
+          "native": 10.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.8.qmd",
+          "native": 8,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "salvage",
+      "differences": [
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 20.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.eca",
+          "native": 0,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.1.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 34,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 25.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.2.height",
+          "native": 18.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.2.eca",
+          "native": 0.08,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.2.harvestVolumeM3",
+          "native": 184,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.1.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.2.basalArea",
+          "native": 30.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.1.pixel.2.qmd",
+          "native": 23,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.2.pixel.2.harvestVolumeM3",
+          "native": 184,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.2.pixel.3.height",
+          "native": 17.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.3.eca",
+          "native": 0.13,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.3.harvestVolumeM3",
+          "native": 174,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.2.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.3.basalArea",
+          "native": 29,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.3.qmd",
+          "native": 21.75,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.4.height",
+          "native": 15.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.4.eca",
+          "native": 0.23,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.4.harvestVolumeM3",
+          "native": 154,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.2.pixel.4.crownClosure",
+          "native": 77,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.4.basalArea",
+          "native": 25.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.2.pixel.4.qmd",
+          "native": 19.25,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.2.harvestVolumeM3",
+          "native": 184,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.3.harvestVolumeM3",
+          "native": 174,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.4.harvestVolumeM3",
+          "native": 154,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.5.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.5.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.5.harvestVolumeM3",
+          "native": 144,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.5.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.5.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.5.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.harvestVolumeM3",
+          "native": 124,
+          "browser": 100,
+          "reason": "salvage-raster-volume"
+        },
+        {
+          "path": "period.3.pixel.6.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        },
+        {
+          "path": "period.3.pixel.6.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "post-harvest-reset"
+        }
+      ]
+    },
+    {
+      "id": "candidate-limit",
+      "differences": [
+        {
+          "path": "period.1.pixel.1.age",
+          "native": 102,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 20.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.eca",
+          "native": 0,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 34,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 25.5,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.age",
+          "native": 92,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.height",
+          "native": 18.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.eca",
+          "native": 0.08,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.basalArea",
+          "native": 30.6666666666667,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.pixel.2.qmd",
+          "native": 23,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.landings",
+          "native": [],
+          "browser": [
+            1,
+            2
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.selected",
+          "native": [],
+          "browser": [
+            1,
+            2
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.harvestVolumeM3",
+          "native": 0,
+          "browser": 40,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.1.harvestAreaHa",
+          "native": 0,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.age",
+          "native": 107,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.height",
+          "native": 21.4,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.eca",
+          "native": 0,
+          "browser": 0.95,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.basalArea",
+          "native": 35.6666666666667,
+          "browser": 1.6666666666666667,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.1.qmd",
+          "native": 26.75,
+          "browser": 1.25,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.age",
+          "native": 97,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.height",
+          "native": 19.4,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.eca",
+          "native": 0.03,
+          "browser": 0.95,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.basalArea",
+          "native": 32.3333333333333,
+          "browser": 1.6666666666666667,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.2.qmd",
+          "native": 24.25,
+          "browser": 1.25,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.age",
+          "native": 87,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.height",
+          "native": 17.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.eca",
+          "native": 0.13,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.harvestYear",
+          "native": 0,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.basalArea",
+          "native": 29,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.3.qmd",
+          "native": 21.75,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.age",
+          "native": 77,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.height",
+          "native": 15.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.eca",
+          "native": 0.23,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.harvestYear",
+          "native": 0,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.crownClosure",
+          "native": 77,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.basalArea",
+          "native": 25.6666666666667,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.pixel.4.qmd",
+          "native": 19.25,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.landings",
+          "native": [],
+          "browser": [
+            3,
+            4
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.selected",
+          "native": [],
+          "browser": [
+            3,
+            4
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.harvestVolumeM3",
+          "native": 0,
+          "browser": 40,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.2.harvestAreaHa",
+          "native": 0,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.age",
+          "native": 112,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.height",
+          "native": 22.4,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.eca",
+          "native": 0,
+          "browser": 0.9,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.crownClosure",
+          "native": 80,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.basalArea",
+          "native": 37.3333333333333,
+          "browser": 3.3333333333333335,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.1.qmd",
+          "native": 28,
+          "browser": 2.5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.age",
+          "native": 102,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.height",
+          "native": 20.4,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.eca",
+          "native": 0,
+          "browser": 0.9,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.harvestYear",
+          "native": 0,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.crownClosure",
+          "native": 80,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.basalArea",
+          "native": 34,
+          "browser": 3.3333333333333335,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.2.qmd",
+          "native": 25.5,
+          "browser": 2.5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.age",
+          "native": 92,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.height",
+          "native": 18.4,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.eca",
+          "native": 0.08,
+          "browser": 0.95,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.harvestYear",
+          "native": 0,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.crownClosure",
+          "native": 80,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.basalArea",
+          "native": 30.6666666666667,
+          "browser": 1.6666666666666667,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.3.qmd",
+          "native": 23,
+          "browser": 1.25,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.age",
+          "native": 82,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.height",
+          "native": 16.4,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.eca",
+          "native": 0.18,
+          "browser": 0.95,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.harvestYear",
+          "native": 0,
+          "browser": 10,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.crownClosure",
+          "native": 80,
+          "browser": 5,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.basalArea",
+          "native": 27.3333333333333,
+          "browser": 1.6666666666666667,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.4.qmd",
+          "native": 20.5,
+          "browser": 1.25,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.age",
+          "native": 72,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.height",
+          "native": 14.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.eca",
+          "native": 0.28,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.harvestYear",
+          "native": 0,
+          "browser": 15,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.crownClosure",
+          "native": 72,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.basalArea",
+          "native": 24,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.5.qmd",
+          "native": 18,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.age",
+          "native": 62,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.volume",
+          "native": 20,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.height",
+          "native": 12.4,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.eca",
+          "native": 0.38,
+          "browser": 1,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.harvestYear",
+          "native": 0,
+          "browser": 15,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.harvestVolumeM3",
+          "native": 0,
+          "browser": 20,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.yieldid",
+          "native": 1,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.crownClosure",
+          "native": 62,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.basalArea",
+          "native": 20.6666666666667,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.pixel.6.qmd",
+          "native": 15.5,
+          "browser": 0,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.landings",
+          "native": [],
+          "browser": [
+            5,
+            6
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.selected",
+          "native": [],
+          "browser": [
+            5,
+            6
+          ],
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.harvestVolumeM3",
+          "native": 0,
+          "browser": 40,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "period.3.harvestAreaHa",
+          "native": 0,
+          "browser": 2,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "stock.5.A",
+          "native": 160,
+          "browser": 120,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "stock.10.A",
+          "native": 160,
+          "browser": 120,
+          "reason": "candidate-cap"
+        },
+        {
+          "path": "stock.15.A",
+          "native": 160,
+          "browser": 120,
+          "reason": "candidate-cap"
+        }
+      ]
+    },
+    {
+      "id": "yield-endpoint",
+      "differences": [
+        {
+          "path": "period.0.pixel.1.volume",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.0.pixel.1.height",
+          "native": 11,
+          "browser": 50,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.0.pixel.1.eca",
+          "native": 0.3,
+          "browser": 0,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "beforeStock.1.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.volume",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 11,
+          "browser": 50,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.eca",
+          "native": 0.3,
+          "browser": 0,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.crownClosure",
+          "native": 0,
+          "browser": 80,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 0,
+          "browser": 83.33333333333333,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 0,
+          "browser": 62.5,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "beforeStock.2.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.volume",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.height",
+          "native": 11,
+          "browser": 50,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.eca",
+          "native": 0.3,
+          "browser": 0,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.crownClosure",
+          "native": 0,
+          "browser": 80,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.basalArea",
+          "native": 0,
+          "browser": 83.33333333333333,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.2.pixel.1.qmd",
+          "native": 0,
+          "browser": 62.5,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "beforeStock.3.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.volume",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.height",
+          "native": 11,
+          "browser": 50,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.eca",
+          "native": 0.3,
+          "browser": 0,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.crownClosure",
+          "native": 0,
+          "browser": 80,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.basalArea",
+          "native": 0,
+          "browser": 83.33333333333333,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "period.3.pixel.1.qmd",
+          "native": 0,
+          "browser": 62.5,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "stock.0.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "stock.5.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "stock.10.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        },
+        {
+          "path": "stock.15.A",
+          "native": 17,
+          "browser": 500,
+          "reason": "final-yield-endpoint"
+        }
+      ]
+    },
+    {
+      "id": "maximum-age",
+      "differences": [
+        {
+          "path": "beforeStock.1.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.1.pixel.1.age",
+          "native": 351,
+          "browser": 350,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.1.pixel.1.volume",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.1.pixel.1.height",
+          "native": 69.8,
+          "browser": 70,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.1.pixel.1.basalArea",
+          "native": 116.333333333333,
+          "browser": 116.66666666666667,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.1.pixel.1.qmd",
+          "native": 87.25,
+          "browser": 87.5,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "beforeStock.2.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.2.pixel.1.age",
+          "native": 351,
+          "browser": 350,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.2.pixel.1.volume",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.2.pixel.1.height",
+          "native": 69.8,
+          "browser": 70,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.2.pixel.1.basalArea",
+          "native": 116.333333333333,
+          "browser": 116.66666666666667,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.2.pixel.1.qmd",
+          "native": 87.25,
+          "browser": 87.5,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "beforeStock.3.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.3.pixel.1.age",
+          "native": 351,
+          "browser": 350,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.3.pixel.1.volume",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.3.pixel.1.height",
+          "native": 69.8,
+          "browser": 70,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.3.pixel.1.basalArea",
+          "native": 116.333333333333,
+          "browser": 116.66666666666667,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "period.3.pixel.1.qmd",
+          "native": 87.25,
+          "browser": 87.5,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "stock.5.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "stock.10.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        },
+        {
+          "path": "stock.15.A",
+          "native": 698,
+          "browser": 700,
+          "reason": "maximum-age-clamp"
+        }
+      ]
+    },
+    {
+      "id": "schedule-constraints",
+      "differences": [
+        {
+          "path": "period.1.pixel.1.age",
+          "native": 0,
+          "browser": 102,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.volume",
+          "native": 0,
+          "browser": 204,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.harvestYear",
+          "native": 5,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.1.yieldid",
+          "native": 2,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.2.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.2.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.3.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.3.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.4.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.4.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.5.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.5.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.6.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.6.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.7.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.7.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.8.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.pixel.8.constrainedPeriods",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.landings",
+          "native": [
+            1
+          ],
+          "browser": [],
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.selected",
+          "native": [
+            1
+          ],
+          "browser": [],
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.1.harvestAreaHa",
+          "native": 1,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "beforeStock.2.A",
+          "native": 950.5,
+          "browser": 1152,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.age",
+          "native": 5,
+          "browser": 107,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.volume",
+          "native": 12.5,
+          "browser": 214,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.height",
+          "native": 1,
+          "browser": 21.4,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.eca",
+          "native": 0.95,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.harvestYear",
+          "native": 5,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.yieldid",
+          "native": 2,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.crownClosure",
+          "native": 5,
+          "browser": 80,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.basalArea",
+          "native": 1.66666666666667,
+          "browser": 35.666666666666664,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.1.qmd",
+          "native": 1.25,
+          "browser": 26.75,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.2.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.2.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.3.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.3.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.4.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.4.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.5.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.5.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.6.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.6.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.7.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.7.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.8.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.2.pixel.8.constrainedPeriods",
+          "native": 0,
+          "browser": 2,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "beforeStock.3.A",
+          "native": 1033,
+          "browser": 1232,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.age",
+          "native": 10,
+          "browser": 112,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.volume",
+          "native": 25,
+          "browser": 224,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.height",
+          "native": 2,
+          "browser": 22.4,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.eca",
+          "native": 0.9,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.harvestYear",
+          "native": 5,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.harvestVolumeM3",
+          "native": 204,
+          "browser": 0,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.yieldid",
+          "native": 2,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.crownClosure",
+          "native": 10,
+          "browser": 80,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.basalArea",
+          "native": 3.33333333333333,
+          "browser": 37.33333333333333,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.1.qmd",
+          "native": 2.5,
+          "browser": 28,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.2.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.2.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.3.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.3.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.4.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.4.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.5.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.5.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.6.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.6.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.7.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.7.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.8.constrained",
+          "native": 0,
+          "browser": 1,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "period.3.pixel.8.constrainedPeriods",
+          "native": 0,
+          "browser": 3,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "stock.5.A",
+          "native": 868,
+          "browser": 1072,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "stock.10.A",
+          "native": 950.5,
+          "browser": 1152,
+          "reason": "scheduled-constraint-enforcement"
+        },
+        {
+          "path": "stock.15.A",
+          "native": 1033,
+          "browser": 1232,
+          "reason": "scheduled-constraint-enforcement"
+        }
+      ]
+    }
+  ]
+}
